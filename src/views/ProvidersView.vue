@@ -213,7 +213,7 @@ h1 {
 }
 
 .banner--error {
-  color: #c42b1c;
+  color: var(--fluent-color-status-danger);
 }
 
 .list {

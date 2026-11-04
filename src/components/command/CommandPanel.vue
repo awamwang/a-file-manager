@@ -179,7 +179,7 @@ function flatIndexFor(commandId: string): number {
   align-items: flex-start;
   justify-content: center;
   padding-top: 12vh;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--fluent-overlay-scrim);
 }
 
 .cmd-panel {
@@ -190,7 +190,7 @@ function flatIndexFor(commandId: string): number {
   border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   border-radius: var(--fluent-radius-lg);
   background: var(--fluent-color-fill-control);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--fluent-shadow-flyout);
   overflow: hidden;
 }
 
@@ -221,7 +221,7 @@ function flatIndexFor(commandId: string): number {
 }
 
 .cmd-input:focus {
-  outline: 2px solid var(--fluent-color-fill-accent);
+  outline: 2px solid var(--fluent-color-stroke-focus);
   outline-offset: 1px;
 }
 
@@ -256,12 +256,12 @@ function flatIndexFor(commandId: string): number {
   cursor: pointer;
 }
 
-.cmd-item--active,
 .cmd-item:hover {
-  background: var(--fluent-color-fill-subtle);
+  background: var(--fluent-color-fill-control-hover);
 }
 
 .cmd-item--active {
+  background: var(--fluent-color-fill-selected);
   outline: 1px solid var(--fluent-color-fill-accent);
   outline-offset: -1px;
 }

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
- * Fluent / Win11 Explorer–oriented design tokens.
- * Density: Standard for chrome (locked). Compact reserved for file-list rows later.
- * Custom titlebar Snap is deferred to S9; S1 chrome zones consume these heights.
+ * Fluent / Win11 Explorer–oriented design tokens + chrome utilities.
+ * Density: Standard for chrome (locked). Compact reserved for file-list rows only.
+ * Theme: light | dark | system via html[data-theme]; system follows prefers-color-scheme.
  */
 
 :root {
@@ -20,9 +20,13 @@
   --fluent-titlebar-button-width: 46px; /* sync: snap_chrome::BUTTON_WIDTH_PX */
   --fluent-toolbar-height: 40px;
   --fluent-addressbar-height: 36px;
+  --fluent-statusbar-height: 32px;
+  --fluent-sidenav-width: 200px;
+  --fluent-checkbox-size: 18px;
 
   --fluent-font-family:
     "Segoe UI Variable", "Segoe UI", "Yu Gothic UI", "Meiryo UI", system-ui, sans-serif;
+  --fluent-font-family-mono: Consolas, "Courier New", ui-monospace, monospace;
   --fluent-font-size-caption: 12px;
   --fluent-font-size-body: 14px;
   --fluent-font-size-subtitle: 16px;
@@ -35,26 +39,95 @@
   --fluent-radius-md: 6px;
   --fluent-radius-lg: 8px;
 
+  --fluent-shadow-flyout: 0 8px 24px rgba(0, 0, 0, 0.18);
+  --fluent-overlay-scrim: rgba(0, 0, 0, 0.35);
+
+  /* Light palette (default) */
   --fluent-color-text-primary: #1a1a1a;
   --fluent-color-text-secondary: #5d5d5d;
+  --fluent-color-text-disabled: #9a9a9a;
   --fluent-color-stroke-divider: #e5e5e5;
+  --fluent-color-stroke-focus: #005fb8;
   --fluent-color-fill-subtle: #f3f3f3;
+  --fluent-color-fill-subtle-secondary: #ebebeb;
   --fluent-color-fill-control: #ffffff;
+  --fluent-color-fill-control-hover: #f9f9f9;
+  --fluent-color-fill-control-pressed: #f0f0f0;
+  --fluent-color-fill-selected: #e8f1fa;
   --fluent-color-fill-accent: #005fb8;
+  --fluent-color-fill-accent-hover: #00529c;
   --fluent-color-text-on-accent: #ffffff;
+  --fluent-color-status-danger: #c42b1c;
+  --fluent-color-status-danger-bg: #fde7e9;
+  --fluent-color-status-success: #0f7b0f;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --fluent-color-text-primary: #ffffff;
     --fluent-color-text-secondary: #c5c5c5;
+    --fluent-color-text-disabled: #8a8a8a;
     --fluent-color-stroke-divider: #3b3b3b;
+    --fluent-color-stroke-focus: #60cdff;
     --fluent-color-fill-subtle: #2c2c2c;
+    --fluent-color-fill-subtle-secondary: #262626;
     --fluent-color-fill-control: #1f1f1f;
+    --fluent-color-fill-control-hover: #2a2a2a;
+    --fluent-color-fill-control-pressed: #232323;
+    --fluent-color-fill-selected: #1a3a4d;
     --fluent-color-fill-accent: #60cdff;
+    --fluent-color-fill-accent-hover: #7ad5ff;
     --fluent-color-text-on-accent: #000000;
+    --fluent-color-status-danger: #ff99a4;
+    --fluent-color-status-danger-bg: #442726;
+    --fluent-color-status-success: #6ccb5f;
+    --fluent-shadow-flyout: 0 8px 24px rgba(0, 0, 0, 0.45);
   }
 }
+
+html[data-theme="dark"] {
+  --fluent-color-text-primary: #ffffff;
+  --fluent-color-text-secondary: #c5c5c5;
+  --fluent-color-text-disabled: #8a8a8a;
+  --fluent-color-stroke-divider: #3b3b3b;
+  --fluent-color-stroke-focus: #60cdff;
+  --fluent-color-fill-subtle: #2c2c2c;
+  --fluent-color-fill-subtle-secondary: #262626;
+  --fluent-color-fill-control: #1f1f1f;
+  --fluent-color-fill-control-hover: #2a2a2a;
+  --fluent-color-fill-control-pressed: #232323;
+  --fluent-color-fill-selected: #1a3a4d;
+  --fluent-color-fill-accent: #60cdff;
+  --fluent-color-fill-accent-hover: #7ad5ff;
+  --fluent-color-text-on-accent: #000000;
+  --fluent-color-status-danger: #ff99a4;
+  --fluent-color-status-danger-bg: #442726;
+  --fluent-color-status-success: #6ccb5f;
+  --fluent-shadow-flyout: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+html[data-theme="light"] {
+  --fluent-color-text-primary: #1a1a1a;
+  --fluent-color-text-secondary: #5d5d5d;
+  --fluent-color-text-disabled: #9a9a9a;
+  --fluent-color-stroke-divider: #e5e5e5;
+  --fluent-color-stroke-focus: #005fb8;
+  --fluent-color-fill-subtle: #f3f3f3;
+  --fluent-color-fill-subtle-secondary: #ebebeb;
+  --fluent-color-fill-control: #ffffff;
+  --fluent-color-fill-control-hover: #f9f9f9;
+  --fluent-color-fill-control-pressed: #f0f0f0;
+  --fluent-color-fill-selected: #e8f1fa;
+  --fluent-color-fill-accent: #005fb8;
+  --fluent-color-fill-accent-hover: #00529c;
+  --fluent-color-text-on-accent: #ffffff;
+  --fluent-color-status-danger: #c42b1c;
+  --fluent-color-status-danger-bg: #fde7e9;
+  --fluent-color-status-success: #0f7b0f;
+  --fluent-shadow-flyout: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+/* ---- Chrome utility classes (extend; do not fork) ---- */
 
 .fluent-chrome {
   font-family: var(--fluent-font-family);
@@ -69,7 +142,28 @@
   border-radius: var(--fluent-radius-md);
   border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   background: var(--fluent-color-fill-control);
+  color: var(--fluent-color-text-primary);
   font: inherit;
+  transition: background-color 80ms ease, border-color 80ms ease;
+}
+
+.fluent-control:hover:not(:disabled) {
+  background: var(--fluent-color-fill-control-hover);
+}
+
+.fluent-control:active:not(:disabled) {
+  background: var(--fluent-color-fill-control-pressed);
+}
+
+.fluent-control:focus-visible {
+  outline: 2px solid var(--fluent-color-stroke-focus);
+  outline-offset: 1px;
+}
+
+.fluent-control:disabled {
+  color: var(--fluent-color-text-disabled);
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .fluent-control--accent {
@@ -79,10 +173,93 @@
   font-weight: var(--fluent-font-weight-semibold);
 }
 
+.fluent-control--accent:hover:not(:disabled) {
+  background: var(--fluent-color-fill-accent-hover);
+}
+
+.fluent-control--accent:active:not(:disabled) {
+  background: var(--fluent-color-fill-accent);
+}
+
 .fluent-list-row {
   min-height: var(--fluent-list-row-height-standard);
   padding-inline: var(--fluent-space-md);
   display: flex;
   align-items: center;
   gap: var(--fluent-space-sm);
+}
+
+html[data-list-density="compact"] .fluent-list-row--density {
+  min-height: var(--fluent-list-row-height-compact);
+}
+
+.fluent-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-md);
+  min-height: 100%;
+}
+
+.fluent-page-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-xs);
+}
+
+.fluent-page-title {
+  margin: 0;
+  font-size: var(--fluent-font-size-title);
+  font-weight: var(--fluent-font-weight-semibold);
+}
+
+.fluent-page-meta {
+  margin: 0;
+  color: var(--fluent-color-text-secondary);
+  font-size: var(--fluent-font-size-caption);
+}
+
+.fluent-banner {
+  margin: 0;
+  padding: var(--fluent-space-md) var(--fluent-space-lg);
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: var(--fluent-radius-md);
+  background: var(--fluent-color-fill-control);
+  color: var(--fluent-color-text-secondary);
+}
+
+.fluent-banner--error {
+  color: var(--fluent-color-status-danger);
+  background: var(--fluent-color-status-danger-bg);
+  border-color: var(--fluent-color-status-danger);
+}
+
+.fluent-surface {
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: var(--fluent-radius-md);
+  background: var(--fluent-color-fill-control);
+  overflow: hidden;
+}
+
+.fluent-chip {
+  min-height: var(--fluent-control-height-standard);
+  padding-inline: var(--fluent-space-md);
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: var(--fluent-radius-md);
+  background: var(--fluent-color-fill-control);
+  color: var(--fluent-color-text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.fluent-chip--active {
+  color: var(--fluent-color-text-primary);
+  font-weight: var(--fluent-font-weight-semibold);
+  border-color: var(--fluent-color-fill-accent);
+  background: var(--fluent-color-fill-selected);
+}
+
+.fluent-field-check {
+  width: var(--fluent-checkbox-size);
+  height: var(--fluent-checkbox-size);
+  accent-color: var(--fluent-color-fill-accent);
 }

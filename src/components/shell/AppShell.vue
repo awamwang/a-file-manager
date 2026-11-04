@@ -208,7 +208,7 @@ onUnmounted(() => {
       <div class="titlebar-drag" data-tauri-drag-region>
         <span class="brand" data-tauri-drag-region>A File Manager</span>
         <span class="caption-meta" data-tauri-drag-region
-          >Standard · Command Panel</span
+          >Standard · Fluent polish</span
         >
       </div>
       <div class="window-controls" aria-label="Window controls">
@@ -411,12 +411,16 @@ onUnmounted(() => {
 
 .win-btn:hover,
 .win-btn--hover {
-  background: var(--fluent-color-fill-subtle);
+  background: var(--fluent-color-fill-control-hover);
+}
+
+.win-btn:active {
+  background: var(--fluent-color-fill-control-pressed);
 }
 
 .win-btn--close:hover {
-  background: #c42b1c;
-  color: #fff;
+  background: var(--fluent-color-status-danger);
+  color: var(--fluent-color-text-on-accent);
 }
 
 .toolbar {
@@ -435,11 +439,6 @@ onUnmounted(() => {
   height: var(--fluent-control-height-standard);
   min-height: var(--fluent-control-height-standard);
   padding-inline: var(--fluent-space-md);
-}
-
-.toolbar-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
 }
 
 .toolbar-spacer {
@@ -481,9 +480,14 @@ onUnmounted(() => {
   font: inherit;
 }
 
+.address-input:hover {
+  background: var(--fluent-color-fill-subtle-secondary);
+}
+
 .address-input:focus {
-  outline: 2px solid var(--fluent-color-fill-accent);
+  outline: 2px solid var(--fluent-color-stroke-focus);
   outline-offset: 1px;
+  background: var(--fluent-color-fill-control);
 }
 
 .address-go {
@@ -513,11 +517,17 @@ onUnmounted(() => {
   font: inherit;
 }
 
+.tab:hover:not(:disabled) {
+  background: var(--fluent-color-fill-control-hover);
+  color: var(--fluent-color-text-primary);
+}
+
 .tab--active {
   background: var(--fluent-color-fill-control);
   border-color: var(--fluent-color-stroke-divider);
   color: var(--fluent-color-text-primary);
   font-weight: var(--fluent-font-weight-semibold);
+  box-shadow: inset 0 -2px 0 var(--fluent-color-fill-accent);
 }
 
 .tab--add {
@@ -533,12 +543,15 @@ onUnmounted(() => {
 }
 
 .sidenav {
-  width: 180px;
+  width: var(--fluent-sidenav-width);
   flex-shrink: 0;
   padding: var(--fluent-space-sm);
   border-right: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   background: var(--fluent-color-fill-control);
   overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-xs);
 }
 
 .sidenav-item {
@@ -553,11 +566,11 @@ onUnmounted(() => {
 }
 
 .sidenav-item:hover:not(:disabled) {
-  background: var(--fluent-color-fill-subtle);
+  background: var(--fluent-color-fill-control-hover);
 }
 
 .sidenav-item--active {
-  background: var(--fluent-color-fill-subtle);
+  background: var(--fluent-color-fill-selected);
   font-weight: var(--fluent-font-weight-semibold);
 }
 
@@ -583,7 +596,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: var(--fluent-space-md);
-  min-height: 28px;
+  min-height: var(--fluent-statusbar-height);
   flex-shrink: 0;
   padding-inline: var(--fluent-space-md);
   border-top: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);

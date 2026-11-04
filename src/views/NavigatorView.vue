@@ -33,10 +33,10 @@ function onActivate(entry: NavigatorEntry) {
 </script>
 
 <template>
-  <section class="panel">
-    <header class="header">
-      <h1>Navigator</h1>
-      <p class="meta">
+  <section class="fluent-page">
+    <header class="fluent-page-header">
+      <h1 class="fluent-page-title">Navigator</h1>
+      <p class="fluent-page-meta">
         Kernel OS browse ·
         <template v-if="listing">
           {{ listing.dirCount }} folders · {{ listing.fileCount }} files
@@ -45,18 +45,18 @@ function onActivate(entry: NavigatorEntry) {
       </p>
     </header>
 
-    <p v-if="listLoading" class="banner">Loading…</p>
-    <p v-else-if="listError" class="banner banner--error">{{ listError }}</p>
-    <p v-else-if="listing && listing.entries.length === 0" class="banner">
+    <p v-if="listLoading" class="fluent-banner">Loading…</p>
+    <p v-else-if="listError" class="fluent-banner fluent-banner--error">{{ listError }}</p>
+    <p v-else-if="listing && listing.entries.length === 0" class="fluent-banner">
       This folder is empty.
     </p>
 
-    <div v-if="listing && listing.entries.length" class="list" role="list">
+    <div v-if="listing && listing.entries.length" class="fluent-surface list" role="list">
       <button
         v-for="entry in listing.entries"
         :key="entry.path"
         type="button"
-        class="fluent-list-row row"
+        class="fluent-list-row fluent-list-row--density row"
         role="listitem"
         @dblclick="onActivate(entry)"
         @keydown.enter.prevent="onActivate(entry)"
@@ -70,51 +70,11 @@ function onActivate(entry: NavigatorEntry) {
 </template>
 
 <style scoped>
-.panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--fluent-space-md);
-  min-height: 100%;
-}
-
-.header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--fluent-space-xs);
-}
-
-h1 {
-  margin: 0;
-  font-size: var(--fluent-font-size-title);
-  font-weight: var(--fluent-font-weight-semibold);
-}
-
-.meta {
-  margin: 0;
-  color: var(--fluent-color-text-secondary);
-  font-size: var(--fluent-font-size-caption);
-}
-
-.banner {
-  margin: 0;
-  padding: var(--fluent-space-md) var(--fluent-space-lg);
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: var(--fluent-radius-md);
-  background: var(--fluent-color-fill-control);
-  color: var(--fluent-color-text-secondary);
-}
-
-.banner--error {
-  color: #c42b1c;
-}
-
 .list {
   display: flex;
   flex-direction: column;
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: var(--fluent-radius-md);
-  background: var(--fluent-color-fill-control);
-  overflow: hidden;
+  flex: 1;
+  min-height: 0;
 }
 
 .row {
@@ -137,7 +97,7 @@ h1 {
 
 .row:hover,
 .row:focus-visible {
-  background: var(--fluent-color-fill-subtle);
+  background: var(--fluent-color-fill-selected);
   outline: none;
 }
 

@@ -416,7 +416,7 @@ onMounted(() => {
 }
 
 .banner--error {
-  color: #c42b1c;
+  color: var(--fluent-color-status-danger);
 }
 
 .banner--soft {
@@ -435,7 +435,7 @@ onMounted(() => {
 }
 
 .linkish.danger {
-  color: #c42b1c;
+  color: var(--fluent-color-status-danger);
 }
 
 .layout {

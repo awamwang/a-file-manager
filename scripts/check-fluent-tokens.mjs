@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Minimal presence test for Fluent chrome tokens (S1).
+// Fluent chrome token + utility presence (S1 + AIA-28 polish).
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,12 +15,32 @@ const required = [
   "--fluent-titlebar-button-width: 46px",
   "--fluent-toolbar-height: 40px",
   "--fluent-addressbar-height: 36px",
+  "--fluent-statusbar-height: 32px",
+  "--fluent-sidenav-width",
   "--fluent-control-height-standard: 32px",
   "--fluent-list-row-height-standard: 32px",
+  "--fluent-list-row-height-compact: 24px",
   "--fluent-font-family",
+  "--fluent-color-fill-control-hover",
+  "--fluent-color-fill-selected",
+  "--fluent-color-status-danger",
+  "--fluent-color-stroke-focus",
+  "--fluent-shadow-flyout",
+  "--fluent-overlay-scrim",
+  "html[data-theme=\"dark\"]",
+  "html[data-theme=\"light\"]",
+  "html[data-list-density=\"compact\"]",
   ".fluent-chrome",
   ".fluent-control",
+  ".fluent-control--accent",
   ".fluent-list-row",
+  ".fluent-list-row--density",
+  ".fluent-page",
+  ".fluent-banner",
+  ".fluent-banner--error",
+  ".fluent-surface",
+  ".fluent-chip",
+  ".fluent-field-check",
 ];
 
 const missing = required.filter((token) => !css.includes(token));

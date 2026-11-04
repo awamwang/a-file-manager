@@ -33,13 +33,19 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="panel">
-    <h1>Health</h1>
-    <p class="muted">S0 smoke — Rust core reports identity via <code>health_get</code>.</p>
+  <section class="fluent-page panel">
+    <header class="fluent-page-header">
+      <h1 class="fluent-page-title">Health</h1>
+      <p class="fluent-page-meta">
+        Rust core identity via <code>health_get</code>
+      </p>
+    </header>
 
-    <p v-if="loading">Loading…</p>
-    <p v-else-if="error" class="error">Health failed: {{ error }}</p>
-    <dl v-else-if="health" class="grid">
+    <p v-if="loading" class="fluent-banner">Loading…</p>
+    <p v-else-if="error" class="fluent-banner fluent-banner--error">
+      Health failed: {{ error }}
+    </p>
+    <dl v-else-if="health" class="fluent-surface grid">
       <dt>ok</dt>
       <dd>{{ health.ok }}</dd>
       <dt>name</dt>
@@ -58,25 +64,7 @@ onMounted(() => {
 
 <style scoped>
 .panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--fluent-space-md);
   max-width: 40rem;
-}
-
-h1 {
-  margin: 0;
-  font-size: var(--fluent-font-size-title);
-  font-weight: var(--fluent-font-weight-semibold);
-}
-
-.muted {
-  margin: 0;
-  color: var(--fluent-color-text-secondary);
-}
-
-.error {
-  color: #c42b1c;
 }
 
 .grid {
@@ -84,10 +72,7 @@ h1 {
   grid-template-columns: 8rem 1fr;
   gap: var(--fluent-space-sm) var(--fluent-space-md);
   margin: 0;
-  padding: var(--fluent-space-md);
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: var(--fluent-radius-md);
-  background: var(--fluent-color-fill-control);
+  padding: var(--fluent-space-md) var(--fluent-space-lg);
 }
 
 dt {
@@ -96,7 +81,7 @@ dt {
 
 dd {
   margin: 0;
-  font-family: Consolas, "Courier New", monospace;
+  font-family: var(--fluent-font-family-mono);
 }
 
 button {

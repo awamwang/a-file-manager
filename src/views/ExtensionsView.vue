@@ -239,7 +239,7 @@ onMounted(() => {
 }
 
 .banner--error {
-  color: #c42b1c;
+  color: var(--fluent-color-status-danger);
 }
 
 .banner--soft {
@@ -285,7 +285,7 @@ onMounted(() => {
 
 .card ul {
   margin: 0;
-  padding-left: 1.2rem;
+  padding-left: var(--fluent-space-lg);
 }
 
 .empty-mark {

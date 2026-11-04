@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { applyUiChromeFromValues } from "../state/uiChrome";
 
 type SettingsTier = "core" | "power" | "experimental";
 
@@ -53,6 +54,7 @@ async function loadAll() {
     ]);
     schema.value = manifest;
     document.value = doc;
+    applyUiChromeFromValues(doc.values);
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
@@ -71,6 +73,7 @@ async function patchValue(key: string, value: unknown) {
     document.value = await invoke<SettingsDocument>("settings_set", {
       patch: { [key]: value },
     });
+    applyUiChromeFromValues(document.value.values);
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
     await loadAll();
@@ -100,18 +103,18 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="panel">
-    <header class="header">
-      <h1>Settings</h1>
-      <p class="meta">
+  <section class="fluent-page panel">
+    <header class="fluent-page-header">
+      <h1 class="fluent-page-title">Settings</h1>
+      <p class="fluent-page-meta">
         Rust schema authority
         <template v-if="schema">· v{{ schema.version }}</template>
         <template v-if="document">· {{ Object.keys(document.values).length }} keys</template>
       </p>
     </header>
 
-    <p v-if="loading" class="banner">Loading schema…</p>
-    <p v-else-if="error" class="banner banner--error">{{ error }}</p>
+    <p v-if="loading" class="fluent-banner">Loading schema…</p>
+    <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
 
     <template v-else-if="schema && document">
       <div class="tier-tabs" role="tablist">
@@ -119,8 +122,8 @@ onMounted(() => {
           v-for="tier in tiers"
           :key="tier.id"
           type="button"
-          class="tier"
-          :class="{ 'tier--active': activeTier === tier.id }"
+          class="fluent-chip"
+          :class="{ 'fluent-chip--active': activeTier === tier.id }"
           role="tab"
           :aria-selected="activeTier === tier.id"
           @click="activeTier = tier.id"
@@ -129,7 +132,7 @@ onMounted(() => {
         </button>
       </div>
 
-      <div class="fields">
+      <div class="fluent-surface fields">
         <div v-for="def in visibleDefs" :key="def.key" class="field">
           <div class="field-text">
             <label class="title" :for="def.key">{{ def.title }}</label>
@@ -142,7 +145,7 @@ onMounted(() => {
               v-if="def.valueKind === 'boolean'"
               :id="def.key"
               type="checkbox"
-              class="check"
+              class="fluent-field-check"
               :checked="Boolean(valueOf(def.key))"
               :disabled="savingKey === def.key"
               @change="onBooleanChange(def.key, $event)"
@@ -181,41 +184,7 @@ onMounted(() => {
 
 <style scoped>
 .panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--fluent-space-md);
   max-width: 52rem;
-}
-
-.header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--fluent-space-xs);
-}
-
-h1 {
-  margin: 0;
-  font-size: var(--fluent-font-size-title);
-  font-weight: var(--fluent-font-weight-semibold);
-}
-
-.meta {
-  margin: 0;
-  color: var(--fluent-color-text-secondary);
-  font-size: var(--fluent-font-size-caption);
-}
-
-.banner {
-  margin: 0;
-  padding: var(--fluent-space-md) var(--fluent-space-lg);
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: var(--fluent-radius-md);
-  background: var(--fluent-color-fill-control);
-  color: var(--fluent-color-text-secondary);
-}
-
-.banner--error {
-  color: #c42b1c;
 }
 
 .tier-tabs {
@@ -223,30 +192,9 @@ h1 {
   gap: var(--fluent-space-sm);
 }
 
-.tier {
-  min-height: var(--fluent-control-height-standard);
-  padding-inline: var(--fluent-space-md);
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: var(--fluent-radius-md);
-  background: var(--fluent-color-fill-control);
-  color: var(--fluent-color-text-secondary);
-  font: inherit;
-  cursor: pointer;
-}
-
-.tier--active {
-  color: var(--fluent-color-text-primary);
-  font-weight: var(--fluent-font-weight-semibold);
-  border-color: var(--fluent-color-fill-accent);
-}
-
 .fields {
   display: flex;
   flex-direction: column;
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: var(--fluent-radius-md);
-  background: var(--fluent-color-fill-control);
-  overflow: hidden;
 }
 
 .field {
@@ -287,11 +235,6 @@ h1 {
 .control {
   display: flex;
   justify-content: flex-end;
-}
-
-.check {
-  width: 18px;
-  height: 18px;
 }
 
 .select,
