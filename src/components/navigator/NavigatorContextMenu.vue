@@ -92,6 +92,21 @@ async function run(id: string) {
         await newNavigatorTab(entry.path);
       }
       break;
+    case "openWith":
+      if (entry.kind === "file") {
+        try {
+          const result = await invoke<{
+            success: boolean;
+            error: string | null;
+          }>("open_native_open_with_dialog", { path: entry.path });
+          if (!result.success && result.error) {
+            emit("notice", result.error);
+          }
+        } catch (err) {
+          emit("notice", err instanceof Error ? err.message : String(err));
+        }
+      }
+      break;
     case "openInTerminal":
       try {
         const result = await invoke<{

@@ -333,7 +333,8 @@
     "addFavorite": "Add to favorites",
     "removeFavorite": "Remove from favorites",
     "favoriteAdded": "Added to favorites",
-    "favoriteRemoved": "Removed from favorites"
+    "favoriteRemoved": "Removed from favorites",
+    "openWith": "Open with…"
   },
   "favorites": {
     "label": "Favorites"

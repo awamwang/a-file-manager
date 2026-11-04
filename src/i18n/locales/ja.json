@@ -333,7 +333,8 @@
     "addFavorite": "お気に入りに追加",
     "removeFavorite": "お気に入りから削除",
     "favoriteAdded": "お気に入りに追加しました",
-    "favoriteRemoved": "お気に入りから削除しました"
+    "favoriteRemoved": "お気に入りから削除しました",
+    "openWith": "プログラムから開く…"
   },
   "favorites": {
     "label": "お気に入り"

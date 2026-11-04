@@ -4,6 +4,7 @@ mod discovery;
 mod extension_host;
 mod favorites;
 mod navigator;
+mod open_with;
 mod projects;
 mod providers;
 mod settings;
@@ -109,6 +110,7 @@ pub fn run() {
             favorites::favorites_toggle,
             favorites::favorites_contains,
             favorites::favorites_os_hook_status,
+            open_with::open_native_open_with_dialog,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

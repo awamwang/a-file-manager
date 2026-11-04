@@ -6,6 +6,7 @@ import type { NavigatorEntry } from "../../state/navigatorBrowse";
 export type ContextMenuActionId =
   | "open"
   | "openInNewTab"
+  | "openWith"
   | "openInTerminal"
   | "toggleFavorite"
   | "systemMenu"
@@ -40,6 +41,12 @@ export function buildContextMenuItems(
       id: "openInNewTab",
       labelKey: "contextMenu.openInNewTab",
       enabled: isDir,
+    },
+    {
+      id: "openWith",
+      labelKey: "contextMenu.openWith",
+      // Native Open With dialog — files only (Sigma-aligned).
+      enabled: !isDir,
     },
     {
       id: "openInTerminal",

@@ -25,6 +25,7 @@ const openInTerminal = dirItems.find((item) => item.id === "openInTerminal");
 assert.ok(openInTerminal);
 assert.equal(openInTerminal.enabled, true);
 assert.equal(openInTerminal.stub, undefined);
+assert.equal(dirItems.find((item) => item.id === "openWith")?.enabled, false);
 const addFavorite = dirItems.find((item) => item.id === "toggleFavorite");
 assert.ok(addFavorite);
 assert.equal(addFavorite.labelKey, "contextMenu.addFavorite");
@@ -43,7 +44,9 @@ assert.equal(fileOpenInNewTab.enabled, false);
 assert.ok(fileItems.find((item) => item.id === "systemMenu")?.enabled);
 assert.ok(fileItems.find((item) => item.id === "openInTerminal")?.enabled);
 assert.ok(fileItems.find((item) => item.id === "toggleFavorite")?.enabled);
+assert.equal(fileItems.find((item) => item.id === "openWith")?.enabled, true);
+assert.equal(fileItems.find((item) => item.id === "openWith")?.stub, undefined);
 
 assert.equal(buildContextMenuItems(null).length, 0);
 
-console.log("Context menu model checks OK (AIA-54/55/56/57).");
+console.log("Context menu model checks OK (AIA-54..58).");

@@ -26,10 +26,12 @@ assert.ok(menu.includes("newNavigatorTab"));
 assert.ok(menu.includes("canOpenInNewTab"));
 assert.ok(menu.includes("shell_show_context_menu"));
 assert.ok(menu.includes("open_in_terminal"));
+assert.ok(menu.includes("open_native_open_with_dialog"));
 assert.ok(menu.includes("toggleFavorite"));
 assert.ok(menu.includes("deleteStub") || menu.includes("contextMenu.deleteStub"));
 assert.ok(menu.includes("buildContextMenuItems"));
 assert.ok(model.includes('id: "openInNewTab"'));
+assert.ok(model.includes('id: "openWith"'));
 assert.ok(model.includes('id: "openInTerminal"'));
 assert.ok(model.includes('id: "toggleFavorite"'));
 assert.ok(model.includes('id: "systemMenu"'));
@@ -43,18 +45,24 @@ assert.ok(
   "openInTerminal must not be stubbed",
 );
 assert.ok(
+  !/openWith[\s\S]{0,160}stub:\s*true/.test(model),
+  "openWith must not be stubbed",
+);
+assert.ok(
   !/toggleFavorite[\s\S]{0,160}stub:\s*true/.test(model),
   "toggleFavorite must not be stubbed",
 );
 assert.equal(en.contextMenu.copyPath, "Copy path");
 assert.equal(en.contextMenu.openInNewTab, "Open in new tab");
 assert.equal(en.contextMenu.openInTerminal, "Open in terminal");
+assert.equal(en.contextMenu.openWith, "Open with…");
 assert.equal(en.contextMenu.addFavorite, "Add to favorites");
 assert.equal(en.contextMenu.removeFavorite, "Remove from favorites");
 assert.equal(en.contextMenu.systemMenu, "System menu");
 assert.equal(en.favorites.label, "Favorites");
 assert.equal(zh.contextMenu.openInNewTab, "在新标签页打开");
 assert.equal(zh.contextMenu.openInTerminal, "在终端打开");
+assert.equal(zh.contextMenu.openWith, "打开方式…");
 assert.equal(zh.contextMenu.addFavorite, "添加到收藏");
 assert.equal(zh.contextMenu.systemMenu, "系统右键菜单");
 assert.equal(zh.favorites.label, "收藏");
@@ -62,6 +70,7 @@ assert.equal(zh.favorites.label, "收藏");
 for (const id of [
   "open",
   "openInNewTab",
+  "openWith",
   "openInTerminal",
   "toggleFavorite",
   "systemMenu",

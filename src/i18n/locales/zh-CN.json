@@ -333,7 +333,8 @@
     "addFavorite": "添加到收藏",
     "removeFavorite": "取消收藏",
     "favoriteAdded": "已加入收藏",
-    "favoriteRemoved": "已取消收藏"
+    "favoriteRemoved": "已取消收藏",
+    "openWith": "打开方式…"
   },
   "favorites": {
     "label": "收藏"
