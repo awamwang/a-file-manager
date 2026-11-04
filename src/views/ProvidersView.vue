@@ -1,7 +1,10 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
+
+const { t } = useI18n();
 
 type BackendInfo = {
   id: string;
@@ -74,10 +77,8 @@ onMounted(() => {
 <template>
   <section class="panel">
     <header class="header">
-      <h1>Providers</h1>
-      <p class="meta">
-        awam extension layer · rclone + knowledge Day-1 · no mount · no awam://local Kernel browse
-      </p>
+      <h1>{{ t("providers.title") }}</h1>
+      <p class="meta">{{ t("providers.meta") }}</p>
     </header>
 
     <div class="backends">

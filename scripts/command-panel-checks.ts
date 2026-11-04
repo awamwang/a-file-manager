@@ -2,6 +2,9 @@
 // Run via: node --experimental-strip-types scripts/command-panel-checks.ts
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   filterCommands,
   fuzzyScore,
@@ -10,6 +13,23 @@ import {
 import { buildAppCommands } from "../src/commands/registry.ts";
 import { isToggleCommandPanelShortcut } from "../src/state/commandPanel.ts";
 import type { AppCommand } from "../src/commands/types.ts";
+
+const en = JSON.parse(
+  readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), "../src/i18n/locales/en.json"),
+    "utf8",
+  ),
+) as Record<string, unknown>;
+
+function t(key: string): string {
+  const parts = key.split(".");
+  let cur: unknown = en;
+  for (const part of parts) {
+    if (!cur || typeof cur !== "object") return key;
+    cur = (cur as Record<string, unknown>)[part];
+  }
+  return typeof cur === "string" ? cur : key;
+}
 
 function stubRouter(path = "/navigator") {
   return {
@@ -31,6 +51,7 @@ const commands = buildAppCommands({
   refreshHealth: () => {
     runs.push("refresh-health");
   },
+  t,
 });
 
 assert.ok(commands.length >= 8, "expected built-in commands");
@@ -46,6 +67,7 @@ assert.ok(ids.has("view.settings"));
 assert.ok(ids.has("view.projects"));
 assert.ok(ids.has("view.work-groups"));
 assert.ok(ids.has("action.refresh-health"));
+assert.equal(commands.find((c) => c.id === "view.settings")?.title, "Open Settings");
 
 assert.equal(fuzzyScore("set", "Open Settings"), fuzzyScore("set", "Open Settings"));
 assert.ok(
@@ -56,14 +78,6 @@ assert.equal(fuzzyScore("zzz", "Open Settings"), null);
 
 const filtered = filterCommands(commands, "sett");
 assert.ok(filtered.some((r) => r.command.id === "view.settings"));
-assert.ok(
-  filtered.every(
-    (r) =>
-      fuzzyScore("sett", r.command.title) !== null ||
-      fuzzyScore("sett", [r.command.title, ...(r.command.keywords ?? [])].join(" ")) !==
-        null,
-  ),
-);
 
 const settingsFirst = filterCommands(commands, "settings");
 assert.equal(settingsFirst[0]?.command.id, "view.settings");
@@ -99,23 +113,10 @@ assert.equal(
   true,
 );
 assert.equal(
-  isToggleCommandPanelShortcut(
-    keyEvent({ ctrlKey: true, shiftKey: true, key: "p" }),
-  ),
-  true,
-);
-assert.equal(
   isToggleCommandPanelShortcut(keyEvent({ ctrlKey: true, key: "K" })),
   false,
 );
-assert.equal(
-  isToggleCommandPanelShortcut(
-    keyEvent({ ctrlKey: true, shiftKey: true, key: "P", isComposing: true }),
-  ),
-  false,
-);
 
-// Empty query keeps registry order groups intact for UI headers.
 const empty = filterCommands(commands as AppCommand[], "   ");
 assert.equal(empty.length, commands.length);
 

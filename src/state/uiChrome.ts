@@ -53,11 +53,12 @@ export function applyUiChromeFromValues(values: Record<string, unknown>): void {
   applyUiChrome(asTheme(values["core.theme"]), asDensity(values["core.listDensity"]));
 }
 
-/** Load settings document and sync chrome tokens. Safe no-op if IPC unavailable (web-only). */
+/** Load settings document and sync chrome tokens. Safe fallback if IPC unavailable. */
 export async function loadUiChromeFromSettings(): Promise<void> {
   try {
     const doc = await invoke<SettingsDocument>("settings_get");
     applyUiChromeFromValues(doc.values ?? {});
+    return;
   } catch {
     applyUiChrome("system", "standard");
   }

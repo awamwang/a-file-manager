@@ -1,9 +1,12 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
 import { openPathsAsNavigatorTabs } from "../state/navigatorBrowse";
+
+const { t } = useI18n();
 
 type WorkspaceLink = {
   id: string;
@@ -233,11 +236,8 @@ onMounted(() => {
 <template>
   <section class="panel">
     <header class="header">
-      <h1>Projects</h1>
-      <p class="meta">
-        Independent workspaceLinks · list + fixed 4-col board · contextNotes · open all → Navigator
-        tabs only
-      </p>
+      <h1>{{ t("projects.title") }}</h1>
+      <p class="meta">{{ t("projects.meta") }}</p>
     </header>
 
     <p v-if="loading" class="banner">Loading…</p>

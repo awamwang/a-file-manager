@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 
 type HealthPayload = {
@@ -10,6 +11,7 @@ type HealthPayload = {
   identifier: string;
 };
 
+const { t } = useI18n();
 const health = ref<HealthPayload | null>(null);
 const error = ref<string | null>(null);
 const loading = ref(true);
@@ -35,15 +37,13 @@ onMounted(() => {
 <template>
   <section class="fluent-page panel">
     <header class="fluent-page-header">
-      <h1 class="fluent-page-title">Health</h1>
-      <p class="fluent-page-meta">
-        Rust core identity via <code>health_get</code>
-      </p>
+      <h1 class="fluent-page-title">{{ t("health.title") }}</h1>
+      <p class="fluent-page-meta">{{ t("health.meta") }}</p>
     </header>
 
-    <p v-if="loading" class="fluent-banner">Loading…</p>
+    <p v-if="loading" class="fluent-banner">{{ t("health.loading") }}</p>
     <p v-else-if="error" class="fluent-banner fluent-banner--error">
-      Health failed: {{ error }}
+      {{ t("health.failed", { error }) }}
     </p>
     <dl v-else-if="health" class="fluent-surface grid">
       <dt>ok</dt>
@@ -57,7 +57,7 @@ onMounted(() => {
     </dl>
 
     <button class="fluent-control fluent-control--accent" type="button" @click="loadHealth">
-      Refresh
+      {{ t("health.refresh") }}
     </button>
   </section>
 </template>

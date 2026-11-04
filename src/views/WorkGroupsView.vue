@@ -1,7 +1,10 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
+
+const { t } = useI18n();
 
 type WorkGroupOpenStateTab = {
   id: string;
@@ -138,10 +141,8 @@ onMounted(() => {
 <template>
   <section class="panel">
     <header class="header">
-      <h1>Work Groups</h1>
-      <p class="meta">
-        Hard config ↔ runtime Open State · silent switch (no nag) · Projects stay independent
-      </p>
+      <h1>{{ t("workGroups.title") }}</h1>
+      <p class="meta">{{ t("workGroups.meta") }}</p>
     </header>
 
     <p v-if="loading" class="banner">Loading…</p>

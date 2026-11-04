@@ -1,7 +1,8 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
-import type { AppCommand } from "../../commands/types";
+import { useI18n } from "vue-i18n";
+import type { AppCommand, CommandGroup } from "../../commands/types";
 import {
   filterCommands,
   groupRankedCommands,
@@ -10,6 +11,19 @@ import {
   closeCommandPanel,
   commandPanelOpen,
 } from "../../state/commandPanel";
+
+const { t } = useI18n();
+
+const GROUP_LABEL: Record<CommandGroup, string> = {
+  Navigate: "commands.groups.navigate",
+  View: "commands.groups.view",
+  Actions: "commands.groups.actions",
+};
+
+function groupLabel(group: string): string {
+  const key = GROUP_LABEL[group as CommandGroup];
+  return key ? t(key) : group;
+}
 
 const props = defineProps<{
   commands: AppCommand[];
@@ -112,10 +126,12 @@ function flatIndexFor(commandId: string): number {
         class="cmd-panel"
         role="dialog"
         aria-modal="true"
-        aria-label="Command Panel"
+        :aria-label="t('commands.panelLabel')"
         @mousedown.stop
       >
-        <label class="cmd-label" for="command-panel-input">Commands</label>
+        <label class="cmd-label" for="command-panel-input">{{
+          t("chrome.commands")
+        }}</label>
         <input
           id="command-panel-input"
           ref="inputEl"
@@ -124,7 +140,7 @@ function flatIndexFor(commandId: string): number {
           type="text"
           spellcheck="false"
           autocomplete="off"
-          placeholder="Type a command…"
+          :placeholder="t('commands.placeholder')"
           aria-controls="command-panel-list"
         />
         <div
@@ -132,7 +148,7 @@ function flatIndexFor(commandId: string): number {
           ref="listEl"
           class="cmd-list"
           role="listbox"
-          aria-label="Command results"
+          :aria-label="t('commands.results')"
         >
           <template v-if="flat.length">
             <section
@@ -140,7 +156,7 @@ function flatIndexFor(commandId: string): number {
               :key="section.group"
               class="cmd-section"
             >
-              <h2 class="cmd-group">{{ section.group }}</h2>
+              <h2 class="cmd-group">{{ groupLabel(section.group) }}</h2>
               <button
                 v-for="item in section.items"
                 :key="item.command.id"
@@ -160,11 +176,9 @@ function flatIndexFor(commandId: string): number {
               </button>
             </section>
           </template>
-          <p v-else class="cmd-empty">No matching commands</p>
+          <p v-else class="cmd-empty">{{ t("commands.empty") }}</p>
         </div>
-        <p class="cmd-hint">
-          ↑↓ to move · Enter to run · Esc to close · Ctrl+Shift+P
-        </p>
+        <p class="cmd-hint">{{ t("commands.hint") }}</p>
       </div>
     </div>
   </Teleport>

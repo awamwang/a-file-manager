@@ -1,0 +1,128 @@
+{
+  "app": {
+    "name": "A File Manager",
+    "captionMeta": "标准 · 国际化"
+  },
+  "chrome": {
+    "titleBar": "标题栏",
+    "windowControls": "窗口控件",
+    "minimize": "最小化",
+    "maximize": "最大化",
+    "restore": "还原",
+    "close": "关闭",
+    "toolbar": "主工具栏",
+    "back": "后退",
+    "forward": "前进",
+    "up": "向上",
+    "upTitle": "返回上级",
+    "view": "视图",
+    "later": "稍后",
+    "historyLater": "历史功能稍后提供",
+    "commands": "命令",
+    "commandsTitle": "命令面板 (Ctrl+Shift+P)",
+    "address": "地址栏",
+    "path": "路径",
+    "pathPlaceholder": "本机路径（内核）— 按 Enter 前往",
+    "go": "前往",
+    "tabs": "标签页",
+    "newTab": "新建标签",
+    "newTabLater": "新建标签稍后提供",
+    "sideNav": "侧边导航",
+    "status": "状态栏",
+    "refreshHealth": "刷新健康状态",
+    "healthOk": "健康: 正常 · v{version}",
+    "healthError": "健康: 错误",
+    "healthPending": "健康: …",
+    "navigatorLoading": "导航器: 加载中",
+    "navigatorError": "导航器: 错误",
+    "navigatorCounts": "{dirs} 个文件夹 · {files} 个文件"
+  },
+  "nav": {
+    "navigator": "导航器",
+    "discovery": "发现",
+    "providers": "提供程序",
+    "workGroups": "工作组",
+    "projects": "项目",
+    "extensions": "扩展",
+    "settings": "设置",
+    "health": "健康"
+  },
+  "commands": {
+    "groups": {
+      "navigate": "导航",
+      "view": "视图",
+      "actions": "操作"
+    },
+    "goUp": "返回上级文件夹",
+    "openNavigator": "打开导航器",
+    "openDiscovery": "打开发现",
+    "openProviders": "打开提供程序",
+    "openWorkGroups": "打开工作组",
+    "openProjects": "打开项目",
+    "openExtensions": "打开扩展",
+    "openSettings": "打开设置",
+    "openHealth": "打开健康",
+    "refreshHealth": "刷新健康状态",
+    "panelLabel": "命令面板",
+    "placeholder": "输入命令…",
+    "results": "命令结果",
+    "empty": "无匹配命令",
+    "hint": "↑↓ 移动 · Enter 执行 · Esc 关闭 · Ctrl+Shift+P"
+  },
+  "navigator": {
+    "title": "导航器",
+    "metaConnected": "内核磁盘浏览 · {dirs} 个文件夹 · {files} 个文件",
+    "metaDisconnected": "内核磁盘浏览 · 未连接",
+    "loading": "加载中…",
+    "empty": "此文件夹为空。",
+    "folder": "文件夹",
+    "file": "文件"
+  },
+  "discovery": {
+    "title": "发现",
+    "meta": "Everything IPC 一等公民 · 不用 es.exe · 仅在启用时使用回退存根",
+    "engine": "引擎",
+    "degraded": "降级",
+    "fallback": "启用自建索引回退存根（仅当 Everything 不可用）",
+    "placeholder": "搜索文件名 / 路径…",
+    "search": "搜索",
+    "searching": "搜索中…",
+    "noHits": "无结果（引擎={engine}，总计={total}）。",
+    "shown": "显示 {shown} · 总计 {total} · {engine}",
+    "folder": "文件夹",
+    "file": "文件"
+  },
+  "settings": {
+    "title": "设置",
+    "meta": "Rust 模式为权威来源",
+    "metaVersion": "· v{version}",
+    "metaKeys": "· {count} 项",
+    "loading": "正在加载模式…",
+    "tierCore": "核心",
+    "tierPower": "高级",
+    "tierExperimental": "实验"
+  },
+  "health": {
+    "title": "健康",
+    "meta": "通过 health_get 读取 Rust 核心身份",
+    "loading": "加载中…",
+    "failed": "健康检查失败：{error}",
+    "refresh": "刷新"
+  },
+  "providers": {
+    "title": "提供程序",
+    "meta": "awam 扩展层 · rclone + knowledge"
+  },
+  "workGroups": {
+    "title": "工作组",
+    "meta": "硬配置 ↔ 运行时打开状态 · 静默切换"
+  },
+  "projects": {
+    "title": "项目",
+    "meta": "列表 + 看板 · Context 备注 · 全部打开 → 导航器标签"
+  },
+  "extensions": {
+    "title": "扩展",
+    "meta": "vNext 宿主 · 空市场 · 不接受旧包"
+  }
+}

@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
 import { onMounted } from "vue";
+import { useI18n } from "vue-i18n";
 import {
   currentPath,
   listing,
@@ -11,6 +12,8 @@ import {
   openEntry,
   type NavigatorEntry,
 } from "../state/navigatorBrowse";
+
+const { t } = useI18n();
 
 onMounted(() => {
   if (!currentPath.value) {
@@ -35,20 +38,24 @@ function onActivate(entry: NavigatorEntry) {
 <template>
   <section class="fluent-page">
     <header class="fluent-page-header">
-      <h1 class="fluent-page-title">Navigator</h1>
+      <h1 class="fluent-page-title">{{ t("navigator.title") }}</h1>
       <p class="fluent-page-meta">
-        Kernel OS browse ·
         <template v-if="listing">
-          {{ listing.dirCount }} folders · {{ listing.fileCount }} files
+          {{
+            t("navigator.metaConnected", {
+              dirs: listing.dirCount,
+              files: listing.fileCount,
+            })
+          }}
         </template>
-        <template v-else>not connected</template>
+        <template v-else>{{ t("navigator.metaDisconnected") }}</template>
       </p>
     </header>
 
-    <p v-if="listLoading" class="fluent-banner">Loading…</p>
+    <p v-if="listLoading" class="fluent-banner">{{ t("navigator.loading") }}</p>
     <p v-else-if="listError" class="fluent-banner fluent-banner--error">{{ listError }}</p>
     <p v-else-if="listing && listing.entries.length === 0" class="fluent-banner">
-      This folder is empty.
+      {{ t("navigator.empty") }}
     </p>
 
     <div v-if="listing && listing.entries.length" class="fluent-surface list" role="list">
@@ -61,7 +68,9 @@ function onActivate(entry: NavigatorEntry) {
         @dblclick="onActivate(entry)"
         @keydown.enter.prevent="onActivate(entry)"
       >
-        <span class="kind" :data-kind="entry.kind">{{ entry.kind === "dir" ? "Folder" : "File" }}</span>
+        <span class="kind" :data-kind="entry.kind">{{
+          entry.kind === "dir" ? t("navigator.folder") : t("navigator.file")
+        }}</span>
         <span class="name">{{ entry.name }}</span>
         <span class="size">{{ formatSize(entry) }}</span>
       </button>

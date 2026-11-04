@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -21,6 +22,8 @@ import {
   navigatorTabs,
 } from "../../state/navigatorBrowse";
 
+const { t, locale } = useI18n();
+
 type HealthPayload = {
   ok: boolean;
   name: string;
@@ -30,7 +33,7 @@ type HealthPayload = {
 
 type NavItem = {
   id: string;
-  label: string;
+  labelKey: string;
   to?: string;
   later?: boolean;
 };
@@ -53,13 +56,15 @@ async function ensureNavigatorThenGoUp() {
   await goUp();
 }
 
-const panelCommands = computed(() =>
-  buildAppCommands({
+const panelCommands = computed(() => {
+  void locale.value;
+  return buildAppCommands({
     router,
     ensureNavigatorThenGoUp,
     refreshHealth: loadHealth,
-  }),
-);
+    t: (key) => t(key),
+  });
+});
 
 function onGlobalKeydown(event: KeyboardEvent) {
   if (!isToggleCommandPanelShortcut(event)) return;
@@ -68,14 +73,14 @@ function onGlobalKeydown(event: KeyboardEvent) {
 }
 
 const navItems: NavItem[] = [
-  { id: "navigator", label: "Navigator", to: "/navigator" },
-  { id: "discovery", label: "Discovery", to: "/discovery" },
-  { id: "providers", label: "Providers", to: "/providers" },
-  { id: "work-groups", label: "Work Groups", to: "/work-groups" },
-  { id: "projects", label: "Projects", to: "/projects" },
-  { id: "extensions", label: "Extensions", to: "/extensions" },
-  { id: "settings", label: "Settings", to: "/settings" },
-  { id: "health", label: "Health", to: "/health" },
+  { id: "navigator", labelKey: "nav.navigator", to: "/navigator" },
+  { id: "discovery", labelKey: "nav.discovery", to: "/discovery" },
+  { id: "providers", labelKey: "nav.providers", to: "/providers" },
+  { id: "work-groups", labelKey: "nav.workGroups", to: "/work-groups" },
+  { id: "projects", labelKey: "nav.projects", to: "/projects" },
+  { id: "extensions", labelKey: "nav.extensions", to: "/extensions" },
+  { id: "settings", labelKey: "nav.settings", to: "/settings" },
+  { id: "health", labelKey: "nav.health", to: "/health" },
 ];
 
 watch(
@@ -87,17 +92,21 @@ watch(
 );
 
 const statusText = computed(() => {
+  void locale.value;
   const healthPart = healthError.value
-    ? `health: error`
+    ? t("chrome.healthError")
     : health.value?.ok
-      ? `health: ok · v${health.value.version}`
-      : "health: …";
+      ? t("chrome.healthOk", { version: health.value.version })
+      : t("chrome.healthPending");
 
   if (route.path === "/navigator") {
-    if (listLoading.value) return `${healthPart} · navigator: loading`;
-    if (listError.value) return `${healthPart} · navigator: error`;
+    if (listLoading.value) return `${healthPart} · ${t("chrome.navigatorLoading")}`;
+    if (listError.value) return `${healthPart} · ${t("chrome.navigatorError")}`;
     if (listing.value) {
-      return `${healthPart} · ${listing.value.dirCount} folders · ${listing.value.fileCount} files`;
+      return `${healthPart} · ${t("chrome.navigatorCounts", {
+        dirs: listing.value.dirCount,
+        files: listing.value.fileCount,
+      })}`;
     }
   }
   return healthPart;
@@ -204,19 +213,17 @@ onUnmounted(() => {
 
 <template>
   <div class="shell fluent-chrome">
-    <header class="titlebar" data-tauri-frame-tb aria-label="Title bar">
+    <header class="titlebar" data-tauri-frame-tb :aria-label="t('chrome.titleBar')">
       <div class="titlebar-drag" data-tauri-drag-region>
-        <span class="brand" data-tauri-drag-region>A File Manager</span>
-        <span class="caption-meta" data-tauri-drag-region
-          >Standard · Fluent polish</span
-        >
+        <span class="brand" data-tauri-drag-region>{{ t("app.name") }}</span>
+        <span class="caption-meta" data-tauri-drag-region>{{ t("app.captionMeta") }}</span>
       </div>
-      <div class="window-controls" aria-label="Window controls">
+      <div class="window-controls" :aria-label="t('chrome.windowControls')">
         <button
           id="frame-tb-minimize"
           type="button"
           class="win-btn"
-          aria-label="Minimize"
+          :aria-label="t('chrome.minimize')"
           @click="minimizeWindow"
         >
           ─
@@ -230,7 +237,7 @@ onUnmounted(() => {
           type="button"
           class="win-btn"
           :class="{ 'win-btn--hover': maxHover }"
-          :aria-label="isMaximized ? 'Restore' : 'Maximize'"
+          :aria-label="isMaximized ? t('chrome.restore') : t('chrome.maximize')"
           @click="toggleMaximizeWindow"
         >
           {{ isMaximized ? "❐" : "□" }}
@@ -239,7 +246,7 @@ onUnmounted(() => {
           id="frame-tb-close"
           type="button"
           class="win-btn win-btn--close"
-          aria-label="Close"
+          :aria-label="t('chrome.close')"
           @click="closeWindow"
         >
           ✕
@@ -247,26 +254,54 @@ onUnmounted(() => {
       </div>
     </header>
 
-    <div class="toolbar" role="toolbar" aria-label="Main toolbar">
-      <button type="button" class="fluent-control toolbar-btn" disabled title="History later">Back</button>
-      <button type="button" class="fluent-control toolbar-btn" disabled title="History later">Forward</button>
-      <button type="button" class="fluent-control toolbar-btn" title="Go up" @click="onGoUp">Up</button>
-      <span class="toolbar-spacer" />
-      <button type="button" class="fluent-control toolbar-btn" disabled title="Later">View</button>
+    <div class="toolbar" role="toolbar" :aria-label="t('chrome.toolbar')">
       <button
         type="button"
         class="fluent-control toolbar-btn"
-        title="Command Panel (Ctrl+Shift+P)"
+        disabled
+        :title="t('chrome.historyLater')"
+      >
+        {{ t("chrome.back") }}
+      </button>
+      <button
+        type="button"
+        class="fluent-control toolbar-btn"
+        disabled
+        :title="t('chrome.historyLater')"
+      >
+        {{ t("chrome.forward") }}
+      </button>
+      <button
+        type="button"
+        class="fluent-control toolbar-btn"
+        :title="t('chrome.upTitle')"
+        @click="onGoUp"
+      >
+        {{ t("chrome.up") }}
+      </button>
+      <span class="toolbar-spacer" />
+      <button
+        type="button"
+        class="fluent-control toolbar-btn"
+        disabled
+        :title="t('chrome.later')"
+      >
+        {{ t("chrome.view") }}
+      </button>
+      <button
+        type="button"
+        class="fluent-control toolbar-btn"
+        :title="t('chrome.commandsTitle')"
         aria-keyshortcuts="Control+Shift+P"
         @click="toggleCommandPanel"
       >
-        Commands
+        {{ t("chrome.commands") }}
         <span class="toolbar-shortcut">Ctrl+Shift+P</span>
       </button>
     </div>
 
-    <form class="address" aria-label="Address bar" @submit.prevent="submitAddress">
-      <label class="address-label" for="address-input">Path</label>
+    <form class="address" :aria-label="t('chrome.address')" @submit.prevent="submitAddress">
+      <label class="address-label" for="address-input">{{ t("chrome.path") }}</label>
       <input
         id="address-input"
         v-model="addressDraft"
@@ -274,12 +309,12 @@ onUnmounted(() => {
         type="text"
         spellcheck="false"
         autocomplete="off"
-        placeholder="Native OS path (Kernel) — Enter to go"
+        :placeholder="t('chrome.pathPlaceholder')"
       />
-      <button type="submit" class="fluent-control address-go">Go</button>
+      <button type="submit" class="fluent-control address-go">{{ t("chrome.go") }}</button>
     </form>
 
-    <div class="tabstrip" role="tablist" aria-label="Tabs">
+    <div class="tabstrip" role="tablist" :aria-label="t('chrome.tabs')">
       <template v-if="navigatorTabs.length">
         <button
           v-for="(tabPath, index) in navigatorTabs"
@@ -304,7 +339,7 @@ onUnmounted(() => {
         :aria-selected="route.path === '/navigator'"
         @click="openTab('navigator', '/navigator')"
       >
-        Navigator
+        {{ t("nav.navigator") }}
       </button>
       <button
         type="button"
@@ -314,15 +349,21 @@ onUnmounted(() => {
         :aria-selected="route.path === '/health'"
         @click="openTab('health', '/health')"
       >
-        Health
+        {{ t("nav.health") }}
       </button>
-      <button type="button" class="tab tab--add" disabled title="New tab later" aria-label="New tab">
+      <button
+        type="button"
+        class="tab tab--add"
+        disabled
+        :title="t('chrome.newTabLater')"
+        :aria-label="t('chrome.newTab')"
+      >
         +
       </button>
     </div>
 
     <div class="body">
-      <nav class="sidenav" aria-label="Side navigation">
+      <nav class="sidenav" :aria-label="t('chrome.sideNav')">
         <button
           v-for="item in navItems"
           :key="item.id"
@@ -333,11 +374,11 @@ onUnmounted(() => {
             'sidenav-item--later': item.later,
           }"
           :disabled="item.later"
-          :title="item.later ? 'Later phase' : undefined"
+          :title="item.later ? t('chrome.later') : undefined"
           @click="item.to && router.push(item.to)"
         >
-          <span>{{ item.label }}</span>
-          <span v-if="item.later" class="later-badge">later</span>
+          <span>{{ t(item.labelKey) }}</span>
+          <span v-if="item.later" class="later-badge">{{ t("chrome.later") }}</span>
         </button>
       </nav>
 
@@ -346,9 +387,11 @@ onUnmounted(() => {
       </main>
     </div>
 
-    <footer class="statusbar" aria-label="Status">
+    <footer class="statusbar" :aria-label="t('chrome.status')">
       <span>{{ statusText }}</span>
-      <button type="button" class="status-refresh" @click="loadHealth">Refresh health</button>
+      <button type="button" class="status-refresh" @click="loadHealth">
+        {{ t("chrome.refreshHealth") }}
+      </button>
     </footer>
 
     <CommandPanel :commands="panelCommands" />

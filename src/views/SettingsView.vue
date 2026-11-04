@@ -3,6 +3,10 @@
 import { computed, onMounted, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { applyUiChromeFromValues } from "../state/uiChrome";
+import { applyAppLocaleFromValues } from "../i18n/index";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 type SettingsTier = "core" | "power" | "experimental";
 
@@ -34,11 +38,11 @@ const schema = ref<SettingsSchemaManifest | null>(null);
 const document = ref<SettingsDocument | null>(null);
 const activeTier = ref<SettingsTier>("core");
 
-const tiers: { id: SettingsTier; label: string }[] = [
-  { id: "core", label: "Core" },
-  { id: "power", label: "Power" },
-  { id: "experimental", label: "Experimental" },
-];
+const tiers = computed(() => [
+  { id: "core" as const, label: t("settings.tierCore") },
+  { id: "power" as const, label: t("settings.tierPower") },
+  { id: "experimental" as const, label: t("settings.tierExperimental") },
+]);
 
 const visibleDefs = computed(() =>
   (schema.value?.definitions ?? []).filter((def) => def.tier === activeTier.value),
@@ -55,6 +59,7 @@ async function loadAll() {
     schema.value = manifest;
     document.value = doc;
     applyUiChromeFromValues(doc.values);
+    applyAppLocaleFromValues(doc.values);
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
@@ -74,6 +79,7 @@ async function patchValue(key: string, value: unknown) {
       patch: { [key]: value },
     });
     applyUiChromeFromValues(document.value.values);
+    applyAppLocaleFromValues(document.value.values);
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
     await loadAll();
@@ -105,15 +111,17 @@ onMounted(() => {
 <template>
   <section class="fluent-page panel">
     <header class="fluent-page-header">
-      <h1 class="fluent-page-title">Settings</h1>
+      <h1 class="fluent-page-title">{{ t("settings.title") }}</h1>
       <p class="fluent-page-meta">
-        Rust schema authority
-        <template v-if="schema">· v{{ schema.version }}</template>
-        <template v-if="document">· {{ Object.keys(document.values).length }} keys</template>
+        {{ t("settings.meta") }}
+        <template v-if="schema">{{ t("settings.metaVersion", { version: schema.version }) }}</template>
+        <template v-if="document">{{
+          t("settings.metaKeys", { count: Object.keys(document.values).length })
+        }}</template>
       </p>
     </header>
 
-    <p v-if="loading" class="fluent-banner">Loading schema…</p>
+    <p v-if="loading" class="fluent-banner">{{ t("settings.loading") }}</p>
     <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
 
     <template v-else-if="schema && document">

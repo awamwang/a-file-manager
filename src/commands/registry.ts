@@ -3,89 +3,94 @@
 import type { Router } from "vue-router";
 import type { AppCommand } from "./types";
 
+export type TranslateFn = (key: string) => string;
+
 export type CommandPanelDeps = {
   router: Router;
   /** Ensure Navigator route then go up one folder. */
   ensureNavigatorThenGoUp: () => Promise<void>;
   refreshHealth: () => void | Promise<void>;
+  /** Localize command titles (vue-i18n `t`). */
+  t: TranslateFn;
 };
 
 /**
  * Built-in commands wired to real shell routes / navigator / health.
- * Extend here as new app actions land — keep Vue thin; no Rust unless needed.
+ * Group ids stay English for stable ordering; titles are localized.
  */
 export function buildAppCommands(deps: CommandPanelDeps): AppCommand[] {
   const go = (path: string) => {
     void deps.router.push(path);
   };
+  const { t } = deps;
 
   return [
     {
       id: "nav.go-up",
-      title: "Go up one folder",
+      title: t("commands.goUp"),
       group: "Navigate",
-      keywords: ["parent", "up", "navigator"],
+      keywords: ["parent", "up", "navigator", "向上"],
       run: () => deps.ensureNavigatorThenGoUp(),
     },
     {
       id: "nav.open-navigator",
-      title: "Open Navigator",
+      title: t("commands.openNavigator"),
       group: "Navigate",
-      keywords: ["browse", "files", "home"],
+      keywords: ["browse", "files", "home", "导航"],
       run: () => go("/navigator"),
     },
     {
       id: "view.discovery",
-      title: "Open Discovery",
+      title: t("commands.openDiscovery"),
       group: "View",
-      keywords: ["everything", "search"],
+      keywords: ["everything", "search", "发现"],
       run: () => go("/discovery"),
     },
     {
       id: "view.providers",
-      title: "Open Providers",
+      title: t("commands.openProviders"),
       group: "View",
       keywords: ["rclone", "knowledge", "awam"],
       run: () => go("/providers"),
     },
     {
       id: "view.work-groups",
-      title: "Open Work Groups",
+      title: t("commands.openWorkGroups"),
       group: "View",
-      keywords: ["wg", "tabs"],
+      keywords: ["wg", "tabs", "工作组"],
       run: () => go("/work-groups"),
     },
     {
       id: "view.projects",
-      title: "Open Projects",
+      title: t("commands.openProjects"),
       group: "View",
-      keywords: ["project", "board"],
+      keywords: ["project", "board", "项目"],
       run: () => go("/projects"),
     },
     {
       id: "view.extensions",
-      title: "Open Extensions",
+      title: t("commands.openExtensions"),
       group: "View",
-      keywords: ["marketplace", "vnext", "plugins"],
+      keywords: ["marketplace", "vnext", "plugins", "扩展"],
       run: () => go("/extensions"),
     },
     {
       id: "view.settings",
-      title: "Open Settings",
+      title: t("commands.openSettings"),
       group: "View",
-      keywords: ["preferences", "core", "options"],
+      keywords: ["preferences", "core", "options", "设置"],
       run: () => go("/settings"),
     },
     {
       id: "view.health",
-      title: "Open Health",
+      title: t("commands.openHealth"),
       group: "View",
-      keywords: ["status", "version", "diagnostics"],
+      keywords: ["status", "version", "diagnostics", "健康"],
       run: () => go("/health"),
     },
     {
       id: "action.refresh-health",
-      title: "Refresh health status",
+      title: t("commands.refreshHealth"),
       group: "Actions",
       keywords: ["health", "reload", "status"],
       run: () => deps.refreshHealth(),

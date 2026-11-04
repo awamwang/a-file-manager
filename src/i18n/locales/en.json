@@ -1,0 +1,128 @@
+{
+  "app": {
+    "name": "A File Manager",
+    "captionMeta": "Standard · i18n"
+  },
+  "chrome": {
+    "titleBar": "Title bar",
+    "windowControls": "Window controls",
+    "minimize": "Minimize",
+    "maximize": "Maximize",
+    "restore": "Restore",
+    "close": "Close",
+    "toolbar": "Main toolbar",
+    "back": "Back",
+    "forward": "Forward",
+    "up": "Up",
+    "upTitle": "Go up",
+    "view": "View",
+    "later": "Later",
+    "historyLater": "History later",
+    "commands": "Commands",
+    "commandsTitle": "Command Panel (Ctrl+Shift+P)",
+    "address": "Address bar",
+    "path": "Path",
+    "pathPlaceholder": "Native OS path (Kernel) — Enter to go",
+    "go": "Go",
+    "tabs": "Tabs",
+    "newTab": "New tab",
+    "newTabLater": "New tab later",
+    "sideNav": "Side navigation",
+    "status": "Status",
+    "refreshHealth": "Refresh health",
+    "healthOk": "health: ok · v{version}",
+    "healthError": "health: error",
+    "healthPending": "health: …",
+    "navigatorLoading": "navigator: loading",
+    "navigatorError": "navigator: error",
+    "navigatorCounts": "{dirs} folders · {files} files"
+  },
+  "nav": {
+    "navigator": "Navigator",
+    "discovery": "Discovery",
+    "providers": "Providers",
+    "workGroups": "Work Groups",
+    "projects": "Projects",
+    "extensions": "Extensions",
+    "settings": "Settings",
+    "health": "Health"
+  },
+  "commands": {
+    "groups": {
+      "navigate": "Navigate",
+      "view": "View",
+      "actions": "Actions"
+    },
+    "goUp": "Go up one folder",
+    "openNavigator": "Open Navigator",
+    "openDiscovery": "Open Discovery",
+    "openProviders": "Open Providers",
+    "openWorkGroups": "Open Work Groups",
+    "openProjects": "Open Projects",
+    "openExtensions": "Open Extensions",
+    "openSettings": "Open Settings",
+    "openHealth": "Open Health",
+    "refreshHealth": "Refresh health status",
+    "panelLabel": "Command Panel",
+    "placeholder": "Type a command…",
+    "results": "Command results",
+    "empty": "No matching commands",
+    "hint": "↑↓ to move · Enter to run · Esc to close · Ctrl+Shift+P"
+  },
+  "navigator": {
+    "title": "Navigator",
+    "metaConnected": "Kernel OS browse · {dirs} folders · {files} files",
+    "metaDisconnected": "Kernel OS browse · not connected",
+    "loading": "Loading…",
+    "empty": "This folder is empty.",
+    "folder": "Folder",
+    "file": "File"
+  },
+  "discovery": {
+    "title": "Discovery",
+    "meta": "Everything IPC first-class · no es.exe · fallback stub only when enabled",
+    "engine": "Engine",
+    "degraded": "degraded",
+    "fallback": "Enable self-index fallback stub (only when Everything is down)",
+    "placeholder": "Search file name / path…",
+    "search": "Search",
+    "searching": "Searching…",
+    "noHits": "No hits (engine={engine}, total={total}).",
+    "shown": "{shown} shown · total {total} · {engine}",
+    "folder": "Folder",
+    "file": "File"
+  },
+  "settings": {
+    "title": "Settings",
+    "meta": "Rust schema authority",
+    "metaVersion": "· v{version}",
+    "metaKeys": "· {count} keys",
+    "loading": "Loading schema…",
+    "tierCore": "Core",
+    "tierPower": "Power",
+    "tierExperimental": "Experimental"
+  },
+  "health": {
+    "title": "Health",
+    "meta": "Rust core identity via health_get",
+    "loading": "Loading…",
+    "failed": "Health failed: {error}",
+    "refresh": "Refresh"
+  },
+  "providers": {
+    "title": "Providers",
+    "meta": "awam extension layer · rclone + knowledge"
+  },
+  "workGroups": {
+    "title": "Work Groups",
+    "meta": "Hard config ↔ runtime Open State · silent switch"
+  },
+  "projects": {
+    "title": "Projects",
+    "meta": "List + board · Context notes · open-all → Navigator tabs"
+  },
+  "extensions": {
+    "title": "Extensions",
+    "meta": "vNext host · empty marketplace · no legacy packages"
+  }
+}

@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { navigateTo } from "../state/navigatorBrowse";
 import { useRouter } from "vue-router";
@@ -29,6 +30,7 @@ type DiscoverySearchResult = {
   hits: DiscoveryHit[];
 };
 
+const { t } = useI18n();
 const router = useRouter();
 const status = ref<DiscoveryStatus | null>(null);
 const query = ref("");
@@ -85,15 +87,15 @@ onMounted(() => {
 <template>
   <section class="panel">
     <header class="header">
-      <h1>Discovery</h1>
-      <p class="meta">Everything IPC first-class · no es.exe · fallback stub only when enabled</p>
+      <h1>{{ t("discovery.title") }}</h1>
+      <p class="meta">{{ t("discovery.meta") }}</p>
     </header>
 
     <div v-if="status" class="status-card">
       <p>
-        Engine:
+        {{ t("discovery.engine") }}:
         <strong>{{ status.activeEngine }}</strong>
-        <span v-if="status.degraded"> · degraded</span>
+        <span v-if="status.degraded"> · {{ t("discovery.degraded") }}</span>
       </p>
       <p class="detail">{{ status.detail }}</p>
       <label class="fallback">
@@ -102,7 +104,7 @@ onMounted(() => {
           :checked="status.fallbackEnabled"
           @change="toggleFallback"
         />
-        Enable self-index fallback stub (only when Everything is down)
+        {{ t("discovery.fallback") }}
       </label>
     </div>
 
@@ -111,22 +113,28 @@ onMounted(() => {
         v-model="query"
         class="fluent-control query"
         type="search"
-        placeholder="Search file name / path…"
+        :placeholder="t('discovery.placeholder')"
         spellcheck="false"
       />
       <button class="fluent-control fluent-control--accent" type="submit" :disabled="loading">
-        {{ loading ? "Searching…" : "Search" }}
+        {{ loading ? t("discovery.searching") : t("discovery.search") }}
       </button>
     </form>
 
     <p v-if="error" class="banner banner--error">{{ error }}</p>
     <p v-else-if="result && result.hits.length === 0" class="banner">
-      No hits (engine={{ result.engine }}, total={{ result.totalCount }}).
+      {{ t("discovery.noHits", { engine: result.engine, total: result.totalCount }) }}
     </p>
 
     <div v-if="result && result.hits.length" class="list">
       <p class="meta">
-        {{ result.hits.length }} shown · total {{ result.totalCount }} · {{ result.engine }}
+        {{
+          t("discovery.shown", {
+            shown: result.hits.length,
+            total: result.totalCount,
+            engine: result.engine,
+          })
+        }}
       </p>
       <button
         v-for="hit in result.hits"
@@ -135,7 +143,7 @@ onMounted(() => {
         class="fluent-list-row row"
         @dblclick="openHit(hit)"
       >
-        <span class="kind">{{ hit.isDir ? "Folder" : "File" }}</span>
+        <span class="kind">{{ hit.isDir ? t("discovery.folder") : t("discovery.file") }}</span>
         <span class="name">{{ hit.name }}</span>
         <span class="path">{{ hit.path }}</span>
       </button>

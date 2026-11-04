@@ -1,7 +1,10 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
+
+const { t } = useI18n();
 
 type ExtensionHostStatus = {
   apiVersion: string;
@@ -127,10 +130,9 @@ onMounted(() => {
 <template>
   <section class="panel">
     <header class="header">
-      <h1>Extensions</h1>
+      <h1>{{ t("extensions.title") }}</h1>
       <p class="meta">
-        ExtensionHost {{ status?.apiVersion ?? "vnext.1" }} · empty marketplace · no Sigma / GitHub
-        fetch · JS command channel + FS provider hooks
+        ExtensionHost {{ status?.apiVersion ?? "vnext.1" }} · {{ t("extensions.meta") }}
       </p>
     </header>
 
