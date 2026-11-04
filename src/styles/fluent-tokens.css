@@ -16,7 +16,8 @@
   --fluent-control-height-comfortable: 40px;
   --fluent-list-row-height-standard: 32px;
   --fluent-list-row-height-compact: 24px;
-  --fluent-titlebar-height: 40px;
+  --fluent-titlebar-height: 40px; /* sync: snap_chrome::TITLEBAR_HEIGHT_PX — Snap overlay */
+  --fluent-titlebar-button-width: 46px; /* sync: snap_chrome::BUTTON_WIDTH_PX */
   --fluent-toolbar-height: 40px;
   --fluent-addressbar-height: 36px;
 

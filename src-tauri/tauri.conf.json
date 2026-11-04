@@ -16,7 +16,7 @@
         "title": "A File Manager",
         "width": 1100,
         "height": 720,
-        "minWidth": 640,
+        "minWidth": 330,
         "minHeight": 400,
         "decorations": false
       }

@@ -1,8 +1,9 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   currentPath,
@@ -35,6 +36,9 @@ const addressDraft = ref("");
 const activeTab = ref("navigator");
 const health = ref<HealthPayload | null>(null);
 const healthError = ref<string | null>(null);
+const isMaximized = ref(false);
+const maxHover = ref(false);
+const unlisteners: UnlistenFn[] = [];
 
 const navItems: NavItem[] = [
   { id: "navigator", label: "Navigator", to: "/navigator" },
@@ -96,12 +100,21 @@ async function onGoUp() {
   await goUp();
 }
 
+async function refreshMaximized() {
+  try {
+    isMaximized.value = await getCurrentWindow().isMaximized();
+  } catch {
+    isMaximized.value = false;
+  }
+}
+
 async function minimizeWindow() {
   await getCurrentWindow().minimize();
 }
 
 async function toggleMaximizeWindow() {
   await getCurrentWindow().toggleMaximize();
+  await refreshMaximized();
 }
 
 async function closeWindow() {
@@ -132,30 +145,74 @@ async function openNavigatorTab(path: string) {
 
 onMounted(() => {
   void loadHealth();
+  void refreshMaximized();
+
+  const win = getCurrentWindow();
+  void win.onResized(() => {
+    void refreshMaximized();
+  }).then((unlisten) => {
+    unlisteners.push(unlisten);
+  });
+
+  // Snap overlay owns the maximize hit-test (HTMAXBUTTON). Wire hover/click back to Fluent UI.
+  void listen("tauri-frame://snap/click", () => {
+    void toggleMaximizeWindow();
+  }).then((unlisten) => unlisteners.push(unlisten));
+  void listen("tauri-frame://snap/mouseenter", () => {
+    maxHover.value = true;
+  }).then((unlisten) => unlisteners.push(unlisten));
+  void listen("tauri-frame://snap/mouseleave", () => {
+    maxHover.value = false;
+  }).then((unlisten) => unlisteners.push(unlisten));
+});
+
+onUnmounted(() => {
+  for (const unlisten of unlisteners) {
+    unlisten();
+  }
 });
 </script>
 
 <template>
   <div class="shell fluent-chrome">
-    <header class="titlebar" aria-label="Title bar">
+    <header class="titlebar" data-tauri-frame-tb aria-label="Title bar">
       <div class="titlebar-drag" data-tauri-drag-region>
         <span class="brand" data-tauri-drag-region>A File Manager</span>
-        <span class="caption-meta" data-tauri-drag-region>Standard · S8</span>
+        <span class="caption-meta" data-tauri-drag-region
+          >Standard · S9 · Snap</span
+        >
       </div>
       <div class="window-controls" aria-label="Window controls">
-        <button type="button" class="win-btn" aria-label="Minimize" @click="minimizeWindow">
-          ─
-        </button>
-        <!-- Snap Layouts deferred to S9 — maximize hit target only -->
         <button
+          id="frame-tb-minimize"
           type="button"
           class="win-btn"
-          aria-label="Maximize"
+          aria-label="Minimize"
+          @click="minimizeWindow"
+        >
+          ─
+        </button>
+        <!--
+          Snap: native HTMAXBUTTON overlay (tauri-plugin-frame) covers this button.
+          :hover / click come from tauri-frame://snap/* events — see script.
+        -->
+        <button
+          id="frame-tb-maximize"
+          type="button"
+          class="win-btn"
+          :class="{ 'win-btn--hover': maxHover }"
+          :aria-label="isMaximized ? 'Restore' : 'Maximize'"
           @click="toggleMaximizeWindow"
         >
-          □
+          {{ isMaximized ? "❐" : "□" }}
         </button>
-        <button type="button" class="win-btn win-btn--close" aria-label="Close" @click="closeWindow">
+        <button
+          id="frame-tb-close"
+          type="button"
+          class="win-btn win-btn--close"
+          aria-label="Close"
+          @click="closeWindow"
+        >
           ✕
         </button>
       </div>
@@ -301,16 +358,18 @@ onMounted(() => {
 }
 
 .win-btn {
-  width: 46px;
+  width: var(--fluent-titlebar-button-width);
   height: var(--fluent-titlebar-height);
   border: 0;
   background: transparent;
   color: var(--fluent-color-text-primary);
   font-size: 12px;
   line-height: 1;
+  transition: background-color 80ms ease;
 }
 
-.win-btn:hover {
+.win-btn:hover,
+.win-btn--hover {
   background: var(--fluent-color-fill-subtle);
 }
 

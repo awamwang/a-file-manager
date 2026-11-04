@@ -6,6 +6,7 @@ mod navigator;
 mod projects;
 mod providers;
 mod settings;
+mod snap_chrome;
 mod work_groups;
 
 use serde::Serialize;
@@ -31,8 +32,26 @@ fn health_get() -> HealthPayload {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    use tauri::Manager;
+    use tauri_plugin_frame::{FramePluginBuilder, WebviewWindowExt};
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(
+            FramePluginBuilder::new()
+                // Keep Fluent self-drawn caption; plugin only installs HTMAXBUTTON overlay.
+                .auto_titlebar(false)
+                .snap_overlay(true)
+                .titlebar_height(snap_chrome::TITLEBAR_HEIGHT_PX)
+                .button_width(snap_chrome::BUTTON_WIDTH_PX)
+                .build(),
+        )
+        .setup(|app| {
+            if let Some(window) = app.get_webview_window("main") {
+                window.create_overlay_titlebar_with_height(snap_chrome::TITLEBAR_HEIGHT_PX)?;
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             health_get,
             navigator::navigator_list,

@@ -12,6 +12,7 @@ const required = [
   "--fluent-space-md",
   "--fluent-space-lg",
   "--fluent-titlebar-height: 40px",
+  "--fluent-titlebar-button-width: 46px",
   "--fluent-toolbar-height: 40px",
   "--fluent-addressbar-height: 36px",
   "--fluent-control-height-standard: 32px",
