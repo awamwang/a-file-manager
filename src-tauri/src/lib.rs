@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+mod discovery;
 mod navigator;
 mod settings;
 
@@ -36,6 +37,9 @@ pub fn run() {
             settings::settings_schema_get,
             settings::settings_get,
             settings::settings_set,
+            discovery::discovery_status,
+            discovery::discovery_set_fallback_enabled,
+            discovery::discovery_search,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
