@@ -22,6 +22,9 @@ export const listing = shallowRef<NavigatorListing | null>(null);
 export const listError = ref<string | null>(null);
 export const listLoading = ref(false);
 
+/** Lightweight Navigator tab paths (Open all Project links → tabs only). */
+export const navigatorTabs = ref<string[]>([]);
+
 export async function navigateTo(path: string): Promise<void> {
   const trimmed = path.trim();
   listLoading.value = true;
@@ -36,6 +39,14 @@ export async function navigateTo(path: string): Promise<void> {
     currentPath.value = trimmed;
   } finally {
     listLoading.value = false;
+  }
+}
+
+export async function openPathsAsNavigatorTabs(paths: string[]): Promise<void> {
+  const cleaned = paths.map((p) => p.trim()).filter(Boolean);
+  navigatorTabs.value = cleaned;
+  if (cleaned.length > 0) {
+    await navigateTo(cleaned[0]);
   }
 }
 

@@ -11,6 +11,7 @@ import {
   listLoading,
   listing,
   navigateTo,
+  navigatorTabs,
 } from "../../state/navigatorBrowse";
 
 type HealthPayload = {
@@ -40,7 +41,7 @@ const navItems: NavItem[] = [
   { id: "discovery", label: "Discovery", to: "/discovery" },
   { id: "providers", label: "Providers", to: "/providers" },
   { id: "work-groups", label: "Work Groups", to: "/work-groups" },
-  { id: "projects", label: "Projects", later: true },
+  { id: "projects", label: "Projects", to: "/projects" },
   { id: "settings", label: "Settings", to: "/settings" },
   { id: "health", label: "Health", to: "/health" },
 ];
@@ -115,6 +116,19 @@ function openTab(id: string, path: string) {
   void router.push(path);
 }
 
+function tabLabel(path: string) {
+  const parts = path.replace(/\\/g, "/").replace(/\/+$/, "").split("/");
+  return parts[parts.length - 1] || path;
+}
+
+async function openNavigatorTab(path: string) {
+  activeTab.value = "navigator";
+  if (route.path !== "/navigator") {
+    await router.push("/navigator");
+  }
+  await navigateTo(path);
+}
+
 onMounted(() => {
   void loadHealth();
 });
@@ -125,7 +139,7 @@ onMounted(() => {
     <header class="titlebar" aria-label="Title bar">
       <div class="titlebar-drag" data-tauri-drag-region>
         <span class="brand" data-tauri-drag-region>A File Manager</span>
-        <span class="caption-meta" data-tauri-drag-region>Standard · S6</span>
+        <span class="caption-meta" data-tauri-drag-region>Standard · S7</span>
       </div>
       <div class="window-controls" aria-label="Window controls">
         <button type="button" class="win-btn" aria-label="Minimize" @click="minimizeWindow">
@@ -169,7 +183,23 @@ onMounted(() => {
     </form>
 
     <div class="tabstrip" role="tablist" aria-label="Tabs">
+      <template v-if="navigatorTabs.length">
+        <button
+          v-for="(tabPath, index) in navigatorTabs"
+          :key="`${tabPath}-${index}`"
+          type="button"
+          role="tab"
+          class="tab"
+          :class="{ 'tab--active': route.path === '/navigator' && currentPath === tabPath }"
+          :aria-selected="route.path === '/navigator' && currentPath === tabPath"
+          :title="tabPath"
+          @click="openNavigatorTab(tabPath)"
+        >
+          {{ tabLabel(tabPath) }}
+        </button>
+      </template>
       <button
+        v-else
         type="button"
         role="tab"
         class="tab"
@@ -189,7 +219,7 @@ onMounted(() => {
       >
         Health
       </button>
-      <button type="button" class="tab tab--add" disabled title="Multi-tab later" aria-label="New tab">
+      <button type="button" class="tab tab--add" disabled title="New tab later" aria-label="New tab">
         +
       </button>
     </div>

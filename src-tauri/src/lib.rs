@@ -2,6 +2,7 @@
 
 mod discovery;
 mod navigator;
+mod projects;
 mod providers;
 mod settings;
 mod work_groups;
@@ -52,6 +53,19 @@ pub fn run() {
             work_groups::work_groups_silent_switch,
             work_groups::work_groups_save_open_state,
             work_groups::work_groups_save_members_from_open_state,
+            projects::projects_get,
+            projects::projects_create,
+            projects::projects_rename,
+            projects::projects_delete,
+            projects::projects_set_active,
+            projects::projects_add_workspace_link,
+            projects::projects_remove_workspace_link,
+            projects::projects_set_context_notes,
+            projects::projects_add_task,
+            projects::projects_update_task,
+            projects::projects_move_task,
+            projects::projects_delete_task,
+            projects::projects_open_all_links,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
