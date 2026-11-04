@@ -3,11 +3,11 @@
 import { onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import {
+  bootstrapNavigatorOpenState,
   currentPath,
   listing,
   listError,
   listLoading,
-  loadDefaultPath,
   navigateTo,
   openEntry,
   type NavigatorEntry,
@@ -16,11 +16,12 @@ import {
 const { t } = useI18n();
 
 onMounted(() => {
-  if (!currentPath.value) {
-    void loadDefaultPath();
-  } else if (!listing.value && !listError.value) {
-    void navigateTo(currentPath.value);
-  }
+  void (async () => {
+    await bootstrapNavigatorOpenState();
+    if (currentPath.value && !listing.value && !listError.value && !listLoading.value) {
+      await navigateTo(currentPath.value, { syncOpenState: false });
+    }
+  })();
 });
 
 function formatSize(entry: NavigatorEntry): string {

@@ -3,21 +3,15 @@
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
+import {
+  activeWorkGroupId,
+  liveOpenState,
+  restoreWorkGroupOpenState,
+  snapshotLiveOpenState,
+} from "../state/navigatorBrowse";
+import type { WorkGroupOpenState } from "../state/openStateModel";
 
 const { t } = useI18n();
-
-type WorkGroupOpenStateTab = {
-  id: string;
-  name: string;
-  path: string;
-  type: string;
-};
-
-type WorkGroupOpenState = {
-  tabGroups: WorkGroupOpenStateTab[][];
-  currentTabGroupIndex: number;
-  currentTabIndex: number;
-};
 
 type WorkGroup = {
   id: string;
@@ -47,28 +41,32 @@ type SilentSwitchResult = {
 };
 
 const document = ref<UserWorkGroups | null>(null);
-const liveOpenState = ref<WorkGroupOpenState | null>(null);
 const notice = ref<SoftNotice | null>(null);
 const error = ref<string | null>(null);
 const newName = ref("");
 const memberPath = ref("");
 const loading = ref(false);
 
-const active = computed(() =>
-  document.value?.workGroups.find((g) => g.id === document.value?.activeWorkGroupId) ?? null,
+const active = computed(
+  () =>
+    document.value?.workGroups.find((g) => g.id === document.value?.activeWorkGroupId) ?? null,
 );
+
+const liveTabs = computed(() => (liveOpenState.value?.tabGroups ?? []).flat());
 
 async function refresh() {
   loading.value = true;
   error.value = null;
   try {
     document.value = await invoke<UserWorkGroups>("work_groups_get");
+    activeWorkGroupId.value = document.value.activeWorkGroupId;
     const current = document.value.workGroups.find(
       (g) => g.id === document.value!.activeWorkGroupId,
     );
-    liveOpenState.value = current?.openState
-      ? structuredClone(current.openState)
-      : { tabGroups: [], currentTabGroupIndex: 0, currentTabIndex: 0 };
+    // Prefer live Navigator strip; seed from disk only when strip is empty.
+    if (!liveOpenState.value.tabGroups.length && current?.openState) {
+      await restoreWorkGroupOpenState(document.value.activeWorkGroupId, current.openState);
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
@@ -87,15 +85,18 @@ async function silentSwitch(targetId: string) {
   error.value = null;
   const result = await invoke<SilentSwitchResult>("work_groups_silent_switch", {
     targetWorkGroupId: targetId,
-    liveOpenState: liveOpenState.value,
+    liveOpenState: snapshotLiveOpenState(),
   });
   if (result.requireSavePrompt) {
     error.value = t("workGroups.errorSavePrompt");
     return;
   }
   document.value = result.document;
-  liveOpenState.value = result.openStateToRestore;
   notice.value = result.notice;
+  await restoreWorkGroupOpenState(
+    result.document.activeWorkGroupId,
+    result.openStateToRestore,
+  );
 }
 
 async function addMember() {
@@ -105,19 +106,19 @@ async function addMember() {
   >("work_groups_add_member", {
     workGroupId: active.value.id,
     memberPath: memberPath.value.trim(),
-    liveOpenState: liveOpenState.value,
+    liveOpenState: snapshotLiveOpenState(),
   });
   document.value = nextDoc;
-  liveOpenState.value = nextOpen;
   notice.value = soft;
   memberPath.value = "";
+  await restoreWorkGroupOpenState(active.value.id, nextOpen);
 }
 
 async function saveOpenState() {
   if (!active.value) return;
   document.value = await invoke<UserWorkGroups>("work_groups_save_open_state", {
     workGroupId: active.value.id,
-    liveOpenState: liveOpenState.value,
+    liveOpenState: snapshotLiveOpenState(),
   });
 }
 
@@ -125,13 +126,9 @@ async function saveMembersFromTabs() {
   if (!active.value) return;
   document.value = await invoke<UserWorkGroups>("work_groups_save_members_from_open_state", {
     workGroupId: active.value.id,
-    liveOpenState: liveOpenState.value,
+    liveOpenState: snapshotLiveOpenState(),
   });
 }
-
-const liveTabs = computed(() =>
-  (liveOpenState.value?.tabGroups ?? []).flat(),
-);
 
 onMounted(() => {
   void refresh();

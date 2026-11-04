@@ -17,13 +17,18 @@ import {
   requestGlobalSearchFocus,
 } from "../../state/globalSearch";
 import {
+  bootstrapNavigatorOpenState,
+  closeNavigatorTab,
   currentPath,
   goUp,
   listError,
   listLoading,
   listing,
+  liveOpenState,
   navigateTo,
-  navigatorTabs,
+  newNavigatorTab,
+  stripTabs,
+  switchNavigatorTab,
 } from "../../state/navigatorBrowse";
 
 const { t, locale } = useI18n();
@@ -184,17 +189,34 @@ function tabLabel(path: string) {
   return parts[parts.length - 1] || path;
 }
 
-async function openNavigatorTab(path: string) {
+async function ensureNavigatorRoute() {
   activeTab.value = "navigator";
   if (route.path !== "/navigator") {
     await router.push("/navigator");
   }
-  await navigateTo(path);
+}
+
+async function onSwitchNavigatorTab(groupIndex: number) {
+  await ensureNavigatorRoute();
+  await switchNavigatorTab(groupIndex);
+}
+
+async function onCloseNavigatorTab(event: Event, groupIndex: number) {
+  event.stopPropagation();
+  event.preventDefault();
+  await ensureNavigatorRoute();
+  await closeNavigatorTab(groupIndex);
+}
+
+async function onNewNavigatorTab() {
+  await ensureNavigatorRoute();
+  await newNavigatorTab();
 }
 
 onMounted(() => {
   void loadHealth();
   void refreshMaximized();
+  void bootstrapNavigatorOpenState();
   window.addEventListener("keydown", onGlobalKeydown);
 
   const win = getCurrentWindow();
@@ -328,23 +350,34 @@ onUnmounted(() => {
     </form>
 
     <div class="tabstrip" role="tablist" :aria-label="t('chrome.tabs')">
-      <template v-if="navigatorTabs.length">
+      <div
+        v-for="tab in stripTabs"
+        :key="tab.id"
+        class="tab"
+        :class="{
+          'tab--active':
+            route.path === '/navigator' && liveOpenState.currentTabGroupIndex === tab.groupIndex,
+        }"
+        role="tab"
+        :aria-selected="
+          route.path === '/navigator' && liveOpenState.currentTabGroupIndex === tab.groupIndex
+        "
+        :title="tab.path"
+        @click="onSwitchNavigatorTab(tab.groupIndex)"
+      >
+        <span class="tab-label">{{ tab.name || tabLabel(tab.path) }}</span>
         <button
-          v-for="(tabPath, index) in navigatorTabs"
-          :key="`${tabPath}-${index}`"
           type="button"
-          role="tab"
-          class="tab"
-          :class="{ 'tab--active': route.path === '/navigator' && currentPath === tabPath }"
-          :aria-selected="route.path === '/navigator' && currentPath === tabPath"
-          :title="tabPath"
-          @click="openNavigatorTab(tabPath)"
+          class="tab-close"
+          :aria-label="t('chrome.closeTab')"
+          :title="t('chrome.closeTab')"
+          @click="onCloseNavigatorTab($event, tab.groupIndex)"
         >
-          {{ tabLabel(tabPath) }}
+          ×
         </button>
-      </template>
+      </div>
       <button
-        v-else
+        v-if="!stripTabs.length"
         type="button"
         role="tab"
         class="tab"
@@ -356,20 +389,10 @@ onUnmounted(() => {
       </button>
       <button
         type="button"
-        role="tab"
-        class="tab"
-        :class="{ 'tab--active': route.path === '/health' }"
-        :aria-selected="route.path === '/health'"
-        @click="openTab('health', '/health')"
-      >
-        {{ t("nav.health") }}
-      </button>
-      <button
-        type="button"
         class="tab tab--add"
-        disabled
-        :title="t('chrome.newTabLater')"
+        :title="t('chrome.newTab')"
         :aria-label="t('chrome.newTab')"
+        @click="onNewNavigatorTab"
       >
         +
       </button>
@@ -563,14 +586,19 @@ onUnmounted(() => {
 }
 
 .tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fluent-space-xs);
+  max-width: 14rem;
   min-height: var(--fluent-control-height-standard);
-  padding: 0 var(--fluent-space-md);
+  padding: 0 var(--fluent-space-sm) 0 var(--fluent-space-md);
   border: var(--fluent-stroke-width) solid transparent;
   border-bottom: 0;
   border-radius: var(--fluent-radius-sm) var(--fluent-radius-sm) 0 0;
   background: transparent;
   color: var(--fluent-color-text-secondary);
   font: inherit;
+  cursor: pointer;
 }
 
 .tab:hover:not(:disabled) {
@@ -586,10 +614,35 @@ onUnmounted(() => {
   box-shadow: inset 0 -2px 0 var(--fluent-color-fill-accent);
 }
 
+.tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-close {
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 0;
+  border-radius: var(--fluent-radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.tab-close:hover {
+  background: var(--fluent-color-fill-control-pressed);
+  opacity: 1;
+}
+
 .tab--add {
   min-width: var(--fluent-control-height-standard);
-  opacity: 0.45;
-  cursor: not-allowed;
+  justify-content: center;
+  padding-inline: 0;
 }
 
 .body {
