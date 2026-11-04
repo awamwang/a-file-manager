@@ -4,6 +4,7 @@ mod discovery;
 mod navigator;
 mod providers;
 mod settings;
+mod work_groups;
 
 use serde::Serialize;
 
@@ -45,6 +46,12 @@ pub fn run() {
             providers::provider_list,
             providers::provider_stat,
             providers::provider_resolve,
+            work_groups::work_groups_get,
+            work_groups::work_groups_create,
+            work_groups::work_groups_add_member,
+            work_groups::work_groups_silent_switch,
+            work_groups::work_groups_save_open_state,
+            work_groups::work_groups_save_members_from_open_state,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

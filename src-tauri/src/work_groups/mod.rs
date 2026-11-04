@@ -1,0 +1,134 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+//! Work Groups — hard config ↔ runtime Open State + silent switch (ADR / design §5).
+
+mod paths;
+mod store;
+mod sync;
+mod types;
+
+use store::{load_from_path, save_to_path};
+use sync::{
+    add_member_to_hard_config, create_work_group_in_list, save_members_from_open_state_to_hard,
+    save_runtime_open_state_to_hard, silent_switch_work_group,
+};
+use tauri::{AppHandle, Manager};
+use types::{
+    SilentSwitchResult, UserWorkGroups, WorkGroup, WorkGroupOpenState, WorkGroupSoftSyncNotice,
+};
+
+fn config_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    app.path()
+        .app_config_dir()
+        .map_err(|err| format!("Failed to resolve app config dir: {err}"))
+}
+
+#[tauri::command]
+pub fn work_groups_get(app: AppHandle) -> Result<UserWorkGroups, String> {
+    let dir = config_dir(&app)?;
+    load_from_path(&dir)
+}
+
+#[tauri::command]
+pub fn work_groups_create(
+    app: AppHandle,
+    name: Option<String>,
+) -> Result<UserWorkGroups, String> {
+    let dir = config_dir(&app)?;
+    let mut document = load_from_path(&dir)?;
+    let (groups, _created) = create_work_group_in_list(&document.work_groups, name);
+    document.work_groups = groups;
+    save_to_path(&dir, &document)?;
+    Ok(document)
+}
+
+#[tauri::command]
+pub fn work_groups_add_member(
+    app: AppHandle,
+    work_group_id: String,
+    member_path: String,
+    live_open_state: Option<WorkGroupOpenState>,
+) -> Result<(UserWorkGroups, WorkGroupOpenState, Option<WorkGroupSoftSyncNotice>), String> {
+    let dir = config_dir(&app)?;
+    let mut document = load_from_path(&dir)?;
+    let index = document
+        .work_groups
+        .iter()
+        .position(|group| group.id == work_group_id)
+        .ok_or_else(|| format!("Unknown Work Group: {work_group_id}"))?;
+    let (next_group, next_open, notice) = add_member_to_hard_config(
+        &document.work_groups[index],
+        live_open_state.as_ref(),
+        &member_path,
+    );
+    document.work_groups[index] = WorkGroup {
+        open_state: Some(next_open.clone()),
+        ..next_group
+    };
+    save_to_path(&dir, &document)?;
+    Ok((document, next_open, notice))
+}
+
+#[tauri::command]
+pub fn work_groups_silent_switch(
+    app: AppHandle,
+    target_work_group_id: String,
+    live_open_state: Option<WorkGroupOpenState>,
+) -> Result<SilentSwitchResult, String> {
+    let dir = config_dir(&app)?;
+    let document = load_from_path(&dir)?;
+    let mut result =
+        silent_switch_work_group(&document, &target_work_group_id, live_open_state.as_ref())?;
+    // Persist flushed leaving group + new active id; also stamp restored open state onto target.
+    if let Some(restored) = result.open_state_to_restore.clone() {
+        if let Some(group) = result
+            .document
+            .work_groups
+            .iter_mut()
+            .find(|group| group.id == result.document.active_work_group_id)
+        {
+            group.open_state = Some(restored);
+        }
+    }
+    save_to_path(&dir, &result.document)?;
+    Ok(result)
+}
+
+#[tauri::command]
+pub fn work_groups_save_open_state(
+    app: AppHandle,
+    work_group_id: String,
+    live_open_state: Option<WorkGroupOpenState>,
+) -> Result<UserWorkGroups, String> {
+    let dir = config_dir(&app)?;
+    let mut document = load_from_path(&dir)?;
+    let index = document
+        .work_groups
+        .iter()
+        .position(|group| group.id == work_group_id)
+        .ok_or_else(|| format!("Unknown Work Group: {work_group_id}"))?;
+    document.work_groups[index] =
+        save_runtime_open_state_to_hard(&document.work_groups[index], live_open_state.as_ref());
+    save_to_path(&dir, &document)?;
+    Ok(document)
+}
+
+#[tauri::command]
+pub fn work_groups_save_members_from_open_state(
+    app: AppHandle,
+    work_group_id: String,
+    live_open_state: Option<WorkGroupOpenState>,
+) -> Result<UserWorkGroups, String> {
+    let dir = config_dir(&app)?;
+    let mut document = load_from_path(&dir)?;
+    let index = document
+        .work_groups
+        .iter()
+        .position(|group| group.id == work_group_id)
+        .ok_or_else(|| format!("Unknown Work Group: {work_group_id}"))?;
+    document.work_groups[index] = save_members_from_open_state_to_hard(
+        &document.work_groups[index],
+        live_open_state.as_ref(),
+    );
+    save_to_path(&dir, &document)?;
+    Ok(document)
+}
