@@ -254,6 +254,14 @@
             "system": "Système"
           },
           "title": "Thème"
+        },
+        "launchAtStartup": {
+          "title": "Lancer au démarrage",
+          "description": "Démarrer A File Manager à la connexion Windows"
+        },
+        "launchAtStartupHidden": {
+          "title": "Démarrer masqué dans la zone de notification",
+          "description": "Lors du démarrage automatique, masquer la fenêtre principale dans la zone de notification"
         }
       },
       "experimental": {

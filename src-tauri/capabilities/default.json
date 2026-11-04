@@ -10,7 +10,13 @@
     "core:window:allow-toggle-maximize",
     "core:window:allow-is-maximized",
     "core:window:allow-close",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-set-focus",
+    "core:window:allow-unminimize",
+    "core:window:allow-is-minimized",
     "core:window:allow-start-dragging",
+    "core:tray:default",
     "opener:default"
   ]
 }

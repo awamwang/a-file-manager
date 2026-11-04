@@ -20,6 +20,21 @@ fn config_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
         .map_err(|err| format!("Failed to resolve app config dir: {err}"))
 }
 
+/// Read a boolean setting from disk (defaults to `false` on missing/error).
+pub fn read_bool_setting(app: &AppHandle, key: &str) -> bool {
+    let Ok(dir) = config_dir(app) else {
+        return false;
+    };
+    let Ok(document) = load_from_path(&dir) else {
+        return false;
+    };
+    document
+        .values
+        .get(key)
+        .and_then(|value| value.as_bool())
+        .unwrap_or(false)
+}
+
 #[tauri::command]
 pub fn settings_schema_get() -> SettingsSchemaManifest {
     schema_manifest()

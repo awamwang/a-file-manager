@@ -163,6 +163,14 @@
         "extensionsEnabled": {
           "title": "启用扩展",
           "description": "扩展宿主总开关"
+        },
+        "launchAtStartup": {
+          "title": "开机自启动",
+          "description": "登录 Windows 时启动 A File Manager"
+        },
+        "launchAtStartupHidden": {
+          "title": "启动后隐藏到托盘",
+          "description": "通过开机自启动启动时，将主窗口隐藏到系统托盘（任务栏通知区域）"
         }
       },
       "power": {

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+mod autostart;
 mod discovery;
 mod extension_host;
 mod favorites;
@@ -9,10 +10,16 @@ mod projects;
 mod providers;
 mod settings;
 mod shell_menu;
+mod system_tray;
 mod terminal;
 pub mod sigma_import;
 mod snap_chrome;
 mod work_groups;
+
+fn launched_from_autostart(args: &[String]) -> bool {
+    args.iter()
+        .any(|arg| arg == autostart::AFM_AUTOSTART_CLI_FLAG)
+}
 
 use serde::Serialize;
 
@@ -40,6 +47,9 @@ pub fn run() {
     use tauri::Manager;
     use tauri_plugin_frame::{FramePluginBuilder, WebviewWindowExt};
 
+    let raw_args: Vec<String> = std::env::args().collect();
+    let from_autostart = launched_from_autostart(&raw_args);
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(
@@ -51,14 +61,31 @@ pub fn run() {
                 .button_width(snap_chrome::BUTTON_WIDTH_PX)
                 .build(),
         )
-        .setup(|app| {
+        .setup(move |app| {
             if let Some(window) = app.get_webview_window("main") {
                 window.create_overlay_titlebar_with_height(snap_chrome::TITLEBAR_HEIGHT_PX)?;
             }
+
+            if let Err(err) = system_tray::setup_system_tray(app.handle()) {
+                eprintln!("system tray setup failed: {err}");
+            }
+
+            // Hide to tray only when launched via OS login autostart AND user opted in.
+            let hide_on_autostart =
+                from_autostart && settings::read_bool_setting(app.handle(), "core.launchAtStartupHidden");
+            if hide_on_autostart {
+                system_tray::hide_main_window(app.handle());
+            }
+
             Ok(())
+        })
+        .on_menu_event(|app, event| {
+            system_tray::handle_menu_event(app, event);
         })
         .invoke_handler(tauri::generate_handler![
             health_get,
+            autostart::autostart_status,
+            autostart::autostart_set_enabled,
             navigator::navigator_list,
             navigator::navigator_default_path,
             navigator::navigator_parent,

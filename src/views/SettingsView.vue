@@ -17,6 +17,7 @@ import {
   findShortcutConflicts,
   listShortcutsForDisplay,
 } from "../shortcuts/index.ts";
+import { applyLaunchAtStartupPreference } from "../utils/autostartSync";
 
 const { t, te, locale } = useI18n();
 const route = useRoute();
@@ -159,6 +160,12 @@ async function loadAll() {
     document.value = doc;
     applyUiChromeFromValues(doc.values);
     applyAppLocaleFromValues(doc.values);
+    // Keep OS login item aligned with persisted preference (best-effort).
+    try {
+      await applyLaunchAtStartupPreference(Boolean(doc.values["core.launchAtStartup"]));
+    } catch (syncErr) {
+      console.warn("autostart sync on load failed", syncErr);
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
@@ -174,8 +181,16 @@ async function patchValue(key: string, value: unknown) {
   savingKey.value = key;
   error.value = null;
   try {
+    if (key === "core.launchAtStartup" && typeof value === "boolean") {
+      await applyLaunchAtStartupPreference(value);
+    }
+    const patch: Record<string, unknown> = { [key]: value };
+    // Hidden-at-login only applies when launch-at-startup is on.
+    if (key === "core.launchAtStartup" && value === false) {
+      patch["core.launchAtStartupHidden"] = false;
+    }
     document.value = await invoke<SettingsDocument>("settings_set", {
-      patch: { [key]: value },
+      patch,
     });
     applyUiChromeFromValues(document.value.values);
     applyAppLocaleFromValues(document.value.values);
@@ -190,6 +205,13 @@ async function patchValue(key: string, value: unknown) {
 function onBooleanChange(key: string, event: Event) {
   const checked = (event.target as HTMLInputElement).checked;
   void patchValue(key, checked);
+}
+
+function isBooleanDisabled(key: string): boolean {
+  if (key === "core.launchAtStartupHidden") {
+    return !Boolean(valueOf("core.launchAtStartup"));
+  }
+  return false;
 }
 
 function onSelectChange(key: string, event: Event) {
@@ -304,7 +326,7 @@ onMounted(() => {
                 type="checkbox"
                 class="fluent-field-check"
                 :checked="Boolean(valueOf(def.key))"
-                :disabled="savingKey === def.key"
+                :disabled="savingKey === def.key || isBooleanDisabled(def.key)"
                 @change="onBooleanChange(def.key, $event)"
               />
 

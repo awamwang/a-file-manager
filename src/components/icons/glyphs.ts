@@ -217,6 +217,8 @@ export const SETTINGS_ICON_BY_KEY: Record<string, FluentGlyphId> = {
   "core.listDensity": "density",
   "core.everythingPreferred": "search",
   "core.extensionsEnabled": "puzzle",
+  "core.launchAtStartup": "flash",
+  "core.launchAtStartupHidden": "eye",
   "power.confirmBeforeDelete": "shield",
   "power.perPathOverridesEnabled": "flash",
   "experimental.debugStatusInTitlebar": "bug",

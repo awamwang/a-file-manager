@@ -163,6 +163,14 @@
         "extensionsEnabled": {
           "title": "Extensions enabled",
           "description": "Master switch for the extension host"
+        },
+        "launchAtStartup": {
+          "title": "Launch at startup",
+          "description": "Start A File Manager when you sign in to Windows"
+        },
+        "launchAtStartupHidden": {
+          "title": "Start hidden to tray",
+          "description": "When launched at login, hide the main window to the system tray (taskbar notification area)"
         }
       },
       "power": {

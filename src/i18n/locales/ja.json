@@ -254,6 +254,14 @@
             "system": "システム"
           },
           "title": "テーマ"
+        },
+        "launchAtStartup": {
+          "title": "スタートアップで起動",
+          "description": "Windows へのサインイン時に A File Manager を起動します"
+        },
+        "launchAtStartupHidden": {
+          "title": "起動時にトレイへ隠す",
+          "description": "ログイン起動時はメインウィンドウをシステムトレイに隠します"
         }
       },
       "experimental": {

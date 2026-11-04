@@ -254,6 +254,14 @@
             "system": "System"
           },
           "title": "Design"
+        },
+        "launchAtStartup": {
+          "title": "Beim Start ausführen",
+          "description": "A File Manager beim Anmelden an Windows starten"
+        },
+        "launchAtStartupHidden": {
+          "title": "Versteckt im Tray starten",
+          "description": "Bei Autostart das Hauptfenster im Infobereich der Taskleiste verstecken"
         }
       },
       "experimental": {

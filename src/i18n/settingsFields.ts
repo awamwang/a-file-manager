@@ -9,6 +9,8 @@ export const SCHEMA_SETTING_KEYS = [
   "core.listDensity",
   "core.everythingPreferred",
   "core.extensionsEnabled",
+  "core.launchAtStartup",
+  "core.launchAtStartupHidden",
   "power.confirmBeforeDelete",
   "power.perPathOverridesEnabled",
   "experimental.debugStatusInTitlebar",
