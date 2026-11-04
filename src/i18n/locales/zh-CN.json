@@ -76,7 +76,7 @@
     "openProjects": "打开项目",
     "openExtensions": "打开扩展",
     "openSettings": "打开设置",
-    "openHealth": "打开健康",
+    "openHealth": "打开设置 · 健康",
     "refreshHealth": "刷新健康状态",
     "panelLabel": "命令面板",
     "placeholder": "输入命令…",
@@ -116,6 +116,7 @@
     "tierCore": "核心",
     "tierPower": "高级",
     "tierExperimental": "实验",
+    "sectionHealth": "健康",
     "fields": {
       "core": {
         "language": {

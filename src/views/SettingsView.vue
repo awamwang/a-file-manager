@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
 import { applyUiChromeFromValues } from "../state/uiChrome";
 import { applyAppLocaleFromValues } from "../i18n/index";
@@ -10,9 +11,12 @@ import {
 } from "../i18n/settingsFields";
 import { useI18n } from "vue-i18n";
 import FluentIcon from "../components/icons/FluentIcon.vue";
+import HealthView from "./HealthView.vue";
 import { settingsIconForKey, type FluentGlyphId } from "../components/icons/glyphs";
 
 const { t, te } = useI18n();
+const route = useRoute();
+const router = useRouter();
 
 function fieldTitle(def: SettingDefinition): string {
   const path = settingFieldMessagePath(def.key, "title");
@@ -30,6 +34,7 @@ function enumOptionLabel(settingKey: string, option: string): string {
 }
 
 type SettingsTier = "core" | "power" | "experimental";
+type SettingsSection = SettingsTier | "health";
 
 type SettingDefinition = {
   key: string;
@@ -63,9 +68,9 @@ const savingKey = ref<string | null>(null);
 const error = ref<string | null>(null);
 const schema = ref<SettingsSchemaManifest | null>(null);
 const document = ref<SettingsDocument | null>(null);
-const activeTier = ref<SettingsTier>("core");
+const activeSection = ref<SettingsSection>("core");
 
-const tiers = computed(() => [
+const sections = computed(() => [
   { id: "core" as const, label: t("settings.tierCore"), icon: TIER_ICONS.core },
   { id: "power" as const, label: t("settings.tierPower"), icon: TIER_ICONS.power },
   {
@@ -73,10 +78,42 @@ const tiers = computed(() => [
     label: t("settings.tierExperimental"),
     icon: TIER_ICONS.experimental,
   },
+  { id: "health" as const, label: t("settings.sectionHealth"), icon: "heart" as FluentGlyphId },
 ]);
 
 const visibleDefs = computed(() =>
-  (schema.value?.definitions ?? []).filter((def) => def.tier === activeTier.value),
+  (schema.value?.definitions ?? []).filter(
+    (def) => activeSection.value !== "health" && def.tier === activeSection.value,
+  ),
+);
+
+function syncSectionFromRoute() {
+  if (route.path.endsWith("/health")) {
+    activeSection.value = "health";
+  } else if (activeSection.value === "health") {
+    activeSection.value = "core";
+  }
+}
+
+function selectSection(section: SettingsSection) {
+  activeSection.value = section;
+  if (section === "health") {
+    if (route.path !== "/settings/health") {
+      void router.push("/settings/health");
+    }
+    return;
+  }
+  if (route.path !== "/settings") {
+    void router.push("/settings");
+  }
+}
+
+watch(
+  () => route.path,
+  () => {
+    syncSectionFromRoute();
+  },
+  { immediate: true },
 );
 
 async function loadAll() {
@@ -152,33 +189,38 @@ onMounted(() => {
       </p>
     </header>
 
-    <p v-if="loading" class="fluent-banner">{{ t("settings.loading") }}</p>
-    <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
+    <div class="settings-layout">
+      <aside class="tier-nav fluent-surface" role="tablist" :aria-label="t('settings.title')">
+        <button
+          v-for="section in sections"
+          :key="section.id"
+          type="button"
+          class="tier-item"
+          :class="{
+            'tier-item--active': activeSection === section.id,
+            'tier-item--warning':
+              section.id === 'experimental' && activeSection === 'experimental',
+          }"
+          role="tab"
+          :aria-selected="activeSection === section.id"
+          @click="selectSection(section.id)"
+        >
+          <span class="fluent-icon-wash">
+            <FluentIcon :name="section.icon" size="md" />
+          </span>
+          <span class="tier-label">{{ section.label }}</span>
+        </button>
+      </aside>
 
-    <template v-else-if="schema && document">
-      <div class="settings-layout">
-        <aside class="tier-nav fluent-surface" role="tablist" :aria-label="t('settings.title')">
-          <button
-            v-for="tier in tiers"
-            :key="tier.id"
-            type="button"
-            class="tier-item"
-            :class="{
-              'tier-item--active': activeTier === tier.id,
-              'tier-item--warning': tier.id === 'experimental' && activeTier === 'experimental',
-            }"
-            role="tab"
-            :aria-selected="activeTier === tier.id"
-            @click="activeTier = tier.id"
-          >
-            <span class="fluent-icon-wash">
-              <FluentIcon :name="tier.icon" size="md" />
-            </span>
-            <span class="tier-label">{{ tier.label }}</span>
-          </button>
-        </aside>
+      <div v-if="activeSection === 'health'" class="health-slot">
+        <HealthView />
+      </div>
 
-        <div class="fluent-surface fields">
+      <template v-else>
+        <p v-if="loading" class="fluent-banner">{{ t("settings.loading") }}</p>
+        <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
+
+        <div v-else-if="schema && document" class="fluent-surface fields">
           <div
             v-for="def in visibleDefs"
             :key="def.key"
@@ -233,8 +275,8 @@ onMounted(() => {
             </div>
           </div>
         </div>
-      </div>
-    </template>
+      </template>
+    </div>
   </section>
 </template>
 
@@ -298,6 +340,19 @@ onMounted(() => {
 .fields {
   display: flex;
   flex-direction: column;
+}
+
+.health-slot {
+  min-width: 0;
+}
+
+.health-slot :deep(.panel) {
+  max-width: none;
+  padding: 0;
+}
+
+.health-slot :deep(.fluent-page-header) {
+  margin-bottom: var(--fluent-space-md);
 }
 
 .field {

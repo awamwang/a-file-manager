@@ -50,7 +50,7 @@
     "hint": "↑↓ zum Bewegen · Enter zum Ausführen · Esc zum Schließen · Ctrl+Shift+P",
     "openDiscovery": "Discovery öffnen",
     "openExtensions": "Erweiterungen öffnen",
-    "openHealth": "Health öffnen",
+    "openHealth": "Einstellungen · Health öffnen",
     "openNavigator": "Navigator öffnen",
     "openProjects": "Projekte öffnen",
     "openProviders": "Anbieter öffnen",
@@ -267,6 +267,7 @@
     "tierCore": "Kern",
     "tierExperimental": "Experimentell",
     "tierPower": "Power",
+    "sectionHealth": "Health",
     "title": "Einstellungen"
   },
   "workGroups": {

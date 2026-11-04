@@ -85,8 +85,8 @@ export function buildAppCommands(deps: CommandPanelDeps): AppCommand[] {
       id: "view.health",
       title: t("commands.openHealth"),
       group: "View",
-      keywords: ["status", "version", "diagnostics", "健康"],
-      run: () => go("/health"),
+      keywords: ["status", "version", "diagnostics", "settings", "健康", "设置"],
+      run: () => go("/settings/health"),
     },
     {
       id: "action.refresh-health",

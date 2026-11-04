@@ -3,7 +3,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import DiscoveryView from "../views/DiscoveryView.vue";
 import ExtensionsView from "../views/ExtensionsView.vue";
-import HealthView from "../views/HealthView.vue";
 import NavigatorView from "../views/NavigatorView.vue";
 import ProjectsView from "../views/ProjectsView.vue";
 import ProvidersView from "../views/ProvidersView.vue";
@@ -14,7 +13,8 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: "/", redirect: "/navigator" },
-    { path: "/health", name: "health", component: HealthView },
+    // Health is a Settings subsection (AIA-46); keep legacy /health as redirect.
+    { path: "/health", redirect: "/settings/health" },
     { path: "/navigator", name: "navigator", component: NavigatorView },
     { path: "/discovery", name: "discovery", component: DiscoveryView },
     { path: "/providers", name: "providers", component: ProvidersView },
@@ -22,6 +22,7 @@ const router = createRouter({
     { path: "/projects", name: "projects", component: ProjectsView },
     { path: "/extensions", name: "extensions", component: ExtensionsView },
     { path: "/settings", name: "settings", component: SettingsView },
+    { path: "/settings/health", name: "settings-health", component: SettingsView },
   ],
 });
 

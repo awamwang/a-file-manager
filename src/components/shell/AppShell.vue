@@ -96,15 +96,15 @@ function onGlobalKeydown(event: KeyboardEvent) {
   }
 }
 
+/** Primary pillars first; Discovery + Providers sit above Settings; Health is Settings-only. */
 const navItems: NavItem[] = [
   { id: "navigator", labelKey: "nav.navigator", to: "/navigator" },
-  { id: "discovery", labelKey: "nav.discovery", to: "/discovery" },
-  { id: "providers", labelKey: "nav.providers", to: "/providers" },
   { id: "work-groups", labelKey: "nav.workGroups", to: "/work-groups" },
   { id: "projects", labelKey: "nav.projects", to: "/projects" },
   { id: "extensions", labelKey: "nav.extensions", to: "/extensions" },
+  { id: "discovery", labelKey: "nav.discovery", to: "/discovery" },
+  { id: "providers", labelKey: "nav.providers", to: "/providers" },
   { id: "settings", labelKey: "nav.settings", to: "/settings" },
-  { id: "health", labelKey: "nav.health", to: "/health" },
 ];
 
 watch(
@@ -182,7 +182,11 @@ async function closeWindow() {
 }
 
 function isNavActive(item: NavItem) {
-  return Boolean(item.to && route.path === item.to);
+  if (!item.to) return false;
+  if (item.id === "settings") {
+    return route.path === "/settings" || route.path.startsWith("/settings/");
+  }
+  return route.path === item.to;
 }
 
 function openTab(id: string, path: string) {

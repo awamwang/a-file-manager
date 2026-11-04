@@ -50,7 +50,7 @@
     "hint": "↑↓ pour déplacer · Entrée pour exécuter · Échap pour fermer · Ctrl+Shift+P",
     "openDiscovery": "Ouvrir la Découverte",
     "openExtensions": "Ouvrir les Extensions",
-    "openHealth": "Ouvrir la Santé",
+    "openHealth": "Ouvrir Paramètres · Santé",
     "openNavigator": "Ouvrir le Navigateur",
     "openProjects": "Ouvrir les Projets",
     "openProviders": "Ouvrir les Fournisseurs",
@@ -267,6 +267,7 @@
     "tierCore": "Cœur",
     "tierExperimental": "Expérimental",
     "tierPower": "Avancé",
+    "sectionHealth": "Santé",
     "title": "Paramètres"
   },
   "workGroups": {

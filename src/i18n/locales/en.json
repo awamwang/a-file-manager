@@ -76,7 +76,7 @@
     "openProjects": "Open Projects",
     "openExtensions": "Open Extensions",
     "openSettings": "Open Settings",
-    "openHealth": "Open Health",
+    "openHealth": "Open Settings · Health",
     "refreshHealth": "Refresh health status",
     "panelLabel": "Command Panel",
     "placeholder": "Type a command…",
@@ -116,6 +116,7 @@
     "tierCore": "Core",
     "tierPower": "Power",
     "tierExperimental": "Experimental",
+    "sectionHealth": "Health",
     "fields": {
       "core": {
         "language": {

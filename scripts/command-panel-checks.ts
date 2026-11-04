@@ -91,6 +91,13 @@ assert.deepEqual(
 await commands.find((c) => c.id === "view.settings")!.run();
 assert.deepEqual(pushes, ["/settings"]);
 
+await commands.find((c) => c.id === "view.health")!.run();
+assert.deepEqual(pushes, ["/settings", "/settings/health"]);
+assert.equal(
+  commands.find((c) => c.id === "view.health")?.title,
+  "Open Settings · Health",
+);
+
 await commands.find((c) => c.id === "action.refresh-health")!.run();
 assert.ok(runs.includes("refresh-health"));
 

@@ -50,7 +50,7 @@
     "hint": "↑↓ で移動 · Enter で実行 · Esc で閉じる · Ctrl+Shift+P",
     "openDiscovery": "ディスカバリーを開く",
     "openExtensions": "拡張機能を開く",
-    "openHealth": "ヘルスを開く",
+    "openHealth": "設定 · ヘルスを開く",
     "openNavigator": "ナビゲーターを開く",
     "openProjects": "プロジェクトを開く",
     "openProviders": "プロバイダーを開く",
@@ -267,6 +267,7 @@
     "tierCore": "コア",
     "tierExperimental": "実験的",
     "tierPower": "パワー",
+    "sectionHealth": "ヘルス",
     "title": "設定"
   },
   "workGroups": {
