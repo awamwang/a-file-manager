@@ -136,31 +136,31 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="panel">
-    <header class="header">
-      <h1>{{ t("workGroups.title") }}</h1>
-      <p class="meta">{{ t("workGroups.meta") }}</p>
+  <section class="fluent-page">
+    <header class="fluent-page-header">
+      <h1 class="fluent-page-title">{{ t("workGroups.title") }}</h1>
+      <p class="fluent-page-meta">{{ t("workGroups.meta") }}</p>
     </header>
 
-    <p v-if="loading" class="banner">{{ t("common.loading") }}</p>
-    <p v-else-if="error" class="banner banner--error">{{ error }}</p>
+    <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
+    <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
     <p v-if="notice" class="fluent-banner fluent-banner--info banner--soft">
       {{ t("workGroups.softSync", { paths: notice.openedMemberPaths.join(", ") }) }}
       <button type="button" class="linkish" @click="notice = null">{{ t("common.dismiss") }}</button>
     </p>
 
     <div v-if="document" class="layout">
-      <aside class="list">
+      <aside class="master-list">
         <button
           v-for="group in document.workGroups"
           :key="group.id"
           type="button"
-          class="group"
+          class="fluent-surface group"
           :class="{ 'group--active': group.id === document.activeWorkGroupId }"
           @click="silentSwitch(group.id)"
         >
           <strong>{{ group.name }}</strong>
-          <span>{{
+          <span class="fluent-page-meta">{{
             group.isDefault
               ? t("workGroups.default")
               : t("workGroups.membersCount", { count: group.memberPaths.length })
@@ -179,16 +179,16 @@ onMounted(() => {
         </form>
       </aside>
 
-      <div v-if="active" class="detail">
+      <div v-if="active" class="fluent-surface detail">
         <h2>{{ active.name }}</h2>
-        <p class="meta">
+        <p class="fluent-page-meta">
           {{ t("workGroups.detailMeta", { id: active.id, count: active.memberPaths.length }) }}
         </p>
 
         <h3>{{ t("workGroups.hardMembers") }}</h3>
         <ul>
           <li v-for="path in active.memberPaths" :key="path">{{ path }}</li>
-          <li v-if="!active.memberPaths.length" class="meta">
+          <li v-if="!active.memberPaths.length" class="fluent-page-meta">
             {{ t("workGroups.noHardMembers") }}
           </li>
         </ul>
@@ -207,7 +207,7 @@ onMounted(() => {
         <h3>{{ t("workGroups.runtimeOpenState") }}</h3>
         <ul>
           <li v-for="tab in liveTabs" :key="tab.id">{{ tab.path }}</li>
-          <li v-if="!liveTabs.length" class="meta">{{ t("workGroups.noOpenTabs") }}</li>
+          <li v-if="!liveTabs.length" class="fluent-page-meta">{{ t("workGroups.noOpenTabs") }}</li>
         </ul>
 
         <div class="actions">
@@ -224,41 +224,10 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--fluent-space-md);
-}
-
-.header h1 {
-  margin: 0;
-  font-size: var(--fluent-font-size-title);
-  font-weight: var(--fluent-font-weight-semibold);
-}
-
-.meta {
-  margin: 0;
-  color: var(--fluent-color-text-secondary);
-  font-size: var(--fluent-font-size-caption);
-}
-
-.banner {
-  margin: 0;
-  padding: var(--fluent-space-md) var(--fluent-space-lg);
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: var(--fluent-radius-md);
-  background: var(--fluent-color-fill-control);
-}
-
-.banner--error {
-  color: var(--fluent-color-status-danger);
-}
-
 .banner--soft {
   display: flex;
   justify-content: space-between;
   gap: var(--fluent-space-md);
-  border-color: var(--fluent-color-fill-accent);
 }
 
 .linkish {
@@ -275,7 +244,7 @@ onMounted(() => {
   gap: var(--fluent-space-lg);
 }
 
-.list {
+.master-list {
   display: flex;
   flex-direction: column;
   gap: var(--fluent-space-sm);
@@ -288,18 +257,18 @@ onMounted(() => {
   gap: var(--fluent-space-xs);
   min-height: var(--fluent-control-height-comfortable);
   padding: var(--fluent-space-md);
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: var(--fluent-radius-md);
-  background: var(--fluent-color-fill-control);
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
+  width: 100%;
 }
 
 .group--active {
-  border-color: var(--fluent-color-fill-accent);
+  border-color: var(--fluent-color-stroke-accent-soft);
+  background: var(--fluent-color-fill-selected);
   font-weight: var(--fluent-font-weight-semibold);
+  box-shadow: inset 3px 0 0 var(--fluent-color-stroke-accent-soft);
 }
 
 .create,
@@ -320,9 +289,6 @@ onMounted(() => {
   flex-direction: column;
   gap: var(--fluent-space-md);
   padding: var(--fluent-space-lg);
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: var(--fluent-radius-md);
-  background: var(--fluent-color-fill-control);
 }
 
 .detail h2,

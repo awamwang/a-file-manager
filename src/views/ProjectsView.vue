@@ -241,10 +241,10 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="panel">
-    <header class="header">
-      <h1>{{ t("projects.title") }}</h1>
-      <p class="meta">{{ t("projects.meta") }}</p>
+  <section class="fluent-page">
+    <header class="fluent-page-header">
+      <h1 class="fluent-page-title">{{ t("projects.title") }}</h1>
+      <p class="fluent-page-meta">{{ t("projects.meta") }}</p>
     </header>
 
     <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
@@ -255,17 +255,17 @@ onMounted(() => {
     </p>
 
     <div v-if="document" class="layout">
-      <aside class="list">
+      <aside class="master-list">
         <button
           v-for="project in document.projects"
           :key="project.id"
           type="button"
-          class="group"
+          class="fluent-surface group"
           :class="{ 'group--active': project.id === selectedId }"
           @click="selectProject(project.id)"
         >
           <strong>{{ project.name }}</strong>
-          <span>{{
+          <span class="fluent-page-meta">{{
             t("projects.listSummary", {
               links: project.workspaceLinks.length,
               open: project.tasks.filter((task) => task.statusId !== "done").length,
@@ -285,11 +285,11 @@ onMounted(() => {
         </form>
       </aside>
 
-      <div v-if="selected" class="detail">
+      <div v-if="selected" class="fluent-surface detail">
         <div class="detail-head">
           <div>
             <h2>{{ selected.name }}</h2>
-            <p class="meta">
+            <p class="fluent-page-meta">
               {{ selected.description || t("projects.noDescription") }} ·
               {{ t("projects.openTasks", { count: openTaskCount }) }}
             </p>
@@ -328,12 +328,12 @@ onMounted(() => {
             <button type="button" class="linkish" @click="openLink(link.path)">
               {{ link.label }}
             </button>
-            <span class="meta path">{{ link.path }}</span>
+            <span class="fluent-page-meta path">{{ link.path }}</span>
             <button type="button" class="linkish danger" @click="removeLink(link.id)">
               {{ t("common.remove") }}
             </button>
           </li>
-          <li v-if="!selected.workspaceLinks.length" class="meta">
+          <li v-if="!selected.workspaceLinks.length" class="fluent-page-meta">
             {{ t("projects.noFolderLinks") }}
           </li>
         </ul>
@@ -391,13 +391,17 @@ onMounted(() => {
               {{ t("common.delete") }}
             </button>
           </article>
-          <p v-if="!selected.tasks.length" class="meta">{{ t("projects.noOutcomes") }}</p>
+          <p v-if="!selected.tasks.length" class="fluent-page-meta">{{ t("projects.noOutcomes") }}</p>
         </div>
 
         <div v-else class="board">
-          <section v-for="status in STATUSES" :key="status.id" class="column">
+          <section v-for="status in STATUSES" :key="status.id" class="column fluent-layer-alt">
             <h4>{{ status.label }}</h4>
-            <article v-for="task in tasksForStatus(status.id)" :key="task.id" class="card">
+            <article
+              v-for="task in tasksForStatus(status.id)"
+              :key="task.id"
+              class="fluent-surface card"
+            >
               <strong>{{ task.title }}</strong>
               <div class="card-actions">
                 <select
@@ -412,39 +416,21 @@ onMounted(() => {
                 </button>
               </div>
             </article>
-            <p v-if="!tasksForStatus(status.id).length" class="meta empty">
+            <p v-if="!tasksForStatus(status.id).length" class="fluent-page-meta empty">
               {{ t("common.empty") }}
             </p>
           </section>
         </div>
       </div>
 
-      <div v-else class="detail detail--empty">
-        <p class="meta">{{ t("projects.emptyStart") }}</p>
+      <div v-else class="fluent-surface detail detail--empty">
+        <p class="fluent-page-meta">{{ t("projects.emptyStart") }}</p>
       </div>
     </div>
   </section>
 </template>
 
 <style scoped>
-.panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--fluent-space-md);
-}
-
-.header h1 {
-  margin: 0;
-  font-size: var(--fluent-font-size-title);
-  font-weight: var(--fluent-font-weight-semibold);
-}
-
-.meta {
-  margin: 0;
-  color: var(--fluent-color-text-secondary);
-  font-size: var(--fluent-font-size-caption);
-}
-
 .banner--soft {
   display: flex;
   justify-content: space-between;
@@ -469,7 +455,7 @@ onMounted(() => {
   gap: var(--fluent-space-lg);
 }
 
-.list {
+.master-list {
   display: flex;
   flex-direction: column;
   gap: var(--fluent-space-sm);
@@ -482,13 +468,11 @@ onMounted(() => {
   gap: var(--fluent-space-xs);
   min-height: var(--fluent-control-height-comfortable);
   padding: var(--fluent-space-md);
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: var(--fluent-radius-md);
-  background: var(--fluent-color-fill-control);
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
+  width: 100%;
 }
 
 .group--active {
@@ -519,9 +503,6 @@ onMounted(() => {
   flex-direction: column;
   gap: var(--fluent-space-md);
   padding: var(--fluent-space-lg);
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: var(--fluent-radius-md);
-  background: var(--fluent-color-fill-control);
 }
 
 .detail--empty {
@@ -599,9 +580,7 @@ onMounted(() => {
   gap: var(--fluent-space-sm);
   min-height: 12rem;
   padding: var(--fluent-space-sm);
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   border-radius: var(--fluent-radius-md);
-  background: var(--fluent-color-fill-subtle);
 }
 
 .card {
@@ -609,9 +588,6 @@ onMounted(() => {
   flex-direction: column;
   gap: var(--fluent-space-sm);
   padding: var(--fluent-space-md);
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: var(--fluent-radius-sm);
-  background: var(--fluent-color-fill-control);
 }
 
 .empty {

@@ -130,10 +130,10 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="panel">
-    <header class="header">
-      <h1>{{ t("extensions.title") }}</h1>
-      <p class="meta">
+  <section class="fluent-page">
+    <header class="fluent-page-header">
+      <h1 class="fluent-page-title">{{ t("extensions.title") }}</h1>
+      <p class="fluent-page-meta">
         {{ t("extensions.hostPrefix", { version: status?.apiVersion ?? "vnext.1" }) }} ·
         {{ t("extensions.meta") }}
       </p>
@@ -147,7 +147,7 @@ onMounted(() => {
     </p>
 
     <div v-if="status" class="grid">
-      <article class="card" :class="{ 'card--warn': status.crashedCount > 0 }">
+      <article class="fluent-surface card" :class="{ 'card--warn': status.crashedCount > 0 }">
         <h2>{{ t("extensions.hostStatus") }}</h2>
         <ul>
           <li>{{ t("extensions.api", { version: status.apiVersion }) }}</li>
@@ -177,27 +177,27 @@ onMounted(() => {
         </button>
       </article>
 
-      <article class="card">
+      <article class="fluent-surface card">
         <h2>{{ t("extensions.marketplace") }}</h2>
-        <p class="meta">{{ catalog?.detail }}</p>
+        <p class="fluent-page-meta">{{ catalog?.detail }}</p>
         <p v-if="catalog?.empty" class="empty-mark">{{ t("extensions.catalogEmpty") }}</p>
-        <p class="meta">{{ t("extensions.marketplacePolicy") }}</p>
+        <p class="fluent-page-meta">{{ t("extensions.marketplacePolicy") }}</p>
       </article>
     </div>
 
-    <section class="card">
+    <section class="fluent-surface card">
       <div class="row-head">
         <h2>{{ t("extensions.installed") }}</h2>
         <button class="fluent-control fluent-control--accent" type="button" @click="installDemo">
           {{ t("extensions.installDemo") }}
         </button>
       </div>
-      <p v-if="!installed.length" class="meta">{{ t("extensions.noInstalled") }}</p>
+      <p v-if="!installed.length" class="fluent-page-meta">{{ t("extensions.noInstalled") }}</p>
       <ul v-else class="installed">
         <li v-for="ext in installed" :key="ext.id">
           <div>
             <strong>{{ ext.name }}</strong>
-            <span class="meta"> {{ ext.id }} · v{{ ext.version }}</span>
+            <span class="fluent-page-meta"> {{ ext.id }} · v{{ ext.version }}</span>
             <span
               class="fluent-chip state-chip"
               :class="{
@@ -226,39 +226,23 @@ onMounted(() => {
       </ul>
     </section>
 
-    <section class="card">
+    <section class="fluent-surface card">
       <h2>{{ t("extensions.fsHooks") }}</h2>
-      <p class="meta">{{ t("extensions.fsHooksMeta") }}</p>
+      <p class="fluent-page-meta">{{ t("extensions.fsHooksMeta") }}</p>
       <ul>
         <li v-for="hook in hooks" :key="`${hook.extensionId}:${hook.backendId}`">
           {{ hook.extensionId }} → {{ hook.backendId }}
-          <span class="meta">{{ t("extensions.registered", { value: hook.registered }) }}</span>
+          <span class="fluent-page-meta">{{
+            t("extensions.registered", { value: hook.registered })
+          }}</span>
         </li>
-        <li v-if="!hooks.length" class="meta">{{ t("extensions.noHooks") }}</li>
+        <li v-if="!hooks.length" class="fluent-page-meta">{{ t("extensions.noHooks") }}</li>
       </ul>
     </section>
   </section>
 </template>
 
 <style scoped>
-.panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--fluent-space-md);
-}
-
-.header h1 {
-  margin: 0;
-  font-size: var(--fluent-font-size-title);
-  font-weight: var(--fluent-font-weight-semibold);
-}
-
-.meta {
-  margin: 0;
-  color: var(--fluent-color-text-secondary);
-  font-size: var(--fluent-font-size-caption);
-}
-
 .banner--soft {
   display: flex;
   justify-content: space-between;
@@ -304,9 +288,6 @@ onMounted(() => {
   flex-direction: column;
   gap: var(--fluent-space-md);
   padding: var(--fluent-space-lg);
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: var(--fluent-radius-md);
-  background: var(--fluent-color-fill-control);
 }
 
 .card--warn {

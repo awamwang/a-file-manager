@@ -105,15 +105,15 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="panel">
-    <header class="header">
-      <h1>{{ t("discovery.title") }}</h1>
-      <p class="meta">{{ t("discovery.meta") }}</p>
+  <section class="fluent-page">
+    <header class="fluent-page-header">
+      <h1 class="fluent-page-title">{{ t("discovery.title") }}</h1>
+      <p class="fluent-page-meta">{{ t("discovery.meta") }}</p>
     </header>
 
     <div
       v-if="status"
-      class="status-card"
+      class="fluent-surface status-card"
       :class="{
         'status-card--ok': status.activeEngine === 'everything' && !status.degraded,
         'status-card--warn': status.degraded || status.activeEngine === 'fallback',
@@ -168,8 +168,8 @@ onMounted(() => {
       {{ t("discovery.noHits", { engine: result.engine, total: result.totalCount }) }}
     </p>
 
-    <div v-if="result && result.hits.length" class="list">
-      <p class="meta">
+    <div v-if="result && result.hits.length" class="fluent-surface list">
+      <p class="fluent-page-meta list-meta">
         {{
           t("discovery.shown", {
             shown: result.hits.length,
@@ -182,7 +182,7 @@ onMounted(() => {
         v-for="hit in result.hits"
         :key="hit.path + hit.name"
         type="button"
-        class="fluent-list-row row"
+        class="fluent-list-row fluent-list-row--density row"
         @dblclick="openHit(hit)"
       >
         <span class="kind">{{ hit.isDir ? t("discovery.folder") : t("discovery.file") }}</span>
@@ -194,35 +194,8 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--fluent-space-md);
-}
-
-.header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--fluent-space-xs);
-}
-
-h1 {
-  margin: 0;
-  font-size: var(--fluent-font-size-title);
-  font-weight: var(--fluent-font-weight-semibold);
-}
-
-.meta {
-  margin: 0;
-  color: var(--fluent-color-text-secondary);
-  font-size: var(--fluent-font-size-caption);
-}
-
 .status-card {
   padding: var(--fluent-space-md) var(--fluent-space-lg);
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: var(--fluent-radius-md);
-  background: var(--fluent-color-fill-control);
   display: flex;
   flex-direction: column;
   gap: var(--fluent-space-sm);
@@ -283,13 +256,9 @@ h1 {
 .list {
   display: flex;
   flex-direction: column;
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: var(--fluent-radius-md);
-  background: var(--fluent-color-fill-control);
-  overflow: hidden;
 }
 
-.list > .meta {
+.list-meta {
   padding: var(--fluent-space-sm) var(--fluent-space-md);
   border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
 }

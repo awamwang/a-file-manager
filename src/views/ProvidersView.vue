@@ -75,10 +75,10 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="panel">
-    <header class="header">
-      <h1>{{ t("providers.title") }}</h1>
-      <p class="meta">{{ t("providers.meta") }}</p>
+  <section class="fluent-page">
+    <header class="fluent-page-header">
+      <h1 class="fluent-page-title">{{ t("providers.title") }}</h1>
+      <p class="fluent-page-meta">{{ t("providers.meta") }}</p>
     </header>
 
     <div class="backends">
@@ -134,12 +134,12 @@ onMounted(() => {
       {{ t("providers.emptyListing") }}
     </p>
 
-    <div v-if="listing && listing.entries.length" class="list">
+    <div v-if="listing && listing.entries.length" class="fluent-surface list">
       <button
         v-for="entry in listing.entries"
         :key="entry.uri"
         type="button"
-        class="fluent-list-row row"
+        class="fluent-list-row fluent-list-row--density row"
         @dblclick="openEntry(entry)"
       >
         <span class="kind">{{
@@ -153,30 +153,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--fluent-space-md);
-}
-
-.header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--fluent-space-xs);
-}
-
-h1 {
-  margin: 0;
-  font-size: var(--fluent-font-size-title);
-  font-weight: var(--fluent-font-weight-semibold);
-}
-
-.meta {
-  margin: 0;
-  color: var(--fluent-color-text-secondary);
-  font-size: var(--fluent-font-size-caption);
-}
-
 .backends {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
@@ -243,10 +219,6 @@ h1 {
 .list {
   display: flex;
   flex-direction: column;
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: var(--fluent-radius-md);
-  background: var(--fluent-color-fill-control);
-  overflow: hidden;
 }
 
 .row {
