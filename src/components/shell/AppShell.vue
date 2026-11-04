@@ -13,6 +13,10 @@ import {
   toggleCommandPanel,
 } from "../../state/commandPanel";
 import {
+  isGlobalSearchShortcut,
+  requestGlobalSearchFocus,
+} from "../../state/globalSearch";
+import {
   currentPath,
   goUp,
   listError,
@@ -67,9 +71,18 @@ const panelCommands = computed(() => {
 });
 
 function onGlobalKeydown(event: KeyboardEvent) {
-  if (!isToggleCommandPanelShortcut(event)) return;
-  event.preventDefault();
-  toggleCommandPanel();
+  if (isToggleCommandPanelShortcut(event)) {
+    event.preventDefault();
+    toggleCommandPanel();
+    return;
+  }
+  if (isGlobalSearchShortcut(event)) {
+    event.preventDefault();
+    requestGlobalSearchFocus();
+    if (route.path !== "/discovery") {
+      void router.push("/discovery");
+    }
+  }
 }
 
 const navItems: NavItem[] = [

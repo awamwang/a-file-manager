@@ -1,10 +1,14 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { nextTick, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { navigateTo } from "../state/navigatorBrowse";
 import { useRouter } from "vue-router";
+import {
+  consumeGlobalSearchFocus,
+  globalSearchFocusToken,
+} from "../state/globalSearch";
 
 type DiscoveryEngine = "everything" | "fallback" | "unavailable";
 
@@ -37,6 +41,13 @@ const query = ref("");
 const result = ref<DiscoverySearchResult | null>(null);
 const loading = ref(false);
 const error = ref<string | null>(null);
+const searchInput = ref<HTMLInputElement | null>(null);
+
+async function focusSearchInput() {
+  await nextTick();
+  searchInput.value?.focus();
+  searchInput.value?.select();
+}
 
 async function refreshStatus() {
   status.value = await invoke<DiscoveryStatus>("discovery_status");
@@ -77,10 +88,19 @@ async function openHit(hit: DiscoveryHit) {
   await router.push("/navigator");
 }
 
+watch(globalSearchFocusToken, () => {
+  if (consumeGlobalSearchFocus()) {
+    void focusSearchInput();
+  }
+});
+
 onMounted(() => {
   void refreshStatus().catch((err) => {
     error.value = err instanceof Error ? err.message : String(err);
   });
+  if (consumeGlobalSearchFocus()) {
+    void focusSearchInput();
+  }
 });
 </script>
 
@@ -110,11 +130,14 @@ onMounted(() => {
 
     <form class="search" @submit.prevent="runSearch">
       <input
+        id="discovery-global-search"
+        ref="searchInput"
         v-model="query"
         class="fluent-control query"
         type="search"
         :placeholder="t('discovery.placeholder')"
         spellcheck="false"
+        aria-keyshortcuts="Control+Shift+F"
       />
       <button class="fluent-control fluent-control--accent" type="submit" :disabled="loading">
         {{ loading ? t("discovery.searching") : t("discovery.search") }}

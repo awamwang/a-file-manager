@@ -17,7 +17,8 @@
     "test:chrome": "node scripts/check-fluent-chrome.mjs",
     "test:command-panel": "node scripts/check-command-panel.mjs",
     "test:i18n": "node scripts/check-i18n.mjs",
-    "test": "npm run test:tokens && npm run test:chrome && npm run test:command-panel && npm run test:i18n && npm run test:rust"
+    "test:global-search": "node scripts/check-global-search.mjs",
+    "test": "npm run test:tokens && npm run test:chrome && npm run test:command-panel && npm run test:i18n && npm run test:global-search && npm run test:rust"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
