@@ -15,7 +15,6 @@ import {
 } from "../state/navigatorBrowse";
 import { iconUrlFor, requestShellIcons } from "../state/shellIcons";
 import {
-  favoritesDoc,
   loadFavorites,
   loadFavoritesOsHookStatus,
 } from "../state/favorites";
@@ -98,10 +97,6 @@ onUnmounted(() => {
   window.removeEventListener("mousemove", onMarqueeMove);
   window.removeEventListener("mouseup", onMarqueeEnd);
 });
-
-async function openFavorite(path: string) {
-  await navigateTo(path);
-}
 
 function formatSize(entry: NavigatorEntry): string {
   if (entry.kind === "dir") return "—";
@@ -455,25 +450,6 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
 
     <p v-if="notice" class="fluent-banner fluent-banner--success">{{ notice }}</p>
 
-    <div
-      v-if="favoritesDoc.favorites.length"
-      class="favorites fluent-surface"
-      role="navigation"
-      :aria-label="t('favorites.label')"
-    >
-      <span class="favorites-label">{{ t("favorites.label") }}</span>
-      <button
-        v-for="fav in favoritesDoc.favorites"
-        :key="fav.path"
-        type="button"
-        class="favorites-chip"
-        :title="fav.path"
-        @click="openFavorite(fav.path)"
-      >
-        {{ fav.path.split(/[\\/]/).filter(Boolean).pop() || fav.path }}
-      </button>
-    </div>
-
     <p v-if="listLoading" class="fluent-banner">{{ t("navigator.loading") }}</p>
     <p v-else-if="listError" class="fluent-banner fluent-banner--error">{{ listError }}</p>
     <p v-else-if="listing && listing.entries.length === 0" class="fluent-banner">
@@ -566,42 +542,6 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
 </template>
 
 <style scoped>
-.favorites {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--fluent-space-xs);
-  padding: var(--fluent-space-sm) var(--fluent-space-md);
-  margin-bottom: var(--fluent-space-sm);
-}
-
-.favorites-label {
-  font-size: var(--fluent-font-size-caption);
-  color: var(--fluent-color-text-secondary);
-  margin-right: var(--fluent-space-xs);
-}
-
-.favorites-chip {
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: var(--fluent-radius-sm);
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-size: var(--fluent-font-size-caption);
-  padding: 0.15rem 0.55rem;
-  max-width: 12rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.favorites-chip:hover,
-.favorites-chip:focus-visible {
-  background: var(--fluent-color-fill-selected);
-  outline: none;
-}
-
 .list {
   position: relative;
   display: flex;

@@ -40,6 +40,7 @@ import {
   popBack,
   popForward,
 } from "../../state/navHistory";
+import { favoritesDoc, loadFavorites } from "../../state/favorites";
 
 const { t, locale } = useI18n();
 
@@ -132,6 +133,16 @@ async function onBreadcrumb(path: string) {
   addressEditing.value = false;
   await ensureNavigatorRoute();
   await navigateTo(path);
+}
+
+async function openFavoritePin(path: string) {
+  await ensureNavigatorRoute();
+  await navigateTo(path);
+}
+
+function favoriteLabel(path: string): string {
+  const parts = path.replace(/\\/g, "/").replace(/\/+$/, "").split("/");
+  return parts[parts.length - 1] || path;
 }
 
 function onGlobalKeydown(event: KeyboardEvent) {
@@ -330,6 +341,7 @@ onMounted(() => {
   void loadHealth();
   void refreshMaximized();
   void bootstrapNavigatorOpenState();
+  void loadFavorites().catch(() => undefined);
   registerShellShortcuts();
   window.addEventListener("keydown", onGlobalKeydown);
 
@@ -551,6 +563,34 @@ onUnmounted(() => {
 
     <div class="body">
       <nav class="sidenav fluent-layer-alt" :aria-label="t('chrome.sideNav')">
+        <div
+          v-if="favoritesDoc.favorites.length"
+          class="fav-pins"
+          role="group"
+          :aria-label="t('favorites.label')"
+        >
+          <div class="fav-pins-title">
+            <FluentIcon name="heart" size="sm" />
+            <span>{{ t("favorites.label") }}</span>
+          </div>
+          <button
+            v-for="fav in favoritesDoc.favorites"
+            :key="fav.path"
+            type="button"
+            class="fluent-list-row sidenav-item fav-pin"
+            :title="fav.path"
+            :class="{
+              'sidenav-item--active':
+                route.path === '/navigator' &&
+                currentPath.replace(/\\/g, '/').toLowerCase() ===
+                  fav.path.replace(/\\/g, '/').toLowerCase(),
+            }"
+            @click="openFavoritePin(fav.path)"
+          >
+            <FluentIcon :name="fav.isDir ? 'folder' : 'document'" size="md" class="sidenav-icon" />
+            <span class="sidenav-label">{{ favoriteLabel(fav.path) }}</span>
+          </button>
+        </div>
         <button
           v-for="item in navItems"
           :key="item.id"
@@ -870,6 +910,28 @@ onUnmounted(() => {
   display: flex;
   flex: 1;
   min-height: 0;
+}
+
+.fav-pins {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: var(--fluent-space-sm);
+  margin-bottom: var(--fluent-space-sm);
+  border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+}
+
+.fav-pins-title {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-xs);
+  padding: var(--fluent-space-xs) var(--fluent-space-md);
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+}
+
+.fav-pin .sidenav-label {
+  font-size: var(--fluent-font-size-caption);
 }
 
 .sidenav {
