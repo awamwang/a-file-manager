@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import {
@@ -13,6 +13,7 @@ import {
   openEntry,
   type NavigatorEntry,
 } from "../state/navigatorBrowse";
+import { iconUrlFor, requestShellIcons } from "../state/shellIcons";
 import {
   favoritesDoc,
   loadFavorites,
@@ -69,6 +70,14 @@ const visibleEntries = computed(() =>
 );
 
 const orderedPaths = computed(() => visibleEntries.value.map((e) => e.path));
+
+watch(
+  visibleEntries,
+  (entries) => {
+    requestShellIcons(entries.map((e) => e.path));
+  },
+  { immediate: true },
+);
 
 onMounted(() => {
   registerNavFileShortcuts();
@@ -516,7 +525,15 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
           :data-kind="entry.kind"
           :title="entry.kind === 'dir' ? t('navigator.folder') : t('navigator.file')"
         >
-          <FluentIcon :name="entryKindIcon(entry.kind === 'dir')" size="md" />
+          <img
+            v-if="iconUrlFor(entry.path)"
+            class="shell-icon"
+            :src="iconUrlFor(entry.path)!"
+            alt=""
+            width="16"
+            height="16"
+          />
+          <FluentIcon v-else :name="entryKindIcon(entry.kind === 'dir')" size="md" />
         </span>
         <span class="name">{{ entry.name }}</span>
         <span class="size">{{ formatSize(entry) }}</span>
@@ -676,6 +693,13 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
 
 .kind[data-kind="dir"] {
   color: var(--fluent-color-fill-accent);
+}
+
+.shell-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 .name {

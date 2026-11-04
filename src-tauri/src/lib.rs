@@ -6,6 +6,7 @@ mod extension_host;
 mod favorites;
 mod file_ops;
 mod navigator;
+mod shell_icons;
 mod open_with;
 mod projects;
 mod providers;
@@ -98,6 +99,8 @@ pub fn run() {
             file_ops::file_ops_create_dir,
             file_ops::file_ops_delete,
             file_ops::file_ops_can_recycle,
+            shell_icons::shell_icon_get,
+            shell_icons::shell_icon_get_many,
             settings::settings_schema_get,
             settings::settings_get,
             settings::settings_set,
