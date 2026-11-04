@@ -3,13 +3,16 @@
 import { nextTick, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
-import { navigateTo } from "../state/navigatorBrowse";
+import { navigateTo, type NavigatorEntry } from "../state/navigatorBrowse";
 import { useRouter } from "vue-router";
 import {
   consumeGlobalSearchFocus,
   globalSearchFocusToken,
 } from "../state/globalSearch";
+import { iconUrlFor, requestShellIcons } from "../state/shellIcons";
+import { loadFavorites } from "../state/favorites";
 import FluentIcon from "../components/icons/FluentIcon.vue";
+import NavigatorContextMenu from "../components/navigator/NavigatorContextMenu.vue";
 import { entryKindIcon } from "../components/icons/glyphs";
 
 type DiscoveryEngine = "everything" | "fallback" | "unavailable";
@@ -50,6 +53,52 @@ const error = ref<string | null>(null);
 const searchInput = ref<HTMLInputElement | null>(null);
 const blacklistDraft = ref("");
 const blacklistSaving = ref(false);
+const selectedPath = ref<string | null>(null);
+const menuOpen = ref(false);
+const menuEntry = ref<NavigatorEntry | null>(null);
+const menuX = ref(0);
+const menuY = ref(0);
+const notice = ref<string | null>(null);
+let noticeTimer: ReturnType<typeof setTimeout> | null = null;
+
+function normalizeHitPath(path: string): string {
+  return path.replace(/\//g, "\\");
+}
+
+function hitToEntry(hit: DiscoveryHit): NavigatorEntry {
+  return {
+    name: hit.name,
+    path: normalizeHitPath(hit.path),
+    kind: hit.isDir ? "dir" : "file",
+    size: 0,
+  };
+}
+
+function hitIcon(hit: DiscoveryHit): string | null {
+  return iconUrlFor(normalizeHitPath(hit.path));
+}
+
+function onHitClick(hit: DiscoveryHit) {
+  selectedPath.value = hit.path;
+}
+
+function onHitContext(event: MouseEvent, hit: DiscoveryHit) {
+  event.preventDefault();
+  selectedPath.value = hit.path;
+  menuEntry.value = hitToEntry(hit);
+  menuX.value = event.clientX;
+  menuY.value = event.clientY;
+  menuOpen.value = true;
+}
+
+function onNotice(message: string) {
+  notice.value = message;
+  if (noticeTimer) clearTimeout(noticeTimer);
+  noticeTimer = setTimeout(() => {
+    notice.value = null;
+    noticeTimer = null;
+  }, 2800);
+}
 
 async function focusSearchInput() {
   await nextTick();
@@ -91,6 +140,7 @@ async function runSearch() {
       query: query.value,
       options: { offset: 0, limit: 50 },
     });
+    requestShellIcons((result.value?.hits ?? []).map((h) => normalizeHitPath(h.path)));
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
@@ -126,6 +176,7 @@ onMounted(() => {
   void refreshStatus().catch((err) => {
     error.value = err instanceof Error ? err.message : String(err);
   });
+  void loadFavorites().catch(() => undefined);
   if (consumeGlobalSearchFocus()) {
     void focusSearchInput();
   }
@@ -227,12 +278,13 @@ onMounted(() => {
       </button>
     </form>
 
+    <p v-if="notice" class="fluent-banner fluent-banner--success">{{ notice }}</p>
     <p v-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
     <p v-else-if="result && result.hits.length === 0" class="fluent-banner fluent-banner--info">
       {{ t("discovery.noHits", { engine: result.engine, total: result.totalCount }) }}
     </p>
 
-    <div v-if="result && result.hits.length" class="fluent-surface list">
+    <div v-if="result && result.hits.length" class="fluent-surface list" role="list">
       <p class="fluent-page-meta list-meta">
         {{
           t("discovery.shown", {
@@ -242,24 +294,48 @@ onMounted(() => {
           })
         }}
       </p>
-      <button
+      <div
         v-for="hit in result.hits"
         :key="hit.path + hit.name"
-        type="button"
         class="fluent-list-row fluent-list-row--density row"
+        role="listitem"
+        tabindex="0"
+        :aria-selected="selectedPath === hit.path"
+        :class="{ 'row--selected': selectedPath === hit.path }"
+        @click="onHitClick(hit)"
         @dblclick="openHit(hit)"
+        @keydown.enter.prevent="openHit(hit)"
+        @contextmenu="onHitContext($event, hit)"
       >
         <span
           class="kind"
           :data-kind="hit.isDir ? 'dir' : 'file'"
           :title="hit.isDir ? t('discovery.folder') : t('discovery.file')"
         >
-          <FluentIcon :name="entryKindIcon(hit.isDir)" size="md" />
+          <img
+            v-if="hitIcon(hit)"
+            class="shell-icon"
+            :src="hitIcon(hit)!"
+            alt=""
+            width="16"
+            height="16"
+          />
+          <FluentIcon v-else :name="entryKindIcon(hit.isDir)" size="md" />
         </span>
         <span class="name">{{ hit.name }}</span>
         <span class="path">{{ hit.path }}</span>
-      </button>
+      </div>
     </div>
+
+    <NavigatorContextMenu
+      :open="menuOpen"
+      :entry="menuEntry"
+      :x="menuX"
+      :y="menuY"
+      @close="menuOpen = false"
+      @notice="onNotice"
+      @favorites-changed="loadFavorites"
+    />
   </section>
 </template>
 
@@ -388,6 +464,16 @@ onMounted(() => {
 
 .row:last-child {
   border-bottom: 0;
+}
+
+.row--selected {
+  background: var(--fluent-color-fill-selected);
+}
+
+.shell-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
 }
 
 .row:hover {
