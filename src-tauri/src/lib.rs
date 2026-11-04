@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 mod navigator;
+mod settings;
 
 use serde::Serialize;
 
@@ -32,6 +33,9 @@ pub fn run() {
             navigator::navigator_list,
             navigator::navigator_default_path,
             navigator::navigator_parent,
+            settings::settings_schema_get,
+            settings::settings_get,
+            settings::settings_set,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
