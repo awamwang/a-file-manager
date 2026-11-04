@@ -2,6 +2,7 @@
 
 mod discovery;
 mod navigator;
+mod providers;
 mod settings;
 
 use serde::Serialize;
@@ -40,6 +41,10 @@ pub fn run() {
             discovery::discovery_status,
             discovery::discovery_set_fallback_enabled,
             discovery::discovery_search,
+            providers::provider_backends,
+            providers::provider_list,
+            providers::provider_stat,
+            providers::provider_resolve,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
