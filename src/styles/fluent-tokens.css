@@ -1,0 +1,79 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Fluent / Win11 Explorer–oriented design tokens (S0 skeleton).
+ * Density: Standard for chrome (locked). Compact reserved for file-list rows later.
+ * Custom titlebar Snap is deferred to S9; S1 adds chrome zone stubs.
+ */
+
+:root {
+  --fluent-space-xs: 4px;
+  --fluent-space-sm: 8px;
+  --fluent-space-md: 12px;
+  --fluent-space-lg: 16px;
+  --fluent-space-xl: 24px;
+  --fluent-space-2xl: 32px;
+
+  --fluent-control-height-standard: 32px;
+  --fluent-control-height-comfortable: 40px;
+  --fluent-list-row-height-standard: 32px;
+  --fluent-list-row-height-compact: 24px;
+  --fluent-titlebar-height: 40px;
+  --fluent-toolbar-height: 40px;
+  --fluent-addressbar-height: 36px;
+
+  --fluent-font-family:
+    "Segoe UI Variable", "Segoe UI", "Yu Gothic UI", "Meiryo UI", system-ui, sans-serif;
+  --fluent-font-size-caption: 12px;
+  --fluent-font-size-body: 14px;
+  --fluent-font-size-subtitle: 16px;
+  --fluent-font-size-title: 20px;
+  --fluent-font-weight-regular: 400;
+  --fluent-font-weight-semibold: 600;
+
+  --fluent-stroke-width: 1px;
+  --fluent-radius-sm: 4px;
+  --fluent-radius-md: 6px;
+  --fluent-radius-lg: 8px;
+
+  --fluent-color-text-primary: #1a1a1a;
+  --fluent-color-text-secondary: #5d5d5d;
+  --fluent-color-stroke-divider: #e5e5e5;
+  --fluent-color-fill-subtle: #f3f3f3;
+  --fluent-color-fill-control: #ffffff;
+  --fluent-color-fill-accent: #005fb8;
+  --fluent-color-text-on-accent: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fluent-color-text-primary: #ffffff;
+    --fluent-color-text-secondary: #c5c5c5;
+    --fluent-color-stroke-divider: #3b3b3b;
+    --fluent-color-fill-subtle: #2c2c2c;
+    --fluent-color-fill-control: #1f1f1f;
+    --fluent-color-fill-accent: #60cdff;
+    --fluent-color-text-on-accent: #000000;
+  }
+}
+
+.fluent-chrome {
+  font-family: var(--fluent-font-family);
+  font-size: var(--fluent-font-size-body);
+  font-weight: var(--fluent-font-weight-regular);
+  color: var(--fluent-color-text-primary);
+}
+
+.fluent-control {
+  min-height: var(--fluent-control-height-standard);
+  padding-inline: var(--fluent-space-md);
+  border-radius: var(--fluent-radius-md);
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  background: var(--fluent-color-fill-control);
+  font: inherit;
+}
+
+.fluent-control--accent {
+  border-color: transparent;
+  background: var(--fluent-color-fill-accent);
+  color: var(--fluent-color-text-on-accent);
+  font-weight: var(--fluent-font-weight-semibold);
+}
