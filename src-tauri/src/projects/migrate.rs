@@ -98,6 +98,8 @@ fn migrate_legacy_project(entry: &Value) -> Result<UserProject, String> {
         id,
         name,
         description,
+        // Existing / legacy projects stay unbound until the user binds a WG.
+        work_group_id: None,
         workspace_links,
         tasks: Vec::new(),
         context_notes: String::new(),
@@ -111,6 +113,14 @@ pub fn normalize_document(mut document: UserProjects) -> UserProjects {
     if let Some(active) = document.active_project_id.clone() {
         if !document.projects.iter().any(|p| p.id == active) {
             document.active_project_id = document.projects.first().map(|p| p.id.clone());
+        }
+    }
+    // Strip accidental default-WG bindings (cannot be validated against WG doc here).
+    for project in &mut document.projects {
+        if project.work_group_id.as_deref()
+            == Some(crate::work_groups::types::DEFAULT_WORK_GROUP_ID)
+        {
+            project.work_group_id = None;
         }
     }
     document
@@ -148,5 +158,48 @@ mod tests {
         assert_eq!(doc.projects[0].workspace_links[0].path, "D:/Repos/Alpha");
         assert_eq!(doc.projects[0].context_notes, "");
         assert!(doc.projects[0].tasks.is_empty());
+        assert!(doc.projects[0].work_group_id.is_none());
+    }
+
+    #[test]
+    fn v1_projects_without_work_group_id_stay_unbound() {
+        let raw = json!({
+            "schemaVersion": 1,
+            "projects": [{
+                "id": "p1",
+                "name": "Alpha",
+                "description": "",
+                "workspaceLinks": [],
+                "tasks": [],
+                "contextNotes": "",
+                "createdAt": 1,
+                "updatedAt": 1
+            }],
+            "activeProjectId": "p1"
+        });
+        let doc = migrate_value(raw).unwrap();
+        assert_eq!(doc.schema_version, SCHEMA_VERSION);
+        assert!(doc.projects[0].work_group_id.is_none());
+    }
+
+    #[test]
+    fn strips_default_work_group_binding_on_normalize() {
+        let raw = json!({
+            "schemaVersion": 2,
+            "projects": [{
+                "id": "p1",
+                "name": "Bad",
+                "description": "",
+                "workGroupId": "default-work-group",
+                "workspaceLinks": [],
+                "tasks": [],
+                "contextNotes": "",
+                "createdAt": 1,
+                "updatedAt": 1
+            }],
+            "activeProjectId": "p1"
+        });
+        let doc = migrate_value(raw).unwrap();
+        assert!(doc.projects[0].work_group_id.is_none());
     }
 }

@@ -4,7 +4,13 @@ import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
-import { openPathsAsNavigatorTabs } from "../state/navigatorBrowse";
+import {
+  applyProjectSilentSwitch,
+  openPathsAsNavigatorTabs,
+  snapshotLiveOpenState,
+  type SoftSyncNotice,
+  type SilentSwitchResult,
+} from "../state/navigatorBrowse";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import type { FluentGlyphId } from "../components/icons/glyphs";
 
@@ -42,6 +48,7 @@ type UserProject = {
   id: string;
   name: string;
   description: string;
+  workGroupId?: string | null;
   workspaceLinks: WorkspaceLink[];
   tasks: ProjectTask[];
   contextNotes: string;
@@ -55,11 +62,37 @@ type UserProjects = {
   activeProjectId: string | null;
 };
 
+type WorkGroupOption = {
+  id: string;
+  name: string;
+  isDefault: boolean;
+};
+
+type ActivateResult = {
+  projects: UserProjects;
+  silentSwitch: SilentSwitchResult | null;
+};
+
 type OpenAllResult = {
   projectId: string;
   paths: string[];
   workGroupMutated: boolean;
 };
+
+const PROJECT_ERROR_KEYS: Record<string, string> = {
+  PROJECT_DEFAULT_WORK_GROUP_FORBIDDEN: "projects.errorDefaultWorkGroup",
+  PROJECT_UNKNOWN_WORK_GROUP: "projects.errorUnknownWorkGroup",
+  PROJECT_UNBOUND: "projects.errorUnbound",
+  PROJECT_SILENT_SWITCH_SAVE_PROMPT: "workGroups.errorSavePrompt",
+};
+
+function mapProjectError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  for (const [code, key] of Object.entries(PROJECT_ERROR_KEYS)) {
+    if (raw.includes(code)) return t(key);
+  }
+  return raw;
+}
 
 const STATUS_LABEL_KEYS = {
   backlog: "projects.statusBacklog",
@@ -77,13 +110,16 @@ const STATUSES = computed(() =>
 
 const router = useRouter();
 const document = ref<UserProjects | null>(null);
+const workGroups = ref<WorkGroupOption[]>([]);
 const selectedId = ref<string | null>(null);
 const viewMode = ref<"list" | "board">("board");
 const error = ref<string | null>(null);
 const notice = ref<string | null>(null);
+const softNotice = ref<SoftSyncNotice | null>(null);
 const loading = ref(false);
 
 const newName = ref("");
+const bindWorkGroupId = ref("");
 const linkPath = ref("");
 const taskTitle = ref("");
 const contextDraft = ref("");
@@ -91,6 +127,16 @@ const contextDraft = ref("");
 const selected = computed(
   () => document.value?.projects.find((p) => p.id === selectedId.value) ?? null,
 );
+
+const bindableWorkGroups = computed(() =>
+  workGroups.value.filter((group) => !group.isDefault && group.id !== "default-work-group"),
+);
+
+const boundWorkGroupName = computed(() => {
+  const id = selected.value?.workGroupId;
+  if (!id) return null;
+  return workGroups.value.find((group) => group.id === id)?.name ?? id;
+});
 
 const openTaskCount = computed(
   () => selected.value?.tasks.filter((t) => t.statusId !== "done").length ?? 0,
@@ -107,7 +153,12 @@ async function refresh() {
   loading.value = true;
   error.value = null;
   try {
-    document.value = await invoke<UserProjects>("projects_get");
+    const [projectsDoc, wgDoc] = await Promise.all([
+      invoke<UserProjects>("projects_get"),
+      invoke<{ workGroups: WorkGroupOption[] }>("work_groups_get"),
+    ]);
+    document.value = projectsDoc;
+    workGroups.value = wgDoc.workGroups;
     if (
       selectedId.value &&
       !document.value.projects.some((p) => p.id === selectedId.value)
@@ -118,9 +169,10 @@ async function refresh() {
       selectedId.value =
         document.value.activeProjectId ?? document.value.projects[0]?.id ?? null;
     }
+    syncBindDraft();
     syncContextDraft();
   } catch (err) {
-    error.value = err instanceof Error ? err.message : String(err);
+    error.value = mapProjectError(err);
   } finally {
     loading.value = false;
   }
@@ -130,25 +182,81 @@ function syncContextDraft() {
   contextDraft.value = selected.value?.contextNotes ?? "";
 }
 
-function selectProject(id: string) {
+function syncBindDraft() {
+  bindWorkGroupId.value = selected.value?.workGroupId ?? "";
+}
+
+async function selectProject(id: string) {
+  error.value = null;
+  softNotice.value = null;
   selectedId.value = id;
+  syncBindDraft();
   syncContextDraft();
-  void invoke("projects_set_active", { projectId: id }).then((doc) => {
-    document.value = doc as UserProjects;
-  });
+  try {
+    const result = await invoke<ActivateResult>("projects_activate", {
+      projectId: id,
+      liveOpenState: snapshotLiveOpenState(),
+    });
+    document.value = result.projects;
+    softNotice.value = await applyProjectSilentSwitch(result.silentSwitch);
+  } catch (err) {
+    error.value = mapProjectError(err);
+  }
 }
 
 async function createProject() {
-  document.value = await invoke<UserProjects>("projects_create", {
-    name: newName.value.trim() || null,
-    description: null,
-  });
-  newName.value = "";
-  selectedId.value =
-    document.value.activeProjectId ??
-    document.value.projects[document.value.projects.length - 1]?.id ??
-    null;
-  syncContextDraft();
+  error.value = null;
+  try {
+    document.value = await invoke<UserProjects>("projects_create", {
+      name: newName.value.trim() || null,
+      description: null,
+      workGroupId: null,
+    });
+    newName.value = "";
+    selectedId.value =
+      document.value.activeProjectId ??
+      document.value.projects[document.value.projects.length - 1]?.id ??
+      null;
+    syncBindDraft();
+    syncContextDraft();
+  } catch (err) {
+    error.value = mapProjectError(err);
+  }
+}
+
+async function bindSelectedWorkGroup() {
+  if (!selected.value) return;
+  error.value = null;
+  try {
+    document.value = await invoke<UserProjects>("projects_bind_work_group", {
+      projectId: selected.value.id,
+      workGroupId: bindWorkGroupId.value.trim() || null,
+    });
+    syncBindDraft();
+    notice.value = bindWorkGroupId.value
+      ? t("projects.noticeBound")
+      : t("projects.noticeUnbound");
+  } catch (err) {
+    error.value = mapProjectError(err);
+  }
+}
+
+async function saveMembersFromTabs() {
+  if (!selected.value?.workGroupId) {
+    error.value = t("projects.errorUnbound");
+    return;
+  }
+  error.value = null;
+  try {
+    await invoke("projects_save_members_from_open_state", {
+      projectId: selected.value.id,
+      liveOpenState: snapshotLiveOpenState(),
+    });
+    notice.value = t("projects.noticeMembersSaved");
+    await refresh();
+  } catch (err) {
+    error.value = mapProjectError(err);
+  }
 }
 
 async function deleteSelected() {
@@ -262,6 +370,10 @@ onMounted(() => {
       {{ notice }}
       <button type="button" class="linkish" @click="notice = null">{{ t("common.dismiss") }}</button>
     </p>
+    <p v-if="softNotice" class="fluent-banner fluent-banner--info banner--soft">
+      {{ t("workGroups.softSync", { paths: softNotice.openedMemberPaths.join(", ") }) }}
+      <button type="button" class="linkish" @click="softNotice = null">{{ t("common.dismiss") }}</button>
+    </p>
 
     <div v-if="document" class="layout">
       <aside class="master-list">
@@ -280,10 +392,15 @@ onMounted(() => {
             <strong>{{ project.name }}</strong>
           </span>
           <span class="fluent-page-meta">{{
-            t("projects.listSummary", {
-              links: project.workspaceLinks.length,
-              open: project.tasks.filter((task) => task.statusId !== "done").length,
-            })
+            project.workGroupId
+              ? t("projects.listSummaryBound", {
+                  links: project.workspaceLinks.length,
+                  open: project.tasks.filter((task) => task.statusId !== "done").length,
+                })
+              : t("projects.listSummary", {
+                  links: project.workspaceLinks.length,
+                  open: project.tasks.filter((task) => task.statusId !== "done").length,
+                })
           }}</span>
         </button>
 
@@ -335,6 +452,38 @@ onMounted(() => {
             </button>
           </div>
         </div>
+
+        <h3>{{ t("projects.sessionBinding") }}</h3>
+        <p class="fluent-page-meta">
+          {{
+            boundWorkGroupName
+              ? t("projects.boundTo", { name: boundWorkGroupName })
+              : t("projects.unbound")
+          }}
+        </p>
+        <form class="row" @submit.prevent="bindSelectedWorkGroup">
+          <select v-model="bindWorkGroupId" class="fluent-control">
+            <option value="">{{ t("projects.bindNone") }}</option>
+            <option
+              v-for="group in bindableWorkGroups"
+              :key="group.id"
+              :value="group.id"
+            >
+              {{ group.name }}
+            </option>
+          </select>
+          <button class="fluent-control fluent-control--accent" type="submit">
+            {{ t("projects.bindSave") }}
+          </button>
+          <button
+            v-if="selected.workGroupId"
+            class="fluent-control"
+            type="button"
+            @click="saveMembersFromTabs"
+          >
+            {{ t("projects.saveMembersFromTabs") }}
+          </button>
+        </form>
 
         <h3>{{ t("projects.workspaceLinks") }}</h3>
         <ul class="links">

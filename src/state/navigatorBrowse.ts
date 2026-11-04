@@ -207,6 +207,35 @@ export async function restoreWorkGroupOpenState(
   }
 }
 
+export type SoftSyncNotice = {
+  kind: string;
+  workGroupId: string;
+  openedMemberPaths: string[];
+};
+
+export type SilentSwitchResult = {
+  document: UserWorkGroupsDoc;
+  openStateToRestore: WorkGroupOpenState | null;
+  requireSavePrompt: boolean;
+  relativeMemberPathsToOpen: string[];
+  notice: SoftSyncNotice | null;
+};
+
+/** Apply Project activate → optional WG silent-switch into the shell strip. */
+export async function applyProjectSilentSwitch(
+  silentSwitch: SilentSwitchResult | null | undefined,
+): Promise<SoftSyncNotice | null> {
+  if (!silentSwitch) return null;
+  if (silentSwitch.requireSavePrompt) {
+    throw new Error("PROJECT_SILENT_SWITCH_SAVE_PROMPT");
+  }
+  await restoreWorkGroupOpenState(
+    silentSwitch.document.activeWorkGroupId,
+    silentSwitch.openStateToRestore,
+  );
+  return silentSwitch.notice;
+}
+
 export async function loadDefaultPath(): Promise<void> {
   listLoading.value = true;
   listError.value = null;

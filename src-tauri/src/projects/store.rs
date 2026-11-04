@@ -53,7 +53,7 @@ mod tests {
 
         let mut document = load_from_path(&dir).unwrap();
         let (next, created) =
-            create_project(&document, Some("Core".into()), Some("desc".into()));
+            create_project(&document, Some("Core".into()), Some("desc".into()), None);
         document = next;
         let (next, _task) = add_task(&document, &created.id, "First".into(), None).unwrap();
         document = next;

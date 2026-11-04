@@ -656,7 +656,11 @@ mod tests {
         });
         let mapped = map_sigma_values(wg, Some(projects), None).unwrap();
         assert_eq!(mapped.projects.projects.len(), 1);
-        assert_eq!(mapped.projects.schema_version, 1);
+        assert_eq!(
+            mapped.projects.schema_version,
+            crate::projects::types::SCHEMA_VERSION
+        );
+        assert!(mapped.projects.projects[0].work_group_id.is_none());
         assert_eq!(
             mapped.projects.projects[0].workspace_links[0].path,
             "G:/Projects/Demo"

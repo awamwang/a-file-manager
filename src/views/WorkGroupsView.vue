@@ -43,6 +43,7 @@ type SilentSwitchResult = {
 
 const document = ref<UserWorkGroups | null>(null);
 const notice = ref<SoftNotice | null>(null);
+const promoteNotice = ref<string | null>(null);
 const error = ref<string | null>(null);
 const newName = ref("");
 const memberPath = ref("");
@@ -131,6 +132,27 @@ async function saveMembersFromTabs() {
   });
 }
 
+async function promoteToProject() {
+  if (!active.value || active.value.isDefault) return;
+  error.value = null;
+  promoteNotice.value = null;
+  try {
+    await invoke("projects_promote_from_work_group", {
+      workGroupId: active.value.id,
+    });
+    promoteNotice.value = t("workGroups.promoteDone", { name: active.value.name });
+  } catch (err) {
+    const raw = err instanceof Error ? err.message : String(err);
+    if (raw.includes("PROJECT_DEFAULT_WORK_GROUP_FORBIDDEN")) {
+      error.value = t("projects.errorDefaultWorkGroup");
+    } else if (raw.includes("PROJECT_UNKNOWN_WORK_GROUP")) {
+      error.value = t("projects.errorUnknownWorkGroup");
+    } else {
+      error.value = raw;
+    }
+  }
+}
+
 onMounted(() => {
   void refresh();
 });
@@ -148,6 +170,10 @@ onMounted(() => {
     <p v-if="notice" class="fluent-banner fluent-banner--info banner--soft">
       {{ t("workGroups.softSync", { paths: notice.openedMemberPaths.join(", ") }) }}
       <button type="button" class="linkish" @click="notice = null">{{ t("common.dismiss") }}</button>
+    </p>
+    <p v-if="promoteNotice" class="fluent-banner fluent-banner--info banner--soft">
+      {{ promoteNotice }}
+      <button type="button" class="linkish" @click="promoteNotice = null">{{ t("common.dismiss") }}</button>
     </p>
 
     <div v-if="document" class="layout">
@@ -222,6 +248,14 @@ onMounted(() => {
           </button>
           <button class="fluent-control" type="button" @click="saveMembersFromTabs">
             {{ t("workGroups.saveMembersFromTabs") }}
+          </button>
+          <button
+            v-if="!active.isDefault"
+            class="fluent-control fluent-control--accent"
+            type="button"
+            @click="promoteToProject"
+          >
+            {{ t("workGroups.promoteToProject") }}
           </button>
         </div>
       </div>
