@@ -1,0 +1,290 @@
+{
+  "app": {
+    "captionMeta": "Standard · i18n",
+    "name": "A File Manager"
+  },
+  "chrome": {
+    "address": "Adressleiste",
+    "back": "Zurück",
+    "close": "Schließen",
+    "closeTab": "Registerkarte schließen",
+    "commands": "Befehle",
+    "commandsShortcut": "Ctrl+Shift+P",
+    "commandsTitle": "Befehlspalette (Ctrl+Shift+P)",
+    "forward": "Vorwärts",
+    "go": "Los",
+    "healthError": "health: Fehler",
+    "healthOk": "health: ok · v{version}",
+    "healthPending": "health: …",
+    "historyLater": "Verlauf folgt später",
+    "later": "Später",
+    "maximize": "Maximieren",
+    "minimize": "Minimieren",
+    "navigatorCounts": "{dirs} Ordner · {files} Dateien",
+    "navigatorError": "navigator: Fehler",
+    "navigatorLoading": "navigator: wird geladen",
+    "newTab": "Neue Registerkarte",
+    "newTabLater": "Neue Registerkarte folgt später",
+    "path": "Pfad",
+    "pathPlaceholder": "Nativer OS-Pfad (Kernel) — Enter zum Öffnen",
+    "refreshHealth": "Health aktualisieren",
+    "restore": "Wiederherstellen",
+    "sideNav": "Seitennavigation",
+    "status": "Status",
+    "tabs": "Registerkarten",
+    "titleBar": "Titelleiste",
+    "toolbar": "Hauptsymbolleiste",
+    "up": "Nach oben",
+    "upTitle": "Eine Ebene nach oben",
+    "view": "Ansicht",
+    "windowControls": "Fenstersteuerung"
+  },
+  "commands": {
+    "empty": "Keine passenden Befehle",
+    "goUp": "Einen Ordner nach oben",
+    "groups": {
+      "actions": "Aktionen",
+      "navigate": "Navigation",
+      "view": "Ansicht"
+    },
+    "hint": "↑↓ zum Bewegen · Enter zum Ausführen · Esc zum Schließen · Ctrl+Shift+P",
+    "openDiscovery": "Discovery öffnen",
+    "openExtensions": "Erweiterungen öffnen",
+    "openHealth": "Health öffnen",
+    "openNavigator": "Navigator öffnen",
+    "openProjects": "Projekte öffnen",
+    "openProviders": "Anbieter öffnen",
+    "openSettings": "Einstellungen öffnen",
+    "openWorkGroups": "Arbeitsgruppen öffnen",
+    "panelLabel": "Befehlspalette",
+    "placeholder": "Befehl eingeben…",
+    "refreshHealth": "Health-Status aktualisieren",
+    "results": "Befehlsergebnisse"
+  },
+  "common": {
+    "create": "Erstellen",
+    "delete": "Löschen",
+    "dismiss": "Schließen",
+    "empty": "Leer",
+    "file": "Datei",
+    "folder": "Ordner",
+    "loading": "Wird geladen…",
+    "no": "nein",
+    "refresh": "Aktualisieren",
+    "remove": "Entfernen",
+    "yes": "ja"
+  },
+  "discovery": {
+    "degraded": "eingeschränkt",
+    "engine": "Engine",
+    "fallback": "Selbstindex-Fallback-Stub aktivieren (nur wenn Everything ausfällt)",
+    "file": "Datei",
+    "folder": "Ordner",
+    "meta": "Everything-IPC zuerst · kein es.exe · Fallback-Stub nur wenn aktiviert",
+    "noHits": "Keine Treffer (engine={engine}, total={total}).",
+    "placeholder": "Dateiname / Pfad suchen…",
+    "search": "Suchen",
+    "searching": "Suche läuft…",
+    "shown": "{shown} angezeigt · gesamt {total} · {engine}",
+    "title": "Discovery"
+  },
+  "extensions": {
+    "api": "API {version}",
+    "catalogEmpty": "Katalog ist absichtlich leer",
+    "counts": "Installiert {installed} · aktiviert {enabled} · abgestürzt {crashed}",
+    "disable": "Deaktivieren",
+    "enable": "Aktivieren",
+    "errorInstallFailed": "Installation fehlgeschlagen",
+    "errorRemoteFetch": "Unerwartetes Remote-Marktplatz-Abruf-Flag",
+    "fsHooks": "FS-Anbieter-Hooks",
+    "fsHooksCount": "FS-Anbieter-Hooks {count}",
+    "fsHooksMeta": "Nur Metadaten — ProviderRegistry bleibt die FS-Autorität.",
+    "hostPrefix": "ExtensionHost {version}",
+    "hostStatus": "Host-Status",
+    "installDemo": "Lokale Demo installieren (vNext)",
+    "installed": "Installiert",
+    "marketplace": "Marktplatz",
+    "marketplaceFlags": "Marktplatz leer: {empty} · Remote-Abruf: {remote}",
+    "marketplacePolicy": "Legacy-Marktplatzpakete werden abgelehnt (apiVersion vnext.1 erforderlich). Keine Remote-Registry wird kontaktiert.",
+    "meta": "vNext-Host · leerer Marktplatz · keine Legacy-Pakete",
+    "noHooks": "Keine Hooks registriert",
+    "noInstalled": "Keine Erweiterungen installiert.",
+    "noticeHelloFail": "Befehl fehlgeschlagen: {error}",
+    "noticeHelloOk": "Befehl hello auf {id} ok",
+    "noticeInstalled": "{id} installiert (vNext lokaler Stub)",
+    "noticeUninstalled": "{id} deinstalliert",
+    "registered": "(registriert {value})",
+    "runHello": "hello ausführen",
+    "title": "Erweiterungen",
+    "uninstall": "Deinstallieren",
+    "unknownError": "unbekannt"
+  },
+  "health": {
+    "failed": "Health fehlgeschlagen: {error}",
+    "fieldIdentifier": "Kennung",
+    "fieldName": "Name",
+    "fieldOk": "ok",
+    "fieldVersion": "Version",
+    "loading": "Wird geladen…",
+    "meta": "Rust-Kernidentität über health_get",
+    "refresh": "Aktualisieren",
+    "title": "Health"
+  },
+  "nav": {
+    "discovery": "Discovery",
+    "extensions": "Erweiterungen",
+    "health": "Health",
+    "navigator": "Navigator",
+    "projects": "Projekte",
+    "providers": "Anbieter",
+    "settings": "Einstellungen",
+    "workGroups": "Arbeitsgruppen"
+  },
+  "navigator": {
+    "empty": "Dieser Ordner ist leer.",
+    "file": "Datei",
+    "folder": "Ordner",
+    "loading": "Wird geladen…",
+    "metaConnected": "Kernel-OS-Browse · {dirs} Ordner · {files} Dateien",
+    "metaDisconnected": "Kernel-OS-Browse · nicht verbunden",
+    "title": "Navigator"
+  },
+  "projects": {
+    "addLink": "Link hinzufügen",
+    "addLinkPlaceholder": "Ordnerpfad hinzufügen (unabhängig von Arbeitsgruppen)",
+    "addOutcomePlaceholder": "Erstes / nächstes Ergebnis hinzufügen",
+    "addTask": "Aufgabe hinzufügen",
+    "board": "Board",
+    "confirmDelete": "Projekt „{name}“ löschen?",
+    "contextNotes": "Context-Notizen",
+    "contextPlaceholder": "Einzelner contextNotes-Text (Markdown OK)",
+    "emptyStart": "Projekt erstellen zum Start — Links, Board und Context bleiben unabhängig von Arbeitsgruppen.",
+    "errorWorkGroupMutation": "Unerwartete Arbeitsgruppen-Änderung beim Öffnen aller",
+    "list": "Liste",
+    "listSummary": "{links} Links · {open} offen",
+    "meta": "Liste + Board · Context-Notizen · alle öffnen → Navigator-Registerkarten",
+    "newNamePlaceholder": "Name des neuen Projekts",
+    "noDescription": "Keine Beschreibung",
+    "noFolderLinks": "Noch keine Ordnerlinks",
+    "noOutcomes": "Noch keine Ergebnisse — oben das erste hinzufügen.",
+    "noticeContextSaved": "Context-Notizen gespeichert",
+    "noticeNoLinks": "Keine Arbeitsbereichslinks zum Öffnen",
+    "noticeOpened": "{count} Pfad(e) als Navigator-Registerkarten geöffnet (Arbeitsgruppen unverändert)",
+    "openAllLinks": "Alle Links öffnen",
+    "openTasks": "{count} offene Aufgaben",
+    "outcomes": "Ergebnisse",
+    "saveContext": "Context speichern",
+    "statusBacklog": "Backlog",
+    "statusDoing": "In Arbeit",
+    "statusDone": "Erledigt",
+    "statusReview": "Review",
+    "title": "Projekte",
+    "viewMode": "Ansichtsmodus",
+    "workspaceLinks": "Arbeitsbereichslinks"
+  },
+  "providers": {
+    "emptyListing": "Leere Liste.",
+    "file": "Datei",
+    "folder": "Ordner",
+    "interfaceOnly": "nur Schnittstelle",
+    "list": "Auflisten",
+    "listing": "Liste wird geladen…",
+    "meta": "awam-Erweiterungsschicht · rclone + knowledge",
+    "statusDown": "offline",
+    "statusOk": "ok",
+    "title": "Anbieter",
+    "uriPlaceholder": "awam://rclone/… oder awam://knowledge/…"
+  },
+  "settings": {
+    "fields": {
+      "core": {
+        "defaultLocation": {
+          "description": "Standard-OS-Pfad im Navigator (leer = USERPROFILE)",
+          "title": "Standardort"
+        },
+        "everythingPreferred": {
+          "description": "Everything-IPC für Discovery bevorzugen, wenn verfügbar",
+          "title": "Everything bevorzugen"
+        },
+        "extensionsEnabled": {
+          "description": "Hauptschalter für den Erweiterungshost",
+          "title": "Erweiterungen aktiviert"
+        },
+        "language": {
+          "description": "UI-Sprache: en | zh-CN | ja | de | fr",
+          "title": "Sprache",
+          "options": {
+            "en": "English",
+            "zh-CN": "简体中文",
+            "ja": "日本語",
+            "de": "Deutsch",
+            "fr": "Français"
+          }
+        },
+        "listDensity": {
+          "description": "Dateilistendichte; Chrome bleibt Standard. Standard: standard",
+          "options": {
+            "compact": "Kompakt",
+            "standard": "Standard"
+          },
+          "title": "Listendichte"
+        },
+        "showHidden": {
+          "description": "Versteckte Dateien/Ordner in Kernel-Listen einbeziehen",
+          "title": "Versteckte Elemente anzeigen"
+        },
+        "theme": {
+          "description": "Farbdesign: hell | dunkel | System",
+          "options": {
+            "dark": "Dunkel",
+            "light": "Hell",
+            "system": "System"
+          },
+          "title": "Design"
+        }
+      },
+      "experimental": {
+        "debugStatusInTitlebar": {
+          "description": "Phasen-/Debug-Text in der benutzerdefinierten Titelleiste anzeigen",
+          "title": "Debug-Status in der Titelleiste"
+        }
+      },
+      "power": {
+        "confirmBeforeDelete": {
+          "description": "Vor endgültigem Löschen nachfragen",
+          "title": "Vor dem Löschen bestätigen"
+        },
+        "perPathOverridesEnabled": {
+          "description": "Pfadbezogene Navigator-Standards dürfen Gruppe/Global überschreiben",
+          "title": "Pfadbezogene Überschreibungen"
+        }
+      }
+    },
+    "loading": "Schema wird geladen…",
+    "meta": "Rust-Schema ist maßgeblich",
+    "metaKeys": "· {count} Schlüssel",
+    "metaVersion": "· v{version}",
+    "tierCore": "Kern",
+    "tierExperimental": "Experimentell",
+    "tierPower": "Power",
+    "title": "Einstellungen"
+  },
+  "workGroups": {
+    "addMemberPlaceholder": "Mitglieder-Ordnerpfad hinzufügen",
+    "addSync": "Hinzufügen + sync",
+    "default": "Standard",
+    "detailMeta": "id {id} · harte Mitglieder {count}",
+    "errorSavePrompt": "Unerwartete Speicherabfrage beim stillen Wechsel",
+    "hardMembers": "Harte Mitglieder",
+    "membersCount": "{count} Mitglieder",
+    "meta": "Harte Konfig ↔ Laufzeit-Open-State · stiller Wechsel",
+    "newNamePlaceholder": "Name der neuen Arbeitsgruppe",
+    "noHardMembers": "Noch keine harten Mitglieder",
+    "noOpenTabs": "Keine offenen Registerkarten",
+    "runtimeOpenState": "Laufzeit-Open-State (live)",
+    "saveMembersFromTabs": "Mitglieder aus Registerkarten → hart speichern",
+    "saveOpenState": "Open State → hart speichern",
+    "softSync": "Weiche Sync: {paths} geöffnet",
+    "title": "Arbeitsgruppen"
+  }
+}

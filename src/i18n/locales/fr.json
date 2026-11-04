@@ -1,0 +1,290 @@
+{
+  "app": {
+    "captionMeta": "Standard · i18n",
+    "name": "A File Manager"
+  },
+  "chrome": {
+    "address": "Barre d’adresse",
+    "back": "Retour",
+    "close": "Fermer",
+    "closeTab": "Fermer l’onglet",
+    "commands": "Commandes",
+    "commandsShortcut": "Ctrl+Shift+P",
+    "commandsTitle": "Palette de commandes (Ctrl+Shift+P)",
+    "forward": "Avancer",
+    "go": "Aller",
+    "healthError": "santé : erreur",
+    "healthOk": "santé : ok · v{version}",
+    "healthPending": "santé : …",
+    "historyLater": "Historique plus tard",
+    "later": "Plus tard",
+    "maximize": "Agrandir",
+    "minimize": "Réduire",
+    "navigatorCounts": "{dirs} dossiers · {files} fichiers",
+    "navigatorError": "navigateur : erreur",
+    "navigatorLoading": "navigateur : chargement",
+    "newTab": "Nouvel onglet",
+    "newTabLater": "Nouvel onglet plus tard",
+    "path": "Chemin",
+    "pathPlaceholder": "Chemin OS natif (noyau) — Entrée pour y aller",
+    "refreshHealth": "Actualiser la santé",
+    "restore": "Restaurer",
+    "sideNav": "Navigation latérale",
+    "status": "État",
+    "tabs": "Onglets",
+    "titleBar": "Barre de titre",
+    "toolbar": "Barre d’outils principale",
+    "up": "Haut",
+    "upTitle": "Remonter d’un niveau",
+    "view": "Affichage",
+    "windowControls": "Contrôles de fenêtre"
+  },
+  "commands": {
+    "empty": "Aucune commande correspondante",
+    "goUp": "Remonter d’un dossier",
+    "groups": {
+      "actions": "Actions",
+      "navigate": "Navigation",
+      "view": "Affichage"
+    },
+    "hint": "↑↓ pour déplacer · Entrée pour exécuter · Échap pour fermer · Ctrl+Shift+P",
+    "openDiscovery": "Ouvrir la Découverte",
+    "openExtensions": "Ouvrir les Extensions",
+    "openHealth": "Ouvrir la Santé",
+    "openNavigator": "Ouvrir le Navigateur",
+    "openProjects": "Ouvrir les Projets",
+    "openProviders": "Ouvrir les Fournisseurs",
+    "openSettings": "Ouvrir les Paramètres",
+    "openWorkGroups": "Ouvrir les Groupes de travail",
+    "panelLabel": "Palette de commandes",
+    "placeholder": "Saisir une commande…",
+    "refreshHealth": "Actualiser l’état de santé",
+    "results": "Résultats des commandes"
+  },
+  "common": {
+    "create": "Créer",
+    "delete": "Supprimer",
+    "dismiss": "Fermer",
+    "empty": "Vide",
+    "file": "Fichier",
+    "folder": "Dossier",
+    "loading": "Chargement…",
+    "no": "non",
+    "refresh": "Actualiser",
+    "remove": "Retirer",
+    "yes": "oui"
+  },
+  "discovery": {
+    "degraded": "dégradé",
+    "engine": "Moteur",
+    "fallback": "Activer le stub d’index local (uniquement si Everything est indisponible)",
+    "file": "Fichier",
+    "folder": "Dossier",
+    "meta": "Everything IPC en priorité · pas d’es.exe · stub de repli seulement si activé",
+    "noHits": "Aucun résultat (engine={engine}, total={total}).",
+    "placeholder": "Rechercher un nom / chemin de fichier…",
+    "search": "Rechercher",
+    "searching": "Recherche…",
+    "shown": "{shown} affichés · total {total} · {engine}",
+    "title": "Découverte"
+  },
+  "extensions": {
+    "api": "API {version}",
+    "catalogEmpty": "Le catalogue est vide par conception",
+    "counts": "Installées {installed} · activées {enabled} · plantées {crashed}",
+    "disable": "Désactiver",
+    "enable": "Activer",
+    "errorInstallFailed": "Échec de l’installation",
+    "errorRemoteFetch": "Indicateur de récupération marketplace distante inattendu",
+    "fsHooks": "Hooks fournisseur FS",
+    "fsHooksCount": "Hooks fournisseur FS {count}",
+    "fsHooksMeta": "Métadonnées uniquement — ProviderRegistry reste l’autorité FS.",
+    "hostPrefix": "ExtensionHost {version}",
+    "hostStatus": "État de l’hôte",
+    "installDemo": "Installer la démo locale (vNext)",
+    "installed": "Installées",
+    "marketplace": "Marketplace",
+    "marketplaceFlags": "Marketplace vide : {empty} · récupération distante : {remote}",
+    "marketplacePolicy": "Les paquets marketplace hérités sont rejetés (apiVersion vnext.1 requis). Aucun registre distant n’est contacté.",
+    "meta": "hôte vNext · marketplace vide · pas de paquets hérités",
+    "noHooks": "Aucun hook enregistré",
+    "noInstalled": "Aucune extension installée.",
+    "noticeHelloFail": "Échec de la commande : {error}",
+    "noticeHelloOk": "Commande hello OK sur {id}",
+    "noticeInstalled": "{id} installée (stub local vNext)",
+    "noticeUninstalled": "{id} désinstallée",
+    "registered": "(enregistré {value})",
+    "runHello": "Exécuter hello",
+    "title": "Extensions",
+    "uninstall": "Désinstaller",
+    "unknownError": "inconnu"
+  },
+  "health": {
+    "failed": "Échec de santé : {error}",
+    "fieldIdentifier": "identifiant",
+    "fieldName": "nom",
+    "fieldOk": "ok",
+    "fieldVersion": "version",
+    "loading": "Chargement…",
+    "meta": "Identité du noyau Rust via health_get",
+    "refresh": "Actualiser",
+    "title": "Santé"
+  },
+  "nav": {
+    "discovery": "Découverte",
+    "extensions": "Extensions",
+    "health": "Santé",
+    "navigator": "Navigateur",
+    "projects": "Projets",
+    "providers": "Fournisseurs",
+    "settings": "Paramètres",
+    "workGroups": "Groupes de travail"
+  },
+  "navigator": {
+    "empty": "Ce dossier est vide.",
+    "file": "Fichier",
+    "folder": "Dossier",
+    "loading": "Chargement…",
+    "metaConnected": "Parcours OS noyau · {dirs} dossiers · {files} fichiers",
+    "metaDisconnected": "Parcours OS noyau · non connecté",
+    "title": "Navigateur"
+  },
+  "projects": {
+    "addLink": "Ajouter un lien",
+    "addLinkPlaceholder": "Ajouter un chemin de dossier (indépendant des Groupes de travail)",
+    "addOutcomePlaceholder": "Ajouter le premier / prochain résultat",
+    "addTask": "Ajouter une tâche",
+    "board": "Tableau",
+    "confirmDelete": "Supprimer le projet « {name} » ?",
+    "contextNotes": "Notes Context",
+    "contextPlaceholder": "Blob contextNotes unique (markdown OK)",
+    "emptyStart": "Créez un Projet pour commencer — liens, tableau et Context restent indépendants des Groupes de travail.",
+    "errorWorkGroupMutation": "Mutation inattendue de Groupe de travail lors de tout ouvrir",
+    "list": "Liste",
+    "listSummary": "{links} liens · {open} ouverts",
+    "meta": "Liste + tableau · notes Context · tout ouvrir → onglets Navigateur",
+    "newNamePlaceholder": "Nom du nouveau projet",
+    "noDescription": "Aucune description",
+    "noFolderLinks": "Aucun lien de dossier pour l’instant",
+    "noOutcomes": "Aucun résultat pour l’instant — ajoutez le premier ci-dessus.",
+    "noticeContextSaved": "Notes Context enregistrées",
+    "noticeNoLinks": "Aucun lien d’espace de travail à ouvrir",
+    "noticeOpened": "{count} chemin(s) ouverts en onglets Navigateur (Groupes de travail inchangés)",
+    "openAllLinks": "Ouvrir tous les liens",
+    "openTasks": "{count} tâches ouvertes",
+    "outcomes": "Résultats",
+    "saveContext": "Enregistrer le Context",
+    "statusBacklog": "Backlog",
+    "statusDoing": "En cours",
+    "statusDone": "Terminé",
+    "statusReview": "Revue",
+    "title": "Projets",
+    "viewMode": "Mode d’affichage",
+    "workspaceLinks": "Liens d’espace de travail"
+  },
+  "providers": {
+    "emptyListing": "Liste vide.",
+    "file": "Fichier",
+    "folder": "Dossier",
+    "interfaceOnly": "interface seule",
+    "list": "Lister",
+    "listing": "Listage…",
+    "meta": "couche d’extension awam · rclone + knowledge",
+    "statusDown": "indisponible",
+    "statusOk": "ok",
+    "title": "Fournisseurs",
+    "uriPlaceholder": "awam://rclone/… ou awam://knowledge/…"
+  },
+  "settings": {
+    "fields": {
+      "core": {
+        "defaultLocation": {
+          "description": "Chemin OS ouvert par défaut dans le Navigateur (vide = USERPROFILE)",
+          "title": "Emplacement par défaut"
+        },
+        "everythingPreferred": {
+          "description": "Préférer Everything IPC pour la Découverte lorsqu’il est disponible",
+          "title": "Everything préféré"
+        },
+        "extensionsEnabled": {
+          "description": "Interrupteur principal de l’hôte d’extensions",
+          "title": "Extensions activées"
+        },
+        "language": {
+          "description": "Langue de l’interface : en | zh-CN | ja | de | fr",
+          "title": "Langue",
+          "options": {
+            "en": "English",
+            "zh-CN": "简体中文",
+            "ja": "日本語",
+            "de": "Deutsch",
+            "fr": "Français"
+          }
+        },
+        "listDensity": {
+          "description": "Densité de la liste de fichiers ; le chrome reste Standard. Défaut : standard",
+          "options": {
+            "compact": "Compact",
+            "standard": "Standard"
+          },
+          "title": "Densité de liste"
+        },
+        "showHidden": {
+          "description": "Inclure les fichiers/dossiers masqués dans les listes du noyau",
+          "title": "Afficher les éléments masqués"
+        },
+        "theme": {
+          "description": "Thème de couleur : clair | sombre | système",
+          "options": {
+            "dark": "Sombre",
+            "light": "Clair",
+            "system": "Système"
+          },
+          "title": "Thème"
+        }
+      },
+      "experimental": {
+        "debugStatusInTitlebar": {
+          "description": "Afficher la légende de phase/débogage dans la barre de titre personnalisée",
+          "title": "État de débogage dans la barre de titre"
+        }
+      },
+      "power": {
+        "confirmBeforeDelete": {
+          "description": "Demander confirmation avant une suppression définitive",
+          "title": "Confirmer avant suppression"
+        },
+        "perPathOverridesEnabled": {
+          "description": "Autoriser les défauts Navigateur par chemin à remplacer groupe/global",
+          "title": "Remplacements par chemin"
+        }
+      }
+    },
+    "loading": "Chargement du schéma…",
+    "meta": "Le schéma Rust fait autorité",
+    "metaKeys": "· {count} clés",
+    "metaVersion": "· v{version}",
+    "tierCore": "Cœur",
+    "tierExperimental": "Expérimental",
+    "tierPower": "Avancé",
+    "title": "Paramètres"
+  },
+  "workGroups": {
+    "addMemberPlaceholder": "Ajouter un chemin de dossier membre",
+    "addSync": "Ajouter + sync",
+    "default": "défaut",
+    "detailMeta": "id {id} · membres durs {count}",
+    "errorSavePrompt": "Invite d’enregistrement inattendue lors d’une bascule silencieuse",
+    "hardMembers": "Membres durs",
+    "membersCount": "{count} membres",
+    "meta": "Config dure ↔ Open State runtime · bascule silencieuse",
+    "newNamePlaceholder": "Nom du nouveau groupe de travail",
+    "noHardMembers": "Aucun membre dur pour l’instant",
+    "noOpenTabs": "Aucun onglet ouvert",
+    "runtimeOpenState": "Open State runtime (en direct)",
+    "saveMembersFromTabs": "Enregistrer les membres depuis les onglets → dur",
+    "saveOpenState": "Enregistrer Open State → dur",
+    "softSync": "Sync douce : ouvert {paths}",
+    "title": "Groupes de travail"
+  }
+}

@@ -1,0 +1,290 @@
+{
+  "app": {
+    "captionMeta": "標準 · i18n",
+    "name": "A File Manager"
+  },
+  "chrome": {
+    "address": "アドレスバー",
+    "back": "戻る",
+    "close": "閉じる",
+    "closeTab": "タブを閉じる",
+    "commands": "コマンド",
+    "commandsShortcut": "Ctrl+Shift+P",
+    "commandsTitle": "コマンドパネル (Ctrl+Shift+P)",
+    "forward": "進む",
+    "go": "移動",
+    "healthError": "ヘルス: エラー",
+    "healthOk": "ヘルス: 正常 · v{version}",
+    "healthPending": "ヘルス: …",
+    "historyLater": "履歴は後日対応",
+    "later": "後で",
+    "maximize": "最大化",
+    "minimize": "最小化",
+    "navigatorCounts": "{dirs} フォルダー · {files} ファイル",
+    "navigatorError": "ナビゲーター: エラー",
+    "navigatorLoading": "ナビゲーター: 読み込み中",
+    "newTab": "新しいタブ",
+    "newTabLater": "新しいタブは後日対応",
+    "path": "パス",
+    "pathPlaceholder": "ネイティブ OS パス（カーネル）— Enter で移動",
+    "refreshHealth": "ヘルスを更新",
+    "restore": "元に戻す",
+    "sideNav": "サイドナビゲーション",
+    "status": "ステータス",
+    "tabs": "タブ",
+    "titleBar": "タイトルバー",
+    "toolbar": "メインツールバー",
+    "up": "上へ",
+    "upTitle": "一つ上のフォルダーへ",
+    "view": "表示",
+    "windowControls": "ウィンドウ操作"
+  },
+  "commands": {
+    "empty": "一致するコマンドはありません",
+    "goUp": "一つ上のフォルダーへ",
+    "groups": {
+      "actions": "操作",
+      "navigate": "移動",
+      "view": "表示"
+    },
+    "hint": "↑↓ で移動 · Enter で実行 · Esc で閉じる · Ctrl+Shift+P",
+    "openDiscovery": "ディスカバリーを開く",
+    "openExtensions": "拡張機能を開く",
+    "openHealth": "ヘルスを開く",
+    "openNavigator": "ナビゲーターを開く",
+    "openProjects": "プロジェクトを開く",
+    "openProviders": "プロバイダーを開く",
+    "openSettings": "設定を開く",
+    "openWorkGroups": "ワークグループを開く",
+    "panelLabel": "コマンドパネル",
+    "placeholder": "コマンドを入力…",
+    "refreshHealth": "ヘルス状態を更新",
+    "results": "コマンド結果"
+  },
+  "common": {
+    "create": "作成",
+    "delete": "削除",
+    "dismiss": "閉じる",
+    "empty": "空",
+    "file": "ファイル",
+    "folder": "フォルダー",
+    "loading": "読み込み中…",
+    "no": "いいえ",
+    "refresh": "更新",
+    "remove": "削除",
+    "yes": "はい"
+  },
+  "discovery": {
+    "degraded": "低下",
+    "engine": "エンジン",
+    "fallback": "自己インデックスのフォールバックスタブを有効化（Everything 停止時のみ）",
+    "file": "ファイル",
+    "folder": "フォルダー",
+    "meta": "Everything IPC を第一級 · es.exe なし · 有効時のみフォールバックスタブ",
+    "noHits": "ヒットなし（engine={engine}, total={total}）。",
+    "placeholder": "ファイル名 / パスを検索…",
+    "search": "検索",
+    "searching": "検索中…",
+    "shown": "{shown} 件表示 · 合計 {total} · {engine}",
+    "title": "ディスカバリー"
+  },
+  "extensions": {
+    "api": "API {version}",
+    "catalogEmpty": "カタログは設計上空です",
+    "counts": "インストール済み {installed} · 有効 {enabled} · クラッシュ {crashed}",
+    "disable": "無効化",
+    "enable": "有効化",
+    "errorInstallFailed": "インストール失敗",
+    "errorRemoteFetch": "予期しないリモートマーケット取得フラグ",
+    "fsHooks": "FS プロバイダーフック",
+    "fsHooksCount": "FS プロバイダーフック {count}",
+    "fsHooksMeta": "メタデータのみ — FS の権威は ProviderRegistry のままです。",
+    "hostPrefix": "ExtensionHost {version}",
+    "hostStatus": "ホスト状態",
+    "installDemo": "ローカルデモをインストール（vNext）",
+    "installed": "インストール済み",
+    "marketplace": "マーケット",
+    "marketplaceFlags": "マーケット空: {empty} · リモート取得: {remote}",
+    "marketplacePolicy": "レガシーマーケットパッケージは拒否されます（apiVersion vnext.1 が必要）。リモートレジストリには接続しません。",
+    "meta": "vNext ホスト · 空のマーケット · レガシーパッケージなし",
+    "noHooks": "フックは登録されていません",
+    "noInstalled": "拡張機能はインストールされていません。",
+    "noticeHelloFail": "コマンド失敗: {error}",
+    "noticeHelloOk": "{id} でコマンド hello 成功",
+    "noticeInstalled": "{id} をインストールしました（vNext ローカルスタブ）",
+    "noticeUninstalled": "{id} をアンインストールしました",
+    "registered": "（登録済み {value}）",
+    "runHello": "hello を実行",
+    "title": "拡張機能",
+    "uninstall": "アンインストール",
+    "unknownError": "不明"
+  },
+  "health": {
+    "failed": "ヘルス失敗: {error}",
+    "fieldIdentifier": "識別子",
+    "fieldName": "名前",
+    "fieldOk": "状態",
+    "fieldVersion": "バージョン",
+    "loading": "読み込み中…",
+    "meta": "health_get による Rust コア識別",
+    "refresh": "更新",
+    "title": "ヘルス"
+  },
+  "nav": {
+    "discovery": "ディスカバリー",
+    "extensions": "拡張機能",
+    "health": "ヘルス",
+    "navigator": "ナビゲーター",
+    "projects": "プロジェクト",
+    "providers": "プロバイダー",
+    "settings": "設定",
+    "workGroups": "ワークグループ"
+  },
+  "navigator": {
+    "empty": "このフォルダーは空です。",
+    "file": "ファイル",
+    "folder": "フォルダー",
+    "loading": "読み込み中…",
+    "metaConnected": "カーネル OS 参照 · {dirs} フォルダー · {files} ファイル",
+    "metaDisconnected": "カーネル OS 参照 · 未接続",
+    "title": "ナビゲーター"
+  },
+  "projects": {
+    "addLink": "リンクを追加",
+    "addLinkPlaceholder": "フォルダーパスを追加（ワークグループとは独立）",
+    "addOutcomePlaceholder": "最初 / 次の成果を追加",
+    "addTask": "タスクを追加",
+    "board": "ボード",
+    "confirmDelete": "プロジェクト “{name}” を削除しますか？",
+    "contextNotes": "Context メモ",
+    "contextPlaceholder": "単一の contextNotes（markdown 可）",
+    "emptyStart": "プロジェクトを作成して開始 — リンク、ボード、Context はワークグループと独立です。",
+    "errorWorkGroupMutation": "すべて開くで予期しないワークグループ変更",
+    "list": "リスト",
+    "listSummary": "{links} リンク · {open} 進行中",
+    "meta": "リスト + ボード · Context メモ · すべて開く → ナビゲータータブ",
+    "newNamePlaceholder": "新しいプロジェクト名",
+    "noDescription": "説明なし",
+    "noFolderLinks": "フォルダーリンクはまだありません",
+    "noOutcomes": "成果はまだありません — 上で最初を追加してください。",
+    "noticeContextSaved": "Context メモを保存しました",
+    "noticeNoLinks": "開くワークスペースリンクがありません",
+    "noticeOpened": "{count} パスをナビゲータータブとして開きました（ワークグループは未変更）",
+    "openAllLinks": "すべてのリンクを開く",
+    "openTasks": "進行中タスク {count}",
+    "outcomes": "成果",
+    "saveContext": "Context を保存",
+    "statusBacklog": "バックログ",
+    "statusDoing": "進行中",
+    "statusDone": "完了",
+    "statusReview": "レビュー",
+    "title": "プロジェクト",
+    "viewMode": "表示モード",
+    "workspaceLinks": "ワークスペースリンク"
+  },
+  "providers": {
+    "emptyListing": "一覧は空です。",
+    "file": "ファイル",
+    "folder": "フォルダー",
+    "interfaceOnly": "インターフェースのみ",
+    "list": "一覧",
+    "listing": "一覧取得中…",
+    "meta": "awam 拡張レイヤー · rclone + knowledge",
+    "statusDown": "停止",
+    "statusOk": "正常",
+    "title": "プロバイダー",
+    "uriPlaceholder": "awam://rclone/… または awam://knowledge/…"
+  },
+  "settings": {
+    "fields": {
+      "core": {
+        "defaultLocation": {
+          "description": "ナビゲーターで開く既定の OS パス（空 = USERPROFILE）",
+          "title": "既定の場所"
+        },
+        "everythingPreferred": {
+          "description": "利用可能ならディスカバリーで Everything IPC を優先",
+          "title": "Everything を優先"
+        },
+        "extensionsEnabled": {
+          "description": "拡張ホストのマスタースイッチ",
+          "title": "拡張機能を有効化"
+        },
+        "language": {
+          "description": "UI 言語: en | zh-CN | ja | de | fr",
+          "title": "言語",
+          "options": {
+            "en": "English",
+            "zh-CN": "简体中文",
+            "ja": "日本語",
+            "de": "Deutsch",
+            "fr": "Français"
+          }
+        },
+        "listDensity": {
+          "description": "ファイル一覧の密度。クロムは標準のまま。既定: 標準",
+          "options": {
+            "compact": "コンパクト",
+            "standard": "標準"
+          },
+          "title": "一覧の密度"
+        },
+        "showHidden": {
+          "description": "カーネル一覧に隠しファイル/フォルダーを含める",
+          "title": "隠し項目を表示"
+        },
+        "theme": {
+          "description": "カラーテーマ: ライト | ダーク | システム",
+          "options": {
+            "dark": "ダーク",
+            "light": "ライト",
+            "system": "システム"
+          },
+          "title": "テーマ"
+        }
+      },
+      "experimental": {
+        "debugStatusInTitlebar": {
+          "description": "カスタムタイトルバーにフェーズ/デバッグ文言を表示",
+          "title": "タイトルバーにデバッグ状態"
+        }
+      },
+      "power": {
+        "confirmBeforeDelete": {
+          "description": "完全削除の前に確認する",
+          "title": "削除前に確認"
+        },
+        "perPathOverridesEnabled": {
+          "description": "パスごとのナビゲーター既定値でグループ/全体を上書き可能にする",
+          "title": "パスごとの上書き"
+        }
+      }
+    },
+    "loading": "スキーマを読み込み中…",
+    "meta": "Rust スキーマが権威",
+    "metaKeys": "· {count} キー",
+    "metaVersion": "· v{version}",
+    "tierCore": "コア",
+    "tierExperimental": "実験的",
+    "tierPower": "パワー",
+    "title": "設定"
+  },
+  "workGroups": {
+    "addMemberPlaceholder": "メンバーフォルダーパスを追加",
+    "addSync": "追加 + 同期",
+    "default": "既定",
+    "detailMeta": "id {id} · ハードメンバー {count}",
+    "errorSavePrompt": "サイレント切替で予期しない保存プロンプト",
+    "hardMembers": "ハードメンバー",
+    "membersCount": "{count} メンバー",
+    "meta": "ハード設定 ↔ ランタイム Open State · サイレント切替",
+    "newNamePlaceholder": "新しいワークグループ名",
+    "noHardMembers": "ハードメンバーはまだありません",
+    "noOpenTabs": "開いているタブはありません",
+    "runtimeOpenState": "ランタイム Open State（ライブ）",
+    "saveMembersFromTabs": "タブからメンバーをハードへ保存",
+    "saveOpenState": "Open State をハードへ保存",
+    "softSync": "ソフト同期: {paths} を開きました",
+    "title": "ワークグループ"
+  }
+}

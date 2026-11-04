@@ -25,9 +25,15 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             "core.language",
             SettingsTier::Core,
             "Language",
-            "UI language: en | zh-CN",
+            "UI language: en | zh-CN | ja | de | fr",
             SettingValueKind::Enum,
-            Some(vec!["en".to_string(), "zh-CN".to_string()]),
+            Some(vec![
+                "en".to_string(),
+                "zh-CN".to_string(),
+                "ja".to_string(),
+                "de".to_string(),
+                "fr".to_string(),
+            ]),
             json!("en"),
         ),
         def(

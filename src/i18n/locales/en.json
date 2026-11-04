@@ -120,10 +120,13 @@
       "core": {
         "language": {
           "title": "Language",
-          "description": "UI language: en | zh-CN",
+          "description": "UI language: en | zh-CN | ja | de | fr",
           "options": {
             "en": "English",
-            "zh-CN": "简体中文"
+            "zh-CN": "简体中文",
+            "ja": "日本語",
+            "de": "Deutsch",
+            "fr": "Français"
           }
         },
         "theme": {
