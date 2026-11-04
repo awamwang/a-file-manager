@@ -6,6 +6,7 @@ mod navigator;
 mod projects;
 mod providers;
 mod settings;
+mod shell_menu;
 pub mod sigma_import;
 mod snap_chrome;
 mod work_groups;
@@ -100,6 +101,7 @@ pub fn run() {
             extension_host::extension_host_dispatch_ui_command,
             extension_host::extension_host_list_fs_provider_hooks,
             extension_host::extension_host_register_fs_provider_hook,
+            shell_menu::shell_show_context_menu,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

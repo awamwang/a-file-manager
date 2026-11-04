@@ -322,6 +322,8 @@
     "label": "項目アクション",
     "open": "開く",
     "openInNewTab": "新しいタブで開く",
+    "systemMenu": "システムメニュー",
+    "systemMenuError": "システムコンテキストメニューを開けませんでした。",
     "reveal": "エクスプローラーで表示",
     "copyPath": "パスをコピー",
     "delete": "削除",

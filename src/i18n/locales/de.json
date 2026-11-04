@@ -322,6 +322,8 @@
     "label": "Elementaktionen",
     "open": "Öffnen",
     "openInNewTab": "In neuem Tab öffnen",
+    "systemMenu": "Systemmenü",
+    "systemMenuError": "Systemkontextmenü konnte nicht geöffnet werden.",
     "reveal": "Im Explorer anzeigen",
     "copyPath": "Pfad kopieren",
     "delete": "Löschen",

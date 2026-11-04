@@ -24,9 +24,11 @@ assert.ok(menu.includes("copyPath"));
 assert.ok(menu.includes("revealItemInDir"));
 assert.ok(menu.includes("newNavigatorTab"));
 assert.ok(menu.includes("canOpenInNewTab"));
+assert.ok(menu.includes("shell_show_context_menu"));
 assert.ok(menu.includes("deleteStub") || menu.includes("contextMenu.deleteStub"));
 assert.ok(menu.includes("buildContextMenuItems"));
 assert.ok(model.includes('id: "openInNewTab"'));
+assert.ok(model.includes('id: "systemMenu"'));
 assert.ok(model.includes("enabled: isDir"));
 assert.ok(
   !/openInNewTab[\s\S]{0,120}stub:\s*true/.test(model),
@@ -34,9 +36,18 @@ assert.ok(
 );
 assert.equal(en.contextMenu.copyPath, "Copy path");
 assert.equal(en.contextMenu.openInNewTab, "Open in new tab");
+assert.equal(en.contextMenu.systemMenu, "System menu");
 assert.equal(zh.contextMenu.openInNewTab, "在新标签页打开");
+assert.equal(zh.contextMenu.systemMenu, "系统右键菜单");
 
-for (const id of ["open", "openInNewTab", "reveal", "copyPath", "delete"]) {
+for (const id of [
+  "open",
+  "openInNewTab",
+  "systemMenu",
+  "reveal",
+  "copyPath",
+  "delete",
+]) {
   assert.ok(
     model.includes(`"${id}"`) || model.includes(`'${id}'`),
     `missing action ${id}`,

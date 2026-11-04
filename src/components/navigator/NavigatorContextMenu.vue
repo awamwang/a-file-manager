@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { invoke } from "@tauri-apps/api/core";
 import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { NavigatorEntry } from "../../state/navigatorBrowse";
 import { newNavigatorTab, openEntry } from "../../state/navigatorBrowse";
@@ -9,6 +10,12 @@ import {
   buildContextMenuItems,
   canOpenInNewTab,
 } from "./contextMenuModel";
+
+type ShellMenuResult = {
+  success: boolean;
+  cancelled: boolean;
+  error: string | null;
+};
 
 const props = defineProps<{
   entry: NavigatorEntry | null;
@@ -76,6 +83,20 @@ async function run(id: string) {
     case "openInNewTab":
       if (canOpenInNewTab(entry)) {
         await newNavigatorTab(entry.path);
+      }
+      break;
+    case "systemMenu":
+      try {
+        const result = await invoke<ShellMenuResult>("shell_show_context_menu", {
+          path: entry.path,
+          x: Math.round(props.x),
+          y: Math.round(props.y),
+        });
+        if (!result.success && result.error) {
+          emit("notice", result.error);
+        }
+      } catch (err) {
+        emit("notice", err instanceof Error ? err.message : String(err));
       }
       break;
     case "reveal":

@@ -6,6 +6,7 @@ import type { NavigatorEntry } from "../../state/navigatorBrowse";
 export type ContextMenuActionId =
   | "open"
   | "openInNewTab"
+  | "systemMenu"
   | "reveal"
   | "copyPath"
   | "delete";
@@ -30,8 +31,12 @@ export function buildContextMenuItems(
     {
       id: "openInNewTab",
       labelKey: "contextMenu.openInNewTab",
-      // Real (AIA-54): directories open a new Navigator tab at that path via newNavigatorTab.
       enabled: isDir,
+    },
+    {
+      id: "systemMenu",
+      labelKey: "contextMenu.systemMenu",
+      enabled: true,
     },
     { id: "reveal", labelKey: "contextMenu.reveal", enabled: true },
     { id: "copyPath", labelKey: "contextMenu.copyPath", enabled: true },

@@ -17,12 +17,17 @@ const openInNewTab = dirItems.find((item) => item.id === "openInNewTab");
 assert.ok(openInNewTab);
 assert.equal(openInNewTab.enabled, true);
 assert.equal(openInNewTab.stub, undefined);
+const systemMenu = dirItems.find((item) => item.id === "systemMenu");
+assert.ok(systemMenu);
+assert.equal(systemMenu.enabled, true);
+assert.equal(systemMenu.stub, undefined);
 
 const fileItems = buildContextMenuItems(file);
 const fileOpenInNewTab = fileItems.find((item) => item.id === "openInNewTab");
 assert.ok(fileOpenInNewTab);
 assert.equal(fileOpenInNewTab.enabled, false);
+assert.ok(fileItems.find((item) => item.id === "systemMenu")?.enabled);
 
 assert.equal(buildContextMenuItems(null).length, 0);
 
-console.log("Context menu model checks OK (AIA-54 openInNewTab).");
+console.log("Context menu model checks OK (AIA-54/55).");

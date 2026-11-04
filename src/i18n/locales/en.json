@@ -322,6 +322,8 @@
     "label": "Item actions",
     "open": "Open",
     "openInNewTab": "Open in new tab",
+    "systemMenu": "System menu",
+    "systemMenuError": "Could not open the system context menu.",
     "reveal": "Reveal in File Explorer",
     "copyPath": "Copy path",
     "delete": "Delete",
