@@ -8,7 +8,7 @@ import SettingsView from "../views/SettingsView.vue";
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: "/", redirect: "/health" },
+    { path: "/", redirect: "/navigator" },
     { path: "/health", name: "health", component: HealthView },
     { path: "/navigator", name: "navigator", component: NavigatorView },
     { path: "/settings", name: "settings", component: SettingsView },

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
- * Fluent / Win11 Explorer–oriented design tokens (S0 skeleton).
+ * Fluent / Win11 Explorer–oriented design tokens.
  * Density: Standard for chrome (locked). Compact reserved for file-list rows later.
- * Custom titlebar Snap is deferred to S9; S1 adds chrome zone stubs.
+ * Custom titlebar Snap is deferred to S9; S1 chrome zones consume these heights.
  */
 
 :root {
@@ -76,4 +76,12 @@
   background: var(--fluent-color-fill-accent);
   color: var(--fluent-color-text-on-accent);
   font-weight: var(--fluent-font-weight-semibold);
+}
+
+.fluent-list-row {
+  min-height: var(--fluent-list-row-height-standard);
+  padding-inline: var(--fluent-space-md);
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
 }
