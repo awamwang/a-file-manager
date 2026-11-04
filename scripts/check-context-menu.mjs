@@ -25,24 +25,33 @@ assert.ok(menu.includes("revealItemInDir"));
 assert.ok(menu.includes("newNavigatorTab"));
 assert.ok(menu.includes("canOpenInNewTab"));
 assert.ok(menu.includes("shell_show_context_menu"));
+assert.ok(menu.includes("open_in_terminal"));
 assert.ok(menu.includes("deleteStub") || menu.includes("contextMenu.deleteStub"));
 assert.ok(menu.includes("buildContextMenuItems"));
 assert.ok(model.includes('id: "openInNewTab"'));
+assert.ok(model.includes('id: "openInTerminal"'));
 assert.ok(model.includes('id: "systemMenu"'));
 assert.ok(model.includes("enabled: isDir"));
 assert.ok(
   !/openInNewTab[\s\S]{0,120}stub:\s*true/.test(model),
   "openInNewTab must not be stubbed",
 );
+assert.ok(
+  !/openInTerminal[\s\S]{0,120}stub:\s*true/.test(model),
+  "openInTerminal must not be stubbed",
+);
 assert.equal(en.contextMenu.copyPath, "Copy path");
 assert.equal(en.contextMenu.openInNewTab, "Open in new tab");
+assert.equal(en.contextMenu.openInTerminal, "Open in terminal");
 assert.equal(en.contextMenu.systemMenu, "System menu");
 assert.equal(zh.contextMenu.openInNewTab, "在新标签页打开");
+assert.equal(zh.contextMenu.openInTerminal, "在终端打开");
 assert.equal(zh.contextMenu.systemMenu, "系统右键菜单");
 
 for (const id of [
   "open",
   "openInNewTab",
+  "openInTerminal",
   "systemMenu",
   "reveal",
   "copyPath",

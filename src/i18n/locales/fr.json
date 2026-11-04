@@ -322,6 +322,7 @@
     "label": "Actions sur l’élément",
     "open": "Ouvrir",
     "openInNewTab": "Ouvrir dans un nouvel onglet",
+    "openInTerminal": "Ouvrir dans le terminal",
     "systemMenu": "Menu système",
     "systemMenuError": "Impossible d'ouvrir le menu contextuel système.",
     "reveal": "Afficher dans l’Explorateur",

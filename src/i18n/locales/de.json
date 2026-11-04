@@ -322,6 +322,7 @@
     "label": "Elementaktionen",
     "open": "Öffnen",
     "openInNewTab": "In neuem Tab öffnen",
+    "openInTerminal": "Im Terminal öffnen",
     "systemMenu": "Systemmenü",
     "systemMenuError": "Systemkontextmenü konnte nicht geöffnet werden.",
     "reveal": "Im Explorer anzeigen",

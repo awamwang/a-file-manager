@@ -6,6 +6,7 @@ import type { NavigatorEntry } from "../../state/navigatorBrowse";
 export type ContextMenuActionId =
   | "open"
   | "openInNewTab"
+  | "openInTerminal"
   | "systemMenu"
   | "reveal"
   | "copyPath"
@@ -32,6 +33,12 @@ export function buildContextMenuItems(
       id: "openInNewTab",
       labelKey: "contextMenu.openInNewTab",
       enabled: isDir,
+    },
+    {
+      id: "openInTerminal",
+      labelKey: "contextMenu.openInTerminal",
+      // Files open their parent directory (Sigma-aligned).
+      enabled: true,
     },
     {
       id: "systemMenu",

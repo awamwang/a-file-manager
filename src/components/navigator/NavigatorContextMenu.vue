@@ -85,6 +85,20 @@ async function run(id: string) {
         await newNavigatorTab(entry.path);
       }
       break;
+    case "openInTerminal":
+      try {
+        const result = await invoke<{
+          success: boolean;
+          error: string | null;
+          launcher: string | null;
+        }>("open_in_terminal", { path: entry.path });
+        if (!result.success && result.error) {
+          emit("notice", result.error);
+        }
+      } catch (err) {
+        emit("notice", err instanceof Error ? err.message : String(err));
+      }
+      break;
     case "systemMenu":
       try {
         const result = await invoke<ShellMenuResult>("shell_show_context_menu", {

@@ -328,6 +328,7 @@
     "copyPath": "パスをコピー",
     "delete": "削除",
     "deleteStub": "カーネルに削除は未接続です。",
-    "copiedPath": "パスをコピーしました"
+    "copiedPath": "パスをコピーしました",
+    "openInTerminal": "ターミナルで開く"
   }
 }
