@@ -94,7 +94,14 @@ onMounted(() => {
         @click="listUri(`awam://${backend.id}`)"
       >
         <strong>{{ backend.name }}</strong>
-        <span>{{
+        <span
+          class="fluent-chip status-chip"
+          :class="{
+            'fluent-chip--stub': backend.interfaceOnly,
+            'fluent-chip--ok': !backend.interfaceOnly && backend.healthy,
+            'fluent-chip--down': !backend.interfaceOnly && !backend.healthy,
+          }"
+        >{{
           backend.interfaceOnly
             ? t("providers.interfaceOnly")
             : backend.healthy
@@ -203,6 +210,14 @@ h1 {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
+}
+
+.status-chip {
+  justify-self: start;
+  min-height: var(--fluent-control-height-standard);
+  pointer-events: none;
+  cursor: default;
+  font-size: var(--fluent-font-size-caption);
 }
 
 .uri-row {

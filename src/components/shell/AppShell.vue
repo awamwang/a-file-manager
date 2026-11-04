@@ -7,6 +7,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import CommandPanel from "../command/CommandPanel.vue";
+import FluentIcon from "../icons/FluentIcon.vue";
+import { NAV_ICON_BY_ID } from "../icons/glyphs";
 import { buildAppCommands } from "../../commands/registry";
 import {
   isToggleCommandPanelShortcut,
@@ -41,11 +43,15 @@ type HealthPayload = {
 };
 
 type NavItem = {
-  id: string;
+  id: keyof typeof NAV_ICON_BY_ID | string;
   labelKey: string;
   to?: string;
   later?: boolean;
 };
+
+function navIcon(id: string) {
+  return NAV_ICON_BY_ID[id] ?? "folder";
+}
 
 const route = useRoute();
 const router = useRouter();
@@ -261,7 +267,7 @@ onUnmounted(() => {
           :aria-label="t('chrome.minimize')"
           @click="minimizeWindow"
         >
-          ─
+          <FluentIcon name="minimize" size="sm" />
         </button>
         <!--
           Snap: native HTMAXBUTTON overlay (tauri-plugin-frame) covers this button.
@@ -275,7 +281,7 @@ onUnmounted(() => {
           :aria-label="isMaximized ? t('chrome.restore') : t('chrome.maximize')"
           @click="toggleMaximizeWindow"
         >
-          {{ isMaximized ? "❐" : "□" }}
+          <FluentIcon :name="isMaximized ? 'restore' : 'maximize'" size="sm" />
         </button>
         <button
           id="frame-tb-close"
@@ -284,7 +290,7 @@ onUnmounted(() => {
           :aria-label="t('chrome.close')"
           @click="closeWindow"
         >
-          ✕
+          <FluentIcon name="close" size="sm" />
         </button>
       </div>
     </header>
@@ -296,7 +302,8 @@ onUnmounted(() => {
         disabled
         :title="t('chrome.historyLater')"
       >
-        {{ t("chrome.back") }}
+        <FluentIcon name="back" size="sm" />
+        <span>{{ t("chrome.back") }}</span>
       </button>
       <button
         type="button"
@@ -304,7 +311,8 @@ onUnmounted(() => {
         disabled
         :title="t('chrome.historyLater')"
       >
-        {{ t("chrome.forward") }}
+        <FluentIcon name="forward" size="sm" />
+        <span>{{ t("chrome.forward") }}</span>
       </button>
       <button
         type="button"
@@ -312,7 +320,8 @@ onUnmounted(() => {
         :title="t('chrome.upTitle')"
         @click="onGoUp"
       >
-        {{ t("chrome.up") }}
+        <FluentIcon name="up" size="sm" />
+        <span>{{ t("chrome.up") }}</span>
       </button>
       <span class="toolbar-spacer" />
       <button
@@ -321,7 +330,8 @@ onUnmounted(() => {
         disabled
         :title="t('chrome.later')"
       >
-        {{ t("chrome.view") }}
+        <FluentIcon name="view" size="sm" />
+        <span>{{ t("chrome.view") }}</span>
       </button>
       <button
         type="button"
@@ -330,7 +340,8 @@ onUnmounted(() => {
         aria-keyshortcuts="Control+Shift+P"
         @click="toggleCommandPanel"
       >
-        {{ t("chrome.commands") }}
+        <FluentIcon name="commands" size="sm" />
+        <span>{{ t("chrome.commands") }}</span>
         <span class="toolbar-shortcut">{{ t("chrome.commandsShortcut") }}</span>
       </button>
     </div>
@@ -365,6 +376,7 @@ onUnmounted(() => {
         :title="tab.path"
         @click="onSwitchNavigatorTab(tab.groupIndex)"
       >
+        <FluentIcon name="folder" size="sm" class="tab-icon" />
         <span class="tab-label">{{ tab.name || tabLabel(tab.path) }}</span>
         <button
           type="button"
@@ -373,7 +385,7 @@ onUnmounted(() => {
           :title="t('chrome.closeTab')"
           @click="onCloseNavigatorTab($event, tab.groupIndex)"
         >
-          ×
+          <FluentIcon name="close" size="sm" />
         </button>
       </div>
       <button
@@ -385,7 +397,8 @@ onUnmounted(() => {
         :aria-selected="route.path === '/navigator'"
         @click="openTab('navigator', '/navigator')"
       >
-        {{ t("nav.navigator") }}
+        <FluentIcon name="folderOpen" size="sm" />
+        <span>{{ t("nav.navigator") }}</span>
       </button>
       <button
         type="button"
@@ -394,12 +407,12 @@ onUnmounted(() => {
         :aria-label="t('chrome.newTab')"
         @click="onNewNavigatorTab"
       >
-        +
+        <FluentIcon name="add" size="sm" />
       </button>
     </div>
 
     <div class="body">
-      <nav class="sidenav" :aria-label="t('chrome.sideNav')">
+      <nav class="sidenav fluent-layer-alt" :aria-label="t('chrome.sideNav')">
         <button
           v-for="item in navItems"
           :key="item.id"
@@ -413,7 +426,8 @@ onUnmounted(() => {
           :title="item.later ? t('chrome.later') : undefined"
           @click="item.to && router.push(item.to)"
         >
-          <span>{{ t(item.labelKey) }}</span>
+          <FluentIcon :name="navIcon(item.id)" size="md" class="sidenav-icon" />
+          <span class="sidenav-label">{{ t(item.labelKey) }}</span>
           <span v-if="item.later" class="later-badge">{{ t("chrome.later") }}</span>
         </button>
       </nav>
@@ -514,6 +528,9 @@ onUnmounted(() => {
 }
 
 .toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
   min-width: var(--fluent-control-height-comfortable);
   height: var(--fluent-control-height-standard);
   min-height: var(--fluent-control-height-standard);
@@ -614,6 +631,11 @@ onUnmounted(() => {
   box-shadow: inset 0 -2px 0 var(--fluent-color-fill-accent);
 }
 
+.tab-icon {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
 .tab-label {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -656,7 +678,6 @@ onUnmounted(() => {
   flex-shrink: 0;
   padding: var(--fluent-space-sm);
   border-right: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  background: var(--fluent-color-fill-control);
   overflow: auto;
   display: flex;
   flex-direction: column;
@@ -664,8 +685,10 @@ onUnmounted(() => {
 }
 
 .sidenav-item {
+  position: relative;
   width: 100%;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: var(--fluent-space-sm);
   border: 0;
   border-radius: var(--fluent-radius-sm);
   background: transparent;
@@ -681,6 +704,34 @@ onUnmounted(() => {
 .sidenav-item--active {
   background: var(--fluent-color-fill-selected);
   font-weight: var(--fluent-font-weight-semibold);
+  color: var(--fluent-color-text-primary);
+}
+
+.sidenav-item--active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--fluent-color-stroke-accent-soft);
+}
+
+.sidenav-icon {
+  color: var(--fluent-color-fill-accent);
+}
+
+.sidenav-item--active .sidenav-icon {
+  color: var(--fluent-color-stroke-accent-soft);
+}
+
+.sidenav-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sidenav-item--later {

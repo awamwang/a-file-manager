@@ -60,6 +60,20 @@
   --fluent-color-status-danger: #c42b1c;
   --fluent-color-status-danger-bg: #fde7e9;
   --fluent-color-status-success: #0f7b0f;
+  --fluent-color-status-success-bg: #dff6dd;
+  --fluent-color-status-warning: #9d5d00;
+  --fluent-color-status-warning-bg: #fff4ce;
+  --fluent-color-status-info: #005fb8;
+  --fluent-color-status-info-bg: #e8f1fa;
+  --fluent-color-fill-layer-alt: #f7f7f7;
+  --fluent-color-stroke-accent-soft: #005fb8;
+  --fluent-color-chip-ok: #0f7b0f;
+  --fluent-color-chip-ok-bg: #dff6dd;
+  --fluent-color-chip-down: #c42b1c;
+  --fluent-color-chip-down-bg: #fde7e9;
+  --fluent-color-chip-stub: #5d5d5d;
+  --fluent-color-chip-stub-bg: #f0f0f0;
+  --fluent-color-icon-wash: #eef3f9;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -81,6 +95,20 @@
     --fluent-color-status-danger: #ff99a4;
     --fluent-color-status-danger-bg: #442726;
     --fluent-color-status-success: #6ccb5f;
+    --fluent-color-status-success-bg: #1d3b24;
+    --fluent-color-status-warning: #fce100;
+    --fluent-color-status-warning-bg: #433519;
+    --fluent-color-status-info: #60cdff;
+    --fluent-color-status-info-bg: #1a3a4d;
+    --fluent-color-fill-layer-alt: #252525;
+    --fluent-color-stroke-accent-soft: #60cdff;
+    --fluent-color-chip-ok: #6ccb5f;
+    --fluent-color-chip-ok-bg: #1d3b24;
+    --fluent-color-chip-down: #ff99a4;
+    --fluent-color-chip-down-bg: #442726;
+    --fluent-color-chip-stub: #c5c5c5;
+    --fluent-color-chip-stub-bg: #333333;
+    --fluent-color-icon-wash: #243447;
     --fluent-shadow-flyout: 0 8px 24px rgba(0, 0, 0, 0.45);
   }
 }
@@ -103,6 +131,20 @@ html[data-theme="dark"] {
   --fluent-color-status-danger: #ff99a4;
   --fluent-color-status-danger-bg: #442726;
   --fluent-color-status-success: #6ccb5f;
+  --fluent-color-status-success-bg: #1d3b24;
+  --fluent-color-status-warning: #fce100;
+  --fluent-color-status-warning-bg: #433519;
+  --fluent-color-status-info: #60cdff;
+  --fluent-color-status-info-bg: #1a3a4d;
+  --fluent-color-fill-layer-alt: #252525;
+  --fluent-color-stroke-accent-soft: #60cdff;
+  --fluent-color-chip-ok: #6ccb5f;
+  --fluent-color-chip-ok-bg: #1d3b24;
+  --fluent-color-chip-down: #ff99a4;
+  --fluent-color-chip-down-bg: #442726;
+  --fluent-color-chip-stub: #c5c5c5;
+  --fluent-color-chip-stub-bg: #333333;
+  --fluent-color-icon-wash: #243447;
   --fluent-shadow-flyout: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
@@ -124,6 +166,20 @@ html[data-theme="light"] {
   --fluent-color-status-danger: #c42b1c;
   --fluent-color-status-danger-bg: #fde7e9;
   --fluent-color-status-success: #0f7b0f;
+  --fluent-color-status-success-bg: #dff6dd;
+  --fluent-color-status-warning: #9d5d00;
+  --fluent-color-status-warning-bg: #fff4ce;
+  --fluent-color-status-info: #005fb8;
+  --fluent-color-status-info-bg: #e8f1fa;
+  --fluent-color-fill-layer-alt: #f7f7f7;
+  --fluent-color-stroke-accent-soft: #005fb8;
+  --fluent-color-chip-ok: #0f7b0f;
+  --fluent-color-chip-ok-bg: #dff6dd;
+  --fluent-color-chip-down: #c42b1c;
+  --fluent-color-chip-down-bg: #fde7e9;
+  --fluent-color-chip-stub: #5d5d5d;
+  --fluent-color-chip-stub-bg: #f0f0f0;
+  --fluent-color-icon-wash: #eef3f9;
   --fluent-shadow-flyout: 0 8px 24px rgba(0, 0, 0, 0.18);
 }
 
@@ -231,6 +287,52 @@ html[data-list-density="compact"] .fluent-list-row--density {
   color: var(--fluent-color-status-danger);
   background: var(--fluent-color-status-danger-bg);
   border-color: var(--fluent-color-status-danger);
+}
+
+.fluent-banner--info {
+  color: var(--fluent-color-status-info);
+  background: var(--fluent-color-status-info-bg);
+  border-color: var(--fluent-color-stroke-accent-soft);
+}
+
+.fluent-banner--warning {
+  color: var(--fluent-color-status-warning);
+  background: var(--fluent-color-status-warning-bg);
+  border-color: var(--fluent-color-status-warning);
+}
+
+.fluent-chip--ok {
+  color: var(--fluent-color-chip-ok);
+  background: var(--fluent-color-chip-ok-bg);
+  border-color: transparent;
+}
+
+.fluent-chip--down {
+  color: var(--fluent-color-chip-down);
+  background: var(--fluent-color-chip-down-bg);
+  border-color: transparent;
+}
+
+.fluent-chip--stub {
+  color: var(--fluent-color-chip-stub);
+  background: var(--fluent-color-chip-stub-bg);
+  border-color: transparent;
+}
+
+.fluent-icon-wash {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--fluent-control-height-standard);
+  height: var(--fluent-control-height-standard);
+  border-radius: var(--fluent-radius-md);
+  background: var(--fluent-color-icon-wash);
+  color: var(--fluent-color-fill-accent);
+  flex-shrink: 0;
+}
+
+.fluent-layer-alt {
+  background: var(--fluent-color-fill-layer-alt);
 }
 
 .fluent-surface {

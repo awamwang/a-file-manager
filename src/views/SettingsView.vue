@@ -9,6 +9,8 @@ import {
   settingFieldMessagePath,
 } from "../i18n/settingsFields";
 import { useI18n } from "vue-i18n";
+import FluentIcon from "../components/icons/FluentIcon.vue";
+import { settingsIconForKey, type FluentGlyphId } from "../components/icons/glyphs";
 
 const { t, te } = useI18n();
 
@@ -50,6 +52,12 @@ type SettingsDocument = {
   values: Record<string, unknown>;
 };
 
+const TIER_ICONS: Record<SettingsTier, FluentGlyphId> = {
+  core: "settings",
+  power: "flash",
+  experimental: "bug",
+};
+
 const loading = ref(true);
 const savingKey = ref<string | null>(null);
 const error = ref<string | null>(null);
@@ -58,9 +66,13 @@ const document = ref<SettingsDocument | null>(null);
 const activeTier = ref<SettingsTier>("core");
 
 const tiers = computed(() => [
-  { id: "core" as const, label: t("settings.tierCore") },
-  { id: "power" as const, label: t("settings.tierPower") },
-  { id: "experimental" as const, label: t("settings.tierExperimental") },
+  { id: "core" as const, label: t("settings.tierCore"), icon: TIER_ICONS.core },
+  { id: "power" as const, label: t("settings.tierPower"), icon: TIER_ICONS.power },
+  {
+    id: "experimental" as const,
+    label: t("settings.tierExperimental"),
+    icon: TIER_ICONS.experimental,
+  },
 ]);
 
 const visibleDefs = computed(() =>
@@ -144,64 +156,81 @@ onMounted(() => {
     <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
 
     <template v-else-if="schema && document">
-      <div class="tier-tabs" role="tablist">
-        <button
-          v-for="tier in tiers"
-          :key="tier.id"
-          type="button"
-          class="fluent-chip"
-          :class="{ 'fluent-chip--active': activeTier === tier.id }"
-          role="tab"
-          :aria-selected="activeTier === tier.id"
-          @click="activeTier = tier.id"
-        >
-          {{ tier.label }}
-        </button>
-      </div>
+      <div class="settings-layout">
+        <aside class="tier-nav fluent-surface" role="tablist" :aria-label="t('settings.title')">
+          <button
+            v-for="tier in tiers"
+            :key="tier.id"
+            type="button"
+            class="tier-item"
+            :class="{
+              'tier-item--active': activeTier === tier.id,
+              'tier-item--warning': tier.id === 'experimental' && activeTier === 'experimental',
+            }"
+            role="tab"
+            :aria-selected="activeTier === tier.id"
+            @click="activeTier = tier.id"
+          >
+            <span class="fluent-icon-wash">
+              <FluentIcon :name="tier.icon" size="md" />
+            </span>
+            <span class="tier-label">{{ tier.label }}</span>
+          </button>
+        </aside>
 
-      <div class="fluent-surface fields">
-        <div v-for="def in visibleDefs" :key="def.key" class="field">
-          <div class="field-text">
-            <label class="title" :for="def.key">{{ fieldTitle(def) }}</label>
-            <p class="desc">{{ fieldDescription(def) }}</p>
-            <code class="key">{{ def.key }}</code>
-          </div>
+        <div class="fluent-surface fields">
+          <div
+            v-for="def in visibleDefs"
+            :key="def.key"
+            class="field"
+            :class="{ 'field--experimental': def.tier === 'experimental' }"
+          >
+            <span class="fluent-icon-wash field-icon">
+              <FluentIcon :name="settingsIconForKey(def.key)" size="md" />
+            </span>
 
-          <div class="control">
-            <input
-              v-if="def.valueKind === 'boolean'"
-              :id="def.key"
-              type="checkbox"
-              class="fluent-field-check"
-              :checked="Boolean(valueOf(def.key))"
-              :disabled="savingKey === def.key"
-              @change="onBooleanChange(def.key, $event)"
-            />
+            <div class="field-text">
+              <label class="title" :for="def.key">{{ fieldTitle(def) }}</label>
+              <p class="desc">{{ fieldDescription(def) }}</p>
+              <code class="key">{{ def.key }}</code>
+            </div>
 
-            <select
-              v-else-if="def.valueKind === 'enum'"
-              :id="def.key"
-              class="fluent-control select"
-              :disabled="savingKey === def.key"
-              :value="String(valueOf(def.key) ?? '')"
-              @change="onSelectChange(def.key, $event)"
-            >
-              <option v-for="option in def.enumValues ?? []" :key="option" :value="option">
-                {{ enumOptionLabel(def.key, option) }}
-              </option>
-            </select>
+            <div class="control">
+              <input
+                v-if="def.valueKind === 'boolean'"
+                :id="def.key"
+                type="checkbox"
+                class="fluent-field-check"
+                :checked="Boolean(valueOf(def.key))"
+                :disabled="savingKey === def.key"
+                @change="onBooleanChange(def.key, $event)"
+              />
 
-            <input
-              v-else-if="def.valueKind === 'string'"
-              :id="def.key"
-              class="fluent-control text"
-              type="text"
-              :disabled="savingKey === def.key"
-              :value="String(valueOf(def.key) ?? '')"
-              @change="onTextChange(def.key, $event)"
-            />
+              <select
+                v-else-if="def.valueKind === 'enum'"
+                :id="def.key"
+                class="fluent-control select"
+                :disabled="savingKey === def.key"
+                :value="String(valueOf(def.key) ?? '')"
+                @change="onSelectChange(def.key, $event)"
+              >
+                <option v-for="option in def.enumValues ?? []" :key="option" :value="option">
+                  {{ enumOptionLabel(def.key, option) }}
+                </option>
+              </select>
 
-            <span v-else class="readonly">{{ valueOf(def.key) }}</span>
+              <input
+                v-else-if="def.valueKind === 'string'"
+                :id="def.key"
+                class="fluent-control text"
+                type="text"
+                :disabled="savingKey === def.key"
+                :value="String(valueOf(def.key) ?? '')"
+                @change="onTextChange(def.key, $event)"
+              />
+
+              <span v-else class="readonly">{{ valueOf(def.key) }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -211,12 +240,59 @@ onMounted(() => {
 
 <style scoped>
 .panel {
-  max-width: 52rem;
+  max-width: 64rem;
 }
 
-.tier-tabs {
+.settings-layout {
+  display: grid;
+  grid-template-columns: 13.5rem minmax(0, 1fr);
+  gap: var(--fluent-space-lg);
+  align-items: start;
+}
+
+.tier-nav {
   display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-xs);
+  padding: var(--fluent-space-sm);
+  background: var(--fluent-color-fill-layer-alt);
+}
+
+.tier-item {
+  display: flex;
+  align-items: center;
   gap: var(--fluent-space-sm);
+  width: 100%;
+  min-height: var(--fluent-control-height-comfortable);
+  padding: var(--fluent-space-sm);
+  border: 0;
+  border-radius: var(--fluent-radius-md);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tier-item:hover {
+  background: var(--fluent-color-fill-control-hover);
+}
+
+.tier-item--active {
+  background: var(--fluent-color-fill-selected);
+  font-weight: var(--fluent-font-weight-semibold);
+  box-shadow: inset 3px 0 0 var(--fluent-color-stroke-accent-soft);
+}
+
+.tier-item--warning {
+  background: var(--fluent-color-status-warning-bg);
+}
+
+.tier-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .fields {
@@ -226,7 +302,7 @@ onMounted(() => {
 
 .field {
   display: grid;
-  grid-template-columns: 1fr minmax(9rem, 14rem);
+  grid-template-columns: auto 1fr minmax(9rem, 14rem);
   gap: var(--fluent-space-md);
   align-items: center;
   padding: var(--fluent-space-md) var(--fluent-space-lg);
@@ -235,6 +311,15 @@ onMounted(() => {
 
 .field:last-child {
   border-bottom: 0;
+}
+
+.field--experimental {
+  background: color-mix(in srgb, var(--fluent-color-status-warning-bg) 35%, transparent);
+}
+
+.field-icon {
+  align-self: start;
+  margin-top: 2px;
 }
 
 .field-text {
@@ -272,5 +357,20 @@ onMounted(() => {
 .readonly {
   font-size: var(--fluent-font-size-caption);
   color: var(--fluent-color-text-secondary);
+}
+
+@media (max-width: 720px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .field {
+    grid-template-columns: auto 1fr;
+  }
+
+  .control {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
 }
 </style>

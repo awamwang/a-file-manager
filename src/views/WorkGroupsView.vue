@@ -144,7 +144,7 @@ onMounted(() => {
 
     <p v-if="loading" class="banner">{{ t("common.loading") }}</p>
     <p v-else-if="error" class="banner banner--error">{{ error }}</p>
-    <p v-if="notice" class="banner banner--soft">
+    <p v-if="notice" class="fluent-banner fluent-banner--info banner--soft">
       {{ t("workGroups.softSync", { paths: notice.openedMemberPaths.join(", ") }) }}
       <button type="button" class="linkish" @click="notice = null">{{ t("common.dismiss") }}</button>
     </p>
