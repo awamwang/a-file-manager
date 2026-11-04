@@ -199,6 +199,12 @@ function registerShellShortcuts() {
   registerShortcutHandler("navigator.forward", () => {
     void onGoForward();
   });
+  registerShortcutHandler("navigator.backCtrlAlt", () => {
+    void onGoBack();
+  });
+  registerShortcutHandler("navigator.forwardCtrlAlt", () => {
+    void onGoForward();
+  });
   registerShortcutHandler("chrome.focusAddress", () => {
     focusAddressBar();
   });
@@ -218,6 +224,8 @@ function unregisterShellShortcuts() {
     "navigator.newTab",
     "navigator.back",
     "navigator.forward",
+    "navigator.backCtrlAlt",
+    "navigator.forwardCtrlAlt",
     "chrome.focusAddress",
     "view.settings",
     "view.shortcuts",

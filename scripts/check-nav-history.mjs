@@ -18,6 +18,12 @@ assert.ok(shell.includes("canGoBack"));
 assert.ok(!/toolbar-btn[\s\S]{0,80}historyLater/.test(shell));
 assert.ok(registry.includes('id: "navigator.back"'));
 assert.ok(registry.includes('id: "navigator.forward"'));
+assert.ok(registry.includes('id: "navigator.backCtrlAlt"'));
+assert.ok(registry.includes('id: "navigator.forwardCtrlAlt"'));
+assert.ok(registry.includes("ctrl: true, alt: true, key: \"arrowleft\""));
+assert.ok(registry.includes("ctrl: true, alt: true, key: \"arrowright\""));
+assert.ok(shell.includes('registerShortcutHandler("navigator.backCtrlAlt"'));
+assert.ok(shell.includes('registerShortcutHandler("navigator.forwardCtrlAlt"'));
 assert.equal(en.chrome.breadcrumbs, "Breadcrumb path");
 assert.equal(en.shortcuts.items.navigatorBack, "Navigate back");
 

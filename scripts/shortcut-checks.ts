@@ -18,6 +18,40 @@ assert.equal(
   winners.get(chordKey({ ctrl: true, shift: true, key: "p" }))?.id,
   "commandPanel.toggle",
 );
+assert.equal(
+  winners.get(chordKey({ alt: true, key: "arrowleft" }))?.id,
+  "navigator.back",
+);
+assert.equal(
+  winners.get(chordKey({ ctrl: true, alt: true, key: "arrowleft" }))?.id,
+  "navigator.backCtrlAlt",
+);
+assert.equal(
+  winners.get(chordKey({ ctrl: true, alt: true, key: "arrowright" }))?.id,
+  "navigator.forwardCtrlAlt",
+);
+assert.equal(
+  eventMatchesChord(keyEvent({ altKey: true, key: "ArrowLeft" }), {
+    alt: true,
+    key: "arrowleft",
+  }),
+  true,
+);
+assert.equal(
+  eventMatchesChord(
+    keyEvent({ ctrlKey: true, altKey: true, key: "ArrowLeft" }),
+    { alt: true, key: "arrowleft" },
+  ),
+  false,
+  "Ctrl+Alt+Left must not match Alt+Left (exact modifiers)",
+);
+assert.equal(
+  eventMatchesChord(
+    keyEvent({ ctrlKey: true, altKey: true, key: "ArrowLeft" }),
+    { ctrl: true, alt: true, key: "arrowleft" },
+  ),
+  true,
+);
 
 const conflicted = findShortcutConflicts([
   ...BUILTIN_SHORTCUTS,

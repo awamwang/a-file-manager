@@ -38,6 +38,19 @@ export const BUILTIN_SHORTCUTS: ShortcutDefinition[] = [
     chord: { alt: true, key: "arrowright" },
     scope: "global",
   },
+  /** Alias: Ctrl+Alt+←/→ (exact chord match; Alt-only does not fire when Ctrl is held). */
+  {
+    id: "navigator.backCtrlAlt",
+    labelKey: "shortcuts.items.navigatorBack",
+    chord: { ctrl: true, alt: true, key: "arrowleft" },
+    scope: "global",
+  },
+  {
+    id: "navigator.forwardCtrlAlt",
+    labelKey: "shortcuts.items.navigatorForward",
+    chord: { ctrl: true, alt: true, key: "arrowright" },
+    scope: "global",
+  },
   {
     id: "navigator.newTab",
     labelKey: "shortcuts.items.navigatorNewTab",
