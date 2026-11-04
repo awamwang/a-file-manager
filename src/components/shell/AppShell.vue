@@ -1,9 +1,17 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import {
+  currentPath,
+  goUp,
+  listError,
+  listLoading,
+  listing,
+  navigateTo,
+} from "../../state/navigatorBrowse";
 
 type HealthPayload = {
   ok: boolean;
@@ -22,7 +30,7 @@ type NavItem = {
 const route = useRoute();
 const router = useRouter();
 
-const addressPath = ref("G:\\");
+const addressDraft = ref("");
 const activeTab = ref("navigator");
 const health = ref<HealthPayload | null>(null);
 const healthError = ref<string | null>(null);
@@ -35,12 +43,29 @@ const navItems: NavItem[] = [
   { id: "health", label: "Health", to: "/health" },
 ];
 
+watch(
+  currentPath,
+  (path) => {
+    addressDraft.value = path;
+  },
+  { immediate: true },
+);
+
 const statusText = computed(() => {
-  if (healthError.value) return `health: error — ${healthError.value}`;
-  if (!health.value) return "health: …";
-  return health.value.ok
-    ? `health: ok · ${health.value.name} ${health.value.version}`
-    : "health: not ok";
+  const healthPart = healthError.value
+    ? `health: error`
+    : health.value?.ok
+      ? `health: ok · v${health.value.version}`
+      : "health: …";
+
+  if (route.path === "/navigator") {
+    if (listLoading.value) return `${healthPart} · navigator: loading`;
+    if (listError.value) return `${healthPart} · navigator: error`;
+    if (listing.value) {
+      return `${healthPart} · ${listing.value.dirCount} folders · ${listing.value.fileCount} files`;
+    }
+  }
+  return healthPart;
 });
 
 async function loadHealth() {
@@ -51,6 +76,20 @@ async function loadHealth() {
     health.value = null;
     healthError.value = err instanceof Error ? err.message : String(err);
   }
+}
+
+async function submitAddress() {
+  if (route.path !== "/navigator") {
+    await router.push("/navigator");
+  }
+  await navigateTo(addressDraft.value);
+}
+
+async function onGoUp() {
+  if (route.path !== "/navigator") {
+    await router.push("/navigator");
+  }
+  await goUp();
 }
 
 async function minimizeWindow() {
@@ -84,7 +123,7 @@ onMounted(() => {
     <header class="titlebar" aria-label="Title bar">
       <div class="titlebar-drag" data-tauri-drag-region>
         <span class="brand" data-tauri-drag-region>A File Manager</span>
-        <span class="caption-meta" data-tauri-drag-region>Standard · S1</span>
+        <span class="caption-meta" data-tauri-drag-region>Standard · S2</span>
       </div>
       <div class="window-controls" aria-label="Window controls">
         <button type="button" class="win-btn" aria-label="Minimize" @click="minimizeWindow">
@@ -106,25 +145,26 @@ onMounted(() => {
     </header>
 
     <div class="toolbar" role="toolbar" aria-label="Main toolbar">
-      <button type="button" class="fluent-control toolbar-btn" disabled title="S2+">Back</button>
-      <button type="button" class="fluent-control toolbar-btn" disabled title="S2+">Forward</button>
-      <button type="button" class="fluent-control toolbar-btn" disabled title="S2+">Up</button>
+      <button type="button" class="fluent-control toolbar-btn" disabled title="History later">Back</button>
+      <button type="button" class="fluent-control toolbar-btn" disabled title="History later">Forward</button>
+      <button type="button" class="fluent-control toolbar-btn" title="Go up" @click="onGoUp">Up</button>
       <span class="toolbar-spacer" />
       <button type="button" class="fluent-control toolbar-btn" disabled title="Later">View</button>
     </div>
 
-    <div class="address" aria-label="Address bar">
+    <form class="address" aria-label="Address bar" @submit.prevent="submitAddress">
       <label class="address-label" for="address-input">Path</label>
       <input
         id="address-input"
-        v-model="addressPath"
+        v-model="addressDraft"
         class="address-input"
         type="text"
         spellcheck="false"
         autocomplete="off"
-        placeholder="Native path or awam:// (S2+)"
+        placeholder="Native OS path (Kernel) — Enter to go"
       />
-    </div>
+      <button type="submit" class="fluent-control address-go">Go</button>
+    </form>
 
     <div class="tabstrip" role="tablist" aria-label="Tabs">
       <button
@@ -304,6 +344,11 @@ onMounted(() => {
 .address-input:focus {
   outline: 2px solid var(--fluent-color-fill-accent);
   outline-offset: 1px;
+}
+
+.address-go {
+  height: var(--fluent-control-height-standard);
+  min-height: var(--fluent-control-height-standard);
 }
 
 .tabstrip {

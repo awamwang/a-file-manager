@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+mod navigator;
+
 use serde::Serialize;
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -25,7 +27,12 @@ fn health_get() -> HealthPayload {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![health_get])
+        .invoke_handler(tauri::generate_handler![
+            health_get,
+            navigator::navigator_list,
+            navigator::navigator_default_path,
+            navigator::navigator_parent,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
