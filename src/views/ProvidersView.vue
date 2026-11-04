@@ -88,8 +88,12 @@ onMounted(() => {
         type="button"
         class="backend"
         :class="{
-          'backend--ok': backend.healthy,
+          'backend--ok': !backend.interfaceOnly && backend.healthy,
+          'backend--down': !backend.interfaceOnly && !backend.healthy,
           'backend--stub': backend.interfaceOnly,
+          'fluent-accent-edge--ok': !backend.interfaceOnly && backend.healthy,
+          'fluent-accent-edge--down': !backend.interfaceOnly && !backend.healthy,
+          'fluent-accent-edge--stub': backend.interfaceOnly,
         }"
         @click="listUri(`awam://${backend.id}`)"
       >
@@ -125,8 +129,8 @@ onMounted(() => {
       </button>
     </form>
 
-    <p v-if="error" class="banner banner--error">{{ error }}</p>
-    <p v-else-if="listing && listing.entries.length === 0" class="banner">
+    <p v-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
+    <p v-else-if="listing && listing.entries.length === 0" class="fluent-banner fluent-banner--info">
       {{ t("providers.emptyListing") }}
     </p>
 
@@ -196,11 +200,18 @@ h1 {
 }
 
 .backend--ok {
-  border-color: var(--fluent-color-fill-accent);
+  background: color-mix(in srgb, var(--fluent-color-status-success-bg) 55%, var(--fluent-color-fill-control));
+  border-color: var(--fluent-color-status-success);
+}
+
+.backend--down {
+  background: color-mix(in srgb, var(--fluent-color-status-danger-bg) 45%, var(--fluent-color-fill-control));
+  border-color: var(--fluent-color-status-danger);
 }
 
 .backend--stub {
-  opacity: 0.7;
+  background: var(--fluent-color-fill-layer-alt);
+  opacity: 0.85;
 }
 
 .detail {
@@ -227,19 +238,6 @@ h1 {
 
 .uri-row .fluent-control:first-child {
   flex: 1;
-}
-
-.banner {
-  margin: 0;
-  padding: var(--fluent-space-md) var(--fluent-space-lg);
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: var(--fluent-radius-md);
-  background: var(--fluent-color-fill-control);
-  color: var(--fluent-color-text-secondary);
-}
-
-.banner--error {
-  color: var(--fluent-color-status-danger);
 }
 
 .list {

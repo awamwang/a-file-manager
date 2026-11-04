@@ -438,7 +438,13 @@ onUnmounted(() => {
     </div>
 
     <footer class="statusbar" :aria-label="t('chrome.status')">
-      <span>{{ statusText }}</span>
+      <span
+        class="status-text"
+        :class="{
+          'fluent-status-text--down': Boolean(healthError),
+          'fluent-status-text--ok': health?.ok && !healthError,
+        }"
+      >{{ statusText }}</span>
       <button type="button" class="status-refresh" @click="loadHealth">
         {{ t("chrome.refreshHealth") }}
       </button>
@@ -760,9 +766,16 @@ onUnmounted(() => {
   flex-shrink: 0;
   padding-inline: var(--fluent-space-md);
   border-top: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  background: var(--fluent-color-fill-control);
+  background: var(--fluent-color-fill-layer-alt);
   font-size: var(--fluent-font-size-caption);
   color: var(--fluent-color-text-secondary);
+}
+
+.status-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .status-refresh {

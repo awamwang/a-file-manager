@@ -45,9 +45,22 @@ onMounted(() => {
     <p v-else-if="error" class="fluent-banner fluent-banner--error">
       {{ t("health.failed", { error }) }}
     </p>
-    <dl v-else-if="health" class="fluent-surface grid">
+    <p
+      v-else-if="health"
+      class="fluent-banner"
+      :class="health.ok ? 'fluent-banner--success' : 'fluent-banner--error'"
+    >
+      <span
+        class="fluent-chip"
+        :class="health.ok ? 'fluent-chip--ok' : 'fluent-chip--down'"
+      >{{ health.ok ? "ok" : "down" }}</span>
+      {{ health.name }} · v{{ health.version }}
+    </p>
+    <dl v-if="health" class="fluent-surface grid">
       <dt>{{ t("health.fieldOk") }}</dt>
-      <dd>{{ health.ok }}</dd>
+      <dd :class="health.ok ? 'fluent-status-text--ok' : 'fluent-status-text--down'">
+        {{ health.ok }}
+      </dd>
       <dt>{{ t("health.fieldName") }}</dt>
       <dd>{{ health.name }}</dd>
       <dt>{{ t("health.fieldVersion") }}</dt>
@@ -82,6 +95,19 @@ dt {
 dd {
   margin: 0;
   font-family: var(--fluent-font-family-mono);
+}
+
+.fluent-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+}
+
+.fluent-chip {
+  pointer-events: none;
+  cursor: default;
+  font-size: var(--fluent-font-size-caption);
 }
 
 button {

@@ -139,25 +139,31 @@ onMounted(() => {
       </p>
     </header>
 
-    <p v-if="loading" class="banner">{{ t("common.loading") }}</p>
-    <p v-else-if="error" class="banner banner--error">{{ error }}</p>
-    <p v-if="notice" class="banner banner--soft">
+    <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
+    <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
+    <p v-if="notice" class="fluent-banner fluent-banner--info banner--soft">
       {{ notice }}
       <button type="button" class="linkish" @click="notice = null">{{ t("common.dismiss") }}</button>
     </p>
 
     <div v-if="status" class="grid">
-      <article class="card">
+      <article class="card" :class="{ 'card--warn': status.crashedCount > 0 }">
         <h2>{{ t("extensions.hostStatus") }}</h2>
         <ul>
           <li>{{ t("extensions.api", { version: status.apiVersion }) }}</li>
-          <li>{{
-            t("extensions.counts", {
-              installed: status.installedCount,
-              enabled: status.enabledCount,
-              crashed: status.crashedCount,
-            })
-          }}</li>
+          <li class="counts">
+            <span class="fluent-chip fluent-chip--stub count-chip">{{
+              t("extensions.counts", {
+                installed: status.installedCount,
+                enabled: status.enabledCount,
+                crashed: status.crashedCount,
+              })
+            }}</span>
+            <span
+              v-if="status.crashedCount > 0"
+              class="fluent-chip fluent-chip--down count-chip"
+            >crashed: {{ status.crashedCount }}</span>
+          </li>
           <li>{{ t("extensions.fsHooksCount", { count: status.fsProviderHooks }) }}</li>
           <li>{{
             t("extensions.marketplaceFlags", {
@@ -191,8 +197,16 @@ onMounted(() => {
         <li v-for="ext in installed" :key="ext.id">
           <div>
             <strong>{{ ext.name }}</strong>
-            <span class="meta"> {{ ext.id }} · v{{ ext.version }} · {{ ext.state }}</span>
-            <p v-if="ext.lastError" class="banner banner--error inline">{{ ext.lastError }}</p>
+            <span class="meta"> {{ ext.id }} · v{{ ext.version }}</span>
+            <span
+              class="fluent-chip state-chip"
+              :class="{
+                'fluent-chip--ok': ext.state === 'enabled',
+                'fluent-chip--stub': ext.state === 'disabled',
+                'fluent-chip--down': ext.state === 'crashed',
+              }"
+            >{{ ext.state }}</span>
+            <p v-if="ext.lastError" class="fluent-banner fluent-banner--error inline">{{ ext.lastError }}</p>
           </div>
           <div class="actions">
             <button class="fluent-control" type="button" @click="runHello(ext.id)">
@@ -245,28 +259,30 @@ onMounted(() => {
   font-size: var(--fluent-font-size-caption);
 }
 
-.banner {
-  margin: 0;
-  padding: var(--fluent-space-md) var(--fluent-space-lg);
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: var(--fluent-radius-md);
-  background: var(--fluent-color-fill-control);
-}
-
-.banner--error {
-  color: var(--fluent-color-status-danger);
-}
-
 .banner--soft {
   display: flex;
   justify-content: space-between;
   gap: var(--fluent-space-md);
-  border-color: var(--fluent-color-fill-accent);
 }
 
-.banner.inline {
+.inline {
   margin-top: var(--fluent-space-sm);
   padding: var(--fluent-space-sm) var(--fluent-space-md);
+}
+
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fluent-space-sm);
+  list-style: none;
+}
+
+.count-chip,
+.state-chip {
+  min-height: var(--fluent-control-height-standard);
+  pointer-events: none;
+  cursor: default;
+  font-size: var(--fluent-font-size-caption);
 }
 
 .linkish {
@@ -291,6 +307,11 @@ onMounted(() => {
   border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   border-radius: var(--fluent-radius-md);
   background: var(--fluent-color-fill-control);
+}
+
+.card--warn {
+  background: color-mix(in srgb, var(--fluent-color-status-warning-bg) 40%, var(--fluent-color-fill-control));
+  border-color: var(--fluent-color-status-warning);
 }
 
 .card h2 {

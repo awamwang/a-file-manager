@@ -247,9 +247,9 @@ onMounted(() => {
       <p class="meta">{{ t("projects.meta") }}</p>
     </header>
 
-    <p v-if="loading" class="banner">{{ t("common.loading") }}</p>
-    <p v-else-if="error" class="banner banner--error">{{ error }}</p>
-    <p v-if="notice" class="banner banner--soft">
+    <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
+    <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
+    <p v-if="notice" class="fluent-banner fluent-banner--info banner--soft">
       {{ notice }}
       <button type="button" class="linkish" @click="notice = null">{{ t("common.dismiss") }}</button>
     </p>
@@ -445,23 +445,10 @@ onMounted(() => {
   font-size: var(--fluent-font-size-caption);
 }
 
-.banner {
-  margin: 0;
-  padding: var(--fluent-space-md) var(--fluent-space-lg);
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: var(--fluent-radius-md);
-  background: var(--fluent-color-fill-control);
-}
-
-.banner--error {
-  color: var(--fluent-color-status-danger);
-}
-
 .banner--soft {
   display: flex;
   justify-content: space-between;
   gap: var(--fluent-space-md);
-  border-color: var(--fluent-color-fill-accent);
 }
 
 .linkish {
@@ -505,8 +492,10 @@ onMounted(() => {
 }
 
 .group--active {
-  border-color: var(--fluent-color-fill-accent);
+  border-color: var(--fluent-color-stroke-accent-soft);
+  background: var(--fluent-color-fill-selected);
   font-weight: var(--fluent-font-weight-semibold);
+  box-shadow: inset 3px 0 0 var(--fluent-color-stroke-accent-soft);
 }
 
 .create,

@@ -301,6 +301,40 @@ html[data-list-density="compact"] .fluent-list-row--density {
   border-color: var(--fluent-color-status-warning);
 }
 
+.fluent-banner--success {
+  color: var(--fluent-color-status-success);
+  background: var(--fluent-color-status-success-bg);
+  border-color: var(--fluent-color-status-success);
+}
+
+.fluent-accent-edge {
+  box-shadow: inset 3px 0 0 var(--fluent-color-stroke-accent-soft);
+}
+
+.fluent-accent-edge--ok {
+  box-shadow: inset 3px 0 0 var(--fluent-color-chip-ok);
+}
+
+.fluent-accent-edge--down {
+  box-shadow: inset 3px 0 0 var(--fluent-color-chip-down);
+}
+
+.fluent-accent-edge--stub {
+  box-shadow: inset 3px 0 0 var(--fluent-color-chip-stub);
+}
+
+.fluent-status-text--ok {
+  color: var(--fluent-color-status-success);
+}
+
+.fluent-status-text--down {
+  color: var(--fluent-color-status-danger);
+}
+
+.fluent-status-text--warn {
+  color: var(--fluent-color-status-warning);
+}
+
 .fluent-chip--ok {
   color: var(--fluent-color-chip-ok);
   background: var(--fluent-color-chip-ok-bg);

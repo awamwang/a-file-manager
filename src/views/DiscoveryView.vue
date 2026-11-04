@@ -111,16 +111,35 @@ onMounted(() => {
       <p class="meta">{{ t("discovery.meta") }}</p>
     </header>
 
-    <div v-if="status" class="status-card">
-      <p>
-        {{ t("discovery.engine") }}:
-        <strong>{{ status.activeEngine }}</strong>
-        <span v-if="status.degraded"> · {{ t("discovery.degraded") }}</span>
-      </p>
+    <div
+      v-if="status"
+      class="status-card"
+      :class="{
+        'status-card--ok': status.activeEngine === 'everything' && !status.degraded,
+        'status-card--warn': status.degraded || status.activeEngine === 'fallback',
+        'status-card--down': status.activeEngine === 'unavailable',
+      }"
+    >
+      <div class="status-row">
+        <span>{{ t("discovery.engine") }}</span>
+        <span
+          class="fluent-chip engine-chip"
+          :class="{
+            'fluent-chip--ok': status.activeEngine === 'everything',
+            'fluent-chip--stub': status.activeEngine === 'fallback',
+            'fluent-chip--down': status.activeEngine === 'unavailable',
+          }"
+        >{{ status.activeEngine }}</span>
+        <span
+          v-if="status.degraded"
+          class="fluent-chip fluent-chip--stub degraded-chip"
+        >{{ t("discovery.degraded") }}</span>
+      </div>
       <p class="detail">{{ status.detail }}</p>
       <label class="fallback">
         <input
           type="checkbox"
+          class="fluent-field-check"
           :checked="status.fallbackEnabled"
           @change="toggleFallback"
         />
@@ -144,8 +163,8 @@ onMounted(() => {
       </button>
     </form>
 
-    <p v-if="error" class="banner banner--error">{{ error }}</p>
-    <p v-else-if="result && result.hits.length === 0" class="banner">
+    <p v-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
+    <p v-else-if="result && result.hits.length === 0" class="fluent-banner fluent-banner--info">
       {{ t("discovery.noHits", { engine: result.engine, total: result.totalCount }) }}
     </p>
 
@@ -199,19 +218,48 @@ h1 {
   font-size: var(--fluent-font-size-caption);
 }
 
-.status-card,
-.banner {
+.status-card {
   padding: var(--fluent-space-md) var(--fluent-space-lg);
   border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   border-radius: var(--fluent-radius-md);
   background: var(--fluent-color-fill-control);
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-sm);
 }
 
-.status-card p {
-  margin: 0 0 var(--fluent-space-sm);
+.status-card--ok {
+  background: var(--fluent-color-status-success-bg);
+  border-color: var(--fluent-color-status-success);
+}
+
+.status-card--warn {
+  background: var(--fluent-color-status-warning-bg);
+  border-color: var(--fluent-color-status-warning);
+}
+
+.status-card--down {
+  background: var(--fluent-color-status-danger-bg);
+  border-color: var(--fluent-color-status-danger);
+}
+
+.status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+}
+
+.engine-chip,
+.degraded-chip {
+  min-height: var(--fluent-control-height-standard);
+  pointer-events: none;
+  cursor: default;
+  font-size: var(--fluent-font-size-caption);
 }
 
 .detail {
+  margin: 0;
   color: var(--fluent-color-text-secondary);
   font-size: var(--fluent-font-size-caption);
 }
@@ -230,10 +278,6 @@ h1 {
 
 .query {
   flex: 1;
-}
-
-.banner--error {
-  color: var(--fluent-color-status-danger);
 }
 
 .list {
