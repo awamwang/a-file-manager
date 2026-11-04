@@ -14,7 +14,8 @@
     "tauri:build": "tauri build",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
     "test:tokens": "node scripts/check-fluent-tokens.mjs",
-    "test": "npm run test:tokens && npm run test:rust"
+    "test:command-panel": "node scripts/check-command-panel.mjs",
+    "test": "npm run test:tokens && npm run test:command-panel && npm run test:rust"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

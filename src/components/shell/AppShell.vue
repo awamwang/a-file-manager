@@ -5,6 +5,12 @@ import { useRoute, useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import CommandPanel from "../command/CommandPanel.vue";
+import { buildAppCommands } from "../../commands/registry";
+import {
+  isToggleCommandPanelShortcut,
+  toggleCommandPanel,
+} from "../../state/commandPanel";
 import {
   currentPath,
   goUp,
@@ -39,6 +45,27 @@ const healthError = ref<string | null>(null);
 const isMaximized = ref(false);
 const maxHover = ref(false);
 const unlisteners: UnlistenFn[] = [];
+
+async function ensureNavigatorThenGoUp() {
+  if (route.path !== "/navigator") {
+    await router.push("/navigator");
+  }
+  await goUp();
+}
+
+const panelCommands = computed(() =>
+  buildAppCommands({
+    router,
+    ensureNavigatorThenGoUp,
+    refreshHealth: loadHealth,
+  }),
+);
+
+function onGlobalKeydown(event: KeyboardEvent) {
+  if (!isToggleCommandPanelShortcut(event)) return;
+  event.preventDefault();
+  toggleCommandPanel();
+}
 
 const navItems: NavItem[] = [
   { id: "navigator", label: "Navigator", to: "/navigator" },
@@ -146,6 +173,7 @@ async function openNavigatorTab(path: string) {
 onMounted(() => {
   void loadHealth();
   void refreshMaximized();
+  window.addEventListener("keydown", onGlobalKeydown);
 
   const win = getCurrentWindow();
   void win.onResized(() => {
@@ -167,6 +195,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  window.removeEventListener("keydown", onGlobalKeydown);
   for (const unlisten of unlisteners) {
     unlisten();
   }
@@ -179,7 +208,7 @@ onUnmounted(() => {
       <div class="titlebar-drag" data-tauri-drag-region>
         <span class="brand" data-tauri-drag-region>A File Manager</span>
         <span class="caption-meta" data-tauri-drag-region
-          >Standard · S9 · Snap</span
+          >Standard · Command Panel</span
         >
       </div>
       <div class="window-controls" aria-label="Window controls">
@@ -224,6 +253,16 @@ onUnmounted(() => {
       <button type="button" class="fluent-control toolbar-btn" title="Go up" @click="onGoUp">Up</button>
       <span class="toolbar-spacer" />
       <button type="button" class="fluent-control toolbar-btn" disabled title="Later">View</button>
+      <button
+        type="button"
+        class="fluent-control toolbar-btn"
+        title="Command Panel (Ctrl+Shift+P)"
+        aria-keyshortcuts="Control+Shift+P"
+        @click="toggleCommandPanel"
+      >
+        Commands
+        <span class="toolbar-shortcut">Ctrl+Shift+P</span>
+      </button>
     </div>
 
     <form class="address" aria-label="Address bar" @submit.prevent="submitAddress">
@@ -311,6 +350,8 @@ onUnmounted(() => {
       <span>{{ statusText }}</span>
       <button type="button" class="status-refresh" @click="loadHealth">Refresh health</button>
     </footer>
+
+    <CommandPanel :commands="panelCommands" />
   </div>
 </template>
 
@@ -403,6 +444,13 @@ onUnmounted(() => {
 
 .toolbar-spacer {
   flex: 1;
+}
+
+.toolbar-shortcut {
+  margin-inline-start: var(--fluent-space-sm);
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+  font-weight: var(--fluent-font-weight-regular);
 }
 
 .address {
