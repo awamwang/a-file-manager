@@ -7,6 +7,10 @@ import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { NavigatorEntry } from "../../state/navigatorBrowse";
 import { newNavigatorTab, openEntry } from "../../state/navigatorBrowse";
 import {
+  isFavoritePath,
+  toggleFavorite,
+} from "../../state/favorites";
+import {
   buildContextMenuItems,
   canOpenInNewTab,
 } from "./contextMenuModel";
@@ -27,6 +31,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: [];
   notice: [message: string];
+  favoritesChanged: [];
 }>();
 
 const { t } = useI18n();
@@ -34,7 +39,9 @@ const root = ref<HTMLElement | null>(null);
 const pos = ref({ left: 0, top: 0 });
 
 const items = computed(() =>
-  buildContextMenuItems(props.entry).map((item) => ({
+  buildContextMenuItems(props.entry, {
+    isFavorite: isFavoritePath(props.entry?.path),
+  }).map((item) => ({
     ...item,
     label: t(item.labelKey),
   })),
@@ -95,6 +102,20 @@ async function run(id: string) {
         if (!result.success && result.error) {
           emit("notice", result.error);
         }
+      } catch (err) {
+        emit("notice", err instanceof Error ? err.message : String(err));
+      }
+      break;
+    case "toggleFavorite":
+      try {
+        const result = await toggleFavorite(entry.path, entry.kind === "dir");
+        emit(
+          "notice",
+          result.added
+            ? t("contextMenu.favoriteAdded")
+            : t("contextMenu.favoriteRemoved"),
+        );
+        emit("favoritesChanged");
       } catch (err) {
         emit("notice", err instanceof Error ? err.message : String(err));
       }

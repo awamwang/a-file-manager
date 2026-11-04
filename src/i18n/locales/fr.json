@@ -329,6 +329,13 @@
     "copyPath": "Copier le chemin",
     "delete": "Supprimer",
     "deleteStub": "La suppression n’est pas encore branchée au Kernel.",
-    "copiedPath": "Chemin copié"
+    "copiedPath": "Chemin copié",
+    "addFavorite": "Ajouter aux favoris",
+    "removeFavorite": "Retirer des favoris",
+    "favoriteAdded": "Ajouté aux favoris",
+    "favoriteRemoved": "Retiré des favoris"
+  },
+  "favorites": {
+    "label": "Favoris"
   }
 }

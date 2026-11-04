@@ -329,6 +329,13 @@
     "delete": "削除",
     "deleteStub": "カーネルに削除は未接続です。",
     "copiedPath": "パスをコピーしました",
-    "openInTerminal": "ターミナルで開く"
+    "openInTerminal": "ターミナルで開く",
+    "addFavorite": "お気に入りに追加",
+    "removeFavorite": "お気に入りから削除",
+    "favoriteAdded": "お気に入りに追加しました",
+    "favoriteRemoved": "お気に入りから削除しました"
+  },
+  "favorites": {
+    "label": "お気に入り"
   }
 }

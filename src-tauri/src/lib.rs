@@ -2,6 +2,7 @@
 
 mod discovery;
 mod extension_host;
+mod favorites;
 mod navigator;
 mod projects;
 mod providers;
@@ -104,6 +105,10 @@ pub fn run() {
             extension_host::extension_host_register_fs_provider_hook,
             shell_menu::shell_show_context_menu,
             terminal::open_in_terminal,
+            favorites::favorites_get,
+            favorites::favorites_toggle,
+            favorites::favorites_contains,
+            favorites::favorites_os_hook_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

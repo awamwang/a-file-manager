@@ -7,6 +7,7 @@ export type ContextMenuActionId =
   | "open"
   | "openInNewTab"
   | "openInTerminal"
+  | "toggleFavorite"
   | "systemMenu"
   | "reveal"
   | "copyPath"
@@ -21,12 +22,18 @@ export type ContextMenuItemDef = {
   stub?: boolean;
 };
 
+export type ContextMenuBuildOptions = {
+  isFavorite?: boolean;
+};
+
 /** Day-1 visibility rules for a single selected Navigator entry. */
 export function buildContextMenuItems(
   entry: NavigatorEntry | null,
+  options: ContextMenuBuildOptions = {},
 ): ContextMenuItemDef[] {
   if (!entry) return [];
   const isDir = entry.kind === "dir";
+  const isFavorite = Boolean(options.isFavorite);
   return [
     { id: "open", labelKey: "contextMenu.open", enabled: true },
     {
@@ -38,6 +45,13 @@ export function buildContextMenuItems(
       id: "openInTerminal",
       labelKey: "contextMenu.openInTerminal",
       // Files open their parent directory (Sigma-aligned).
+      enabled: true,
+    },
+    {
+      id: "toggleFavorite",
+      labelKey: isFavorite
+        ? "contextMenu.removeFavorite"
+        : "contextMenu.addFavorite",
       enabled: true,
     },
     {

@@ -329,6 +329,13 @@
     "copyPath": "Pfad kopieren",
     "delete": "Löschen",
     "deleteStub": "Löschen ist im Kernel noch nicht angebunden.",
-    "copiedPath": "Pfad kopiert"
+    "copiedPath": "Pfad kopiert",
+    "addFavorite": "Zu Favoriten hinzufügen",
+    "removeFavorite": "Aus Favoriten entfernen",
+    "favoriteAdded": "Zu Favoriten hinzugefügt",
+    "favoriteRemoved": "Aus Favoriten entfernt"
+  },
+  "favorites": {
+    "label": "Favoriten"
   }
 }

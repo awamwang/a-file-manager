@@ -329,6 +329,13 @@
     "copyPath": "Copy path",
     "delete": "Delete",
     "deleteStub": "Delete is not wired in Kernel yet.",
-    "copiedPath": "Path copied"
+    "copiedPath": "Path copied",
+    "addFavorite": "Add to favorites",
+    "removeFavorite": "Remove from favorites",
+    "favoriteAdded": "Added to favorites",
+    "favoriteRemoved": "Removed from favorites"
+  },
+  "favorites": {
+    "label": "Favorites"
   }
 }

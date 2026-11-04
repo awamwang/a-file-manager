@@ -329,6 +329,13 @@
     "copyPath": "复制路径",
     "delete": "删除",
     "deleteStub": "内核尚未接入删除。",
-    "copiedPath": "已复制路径"
+    "copiedPath": "已复制路径",
+    "addFavorite": "添加到收藏",
+    "removeFavorite": "取消收藏",
+    "favoriteAdded": "已加入收藏",
+    "favoriteRemoved": "已取消收藏"
+  },
+  "favorites": {
+    "label": "收藏"
   }
 }
