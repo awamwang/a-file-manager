@@ -395,6 +395,8 @@
     "openWith": "打开方式…"
   },
   "favorites": {
-    "label": "收藏"
+    "label": "收藏",
+    "empty": "可从右键菜单钉选文件夹",
+    "osVerb": "资源管理器「添加到 AFM 收藏」"
   }
 }

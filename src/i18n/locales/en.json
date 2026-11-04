@@ -395,6 +395,8 @@
     "openWith": "Open with…"
   },
   "favorites": {
-    "label": "Favorites"
+    "label": "Favorites",
+    "empty": "Pin folders from the context menu",
+    "osVerb": "Explorer “Add to AFM favorites”"
   }
 }

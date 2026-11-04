@@ -395,6 +395,8 @@
     "openWith": "Ouvrir avec…"
   },
   "favorites": {
-    "label": "Favoris"
+    "label": "Favoris",
+    "empty": "Épingler via le menu contextuel",
+    "osVerb": "Explorateur « Ajouter aux favoris AFM »"
   }
 }

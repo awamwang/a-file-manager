@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! App-local favorites (AIA-57). Explorer shell verb registration is deferred.
+//! App-local favorites (AIA-57) + Explorer shell verb (AIA-67).
+
+mod shell_verb;
 
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager};
+
+pub use shell_verb::take_add_favorite_path;
 
 pub const FAVORITES_FILE_NAME: &str = "favorites.json";
 
@@ -117,6 +121,38 @@ pub fn toggle_favorite(
     Ok(true)
 }
 
+/// Idempotent add used by Explorer shell verb (AIA-67).
+pub fn ensure_favorite(
+    document: &mut FavoritesDocument,
+    path: &str,
+    is_dir: bool,
+) -> Result<bool, String> {
+    let normalized = normalize_path(path);
+    if normalized.is_empty() {
+        return Err("Path is empty".to_string());
+    }
+    if is_favorite(document, &normalized) {
+        return Ok(false);
+    }
+    document.favorites.push(FavoriteItem {
+        path: normalized,
+        added_at: now_ms(),
+        is_dir,
+    });
+    Ok(true)
+}
+
+/// Apply `--afm-add-favorite <path>` from Explorer verb.
+pub fn apply_add_favorite_cli(app: &AppHandle, path: &str) -> Result<bool, String> {
+    let dir = config_dir(app)?;
+    let mut document = load_from_path(&dir)?;
+    let pb = PathBuf::from(normalize_path(path));
+    let is_dir = pb.is_dir();
+    let added = ensure_favorite(&mut document, path, is_dir)?;
+    save_to_path(&dir, &document)?;
+    Ok(added)
+}
+
 #[tauri::command]
 pub fn favorites_get(app: AppHandle) -> Result<FavoritesDocument, String> {
     let dir = config_dir(&app)?;
@@ -147,14 +183,22 @@ pub fn favorites_contains(app: AppHandle, path: String) -> Result<bool, String> 
     Ok(is_favorite(&document, &path))
 }
 
-/// Day-1: report that Explorer shell-verb registration is not installed.
-/// AFM favorites remain app-local; use System menu (AIA-55) for Explorer Quick Access.
 #[tauri::command]
 pub fn favorites_os_hook_status() -> FavoritesOsHookStatus {
+    let status = shell_verb::status();
     FavoritesOsHookStatus {
-        registered: false,
-        note: "Explorer shell verb for AFM favorites is deferred. Use in-app Add to favorites; System menu covers OS Quick Access.".to_string(),
+        registered: status.registered,
+        note: status.note,
     }
+}
+
+#[tauri::command]
+pub fn favorites_os_hook_set_enabled(enabled: bool) -> Result<FavoritesOsHookStatus, String> {
+    let status = shell_verb::set_enabled(enabled)?;
+    Ok(FavoritesOsHookStatus {
+        registered: status.registered,
+        note: status.note,
+    })
 }
 
 #[cfg(test)]
@@ -185,8 +229,6 @@ mod tests {
 
         let loaded = load_from_path(&dir).unwrap();
         assert!(is_favorite(&loaded, r"D:\Work"));
-        assert_eq!(favorites_os_hook_status().registered, false);
-
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -194,5 +236,13 @@ mod tests {
     fn empty_path_errors() {
         let mut doc = FavoritesDocument::default();
         assert!(toggle_favorite(&mut doc, "  ", false).is_err());
+    }
+
+    #[test]
+    fn ensure_favorite_is_idempotent() {
+        let mut doc = FavoritesDocument::default();
+        assert!(ensure_favorite(&mut doc, r"C:\Pin", true).unwrap());
+        assert!(!ensure_favorite(&mut doc, r"C:\Pin", true).unwrap());
+        assert_eq!(doc.favorites.len(), 1);
     }
 }

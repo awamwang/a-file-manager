@@ -12,6 +12,7 @@ assert.ok(shell.includes("fav-pins"));
 assert.ok(shell.includes("openFavoritePin"));
 assert.ok(shell.includes("favoritesDoc"));
 assert.ok(shell.includes("loadFavorites"));
+assert.ok(shell.includes("fav-os-hook") || shell.includes("setFavoritesOsHookEnabled"));
 assert.ok(!view.includes("favorites-chip"), "chips moved to sidenav");
 
 console.log("Favorites sidebar checks OK (AIA-66).");

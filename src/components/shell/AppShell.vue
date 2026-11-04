@@ -40,7 +40,13 @@ import {
   popBack,
   popForward,
 } from "../../state/navHistory";
-import { favoritesDoc, loadFavorites } from "../../state/favorites";
+import {
+  favoritesDoc,
+  favoritesOsHook,
+  loadFavorites,
+  loadFavoritesOsHookStatus,
+  setFavoritesOsHookEnabled,
+} from "../../state/favorites";
 
 const { t, locale } = useI18n();
 
@@ -143,6 +149,15 @@ async function openFavoritePin(path: string) {
 function favoriteLabel(path: string): string {
   const parts = path.replace(/\\/g, "/").replace(/\/+$/, "").split("/");
   return parts[parts.length - 1] || path;
+}
+
+async function onToggleOsFavoriteVerb(event: Event) {
+  const checked = (event.target as HTMLInputElement).checked;
+  try {
+    await setFavoritesOsHookEnabled(checked);
+  } catch {
+    await loadFavoritesOsHookStatus().catch(() => undefined);
+  }
 }
 
 function onGlobalKeydown(event: KeyboardEvent) {
@@ -342,6 +357,7 @@ onMounted(() => {
   void refreshMaximized();
   void bootstrapNavigatorOpenState();
   void loadFavorites().catch(() => undefined);
+  void loadFavoritesOsHookStatus().catch(() => undefined);
   registerShellShortcuts();
   window.addEventListener("keydown", onGlobalKeydown);
 
@@ -563,16 +579,20 @@ onUnmounted(() => {
 
     <div class="body">
       <nav class="sidenav fluent-layer-alt" :aria-label="t('chrome.sideNav')">
-        <div
-          v-if="favoritesDoc.favorites.length"
-          class="fav-pins"
-          role="group"
-          :aria-label="t('favorites.label')"
-        >
+        <div class="fav-pins" role="group" :aria-label="t('favorites.label')">
           <div class="fav-pins-title">
             <FluentIcon name="heart" size="sm" />
             <span>{{ t("favorites.label") }}</span>
           </div>
+          <label class="fav-os-hook" :title="favoritesOsHook?.note ?? ''">
+            <input
+              type="checkbox"
+              class="fluent-field-check"
+              :checked="Boolean(favoritesOsHook?.registered)"
+              @change="onToggleOsFavoriteVerb"
+            />
+            <span>{{ t("favorites.osVerb") }}</span>
+          </label>
           <button
             v-for="fav in favoritesDoc.favorites"
             :key="fav.path"
@@ -590,6 +610,9 @@ onUnmounted(() => {
             <FluentIcon :name="fav.isDir ? 'folder' : 'document'" size="md" class="sidenav-icon" />
             <span class="sidenav-label">{{ favoriteLabel(fav.path) }}</span>
           </button>
+          <p v-if="!favoritesDoc.favorites.length" class="fav-empty">
+            {{ t("favorites.empty") }}
+          </p>
         </div>
         <button
           v-for="item in navItems"
@@ -926,6 +949,23 @@ onUnmounted(() => {
   align-items: center;
   gap: var(--fluent-space-xs);
   padding: var(--fluent-space-xs) var(--fluent-space-md);
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+}
+
+.fav-os-hook {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-xs);
+  padding: 0 var(--fluent-space-md) var(--fluent-space-xs);
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+  cursor: pointer;
+}
+
+.fav-empty {
+  margin: 0;
+  padding: 0 var(--fluent-space-md) var(--fluent-space-xs);
   font-size: var(--fluent-font-size-caption);
   color: var(--fluent-color-text-secondary);
 }

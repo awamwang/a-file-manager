@@ -51,6 +51,7 @@ pub fn run() {
 
     let raw_args: Vec<String> = std::env::args().collect();
     let from_autostart = launched_from_autostart(&raw_args);
+    let add_favorite_path = favorites::take_add_favorite_path(&raw_args);
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -80,6 +81,16 @@ pub fn run() {
             }
 
             discovery::sync_blacklist_from_settings(app.handle());
+
+            if let Some(path) = add_favorite_path.clone() {
+                match favorites::apply_add_favorite_cli(app.handle(), &path) {
+                    Ok(added) => eprintln!(
+                        "AFM favorites shell verb: {} ({path})",
+                        if added { "added" } else { "already present" }
+                    ),
+                    Err(err) => eprintln!("AFM favorites shell verb failed: {err}"),
+                }
+            }
 
             Ok(())
         })
@@ -150,6 +161,7 @@ pub fn run() {
             favorites::favorites_toggle,
             favorites::favorites_contains,
             favorites::favorites_os_hook_status,
+            favorites::favorites_os_hook_set_enabled,
             open_with::open_native_open_with_dialog,
         ])
         .run(tauri::generate_context!())

@@ -63,3 +63,13 @@ export async function loadFavoritesOsHookStatus(): Promise<FavoritesOsHookStatus
   favoritesOsHook.value = status;
   return status;
 }
+
+export async function setFavoritesOsHookEnabled(
+  enabled: boolean,
+): Promise<FavoritesOsHookStatus> {
+  const status = await invoke<FavoritesOsHookStatus>("favorites_os_hook_set_enabled", {
+    enabled,
+  });
+  favoritesOsHook.value = status;
+  return status;
+}

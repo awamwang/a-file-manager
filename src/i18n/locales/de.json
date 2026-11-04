@@ -395,6 +395,8 @@
     "openWith": "Öffnen mit…"
   },
   "favorites": {
-    "label": "Favoriten"
+    "label": "Favoriten",
+    "empty": "Ordner über Kontextmenü anheften",
+    "osVerb": "Explorer „Zu AFM-Favoriten hinzufügen“"
   }
 }
