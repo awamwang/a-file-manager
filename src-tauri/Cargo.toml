@@ -5,6 +5,7 @@ description = "A File Manager — Windows-first file manager (Tauri 2 + Vue 3)"
 authors = ["Awam"]
 license = "GPL-3.0-or-later"
 edition = "2021"
+default-run = "a-file-manager"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
