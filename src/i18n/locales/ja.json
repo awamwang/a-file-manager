@@ -86,7 +86,21 @@
     "search": "検索",
     "searching": "検索中…",
     "shown": "{shown} 件表示 · 合計 {total} · {engine}",
-    "title": "ディスカバリー"
+    "title": "ディスカバリー",
+    "indexState": "インデックス状態",
+    "indexStates": {
+      "ready": "準備完了",
+      "degraded": "低下",
+      "unavailable": "利用不可"
+    },
+    "indexCount": "約 {count} 件",
+    "indexCountUnknown": "件数不明",
+    "blacklistTitle": "ディレクトリのブラックリスト",
+    "blacklistHint": "これらのディレクトリ配下は Discovery 結果から除外されます。1行に1つの絶対パス。",
+    "blacklistPlaceholder": "C:\\\\Windows\\nD:\\\\Temp",
+    "blacklistSave": "ブラックリストを保存",
+    "blacklistSaving": "保存中…",
+    "blacklistCount": "{count} 件"
   },
   "extensions": {
     "api": "API {version}",
@@ -262,6 +276,10 @@
         "launchAtStartupHidden": {
           "title": "起動時にトレイへ隠す",
           "description": "ログイン起動時はメインウィンドウをシステムトレイに隠します"
+        },
+        "discoveryBlacklist": {
+          "title": "Discovery ディレクトリのブラックリスト",
+          "description": "Discovery 検索結果から除外するディレクトリ（設定では1行に1パス）"
         }
       },
       "experimental": {

@@ -224,6 +224,23 @@ function onTextChange(key: string, event: Event) {
   void patchValue(key, value);
 }
 
+function stringArrayText(key: string): string {
+  const value = valueOf(key);
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item)).join("\n");
+  }
+  return "";
+}
+
+function onStringArrayChange(key: string, event: Event) {
+  const raw = (event.target as HTMLTextAreaElement).value;
+  const paths = raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  void patchValue(key, paths);
+}
+
 onMounted(() => {
   void loadAll();
 });
@@ -351,6 +368,16 @@ onMounted(() => {
                 :disabled="savingKey === def.key"
                 :value="String(valueOf(def.key) ?? '')"
                 @change="onTextChange(def.key, $event)"
+              />
+
+              <textarea
+                v-else-if="def.valueKind === 'stringArray'"
+                :id="def.key"
+                class="fluent-control text array-text"
+                rows="4"
+                :disabled="savingKey === def.key"
+                :value="stringArrayText(def.key)"
+                @change="onStringArrayChange(def.key, $event)"
               />
 
               <span v-else class="readonly">{{ valueOf(def.key) }}</span>
@@ -535,6 +562,12 @@ onMounted(() => {
 .select,
 .text {
   width: 100%;
+}
+
+.array-text {
+  min-height: 5rem;
+  resize: vertical;
+  font-family: var(--fluent-font-family-monospace, Consolas, monospace);
 }
 
 .readonly {

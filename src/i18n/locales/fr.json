@@ -86,7 +86,21 @@
     "search": "Rechercher",
     "searching": "Recherche…",
     "shown": "{shown} affichés · total {total} · {engine}",
-    "title": "Découverte"
+    "title": "Découverte",
+    "indexState": "État de l’index",
+    "indexStates": {
+      "ready": "Prêt",
+      "degraded": "Dégradé",
+      "unavailable": "Indisponible"
+    },
+    "indexCount": "~{count} éléments indexés",
+    "indexCountUnknown": "Nombre inconnu",
+    "blacklistTitle": "Liste noire de répertoires",
+    "blacklistHint": "Les chemins sous ces répertoires sont exclus des résultats Discovery. Un chemin absolu par ligne.",
+    "blacklistPlaceholder": "C:\\\\Windows\\nD:\\\\Temp",
+    "blacklistSave": "Enregistrer la liste noire",
+    "blacklistSaving": "Enregistrement…",
+    "blacklistCount": "{count} entrées"
   },
   "extensions": {
     "api": "API {version}",
@@ -262,6 +276,10 @@
         "launchAtStartupHidden": {
           "title": "Démarrer masqué dans la zone de notification",
           "description": "Lors du démarrage automatique, masquer la fenêtre principale dans la zone de notification"
+        },
+        "discoveryBlacklist": {
+          "title": "Liste noire des répertoires Discovery",
+          "description": "Répertoires exclus des résultats Discovery (un chemin par ligne dans Réglages)"
         }
       },
       "experimental": {

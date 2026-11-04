@@ -35,6 +35,11 @@ pub fn read_bool_setting(app: &AppHandle, key: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Load settings document from a config directory (used by Discovery blacklist sync).
+pub fn store_load_for_discovery(config_dir: &std::path::Path) -> Result<SettingsDocument, String> {
+    load_from_path(config_dir)
+}
+
 #[tauri::command]
 pub fn settings_schema_get() -> SettingsSchemaManifest {
     schema_manifest()
@@ -52,5 +57,10 @@ pub fn settings_set(
     patch: BTreeMap<String, Value>,
 ) -> Result<SettingsDocument, String> {
     let dir = config_dir(&app)?;
-    set_values_at_path(&dir, patch)
+    let sync_blacklist = patch.contains_key("core.discoveryBlacklist");
+    let document = set_values_at_path(&dir, patch)?;
+    if sync_blacklist {
+        crate::discovery::sync_blacklist_from_settings(&app);
+    }
+    Ok(document)
 }

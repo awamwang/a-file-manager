@@ -10,6 +10,14 @@ pub enum DiscoveryEngine {
     Unavailable,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DiscoveryIndexState {
+    Ready,
+    Degraded,
+    Unavailable,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct DiscoveryStatus {
@@ -18,6 +26,11 @@ pub struct DiscoveryStatus {
     pub active_engine: DiscoveryEngine,
     pub degraded: bool,
     pub detail: String,
+    /// Coarse index readiness for Settings / Discovery UI (AIA-61).
+    pub index_state: DiscoveryIndexState,
+    /// Best-effort Everything total when IPC is up (None if unknown / unavailable).
+    pub estimated_item_count: Option<u64>,
+    pub blacklist: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

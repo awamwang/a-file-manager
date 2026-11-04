@@ -86,7 +86,21 @@
     "search": "Suchen",
     "searching": "Suche läuft…",
     "shown": "{shown} angezeigt · gesamt {total} · {engine}",
-    "title": "Discovery"
+    "title": "Discovery",
+    "indexState": "Indexstatus",
+    "indexStates": {
+      "ready": "Bereit",
+      "degraded": "Eingeschränkt",
+      "unavailable": "Nicht verfügbar"
+    },
+    "indexCount": "~{count} indexierte Einträge",
+    "indexCountUnknown": "Anzahl unbekannt",
+    "blacklistTitle": "Verzeichnis-Blacklist",
+    "blacklistHint": "Pfade unter diesen Verzeichnissen werden aus Discovery-Ergebnissen ausgeblendet. Ein absoluter Pfad pro Zeile.",
+    "blacklistPlaceholder": "C:\\\\Windows\\nD:\\\\Temp",
+    "blacklistSave": "Blacklist speichern",
+    "blacklistSaving": "Speichern…",
+    "blacklistCount": "{count} Einträge"
   },
   "extensions": {
     "api": "API {version}",
@@ -262,6 +276,10 @@
         "launchAtStartupHidden": {
           "title": "Versteckt im Tray starten",
           "description": "Bei Autostart das Hauptfenster im Infobereich der Taskleiste verstecken"
+        },
+        "discoveryBlacklist": {
+          "title": "Discovery-Verzeichnis-Blacklist",
+          "description": "Von Discovery-Ergebnissen ausgeschlossene Verzeichnisse (ein Pfad pro Zeile)"
         }
       },
       "experimental": {

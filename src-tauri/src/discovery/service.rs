@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use super::backend::EverythingBackend;
+use super::blacklist::{filter_hits, sanitize_blacklist};
 use super::fallback::FallbackIndexStub;
 use super::types::{
-    DiscoveryEngine, DiscoverySearchOptions, DiscoverySearchResult, DiscoveryStatus,
-    DEFAULT_SEARCH_LIMIT, MAX_SEARCH_LIMIT,
+    DiscoveryEngine, DiscoveryIndexState, DiscoverySearchOptions, DiscoverySearchResult,
+    DiscoveryStatus, DEFAULT_SEARCH_LIMIT, MAX_SEARCH_LIMIT,
 };
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 pub struct DiscoveryService {
     everything: Arc<dyn EverythingBackend>,
     fallback: FallbackIndexStub,
     fallback_enabled: AtomicBool,
+    blacklist: Mutex<Vec<String>>,
 }
 
 impl DiscoveryService {
@@ -21,6 +23,7 @@ impl DiscoveryService {
             everything,
             fallback: FallbackIndexStub,
             fallback_enabled: AtomicBool::new(fallback_enabled),
+            blacklist: Mutex::new(Vec::new()),
         }
     }
 
@@ -32,11 +35,43 @@ impl DiscoveryService {
         self.fallback_enabled.load(Ordering::SeqCst)
     }
 
+    pub fn blacklist(&self) -> Vec<String> {
+        self.blacklist
+            .lock()
+            .map(|guard| guard.clone())
+            .unwrap_or_default()
+    }
+
+    pub fn set_blacklist(&self, entries: Vec<String>) -> Vec<String> {
+        let cleaned = sanitize_blacklist(&entries);
+        if let Ok(mut guard) = self.blacklist.lock() {
+            *guard = cleaned.clone();
+        }
+        cleaned
+    }
+
+    fn estimated_item_count(&self, everything_available: bool) -> Option<u64> {
+        if !everything_available {
+            return None;
+        }
+        // Lightweight probe: empty query still returns Everything's total item count.
+        match self.everything.query("", 1, 0) {
+            Ok(result) => Some(result.total_count),
+            Err(_) => None,
+        }
+    }
+
     pub fn status(&self) -> DiscoveryStatus {
         let probe = self.everything.probe();
         let fallback_enabled = self.fallback_enabled();
-        let (active_engine, degraded, detail) = if probe.available {
-            (DiscoveryEngine::Everything, false, probe.detail)
+        let blacklist = self.blacklist();
+        let (active_engine, degraded, detail, index_state) = if probe.available {
+            (
+                DiscoveryEngine::Everything,
+                false,
+                probe.detail,
+                DiscoveryIndexState::Ready,
+            )
         } else if fallback_enabled {
             (
                 DiscoveryEngine::Fallback,
@@ -45,6 +80,7 @@ impl DiscoveryService {
                     "Everything unavailable; fallback index stub active (degraded). {}",
                     probe.detail
                 ),
+                DiscoveryIndexState::Degraded,
             )
         } else {
             (
@@ -54,8 +90,11 @@ impl DiscoveryService {
                     "Everything unavailable; fallback disabled. {}",
                     probe.detail
                 ),
+                DiscoveryIndexState::Unavailable,
             )
         };
+
+        let estimated_item_count = self.estimated_item_count(probe.available);
 
         DiscoveryStatus {
             everything_available: probe.available,
@@ -63,6 +102,9 @@ impl DiscoveryService {
             active_engine,
             degraded,
             detail,
+            index_state,
+            estimated_item_count,
+            blacklist,
         }
     }
 
@@ -78,28 +120,34 @@ impl DiscoveryService {
             .clamp(1, MAX_SEARCH_LIMIT);
         let offset = options.offset;
         let status = self.status();
+        let blacklist = status.blacklist.clone();
 
         match status.active_engine {
             DiscoveryEngine::Everything => {
+                // Over-fetch a bit so blacklist filtering still fills the page.
+                let fetch_limit = limit.saturating_mul(3).clamp(limit, MAX_SEARCH_LIMIT) as u32;
                 let result = self
                     .everything
-                    .query(&query, limit as u32, offset as u32)?;
+                    .query(&query, fetch_limit, offset as u32)?;
+                let filtered = filter_hits(result.hits, &blacklist);
+                let hits: Vec<_> = filtered.into_iter().take(limit as usize).collect();
                 Ok(DiscoverySearchResult {
                     query,
                     engine: DiscoveryEngine::Everything,
                     total_count: result.total_count,
                     offset: result.offset,
-                    hits: result.hits,
+                    hits,
                 })
             }
             DiscoveryEngine::Fallback => {
                 let result = self.fallback.query(&query, limit as u32, offset as u32);
+                let hits = filter_hits(result.hits, &blacklist);
                 Ok(DiscoverySearchResult {
                     query,
                     engine: DiscoveryEngine::Fallback,
                     total_count: result.total_count,
                     offset: result.offset,
-                    hits: result.hits,
+                    hits,
                 })
             }
             DiscoveryEngine::Unavailable => Err(
@@ -133,6 +181,11 @@ mod tests {
                 path: "G:/other.txt".to_string(),
                 is_dir: false,
             },
+            DiscoveryHit {
+                name: "secret.txt".to_string(),
+                path: "C:/Windows/secret.txt".to_string(),
+                is_dir: false,
+            },
         ]
     }
 
@@ -143,7 +196,9 @@ mod tests {
         let status = service.status();
         assert!(status.everything_available);
         assert_eq!(status.active_engine, DiscoveryEngine::Everything);
+        assert_eq!(status.index_state, DiscoveryIndexState::Ready);
         assert!(!status.degraded);
+        assert!(status.estimated_item_count.is_some());
     }
 
     #[test]
@@ -151,6 +206,7 @@ mod tests {
         let backend = Arc::new(MockEverythingBackend::new(false, sample_hits()));
         let service = DiscoveryService::new(backend, true);
         assert_eq!(service.status().active_engine, DiscoveryEngine::Fallback);
+        assert_eq!(service.status().index_state, DiscoveryIndexState::Degraded);
         let result = service.search("readme".to_string(), None).unwrap();
         assert_eq!(result.engine, DiscoveryEngine::Fallback);
         assert_eq!(result.total_count, 0);
@@ -161,6 +217,10 @@ mod tests {
         let backend = Arc::new(MockEverythingBackend::new(false, sample_hits()));
         let service = DiscoveryService::new(backend, false);
         assert_eq!(service.status().active_engine, DiscoveryEngine::Unavailable);
+        assert_eq!(
+            service.status().index_state,
+            DiscoveryIndexState::Unavailable
+        );
         assert!(service.search("x".to_string(), None).is_err());
     }
 
@@ -189,5 +249,15 @@ mod tests {
         let result = service.search("readme".to_string(), None).unwrap();
         assert_eq!(result.engine, DiscoveryEngine::Everything);
         assert_eq!(result.total_count, 2);
+    }
+
+    #[test]
+    fn blacklist_filters_search_hits() {
+        let backend = Arc::new(MockEverythingBackend::new(true, sample_hits()));
+        let service = DiscoveryService::new(backend, false);
+        service.set_blacklist(vec![r"C:\Windows".into()]);
+        let result = service.search("secret".to_string(), None).unwrap();
+        assert!(result.hits.is_empty());
+        assert_eq!(service.status().blacklist, vec![r"C:\Windows".to_string()]);
     }
 }

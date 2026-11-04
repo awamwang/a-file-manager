@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-/** Setting ids from Rust `setting_definitions()` — keep in sync with defaults.rs. */
+/** Setting ids from Rust `setting_definitions()` ? keep in sync with defaults.rs. */
 export const SCHEMA_SETTING_KEYS = [
   "core.language",
   "core.theme",
@@ -11,6 +11,7 @@ export const SCHEMA_SETTING_KEYS = [
   "core.extensionsEnabled",
   "core.launchAtStartup",
   "core.launchAtStartupHidden",
+  "core.discoveryBlacklist",
   "power.confirmBeforeDelete",
   "power.perPathOverridesEnabled",
   "experimental.debugStatusInTitlebar",

@@ -105,7 +105,21 @@
     "noHits": "No hits (engine={engine}, total={total}).",
     "shown": "{shown} shown · total {total} · {engine}",
     "folder": "Folder",
-    "file": "File"
+    "file": "File",
+    "indexState": "Index status",
+    "indexStates": {
+      "ready": "Ready",
+      "degraded": "Degraded",
+      "unavailable": "Unavailable"
+    },
+    "indexCount": "~{count} indexed items",
+    "indexCountUnknown": "Item count unknown",
+    "blacklistTitle": "Directory blacklist",
+    "blacklistHint": "Paths under these directories are hidden from Discovery results. One absolute path per line.",
+    "blacklistPlaceholder": "C:\\\\Windows\\nD:\\\\Temp",
+    "blacklistSave": "Save blacklist",
+    "blacklistSaving": "Saving…",
+    "blacklistCount": "{count} entries"
   },
   "settings": {
     "title": "Settings",
@@ -171,6 +185,10 @@
         "launchAtStartupHidden": {
           "title": "Start hidden to tray",
           "description": "When launched at login, hide the main window to the system tray (taskbar notification area)"
+        },
+        "discoveryBlacklist": {
+          "title": "Discovery directory blacklist",
+          "description": "Directories excluded from Discovery search results (one path per line in Settings)"
         }
       },
       "power": {

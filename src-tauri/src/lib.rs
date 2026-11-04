@@ -77,6 +77,8 @@ pub fn run() {
                 system_tray::hide_main_window(app.handle());
             }
 
+            discovery::sync_blacklist_from_settings(app.handle());
+
             Ok(())
         })
         .on_menu_event(|app, event| {
@@ -95,6 +97,7 @@ pub fn run() {
             discovery::discovery_status,
             discovery::discovery_set_fallback_enabled,
             discovery::discovery_search,
+            discovery::discovery_set_blacklist,
             providers::provider_backends,
             providers::provider_list,
             providers::provider_stat,

@@ -13,6 +13,7 @@ import FluentIcon from "../components/icons/FluentIcon.vue";
 import { entryKindIcon } from "../components/icons/glyphs";
 
 type DiscoveryEngine = "everything" | "fallback" | "unavailable";
+type DiscoveryIndexState = "ready" | "degraded" | "unavailable";
 
 type DiscoveryStatus = {
   everythingAvailable: boolean;
@@ -20,6 +21,9 @@ type DiscoveryStatus = {
   activeEngine: DiscoveryEngine;
   degraded: boolean;
   detail: string;
+  indexState: DiscoveryIndexState;
+  estimatedItemCount: number | null;
+  blacklist: string[];
 };
 
 type DiscoveryHit = {
@@ -44,6 +48,8 @@ const result = ref<DiscoverySearchResult | null>(null);
 const loading = ref(false);
 const error = ref<string | null>(null);
 const searchInput = ref<HTMLInputElement | null>(null);
+const blacklistDraft = ref("");
+const blacklistSaving = ref(false);
 
 async function focusSearchInput() {
   await nextTick();
@@ -53,6 +59,26 @@ async function focusSearchInput() {
 
 async function refreshStatus() {
   status.value = await invoke<DiscoveryStatus>("discovery_status");
+  blacklistDraft.value = (status.value.blacklist ?? []).join("\n");
+}
+
+async function saveBlacklist() {
+  blacklistSaving.value = true;
+  error.value = null;
+  try {
+    const paths = blacklistDraft.value
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    status.value = await invoke<DiscoveryStatus>("discovery_set_blacklist", {
+      paths,
+    });
+    blacklistDraft.value = (status.value.blacklist ?? []).join("\n");
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    blacklistSaving.value = false;
+  }
 }
 
 async function runSearch() {
@@ -137,6 +163,14 @@ onMounted(() => {
           class="fluent-chip fluent-chip--stub degraded-chip"
         >{{ t("discovery.degraded") }}</span>
       </div>
+      <div class="status-row">
+        <span>{{ t("discovery.indexState") }}</span>
+        <span class="fluent-chip">{{ t(`discovery.indexStates.${status.indexState}`) }}</span>
+        <span v-if="status.estimatedItemCount != null" class="index-count">
+          {{ t("discovery.indexCount", { count: status.estimatedItemCount }) }}
+        </span>
+        <span v-else class="index-count">{{ t("discovery.indexCountUnknown") }}</span>
+      </div>
       <p class="detail">{{ status.detail }}</p>
       <label class="fallback">
         <input
@@ -147,6 +181,31 @@ onMounted(() => {
         />
         {{ t("discovery.fallback") }}
       </label>
+    </div>
+
+    <div class="fluent-surface blacklist-card">
+      <h2 class="blacklist-title">{{ t("discovery.blacklistTitle") }}</h2>
+      <p class="detail">{{ t("discovery.blacklistHint") }}</p>
+      <textarea
+        v-model="blacklistDraft"
+        class="fluent-control blacklist-input"
+        rows="4"
+        :placeholder="t('discovery.blacklistPlaceholder')"
+        spellcheck="false"
+      />
+      <div class="blacklist-actions">
+        <button
+          type="button"
+          class="fluent-control fluent-control--accent"
+          :disabled="blacklistSaving"
+          @click="saveBlacklist"
+        >
+          {{ blacklistSaving ? t("discovery.blacklistSaving") : t("discovery.blacklistSave") }}
+        </button>
+        <span class="detail">
+          {{ t("discovery.blacklistCount", { count: status?.blacklist.length ?? 0 }) }}
+        </span>
+      </div>
     </div>
 
     <form class="search" @submit.prevent="runSearch">
@@ -253,6 +312,39 @@ onMounted(() => {
   align-items: center;
   gap: var(--fluent-space-sm);
   font-size: var(--fluent-font-size-caption);
+}
+
+.index-count {
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+}
+
+.blacklist-card {
+  margin-top: var(--fluent-space-md);
+  padding: var(--fluent-space-md) var(--fluent-space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-sm);
+}
+
+.blacklist-title {
+  margin: 0;
+  font-size: var(--fluent-font-size-body);
+  font-weight: var(--fluent-font-weight-semibold);
+}
+
+.blacklist-input {
+  width: 100%;
+  min-height: 5.5rem;
+  resize: vertical;
+  font-family: var(--fluent-font-family-monospace, Consolas, monospace);
+}
+
+.blacklist-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fluent-space-sm);
 }
 
 .search {

@@ -105,7 +105,21 @@
     "noHits": "无结果（引擎={engine}，总计={total}）。",
     "shown": "显示 {shown} · 总计 {total} · {engine}",
     "folder": "文件夹",
-    "file": "文件"
+    "file": "文件",
+    "indexState": "索引状态",
+    "indexStates": {
+      "ready": "就绪",
+      "degraded": "降级",
+      "unavailable": "不可用"
+    },
+    "indexCount": "约 {count} 条索引项",
+    "indexCountUnknown": "索引数量未知",
+    "blacklistTitle": "目录黑名单",
+    "blacklistHint": "这些目录下的路径不会出现在发现搜索结果中。每行一个绝对路径。",
+    "blacklistPlaceholder": "C:\\\\Windows\\nD:\\\\Temp",
+    "blacklistSave": "保存黑名单",
+    "blacklistSaving": "保存中…",
+    "blacklistCount": "{count} 条"
   },
   "settings": {
     "title": "设置",
@@ -171,6 +185,10 @@
         "launchAtStartupHidden": {
           "title": "启动后隐藏到托盘",
           "description": "通过开机自启动启动时，将主窗口隐藏到系统托盘（任务栏通知区域）"
+        },
+        "discoveryBlacklist": {
+          "title": "发现目录黑名单",
+          "description": "从发现搜索结果中排除的目录（设置中每行一个路径）"
         }
       },
       "power": {

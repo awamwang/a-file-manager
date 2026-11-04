@@ -47,7 +47,7 @@ fn win32_ok(code: windows::Win32::Foundation::WIN32_ERROR) -> Result<(), String>
 fn open_run_key(write: bool) -> Result<windows::Win32::System::Registry::HKEY, String> {
     use windows::core::PCWSTR;
     use windows::Win32::System::Registry::{
-        RegCreateKeyExW, RegOpenKeyExW, HKEY_CURRENT_USER, KEY_READ, KEY_SET_VALUE, KEY_QUERY_VALUE,
+        RegCreateKeyExW, RegOpenKeyExW, HKEY_CURRENT_USER, KEY_SET_VALUE, KEY_QUERY_VALUE,
         REG_OPTION_NON_VOLATILE,
     };
 

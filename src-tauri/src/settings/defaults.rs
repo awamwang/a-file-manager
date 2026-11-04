@@ -113,6 +113,15 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             json!(false),
         ),
         def(
+            "core.discoveryBlacklist",
+            SettingsTier::Core,
+            "Discovery directory blacklist",
+            "Directories excluded from Discovery search results (one path per line in Settings)",
+            SettingValueKind::StringArray,
+            None,
+            json!([]),
+        ),
+        def(
             "power.confirmBeforeDelete",
             SettingsTier::Power,
             "Confirm before delete",
