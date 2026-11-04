@@ -3,6 +3,7 @@
 import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
+import FluentIcon from "../components/icons/FluentIcon.vue";
 
 const { t } = useI18n();
 
@@ -148,7 +149,10 @@ onMounted(() => {
 
     <div v-if="status" class="grid">
       <article class="fluent-surface card" :class="{ 'card--warn': status.crashedCount > 0 }">
-        <h2>{{ t("extensions.hostStatus") }}</h2>
+        <h2 class="section-title">
+          <span class="fluent-icon-wash"><FluentIcon name="heart" size="md" /></span>
+          {{ t("extensions.hostStatus") }}
+        </h2>
         <ul>
           <li>{{ t("extensions.api", { version: status.apiVersion }) }}</li>
           <li class="counts">
@@ -178,7 +182,10 @@ onMounted(() => {
       </article>
 
       <article class="fluent-surface card">
-        <h2>{{ t("extensions.marketplace") }}</h2>
+        <h2 class="section-title">
+          <span class="fluent-icon-wash"><FluentIcon name="cloud" size="md" /></span>
+          {{ t("extensions.marketplace") }}
+        </h2>
         <p class="fluent-page-meta">{{ catalog?.detail }}</p>
         <p v-if="catalog?.empty" class="empty-mark">{{ t("extensions.catalogEmpty") }}</p>
         <p class="fluent-page-meta">{{ t("extensions.marketplacePolicy") }}</p>
@@ -187,7 +194,10 @@ onMounted(() => {
 
     <section class="fluent-surface card">
       <div class="row-head">
-        <h2>{{ t("extensions.installed") }}</h2>
+        <h2 class="section-title">
+          <span class="fluent-icon-wash"><FluentIcon name="puzzle" size="md" /></span>
+          {{ t("extensions.installed") }}
+        </h2>
         <button class="fluent-control fluent-control--accent" type="button" @click="installDemo">
           {{ t("extensions.installDemo") }}
         </button>
@@ -227,7 +237,10 @@ onMounted(() => {
     </section>
 
     <section class="fluent-surface card">
-      <h2>{{ t("extensions.fsHooks") }}</h2>
+      <h2 class="section-title">
+        <span class="fluent-icon-wash"><FluentIcon name="folder" size="md" /></span>
+        {{ t("extensions.fsHooks") }}
+      </h2>
       <p class="fluent-page-meta">{{ t("extensions.fsHooksMeta") }}</p>
       <ul>
         <li v-for="hook in hooks" :key="`${hook.extensionId}:${hook.backendId}`">
@@ -295,9 +308,16 @@ onMounted(() => {
   border-color: var(--fluent-color-status-warning);
 }
 
-.card h2 {
+.card h2,
+.section-title {
   margin: 0;
   font-size: var(--fluent-font-size-subtitle);
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
 }
 
 .card ul {

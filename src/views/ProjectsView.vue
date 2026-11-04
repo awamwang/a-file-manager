@@ -5,8 +5,17 @@ import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
 import { openPathsAsNavigatorTabs } from "../state/navigatorBrowse";
+import FluentIcon from "../components/icons/FluentIcon.vue";
+import type { FluentGlyphId } from "../components/icons/glyphs";
 
 const { t } = useI18n();
+
+const STATUS_ICONS: Record<string, FluentGlyphId> = {
+  backlog: "board",
+  doing: "flash",
+  review: "eye",
+  done: "check",
+};
 
 type WorkspaceLink = {
   id: string;
@@ -264,7 +273,12 @@ onMounted(() => {
           :class="{ 'group--active': project.id === selectedId }"
           @click="selectProject(project.id)"
         >
-          <strong>{{ project.name }}</strong>
+          <span class="group-head">
+            <span class="fluent-icon-wash">
+              <FluentIcon name="board" size="md" />
+            </span>
+            <strong>{{ project.name }}</strong>
+          </span>
           <span class="fluent-page-meta">{{
             t("projects.listSummary", {
               links: project.workspaceLinks.length,
@@ -395,8 +409,16 @@ onMounted(() => {
         </div>
 
         <div v-else class="board">
-          <section v-for="status in STATUSES" :key="status.id" class="column fluent-layer-alt">
-            <h4>{{ status.label }}</h4>
+          <section
+            v-for="status in STATUSES"
+            :key="status.id"
+            class="column"
+            :class="`column--${status.id}`"
+          >
+            <h4 class="column-title">
+              <FluentIcon :name="STATUS_ICONS[status.id] ?? 'board'" size="sm" />
+              {{ status.label }}
+            </h4>
             <article
               v-for="task in tasksForStatus(status.id)"
               :key="task.id"
@@ -473,6 +495,13 @@ onMounted(() => {
   text-align: left;
   cursor: pointer;
   width: 100%;
+}
+
+.group-head {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  min-width: 0;
 }
 
 .group--active {
@@ -581,6 +610,37 @@ onMounted(() => {
   min-height: 12rem;
   padding: var(--fluent-space-sm);
   border-radius: var(--fluent-radius-md);
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  background: var(--fluent-color-fill-layer-alt);
+}
+
+.column--backlog {
+  background: color-mix(in srgb, var(--fluent-color-fill-layer-alt) 85%, var(--fluent-color-fill-subtle));
+}
+
+.column--doing {
+  background: color-mix(in srgb, var(--fluent-color-status-info-bg) 45%, var(--fluent-color-fill-layer-alt));
+  border-color: color-mix(in srgb, var(--fluent-color-status-info) 35%, var(--fluent-color-stroke-divider));
+}
+
+.column--review {
+  background: color-mix(in srgb, var(--fluent-color-status-warning-bg) 40%, var(--fluent-color-fill-layer-alt));
+  border-color: color-mix(in srgb, var(--fluent-color-status-warning) 30%, var(--fluent-color-stroke-divider));
+}
+
+.column--done {
+  background: color-mix(in srgb, var(--fluent-color-status-success-bg) 40%, var(--fluent-color-fill-layer-alt));
+  border-color: color-mix(in srgb, var(--fluent-color-status-success) 30%, var(--fluent-color-stroke-divider));
+}
+
+.column-title {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  margin: 0;
+  color: var(--fluent-color-text-secondary);
+  font-size: var(--fluent-font-size-caption);
+  font-weight: var(--fluent-font-weight-semibold);
 }
 
 .card {

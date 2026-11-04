@@ -10,6 +10,7 @@ import {
   snapshotLiveOpenState,
 } from "../state/navigatorBrowse";
 import type { WorkGroupOpenState } from "../state/openStateModel";
+import FluentIcon from "../components/icons/FluentIcon.vue";
 
 const { t } = useI18n();
 
@@ -159,7 +160,12 @@ onMounted(() => {
           :class="{ 'group--active': group.id === document.activeWorkGroupId }"
           @click="silentSwitch(group.id)"
         >
-          <strong>{{ group.name }}</strong>
+          <span class="group-head">
+            <span class="fluent-icon-wash">
+              <FluentIcon :name="group.isDefault ? 'home' : 'viewAll'" size="md" />
+            </span>
+            <strong>{{ group.name }}</strong>
+          </span>
           <span class="fluent-page-meta">{{
             group.isDefault
               ? t("workGroups.default")
@@ -262,6 +268,13 @@ onMounted(() => {
   text-align: left;
   cursor: pointer;
   width: 100%;
+}
+
+.group-head {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  min-width: 0;
 }
 
 .group--active {
