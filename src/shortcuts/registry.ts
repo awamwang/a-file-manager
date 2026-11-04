@@ -33,6 +33,42 @@ export const BUILTIN_SHORTCUTS: ShortcutDefinition[] = [
     scope: "global",
   },
   {
+    id: "navigator.copy",
+    labelKey: "shortcuts.items.navigatorCopy",
+    chord: { ctrl: true, key: "c" },
+    scope: "global",
+  },
+  {
+    id: "navigator.cut",
+    labelKey: "shortcuts.items.navigatorCut",
+    chord: { ctrl: true, key: "x" },
+    scope: "global",
+  },
+  {
+    id: "navigator.paste",
+    labelKey: "shortcuts.items.navigatorPaste",
+    chord: { ctrl: true, key: "v" },
+    scope: "global",
+  },
+  {
+    id: "navigator.rename",
+    labelKey: "shortcuts.items.navigatorRename",
+    chord: { key: "f2" },
+    scope: "global",
+  },
+  {
+    id: "navigator.newFolder",
+    labelKey: "shortcuts.items.navigatorNewFolder",
+    chord: { ctrl: true, shift: true, key: "n" },
+    scope: "global",
+  },
+  {
+    id: "navigator.delete",
+    labelKey: "shortcuts.items.navigatorDelete",
+    chord: { key: "delete" },
+    scope: "global",
+  },
+  {
     id: "chrome.focusAddress",
     labelKey: "shortcuts.items.focusAddress",
     chord: { ctrl: true, key: "l" },

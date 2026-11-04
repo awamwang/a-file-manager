@@ -11,6 +11,11 @@ export type ContextMenuActionId =
   | "toggleFavorite"
   | "systemMenu"
   | "reveal"
+  | "copy"
+  | "cut"
+  | "paste"
+  | "rename"
+  | "newFolder"
   | "copyPath"
   | "delete";
 
@@ -21,10 +26,14 @@ export type ContextMenuItemDef = {
   enabled: boolean;
   danger?: boolean;
   stub?: boolean;
+  separatorBefore?: boolean;
 };
 
 export type ContextMenuBuildOptions = {
   isFavorite?: boolean;
+  canPaste?: boolean;
+  /** Empty-area menu (no entry): paste + new folder only. */
+  emptyArea?: boolean;
 };
 
 /** Day-1 visibility rules for a single selected Navigator entry. */
@@ -32,7 +41,22 @@ export function buildContextMenuItems(
   entry: NavigatorEntry | null,
   options: ContextMenuBuildOptions = {},
 ): ContextMenuItemDef[] {
-  if (!entry) return [];
+  if (options.emptyArea || !entry) {
+    if (!options.emptyArea) return [];
+    return [
+      {
+        id: "paste",
+        labelKey: "contextMenu.paste",
+        enabled: Boolean(options.canPaste),
+      },
+      {
+        id: "newFolder",
+        labelKey: "contextMenu.newFolder",
+        enabled: true,
+        separatorBefore: true,
+      },
+    ];
+  }
   const isDir = entry.kind === "dir";
   const isFavorite = Boolean(options.isFavorite);
   return [
@@ -67,13 +91,27 @@ export function buildContextMenuItems(
       enabled: true,
     },
     { id: "reveal", labelKey: "contextMenu.reveal", enabled: true },
+    {
+      id: "copy",
+      labelKey: "contextMenu.copy",
+      enabled: true,
+      separatorBefore: true,
+    },
+    { id: "cut", labelKey: "contextMenu.cut", enabled: true },
+    {
+      id: "paste",
+      labelKey: "contextMenu.paste",
+      enabled: Boolean(options.canPaste),
+    },
+    { id: "rename", labelKey: "contextMenu.rename", enabled: true },
+    { id: "newFolder", labelKey: "contextMenu.newFolder", enabled: true },
     { id: "copyPath", labelKey: "contextMenu.copyPath", enabled: true },
     {
       id: "delete",
       labelKey: "contextMenu.delete",
       enabled: true,
       danger: true,
-      stub: true,
+      separatorBefore: true,
     },
   ];
 }

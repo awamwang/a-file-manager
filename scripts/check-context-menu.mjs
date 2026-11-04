@@ -28,13 +28,21 @@ assert.ok(menu.includes("shell_show_context_menu"));
 assert.ok(menu.includes("open_in_terminal"));
 assert.ok(menu.includes("open_native_open_with_dialog"));
 assert.ok(menu.includes("toggleFavorite"));
-assert.ok(menu.includes("deleteStub") || menu.includes("contextMenu.deleteStub"));
+assert.ok(menu.includes("setClipboard"));
+assert.ok(menu.includes("pasteClipboard"));
+assert.ok(menu.includes("deleteEntries"));
+assert.ok(!menu.includes("deleteStub"));
 assert.ok(menu.includes("buildContextMenuItems"));
 assert.ok(model.includes('id: "openInNewTab"'));
 assert.ok(model.includes('id: "openWith"'));
 assert.ok(model.includes('id: "openInTerminal"'));
 assert.ok(model.includes('id: "toggleFavorite"'));
 assert.ok(model.includes('id: "systemMenu"'));
+assert.ok(model.includes('id: "copy"'));
+assert.ok(model.includes('id: "cut"'));
+assert.ok(model.includes('id: "paste"'));
+assert.ok(model.includes('id: "rename"'));
+assert.ok(model.includes('id: "newFolder"'));
 assert.ok(model.includes("enabled: isDir"));
 assert.ok(
   !/openInNewTab[\s\S]{0,120}stub:\s*true/.test(model),
@@ -52,7 +60,16 @@ assert.ok(
   !/toggleFavorite[\s\S]{0,160}stub:\s*true/.test(model),
   "toggleFavorite must not be stubbed",
 );
+assert.ok(
+  !/id:\s*"delete"[\s\S]{0,80}stub:\s*true/.test(model),
+  "delete must not be stubbed",
+);
 assert.equal(en.contextMenu.copyPath, "Copy path");
+assert.equal(en.contextMenu.copy, "Copy");
+assert.equal(en.contextMenu.cut, "Cut");
+assert.equal(en.contextMenu.paste, "Paste");
+assert.equal(en.contextMenu.rename, "Rename");
+assert.equal(en.contextMenu.newFolder, "New folder");
 assert.equal(en.contextMenu.openInNewTab, "Open in new tab");
 assert.equal(en.contextMenu.openInTerminal, "Open in terminal");
 assert.equal(en.contextMenu.openWith, "Open with…");
@@ -65,6 +82,7 @@ assert.equal(zh.contextMenu.openInTerminal, "在终端打开");
 assert.equal(zh.contextMenu.openWith, "打开方式…");
 assert.equal(zh.contextMenu.addFavorite, "添加到收藏");
 assert.equal(zh.contextMenu.systemMenu, "系统右键菜单");
+assert.equal(zh.contextMenu.copy, "复制");
 assert.equal(zh.favorites.label, "收藏");
 
 for (const id of [
@@ -75,6 +93,11 @@ for (const id of [
   "toggleFavorite",
   "systemMenu",
   "reveal",
+  "copy",
+  "cut",
+  "paste",
+  "rename",
+  "newFolder",
   "copyPath",
   "delete",
 ]) {

@@ -2,7 +2,7 @@
 //! Thin Kernel Navigator — OS path listing only (S2).
 
 mod list;
-mod path_guard;
+pub(crate) mod path_guard;
 
 #[tauri::command]
 pub fn navigator_list(path: String) -> Result<list::NavigatorListing, String> {

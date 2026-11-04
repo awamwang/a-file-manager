@@ -4,6 +4,7 @@ mod autostart;
 mod discovery;
 mod extension_host;
 mod favorites;
+mod file_ops;
 mod navigator;
 mod open_with;
 mod projects;
@@ -91,6 +92,12 @@ pub fn run() {
             navigator::navigator_list,
             navigator::navigator_default_path,
             navigator::navigator_parent,
+            file_ops::file_ops_copy,
+            file_ops::file_ops_move,
+            file_ops::file_ops_rename,
+            file_ops::file_ops_create_dir,
+            file_ops::file_ops_delete,
+            file_ops::file_ops_can_recycle,
             settings::settings_schema_get,
             settings::settings_get,
             settings::settings_set,

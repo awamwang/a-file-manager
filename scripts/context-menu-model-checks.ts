@@ -12,7 +12,7 @@ assert.equal(canOpenInNewTab(dir), true);
 assert.equal(canOpenInNewTab(file), false);
 assert.equal(canOpenInNewTab(null), false);
 
-const dirItems = buildContextMenuItems(dir);
+const dirItems = buildContextMenuItems(dir, { canPaste: true });
 const openInNewTab = dirItems.find((item) => item.id === "openInNewTab");
 assert.ok(openInNewTab);
 assert.equal(openInNewTab.enabled, true);
@@ -30,6 +30,13 @@ const addFavorite = dirItems.find((item) => item.id === "toggleFavorite");
 assert.ok(addFavorite);
 assert.equal(addFavorite.labelKey, "contextMenu.addFavorite");
 assert.equal(addFavorite.enabled, true);
+assert.ok(dirItems.find((item) => item.id === "copy")?.enabled);
+assert.ok(dirItems.find((item) => item.id === "cut")?.enabled);
+assert.equal(dirItems.find((item) => item.id === "paste")?.enabled, true);
+assert.ok(dirItems.find((item) => item.id === "rename")?.enabled);
+assert.ok(dirItems.find((item) => item.id === "newFolder")?.enabled);
+assert.equal(dirItems.find((item) => item.id === "delete")?.stub, undefined);
+assert.equal(dirItems.find((item) => item.id === "delete")?.danger, true);
 
 const favorited = buildContextMenuItems(dir, { isFavorite: true });
 assert.equal(
@@ -46,7 +53,13 @@ assert.ok(fileItems.find((item) => item.id === "openInTerminal")?.enabled);
 assert.ok(fileItems.find((item) => item.id === "toggleFavorite")?.enabled);
 assert.equal(fileItems.find((item) => item.id === "openWith")?.enabled, true);
 assert.equal(fileItems.find((item) => item.id === "openWith")?.stub, undefined);
+assert.equal(fileItems.find((item) => item.id === "paste")?.enabled, false);
+
+const empty = buildContextMenuItems(null, { emptyArea: true, canPaste: false });
+assert.equal(empty.length, 2);
+assert.equal(empty.find((item) => item.id === "paste")?.enabled, false);
+assert.ok(empty.find((item) => item.id === "newFolder")?.enabled);
 
 assert.equal(buildContextMenuItems(null).length, 0);
 
-console.log("Context menu model checks OK (AIA-54..58).");
+console.log("Context menu model checks OK (AIA-54..62 file ops).");

@@ -5,7 +5,16 @@ import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { NavigatorEntry } from "../../state/navigatorBrowse";
-import { newNavigatorTab, openEntry } from "../../state/navigatorBrowse";
+import { currentPath, navigateTo, newNavigatorTab, openEntry } from "../../state/navigatorBrowse";
+import {
+  createFolder,
+  deleteEntries,
+  hasClipboard,
+  pathsWithoutRecycle,
+  pasteClipboard,
+  renameEntry,
+  setClipboard,
+} from "../../state/fileClipboard";
 import {
   isFavoritePath,
   toggleFavorite,
@@ -26,12 +35,14 @@ const props = defineProps<{
   x: number;
   y: number;
   open: boolean;
+  emptyArea?: boolean;
 }>();
 
 const emit = defineEmits<{
   close: [];
   notice: [message: string];
   favoritesChanged: [];
+  listingChanged: [];
 }>();
 
 const { t } = useI18n();
@@ -41,6 +52,8 @@ const pos = ref({ left: 0, top: 0 });
 const items = computed(() =>
   buildContextMenuItems(props.entry, {
     isFavorite: isFavoritePath(props.entry?.path),
+    canPaste: hasClipboard.value,
+    emptyArea: Boolean(props.emptyArea),
   }).map((item) => ({
     ...item,
     label: t(item.labelKey),
@@ -71,12 +84,103 @@ async function copyPath(path: string) {
   }
 }
 
+async function refreshListing() {
+  emit("listingChanged");
+  if (currentPath.value) {
+    await navigateTo(currentPath.value, { syncOpenState: false });
+  }
+}
+
+async function runPaste() {
+  const dest = currentPath.value;
+  if (!dest) {
+    emit("notice", t("contextMenu.pasteNoFolder"));
+    return;
+  }
+  try {
+    const result = await pasteClipboard(dest);
+    if (!result.ok) {
+      emit("notice", result.error ?? t("contextMenu.opFailed"));
+      return;
+    }
+    emit("notice", t("contextMenu.pasted", { count: result.paths.length }));
+    await refreshListing();
+  } catch (err) {
+    emit("notice", err instanceof Error ? err.message : String(err));
+  }
+}
+
+async function runRename(entry: NavigatorEntry) {
+  const next = window.prompt(t("contextMenu.renamePrompt"), entry.name);
+  if (next == null) return;
+  const trimmed = next.trim();
+  if (!trimmed || trimmed === entry.name) return;
+  try {
+    const result = await renameEntry(entry.path, trimmed);
+    if (!result.ok) {
+      emit("notice", result.error ?? t("contextMenu.opFailed"));
+      return;
+    }
+    emit("notice", t("contextMenu.renamed"));
+    await refreshListing();
+  } catch (err) {
+    emit("notice", err instanceof Error ? err.message : String(err));
+  }
+}
+
+async function runNewFolder() {
+  const parent = currentPath.value;
+  if (!parent) {
+    emit("notice", t("contextMenu.pasteNoFolder"));
+    return;
+  }
+  const name =
+    window.prompt(t("contextMenu.newFolderPrompt"), t("contextMenu.newFolderDefault")) ??
+    "";
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  try {
+    const result = await createFolder(parent, trimmed);
+    if (!result.ok) {
+      emit("notice", result.error ?? t("contextMenu.opFailed"));
+      return;
+    }
+    emit("notice", t("contextMenu.folderCreated"));
+    await refreshListing();
+  } catch (err) {
+    emit("notice", err instanceof Error ? err.message : String(err));
+  }
+}
+
+async function runDelete(entry: NavigatorEntry) {
+  try {
+    const blocked = await pathsWithoutRecycle([entry.path]);
+    if (blocked.length) {
+      emit("notice", t("contextMenu.deleteNoRecycle"));
+      return;
+    }
+    const ok = window.confirm(
+      t("contextMenu.deleteConfirm", { name: entry.name }),
+    );
+    if (!ok) return;
+    const result = await deleteEntries([entry.path]);
+    if (!result.ok) {
+      emit("notice", result.error ?? t("contextMenu.opFailed"));
+      return;
+    }
+    emit("notice", t("contextMenu.deleted"));
+    await refreshListing();
+  } catch (err) {
+    emit("notice", err instanceof Error ? err.message : String(err));
+  }
+}
+
 async function run(id: string) {
   const entry = props.entry;
-  if (!entry) return;
   emit("close");
   switch (id) {
     case "open":
+      if (!entry) break;
       if (entry.kind === "dir") {
         await openEntry(entry);
       } else {
@@ -88,12 +192,12 @@ async function run(id: string) {
       }
       break;
     case "openInNewTab":
-      if (canOpenInNewTab(entry)) {
+      if (entry && canOpenInNewTab(entry)) {
         await newNavigatorTab(entry.path);
       }
       break;
     case "openWith":
-      if (entry.kind === "file") {
+      if (entry?.kind === "file") {
         try {
           const result = await invoke<{
             success: boolean;
@@ -108,6 +212,7 @@ async function run(id: string) {
       }
       break;
     case "openInTerminal":
+      if (!entry) break;
       try {
         const result = await invoke<{
           success: boolean;
@@ -122,6 +227,7 @@ async function run(id: string) {
       }
       break;
     case "toggleFavorite":
+      if (!entry) break;
       try {
         const result = await toggleFavorite(entry.path, entry.kind === "dir");
         emit(
@@ -136,6 +242,7 @@ async function run(id: string) {
       }
       break;
     case "systemMenu":
+      if (!entry) break;
       try {
         const result = await invoke<ShellMenuResult>("shell_show_context_menu", {
           path: entry.path,
@@ -150,17 +257,37 @@ async function run(id: string) {
       }
       break;
     case "reveal":
+      if (!entry) break;
       try {
         await revealItemInDir(entry.path);
       } catch (err) {
         emit("notice", err instanceof Error ? err.message : String(err));
       }
       break;
+    case "copy":
+      if (!entry) break;
+      setClipboard([entry.path], "copy");
+      emit("notice", t("contextMenu.copied"));
+      break;
+    case "cut":
+      if (!entry) break;
+      setClipboard([entry.path], "cut");
+      emit("notice", t("contextMenu.cutDone"));
+      break;
+    case "paste":
+      await runPaste();
+      break;
+    case "rename":
+      if (entry) await runRename(entry);
+      break;
+    case "newFolder":
+      await runNewFolder();
+      break;
     case "copyPath":
-      await copyPath(entry.path);
+      if (entry) await copyPath(entry.path);
       break;
     case "delete":
-      emit("notice", t("contextMenu.deleteStub"));
+      if (entry) await runDelete(entry);
       break;
     default:
       break;
@@ -196,7 +323,7 @@ onUnmounted(() => {
 <template>
   <Teleport to="body">
     <div
-      v-if="open && entry"
+      v-if="open && (entry || emptyArea)"
       ref="root"
       class="ctx fluent-surface"
       role="menu"
@@ -211,7 +338,10 @@ onUnmounted(() => {
         class="ctx-item"
         role="menuitem"
         :disabled="!item.enabled"
-        :class="{ 'ctx-item--danger': item.danger }"
+        :class="{
+          'ctx-item--danger': item.danger,
+          'ctx-item--sep': item.separatorBefore,
+        }"
         @click="run(item.id)"
       >
         <span>{{ item.label }}</span>
@@ -248,6 +378,13 @@ onUnmounted(() => {
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.ctx-item--sep {
+  margin-top: var(--fluent-space-xs);
+  border-top: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: 0 0 var(--fluent-radius-sm) var(--fluent-radius-sm);
+  padding-top: var(--fluent-space-xs);
 }
 
 .ctx-item:hover:not(:disabled),

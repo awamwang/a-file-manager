@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   bootstrapNavigatorOpenState,
@@ -17,6 +17,26 @@ import {
   loadFavorites,
   loadFavoritesOsHookStatus,
 } from "../state/favorites";
+import {
+  clearClipboard,
+  createFolder,
+  deleteEntries,
+  hasClipboard,
+  pasteClipboard,
+  pathsWithoutRecycle,
+  renameEntry,
+  setClipboard,
+} from "../state/fileClipboard";
+import {
+  clearSelection,
+  isSelected,
+  selectOnly,
+  selectedPaths,
+} from "../state/navigatorSelection";
+import {
+  registerShortcutHandler,
+  unregisterShortcutHandler,
+} from "../shortcuts/index.ts";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import NavigatorContextMenu from "../components/navigator/NavigatorContextMenu.vue";
 import { entryKindIcon } from "../components/icons/glyphs";
@@ -25,12 +45,14 @@ const { t } = useI18n();
 
 const menuOpen = ref(false);
 const menuEntry = ref<NavigatorEntry | null>(null);
+const menuEmpty = ref(false);
 const menuX = ref(0);
 const menuY = ref(0);
 const notice = ref<string | null>(null);
 let noticeTimer: ReturnType<typeof setTimeout> | null = null;
 
 onMounted(() => {
+  registerNavFileShortcuts();
   void (async () => {
     await bootstrapNavigatorOpenState();
     await loadFavorites().catch(() => undefined);
@@ -39,6 +61,10 @@ onMounted(() => {
       await navigateTo(currentPath.value, { syncOpenState: false });
     }
   })();
+});
+
+onUnmounted(() => {
+  unregisterNavFileShortcuts();
 });
 
 async function openFavorite(path: string) {
@@ -56,9 +82,26 @@ function onActivate(entry: NavigatorEntry) {
   void openEntry(entry);
 }
 
+function onSelect(entry: NavigatorEntry) {
+  selectOnly(entry.path);
+}
+
 function onContextMenu(event: MouseEvent, entry: NavigatorEntry) {
   event.preventDefault();
+  event.stopPropagation();
+  selectOnly(entry.path);
   menuEntry.value = entry;
+  menuEmpty.value = false;
+  menuX.value = event.clientX;
+  menuY.value = event.clientY;
+  menuOpen.value = true;
+}
+
+function onListContextMenu(event: MouseEvent) {
+  if (event.target !== event.currentTarget) return;
+  event.preventDefault();
+  menuEntry.value = null;
+  menuEmpty.value = true;
   menuX.value = event.clientX;
   menuY.value = event.clientY;
   menuOpen.value = true;
@@ -66,6 +109,7 @@ function onContextMenu(event: MouseEvent, entry: NavigatorEntry) {
 
 function closeMenu() {
   menuOpen.value = false;
+  menuEmpty.value = false;
 }
 
 function onNotice(message: string) {
@@ -75,6 +119,147 @@ function onNotice(message: string) {
     notice.value = null;
     noticeTimer = null;
   }, 2800);
+}
+
+async function refreshListing() {
+  if (currentPath.value) {
+    await navigateTo(currentPath.value, { syncOpenState: false });
+  }
+}
+
+function primaryEntry(): NavigatorEntry | null {
+  const path = selectedPaths.value[0];
+  if (!path || !listing.value) return null;
+  return listing.value.entries.find((e) => e.path === path) ?? null;
+}
+
+async function shortcutCopy() {
+  const entry = primaryEntry();
+  if (!entry) return;
+  setClipboard([entry.path], "copy");
+  onNotice(t("contextMenu.copied"));
+}
+
+async function shortcutCut() {
+  const entry = primaryEntry();
+  if (!entry) return;
+  setClipboard([entry.path], "cut");
+  onNotice(t("contextMenu.cutDone"));
+}
+
+async function shortcutPaste() {
+  if (!hasClipboard.value || !currentPath.value) return;
+  try {
+    const result = await pasteClipboard(currentPath.value);
+    if (!result.ok) {
+      onNotice(result.error ?? t("contextMenu.opFailed"));
+      return;
+    }
+    onNotice(t("contextMenu.pasted", { count: result.paths.length }));
+    await refreshListing();
+  } catch (err) {
+    onNotice(err instanceof Error ? err.message : String(err));
+  }
+}
+
+async function shortcutRename() {
+  const entry = primaryEntry();
+  if (!entry) return;
+  const next = window.prompt(t("contextMenu.renamePrompt"), entry.name);
+  if (next == null) return;
+  const trimmed = next.trim();
+  if (!trimmed || trimmed === entry.name) return;
+  try {
+    const result = await renameEntry(entry.path, trimmed);
+    if (!result.ok) {
+      onNotice(result.error ?? t("contextMenu.opFailed"));
+      return;
+    }
+    onNotice(t("contextMenu.renamed"));
+    clearSelection();
+    await refreshListing();
+  } catch (err) {
+    onNotice(err instanceof Error ? err.message : String(err));
+  }
+}
+
+async function shortcutNewFolder() {
+  if (!currentPath.value) return;
+  const name =
+    window.prompt(t("contextMenu.newFolderPrompt"), t("contextMenu.newFolderDefault")) ??
+    "";
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  try {
+    const result = await createFolder(currentPath.value, trimmed);
+    if (!result.ok) {
+      onNotice(result.error ?? t("contextMenu.opFailed"));
+      return;
+    }
+    onNotice(t("contextMenu.folderCreated"));
+    await refreshListing();
+  } catch (err) {
+    onNotice(err instanceof Error ? err.message : String(err));
+  }
+}
+
+async function shortcutDelete() {
+  const entry = primaryEntry();
+  if (!entry) return;
+  try {
+    const blocked = await pathsWithoutRecycle([entry.path]);
+    if (blocked.length) {
+      onNotice(t("contextMenu.deleteNoRecycle"));
+      return;
+    }
+    const ok = window.confirm(t("contextMenu.deleteConfirm", { name: entry.name }));
+    if (!ok) return;
+    const result = await deleteEntries([entry.path]);
+    if (!result.ok) {
+      onNotice(result.error ?? t("contextMenu.opFailed"));
+      return;
+    }
+    onNotice(t("contextMenu.deleted"));
+    clearSelection();
+    clearClipboard();
+    await refreshListing();
+  } catch (err) {
+    onNotice(err instanceof Error ? err.message : String(err));
+  }
+}
+
+function registerNavFileShortcuts() {
+  registerShortcutHandler("navigator.copy", () => {
+    void shortcutCopy();
+  });
+  registerShortcutHandler("navigator.cut", () => {
+    void shortcutCut();
+  });
+  registerShortcutHandler("navigator.paste", () => {
+    void shortcutPaste();
+  });
+  registerShortcutHandler("navigator.rename", () => {
+    void shortcutRename();
+  });
+  registerShortcutHandler("navigator.newFolder", () => {
+    void shortcutNewFolder();
+  });
+  registerShortcutHandler("navigator.delete", () => {
+    void shortcutDelete();
+  });
+}
+
+function unregisterNavFileShortcuts() {
+  for (const id of [
+    "navigator.copy",
+    "navigator.cut",
+    "navigator.paste",
+    "navigator.rename",
+    "navigator.newFolder",
+    "navigator.delete",
+  ]) {
+    unregisterShortcutHandler(id);
+  }
 }
 </script>
 
@@ -122,13 +307,22 @@ function onNotice(message: string) {
       {{ t("navigator.empty") }}
     </p>
 
-    <div v-if="listing && listing.entries.length" class="fluent-surface list" role="list">
+    <div
+      v-if="listing"
+      class="fluent-surface list"
+      role="list"
+      @contextmenu="onListContextMenu"
+      @click.self="clearSelection()"
+    >
       <button
         v-for="entry in listing.entries"
         :key="entry.path"
         type="button"
         class="fluent-list-row fluent-list-row--density row"
         role="listitem"
+        :aria-selected="isSelected(entry.path)"
+        :class="{ 'row--selected': isSelected(entry.path) }"
+        @click="onSelect(entry)"
         @dblclick="onActivate(entry)"
         @keydown.enter.prevent="onActivate(entry)"
         @contextmenu="onContextMenu($event, entry)"
@@ -148,11 +342,13 @@ function onNotice(message: string) {
     <NavigatorContextMenu
       :open="menuOpen"
       :entry="menuEntry"
+      :empty-area="menuEmpty"
       :x="menuX"
       :y="menuY"
       @close="closeMenu"
       @notice="onNotice"
       @favorites-changed="loadFavorites"
+      @listing-changed="refreshListing"
     />
   </section>
 </template>
@@ -223,6 +419,10 @@ function onNotice(message: string) {
 .row:focus-visible {
   background: var(--fluent-color-fill-selected);
   outline: none;
+}
+
+.row--selected {
+  background: var(--fluent-color-fill-selected);
 }
 
 .kind {
