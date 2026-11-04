@@ -25,8 +25,9 @@
     "test:global-search": "node scripts/check-global-search.mjs",
     "test:open-state": "node scripts/check-open-state.mjs",
     "test:nav-ia": "node scripts/check-nav-ia.mjs",
+    "test:shortcuts": "node scripts/check-shortcuts.mjs",
     "import:sigma": "cargo run --manifest-path src-tauri/Cargo.toml --bin sigma-import --",
-    "test": "npm run test:tokens && npm run test:chrome && npm run test:fluent-icons && npm run test:fluent-p1 && npm run test:fluent-p2 && npm run test:fluent-p3 && npm run test:fluent-p4 && npm run test:command-panel && npm run test:i18n && npm run test:global-search && npm run test:open-state && npm run test:nav-ia && npm run test:rust"
+    "test": "npm run test:tokens && npm run test:chrome && npm run test:fluent-icons && npm run test:fluent-p1 && npm run test:fluent-p2 && npm run test:fluent-p3 && npm run test:fluent-p4 && npm run test:command-panel && npm run test:i18n && npm run test:global-search && npm run test:open-state && npm run test:nav-ia && npm run test:shortcuts && npm run test:rust"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

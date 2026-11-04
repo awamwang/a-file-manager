@@ -23,6 +23,11 @@ const router = createRouter({
     { path: "/extensions", name: "extensions", component: ExtensionsView },
     { path: "/settings", name: "settings", component: SettingsView },
     { path: "/settings/health", name: "settings-health", component: SettingsView },
+    {
+      path: "/settings/shortcuts",
+      name: "settings-shortcuts",
+      component: SettingsView,
+    },
   ],
 });
 

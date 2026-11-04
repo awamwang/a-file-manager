@@ -117,6 +117,7 @@
     "tierPower": "Power",
     "tierExperimental": "Experimental",
     "sectionHealth": "Health",
+    "sectionShortcuts": "Shortcuts",
     "fields": {
       "core": {
         "language": {
@@ -287,5 +288,19 @@
     "noticeHelloOk": "Command hello ok on {id}",
     "noticeHelloFail": "Command failed: {error}",
     "unknownError": "unknown"
+  },
+  "shortcuts": {
+    "meta": "Built-in chords from the central registry. Conflicts: first registration wins; blocked rows stay listed.",
+    "conflict": "Conflicting chords detected: {chords}",
+    "blockedBy": "Blocked by {id}",
+    "items": {
+      "commandPanelToggle": "Toggle Command Panel",
+      "discoveryGlobalSearch": "Focus Discovery search",
+      "navigatorGoUp": "Go up one folder",
+      "navigatorNewTab": "New Navigator tab",
+      "focusAddress": "Focus address bar",
+      "openSettings": "Open Settings",
+      "openShortcutList": "Open shortcut list"
+    }
   }
 }

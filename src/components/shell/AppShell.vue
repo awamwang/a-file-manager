@@ -10,14 +10,13 @@ import CommandPanel from "../command/CommandPanel.vue";
 import FluentIcon from "../icons/FluentIcon.vue";
 import { NAV_ICON_BY_ID } from "../icons/glyphs";
 import { buildAppCommands } from "../../commands/registry";
+import { toggleCommandPanel } from "../../state/commandPanel";
+import { requestGlobalSearchFocus } from "../../state/globalSearch";
 import {
-  isToggleCommandPanelShortcut,
-  toggleCommandPanel,
-} from "../../state/commandPanel";
-import {
-  isGlobalSearchShortcut,
-  requestGlobalSearchFocus,
-} from "../../state/globalSearch";
+  dispatchShortcutEvent,
+  registerShortcutHandler,
+  unregisterShortcutHandler,
+} from "../../shortcuts/index.ts";
 import {
   bootstrapNavigatorOpenState,
   closeNavigatorTab,
@@ -81,18 +80,58 @@ const panelCommands = computed(() => {
   });
 });
 
-function onGlobalKeydown(event: KeyboardEvent) {
-  if (isToggleCommandPanelShortcut(event)) {
-    event.preventDefault();
-    toggleCommandPanel();
-    return;
+function focusAddressBar() {
+  const input = document.getElementById("address-input");
+  if (input instanceof HTMLInputElement) {
+    input.focus();
+    input.select();
   }
-  if (isGlobalSearchShortcut(event)) {
+}
+
+function onGlobalKeydown(event: KeyboardEvent) {
+  if (dispatchShortcutEvent(event)) {
     event.preventDefault();
+  }
+}
+
+function registerShellShortcuts() {
+  registerShortcutHandler("commandPanel.toggle", () => {
+    toggleCommandPanel();
+  });
+  registerShortcutHandler("discovery.globalSearch", () => {
     requestGlobalSearchFocus();
     if (route.path !== "/discovery") {
       void router.push("/discovery");
     }
+  });
+  registerShortcutHandler("navigator.goUp", () => {
+    void ensureNavigatorThenGoUp();
+  });
+  registerShortcutHandler("navigator.newTab", () => {
+    void onNewNavigatorTab();
+  });
+  registerShortcutHandler("chrome.focusAddress", () => {
+    focusAddressBar();
+  });
+  registerShortcutHandler("view.settings", () => {
+    void router.push("/settings");
+  });
+  registerShortcutHandler("view.shortcuts", () => {
+    void router.push("/settings/shortcuts");
+  });
+}
+
+function unregisterShellShortcuts() {
+  for (const id of [
+    "commandPanel.toggle",
+    "discovery.globalSearch",
+    "navigator.goUp",
+    "navigator.newTab",
+    "chrome.focusAddress",
+    "view.settings",
+    "view.shortcuts",
+  ]) {
+    unregisterShortcutHandler(id);
   }
 }
 
@@ -227,6 +266,7 @@ onMounted(() => {
   void loadHealth();
   void refreshMaximized();
   void bootstrapNavigatorOpenState();
+  registerShellShortcuts();
   window.addEventListener("keydown", onGlobalKeydown);
 
   const win = getCurrentWindow();
@@ -250,6 +290,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener("keydown", onGlobalKeydown);
+  unregisterShellShortcuts();
   for (const unlisten of unlisteners) {
     unlisten();
   }

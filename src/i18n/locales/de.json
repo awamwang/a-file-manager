@@ -268,6 +268,7 @@
     "tierExperimental": "Experimentell",
     "tierPower": "Power",
     "sectionHealth": "Health",
+    "sectionShortcuts": "Tastenkürzel",
     "title": "Einstellungen"
   },
   "workGroups": {
@@ -287,5 +288,19 @@
     "saveOpenState": "Open State → hart speichern",
     "softSync": "Weiche Sync: {paths} geöffnet",
     "title": "Arbeitsgruppen"
+  },
+  "shortcuts": {
+    "meta": "Eingebaute Akkorde aus der zentralen Registry. Bei Konflikten gewinnt die erste Registrierung; blockierte Einträge bleiben gelistet.",
+    "conflict": "Konfliktierende Akkorde: {chords}",
+    "blockedBy": "Blockiert durch {id}",
+    "items": {
+      "commandPanelToggle": "Befehlspalette umschalten",
+      "discoveryGlobalSearch": "Discovery-Suche fokussieren",
+      "navigatorGoUp": "Eine Ebene nach oben",
+      "navigatorNewTab": "Neuen Navigator-Tab",
+      "focusAddress": "Adressleiste fokussieren",
+      "openSettings": "Einstellungen öffnen",
+      "openShortcutList": "Tastenkürzel-Liste öffnen"
+    }
   }
 }

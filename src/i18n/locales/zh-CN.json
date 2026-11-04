@@ -117,6 +117,7 @@
     "tierPower": "高级",
     "tierExperimental": "实验",
     "sectionHealth": "健康",
+    "sectionShortcuts": "快捷键",
     "fields": {
       "core": {
         "language": {
@@ -287,5 +288,19 @@
     "noticeHelloOk": "命令 hello 在 {id} 上成功",
     "noticeHelloFail": "命令失败：{error}",
     "unknownError": "未知"
+  },
+  "shortcuts": {
+    "meta": "中央注册表内置快捷键。冲突时先注册者生效；被挡住的项仍列出。",
+    "conflict": "检测到冲突组合键：{chords}",
+    "blockedBy": "被 {id} 占用",
+    "items": {
+      "commandPanelToggle": "切换命令面板",
+      "discoveryGlobalSearch": "聚焦发现搜索",
+      "navigatorGoUp": "返回上级文件夹",
+      "navigatorNewTab": "新建导航标签",
+      "focusAddress": "聚焦地址栏",
+      "openSettings": "打开设置",
+      "openShortcutList": "打开快捷键列表"
+    }
   }
 }

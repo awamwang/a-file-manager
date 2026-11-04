@@ -9,8 +9,9 @@ const shell = readFileSync(join(root, "src/components/shell/AppShell.vue"), "utf
 const discovery = readFileSync(join(root, "src/views/DiscoveryView.vue"), "utf8");
 
 for (const [label, text, needle] of [
-  ["AppShell", shell, "isGlobalSearchShortcut"],
+  ["AppShell", shell, "discovery.globalSearch"],
   ["AppShell", shell, "requestGlobalSearchFocus"],
+  ["AppShell", shell, "dispatchShortcutEvent"],
   ["DiscoveryView", discovery, "discovery-global-search"],
   ["DiscoveryView", discovery, "consumeGlobalSearchFocus"],
 ]) {

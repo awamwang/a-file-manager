@@ -268,6 +268,7 @@
     "tierExperimental": "Expérimental",
     "tierPower": "Avancé",
     "sectionHealth": "Santé",
+    "sectionShortcuts": "Raccourcis",
     "title": "Paramètres"
   },
   "workGroups": {
@@ -287,5 +288,19 @@
     "saveOpenState": "Enregistrer Open State → dur",
     "softSync": "Sync douce : ouvert {paths}",
     "title": "Groupes de travail"
+  },
+  "shortcuts": {
+    "meta": "Accords intégrés du registre central. En cas de conflit, le premier enregistrement gagne ; les lignes bloquées restent listées.",
+    "conflict": "Accords en conflit : {chords}",
+    "blockedBy": "Bloqué par {id}",
+    "items": {
+      "commandPanelToggle": "Basculer la palette de commandes",
+      "discoveryGlobalSearch": "Focus sur la recherche Découverte",
+      "navigatorGoUp": "Remonter d’un dossier",
+      "navigatorNewTab": "Nouvel onglet Navigateur",
+      "focusAddress": "Focus sur la barre d’adresse",
+      "openSettings": "Ouvrir les Paramètres",
+      "openShortcutList": "Ouvrir la liste des raccourcis"
+    }
   }
 }

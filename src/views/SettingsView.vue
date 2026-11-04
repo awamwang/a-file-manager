@@ -13,8 +13,12 @@ import { useI18n } from "vue-i18n";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import HealthView from "./HealthView.vue";
 import { settingsIconForKey, type FluentGlyphId } from "../components/icons/glyphs";
+import {
+  findShortcutConflicts,
+  listShortcutsForDisplay,
+} from "../shortcuts/index.ts";
 
-const { t, te } = useI18n();
+const { t, te, locale } = useI18n();
 const route = useRoute();
 const router = useRouter();
 
@@ -34,7 +38,7 @@ function enumOptionLabel(settingKey: string, option: string): string {
 }
 
 type SettingsTier = "core" | "power" | "experimental";
-type SettingsSection = SettingsTier | "health";
+type SettingsSection = SettingsTier | "health" | "shortcuts";
 
 type SettingDefinition = {
   key: string;
@@ -78,19 +82,40 @@ const sections = computed(() => [
     label: t("settings.tierExperimental"),
     icon: TIER_ICONS.experimental,
   },
+  {
+    id: "shortcuts" as const,
+    label: t("settings.sectionShortcuts"),
+    icon: "commands" as FluentGlyphId,
+  },
   { id: "health" as const, label: t("settings.sectionHealth"), icon: "heart" as FluentGlyphId },
 ]);
 
+const shortcutRows = computed(() => {
+  void locale.value;
+  return listShortcutsForDisplay();
+});
+
+const shortcutConflicts = computed(() => findShortcutConflicts());
+
 const visibleDefs = computed(() =>
   (schema.value?.definitions ?? []).filter(
-    (def) => activeSection.value !== "health" && def.tier === activeSection.value,
+    (def) =>
+      activeSection.value !== "health" &&
+      activeSection.value !== "shortcuts" &&
+      def.tier === activeSection.value,
   ),
 );
+
+function isSpecialSettingsPath(path: string) {
+  return path.endsWith("/health") || path.endsWith("/shortcuts");
+}
 
 function syncSectionFromRoute() {
   if (route.path.endsWith("/health")) {
     activeSection.value = "health";
-  } else if (activeSection.value === "health") {
+  } else if (route.path.endsWith("/shortcuts")) {
+    activeSection.value = "shortcuts";
+  } else if (activeSection.value === "health" || activeSection.value === "shortcuts") {
     activeSection.value = "core";
   }
 }
@@ -103,7 +128,13 @@ function selectSection(section: SettingsSection) {
     }
     return;
   }
-  if (route.path !== "/settings") {
+  if (section === "shortcuts") {
+    if (route.path !== "/settings/shortcuts") {
+      void router.push("/settings/shortcuts");
+    }
+    return;
+  }
+  if (isSpecialSettingsPath(route.path)) {
     void router.push("/settings");
   }
 }
@@ -214,6 +245,35 @@ onMounted(() => {
 
       <div v-if="activeSection === 'health'" class="health-slot">
         <HealthView />
+      </div>
+
+      <div v-else-if="activeSection === 'shortcuts'" class="fluent-surface shortcuts-panel">
+        <p class="shortcuts-meta">{{ t("shortcuts.meta") }}</p>
+        <p
+          v-if="shortcutConflicts.length"
+          class="fluent-banner fluent-banner--error"
+        >
+          {{
+            t("shortcuts.conflict", {
+              chords: shortcutConflicts.map((c) => c.chordLabel).join(", "),
+            })
+          }}
+        </p>
+        <div
+          v-for="row in shortcutRows"
+          :key="row.id"
+          class="shortcut-row"
+          :class="{ 'shortcut-row--blocked': Boolean(row.blockedBy) }"
+        >
+          <div class="shortcut-text">
+            <span class="title">{{ t(row.labelKey) }}</span>
+            <code class="key">{{ row.id }}</code>
+            <p v-if="row.blockedBy" class="desc">
+              {{ t("shortcuts.blockedBy", { id: row.blockedBy }) }}
+            </p>
+          </div>
+          <kbd class="chord">{{ row.chordLabel }}</kbd>
+        </div>
       </div>
 
       <template v-else>
@@ -344,6 +404,52 @@ onMounted(() => {
 
 .health-slot {
   min-width: 0;
+}
+
+.shortcuts-panel {
+  display: flex;
+  flex-direction: column;
+  padding: var(--fluent-space-md) 0;
+}
+
+.shortcuts-meta {
+  margin: 0 var(--fluent-space-lg) var(--fluent-space-md);
+  color: var(--fluent-color-text-secondary);
+  font-size: var(--fluent-font-size-caption);
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fluent-space-md);
+  padding: var(--fluent-space-md) var(--fluent-space-lg);
+  border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+}
+
+.shortcut-row:last-child {
+  border-bottom: 0;
+}
+
+.shortcut-row--blocked {
+  opacity: 0.55;
+}
+
+.shortcut-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-xs);
+  min-width: 0;
+}
+
+.chord {
+  flex-shrink: 0;
+  padding: var(--fluent-space-xs) var(--fluent-space-sm);
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: var(--fluent-radius-sm);
+  background: var(--fluent-color-fill-subtle);
+  font-family: var(--fluent-font-family-mono);
+  font-size: var(--fluent-font-size-caption);
 }
 
 .health-slot :deep(.panel) {

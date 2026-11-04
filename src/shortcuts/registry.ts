@@ -1,0 +1,101 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import { chordKey, formatChordLabel } from "./chord.ts";
+import type { ShortcutConflict, ShortcutDefinition } from "./types.ts";
+
+/**
+ * Day-1 built-in global shortcuts (beyond ad-hoc Command Panel / Discovery helpers).
+ * Chord conflicts are detected at load; first definition wins for dispatch.
+ */
+export const BUILTIN_SHORTCUTS: ShortcutDefinition[] = [
+  {
+    id: "commandPanel.toggle",
+    labelKey: "shortcuts.items.commandPanelToggle",
+    chord: { ctrl: true, shift: true, key: "p" },
+    scope: "global",
+  },
+  {
+    id: "discovery.globalSearch",
+    labelKey: "shortcuts.items.discoveryGlobalSearch",
+    chord: { ctrl: true, shift: true, key: "f" },
+    scope: "global",
+  },
+  {
+    id: "navigator.goUp",
+    labelKey: "shortcuts.items.navigatorGoUp",
+    chord: { alt: true, key: "arrowup" },
+    scope: "global",
+  },
+  {
+    id: "navigator.newTab",
+    labelKey: "shortcuts.items.navigatorNewTab",
+    chord: { ctrl: true, key: "t" },
+    scope: "global",
+  },
+  {
+    id: "chrome.focusAddress",
+    labelKey: "shortcuts.items.focusAddress",
+    chord: { ctrl: true, key: "l" },
+    scope: "global",
+  },
+  {
+    id: "view.settings",
+    labelKey: "shortcuts.items.openSettings",
+    chord: { ctrl: true, key: "," },
+    scope: "global",
+  },
+  {
+    id: "view.shortcuts",
+    labelKey: "shortcuts.items.openShortcutList",
+    chord: { ctrl: true, shift: true, key: "/" },
+    scope: "global",
+  },
+];
+
+export function findShortcutConflicts(
+  defs: ShortcutDefinition[] = BUILTIN_SHORTCUTS,
+): ShortcutConflict[] {
+  const byChord = new Map<string, string[]>();
+  for (const def of defs) {
+    const key = chordKey(def.chord);
+    const list = byChord.get(key) ?? [];
+    list.push(def.id);
+    byChord.set(key, list);
+  }
+  const conflicts: ShortcutConflict[] = [];
+  for (const [key, ids] of byChord) {
+    if (ids.length > 1) {
+      conflicts.push({ chordLabel: key, ids: [...ids] });
+    }
+  }
+  return conflicts;
+}
+
+/** First registered id wins for a chord. */
+export function resolveDispatchMap(
+  defs: ShortcutDefinition[] = BUILTIN_SHORTCUTS,
+): Map<string, ShortcutDefinition> {
+  const map = new Map<string, ShortcutDefinition>();
+  for (const def of defs) {
+    const key = chordKey(def.chord);
+    if (!map.has(key)) {
+      map.set(key, def);
+    }
+  }
+  return map;
+}
+
+export function listShortcutsForDisplay(
+  defs: ShortcutDefinition[] = BUILTIN_SHORTCUTS,
+): Array<ShortcutDefinition & { chordLabel: string; blockedBy?: string }> {
+  const winners = resolveDispatchMap(defs);
+  return defs.map((def) => {
+    const key = chordKey(def.chord);
+    const winner = winners.get(key);
+    return {
+      ...def,
+      chordLabel: formatChordLabel(def.chord),
+      blockedBy: winner && winner.id !== def.id ? winner.id : undefined,
+    };
+  });
+}

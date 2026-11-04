@@ -268,6 +268,7 @@
     "tierExperimental": "実験的",
     "tierPower": "パワー",
     "sectionHealth": "ヘルス",
+    "sectionShortcuts": "ショートカット",
     "title": "設定"
   },
   "workGroups": {
@@ -287,5 +288,19 @@
     "saveOpenState": "Open State をハードへ保存",
     "softSync": "ソフト同期: {paths} を開きました",
     "title": "ワークグループ"
+  },
+  "shortcuts": {
+    "meta": "中央レジストリの組み込みショートカット。競合時は先に登録されたものが有効で、ブロックされた項目も一覧に残ります。",
+    "conflict": "競合するキー組み合わせ: {chords}",
+    "blockedBy": "{id} にブロックされています",
+    "items": {
+      "commandPanelToggle": "コマンドパネルの切り替え",
+      "discoveryGlobalSearch": "ディスカバリー検索にフォーカス",
+      "navigatorGoUp": "一つ上のフォルダーへ",
+      "navigatorNewTab": "新しいナビゲータータブ",
+      "focusAddress": "アドレスバーにフォーカス",
+      "openSettings": "設定を開く",
+      "openShortcutList": "ショートカット一覧を開く"
+    }
   }
 }
