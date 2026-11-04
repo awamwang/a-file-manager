@@ -321,7 +321,7 @@
   "contextMenu": {
     "label": "项目操作",
     "open": "打开",
-    "openInNewTab": "在新标签中打开",
+    "openInNewTab": "在新标签页打开",
     "reveal": "在资源管理器中显示",
     "copyPath": "复制路径",
     "delete": "删除",

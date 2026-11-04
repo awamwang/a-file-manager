@@ -5,6 +5,10 @@ import { useI18n } from "vue-i18n";
 import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { NavigatorEntry } from "../../state/navigatorBrowse";
 import { newNavigatorTab, openEntry } from "../../state/navigatorBrowse";
+import {
+  buildContextMenuItems,
+  canOpenInNewTab,
+} from "./contextMenuModel";
 
 const props = defineProps<{
   entry: NavigatorEntry | null;
@@ -22,28 +26,12 @@ const { t } = useI18n();
 const root = ref<HTMLElement | null>(null);
 const pos = ref({ left: 0, top: 0 });
 
-const isDir = computed(() => props.entry?.kind === "dir");
-
-const items = computed(() => {
-  if (!props.entry) return [];
-  return [
-    { id: "open", label: t("contextMenu.open"), enabled: true },
-    {
-      id: "openInNewTab",
-      label: t("contextMenu.openInNewTab"),
-      enabled: isDir.value,
-    },
-    { id: "reveal", label: t("contextMenu.reveal"), enabled: true },
-    { id: "copyPath", label: t("contextMenu.copyPath"), enabled: true },
-    { id: "delete", label: t("contextMenu.delete"), enabled: true, danger: true, stub: true },
-  ] as Array<{
-    id: string;
-    label: string;
-    enabled: boolean;
-    danger?: boolean;
-    stub?: boolean;
-  }>;
-});
+const items = computed(() =>
+  buildContextMenuItems(props.entry).map((item) => ({
+    ...item,
+    label: t(item.labelKey),
+  })),
+);
 
 watch(
   () => [props.open, props.x, props.y] as const,
@@ -86,7 +74,7 @@ async function run(id: string) {
       }
       break;
     case "openInNewTab":
-      if (entry.kind === "dir") {
+      if (canOpenInNewTab(entry)) {
         await newNavigatorTab(entry.path);
       }
       break;
