@@ -302,5 +302,15 @@
       "openSettings": "Open Settings",
       "openShortcutList": "Open shortcut list"
     }
+  },
+  "contextMenu": {
+    "label": "Item actions",
+    "open": "Open",
+    "openInNewTab": "Open in new tab",
+    "reveal": "Reveal in File Explorer",
+    "copyPath": "Copy path",
+    "delete": "Delete",
+    "deleteStub": "Delete is not wired in Kernel yet.",
+    "copiedPath": "Path copied"
   }
 }

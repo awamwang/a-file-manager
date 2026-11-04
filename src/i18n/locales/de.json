@@ -302,5 +302,15 @@
       "openSettings": "Einstellungen öffnen",
       "openShortcutList": "Tastenkürzel-Liste öffnen"
     }
+  },
+  "contextMenu": {
+    "label": "Elementaktionen",
+    "open": "Öffnen",
+    "openInNewTab": "In neuem Tab öffnen",
+    "reveal": "Im Explorer anzeigen",
+    "copyPath": "Pfad kopieren",
+    "delete": "Löschen",
+    "deleteStub": "Löschen ist im Kernel noch nicht angebunden.",
+    "copiedPath": "Pfad kopiert"
   }
 }

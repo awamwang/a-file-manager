@@ -302,5 +302,15 @@
       "openSettings": "設定を開く",
       "openShortcutList": "ショートカット一覧を開く"
     }
+  },
+  "contextMenu": {
+    "label": "項目アクション",
+    "open": "開く",
+    "openInNewTab": "新しいタブで開く",
+    "reveal": "エクスプローラーで表示",
+    "copyPath": "パスをコピー",
+    "delete": "削除",
+    "deleteStub": "カーネルに削除は未接続です。",
+    "copiedPath": "パスをコピーしました"
   }
 }

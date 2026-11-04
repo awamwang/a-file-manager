@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   bootstrapNavigatorOpenState,
@@ -13,9 +13,17 @@ import {
   type NavigatorEntry,
 } from "../state/navigatorBrowse";
 import FluentIcon from "../components/icons/FluentIcon.vue";
+import NavigatorContextMenu from "../components/navigator/NavigatorContextMenu.vue";
 import { entryKindIcon } from "../components/icons/glyphs";
 
 const { t } = useI18n();
+
+const menuOpen = ref(false);
+const menuEntry = ref<NavigatorEntry | null>(null);
+const menuX = ref(0);
+const menuY = ref(0);
+const notice = ref<string | null>(null);
+let noticeTimer: ReturnType<typeof setTimeout> | null = null;
 
 onMounted(() => {
   void (async () => {
@@ -36,6 +44,27 @@ function formatSize(entry: NavigatorEntry): string {
 function onActivate(entry: NavigatorEntry) {
   void openEntry(entry);
 }
+
+function onContextMenu(event: MouseEvent, entry: NavigatorEntry) {
+  event.preventDefault();
+  menuEntry.value = entry;
+  menuX.value = event.clientX;
+  menuY.value = event.clientY;
+  menuOpen.value = true;
+}
+
+function closeMenu() {
+  menuOpen.value = false;
+}
+
+function onNotice(message: string) {
+  notice.value = message;
+  if (noticeTimer) clearTimeout(noticeTimer);
+  noticeTimer = setTimeout(() => {
+    notice.value = null;
+    noticeTimer = null;
+  }, 2800);
+}
 </script>
 
 <template>
@@ -55,6 +84,7 @@ function onActivate(entry: NavigatorEntry) {
       </p>
     </header>
 
+    <p v-if="notice" class="fluent-banner fluent-banner--success">{{ notice }}</p>
     <p v-if="listLoading" class="fluent-banner">{{ t("navigator.loading") }}</p>
     <p v-else-if="listError" class="fluent-banner fluent-banner--error">{{ listError }}</p>
     <p v-else-if="listing && listing.entries.length === 0" class="fluent-banner">
@@ -70,6 +100,7 @@ function onActivate(entry: NavigatorEntry) {
         role="listitem"
         @dblclick="onActivate(entry)"
         @keydown.enter.prevent="onActivate(entry)"
+        @contextmenu="onContextMenu($event, entry)"
       >
         <span
           class="kind"
@@ -82,6 +113,15 @@ function onActivate(entry: NavigatorEntry) {
         <span class="size">{{ formatSize(entry) }}</span>
       </button>
     </div>
+
+    <NavigatorContextMenu
+      :open="menuOpen"
+      :entry="menuEntry"
+      :x="menuX"
+      :y="menuY"
+      @close="closeMenu"
+      @notice="onNotice"
+    />
   </section>
 </template>
 
