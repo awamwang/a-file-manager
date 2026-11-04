@@ -4,6 +4,7 @@ import { onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import AppShell from "./components/shell/AppShell.vue";
 import { applyAppLocaleFromValues } from "./i18n/index";
+import { preloadProviderCache } from "./state/providerCache";
 import { applyUiChromeFromValues } from "./state/uiChrome";
 
 type SettingsDocument = {
@@ -21,6 +22,8 @@ onMounted(() => {
       applyUiChromeFromValues({});
       applyAppLocaleFromValues({});
     }
+    // AIA-76: warm depth-1 provider listings at app start (not Providers route).
+    void preloadProviderCache();
   })();
 });
 </script>
