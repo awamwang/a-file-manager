@@ -38,8 +38,10 @@ export function applyUiChrome(theme: UiTheme, density: ListDensity): void {
   const root = document.documentElement;
   if (theme === "system") {
     delete root.dataset.theme;
+    root.style.colorScheme = "";
   } else {
     root.dataset.theme = theme;
+    root.style.colorScheme = theme;
   }
 
   if (density === "compact") {

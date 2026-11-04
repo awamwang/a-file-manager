@@ -1057,6 +1057,8 @@ onUnmounted(() => {
   min-width: 0;
   padding: var(--fluent-space-lg);
   overflow: auto;
+  background: var(--fluent-color-fill-subtle);
+  color: var(--fluent-color-text-primary);
 }
 
 .statusbar {
