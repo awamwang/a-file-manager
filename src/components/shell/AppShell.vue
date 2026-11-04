@@ -47,6 +47,7 @@ import {
   loadFavoritesOsHookStatus,
   setFavoritesOsHookEnabled,
 } from "../../state/favorites";
+import { dualPaneEnabled, toggleDualPane } from "../../state/dualPane";
 
 const { t, locale } = useI18n();
 
@@ -468,11 +469,13 @@ onUnmounted(() => {
       <button
         type="button"
         class="fluent-control toolbar-btn"
-        disabled
-        :title="t('chrome.later')"
+        :class="{ 'toolbar-btn--active': dualPaneEnabled }"
+        :title="t('chrome.dualPane')"
+        :aria-pressed="dualPaneEnabled"
+        @click="toggleDualPane"
       >
         <FluentIcon name="view" size="sm" />
-        <span>{{ t("chrome.view") }}</span>
+        <span>{{ t("chrome.dualPane") }}</span>
       </button>
       <button
         type="button"
@@ -742,6 +745,10 @@ onUnmounted(() => {
   height: var(--fluent-control-height-standard);
   min-height: var(--fluent-control-height-standard);
   padding-inline: var(--fluent-space-md);
+}
+
+.toolbar-btn--active {
+  background: var(--fluent-color-fill-selected);
 }
 
 .toolbar-spacer {

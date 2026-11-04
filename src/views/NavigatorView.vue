@@ -41,6 +41,16 @@ import {
 } from "../state/navigatorSelection";
 import { sortedEntries, sortColumn, sortDirection, toggleSort } from "../state/navigatorSort";
 import {
+  activePane,
+  dualPaneEnabled,
+  navigateSecondary,
+  secondaryError,
+  secondaryListing,
+  secondaryLoading,
+  secondaryPath,
+  setActivePane,
+} from "../state/dualPane";
+import {
   registerShortcutHandler,
   unregisterShortcutHandler,
 } from "../shortcuts/index.ts";
@@ -68,10 +78,22 @@ const visibleEntries = computed(() =>
   listing.value ? sortedEntries(listing.value.entries) : [],
 );
 
+const secondaryEntries = computed(() =>
+  secondaryListing.value ? sortedEntries(secondaryListing.value.entries) : [],
+);
+
 const orderedPaths = computed(() => visibleEntries.value.map((e) => e.path));
 
 watch(
   visibleEntries,
+  (entries) => {
+    requestShellIcons(entries.map((e) => e.path));
+  },
+  { immediate: true },
+);
+
+watch(
+  secondaryEntries,
   (entries) => {
     requestShellIcons(entries.map((e) => e.path));
   },
@@ -111,7 +133,16 @@ function sortIndicator(column: "name" | "size"): string {
 }
 
 function onActivate(entry: NavigatorEntry) {
+  if (activePane.value === "secondary" && dualPaneEnabled.value) {
+    if (entry.kind === "dir") void navigateSecondary(entry.path);
+    return;
+  }
   void openEntry(entry);
+}
+
+function onActivateSecondary(entry: NavigatorEntry) {
+  setActivePane("secondary");
+  if (entry.kind === "dir") void navigateSecondary(entry.path);
 }
 
 function onRowClick(event: MouseEvent, entry: NavigatorEntry) {
@@ -450,6 +481,13 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
 
     <p v-if="notice" class="fluent-banner fluent-banner--success">{{ notice }}</p>
 
+    <div class="panes" :class="{ 'panes--dual': dualPaneEnabled }">
+    <div
+      class="pane"
+      :class="{ 'pane--active': activePane === 'primary' || !dualPaneEnabled }"
+      @mousedown="setActivePane('primary')"
+    >
+    <p class="pane-path" :title="currentPath">{{ currentPath || t("navigator.metaDisconnected") }}</p>
     <p v-if="listLoading" class="fluent-banner">{{ t("navigator.loading") }}</p>
     <p v-else-if="listError" class="fluent-banner fluent-banner--error">{{ listError }}</p>
     <p v-else-if="listing && listing.entries.length === 0" class="fluent-banner">
@@ -526,6 +564,46 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
         }"
       />
     </div>
+    </div>
+
+    <div
+      v-if="dualPaneEnabled"
+      class="pane pane--secondary"
+      :class="{ 'pane--active': activePane === 'secondary' }"
+      @mousedown="setActivePane('secondary')"
+    >
+      <p class="pane-path" :title="secondaryPath">
+        {{ secondaryPath || t("navigator.metaDisconnected") }}
+      </p>
+      <p v-if="secondaryLoading" class="fluent-banner">{{ t("navigator.loading") }}</p>
+      <p v-else-if="secondaryError" class="fluent-banner fluent-banner--error">{{ secondaryError }}</p>
+      <div v-else-if="secondaryListing" class="fluent-surface list" role="list">
+        <div
+          v-for="entry in secondaryEntries"
+          :key="entry.path"
+          class="fluent-list-row fluent-list-row--density row"
+          role="listitem"
+          tabindex="0"
+          @dblclick="onActivateSecondary(entry)"
+          @keydown.enter.prevent="onActivateSecondary(entry)"
+        >
+          <span class="kind" :data-kind="entry.kind">
+            <img
+              v-if="iconUrlFor(entry.path)"
+              class="shell-icon"
+              :src="iconUrlFor(entry.path)!"
+              alt=""
+              width="16"
+              height="16"
+            />
+            <FluentIcon v-else :name="entryKindIcon(entry.kind === 'dir')" size="md" />
+          </span>
+          <span class="name">{{ entry.name }}</span>
+          <span class="size">{{ formatSize(entry) }}</span>
+        </div>
+      </div>
+    </div>
+    </div>
 
     <NavigatorContextMenu
       :open="menuOpen"
@@ -542,6 +620,41 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
 </template>
 
 <style scoped>
+.panes {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 0;
+}
+
+.panes--dual {
+  gap: var(--fluent-space-sm);
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  border: var(--fluent-stroke-width) solid transparent;
+  border-radius: var(--fluent-radius-md);
+}
+
+.pane--active {
+  border-color: var(--fluent-color-stroke-focus);
+}
+
+.pane-path {
+  margin: 0 0 var(--fluent-space-xs);
+  padding: 0 var(--fluent-space-xs);
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .list {
   position: relative;
   display: flex;
