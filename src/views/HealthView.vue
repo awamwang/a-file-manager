@@ -46,13 +46,13 @@ onMounted(() => {
       {{ t("health.failed", { error }) }}
     </p>
     <dl v-else-if="health" class="fluent-surface grid">
-      <dt>ok</dt>
+      <dt>{{ t("health.fieldOk") }}</dt>
       <dd>{{ health.ok }}</dd>
-      <dt>name</dt>
+      <dt>{{ t("health.fieldName") }}</dt>
       <dd>{{ health.name }}</dd>
-      <dt>version</dt>
+      <dt>{{ t("health.fieldVersion") }}</dt>
       <dd>{{ health.version }}</dd>
-      <dt>identifier</dt>
+      <dt>{{ t("health.fieldIdentifier") }}</dt>
       <dd>{{ health.identifier }}</dd>
     </dl>
 

@@ -94,7 +94,13 @@ onMounted(() => {
         @click="listUri(`awam://${backend.id}`)"
       >
         <strong>{{ backend.name }}</strong>
-        <span>{{ backend.interfaceOnly ? "interface-only" : backend.healthy ? "ok" : "down" }}</span>
+        <span>{{
+          backend.interfaceOnly
+            ? t("providers.interfaceOnly")
+            : backend.healthy
+              ? t("providers.statusOk")
+              : t("providers.statusDown")
+        }}</span>
         <span class="detail">{{ backend.detail || backend.description }}</span>
       </button>
     </div>
@@ -105,15 +111,17 @@ onMounted(() => {
         class="fluent-control"
         type="text"
         spellcheck="false"
-        placeholder="awam://rclone/… or awam://knowledge/…"
+        :placeholder="t('providers.uriPlaceholder')"
       />
       <button class="fluent-control fluent-control--accent" type="submit" :disabled="loading">
-        {{ loading ? "Listing…" : "List" }}
+        {{ loading ? t("providers.listing") : t("providers.list") }}
       </button>
     </form>
 
     <p v-if="error" class="banner banner--error">{{ error }}</p>
-    <p v-else-if="listing && listing.entries.length === 0" class="banner">Empty listing.</p>
+    <p v-else-if="listing && listing.entries.length === 0" class="banner">
+      {{ t("providers.emptyListing") }}
+    </p>
 
     <div v-if="listing && listing.entries.length" class="list">
       <button
@@ -123,7 +131,9 @@ onMounted(() => {
         class="fluent-list-row row"
         @dblclick="openEntry(entry)"
       >
-        <span class="kind">{{ entry.isDir ? "Folder" : "File" }}</span>
+        <span class="kind">{{
+          entry.isDir ? t("providers.folder") : t("providers.file")
+        }}</span>
         <span class="name">{{ entry.name }}</span>
         <span class="path">{{ entry.uri }}</span>
       </button>

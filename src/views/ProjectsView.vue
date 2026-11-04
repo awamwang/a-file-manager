@@ -52,12 +52,19 @@ type OpenAllResult = {
   workGroupMutated: boolean;
 };
 
-const STATUSES = [
-  { id: "backlog", label: "Backlog" },
-  { id: "doing", label: "Doing" },
-  { id: "review", label: "Review" },
-  { id: "done", label: "Done" },
-] as const;
+const STATUS_LABEL_KEYS = {
+  backlog: "projects.statusBacklog",
+  doing: "projects.statusDoing",
+  review: "projects.statusReview",
+  done: "projects.statusDone",
+} as const;
+
+const STATUSES = computed(() =>
+  (Object.keys(STATUS_LABEL_KEYS) as Array<keyof typeof STATUS_LABEL_KEYS>).map((id) => ({
+    id,
+    label: t(STATUS_LABEL_KEYS[id]),
+  })),
+);
 
 const router = useRouter();
 const document = ref<UserProjects | null>(null);
@@ -137,7 +144,7 @@ async function createProject() {
 
 async function deleteSelected() {
   if (!selected.value) return;
-  if (!window.confirm(`Delete project “${selected.value.name}”?`)) return;
+  if (!window.confirm(t("projects.confirmDelete", { name: selected.value.name }))) return;
   document.value = await invoke<UserProjects>("projects_delete", {
     projectId: selected.value.id,
   });
@@ -169,7 +176,7 @@ async function saveContext() {
     projectId: selected.value.id,
     contextNotes: contextDraft.value,
   });
-  notice.value = "Context notes saved";
+  notice.value = t("projects.noticeContextSaved");
 }
 
 async function addTask() {
@@ -211,15 +218,15 @@ async function openAllLinks() {
     projectId: selected.value.id,
   });
   if (result.workGroupMutated) {
-    error.value = "Unexpected Work Group mutation on open-all";
+    error.value = t("projects.errorWorkGroupMutation");
     return;
   }
   if (!result.paths.length) {
-    notice.value = "No workspace links to open";
+    notice.value = t("projects.noticeNoLinks");
     return;
   }
   await openPathsAsNavigatorTabs(result.paths);
-  notice.value = `Opened ${result.paths.length} path(s) as Navigator tabs (Work Groups untouched)`;
+  notice.value = t("projects.noticeOpened", { count: result.paths.length });
   await router.push("/navigator");
 }
 
@@ -240,11 +247,11 @@ onMounted(() => {
       <p class="meta">{{ t("projects.meta") }}</p>
     </header>
 
-    <p v-if="loading" class="banner">Loading…</p>
+    <p v-if="loading" class="banner">{{ t("common.loading") }}</p>
     <p v-else-if="error" class="banner banner--error">{{ error }}</p>
     <p v-if="notice" class="banner banner--soft">
       {{ notice }}
-      <button type="button" class="linkish" @click="notice = null">Dismiss</button>
+      <button type="button" class="linkish" @click="notice = null">{{ t("common.dismiss") }}</button>
     </p>
 
     <div v-if="document" class="layout">
@@ -258,15 +265,23 @@ onMounted(() => {
           @click="selectProject(project.id)"
         >
           <strong>{{ project.name }}</strong>
-          <span
-            >{{ project.workspaceLinks.length }} links ·
-            {{ project.tasks.filter((t) => t.statusId !== "done").length }} open</span
-          >
+          <span>{{
+            t("projects.listSummary", {
+              links: project.workspaceLinks.length,
+              open: project.tasks.filter((task) => task.statusId !== "done").length,
+            })
+          }}</span>
         </button>
 
         <form class="create" @submit.prevent="createProject">
-          <input v-model="newName" class="fluent-control" placeholder="New project name" />
-          <button class="fluent-control fluent-control--accent" type="submit">Create</button>
+          <input
+            v-model="newName"
+            class="fluent-control"
+            :placeholder="t('projects.newNamePlaceholder')"
+          />
+          <button class="fluent-control fluent-control--accent" type="submit">
+            {{ t("common.create") }}
+          </button>
         </form>
       </aside>
 
@@ -275,18 +290,19 @@ onMounted(() => {
           <div>
             <h2>{{ selected.name }}</h2>
             <p class="meta">
-              {{ selected.description || "No description" }} · {{ openTaskCount }} open tasks
+              {{ selected.description || t("projects.noDescription") }} ·
+              {{ t("projects.openTasks", { count: openTaskCount }) }}
             </p>
           </div>
           <div class="actions">
-            <div class="toggle" role="group" aria-label="View mode">
+            <div class="toggle" role="group" :aria-label="t('projects.viewMode')">
               <button
                 type="button"
                 class="fluent-control"
                 :class="{ 'fluent-control--accent': viewMode === 'list' }"
                 @click="viewMode = 'list'"
               >
-                List
+                {{ t("projects.list") }}
               </button>
               <button
                 type="button"
@@ -294,17 +310,19 @@ onMounted(() => {
                 :class="{ 'fluent-control--accent': viewMode === 'board' }"
                 @click="viewMode = 'board'"
               >
-                Board
+                {{ t("projects.board") }}
               </button>
             </div>
             <button class="fluent-control fluent-control--accent" type="button" @click="openAllLinks">
-              Open all links
+              {{ t("projects.openAllLinks") }}
             </button>
-            <button class="fluent-control" type="button" @click="deleteSelected">Delete</button>
+            <button class="fluent-control" type="button" @click="deleteSelected">
+              {{ t("common.delete") }}
+            </button>
           </div>
         </div>
 
-        <h3>Workspace links</h3>
+        <h3>{{ t("projects.workspaceLinks") }}</h3>
         <ul class="links">
           <li v-for="link in selected.workspaceLinks" :key="link.id">
             <button type="button" class="linkish" @click="openLink(link.path)">
@@ -312,37 +330,53 @@ onMounted(() => {
             </button>
             <span class="meta path">{{ link.path }}</span>
             <button type="button" class="linkish danger" @click="removeLink(link.id)">
-              Remove
+              {{ t("common.remove") }}
             </button>
           </li>
-          <li v-if="!selected.workspaceLinks.length" class="meta">No folder links yet</li>
+          <li v-if="!selected.workspaceLinks.length" class="meta">
+            {{ t("projects.noFolderLinks") }}
+          </li>
         </ul>
         <form class="row" @submit.prevent="addLink">
           <input
             v-model="linkPath"
             class="fluent-control"
-            placeholder="Add folder path (independent of Work Groups)"
+            :placeholder="t('projects.addLinkPlaceholder')"
           />
-          <button class="fluent-control fluent-control--accent" type="submit">Add link</button>
+          <button class="fluent-control fluent-control--accent" type="submit">
+            {{ t("projects.addLink") }}
+          </button>
         </form>
 
-        <h3>Context notes</h3>
+        <h3>{{ t("projects.contextNotes") }}</h3>
         <textarea
           v-model="contextDraft"
           class="fluent-control context"
           rows="4"
-          placeholder="Single contextNotes blob (markdown OK)"
+          :placeholder="t('projects.contextPlaceholder')"
         />
-        <button class="fluent-control" type="button" @click="saveContext">Save context</button>
+        <button class="fluent-control" type="button" @click="saveContext">
+          {{ t("projects.saveContext") }}
+        </button>
 
-        <h3>Outcomes</h3>
+        <h3>{{ t("projects.outcomes") }}</h3>
         <form class="row" @submit.prevent="addTask">
-          <input v-model="taskTitle" class="fluent-control" placeholder="Add first / next outcome" />
-          <button class="fluent-control fluent-control--accent" type="submit">Add task</button>
+          <input
+            v-model="taskTitle"
+            class="fluent-control"
+            :placeholder="t('projects.addOutcomePlaceholder')"
+          />
+          <button class="fluent-control fluent-control--accent" type="submit">
+            {{ t("projects.addTask") }}
+          </button>
         </form>
 
         <div v-if="viewMode === 'list'" class="task-list">
-          <article v-for="task in selected.tasks.slice().sort((a, b) => a.sortKey - b.sortKey)" :key="task.id" class="task-row">
+          <article
+            v-for="task in selected.tasks.slice().sort((a, b) => a.sortKey - b.sortKey)"
+            :key="task.id"
+            class="task-row"
+          >
             <strong>{{ task.title }}</strong>
             <select
               class="fluent-control"
@@ -353,9 +387,11 @@ onMounted(() => {
                 {{ status.label }}
               </option>
             </select>
-            <button type="button" class="linkish danger" @click="deleteTask(task.id)">Delete</button>
+            <button type="button" class="linkish danger" @click="deleteTask(task.id)">
+              {{ t("common.delete") }}
+            </button>
           </article>
-          <p v-if="!selected.tasks.length" class="meta">No outcomes yet — add the first above.</p>
+          <p v-if="!selected.tasks.length" class="meta">{{ t("projects.noOutcomes") }}</p>
         </div>
 
         <div v-else class="board">
@@ -372,17 +408,19 @@ onMounted(() => {
                   <option v-for="s in STATUSES" :key="s.id" :value="s.id">{{ s.label }}</option>
                 </select>
                 <button type="button" class="linkish danger" @click="deleteTask(task.id)">
-                  Delete
+                  {{ t("common.delete") }}
                 </button>
               </div>
             </article>
-            <p v-if="!tasksForStatus(status.id).length" class="meta empty">Empty</p>
+            <p v-if="!tasksForStatus(status.id).length" class="meta empty">
+              {{ t("common.empty") }}
+            </p>
           </section>
         </div>
       </div>
 
       <div v-else class="detail detail--empty">
-        <p class="meta">Create a Project to start — links, board, and context stay independent of Work Groups.</p>
+        <p class="meta">{{ t("projects.emptyStart") }}</p>
       </div>
     </div>
   </section>

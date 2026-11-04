@@ -90,7 +90,7 @@ async function silentSwitch(targetId: string) {
     liveOpenState: liveOpenState.value,
   });
   if (result.requireSavePrompt) {
-    error.value = "Unexpected save prompt on silent switch";
+    error.value = t("workGroups.errorSavePrompt");
     return;
   }
   document.value = result.document;
@@ -145,11 +145,11 @@ onMounted(() => {
       <p class="meta">{{ t("workGroups.meta") }}</p>
     </header>
 
-    <p v-if="loading" class="banner">Loading…</p>
+    <p v-if="loading" class="banner">{{ t("common.loading") }}</p>
     <p v-else-if="error" class="banner banner--error">{{ error }}</p>
     <p v-if="notice" class="banner banner--soft">
-      Soft sync: opened {{ notice.openedMemberPaths.join(", ") }}
-      <button type="button" class="linkish" @click="notice = null">Dismiss</button>
+      {{ t("workGroups.softSync", { paths: notice.openedMemberPaths.join(", ") }) }}
+      <button type="button" class="linkish" @click="notice = null">{{ t("common.dismiss") }}</button>
     </p>
 
     <div v-if="document" class="layout">
@@ -163,46 +163,62 @@ onMounted(() => {
           @click="silentSwitch(group.id)"
         >
           <strong>{{ group.name }}</strong>
-          <span>{{ group.isDefault ? "default" : group.memberPaths.length + " members" }}</span>
+          <span>{{
+            group.isDefault
+              ? t("workGroups.default")
+              : t("workGroups.membersCount", { count: group.memberPaths.length })
+          }}</span>
         </button>
 
         <form class="create" @submit.prevent="createGroup">
-          <input v-model="newName" class="fluent-control" placeholder="New work group name" />
-          <button class="fluent-control fluent-control--accent" type="submit">Create</button>
+          <input
+            v-model="newName"
+            class="fluent-control"
+            :placeholder="t('workGroups.newNamePlaceholder')"
+          />
+          <button class="fluent-control fluent-control--accent" type="submit">
+            {{ t("common.create") }}
+          </button>
         </form>
       </aside>
 
       <div v-if="active" class="detail">
         <h2>{{ active.name }}</h2>
-        <p class="meta">id {{ active.id }} · hard members {{ active.memberPaths.length }}</p>
+        <p class="meta">
+          {{ t("workGroups.detailMeta", { id: active.id, count: active.memberPaths.length }) }}
+        </p>
 
-        <h3>Hard members</h3>
+        <h3>{{ t("workGroups.hardMembers") }}</h3>
         <ul>
           <li v-for="path in active.memberPaths" :key="path">{{ path }}</li>
-          <li v-if="!active.memberPaths.length" class="meta">No hard members yet</li>
+          <li v-if="!active.memberPaths.length" class="meta">
+            {{ t("workGroups.noHardMembers") }}
+          </li>
         </ul>
 
         <form class="row" @submit.prevent="addMember">
           <input
             v-model="memberPath"
             class="fluent-control"
-            placeholder="Add member folder path"
+            :placeholder="t('workGroups.addMemberPlaceholder')"
           />
-          <button class="fluent-control fluent-control--accent" type="submit">Add + sync</button>
+          <button class="fluent-control fluent-control--accent" type="submit">
+            {{ t("workGroups.addSync") }}
+          </button>
         </form>
 
-        <h3>Runtime Open State (live)</h3>
+        <h3>{{ t("workGroups.runtimeOpenState") }}</h3>
         <ul>
           <li v-for="tab in liveTabs" :key="tab.id">{{ tab.path }}</li>
-          <li v-if="!liveTabs.length" class="meta">No open tabs</li>
+          <li v-if="!liveTabs.length" class="meta">{{ t("workGroups.noOpenTabs") }}</li>
         </ul>
 
         <div class="actions">
           <button class="fluent-control" type="button" @click="saveOpenState">
-            Save Open State → hard
+            {{ t("workGroups.saveOpenState") }}
           </button>
           <button class="fluent-control" type="button" @click="saveMembersFromTabs">
-            Save members from tabs → hard
+            {{ t("workGroups.saveMembersFromTabs") }}
           </button>
         </div>
       </div>

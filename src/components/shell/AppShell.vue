@@ -309,7 +309,7 @@ onUnmounted(() => {
         @click="toggleCommandPanel"
       >
         {{ t("chrome.commands") }}
-        <span class="toolbar-shortcut">Ctrl+Shift+P</span>
+        <span class="toolbar-shortcut">{{ t("chrome.commandsShortcut") }}</span>
       </button>
     </div>
 

@@ -75,7 +75,7 @@ async function refresh() {
     installed.value = await invoke<InstalledExtension[]>("extension_host_list_installed");
     hooks.value = await invoke<FsHook[]>("extension_host_list_fs_provider_hooks");
     if (catalog.value.fetchesRemote || status.value.fetchesRemote) {
-      error.value = "Unexpected remote marketplace fetch flag";
+      error.value = t("extensions.errorRemoteFetch");
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
@@ -90,10 +90,10 @@ async function installDemo() {
     manifest: DEMO_MANIFEST,
   });
   if (!result.success) {
-    error.value = result.error ?? "Install failed";
+    error.value = result.error ?? t("extensions.errorInstallFailed");
     return;
   }
-  notice.value = `Installed ${result.extension?.id} (vNext local stub)`;
+  notice.value = t("extensions.noticeInstalled", { id: result.extension?.id ?? "" });
   await refresh();
 }
 
@@ -104,7 +104,7 @@ async function setEnabled(id: string, enabled: boolean) {
 
 async function uninstall(id: string) {
   await invoke("extension_host_uninstall", { extensionId: id });
-  notice.value = `Uninstalled ${id}`;
+  notice.value = t("extensions.noticeUninstalled", { id });
   await refresh();
 }
 
@@ -117,8 +117,10 @@ async function runHello(id: string) {
     request: { extensionId: id, commandId: "hello", args: { ping: true } },
   });
   notice.value = result.ok
-    ? `Command hello ok on ${id}`
-    : `Command failed: ${result.error ?? "unknown"}`;
+    ? t("extensions.noticeHelloOk", { id })
+    : t("extensions.noticeHelloFail", {
+        error: result.error ?? t("extensions.unknownError"),
+      });
   await refresh();
 }
 
@@ -132,52 +134,59 @@ onMounted(() => {
     <header class="header">
       <h1>{{ t("extensions.title") }}</h1>
       <p class="meta">
-        ExtensionHost {{ status?.apiVersion ?? "vnext.1" }} · {{ t("extensions.meta") }}
+        {{ t("extensions.hostPrefix", { version: status?.apiVersion ?? "vnext.1" }) }} ·
+        {{ t("extensions.meta") }}
       </p>
     </header>
 
-    <p v-if="loading" class="banner">Loading…</p>
+    <p v-if="loading" class="banner">{{ t("common.loading") }}</p>
     <p v-else-if="error" class="banner banner--error">{{ error }}</p>
     <p v-if="notice" class="banner banner--soft">
       {{ notice }}
-      <button type="button" class="linkish" @click="notice = null">Dismiss</button>
+      <button type="button" class="linkish" @click="notice = null">{{ t("common.dismiss") }}</button>
     </p>
 
     <div v-if="status" class="grid">
       <article class="card">
-        <h2>Host status</h2>
+        <h2>{{ t("extensions.hostStatus") }}</h2>
         <ul>
-          <li>API {{ status.apiVersion }}</li>
-          <li>Installed {{ status.installedCount }} · enabled {{ status.enabledCount }} · crashed
-            {{ status.crashedCount }}</li>
-          <li>FS provider hooks {{ status.fsProviderHooks }}</li>
-          <li>
-            Marketplace empty: {{ status.marketplaceEmpty ? "yes" : "no" }} · remote fetch:
-            {{ status.fetchesRemote ? "yes" : "no" }}
-          </li>
+          <li>{{ t("extensions.api", { version: status.apiVersion }) }}</li>
+          <li>{{
+            t("extensions.counts", {
+              installed: status.installedCount,
+              enabled: status.enabledCount,
+              crashed: status.crashedCount,
+            })
+          }}</li>
+          <li>{{ t("extensions.fsHooksCount", { count: status.fsProviderHooks }) }}</li>
+          <li>{{
+            t("extensions.marketplaceFlags", {
+              empty: status.marketplaceEmpty ? t("common.yes") : t("common.no"),
+              remote: status.fetchesRemote ? t("common.yes") : t("common.no"),
+            })
+          }}</li>
         </ul>
-        <button class="fluent-control" type="button" @click="refresh">Refresh</button>
+        <button class="fluent-control" type="button" @click="refresh">
+          {{ t("common.refresh") }}
+        </button>
       </article>
 
       <article class="card">
-        <h2>Marketplace</h2>
+        <h2>{{ t("extensions.marketplace") }}</h2>
         <p class="meta">{{ catalog?.detail }}</p>
-        <p v-if="catalog?.empty" class="empty-mark">Catalog is empty by design</p>
-        <p class="meta">
-          Legacy marketplace packages are rejected (require apiVersion
-          <code>vnext.1</code>). No remote registry is contacted.
-        </p>
+        <p v-if="catalog?.empty" class="empty-mark">{{ t("extensions.catalogEmpty") }}</p>
+        <p class="meta">{{ t("extensions.marketplacePolicy") }}</p>
       </article>
     </div>
 
     <section class="card">
       <div class="row-head">
-        <h2>Installed</h2>
+        <h2>{{ t("extensions.installed") }}</h2>
         <button class="fluent-control fluent-control--accent" type="button" @click="installDemo">
-          Install local demo (vNext)
+          {{ t("extensions.installDemo") }}
         </button>
       </div>
-      <p v-if="!installed.length" class="meta">No extensions installed.</p>
+      <p v-if="!installed.length" class="meta">{{ t("extensions.noInstalled") }}</p>
       <ul v-else class="installed">
         <li v-for="ext in installed" :key="ext.id">
           <div>
@@ -186,28 +195,32 @@ onMounted(() => {
             <p v-if="ext.lastError" class="banner banner--error inline">{{ ext.lastError }}</p>
           </div>
           <div class="actions">
-            <button class="fluent-control" type="button" @click="runHello(ext.id)">Run hello</button>
+            <button class="fluent-control" type="button" @click="runHello(ext.id)">
+              {{ t("extensions.runHello") }}
+            </button>
             <button class="fluent-control" type="button" @click="setEnabled(ext.id, true)">
-              Enable
+              {{ t("extensions.enable") }}
             </button>
             <button class="fluent-control" type="button" @click="setEnabled(ext.id, false)">
-              Disable
+              {{ t("extensions.disable") }}
             </button>
-            <button class="fluent-control" type="button" @click="uninstall(ext.id)">Uninstall</button>
+            <button class="fluent-control" type="button" @click="uninstall(ext.id)">
+              {{ t("extensions.uninstall") }}
+            </button>
           </div>
         </li>
       </ul>
     </section>
 
     <section class="card">
-      <h2>FS provider hooks</h2>
-      <p class="meta">Metadata only — ProviderRegistry remains the FS authority.</p>
+      <h2>{{ t("extensions.fsHooks") }}</h2>
+      <p class="meta">{{ t("extensions.fsHooksMeta") }}</p>
       <ul>
         <li v-for="hook in hooks" :key="`${hook.extensionId}:${hook.backendId}`">
           {{ hook.extensionId }} → {{ hook.backendId }}
-          <span class="meta">(registered {{ hook.registered }})</span>
+          <span class="meta">{{ t("extensions.registered", { value: hook.registered }) }}</span>
         </li>
-        <li v-if="!hooks.length" class="meta">No hooks registered</li>
+        <li v-if="!hooks.length" class="meta">{{ t("extensions.noHooks") }}</li>
       </ul>
     </section>
   </section>
