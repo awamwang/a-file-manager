@@ -92,7 +92,11 @@
     "loading": "Loading…",
     "empty": "This folder is empty.",
     "folder": "Folder",
-    "file": "File"
+    "file": "File",
+    "colName": "Name",
+    "colSize": "Size",
+    "nItems": "{count} items",
+    "movedInto": "Moved {count} item(s) into {name}"
   },
   "discovery": {
     "title": "Discovery",
@@ -348,6 +352,7 @@
       "navigatorRename": "Rename selected item",
       "navigatorNewFolder": "New folder",
       "navigatorDelete": "Delete to Recycle Bin",
+      "navigatorSelectAll": "Select all items",
       "focusAddress": "Focus address bar",
       "openSettings": "Open Settings",
       "openShortcutList": "Open shortcut list"

@@ -162,7 +162,11 @@
     "loading": "Wird geladen…",
     "metaConnected": "Kernel-OS-Browse · {dirs} Ordner · {files} Dateien",
     "metaDisconnected": "Kernel-OS-Browse · nicht verbunden",
-    "title": "Navigator"
+    "title": "Navigator",
+    "colName": "Name",
+    "colSize": "Größe",
+    "nItems": "{count} Elemente",
+    "movedInto": "{count} Element(e) nach {name} verschoben"
   },
   "projects": {
     "addLink": "Link hinzufügen",
@@ -348,6 +352,7 @@
       "navigatorRename": "Umbenennen",
       "navigatorNewFolder": "Neuer Ordner",
       "navigatorDelete": "In den Papierkorb verschieben",
+      "navigatorSelectAll": "Alles auswählen",
       "focusAddress": "Adressleiste fokussieren",
       "openSettings": "Einstellungen öffnen",
       "openShortcutList": "Tastenkürzel-Liste öffnen"

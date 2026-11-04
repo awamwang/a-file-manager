@@ -162,7 +162,11 @@
     "loading": "読み込み中…",
     "metaConnected": "カーネル OS 参照 · {dirs} フォルダー · {files} ファイル",
     "metaDisconnected": "カーネル OS 参照 · 未接続",
-    "title": "ナビゲーター"
+    "title": "ナビゲーター",
+    "colName": "名前",
+    "colSize": "サイズ",
+    "nItems": "{count} 項目",
+    "movedInto": "{count} 項目を {name} へ移動しました"
   },
   "projects": {
     "addLink": "リンクを追加",
@@ -348,6 +352,7 @@
       "navigatorRename": "名前の変更",
       "navigatorNewFolder": "新しいフォルダー",
       "navigatorDelete": "ごみ箱へ移動",
+      "navigatorSelectAll": "すべて選択",
       "focusAddress": "アドレスバーにフォーカス",
       "openSettings": "設定を開く",
       "openShortcutList": "ショートカット一覧を開く"

@@ -15,6 +15,7 @@ import {
   renameEntry,
   setClipboard,
 } from "../../state/fileClipboard";
+import { selectedPaths } from "../../state/navigatorSelection";
 import {
   isFavoritePath,
   toggleFavorite,
@@ -152,18 +153,30 @@ async function runNewFolder() {
   }
 }
 
+function pathsForClipboard(entry: NavigatorEntry): string[] {
+  if (selectedPaths.value.includes(entry.path) && selectedPaths.value.length > 1) {
+    return [...selectedPaths.value];
+  }
+  return [entry.path];
+}
+
 async function runDelete(entry: NavigatorEntry) {
+  const paths = pathsForClipboard(entry);
   try {
-    const blocked = await pathsWithoutRecycle([entry.path]);
+    const blocked = await pathsWithoutRecycle(paths);
     if (blocked.length) {
       emit("notice", t("contextMenu.deleteNoRecycle"));
       return;
     }
+    const label =
+      paths.length === 1
+        ? entry.name
+        : t("navigator.nItems", { count: paths.length });
     const ok = window.confirm(
-      t("contextMenu.deleteConfirm", { name: entry.name }),
+      t("contextMenu.deleteConfirm", { name: label }),
     );
     if (!ok) return;
-    const result = await deleteEntries([entry.path]);
+    const result = await deleteEntries(paths);
     if (!result.ok) {
       emit("notice", result.error ?? t("contextMenu.opFailed"));
       return;
@@ -266,12 +279,12 @@ async function run(id: string) {
       break;
     case "copy":
       if (!entry) break;
-      setClipboard([entry.path], "copy");
+      setClipboard(pathsForClipboard(entry), "copy");
       emit("notice", t("contextMenu.copied"));
       break;
     case "cut":
       if (!entry) break;
-      setClipboard([entry.path], "cut");
+      setClipboard(pathsForClipboard(entry), "cut");
       emit("notice", t("contextMenu.cutDone"));
       break;
     case "paste":

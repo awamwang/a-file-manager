@@ -92,7 +92,11 @@
     "loading": "加载中…",
     "empty": "此文件夹为空。",
     "folder": "文件夹",
-    "file": "文件"
+    "file": "文件",
+    "colName": "名称",
+    "colSize": "大小",
+    "nItems": "{count} 项",
+    "movedInto": "已将 {count} 项移入 {name}"
   },
   "discovery": {
     "title": "发现",
@@ -348,6 +352,7 @@
       "navigatorRename": "重命名所选",
       "navigatorNewFolder": "新建文件夹",
       "navigatorDelete": "删除到回收站",
+      "navigatorSelectAll": "全选",
       "focusAddress": "聚焦地址栏",
       "openSettings": "打开设置",
       "openShortcutList": "打开快捷键列表"

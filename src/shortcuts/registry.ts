@@ -81,6 +81,12 @@ export const BUILTIN_SHORTCUTS: ShortcutDefinition[] = [
     scope: "global",
   },
   {
+    id: "navigator.selectAll",
+    labelKey: "shortcuts.items.navigatorSelectAll",
+    chord: { ctrl: true, key: "a" },
+    scope: "global",
+  },
+  {
     id: "chrome.focusAddress",
     labelKey: "shortcuts.items.focusAddress",
     chord: { ctrl: true, key: "l" },

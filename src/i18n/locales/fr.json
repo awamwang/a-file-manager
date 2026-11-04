@@ -162,7 +162,11 @@
     "loading": "Chargement…",
     "metaConnected": "Parcours OS noyau · {dirs} dossiers · {files} fichiers",
     "metaDisconnected": "Parcours OS noyau · non connecté",
-    "title": "Navigateur"
+    "title": "Navigateur",
+    "colName": "Nom",
+    "colSize": "Taille",
+    "nItems": "{count} éléments",
+    "movedInto": "{count} élément(s) déplacé(s) vers {name}"
   },
   "projects": {
     "addLink": "Ajouter un lien",
@@ -348,6 +352,7 @@
       "navigatorRename": "Renommer",
       "navigatorNewFolder": "Nouveau dossier",
       "navigatorDelete": "Envoyer vers la Corbeille",
+      "navigatorSelectAll": "Tout sélectionner",
       "focusAddress": "Focus sur la barre d’adresse",
       "openSettings": "Ouvrir les Paramètres",
       "openShortcutList": "Ouvrir la liste des raccourcis"

@@ -1,7 +1,8 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import { invoke } from "@tauri-apps/api/core";
 import {
   bootstrapNavigatorOpenState,
   currentPath,
@@ -26,13 +27,19 @@ import {
   pathsWithoutRecycle,
   renameEntry,
   setClipboard,
+  type FileOpsResult,
 } from "../state/fileClipboard";
 import {
   clearSelection,
   isSelected,
   selectOnly,
+  selectRange,
+  selectionAnchor,
   selectedPaths,
+  setSelection,
+  toggleInSelection,
 } from "../state/navigatorSelection";
+import { sortedEntries, sortColumn, sortDirection, toggleSort } from "../state/navigatorSort";
 import {
   registerShortcutHandler,
   unregisterShortcutHandler,
@@ -51,8 +58,22 @@ const menuY = ref(0);
 const notice = ref<string | null>(null);
 let noticeTimer: ReturnType<typeof setTimeout> | null = null;
 
+const listRoot = ref<HTMLElement | null>(null);
+const marquee = ref<{ x: number; y: number; w: number; h: number } | null>(null);
+let marqueeOrigin: { x: number; y: number } | null = null;
+let marqueeActive = false;
+const dragOverPath = ref<string | null>(null);
+
+const visibleEntries = computed(() =>
+  listing.value ? sortedEntries(listing.value.entries) : [],
+);
+
+const orderedPaths = computed(() => visibleEntries.value.map((e) => e.path));
+
 onMounted(() => {
   registerNavFileShortcuts();
+  window.addEventListener("mousemove", onMarqueeMove);
+  window.addEventListener("mouseup", onMarqueeEnd);
   void (async () => {
     await bootstrapNavigatorOpenState();
     await loadFavorites().catch(() => undefined);
@@ -65,6 +86,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   unregisterNavFileShortcuts();
+  window.removeEventListener("mousemove", onMarqueeMove);
+  window.removeEventListener("mouseup", onMarqueeEnd);
 });
 
 async function openFavorite(path: string) {
@@ -78,18 +101,33 @@ function formatSize(entry: NavigatorEntry): string {
   return `${(entry.size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function sortIndicator(column: "name" | "size"): string {
+  if (sortColumn.value !== column) return "";
+  return sortDirection.value === "asc" ? " ▲" : " ▼";
+}
+
 function onActivate(entry: NavigatorEntry) {
   void openEntry(entry);
 }
 
-function onSelect(entry: NavigatorEntry) {
+function onRowClick(event: MouseEvent, entry: NavigatorEntry) {
+  if (event.shiftKey) {
+    selectRange(orderedPaths.value, selectionAnchor.value, entry.path);
+    return;
+  }
+  if (event.ctrlKey || event.metaKey) {
+    toggleInSelection(entry.path);
+    return;
+  }
   selectOnly(entry.path);
 }
 
 function onContextMenu(event: MouseEvent, entry: NavigatorEntry) {
   event.preventDefault();
   event.stopPropagation();
-  selectOnly(entry.path);
+  if (!isSelected(entry.path)) {
+    selectOnly(entry.path);
+  }
   menuEntry.value = entry;
   menuEmpty.value = false;
   menuX.value = event.clientX;
@@ -129,21 +167,29 @@ async function refreshListing() {
 
 function primaryEntry(): NavigatorEntry | null {
   const path = selectedPaths.value[0];
-  if (!path || !listing.value) return null;
-  return listing.value.entries.find((e) => e.path === path) ?? null;
+  if (!path) return null;
+  return visibleEntries.value.find((e) => e.path === path) ?? null;
+}
+
+function selectionPaths(): string[] {
+  return selectedPaths.value.length
+    ? [...selectedPaths.value]
+    : primaryEntry()
+      ? [primaryEntry()!.path]
+      : [];
 }
 
 async function shortcutCopy() {
-  const entry = primaryEntry();
-  if (!entry) return;
-  setClipboard([entry.path], "copy");
+  const paths = selectionPaths();
+  if (!paths.length) return;
+  setClipboard(paths, "copy");
   onNotice(t("contextMenu.copied"));
 }
 
 async function shortcutCut() {
-  const entry = primaryEntry();
-  if (!entry) return;
-  setClipboard([entry.path], "cut");
+  const paths = selectionPaths();
+  if (!paths.length) return;
+  setClipboard(paths, "cut");
   onNotice(t("contextMenu.cutDone"));
 }
 
@@ -204,17 +250,21 @@ async function shortcutNewFolder() {
 }
 
 async function shortcutDelete() {
-  const entry = primaryEntry();
-  if (!entry) return;
+  const paths = selectionPaths();
+  if (!paths.length) return;
   try {
-    const blocked = await pathsWithoutRecycle([entry.path]);
+    const blocked = await pathsWithoutRecycle(paths);
     if (blocked.length) {
       onNotice(t("contextMenu.deleteNoRecycle"));
       return;
     }
-    const ok = window.confirm(t("contextMenu.deleteConfirm", { name: entry.name }));
+    const label =
+      paths.length === 1
+        ? visibleEntries.value.find((e) => e.path === paths[0])?.name ?? paths[0]
+        : t("navigator.nItems", { count: paths.length });
+    const ok = window.confirm(t("contextMenu.deleteConfirm", { name: label }));
     if (!ok) return;
-    const result = await deleteEntries([entry.path]);
+    const result = await deleteEntries(paths);
     if (!result.ok) {
       onNotice(result.error ?? t("contextMenu.opFailed"));
       return;
@@ -247,6 +297,9 @@ function registerNavFileShortcuts() {
   registerShortcutHandler("navigator.delete", () => {
     void shortcutDelete();
   });
+  registerShortcutHandler("navigator.selectAll", () => {
+    setSelection(orderedPaths.value);
+  });
 }
 
 function unregisterNavFileShortcuts() {
@@ -257,8 +310,119 @@ function unregisterNavFileShortcuts() {
     "navigator.rename",
     "navigator.newFolder",
     "navigator.delete",
+    "navigator.selectAll",
   ]) {
     unregisterShortcutHandler(id);
+  }
+}
+
+/* —— Marquee (box) select —— */
+function onListMouseDown(event: MouseEvent) {
+  if (event.button !== 0) return;
+  if (event.target !== event.currentTarget) return;
+  const root = listRoot.value;
+  if (!root) return;
+  const rect = root.getBoundingClientRect();
+  marqueeOrigin = { x: event.clientX - rect.left + root.scrollLeft, y: event.clientY - rect.top + root.scrollTop };
+  marqueeActive = true;
+  marquee.value = { x: marqueeOrigin.x, y: marqueeOrigin.y, w: 0, h: 0 };
+  if (!event.ctrlKey && !event.metaKey && !event.shiftKey) {
+    clearSelection();
+  }
+}
+
+function onMarqueeMove(event: MouseEvent) {
+  if (!marqueeActive || !marqueeOrigin || !listRoot.value) return;
+  const root = listRoot.value;
+  const rect = root.getBoundingClientRect();
+  const x = event.clientX - rect.left + root.scrollLeft;
+  const y = event.clientY - rect.top + root.scrollTop;
+  const left = Math.min(marqueeOrigin.x, x);
+  const top = Math.min(marqueeOrigin.y, y);
+  const w = Math.abs(x - marqueeOrigin.x);
+  const h = Math.abs(y - marqueeOrigin.y);
+  marquee.value = { x: left, y: top, w, h };
+  const hit = hitTestRows(left, top, w, h);
+  setSelection(hit, hit[0] ?? null);
+}
+
+function onMarqueeEnd() {
+  marqueeActive = false;
+  marqueeOrigin = null;
+  marquee.value = null;
+}
+
+function hitTestRows(x: number, y: number, w: number, h: number): string[] {
+  const root = listRoot.value;
+  if (!root || w < 2 || h < 2) return [];
+  const box = { left: x, top: y, right: x + w, bottom: y + h };
+  const hits: string[] = [];
+  const rows = root.querySelectorAll<HTMLElement>("[data-entry-path]");
+  for (const row of rows) {
+    const path = row.dataset.entryPath;
+    if (!path) continue;
+    const top = row.offsetTop;
+    const left = row.offsetLeft;
+    const right = left + row.offsetWidth;
+    const bottom = top + row.offsetHeight;
+    if (left < box.right && right > box.left && top < box.bottom && bottom > box.top) {
+      hits.push(path);
+    }
+  }
+  return hits;
+}
+
+/* —— Drag into folder —— */
+function onDragStart(event: DragEvent, entry: NavigatorEntry) {
+  if (!isSelected(entry.path)) {
+    selectOnly(entry.path);
+  }
+  const paths = selectionPaths();
+  event.dataTransfer?.setData("application/x-afm-paths", JSON.stringify(paths));
+  event.dataTransfer!.effectAllowed = "move";
+}
+
+function onDragOver(event: DragEvent, entry: NavigatorEntry) {
+  if (entry.kind !== "dir") return;
+  if (isSelected(entry.path)) return;
+  event.preventDefault();
+  event.dataTransfer!.dropEffect = "move";
+  dragOverPath.value = entry.path;
+}
+
+function onDragLeave(entry: NavigatorEntry) {
+  if (dragOverPath.value === entry.path) {
+    dragOverPath.value = null;
+  }
+}
+
+async function onDrop(event: DragEvent, entry: NavigatorEntry) {
+  event.preventDefault();
+  dragOverPath.value = null;
+  if (entry.kind !== "dir") return;
+  let paths: string[] = [];
+  try {
+    const raw = event.dataTransfer?.getData("application/x-afm-paths") ?? "[]";
+    paths = JSON.parse(raw) as string[];
+  } catch {
+    return;
+  }
+  paths = paths.filter((p) => p !== entry.path);
+  if (!paths.length) return;
+  try {
+    const result = await invoke<FileOpsResult>("file_ops_move", {
+      sources: paths,
+      destDir: entry.path,
+    });
+    if (!result.ok) {
+      onNotice(result.error ?? t("contextMenu.opFailed"));
+      return;
+    }
+    onNotice(t("navigator.movedInto", { count: result.paths.length, name: entry.name }));
+    clearSelection();
+    await refreshListing();
+  } catch (err) {
+    onNotice(err instanceof Error ? err.message : String(err));
   }
 }
 </script>
@@ -309,23 +473,43 @@ function unregisterNavFileShortcuts() {
 
     <div
       v-if="listing"
+      ref="listRoot"
       class="fluent-surface list"
       role="list"
       @contextmenu="onListContextMenu"
+      @mousedown="onListMouseDown"
       @click.self="clearSelection()"
     >
-      <button
-        v-for="entry in listing.entries"
+      <div class="list-header" role="row">
+        <button type="button" class="col-sort col-name" @click="toggleSort('name')">
+          {{ t("navigator.colName") }}{{ sortIndicator("name") }}
+        </button>
+        <button type="button" class="col-sort col-size" @click="toggleSort('size')">
+          {{ t("navigator.colSize") }}{{ sortIndicator("size") }}
+        </button>
+      </div>
+
+      <div
+        v-for="entry in visibleEntries"
         :key="entry.path"
-        type="button"
         class="fluent-list-row fluent-list-row--density row"
         role="listitem"
+        tabindex="0"
+        draggable="true"
+        :data-entry-path="entry.path"
         :aria-selected="isSelected(entry.path)"
-        :class="{ 'row--selected': isSelected(entry.path) }"
-        @click="onSelect(entry)"
+        :class="{
+          'row--selected': isSelected(entry.path),
+          'row--drop': dragOverPath === entry.path,
+        }"
+        @click="onRowClick($event, entry)"
         @dblclick="onActivate(entry)"
         @keydown.enter.prevent="onActivate(entry)"
         @contextmenu="onContextMenu($event, entry)"
+        @dragstart="onDragStart($event, entry)"
+        @dragover="onDragOver($event, entry)"
+        @dragleave="onDragLeave(entry)"
+        @drop="onDrop($event, entry)"
       >
         <span
           class="kind"
@@ -336,7 +520,18 @@ function unregisterNavFileShortcuts() {
         </span>
         <span class="name">{{ entry.name }}</span>
         <span class="size">{{ formatSize(entry) }}</span>
-      </button>
+      </div>
+
+      <div
+        v-if="marquee"
+        class="marquee"
+        :style="{
+          left: `${marquee.x}px`,
+          top: `${marquee.y}px`,
+          width: `${marquee.w}px`,
+          height: `${marquee.h}px`,
+        }"
+      />
     </div>
 
     <NavigatorContextMenu
@@ -391,10 +586,52 @@ function unregisterNavFileShortcuts() {
 }
 
 .list {
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  overflow: auto;
+  user-select: none;
+}
+
+.list-header {
+  display: grid;
+  grid-template-columns: 2rem 1fr 5.5rem;
+  gap: var(--fluent-space-sm);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding-inline: 0;
+  border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  background: var(--fluent-color-fill-control);
+}
+
+.col-sort {
+  border: 0;
+  background: transparent;
+  color: var(--fluent-color-text-secondary);
+  font: inherit;
+  font-size: var(--fluent-font-size-caption);
+  text-align: left;
+  padding: var(--fluent-space-xs) var(--fluent-space-sm);
+  cursor: pointer;
+}
+
+.col-sort:hover,
+.col-sort:focus-visible {
+  color: var(--fluent-color-text-primary);
+  background: var(--fluent-color-fill-selected);
+  outline: none;
+}
+
+.col-name {
+  grid-column: 2;
+}
+
+.col-size {
+  grid-column: 3;
+  text-align: right;
 }
 
 .row {
@@ -425,6 +662,11 @@ function unregisterNavFileShortcuts() {
   background: var(--fluent-color-fill-selected);
 }
 
+.row--drop {
+  outline: 2px solid var(--fluent-color-stroke-focus);
+  outline-offset: -2px;
+}
+
 .kind {
   display: inline-flex;
   align-items: center;
@@ -447,5 +689,13 @@ function unregisterNavFileShortcuts() {
   font-size: var(--fluent-font-size-caption);
   color: var(--fluent-color-text-secondary);
   font-variant-numeric: tabular-nums;
+}
+
+.marquee {
+  position: absolute;
+  pointer-events: none;
+  border: 1px solid var(--fluent-color-stroke-focus);
+  background: color-mix(in srgb, var(--fluent-color-fill-accent) 18%, transparent);
+  z-index: 2;
 }
 </style>
