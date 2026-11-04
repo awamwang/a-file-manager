@@ -27,6 +27,18 @@ export const BUILTIN_SHORTCUTS: ShortcutDefinition[] = [
     scope: "global",
   },
   {
+    id: "navigator.back",
+    labelKey: "shortcuts.items.navigatorBack",
+    chord: { alt: true, key: "arrowleft" },
+    scope: "global",
+  },
+  {
+    id: "navigator.forward",
+    labelKey: "shortcuts.items.navigatorForward",
+    chord: { alt: true, key: "arrowright" },
+    scope: "global",
+  },
+  {
     id: "navigator.newTab",
     labelKey: "shortcuts.items.navigatorNewTab",
     chord: { ctrl: true, key: "t" },

@@ -31,6 +31,15 @@ import {
   stripTabs,
   switchNavigatorTab,
 } from "../../state/navigatorBrowse";
+import {
+  beginHistoryNavigation,
+  buildBreadcrumbs,
+  canGoBack,
+  canGoForward,
+  endHistoryNavigation,
+  popBack,
+  popForward,
+} from "../../state/navHistory";
 
 const { t, locale } = useI18n();
 
@@ -56,12 +65,15 @@ const route = useRoute();
 const router = useRouter();
 
 const addressDraft = ref("");
+const addressEditing = ref(false);
 const activeTab = ref("navigator");
 const health = ref<HealthPayload | null>(null);
 const healthError = ref<string | null>(null);
 const isMaximized = ref(false);
 const maxHover = ref(false);
 const unlisteners: UnlistenFn[] = [];
+
+const breadcrumbs = computed(() => buildBreadcrumbs(currentPath.value));
 
 async function ensureNavigatorThenGoUp() {
   if (route.path !== "/navigator") {
@@ -81,11 +93,45 @@ const panelCommands = computed(() => {
 });
 
 function focusAddressBar() {
-  const input = document.getElementById("address-input");
-  if (input instanceof HTMLInputElement) {
-    input.focus();
-    input.select();
+  addressEditing.value = true;
+  addressDraft.value = currentPath.value;
+  requestAnimationFrame(() => {
+    const input = document.getElementById("address-input");
+    if (input instanceof HTMLInputElement) {
+      input.focus();
+      input.select();
+    }
+  });
+}
+
+async function onGoBack() {
+  const target = popBack(currentPath.value);
+  if (!target) return;
+  await ensureNavigatorRoute();
+  beginHistoryNavigation();
+  try {
+    await navigateTo(target);
+  } finally {
+    endHistoryNavigation();
   }
+}
+
+async function onGoForward() {
+  const target = popForward(currentPath.value);
+  if (!target) return;
+  await ensureNavigatorRoute();
+  beginHistoryNavigation();
+  try {
+    await navigateTo(target);
+  } finally {
+    endHistoryNavigation();
+  }
+}
+
+async function onBreadcrumb(path: string) {
+  addressEditing.value = false;
+  await ensureNavigatorRoute();
+  await navigateTo(path);
 }
 
 function onGlobalKeydown(event: KeyboardEvent) {
@@ -110,6 +156,12 @@ function registerShellShortcuts() {
   registerShortcutHandler("navigator.newTab", () => {
     void onNewNavigatorTab();
   });
+  registerShortcutHandler("navigator.back", () => {
+    void onGoBack();
+  });
+  registerShortcutHandler("navigator.forward", () => {
+    void onGoForward();
+  });
   registerShortcutHandler("chrome.focusAddress", () => {
     focusAddressBar();
   });
@@ -127,6 +179,8 @@ function unregisterShellShortcuts() {
     "discovery.globalSearch",
     "navigator.goUp",
     "navigator.newTab",
+    "navigator.back",
+    "navigator.forward",
     "chrome.focusAddress",
     "view.settings",
     "view.shortcuts",
@@ -186,10 +240,20 @@ async function loadHealth() {
 }
 
 async function submitAddress() {
+  addressEditing.value = false;
   if (route.path !== "/navigator") {
     await router.push("/navigator");
   }
   await navigateTo(addressDraft.value);
+}
+
+function onAddressBlur() {
+  // Defer so click on Go / breadcrumb can run first.
+  window.setTimeout(() => {
+    if (document.activeElement?.id === "address-input") return;
+    addressEditing.value = false;
+    addressDraft.value = currentPath.value;
+  }, 120);
 }
 
 async function onGoUp() {
@@ -344,8 +408,10 @@ onUnmounted(() => {
       <button
         type="button"
         class="fluent-control toolbar-btn"
-        disabled
-        :title="t('chrome.historyLater')"
+        :disabled="!canGoBack"
+        :title="t('chrome.back')"
+        :aria-label="t('chrome.back')"
+        @click="onGoBack"
       >
         <FluentIcon name="back" size="sm" />
         <span>{{ t("chrome.back") }}</span>
@@ -353,8 +419,10 @@ onUnmounted(() => {
       <button
         type="button"
         class="fluent-control toolbar-btn"
-        disabled
-        :title="t('chrome.historyLater')"
+        :disabled="!canGoForward"
+        :title="t('chrome.forward')"
+        :aria-label="t('chrome.forward')"
+        @click="onGoForward"
       >
         <FluentIcon name="forward" size="sm" />
         <span>{{ t("chrome.forward") }}</span>
@@ -393,7 +461,30 @@ onUnmounted(() => {
 
     <form class="address" :aria-label="t('chrome.address')" @submit.prevent="submitAddress">
       <label class="address-label" for="address-input">{{ t("chrome.path") }}</label>
+      <div
+        v-if="!addressEditing"
+        class="breadcrumbs"
+        role="navigation"
+        :aria-label="t('chrome.breadcrumbs')"
+        @click="focusAddressBar"
+      >
+        <template v-if="breadcrumbs.length">
+          <button
+            v-for="(crumb, index) in breadcrumbs"
+            :key="crumb.path + String(index)"
+            type="button"
+            class="crumb"
+            :title="crumb.path"
+            @click.stop="onBreadcrumb(crumb.path)"
+          >
+            <span v-if="index > 0" class="crumb-sep" aria-hidden="true">›</span>
+            <span class="crumb-label">{{ crumb.label }}</span>
+          </button>
+        </template>
+        <span v-else class="crumb-placeholder">{{ t("chrome.pathPlaceholder") }}</span>
+      </div>
       <input
+        v-else
         id="address-input"
         v-model="addressDraft"
         class="address-input"
@@ -401,6 +492,8 @@ onUnmounted(() => {
         spellcheck="false"
         autocomplete="off"
         :placeholder="t('chrome.pathPlaceholder')"
+        @blur="onAddressBlur"
+        @keydown.escape.prevent="addressEditing = false"
       />
       <button type="submit" class="fluent-control address-go">{{ t("chrome.go") }}</button>
     </form>
@@ -613,6 +706,61 @@ onUnmounted(() => {
 .address-label {
   font-size: var(--fluent-font-size-caption);
   color: var(--fluent-color-text-secondary);
+}
+
+.breadcrumbs {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  min-height: var(--fluent-control-height-standard);
+  padding-inline: var(--fluent-space-sm);
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: var(--fluent-radius-md);
+  background: var(--fluent-color-fill-subtle);
+  cursor: text;
+}
+
+.breadcrumbs:hover {
+  background: var(--fluent-color-fill-subtle-secondary);
+}
+
+.crumb {
+  display: inline-flex;
+  align-items: center;
+  max-width: 10rem;
+  border: 0;
+  padding: 0.1rem 0.2rem;
+  border-radius: var(--fluent-radius-sm);
+  background: transparent;
+  color: var(--fluent-color-text-primary);
+  font: inherit;
+  font-size: var(--fluent-font-size-body);
+  cursor: pointer;
+}
+
+.crumb:hover,
+.crumb:focus-visible {
+  background: var(--fluent-color-fill-selected);
+  outline: none;
+}
+
+.crumb-sep {
+  margin-inline-end: 0.25rem;
+  color: var(--fluent-color-text-secondary);
+}
+
+.crumb-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crumb-placeholder {
+  color: var(--fluent-color-text-secondary);
+  font-size: var(--fluent-font-size-caption);
+  padding-inline: var(--fluent-space-xs);
 }
 
 .address-input {

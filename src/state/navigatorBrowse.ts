@@ -14,6 +14,7 @@ import {
   stripTabsFromOpenState,
   type WorkGroupOpenState,
 } from "./openStateModel";
+import { recordNavHistory } from "./navHistory";
 
 export type NavigatorEntry = {
   name: string;
@@ -120,16 +121,22 @@ export function bootstrapNavigatorOpenState(): Promise<void> {
 
 export async function navigateTo(
   path: string,
-  options?: { syncOpenState?: boolean },
+  options?: { syncOpenState?: boolean; recordHistory?: boolean },
 ): Promise<void> {
   const trimmed = path.trim();
   const syncOpenState = options?.syncOpenState !== false;
+  // Tab switch / bootstrap pass syncOpenState:false — don't pollute back stack.
+  const recordHistory = options?.recordHistory ?? syncOpenState;
+  const previous = currentPath.value;
   listLoading.value = true;
   listError.value = null;
   try {
     const result = await invoke<NavigatorListing>("navigator_list", { path: trimmed });
     listing.value = result;
     currentPath.value = result.path;
+    if (recordHistory) {
+      recordNavHistory(previous, result.path);
+    }
     if (syncOpenState) {
       liveOpenState.value = openStateAfterNavigate(liveOpenState.value, result.path);
       schedulePersist(false);
@@ -138,6 +145,9 @@ export async function navigateTo(
     listing.value = null;
     listError.value = err instanceof Error ? err.message : String(err);
     currentPath.value = trimmed;
+    if (recordHistory) {
+      recordNavHistory(previous, trimmed);
+    }
     if (syncOpenState && trimmed) {
       liveOpenState.value = openStateAfterNavigate(liveOpenState.value, trimmed);
       schedulePersist(false);
