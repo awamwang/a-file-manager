@@ -9,6 +9,8 @@ import {
   consumeGlobalSearchFocus,
   globalSearchFocusToken,
 } from "../state/globalSearch";
+import FluentIcon from "../components/icons/FluentIcon.vue";
+import { entryKindIcon } from "../components/icons/glyphs";
 
 type DiscoveryEngine = "everything" | "fallback" | "unavailable";
 
@@ -148,6 +150,9 @@ onMounted(() => {
     </div>
 
     <form class="search" @submit.prevent="runSearch">
+      <span class="search-icon" aria-hidden="true">
+        <FluentIcon name="search" size="md" />
+      </span>
       <input
         id="discovery-global-search"
         ref="searchInput"
@@ -185,7 +190,13 @@ onMounted(() => {
         class="fluent-list-row fluent-list-row--density row"
         @dblclick="openHit(hit)"
       >
-        <span class="kind">{{ hit.isDir ? t("discovery.folder") : t("discovery.file") }}</span>
+        <span
+          class="kind"
+          :data-kind="hit.isDir ? 'dir' : 'file'"
+          :title="hit.isDir ? t('discovery.folder') : t('discovery.file')"
+        >
+          <FluentIcon :name="entryKindIcon(hit.isDir)" size="md" />
+        </span>
         <span class="name">{{ hit.name }}</span>
         <span class="path">{{ hit.path }}</span>
       </button>
@@ -246,7 +257,13 @@ onMounted(() => {
 
 .search {
   display: flex;
+  align-items: center;
   gap: var(--fluent-space-sm);
+}
+
+.search-icon {
+  display: inline-flex;
+  color: var(--fluent-color-fill-accent);
 }
 
 .query {
@@ -272,7 +289,7 @@ onMounted(() => {
   color: inherit;
   text-align: left;
   display: grid;
-  grid-template-columns: 4.5rem 12rem 1fr;
+  grid-template-columns: 2rem 12rem 1fr;
   gap: var(--fluent-space-sm);
   cursor: pointer;
 }
@@ -286,8 +303,14 @@ onMounted(() => {
 }
 
 .kind {
-  font-size: var(--fluent-font-size-caption);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--fluent-color-text-secondary);
+}
+
+.kind[data-kind="dir"] {
+  color: var(--fluent-color-fill-accent);
 }
 
 .name {

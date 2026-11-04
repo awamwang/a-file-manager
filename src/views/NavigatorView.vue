@@ -12,6 +12,8 @@ import {
   openEntry,
   type NavigatorEntry,
 } from "../state/navigatorBrowse";
+import FluentIcon from "../components/icons/FluentIcon.vue";
+import { entryKindIcon } from "../components/icons/glyphs";
 
 const { t } = useI18n();
 
@@ -69,9 +71,13 @@ function onActivate(entry: NavigatorEntry) {
         @dblclick="onActivate(entry)"
         @keydown.enter.prevent="onActivate(entry)"
       >
-        <span class="kind" :data-kind="entry.kind">{{
-          entry.kind === "dir" ? t("navigator.folder") : t("navigator.file")
-        }}</span>
+        <span
+          class="kind"
+          :data-kind="entry.kind"
+          :title="entry.kind === 'dir' ? t('navigator.folder') : t('navigator.file')"
+        >
+          <FluentIcon :name="entryKindIcon(entry.kind === 'dir')" size="md" />
+        </span>
         <span class="name">{{ entry.name }}</span>
         <span class="size">{{ formatSize(entry) }}</span>
       </button>
@@ -97,7 +103,7 @@ function onActivate(entry: NavigatorEntry) {
   text-align: left;
   cursor: default;
   display: grid;
-  grid-template-columns: 4.5rem 1fr 5.5rem;
+  grid-template-columns: 2rem 1fr 5.5rem;
   gap: var(--fluent-space-sm);
 }
 
@@ -112,13 +118,14 @@ function onActivate(entry: NavigatorEntry) {
 }
 
 .kind {
-  font-size: var(--fluent-font-size-caption);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--fluent-color-text-secondary);
 }
 
 .kind[data-kind="dir"] {
   color: var(--fluent-color-fill-accent);
-  font-weight: var(--fluent-font-weight-semibold);
 }
 
 .name {

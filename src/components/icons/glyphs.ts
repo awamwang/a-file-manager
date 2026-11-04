@@ -225,3 +225,17 @@ export const SETTINGS_ICON_BY_KEY: Record<string, FluentGlyphId> = {
 export function settingsIconForKey(key: string): FluentGlyphId {
   return SETTINGS_ICON_BY_KEY[key] ?? "settings";
 }
+
+export const COMMAND_GROUP_ICON: Record<string, FluentGlyphId> = {
+  Navigate: "folderOpen",
+  View: "view",
+  Actions: "flash",
+};
+
+export function commandGroupIcon(group: string): FluentGlyphId {
+  return COMMAND_GROUP_ICON[group] ?? "commands";
+}
+
+export function entryKindIcon(isDir: boolean): FluentGlyphId {
+  return isDir ? "folder" : "document";
+}

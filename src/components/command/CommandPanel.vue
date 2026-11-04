@@ -11,6 +11,8 @@ import {
   closeCommandPanel,
   commandPanelOpen,
 } from "../../state/commandPanel";
+import FluentIcon from "../icons/FluentIcon.vue";
+import { commandGroupIcon } from "../icons/glyphs";
 
 const { t } = useI18n();
 
@@ -156,7 +158,14 @@ function flatIndexFor(commandId: string): number {
               :key="section.group"
               class="cmd-section"
             >
-              <h2 class="cmd-group">{{ groupLabel(section.group) }}</h2>
+              <h2 class="cmd-group">
+                <FluentIcon
+                  :name="commandGroupIcon(section.group)"
+                  size="sm"
+                  class="cmd-group-icon"
+                />
+                {{ groupLabel(section.group) }}
+              </h2>
               <button
                 v-for="item in section.items"
                 :key="item.command.id"
@@ -172,6 +181,11 @@ function flatIndexFor(commandId: string): number {
                 @mouseenter="activeIndex = flatIndexFor(item.command.id)"
                 @click="runCommand(item.command)"
               >
+                <FluentIcon
+                  :name="commandGroupIcon(item.command.group)"
+                  size="sm"
+                  class="cmd-item-icon"
+                />
                 <span class="cmd-item-title">{{ item.command.title }}</span>
               </button>
             </section>
@@ -251,6 +265,9 @@ function flatIndexFor(commandId: string): number {
 }
 
 .cmd-group {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
   margin: var(--fluent-space-xs) var(--fluent-space-sm);
   font-size: var(--fluent-font-size-caption);
   font-weight: var(--fluent-font-weight-semibold);
@@ -259,15 +276,29 @@ function flatIndexFor(commandId: string): number {
   letter-spacing: 0.02em;
 }
 
+.cmd-group-icon {
+  color: var(--fluent-color-fill-accent);
+}
+
 .cmd-item {
   width: 100%;
   justify-content: flex-start;
+  gap: var(--fluent-space-sm);
   border: 0;
   border-radius: var(--fluent-radius-sm);
   background: transparent;
   color: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.cmd-item-icon {
+  color: var(--fluent-color-text-secondary);
+  flex-shrink: 0;
+}
+
+.cmd-item--active .cmd-item-icon {
+  color: var(--fluent-color-fill-accent);
 }
 
 .cmd-item:hover {

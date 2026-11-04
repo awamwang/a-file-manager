@@ -9,6 +9,8 @@ import {
   FLUENT_GLYPHS,
   NAV_ICON_BY_ID,
   SETTINGS_ICON_BY_KEY,
+  commandGroupIcon,
+  entryKindIcon,
   settingsIconForKey,
   type FluentGlyphId,
 } from "../src/components/icons/glyphs.ts";
@@ -43,6 +45,11 @@ for (const key of Object.keys(SETTINGS_ICON_BY_KEY)) {
 
 assert.equal(settingsIconForKey("core.language"), "globe");
 assert.equal(settingsIconForKey("unknown.setting"), "settings");
+assert.equal(entryKindIcon(true), "folder");
+assert.equal(entryKindIcon(false), "document");
+assert.equal(commandGroupIcon("Navigate"), "folderOpen");
+assert.equal(commandGroupIcon("View"), "view");
+assert.equal(commandGroupIcon("Actions"), "flash");
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const iconVue = readFileSync(join(root, "src/components/icons/FluentIcon.vue"), "utf8");

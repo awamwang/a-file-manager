@@ -3,6 +3,8 @@
 import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
+import FluentIcon from "../components/icons/FluentIcon.vue";
+import { entryKindIcon } from "../components/icons/glyphs";
 
 const { t } = useI18n();
 
@@ -142,9 +144,13 @@ onMounted(() => {
         class="fluent-list-row fluent-list-row--density row"
         @dblclick="openEntry(entry)"
       >
-        <span class="kind">{{
-          entry.isDir ? t("providers.folder") : t("providers.file")
-        }}</span>
+        <span
+          class="kind"
+          :data-kind="entry.isDir ? 'dir' : 'file'"
+          :title="entry.isDir ? t('providers.folder') : t('providers.file')"
+        >
+          <FluentIcon :name="entryKindIcon(entry.isDir)" size="md" />
+        </span>
         <span class="name">{{ entry.name }}</span>
         <span class="path">{{ entry.uri }}</span>
       </button>
@@ -230,7 +236,7 @@ onMounted(() => {
   color: inherit;
   text-align: left;
   display: grid;
-  grid-template-columns: 4.5rem 10rem 1fr;
+  grid-template-columns: 2rem 10rem 1fr;
   gap: var(--fluent-space-sm);
   cursor: pointer;
 }
@@ -244,8 +250,14 @@ onMounted(() => {
 }
 
 .kind {
-  font-size: var(--fluent-font-size-caption);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--fluent-color-text-secondary);
+}
+
+.kind[data-kind="dir"] {
+  color: var(--fluent-color-fill-accent);
 }
 
 .name {
