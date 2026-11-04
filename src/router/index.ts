@@ -2,6 +2,7 @@
 
 import { createRouter, createWebHistory } from "vue-router";
 import DiscoveryView from "../views/DiscoveryView.vue";
+import ExtensionsView from "../views/ExtensionsView.vue";
 import HealthView from "../views/HealthView.vue";
 import NavigatorView from "../views/NavigatorView.vue";
 import ProjectsView from "../views/ProjectsView.vue";
@@ -19,6 +20,7 @@ const router = createRouter({
     { path: "/providers", name: "providers", component: ProvidersView },
     { path: "/work-groups", name: "work-groups", component: WorkGroupsView },
     { path: "/projects", name: "projects", component: ProjectsView },
+    { path: "/extensions", name: "extensions", component: ExtensionsView },
     { path: "/settings", name: "settings", component: SettingsView },
   ],
 });

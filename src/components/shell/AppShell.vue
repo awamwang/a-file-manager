@@ -42,6 +42,7 @@ const navItems: NavItem[] = [
   { id: "providers", label: "Providers", to: "/providers" },
   { id: "work-groups", label: "Work Groups", to: "/work-groups" },
   { id: "projects", label: "Projects", to: "/projects" },
+  { id: "extensions", label: "Extensions", to: "/extensions" },
   { id: "settings", label: "Settings", to: "/settings" },
   { id: "health", label: "Health", to: "/health" },
 ];
@@ -139,7 +140,7 @@ onMounted(() => {
     <header class="titlebar" aria-label="Title bar">
       <div class="titlebar-drag" data-tauri-drag-region>
         <span class="brand" data-tauri-drag-region>A File Manager</span>
-        <span class="caption-meta" data-tauri-drag-region>Standard · S7</span>
+        <span class="caption-meta" data-tauri-drag-region>Standard · S8</span>
       </div>
       <div class="window-controls" aria-label="Window controls">
         <button type="button" class="win-btn" aria-label="Minimize" @click="minimizeWindow">

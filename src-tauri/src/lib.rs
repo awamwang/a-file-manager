@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 mod discovery;
+mod extension_host;
 mod navigator;
 mod projects;
 mod providers;
@@ -66,6 +67,15 @@ pub fn run() {
             projects::projects_move_task,
             projects::projects_delete_task,
             projects::projects_open_all_links,
+            extension_host::extension_host_status,
+            extension_host::extension_host_marketplace,
+            extension_host::extension_host_list_installed,
+            extension_host::extension_host_install,
+            extension_host::extension_host_set_enabled,
+            extension_host::extension_host_uninstall,
+            extension_host::extension_host_dispatch_ui_command,
+            extension_host::extension_host_list_fs_provider_hooks,
+            extension_host::extension_host_register_fs_provider_hook,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
