@@ -4,6 +4,7 @@ mod autostart;
 mod discovery;
 mod extension_host;
 mod favorites;
+mod visit_stats;
 mod file_ops;
 mod navigator;
 mod shell_icons;
@@ -162,6 +163,9 @@ pub fn run() {
             favorites::favorites_contains,
             favorites::favorites_os_hook_status,
             favorites::favorites_os_hook_set_enabled,
+            visit_stats::visit_stats_get,
+            visit_stats::visit_stats_record,
+            visit_stats::visit_stats_quick_access,
             open_with::open_native_open_with_dialog,
         ])
         .run(tauri::generate_context!())

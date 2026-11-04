@@ -399,5 +399,10 @@
     "label": "Favoriten",
     "empty": "Ordner über Kontextmenü anheften",
     "osVerb": "Explorer „Zu AFM-Favoriten hinzufügen“"
+  },
+  "quickAccess": {
+    "label": "Schnellzugriff",
+    "empty": "Häufig geöffnete Ordner erscheinen hier",
+    "openCount": "{count}-mal geöffnet"
   }
 }

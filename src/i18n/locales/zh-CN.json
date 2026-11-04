@@ -399,5 +399,10 @@
     "label": "收藏",
     "empty": "可从右键菜单钉选文件夹",
     "osVerb": "资源管理器「添加到 AFM 收藏」"
+  },
+  "quickAccess": {
+    "label": "快速访问",
+    "empty": "常打开的文件夹会出现在这里",
+    "openCount": "已打开 {count} 次"
   }
 }

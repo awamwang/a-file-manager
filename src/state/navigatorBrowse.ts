@@ -15,6 +15,7 @@ import {
   type WorkGroupOpenState,
 } from "./openStateModel";
 import { recordNavHistory } from "./navHistory";
+import { recordPathVisit } from "./visitStats";
 
 export type NavigatorEntry = {
   name: string;
@@ -134,6 +135,8 @@ export async function navigateTo(
     const result = await invoke<NavigatorListing>("navigator_list", { path: trimmed });
     listing.value = result;
     currentPath.value = result.path;
+    // AIA-74: count directory landings (tab enter + folder nav share this path).
+    void recordPathVisit(result.path, true);
     if (recordHistory) {
       recordNavHistory(previous, result.path);
     }

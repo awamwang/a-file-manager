@@ -399,5 +399,10 @@
     "label": "Favoris",
     "empty": "Épingler via le menu contextuel",
     "osVerb": "Explorateur « Ajouter aux favoris AFM »"
+  },
+  "quickAccess": {
+    "label": "Accès rapide",
+    "empty": "Les dossiers souvent ouverts apparaissent ici",
+    "openCount": "Ouvert {count} fois"
   }
 }

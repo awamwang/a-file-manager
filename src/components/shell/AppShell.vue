@@ -47,6 +47,7 @@ import {
   loadFavoritesOsHookStatus,
   setFavoritesOsHookEnabled,
 } from "../../state/favorites";
+import { quickAccessList, loadVisitStats } from "../../state/visitStats";
 import { dualPaneEnabled, toggleDualPane } from "../../state/dualPane";
 
 const { t, locale } = useI18n();
@@ -147,9 +148,18 @@ async function openFavoritePin(path: string) {
   await navigateTo(path);
 }
 
+async function openQuickAccessPin(path: string) {
+  await ensureNavigatorRoute();
+  await navigateTo(path);
+}
+
 function favoriteLabel(path: string): string {
   const parts = path.replace(/\\/g, "/").replace(/\/+$/, "").split("/");
   return parts[parts.length - 1] || path;
+}
+
+function quickAccessLabel(path: string): string {
+  return favoriteLabel(path);
 }
 
 async function onToggleOsFavoriteVerb(event: Event) {
@@ -359,6 +369,7 @@ onMounted(() => {
   void bootstrapNavigatorOpenState();
   void loadFavorites().catch(() => undefined);
   void loadFavoritesOsHookStatus().catch(() => undefined);
+  void loadVisitStats().catch(() => undefined);
   registerShellShortcuts();
   window.addEventListener("keydown", onGlobalKeydown);
 
@@ -582,6 +593,36 @@ onUnmounted(() => {
 
     <div class="body">
       <nav class="sidenav fluent-layer-alt" :aria-label="t('chrome.sideNav')">
+        <div class="quick-access" role="group" :aria-label="t('quickAccess.label')">
+          <div class="quick-access-title">
+            <FluentIcon name="home" size="sm" />
+            <span>{{ t("quickAccess.label") }}</span>
+          </div>
+          <button
+            v-for="item in quickAccessList"
+            :key="item.path"
+            type="button"
+            class="fluent-list-row sidenav-item quick-access-pin"
+            :title="`${item.path} · ${t('quickAccess.openCount', { count: item.openCount })}`"
+            :class="{
+              'sidenav-item--active':
+                route.path === '/navigator' &&
+                currentPath.replace(/\\/g, '/').toLowerCase() ===
+                  item.path.replace(/\\/g, '/').toLowerCase(),
+            }"
+            @click="openQuickAccessPin(item.path)"
+          >
+            <FluentIcon
+              :name="item.isDir ? 'folder' : 'document'"
+              size="md"
+              class="sidenav-icon"
+            />
+            <span class="sidenav-label">{{ quickAccessLabel(item.path) }}</span>
+          </button>
+          <p v-if="!quickAccessList.length" class="quick-access-empty">
+            {{ t("quickAccess.empty") }}
+          </p>
+        </div>
         <div class="fav-pins" role="group" :aria-label="t('favorites.label')">
           <div class="fav-pins-title">
             <FluentIcon name="heart" size="sm" />
@@ -940,6 +981,35 @@ onUnmounted(() => {
   display: flex;
   flex: 1;
   min-height: 0;
+}
+
+.quick-access {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: var(--fluent-space-sm);
+  margin-bottom: var(--fluent-space-sm);
+  border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+}
+
+.quick-access-title {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-xs);
+  padding: var(--fluent-space-xs) var(--fluent-space-md);
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+}
+
+.quick-access-empty {
+  margin: 0;
+  padding: 0 var(--fluent-space-md) var(--fluent-space-xs);
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+}
+
+.quick-access-pin .sidenav-label {
+  font-size: var(--fluent-font-size-caption);
 }
 
 .fav-pins {

@@ -399,5 +399,10 @@
     "label": "Favorites",
     "empty": "Pin folders from the context menu",
     "osVerb": "Explorer “Add to AFM favorites”"
+  },
+  "quickAccess": {
+    "label": "Quick access",
+    "empty": "Folders you open often appear here",
+    "openCount": "Opened {count} times"
   }
 }
