@@ -2,9 +2,9 @@
 //! Work Groups — hard config ↔ runtime Open State + silent switch (ADR / design §5).
 
 mod paths;
-mod store;
-mod sync;
-mod types;
+pub(crate) mod store;
+pub(crate) mod sync;
+pub(crate) mod types;
 
 use store::{load_from_path, save_to_path};
 use sync::{

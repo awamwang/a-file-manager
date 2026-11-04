@@ -6,6 +6,7 @@ mod navigator;
 mod projects;
 mod providers;
 mod settings;
+pub mod sigma_import;
 mod snap_chrome;
 mod work_groups;
 

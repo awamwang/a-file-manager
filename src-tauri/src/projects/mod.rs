@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Project-mode — Cursor-like domain container (independent of Work Groups).
 
-mod migrate;
+pub(crate) mod migrate;
 mod ops;
-mod store;
-mod types;
+pub(crate) mod store;
+pub(crate) mod types;
 
 use ops::{
     add_task, add_workspace_link, create_project, delete_project, delete_task, move_task,

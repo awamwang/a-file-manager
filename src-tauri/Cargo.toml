@@ -15,6 +15,10 @@ edition = "2021"
 name = "a_file_manager_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[[bin]]
+name = "sigma-import"
+path = "src/bin/sigma_import.rs"
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
