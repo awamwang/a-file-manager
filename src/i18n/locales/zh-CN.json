@@ -114,7 +114,68 @@
     "loading": "正在加载模式…",
     "tierCore": "核心",
     "tierPower": "高级",
-    "tierExperimental": "实验"
+    "tierExperimental": "实验",
+    "fields": {
+      "core": {
+        "language": {
+          "title": "语言",
+          "description": "界面语言：en | zh-CN",
+          "options": {
+            "en": "English",
+            "zh-CN": "简体中文"
+          }
+        },
+        "theme": {
+          "title": "主题",
+          "description": "颜色主题：浅色 | 深色 | 跟随系统",
+          "options": {
+            "light": "浅色",
+            "dark": "深色",
+            "system": "跟随系统"
+          }
+        },
+        "defaultLocation": {
+          "title": "默认位置",
+          "description": "导航器默认打开的操作系统路径（空 = USERPROFILE）"
+        },
+        "showHidden": {
+          "title": "显示隐藏项",
+          "description": "在内核列表中包含隐藏文件/文件夹"
+        },
+        "listDensity": {
+          "title": "列表密度",
+          "description": "文件列表密度；外壳保持标准。默认：标准",
+          "options": {
+            "standard": "标准",
+            "compact": "紧凑"
+          }
+        },
+        "everythingPreferred": {
+          "title": "优先使用 Everything",
+          "description": "可用时优先通过 Everything IPC 进行发现搜索"
+        },
+        "extensionsEnabled": {
+          "title": "启用扩展",
+          "description": "扩展宿主总开关"
+        }
+      },
+      "power": {
+        "confirmBeforeDelete": {
+          "title": "删除前确认",
+          "description": "永久删除操作前征求确认"
+        },
+        "perPathOverridesEnabled": {
+          "title": "按路径覆盖",
+          "description": "允许按路径的导航器默认值覆盖组/全局设置"
+        }
+      },
+      "experimental": {
+        "debugStatusInTitlebar": {
+          "title": "标题栏调试状态",
+          "description": "在自定义标题栏显示阶段/调试说明"
+        }
+      }
+    }
   },
   "health": {
     "title": "健康",

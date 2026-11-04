@@ -114,7 +114,68 @@
     "loading": "Loading schema…",
     "tierCore": "Core",
     "tierPower": "Power",
-    "tierExperimental": "Experimental"
+    "tierExperimental": "Experimental",
+    "fields": {
+      "core": {
+        "language": {
+          "title": "Language",
+          "description": "UI language: en | zh-CN",
+          "options": {
+            "en": "English",
+            "zh-CN": "简体中文"
+          }
+        },
+        "theme": {
+          "title": "Theme",
+          "description": "Color theme: light | dark | system",
+          "options": {
+            "light": "Light",
+            "dark": "Dark",
+            "system": "System"
+          }
+        },
+        "defaultLocation": {
+          "title": "Default location",
+          "description": "Default OS path opened in Navigator (empty = USERPROFILE)"
+        },
+        "showHidden": {
+          "title": "Show hidden items",
+          "description": "Include hidden files/folders in Kernel listings"
+        },
+        "listDensity": {
+          "title": "List density",
+          "description": "File list density; chrome stays Standard. Default: standard",
+          "options": {
+            "standard": "Standard",
+            "compact": "Compact"
+          }
+        },
+        "everythingPreferred": {
+          "title": "Everything preferred",
+          "description": "Prefer Everything IPC for Discovery when available"
+        },
+        "extensionsEnabled": {
+          "title": "Extensions enabled",
+          "description": "Master switch for the extension host"
+        }
+      },
+      "power": {
+        "confirmBeforeDelete": {
+          "title": "Confirm before delete",
+          "description": "Ask before permanent delete operations"
+        },
+        "perPathOverridesEnabled": {
+          "title": "Per-path overrides",
+          "description": "Allow per-path navigator defaults to override group/global"
+        }
+      },
+      "experimental": {
+        "debugStatusInTitlebar": {
+          "title": "Debug status in titlebar",
+          "description": "Show phase/debug caption in the custom titlebar"
+        }
+      }
+    }
   },
   "health": {
     "title": "Health",

@@ -4,9 +4,28 @@ import { computed, onMounted, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { applyUiChromeFromValues } from "../state/uiChrome";
 import { applyAppLocaleFromValues } from "../i18n/index";
+import {
+  settingEnumOptionPath,
+  settingFieldMessagePath,
+} from "../i18n/settingsFields";
 import { useI18n } from "vue-i18n";
 
-const { t } = useI18n();
+const { t, te } = useI18n();
+
+function fieldTitle(def: SettingDefinition): string {
+  const path = settingFieldMessagePath(def.key, "title");
+  return te(path) ? String(t(path)) : def.title;
+}
+
+function fieldDescription(def: SettingDefinition): string {
+  const path = settingFieldMessagePath(def.key, "description");
+  return te(path) ? String(t(path)) : def.description;
+}
+
+function enumOptionLabel(settingKey: string, option: string): string {
+  const path = settingEnumOptionPath(settingKey, option);
+  return te(path) ? String(t(path)) : option;
+}
 
 type SettingsTier = "core" | "power" | "experimental";
 
@@ -143,8 +162,8 @@ onMounted(() => {
       <div class="fluent-surface fields">
         <div v-for="def in visibleDefs" :key="def.key" class="field">
           <div class="field-text">
-            <label class="title" :for="def.key">{{ def.title }}</label>
-            <p class="desc">{{ def.description }}</p>
+            <label class="title" :for="def.key">{{ fieldTitle(def) }}</label>
+            <p class="desc">{{ fieldDescription(def) }}</p>
             <code class="key">{{ def.key }}</code>
           </div>
 
@@ -168,7 +187,7 @@ onMounted(() => {
               @change="onSelectChange(def.key, $event)"
             >
               <option v-for="option in def.enumValues ?? []" :key="option" :value="option">
-                {{ option }}
+                {{ enumOptionLabel(def.key, option) }}
               </option>
             </select>
 
