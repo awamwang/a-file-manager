@@ -7,8 +7,11 @@ use super::types::{
 use crate::win_process;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::io::Read;
+use std::process::Stdio;
 use std::sync::Arc;
-use std::time::Duration;
+use std::thread;
+use std::time::{Duration, Instant};
 
 const CAPABILITIES: &[ProviderCapability] = &[
     ProviderCapability::List,
@@ -27,7 +30,7 @@ pub trait RcloneRunner: Send + Sync {
     fn run(&self, args: &[&str], timeout: Duration) -> Result<CommandOutput, String>;
 }
 
-/// rclone CLI runner (no mount / no VFS). Timeout is advisory; blocking `output()` for Day-1.
+/// rclone CLI runner (no mount / no VFS). Honors `timeout` by killing the child (AIA-182).
 #[derive(Debug, Default)]
 pub struct BlockingRcloneRunner {
     pub exe: String,
@@ -44,12 +47,14 @@ impl BlockingRcloneRunner {
 }
 
 impl RcloneRunner for BlockingRcloneRunner {
-    fn run(&self, args: &[&str], _timeout: Duration) -> Result<CommandOutput, String> {
+    fn run(&self, args: &[&str], timeout: Duration) -> Result<CommandOutput, String> {
         // rclone is a console binary; CREATE_NO_WINDOW prevents flash on GUI builds
         // (provider_preload / health / listremotes at app start and on Providers refresh).
-        let output = win_process::command(&self.exe)
+        let mut child = win_process::command(&self.exe)
             .args(args)
-            .output()
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
             .map_err(|err| {
                 if err.kind() == std::io::ErrorKind::NotFound {
                     "rclone not found on PATH".to_string()
@@ -57,10 +62,49 @@ impl RcloneRunner for BlockingRcloneRunner {
                     format!("Failed to run rclone: {err}")
                 }
             })?;
+
+        let mut stdout_pipe = child
+            .stdout
+            .take()
+            .ok_or_else(|| "rclone stdout pipe missing".to_string())?;
+        let mut stderr_pipe = child
+            .stderr
+            .take()
+            .ok_or_else(|| "rclone stderr pipe missing".to_string())?;
+        let stdout_thr = thread::spawn(move || {
+            let mut buf = Vec::new();
+            let _ = stdout_pipe.read_to_end(&mut buf);
+            buf
+        });
+        let stderr_thr = thread::spawn(move || {
+            let mut buf = Vec::new();
+            let _ = stderr_pipe.read_to_end(&mut buf);
+            buf
+        });
+
+        let deadline = Instant::now() + timeout;
+        let status = loop {
+            match child.try_wait() {
+                Ok(Some(status)) => break status,
+                Ok(None) if Instant::now() >= deadline => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(format!(
+                        "rclone timed out after {}s",
+                        timeout.as_secs().max(1)
+                    ));
+                }
+                Ok(None) => thread::sleep(Duration::from_millis(25)),
+                Err(err) => return Err(format!("Failed to wait for rclone: {err}")),
+            }
+        };
+
+        let stdout = String::from_utf8_lossy(&stdout_thr.join().unwrap_or_default()).to_string();
+        let stderr = String::from_utf8_lossy(&stderr_thr.join().unwrap_or_default()).to_string();
         Ok(CommandOutput {
-            status_code: output.status.code().unwrap_or(-1),
-            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
-            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+            status_code: status.code().unwrap_or(-1),
+            stdout,
+            stderr,
         })
     }
 }

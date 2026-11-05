@@ -53,6 +53,13 @@ assert.ok(
   !/Command::new\(\s*&?self\.exe\s*\)/.test(rclone),
   "rclone must not spawn via bare Command::new",
 );
+// AIA-182: timeout must kill the child — not advisory-only `output()`.
+assert.ok(rclone.includes("child.kill()"), "rclone must kill on timeout");
+assert.ok(rclone.includes("try_wait()"), "rclone must poll child instead of blocking output()");
+assert.ok(
+  !/fn run\([\s\S]*?_timeout:\s*Duration/.test(rclone.split("impl RcloneRunner for BlockingRcloneRunner")[1] ?? ""),
+  "BlockingRcloneRunner must honor timeout parameter",
+);
 
 assert.ok(
   openWith.includes("win_process::command"),
