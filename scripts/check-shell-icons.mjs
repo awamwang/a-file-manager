@@ -18,5 +18,11 @@ assert.ok(rust.includes("image_thumbnail_data_url"));
 assert.ok(state.includes("shell_icon_get_many"));
 assert.ok(view.includes("requestShellIcons"));
 assert.ok(view.includes("shell-icon"));
+assert.ok(view.includes("IntersectionObserver"), "viewport-only icon/thumbnail load (AIA-182)");
+assert.ok(view.includes("bindIconObserver") || view.includes("refreshViewportIconObservers"));
+assert.ok(
+  !/requestIconsFor\(visibleEntries\.value\.map/.test(view),
+  "must not request icons for the entire filtered listing",
+);
 
-console.log("Shell icons checks OK (AIA-65).");
+console.log("Shell icons checks OK (AIA-65/182).");

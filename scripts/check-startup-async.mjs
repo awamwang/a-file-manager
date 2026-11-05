@@ -144,4 +144,14 @@ assert.ok(
   );
 }
 
+// --- P1: shell icons / thumbnails for viewport window only ---
+{
+  const nav = read("src/views/NavigatorView.vue");
+  assert.ok(nav.includes("IntersectionObserver"), "Navigator uses IntersectionObserver");
+  assert.ok(
+    !/requestIconsFor\(visibleEntries\.value\.map/.test(nav),
+    "must not warm icons for every filtered entry",
+  );
+}
+
 console.log("startup-async checks OK (AIA-181/182).");

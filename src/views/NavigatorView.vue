@@ -176,6 +176,7 @@ function closeProperties() {
 }
 
 const listRoot = ref<HTMLElement | null>(null);
+const secondaryListRoot = ref<HTMLElement | null>(null);
 const marquee = ref<{ x: number; y: number; w: number; h: number } | null>(null);
 let marqueeOrigin: { x: number; y: number } | null = null;
 let marqueeActive = false;
@@ -357,18 +358,55 @@ function requestIconsFor(paths: string[]) {
   requestShellIcons(paths, size, isIconView.value);
 }
 
-watch(
-  [visibleEntries, navigatorViewMode],
-  () => {
-    requestIconsFor(visibleEntries.value.map((e) => e.path));
-  },
-  { immediate: true },
-);
+/** Only request shell icons / thumbnails for rows in (or near) the scroll viewport (AIA-182). */
+let primaryIconObserver: IntersectionObserver | null = null;
+let secondaryIconObserver: IntersectionObserver | null = null;
+
+function disconnectIconObservers() {
+  primaryIconObserver?.disconnect();
+  primaryIconObserver = null;
+  secondaryIconObserver?.disconnect();
+  secondaryIconObserver = null;
+}
+
+function bindIconObserver(
+  root: HTMLElement | null,
+  previous: IntersectionObserver | null,
+): IntersectionObserver | null {
+  previous?.disconnect();
+  if (!root) return null;
+  const observer = new IntersectionObserver(
+    (entries) => {
+      const paths: string[] = [];
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const path = (entry.target as HTMLElement).dataset.entryPath;
+        if (path) paths.push(path);
+      }
+      if (paths.length) requestIconsFor(paths);
+    },
+    // Prefetch a little past the fold so scroll feels warm without loading the whole listing.
+    { root, rootMargin: "120px 0px", threshold: 0 },
+  );
+  for (const el of root.querySelectorAll<HTMLElement>("[data-entry-path]")) {
+    observer.observe(el);
+  }
+  return observer;
+}
+
+async function refreshViewportIconObservers() {
+  await nextTick();
+  primaryIconObserver = bindIconObserver(listRoot.value, primaryIconObserver);
+  secondaryIconObserver = bindIconObserver(
+    secondaryListRoot.value,
+    secondaryIconObserver,
+  );
+}
 
 watch(
-  [secondaryEntries, navigatorViewMode],
+  [visibleEntries, secondaryEntries, navigatorViewMode, listRoot, secondaryListRoot],
   () => {
-    requestIconsFor(secondaryEntries.value.map((e) => e.path));
+    void refreshViewportIconObservers();
   },
   { immediate: true },
 );
@@ -403,6 +441,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   clearPendingNameRename();
+  disconnectIconObservers();
   unregisterNavFileShortcuts();
   window.removeEventListener("mousemove", onMarqueeMove);
   window.removeEventListener("mouseup", onMarqueeEnd);
@@ -986,6 +1025,7 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
       <p v-else-if="secondaryError" class="fluent-banner fluent-banner--error">{{ secondaryError }}</p>
       <div
         v-else-if="secondaryListing"
+        ref="secondaryListRoot"
         class="fluent-surface list"
         :class="{
           'list--details': isDetailsView,
@@ -1004,6 +1044,7 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
           :class="{ 'row--icon': isIconView }"
           role="listitem"
           tabindex="0"
+          :data-entry-path="entry.path"
           :title="entryHoverTitle(entry)"
           @dblclick="onActivateSecondary(entry)"
           @keydown.enter.prevent="onActivateSecondary(entry)"
