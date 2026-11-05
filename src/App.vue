@@ -5,6 +5,7 @@ import { useRouter } from "vue-router";
 import AppShell from "./components/shell/AppShell.vue";
 import { applyAppLocaleFromValues } from "./i18n/index";
 import { preloadProviderCache } from "./state/providerCache";
+import { scheduleIdle } from "./state/scheduleIdle";
 import { hydrateSettings } from "./state/settingsHydrate";
 import {
   STARTUP_PAGE_SETTING_KEY,
@@ -36,8 +37,11 @@ onMounted(() => {
     ) {
       await router.replace(target);
     }
-    // AIA-76: warm depth-1 provider listings at app start (not Providers route).
-    void preloadProviderCache();
+    // AIA-181 P0: defer provider_preload off the first navigator_list window
+    // (idle, or ProvidersView first visit also calls preloadProviderCache).
+    scheduleIdle(() => {
+      void preloadProviderCache();
+    }, 4000);
   })();
 });
 </script>

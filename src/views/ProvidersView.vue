@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import { entryKindIcon } from "../components/icons/glyphs";
+import { preloadProviderCache } from "../state/providerCache";
 
 const { t } = useI18n();
 
@@ -70,6 +71,8 @@ function openEntry(entry: ProviderEntry) {
 }
 
 onMounted(() => {
+  // AIA-181: if idle preload has not finished (or was deferred), warm on first visit.
+  void preloadProviderCache();
   void loadBackends()
     .then(() => listUri("awam://root"))
     .catch((err) => {

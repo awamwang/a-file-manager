@@ -729,8 +729,8 @@ function onKey(event: KeyboardEvent) {
 onMounted(() => {
   window.addEventListener("mousedown", onDocPointer, true);
   window.addEventListener("keydown", onKey, true);
-  // Warm launcher lists once the Navigator mounts this menu host.
-  preloadLaunchersIfNeeded();
+  // AIA-181 P0: do not warm IDE/terminal on Navigator mount — first right-click
+  // (watch on `open`) or Open-with/Terminal submenu path calls preloadLaunchersIfNeeded.
 });
 
 onUnmounted(() => {

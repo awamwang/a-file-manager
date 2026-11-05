@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
- * Provider depth-1 listing cache (AIA-76).
+ * Provider depth-1 listing cache (AIA-76 / AIA-181).
  *
- * Wire choice: **app start** (`App.vue` onMounted), fire-and-forget.
- * Not Providers-route-enter — first visit to Providers should already be warm.
+ * Wire choice: **idle after app start** (`App.vue` → `scheduleIdle`), plus
+ * Providers-route first visit as a safety warm. Keeps rclone/knowledge off the
+ * first `navigator_list` critical path. Idempotent concurrent callers share one invoke.
  * Server-side TTL: 60s ok / 15s error; `provider_list` reads the same cache.
  */
 
