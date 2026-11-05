@@ -149,17 +149,19 @@ for (const id of [
   "openInTerminal",
   "toggleFavorite",
   "systemMenu",
-  "copy",
-  "cut",
-  "paste",
-  "rename",
   "newFolder",
-  "copyPath",
   "delete",
 ]) {
   assert.ok(
     model.includes(`"${id}"`) || model.includes(`'${id}'`),
     `missing action ${id}`,
+  );
+}
+assert.ok(model.includes("buildContextToolbarItems"), "toolbar builder missing");
+for (const id of ["copy", "cut", "paste", "rename", "copyPath"]) {
+  assert.ok(
+    model.includes(`id: "${id}"`) || model.includes(`id: '${id}'`),
+    `toolbar action ${id} missing`,
   );
 }
 

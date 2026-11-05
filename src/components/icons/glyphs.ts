@@ -34,7 +34,12 @@ export type FluentGlyphId =
   | "dualPane"
   | "add"
   | "check"
-  | "chevronDown";
+  | "chevronDown"
+  | "copy"
+  | "cut"
+  | "paste"
+  | "rename"
+  | "link";
 
 export type FluentGlyph = {
   /** Segoe Fluent Icons / MDL2 private-use codepoint */
@@ -227,6 +232,41 @@ export const FLUENT_GLYPHS: Record<FluentGlyphId, FluentGlyph> = {
   chevronDown: {
     codepoint: "\uE70D",
     paths: ["M3.4 6.2 8 10.6l4.6-4.4.9.9L8 12.4 2.5 7.1l.9-.9z"],
+  },
+  /** Segoe Copy — clipboard duplicate. */
+  copy: {
+    codepoint: "\uE8C8",
+    paths: [
+      "M5.5 2.5h6.5v9H5.5v-9zm1.2 1.2v6.6h4.1V3.7H6.7zM3.5 4.8h1.2v8.2H10v1.2H3.5V4.8z",
+    ],
+  },
+  /** Segoe Cut — scissors. */
+  cut: {
+    codepoint: "\uE8C6",
+    paths: [
+      "M5.2 2.8a2 2 0 1 0 1.3 3.5L8 7.8l1.5-1.5A2 2 0 1 0 10.8 2.8a2 2 0 0 0-1.5.7L8 5l-1.3-1.5A2 2 0 0 0 5.2 2.8zm0 1.2a.8.8 0 1 1 0 1.6.8.8 0 0 1 0-1.6zm5.6 0a.8.8 0 1 1 0 1.6.8.8 0 0 1 0-1.6zM8 8.4 3.4 13l.9.9L8 10.2l3.7 3.7.9-.9L8 8.4z",
+    ],
+  },
+  /** Segoe Paste. */
+  paste: {
+    codepoint: "\uE77F",
+    paths: [
+      "M6.2 2.5h3.6v1.2H12v10.3H4V3.7h2.2V2.5zm1.2 1.2v1.1h1.2V3.7H7.4zM5.2 5.8v6.8h5.6V5.8H5.2z",
+    ],
+  },
+  /** Segoe Rename. */
+  rename: {
+    codepoint: "\uE8AC",
+    paths: [
+      "M9.2 2.8 3.5 8.5v2.8h2.8l5.7-5.7-2.8-2.8zm.9 1.1 1.7 1.7-4.6 4.6H4.7V8.5l4.6-4.6zM3.5 12.5h9v1.2h-9v-1.2z",
+    ],
+  },
+  /** Segoe Link — copy path. */
+  link: {
+    codepoint: "\uE71B",
+    paths: [
+      "M6.2 7.1a2.4 2.4 0 0 1 0-3.4l1.5-1.5a2.4 2.4 0 0 1 3.4 3.4L9.8 6.9l-.9-.9 1.3-1.3a1.2 1.2 0 0 0-1.7-1.7L7.1 4.5a1.2 1.2 0 0 0 0 1.7l.6.6-.9.9-.6-.6zm3.6 1.8a2.4 2.4 0 0 1 0 3.4l-1.5 1.5a2.4 2.4 0 0 1-3.4-3.4L6.2 9.1l.9.9-1.3 1.3a1.2 1.2 0 0 0 1.7 1.7l1.5-1.5a1.2 1.2 0 0 0 0-1.7l-.6-.6.9-.9.6.6zM6.8 9.8l2.4-2.4.9.9-2.4 2.4-.9-.9z",
+    ],
   },
 };
 

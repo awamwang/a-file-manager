@@ -14,7 +14,8 @@
     "yes": "yes",
     "no": "no",
     "folder": "Folder",
-    "file": "File"
+    "file": "File",
+    "more": "More"
   },
   "chrome": {
     "titleBar": "Title bar",
@@ -71,7 +72,10 @@
     "closeConfirmRemember": "Remember this choice",
     "viewMode": "View",
     "viewList": "List",
-    "viewDetails": "Details"
+    "viewDetails": "Details",
+    "viewIconsLarge": "Extra large icons",
+    "viewIconsMedium": "Medium icons",
+    "viewIconsSmall": "Small icons"
   },
   "nav": {
     "navigator": "Navigator",
@@ -270,8 +274,11 @@
         },
         "navigatorViewMode": {
           "title": "Navigator view",
-          "description": "Windows-style List or Details (Details includes date modified)",
+          "description": "Windows-style icons (large/medium/small), list, or details",
           "options": {
+            "iconsLarge": "Extra large icons",
+            "iconsMedium": "Medium icons",
+            "iconsSmall": "Small icons",
             "list": "List",
             "details": "Details"
           }
@@ -411,7 +418,8 @@
     "deleteConfirm": "Delete Work Group \"{name}\"? Tabs stay until you switch.",
     "deleted": "Work Group deleted",
     "deleteConfirmClearTabs": "Delete Work Group \"{name}\"? Its saved Open State tabs will be cleared. If it is active, you will switch to the default Work Group.",
-    "deletedSwitched": "Work Group deleted; switched to default"
+    "deletedSwitched": "Work Group deleted; switched to default",
+    "renameHint": "Double-click to rename"
   },
   "projects": {
     "title": "Projects",
@@ -462,7 +470,8 @@
     "errorUnbound": "Project has no bound Work Group",
     "rename": "Rename",
     "renamePrompt": "Project name",
-    "renamed": "Project renamed"
+    "renamed": "Project renamed",
+    "renameHint": "Double-click to rename"
   },
   "extensions": {
     "title": "Extensions",
@@ -519,7 +528,8 @@
       "navigatorSelectAll": "Select all items",
       "focusAddress": "Focus address bar",
       "openSettings": "Open Settings",
-      "openShortcutList": "Open shortcut list"
+      "openShortcutList": "Open shortcut list",
+      "navigatorCopyPath": "Copy path of selected item"
     }
   },
   "contextMenu": {
@@ -574,7 +584,9 @@
     "openInTerminalApp": "Terminal",
     "openInTerminalAdmin": "Administrator",
     "openInTerminalAdminNamed": "{name} (Admin)",
-    "openInTerminalDefault": "Default terminal"
+    "openInTerminalDefault": "Default terminal",
+    "toolbar": "Quick actions",
+    "pathCopied": "Path copied"
   },
   "favorites": {
     "label": "Favorites",

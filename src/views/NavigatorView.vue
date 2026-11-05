@@ -46,8 +46,12 @@ import {
 } from "../state/navigatorSelection";
 import { sortedEntries, sortColumn, sortDirection, toggleSort } from "../state/navigatorSort";
 import {
+  isDetailsView,
+  isIconView,
+  isListView,
   loadNavigatorViewMode,
   navigatorViewMode,
+  VIEW_ICON_SIZE,
 } from "../state/navigatorViewMode";
 import {
   activePane,
@@ -134,18 +138,24 @@ const secondaryEntries = computed(() => {
 
 const orderedPaths = computed(() => visibleEntries.value.map((e) => e.path));
 
+function requestIconsFor(paths: string[]) {
+  const size = VIEW_ICON_SIZE[navigatorViewMode.value];
+  // Icon views: prefer system thumbnails for images; list/details use small shell icons.
+  requestShellIcons(paths, size, isIconView.value);
+}
+
 watch(
-  visibleEntries,
-  (entries) => {
-    requestShellIcons(entries.map((e) => e.path));
+  [visibleEntries, navigatorViewMode],
+  () => {
+    requestIconsFor(visibleEntries.value.map((e) => e.path));
   },
   { immediate: true },
 );
 
 watch(
-  secondaryEntries,
-  (entries) => {
-    requestShellIcons(entries.map((e) => e.path));
+  [secondaryEntries, navigatorViewMode],
+  () => {
+    requestIconsFor(secondaryEntries.value.map((e) => e.path));
   },
   { immediate: true },
 );
@@ -207,7 +217,11 @@ function sortIndicator(column: "name" | "size" | "modified"): string {
   return sortDirection.value === "asc" ? " ▲" : " ▼";
 }
 
-const isDetailsView = computed(() => navigatorViewMode.value === "details");
+const iconPixelSize = computed(() => VIEW_ICON_SIZE[navigatorViewMode.value]);
+
+function shellIcon(path: string): string | null {
+  return iconUrlFor(path, iconPixelSize.value);
+}
 
 function onActivate(entry: NavigatorEntry) {
   // Primary list always uses openEntry; secondary pane has its own handler.
@@ -321,6 +335,17 @@ async function shortcutPaste() {
   }
 }
 
+async function shortcutCopyPath() {
+  const entry = primaryEntry();
+  if (!entry) return;
+  try {
+    await navigator.clipboard.writeText(entry.path);
+    onNotice(t("contextMenu.pathCopied"));
+  } catch (err) {
+    onNotice(err instanceof Error ? err.message : String(err));
+  }
+}
+
 async function shortcutRename() {
   const entry = primaryEntry();
   if (!entry) return;
@@ -422,6 +447,9 @@ function registerNavFileShortcuts() {
   registerShortcutHandler("navigator.rename", () => {
     void shortcutRename();
   });
+  registerShortcutHandler("navigator.copyPath", () => {
+    void shortcutCopyPath();
+  });
   registerShortcutHandler("navigator.newFolder", () => {
     void shortcutNewFolder();
   });
@@ -445,6 +473,7 @@ function unregisterNavFileShortcuts() {
     "navigator.cut",
     "navigator.paste",
     "navigator.rename",
+    "navigator.copyPath",
     "navigator.newFolder",
     "navigator.newFile",
     "navigator.refresh",
@@ -593,7 +622,14 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
       v-if="listing"
       ref="listRoot"
       class="fluent-surface list"
-      :class="isDetailsView ? 'list--details' : 'list--list'"
+      :class="{
+        'list--details': isDetailsView,
+        'list--list': isListView,
+        'list--icons': isIconView,
+        'list--icons-large': navigatorViewMode === 'iconsLarge',
+        'list--icons-medium': navigatorViewMode === 'iconsMedium',
+        'list--icons-small': navigatorViewMode === 'iconsSmall',
+      }"
       role="list"
       @contextmenu="onListContextMenu"
       @mousedown="onListMouseDown"
@@ -615,15 +651,16 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
         v-for="entry in visibleEntries"
         :key="entry.path"
         class="fluent-list-row fluent-list-row--density row"
+        :class="{
+          'row--icon': isIconView,
+          'row--selected': isSelected(entry.path),
+          'row--drop': dragOverPath === entry.path,
+        }"
         role="listitem"
         tabindex="0"
         draggable="true"
         :data-entry-path="entry.path"
         :aria-selected="isSelected(entry.path)"
-        :class="{
-          'row--selected': isSelected(entry.path),
-          'row--drop': dragOverPath === entry.path,
-        }"
         @click="onRowClick($event, entry)"
         @dblclick="onActivate(entry)"
         @keydown.enter.prevent="onActivate(entry)"
@@ -639,12 +676,12 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
           :title="entry.kind === 'dir' ? t('navigator.folder') : t('navigator.file')"
         >
           <img
-            v-if="iconUrlFor(entry.path)"
+            v-if="shellIcon(entry.path)"
             class="shell-icon"
-            :src="iconUrlFor(entry.path)!"
+            :src="shellIcon(entry.path)!"
             alt=""
-            width="16"
-            height="16"
+            :width="iconPixelSize"
+            :height="iconPixelSize"
           />
           <FluentIcon v-else :name="entryKindIcon(entry.kind === 'dir')" size="md" />
         </span>
@@ -680,13 +717,21 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
       <div
         v-else-if="secondaryListing"
         class="fluent-surface list"
-        :class="isDetailsView ? 'list--details' : 'list--list'"
+        :class="{
+          'list--details': isDetailsView,
+          'list--list': isListView,
+          'list--icons': isIconView,
+          'list--icons-large': navigatorViewMode === 'iconsLarge',
+          'list--icons-medium': navigatorViewMode === 'iconsMedium',
+          'list--icons-small': navigatorViewMode === 'iconsSmall',
+        }"
         role="list"
       >
         <div
           v-for="entry in secondaryEntries"
           :key="entry.path"
           class="fluent-list-row fluent-list-row--density row"
+          :class="{ 'row--icon': isIconView }"
           role="listitem"
           tabindex="0"
           @dblclick="onActivateSecondary(entry)"
@@ -694,12 +739,12 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
         >
           <span class="kind" :data-kind="entry.kind">
             <img
-              v-if="iconUrlFor(entry.path)"
+              v-if="shellIcon(entry.path)"
               class="shell-icon"
-              :src="iconUrlFor(entry.path)!"
+              :src="shellIcon(entry.path)!"
               alt=""
-              width="16"
-              height="16"
+              :width="iconPixelSize"
+              :height="iconPixelSize"
             />
             <FluentIcon v-else :name="entryKindIcon(entry.kind === 'dir')" size="md" />
           </span>
@@ -811,6 +856,55 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
 .list--details .list-header,
 .list--details .row {
   grid-template-columns: 2rem minmax(0, 1fr) 5.5rem 9.5rem;
+}
+
+.list--icons {
+  display: grid;
+  align-content: start;
+  gap: var(--fluent-space-sm);
+  padding: var(--fluent-space-sm);
+}
+
+.list--icons-large {
+  grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+}
+
+.list--icons-medium {
+  grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));
+}
+
+.list--icons-small {
+  grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
+}
+
+.list--icons .row--icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--fluent-space-xs);
+  min-height: auto;
+  padding: var(--fluent-space-sm);
+  border-bottom: 0;
+  border-radius: var(--fluent-radius-md);
+  text-align: center;
+}
+
+.list--icons .row--icon .name {
+  width: 100%;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.25;
+  font-size: var(--fluent-font-size-caption);
+}
+
+.list--icons .shell-icon {
+  width: auto;
+  height: auto;
+  max-width: 100%;
 }
 
 .list-header {

@@ -131,6 +131,16 @@ fn migrate_step(
             );
             Ok(())
         }
+        (4, 5) => {
+            for (key, value) in default_document().values {
+                values.entry(key).or_insert(value);
+            }
+            // Preserve list/details; new icon sizes are opt-in via UI.
+            notes.push(
+                "Expanded navigator view modes (icons large/medium/small; schema v5)".to_string(),
+            );
+            Ok(())
+        }
         _ => Err(format!("No migration path from {from} → {to}")),
     }
 }

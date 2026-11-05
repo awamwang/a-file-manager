@@ -81,8 +81,13 @@ if (!router.includes("/settings/open-tools")) {
   console.error("Router missing /settings/open-tools");
   process.exit(1);
 }
-if (!shell.includes("setNavigatorViewMode") || !shell.includes("viewDetails")) {
-  console.error("AppShell missing Windows-style list/details view toggle");
+if (
+  !shell.includes("setNavigatorViewMode") ||
+  !shell.includes("NAVIGATOR_VIEW_MODES") ||
+  !shell.includes("viewModeLabelKey") ||
+  !shell.includes("navigator-view-mode-menu")
+) {
+  console.error("AppShell missing Windows-style view mode menu");
   process.exit(1);
 }
 

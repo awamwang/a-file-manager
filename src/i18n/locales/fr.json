@@ -58,7 +58,10 @@
     "closeConfirmRemember": "Mémoriser ce choix",
     "viewMode": "Affichage",
     "viewList": "Liste",
-    "viewDetails": "Détails"
+    "viewDetails": "Détails",
+    "viewIconsLarge": "Très grandes icônes",
+    "viewIconsMedium": "Icônes moyennes",
+    "viewIconsSmall": "Petites icônes"
   },
   "commands": {
     "empty": "Aucune commande correspondante",
@@ -93,7 +96,8 @@
     "no": "non",
     "refresh": "Actualiser",
     "remove": "Retirer",
-    "yes": "oui"
+    "yes": "oui",
+    "more": "Plus"
   },
   "discovery": {
     "title": "Discovery",
@@ -250,7 +254,8 @@
     "errorUnbound": "Le projet n’a pas de groupe de travail lié",
     "rename": "Renommer",
     "renamePrompt": "Nom du projet",
-    "renamed": "Projet renommé"
+    "renamed": "Projet renommé",
+    "renameHint": "Double-cliquez pour renommer"
   },
   "providers": {
     "emptyBackends": "Aucun fournisseur pour l’instant. La navigation locale reste dans le Navigateur.",
@@ -367,8 +372,11 @@
         },
         "navigatorViewMode": {
           "title": "Vue du navigateur",
-          "description": "Style Windows : Liste ou Détails (Détails inclut la date de modification)",
+          "description": "Style Windows : grandes/moyennes/petites icônes, liste ou détails",
           "options": {
+            "iconsLarge": "Très grandes icônes",
+            "iconsMedium": "Icônes moyennes",
+            "iconsSmall": "Petites icônes",
             "list": "Liste",
             "details": "Détails"
           }
@@ -493,7 +501,8 @@
     "deleteConfirm": "Supprimer le groupe « {name} » ? Les onglets restent jusqu’au basculement.",
     "deleted": "Groupe de travail supprimé",
     "deleteConfirmClearTabs": "Supprimer le groupe « {name} » ? Ses onglets Open State enregistrés seront effacés. S'il est actif, bascule vers le groupe par défaut.",
-    "deletedSwitched": "Groupe supprimé ; bascule vers le défaut"
+    "deletedSwitched": "Groupe supprimé ; bascule vers le défaut",
+    "renameHint": "Double-cliquez pour renommer"
   },
   "shortcuts": {
     "meta": "Accords intégrés du registre central. En cas de conflit, le premier enregistrement gagne ; les lignes bloquées restent listées.",
@@ -519,7 +528,8 @@
       "openSettings": "Ouvrir les Paramètres",
       "openShortcutList": "Ouvrir la liste des raccourcis",
       "navigatorNewFile": "Nouveau fichier vide",
-      "navigatorRefresh": "Actualiser le dossier"
+      "navigatorRefresh": "Actualiser le dossier",
+      "navigatorCopyPath": "Copier le chemin de l’élément sélectionné"
     }
   },
   "contextMenu": {
@@ -574,7 +584,9 @@
     "openInTerminalApp": "Terminal",
     "openInTerminalAdmin": "Administrateur",
     "openInTerminalAdminNamed": "{name} (Admin)",
-    "openInTerminalDefault": "Terminal par défaut"
+    "openInTerminalDefault": "Terminal par défaut",
+    "toolbar": "Actions rapides",
+    "pathCopied": "Chemin copié"
   },
   "favorites": {
     "label": "Favoris",

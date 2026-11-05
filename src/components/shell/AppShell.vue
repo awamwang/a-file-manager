@@ -51,8 +51,11 @@ import { quickAccessList, loadVisitStats } from "../../state/visitStats";
 import { dualPaneEnabled, toggleDualPane } from "../../state/dualPane";
 import {
   loadNavigatorViewMode,
+  NAVIGATOR_VIEW_MODES,
   navigatorViewMode,
   setNavigatorViewMode,
+  viewModeLabelKey,
+  type NavigatorViewMode,
 } from "../../state/navigatorViewMode";
 import {
   activeWorkGroup,
@@ -108,6 +111,7 @@ const isMaximized = ref(false);
 const maxHover = ref(false);
 const placesMenuOpen = ref(false);
 const workGroupMenuOpen = ref(false);
+const viewModeMenuOpen = ref(false);
 const crumbMenuIndex = ref<number | null>(null);
 const crumbSiblings = ref<Array<{ name: string; path: string }>>([]);
 const crumbMenuLoading = ref(false);
@@ -126,6 +130,7 @@ const isNavigatorRoute = computed(
 
 function togglePlacesMenu() {
   workGroupMenuOpen.value = false;
+  viewModeMenuOpen.value = false;
   placesMenuOpen.value = !placesMenuOpen.value;
 }
 
@@ -135,6 +140,7 @@ function closePlacesMenu() {
 
 function toggleWorkGroupMenu() {
   placesMenuOpen.value = false;
+  viewModeMenuOpen.value = false;
   workGroupMenuOpen.value = !workGroupMenuOpen.value;
   if (workGroupMenuOpen.value) {
     void loadWorkGroupsChrome();
@@ -143,6 +149,21 @@ function toggleWorkGroupMenu() {
 
 function closeWorkGroupMenu() {
   workGroupMenuOpen.value = false;
+}
+
+function toggleViewModeMenu() {
+  placesMenuOpen.value = false;
+  workGroupMenuOpen.value = false;
+  viewModeMenuOpen.value = !viewModeMenuOpen.value;
+}
+
+function closeViewModeMenu() {
+  viewModeMenuOpen.value = false;
+}
+
+function chooseViewMode(mode: NavigatorViewMode) {
+  void setNavigatorViewMode(mode);
+  closeViewModeMenu();
 }
 
 function closeCrumbMenu() {
@@ -172,6 +193,7 @@ function positionCrumbMenu(anchor: HTMLElement) {
 function closeChromeMenus() {
   closePlacesMenu();
   closeWorkGroupMenu();
+  closeViewModeMenu();
   closeCrumbMenu();
 }
 
@@ -360,7 +382,10 @@ function onGlobalKeydown(event: KeyboardEvent) {
   }
   if (
     event.key === "Escape" &&
-    (placesMenuOpen.value || workGroupMenuOpen.value || crumbMenuIndex.value !== null)
+    (placesMenuOpen.value ||
+      workGroupMenuOpen.value ||
+      viewModeMenuOpen.value ||
+      crumbMenuIndex.value !== null)
   ) {
     closeChromeMenus();
     event.preventDefault();
@@ -372,13 +397,19 @@ function onGlobalKeydown(event: KeyboardEvent) {
 }
 
 function onDocumentPointerDown(event: PointerEvent) {
-  if (!placesMenuOpen.value && !workGroupMenuOpen.value && crumbMenuIndex.value === null) {
+  if (
+    !placesMenuOpen.value &&
+    !workGroupMenuOpen.value &&
+    !viewModeMenuOpen.value &&
+    crumbMenuIndex.value === null
+  ) {
     return;
   }
   const target = event.target;
   if (!(target instanceof Node)) return;
   const placesRoot = document.getElementById("navigator-places-menu");
   const wgRoot = document.getElementById("navigator-work-group-menu");
+  const viewRoot = document.getElementById("navigator-view-mode-menu");
   const crumbBar = document.getElementById("navigator-crumb-menu");
   const crumbFlyout = document.getElementById("navigator-crumb-siblings");
   if (placesMenuOpen.value && placesRoot && !placesRoot.contains(target)) {
@@ -386,6 +417,9 @@ function onDocumentPointerDown(event: PointerEvent) {
   }
   if (workGroupMenuOpen.value && wgRoot && !wgRoot.contains(target)) {
     closeWorkGroupMenu();
+  }
+  if (viewModeMenuOpen.value && viewRoot && !viewRoot.contains(target)) {
+    closeViewModeMenu();
   }
   if (crumbMenuIndex.value !== null) {
     const inBar = crumbBar?.contains(target);
@@ -1149,29 +1183,43 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="view-mode-group" role="group" :aria-label="t('chrome.viewMode')">
+          <div id="navigator-view-mode-menu" class="places-menu">
             <button
               type="button"
-              class="fluent-control nav-icon-btn"
-              :class="{ 'nav-icon-btn--active': navigatorViewMode === 'list' }"
-              :title="t('chrome.viewList')"
-              :aria-label="t('chrome.viewList')"
-              :aria-pressed="navigatorViewMode === 'list'"
-              @click="setNavigatorViewMode('list')"
-            >
-              <FluentIcon name="viewAll" size="sm" />
-            </button>
-            <button
-              type="button"
-              class="fluent-control nav-icon-btn"
-              :class="{ 'nav-icon-btn--active': navigatorViewMode === 'details' }"
-              :title="t('chrome.viewDetails')"
-              :aria-label="t('chrome.viewDetails')"
-              :aria-pressed="navigatorViewMode === 'details'"
-              @click="setNavigatorViewMode('details')"
+              class="fluent-control nav-icon-btn places-trigger"
+              :class="{ 'nav-icon-btn--active': viewModeMenuOpen }"
+              :title="t('chrome.viewMode')"
+              :aria-label="t('chrome.viewMode')"
+              :aria-expanded="viewModeMenuOpen"
+              aria-haspopup="menu"
+              @click.stop="toggleViewModeMenu"
             >
               <FluentIcon name="view" size="sm" />
+              <FluentIcon name="chevronDown" size="sm" class="places-chevron" />
             </button>
+            <div
+              v-if="viewModeMenuOpen"
+              class="places-popover fluent-surface view-mode-popover"
+              role="menu"
+              :aria-label="t('chrome.viewMode')"
+            >
+              <button
+                v-for="mode in NAVIGATOR_VIEW_MODES"
+                :key="mode"
+                type="button"
+                class="fluent-list-row places-item"
+                role="menuitemradio"
+                :aria-checked="navigatorViewMode === mode"
+                :class="{ 'places-item--active': navigatorViewMode === mode }"
+                @click="chooseViewMode(mode)"
+              >
+                <FluentIcon
+                  :name="mode === 'details' || mode.startsWith('icons') ? 'view' : 'viewAll'"
+                  size="sm"
+                />
+                <span>{{ t(viewModeLabelKey(mode)) }}</span>
+              </button>
+            </div>
           </div>
 
           <button

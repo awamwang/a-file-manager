@@ -58,7 +58,10 @@
     "closeConfirmRemember": "この選択を記憶する",
     "viewMode": "表示",
     "viewList": "一覧",
-    "viewDetails": "詳細"
+    "viewDetails": "詳細",
+    "viewIconsLarge": "特大アイコン",
+    "viewIconsMedium": "中アイコン",
+    "viewIconsSmall": "小アイコン"
   },
   "commands": {
     "empty": "一致するコマンドはありません",
@@ -93,7 +96,8 @@
     "no": "いいえ",
     "refresh": "更新",
     "remove": "削除",
-    "yes": "はい"
+    "yes": "はい",
+    "more": "その他"
   },
   "discovery": {
     "title": "ディスカバリー",
@@ -250,7 +254,8 @@
     "errorUnbound": "プロジェクトにワークグループがバインドされていません",
     "rename": "名前の変更",
     "renamePrompt": "プロジェクト名",
-    "renamed": "プロジェクト名を変更しました"
+    "renamed": "プロジェクト名を変更しました",
+    "renameHint": "ダブルクリックで名前変更"
   },
   "providers": {
     "emptyBackends": "利用可能なプロバイダーはまだありません。ローカル閲覧はナビゲーターへ。",
@@ -367,8 +372,11 @@
         },
         "navigatorViewMode": {
           "title": "ナビゲーター表示",
-          "description": "Windows 風の一覧 / 詳細（詳細には更新日時）",
+          "description": "Windows 風：大/中/小アイコン、一覧、詳細",
           "options": {
+            "iconsLarge": "特大アイコン",
+            "iconsMedium": "中アイコン",
+            "iconsSmall": "小アイコン",
             "list": "一覧",
             "details": "詳細"
           }
@@ -493,7 +501,8 @@
     "deleteConfirm": "ワークグループ「{name}」を削除しますか？タブは切替まで残ります。",
     "deleted": "ワークグループを削除しました",
     "deleteConfirmClearTabs": "ワークグループ「{name}」を削除しますか？保存された Open State タブは消去されます。アクティブな場合はデフォルトに切り替わります。",
-    "deletedSwitched": "ワークグループを削除し、デフォルトに切り替えました"
+    "deletedSwitched": "ワークグループを削除し、デフォルトに切り替えました",
+    "renameHint": "ダブルクリックで名前変更"
   },
   "shortcuts": {
     "meta": "中央レジストリの組み込みショートカット。競合時は先に登録されたものが有効で、ブロックされた項目も一覧に残ります。",
@@ -519,7 +528,8 @@
       "openSettings": "設定を開く",
       "openShortcutList": "ショートカット一覧を開く",
       "navigatorNewFile": "新規空ファイル",
-      "navigatorRefresh": "フォルダーを更新"
+      "navigatorRefresh": "フォルダーを更新",
+      "navigatorCopyPath": "選択項目のパスをコピー"
     }
   },
   "contextMenu": {
@@ -574,7 +584,9 @@
     "openInTerminalApp": "ターミナル",
     "openInTerminalAdmin": "管理者",
     "openInTerminalAdminNamed": "{name}（管理者）",
-    "openInTerminalDefault": "既定のターミナル"
+    "openInTerminalDefault": "既定のターミナル",
+    "toolbar": "クイック操作",
+    "pathCopied": "パスをコピーしました"
   },
   "favorites": {
     "label": "お気に入り",

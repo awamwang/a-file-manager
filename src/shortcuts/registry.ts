@@ -94,6 +94,12 @@ export const BUILTIN_SHORTCUTS: ShortcutDefinition[] = [
     scope: "global",
   },
   {
+    id: "navigator.copyPath",
+    labelKey: "shortcuts.items.navigatorCopyPath",
+    chord: { ctrl: true, shift: true, key: "c" },
+    scope: "global",
+  },
+  {
     id: "navigator.newFolder",
     labelKey: "shortcuts.items.navigatorNewFolder",
     chord: { ctrl: true, shift: true, key: "n" },

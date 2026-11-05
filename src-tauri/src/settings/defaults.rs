@@ -187,9 +187,15 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             "core.navigatorViewMode",
             SettingsTier::Core,
             "Navigator view",
-            "Windows-style list or details (details includes date modified)",
+            "Windows-style icons (large/medium/small), list, or details",
             SettingValueKind::Enum,
-            Some(vec!["list".to_string(), "details".to_string()]),
+            Some(vec![
+                "iconsLarge".to_string(),
+                "iconsMedium".to_string(),
+                "iconsSmall".to_string(),
+                "list".to_string(),
+                "details".to_string(),
+            ]),
             json!("details"),
         ),
         // Open tools (IDE/Agent) — edited in dedicated Settings section; filtered from Core list.

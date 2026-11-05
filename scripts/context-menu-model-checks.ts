@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import {
   buildContextMenuItems,
+  buildContextToolbarItems,
   canOpenInNewTab,
 } from "../src/components/navigator/contextMenuModel.ts";
 
@@ -37,10 +38,19 @@ const addFavorite = dirItems.find((item) => item.id === "toggleFavorite");
 assert.ok(addFavorite);
 assert.equal(addFavorite.labelKey, "contextMenu.addFavorite");
 assert.equal(addFavorite.enabled, true);
-assert.ok(dirItems.find((item) => item.id === "copy")?.enabled);
-assert.ok(dirItems.find((item) => item.id === "cut")?.enabled);
-assert.equal(dirItems.find((item) => item.id === "paste")?.enabled, true);
-assert.ok(dirItems.find((item) => item.id === "rename")?.enabled);
+// Clipboard / rename / copy-path moved to Windows-style top toolbar.
+assert.equal(dirItems.find((item) => item.id === "copy"), undefined);
+assert.equal(dirItems.find((item) => item.id === "cut"), undefined);
+assert.equal(dirItems.find((item) => item.id === "paste"), undefined);
+assert.equal(dirItems.find((item) => item.id === "rename"), undefined);
+assert.equal(dirItems.find((item) => item.id === "copyPath"), undefined);
+const toolbar = buildContextToolbarItems({ canPaste: true });
+assert.ok(toolbar.find((item) => item.id === "copy")?.enabled);
+assert.ok(toolbar.find((item) => item.id === "cut")?.enabled);
+assert.equal(toolbar.find((item) => item.id === "paste")?.enabled, true);
+assert.ok(toolbar.find((item) => item.id === "rename")?.enabled);
+assert.ok(toolbar.find((item) => item.id === "copyPath")?.enabled);
+assert.equal(toolbar.find((item) => item.id === "copy")?.icon, "copy");
 assert.ok(dirItems.find((item) => item.id === "newFolder")?.enabled);
 assert.equal(dirItems.find((item) => item.id === "delete")?.stub, undefined);
 assert.equal(dirItems.find((item) => item.id === "delete")?.danger, true);
@@ -84,7 +94,13 @@ assert.ok(
   dirOpenWith?.children?.some((c) => c.id === "openWithNative"),
   "folder Open with keeps Explorer entry",
 );
-assert.equal(fileItems.find((item) => item.id === "paste")?.enabled, false);
+assert.equal(
+  buildContextToolbarItems({ canPaste: false }).find((item) => item.id === "paste")?.enabled,
+  false,
+);
+const emptyToolbar = buildContextToolbarItems({ emptyArea: true, canPaste: true });
+assert.equal(emptyToolbar.find((item) => item.id === "copy")?.enabled, false);
+assert.equal(emptyToolbar.find((item) => item.id === "paste")?.enabled, true);
 assert.ok(fileItems.find((item) => item.id === "compressZip")?.enabled);
 assert.equal(fileItems.find((item) => item.id === "extractZip")?.enabled, false);
 
@@ -104,10 +120,15 @@ assert.ok(termKids.some((c) => c.id === "terminal:powershell:admin"));
 assert.ok(!termKids.some((c) => c.id.startsWith("terminal:missing")));
 
 const empty = buildContextMenuItems(null, { emptyArea: true, canPaste: false });
-assert.equal(empty.length, 3);
-assert.equal(empty.find((item) => item.id === "paste")?.enabled, false);
+assert.equal(empty.length, 2);
+assert.equal(empty.find((item) => item.id === "paste"), undefined);
 assert.ok(empty.find((item) => item.id === "newFolder")?.enabled);
 assert.ok(empty.find((item) => item.id === "newFile")?.enabled);
+assert.equal(
+  buildContextToolbarItems({ emptyArea: true, canPaste: false }).find((i) => i.id === "paste")
+    ?.enabled,
+  false,
+);
 
 assert.equal(buildContextMenuItems(null).length, 0);
 

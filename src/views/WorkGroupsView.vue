@@ -154,10 +154,29 @@ async function removeMember(path: string) {
   toastInfo(t("workGroups.memberRemoved"));
 }
 
-async function renameActiveGroup() {
+const renaming = ref(false);
+const renameDraft = ref("");
+const moreMenuOpen = ref(false);
+
+function startInlineRename() {
   if (!active.value) return;
-  const next =
-    window.prompt(t("workGroups.renamePrompt"), active.value.name)?.trim() ?? "";
+  renameDraft.value = active.value.name;
+  renaming.value = true;
+  moreMenuOpen.value = false;
+  requestAnimationFrame(() => {
+    document.getElementById("wg-inline-rename")?.focus();
+  });
+}
+
+function cancelInlineRename() {
+  renaming.value = false;
+  renameDraft.value = "";
+}
+
+async function commitInlineRename() {
+  if (!active.value || !renaming.value) return;
+  const next = renameDraft.value.trim();
+  renaming.value = false;
   if (!next || next === active.value.name) return;
   document.value = await invoke<UserWorkGroups>("work_groups_rename", {
     workGroupId: active.value.id,
@@ -279,7 +298,62 @@ onMounted(() => {
       </aside>
 
       <div v-if="active" class="fluent-surface detail">
-        <h2>{{ active.name }}</h2>
+        <div class="detail-title-row">
+          <input
+            v-if="renaming"
+            id="wg-inline-rename"
+            v-model="renameDraft"
+            class="fluent-control inline-rename"
+            @keydown.enter.prevent="commitInlineRename"
+            @keydown.escape.prevent="cancelInlineRename"
+            @blur="commitInlineRename"
+          />
+          <h2
+            v-else
+            class="inline-title"
+            :title="t('workGroups.renameHint')"
+            @dblclick="startInlineRename"
+          >
+            {{ active.name }}
+          </h2>
+          <button
+            v-if="!active.isDefault"
+            type="button"
+            class="name-tag name-tag--danger"
+            @click="deleteActiveGroup"
+          >
+            {{ t("workGroups.delete") }}
+          </button>
+          <div class="more-menu">
+            <button
+              type="button"
+              class="fluent-control more-trigger"
+              :aria-expanded="moreMenuOpen"
+              aria-haspopup="menu"
+              :title="t('common.more')"
+              @click="moreMenuOpen = !moreMenuOpen"
+            >
+              ···
+            </button>
+            <div v-if="moreMenuOpen" class="more-popover fluent-surface" role="menu">
+              <button type="button" class="more-item" role="menuitem" @click="startInlineRename">
+                {{ t("workGroups.rename") }}
+              </button>
+              <button
+                v-if="!active.isDefault"
+                type="button"
+                class="more-item more-item--danger"
+                role="menuitem"
+                @click="
+                  moreMenuOpen = false;
+                  deleteActiveGroup();
+                "
+              >
+                {{ t("workGroups.delete") }}
+              </button>
+            </div>
+          </div>
+        </div>
         <p class="fluent-page-meta">
           {{ t("workGroups.detailMeta", { id: active.id, count: active.memberPaths.length }) }}
         </p>
@@ -361,9 +435,6 @@ onMounted(() => {
           <button class="fluent-control" type="button" @click="saveMembersFromTabs">
             {{ t("workGroups.saveMembersFromTabs") }}
           </button>
-          <button class="fluent-control" type="button" @click="renameActiveGroup">
-            {{ t("workGroups.rename") }}
-          </button>
           <button
             v-if="!active.isDefault"
             class="fluent-control"
@@ -372,14 +443,6 @@ onMounted(() => {
           >
             {{ t("workGroups.promoteToProject") }}
           </button>
-          <button
-            v-if="!active.isDefault"
-            class="fluent-control"
-            type="button"
-            @click="deleteActiveGroup"
-          >
-            {{ t("workGroups.delete") }}
-          </button>
         </div>
       </div>
     </div>
@@ -387,6 +450,84 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.detail-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--fluent-space-xs);
+}
+
+.inline-title {
+  margin: 0;
+  cursor: text;
+}
+
+.inline-rename {
+  min-width: 12rem;
+  font-size: var(--fluent-font-size-title);
+  font-weight: var(--fluent-font-weight-semibold);
+}
+
+.name-tag {
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: 999px;
+  padding: 2px 10px;
+  background: var(--fluent-color-fill-subtle);
+  color: var(--fluent-color-text-secondary);
+  font: inherit;
+  font-size: var(--fluent-font-size-caption);
+  cursor: pointer;
+}
+
+.name-tag--danger {
+  color: var(--fluent-color-status-danger);
+  border-color: color-mix(in srgb, var(--fluent-color-status-danger) 35%, transparent);
+  background: var(--fluent-color-status-danger-bg);
+}
+
+.more-menu {
+  position: relative;
+  margin-inline-start: auto;
+}
+
+.more-trigger {
+  min-width: 2rem;
+  padding-inline: var(--fluent-space-sm);
+  letter-spacing: 0.08em;
+}
+
+.more-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 5;
+  min-width: 9rem;
+  padding: var(--fluent-space-xs);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.more-item {
+  border: 0;
+  border-radius: var(--fluent-radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  padding: var(--fluent-space-sm) var(--fluent-space-md);
+  cursor: pointer;
+}
+
+.more-item:hover {
+  background: var(--fluent-color-fill-selected);
+}
+
+.more-item--danger {
+  color: var(--fluent-color-status-danger);
+}
+
 .layout {
   display: grid;
   grid-template-columns: 16rem 1fr;

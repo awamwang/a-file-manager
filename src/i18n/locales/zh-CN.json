@@ -14,7 +14,8 @@
     "yes": "是",
     "no": "否",
     "folder": "文件夹",
-    "file": "文件"
+    "file": "文件",
+    "more": "更多"
   },
   "chrome": {
     "titleBar": "标题栏",
@@ -71,7 +72,10 @@
     "closeConfirmRemember": "记住此选择",
     "viewMode": "视图",
     "viewList": "列表",
-    "viewDetails": "详细信息"
+    "viewDetails": "详细信息",
+    "viewIconsLarge": "超大图标",
+    "viewIconsMedium": "中等图标",
+    "viewIconsSmall": "小图标"
   },
   "nav": {
     "navigator": "导航器",
@@ -270,8 +274,11 @@
         },
         "navigatorViewMode": {
           "title": "导航器视图",
-          "description": "对齐 Windows：列表或详细信息（详细信息含修改日期）",
+          "description": "对齐 Windows：大/中/小图标、列表或详细信息",
           "options": {
+            "iconsLarge": "超大图标",
+            "iconsMedium": "中等图标",
+            "iconsSmall": "小图标",
             "list": "列表",
             "details": "详细信息"
           }
@@ -411,7 +418,8 @@
     "deleteConfirm": "删除工作组「{name}」？标签在切换前仍保留。",
     "deleted": "工作组已删除",
     "deleteConfirmClearTabs": "删除工作组「{name}」？将清除其保存的 Open State 标签。若当前正使用该组，将切换到默认工作组。",
-    "deletedSwitched": "工作组已删除；已切换到默认"
+    "deletedSwitched": "工作组已删除；已切换到默认",
+    "renameHint": "双击可改名"
   },
   "projects": {
     "title": "项目",
@@ -462,7 +470,8 @@
     "errorUnbound": "项目尚未绑定工作组",
     "rename": "重命名",
     "renamePrompt": "项目名称",
-    "renamed": "项目已重命名"
+    "renamed": "项目已重命名",
+    "renameHint": "双击可改名"
   },
   "extensions": {
     "title": "扩展",
@@ -519,7 +528,8 @@
       "navigatorSelectAll": "全选",
       "focusAddress": "聚焦地址栏",
       "openSettings": "打开设置",
-      "openShortcutList": "打开快捷键列表"
+      "openShortcutList": "打开快捷键列表",
+      "navigatorCopyPath": "复制所选路径"
     }
   },
   "contextMenu": {
@@ -574,7 +584,9 @@
     "openInTerminalApp": "终端",
     "openInTerminalAdmin": "管理员",
     "openInTerminalAdminNamed": "{name}（管理员）",
-    "openInTerminalDefault": "默认终端"
+    "openInTerminalDefault": "默认终端",
+    "toolbar": "快捷操作",
+    "pathCopied": "已复制路径"
   },
   "favorites": {
     "label": "收藏",

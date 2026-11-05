@@ -58,7 +58,10 @@
     "closeConfirmRemember": "Diese Auswahl merken",
     "viewMode": "Ansicht",
     "viewList": "Liste",
-    "viewDetails": "Details"
+    "viewDetails": "Details",
+    "viewIconsLarge": "Sehr große Symbole",
+    "viewIconsMedium": "Mittlere Symbole",
+    "viewIconsSmall": "Kleine Symbole"
   },
   "commands": {
     "empty": "Keine passenden Befehle",
@@ -93,7 +96,8 @@
     "no": "nein",
     "refresh": "Aktualisieren",
     "remove": "Entfernen",
-    "yes": "ja"
+    "yes": "ja",
+    "more": "Mehr"
   },
   "discovery": {
     "title": "Discovery",
@@ -250,7 +254,8 @@
     "errorUnbound": "Projekt hat keine gebundene Arbeitsgruppe",
     "rename": "Umbenennen",
     "renamePrompt": "Projektname",
-    "renamed": "Projekt umbenannt"
+    "renamed": "Projekt umbenannt",
+    "renameHint": "Doppelklick zum Umbenennen"
   },
   "providers": {
     "emptyBackends": "Noch keine Anbieter verfügbar. Lokales Browsen bleibt im Navigator.",
@@ -367,8 +372,11 @@
         },
         "navigatorViewMode": {
           "title": "Navigator-Ansicht",
-          "description": "Windows-ähnlich: Liste oder Details (Details inkl. Änderungsdatum)",
+          "description": "Windows-ähnlich: große/mittlere/kleine Symbole, Liste oder Details",
           "options": {
+            "iconsLarge": "Sehr große Symbole",
+            "iconsMedium": "Mittlere Symbole",
+            "iconsSmall": "Kleine Symbole",
             "list": "Liste",
             "details": "Details"
           }
@@ -493,7 +501,8 @@
     "deleteConfirm": "Arbeitsgruppe \"{name}\" löschen? Tabs bleiben bis zum Wechsel.",
     "deleted": "Arbeitsgruppe gelöscht",
     "deleteConfirmClearTabs": "Arbeitsgruppe \"{name}\" löschen? Gespeicherte Open-State-Registerkarten werden entfernt. Bei aktiver Gruppe wird zur Standardgruppe gewechselt.",
-    "deletedSwitched": "Arbeitsgruppe gelöscht; zur Standardgruppe gewechselt"
+    "deletedSwitched": "Arbeitsgruppe gelöscht; zur Standardgruppe gewechselt",
+    "renameHint": "Doppelklick zum Umbenennen"
   },
   "shortcuts": {
     "meta": "Eingebaute Akkorde aus der zentralen Registry. Bei Konflikten gewinnt die erste Registrierung; blockierte Einträge bleiben gelistet.",
@@ -519,7 +528,8 @@
       "openSettings": "Einstellungen öffnen",
       "openShortcutList": "Tastenkürzel-Liste öffnen",
       "navigatorNewFile": "Neue leere Datei",
-      "navigatorRefresh": "Ordner aktualisieren"
+      "navigatorRefresh": "Ordner aktualisieren",
+      "navigatorCopyPath": "Pfad des ausgewählten Elements kopieren"
     }
   },
   "contextMenu": {
@@ -574,7 +584,9 @@
     "openInTerminalApp": "Terminal",
     "openInTerminalAdmin": "Administrator",
     "openInTerminalAdminNamed": "{name} (Admin)",
-    "openInTerminalDefault": "Standardterminal"
+    "openInTerminalDefault": "Standardterminal",
+    "toolbar": "Schnellaktionen",
+    "pathCopied": "Pfad kopiert"
   },
   "favorites": {
     "label": "Favoriten",

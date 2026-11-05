@@ -65,18 +65,12 @@ export function buildContextMenuItems(
 ): ContextMenuItemDef[] {
   if (options.emptyArea || !entry) {
     if (!options.emptyArea) return [];
+    // Paste lives in the top toolbar; empty-area list is New only.
     return [
-      {
-        id: "paste",
-        labelKey: "contextMenu.paste",
-        enabled: Boolean(options.canPaste),
-        icon: "document",
-      },
       {
         id: "newFolder",
         labelKey: "contextMenu.newFolder",
         enabled: true,
-        separatorBefore: true,
         icon: "folder",
       },
       {
@@ -208,25 +202,9 @@ export function buildContextMenuItems(
         },
       ],
     },
-    // Reveal lives under Open with for folders (`openWithExplorer`); no top-level row.
-    {
-      id: "copy",
-      labelKey: "contextMenu.copy",
-      enabled: true,
-      separatorBefore: true,
-      icon: "document",
-    },
-    { id: "cut", labelKey: "contextMenu.cut", enabled: true, icon: "document" },
-    {
-      id: "paste",
-      labelKey: "contextMenu.paste",
-      enabled: Boolean(options.canPaste),
-      icon: "document",
-    },
-    { id: "rename", labelKey: "contextMenu.rename", enabled: true, icon: "color" },
-    { id: "newFolder", labelKey: "contextMenu.newFolder", enabled: true, icon: "folder" },
+    // Clipboard / rename / copy-path live in the Windows-style top toolbar.
+    { id: "newFolder", labelKey: "contextMenu.newFolder", enabled: true, separatorBefore: true, icon: "folder" },
     { id: "newFile", labelKey: "contextMenu.newFile", enabled: true, icon: "document" },
-    { id: "copyPath", labelKey: "contextMenu.copyPath", enabled: true, icon: "globe" },
     {
       id: "compressZip",
       labelKey: "contextMenu.compressZip",
@@ -253,6 +231,45 @@ export function buildContextMenuItems(
       danger: true,
       separatorBefore: true,
       icon: "close",
+    },
+  ];
+}
+
+/** Win11-style icon strip: Cut / Copy / Paste / Rename / Copy path. */
+export function buildContextToolbarItems(
+  options: ContextMenuBuildOptions = {},
+): ContextMenuItemDef[] {
+  const entryMode = !options.emptyArea;
+  return [
+    {
+      id: "cut",
+      labelKey: "contextMenu.cut",
+      enabled: entryMode,
+      icon: "cut",
+    },
+    {
+      id: "copy",
+      labelKey: "contextMenu.copy",
+      enabled: entryMode,
+      icon: "copy",
+    },
+    {
+      id: "paste",
+      labelKey: "contextMenu.paste",
+      enabled: Boolean(options.canPaste),
+      icon: "paste",
+    },
+    {
+      id: "rename",
+      labelKey: "contextMenu.rename",
+      enabled: entryMode,
+      icon: "rename",
+    },
+    {
+      id: "copyPath",
+      labelKey: "contextMenu.copyPath",
+      enabled: entryMode,
+      icon: "link",
     },
   ];
 }

@@ -28,8 +28,10 @@ import {
 import FluentIcon from "../icons/FluentIcon.vue";
 import {
   buildContextMenuItems,
+  buildContextToolbarItems,
   canOpenInNewTab,
 } from "./contextMenuModel";
+import { BUILTIN_SHORTCUTS, formatChordLabel } from "../../shortcuts/index.ts";
 
 type ShellMenuResult = {
   success: boolean;
@@ -122,6 +124,50 @@ function childLabel(child: {
   return t(child.labelKey);
 }
 
+const TOOLBAR_SHORTCUT_IDS: Record<string, string> = {
+  cut: "navigator.cut",
+  copy: "navigator.copy",
+  paste: "navigator.paste",
+  rename: "navigator.rename",
+  copyPath: "navigator.copyPath",
+};
+
+const tip = ref<{ text: string; left: number; top: number } | null>(null);
+
+const toolbarItems = computed(() =>
+  buildContextToolbarItems({
+    canPaste: hasClipboard.value,
+    emptyArea: Boolean(props.emptyArea),
+  }).map((item) => ({
+    ...item,
+    label: t(item.labelKey),
+  })),
+);
+
+function toolbarTipText(item: { id: string; label: string }): string {
+  const shortcutId = TOOLBAR_SHORTCUT_IDS[item.id];
+  const def = shortcutId
+    ? BUILTIN_SHORTCUTS.find((row) => row.id === shortcutId)
+    : undefined;
+  if (!def) return item.label;
+  return `${item.label} (${formatChordLabel(def.chord)})`;
+}
+
+function showToolbarTip(event: MouseEvent, item: { id: string; label: string }) {
+  const btn = event.currentTarget;
+  if (!(btn instanceof HTMLElement)) return;
+  const rect = btn.getBoundingClientRect();
+  tip.value = {
+    text: toolbarTipText(item),
+    left: rect.left + rect.width / 2,
+    top: rect.top - 8,
+  };
+}
+
+function hideToolbarTip() {
+  tip.value = null;
+}
+
 const items = computed(() =>
   buildContextMenuItems(props.entry, {
     isFavorite: isFavoritePath(props.entry?.path),
@@ -150,11 +196,13 @@ watch(
       clearSubmenuCloseTimer();
       openSubmenuId.value = null;
       submenuAnchor.value = null;
+      hideToolbarTip();
       void loadLaunchers();
     } else {
       clearSubmenuCloseTimer();
       openSubmenuId.value = null;
       submenuAnchor.value = null;
+      hideToolbarTip();
     }
   },
 );
@@ -721,6 +769,23 @@ onUnmounted(() => {
       @contextmenu.prevent
       @mousemove="onMenuMouseMove"
     >
+      <div class="ctx-toolbar" role="toolbar" :aria-label="t('contextMenu.toolbar')">
+        <button
+          v-for="tool in toolbarItems"
+          :key="tool.id"
+          type="button"
+          class="ctx-tool"
+          :disabled="!tool.enabled"
+          :aria-label="toolbarTipText(tool)"
+          @click="run(tool.id)"
+          @mouseenter="showToolbarTip($event, tool)"
+          @mouseleave="hideToolbarTip"
+          @focus="showToolbarTip($event, tool)"
+          @blur="hideToolbarTip"
+        >
+          <FluentIcon v-if="tool.icon" :name="tool.icon" size="sm" />
+        </button>
+      </div>
       <div
         v-for="item in items"
         :key="item.id"
@@ -750,6 +815,16 @@ onUnmounted(() => {
           <span v-else-if="item.stub" class="later">{{ t("chrome.later") }}</span>
         </button>
       </div>
+    </div>
+  </Teleport>
+  <Teleport to="body">
+    <div
+      v-if="open && tip"
+      class="ctx-tip"
+      role="tooltip"
+      :style="{ left: `${tip.left}px`, top: `${tip.top}px` }"
+    >
+      {{ tip.text }}
     </div>
   </Teleport>
   <Teleport to="body">
@@ -801,6 +876,55 @@ onUnmounted(() => {
 .ctx-sub {
   min-width: 12.5rem;
   z-index: 1201;
+}
+
+.ctx-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+  padding: var(--fluent-space-xs) var(--fluent-space-xs) var(--fluent-space-sm);
+  margin-bottom: var(--fluent-space-xs);
+  border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+}
+
+.ctx-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--fluent-control-height-standard);
+  height: var(--fluent-control-height-standard);
+  border: 0;
+  border-radius: var(--fluent-radius-sm);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.ctx-tool:hover:not(:disabled),
+.ctx-tool:focus-visible {
+  background: var(--fluent-color-fill-selected);
+  outline: none;
+}
+
+.ctx-tool:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.ctx-tip {
+  position: fixed;
+  z-index: 1300;
+  transform: translate(-50%, -100%);
+  padding: 4px 8px;
+  border-radius: var(--fluent-radius-sm);
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  background: var(--fluent-color-fill-control);
+  box-shadow: var(--fluent-shadow-flyout);
+  color: var(--fluent-color-text-primary);
+  font-size: var(--fluent-font-size-caption);
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .ctx-row--sep {

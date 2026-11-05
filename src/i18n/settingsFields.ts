@@ -41,7 +41,13 @@ export const SCHEMA_ENUM_OPTIONS: Record<string, readonly string[]> = {
   "core.listDensity": ["standard", "compact"],
   "core.startupPage": ["navigator", "projects", "discovery"],
   "core.closeBehavior": ["ask", "tray", "quit"],
-  "core.navigatorViewMode": ["list", "details"],
+  "core.navigatorViewMode": [
+    "iconsLarge",
+    "iconsMedium",
+    "iconsSmall",
+    "list",
+    "details",
+  ],
   "core.fileDoubleClickAction": [
     "systemDefault",
     "openWithDialog",
