@@ -108,6 +108,12 @@ assert.equal(activeStripTab(reorder)?.name, "C");
 reorder = openStateAfterReorderGroups(reorder, 0, 2);
 assert.equal(reorder.tabGroups[2][0].path, "G:/Projects/C");
 assert.equal(reorder.currentTabGroupIndex, 2);
+assert.equal(reorder.tabGroups.length, 3);
+// Out-of-range / non-integer must not grow or insert holes.
+const guarded = openStateAfterReorderGroups(reorder, 0, 99);
+assert.equal(guarded.tabGroups.length, 3);
+const same = openStateAfterReorderGroups(reorder, 1, 1);
+assert.equal(same.tabGroups.length, 3);
 
 assert.equal(findTabGroupIndexByPath(restored, "G:\\Projects\\Tools"), 1);
 assert.equal(findTabGroupIndexByPath(restored, "G:/missing"), -1);

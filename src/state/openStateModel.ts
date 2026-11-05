@@ -160,6 +160,8 @@ export function openStateAfterReorderGroups(
   const next = cloneOpenState(state);
   const total = next.tabGroups.length;
   if (
+    !Number.isInteger(fromIndex) ||
+    !Number.isInteger(toIndex) ||
     fromIndex < 0 ||
     toIndex < 0 ||
     fromIndex >= total ||
@@ -168,7 +170,11 @@ export function openStateAfterReorderGroups(
   ) {
     return clampOpenStateIndices(next);
   }
-  const [moved] = next.tabGroups.splice(fromIndex, 1);
+  const moved = next.tabGroups.splice(fromIndex, 1)[0];
+  // Guard: never insert `undefined` (would densify into empty groups / later reseed tabs).
+  if (!moved || !Array.isArray(moved)) {
+    return clampOpenStateIndices(state);
+  }
   next.tabGroups.splice(toIndex, 0, moved);
 
   const active = state.currentTabGroupIndex;

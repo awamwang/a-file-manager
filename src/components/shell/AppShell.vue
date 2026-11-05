@@ -676,15 +676,19 @@ async function onSwitchNavigatorTabAdjacent(direction: "next" | "previous") {
 
 const tabDragFrom = ref<number | null>(null);
 const tabDragOver = ref<number | null>(null);
-/** Suppress click-to-switch after a real drag (AIA-126). */
+/** Suppress click / +new-tab after a real drag (capture-loss can retarget click onto +). */
 const tabDragMoved = ref(false);
 
-/** Pointer-based reorder — HTML5 DnD is unreliable in WebView2 title/chrome areas. */
+/** Pointer-based reorder — HTML5 DnD is unreliable in WebView2 chrome areas. */
 const TAB_DRAG_THRESHOLD_PX = 6;
+const TAB_DRAG_CLICK_SUPPRESS_MS = 200;
 let tabPointerId: number | null = null;
 let tabPointerStartX = 0;
 let tabPointerStartY = 0;
-let tabPointerFrom: number | null = null;
+/** Stable identity across live Open State updates (never trust stale indices alone). */
+let tabPointerFromId: string | null = null;
+let tabReorderBusy = false;
+let tabClickSuppressTimer: ReturnType<typeof setTimeout> | null = null;
 
 function clearTabPointerListeners() {
   window.removeEventListener("pointermove", onTabPointerMove);
@@ -693,30 +697,42 @@ function clearTabPointerListeners() {
   tabPointerId = null;
 }
 
+function armTabClickSuppress() {
+  tabDragMoved.value = true;
+  if (tabClickSuppressTimer != null) clearTimeout(tabClickSuppressTimer);
+  tabClickSuppressTimer = setTimeout(() => {
+    tabDragMoved.value = false;
+    tabClickSuppressTimer = null;
+  }, TAB_DRAG_CLICK_SUPPRESS_MS);
+}
+
 function onTabPointerDown(event: PointerEvent, groupIndex: number) {
   if (event.button !== 0) return;
   if (event.target instanceof Element && event.target.closest(".tab-close")) {
     return;
   }
+  // Reset any half-finished gesture (duplicate window listeners → duplicate reorders).
+  clearTabPointerListeners();
+  const tab = stripTabs.value[groupIndex];
+  if (!tab) return;
+
   tabPointerId = event.pointerId;
-  tabPointerFrom = groupIndex;
+  tabPointerFromId = tab.id;
   tabPointerStartX = event.clientX;
   tabPointerStartY = event.clientY;
   tabDragFrom.value = groupIndex;
   tabDragOver.value = null;
-  tabDragMoved.value = false;
+  // Do not clear suppress mid-gesture if a prior drag just finished.
+  if (tabClickSuppressTimer == null) {
+    tabDragMoved.value = false;
+  }
+  // No setPointerCapture: Vue remount after reorder retargets click onto neighboring + tab.
   window.addEventListener("pointermove", onTabPointerMove);
   window.addEventListener("pointerup", onTabPointerUp);
   window.addEventListener("pointercancel", onTabPointerUp);
-  try {
-    (event.currentTarget as HTMLElement | null)?.setPointerCapture?.(event.pointerId);
-  } catch {
-    /* ignore */
-  }
 }
 
 function tabIndexAtPoint(clientX: number, clientY: number): number | null {
-  // Prefer geometry over elementFromPoint — pointer capture can skew hit-testing in WebView2.
   const nodes = document.querySelectorAll<HTMLElement>("[data-tab-group-index]");
   for (const node of nodes) {
     const rect = node.getBoundingClientRect();
@@ -733,8 +749,13 @@ function tabIndexAtPoint(clientX: number, clientY: number): number | null {
   return null;
 }
 
+function currentFromIndex(): number {
+  if (!tabPointerFromId) return -1;
+  return stripTabs.value.findIndex((tab) => tab.id === tabPointerFromId);
+}
+
 function onTabPointerMove(event: PointerEvent) {
-  if (tabPointerId !== event.pointerId || tabPointerFrom == null) return;
+  if (tabPointerId !== event.pointerId || !tabPointerFromId) return;
   const dist = Math.hypot(
     event.clientX - tabPointerStartX,
     event.clientY - tabPointerStartY,
@@ -743,8 +764,10 @@ function onTabPointerMove(event: PointerEvent) {
     if (dist < TAB_DRAG_THRESHOLD_PX) return;
     tabDragMoved.value = true;
   }
+  const from = currentFromIndex();
+  tabDragFrom.value = from >= 0 ? from : null;
   const idx = tabIndexAtPoint(event.clientX, event.clientY);
-  if (idx == null || idx === tabPointerFrom) {
+  if (idx == null || idx === from) {
     tabDragOver.value = null;
     return;
   }
@@ -753,27 +776,33 @@ function onTabPointerMove(event: PointerEvent) {
 
 async function onTabPointerUp(event: PointerEvent) {
   if (tabPointerId !== event.pointerId) return;
-  const from = tabPointerFrom;
+  const fromId = tabPointerFromId;
   const to = tabDragOver.value;
   const moved = tabDragMoved.value;
   clearTabPointerListeners();
   tabDragFrom.value = null;
   tabDragOver.value = null;
-  tabPointerFrom = null;
-  if (moved && from != null && to != null && from !== to) {
-    await reorderNavigatorTabs(from, to);
+  tabPointerFromId = null;
+
+  if (moved) {
+    // Prevent the post-drag click (often retargeted onto + new tab after DOM shuffle).
+    event.preventDefault();
+    armTabClickSuppress();
   }
-  // Keep tabDragMoved until the synthetic click is swallowed.
-  window.setTimeout(() => {
-    tabDragMoved.value = false;
-  }, 0);
+
+  if (!moved || !fromId || to == null || tabReorderBusy) return;
+  const from = stripTabs.value.findIndex((tab) => tab.id === fromId);
+  if (from < 0 || from === to) return;
+  tabReorderBusy = true;
+  try {
+    await reorderNavigatorTabs(from, to);
+  } finally {
+    tabReorderBusy = false;
+  }
 }
 
 async function onTabClick(groupIndex: number) {
-  if (tabDragMoved.value) {
-    tabDragMoved.value = false;
-    return;
-  }
+  if (tabDragMoved.value) return;
   await onSwitchNavigatorTab(groupIndex);
 }
 
@@ -785,6 +814,8 @@ async function onCloseNavigatorTab(event: Event, groupIndex: number) {
 }
 
 async function onNewNavigatorTab() {
+  // Drag-end click retarget onto + must not spawn duplicate tabs.
+  if (tabDragMoved.value) return;
   await ensureNavigatorRoute();
   await newNavigatorTab();
 }

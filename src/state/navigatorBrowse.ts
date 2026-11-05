@@ -228,12 +228,22 @@ export async function reorderNavigatorTabs(
   fromIndex: number,
   toIndex: number,
 ): Promise<void> {
-  if (fromIndex === toIndex) return;
-  liveOpenState.value = openStateAfterReorderGroups(
+  if (
+    !Number.isInteger(fromIndex) ||
+    !Number.isInteger(toIndex) ||
+    fromIndex === toIndex
+  ) {
+    return;
+  }
+  const before = liveOpenState.value.tabGroups.length;
+  const next = openStateAfterReorderGroups(
     liveOpenState.value,
     fromIndex,
     toIndex,
   );
+  // Reorder must never change group count (guards against insert/duplication bugs).
+  if (next.tabGroups.length !== before) return;
+  liveOpenState.value = next;
   schedulePersist(true);
 }
 
