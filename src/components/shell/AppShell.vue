@@ -78,11 +78,9 @@ import {
   type CloseBehavior,
 } from "../../state/closeBehavior";
 import {
-  closeNavigatorFilter,
-  navigatorFilterOpen,
+  clearNavigatorFilter,
+  focusNavigatorFilter,
   navigatorFilterQuery,
-  openNavigatorFilter,
-  toggleNavigatorFilter,
 } from "../../state/navigatorFilter";
 
 const { t, locale } = useI18n();
@@ -375,8 +373,12 @@ function onGlobalKeydown(event: KeyboardEvent) {
     event.preventDefault();
     return;
   }
-  if (event.key === "Escape" && navigatorFilterOpen.value && isNavigatorRoute.value) {
-    closeNavigatorFilter();
+  if (
+    event.key === "Escape" &&
+    isNavigatorRoute.value &&
+    navigatorFilterQuery.value.trim()
+  ) {
+    clearNavigatorFilter();
     event.preventDefault();
     return;
   }
@@ -433,12 +435,9 @@ function registerShellShortcuts() {
     toggleCommandPanel();
   });
   registerShortcutHandler("discovery.globalSearch", () => {
-    // On Navigator: open in-folder filter. Elsewhere: Discovery global search.
+    // On Navigator: focus in-folder toolbar search. Elsewhere: Discovery global search.
     if (route.path === "/navigator" || route.path === "/") {
-      openNavigatorFilter();
-      requestAnimationFrame(() => {
-        document.getElementById("navigator-folder-filter")?.focus();
-      });
+      focusNavigatorFilter();
       return;
     }
     requestGlobalSearchFocus();
@@ -514,7 +513,7 @@ watch(
 watch(isNavigatorRoute, (onNavigator) => {
   if (!onNavigator) {
     closeChromeMenus();
-    closeNavigatorFilter();
+    clearNavigatorFilter();
   }
 });
 
@@ -1012,6 +1011,84 @@ onUnmounted(() => {
           :aria-label="t('chrome.toolbar')"
           @submit.prevent="submitAddress"
         >
+          <div id="navigator-work-group-menu" class="places-menu wg-menu">
+            <button
+              type="button"
+              class="fluent-control wg-trigger"
+              :class="{ 'wg-trigger--active': workGroupMenuOpen }"
+              :title="t('chrome.workGroupMenu')"
+              :aria-label="t('chrome.workGroupMenu')"
+              :aria-expanded="workGroupMenuOpen"
+              aria-haspopup="menu"
+              :disabled="workGroupChromeBusy"
+              @click.stop="toggleWorkGroupMenu"
+            >
+              <FluentIcon name="viewAll" size="sm" />
+              <span class="wg-trigger-label">{{
+                activeWorkGroup?.name || t("nav.workGroups")
+              }}</span>
+              <FluentIcon name="chevronDown" size="sm" class="places-chevron" />
+            </button>
+            <div
+              v-if="workGroupMenuOpen"
+              class="places-popover fluent-surface"
+              role="menu"
+              :aria-label="t('chrome.workGroupMenu')"
+            >
+              <p class="places-heading">{{ t("chrome.workGroupSwitch") }}</p>
+              <button
+                v-for="group in workGroupsDoc?.workGroups ?? []"
+                :key="'wg-' + group.id"
+                type="button"
+                class="fluent-list-row places-item"
+                :class="{ 'places-item--active': group.id === workGroupsDoc?.activeWorkGroupId }"
+                role="menuitem"
+                :disabled="workGroupChromeBusy || group.id === workGroupsDoc?.activeWorkGroupId"
+                :title="group.id"
+                @click="onSilentSwitchWorkGroup(group.id)"
+              >
+                <FluentIcon :name="group.isDefault ? 'home' : 'viewAll'" size="sm" />
+                <span>{{ group.name }}</span>
+              </button>
+              <p v-if="!(workGroupsDoc?.workGroups.length)" class="places-empty">
+                {{ t("chrome.workGroupEmpty") }}
+              </p>
+
+              <p class="places-heading places-heading--fav">{{ t("chrome.workGroupSave") }}</p>
+              <button
+                type="button"
+                class="fluent-list-row places-item"
+                role="menuitem"
+                :disabled="workGroupChromeBusy || !activeWorkGroup?.memberPaths.length"
+                @click="onOpenMembersIntoOpenState"
+              >
+                <FluentIcon name="folderOpen" size="sm" />
+                <span>{{ t("workGroups.openMembersIntoOpenState") }}</span>
+              </button>
+              <button
+                type="button"
+                class="fluent-list-row places-item"
+                role="menuitem"
+                :disabled="workGroupChromeBusy || !activeWorkGroup"
+                @click="onSaveMembersFromTabs"
+              >
+                <FluentIcon name="folder" size="sm" />
+                <span>{{ t("workGroups.saveMembersFromTabs") }}</span>
+              </button>
+              <button
+                type="button"
+                class="fluent-list-row places-item"
+                role="menuitem"
+                @click="openWorkGroupsPage"
+              >
+                <FluentIcon name="settings" size="sm" />
+                <span>{{ t("chrome.workGroupManage") }}</span>
+              </button>
+            </div>
+          </div>
+
+          <span class="navigator-chrome-sep" aria-hidden="true" />
+
           <button
             type="button"
             class="fluent-control nav-icon-btn"
@@ -1107,82 +1184,6 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div id="navigator-work-group-menu" class="places-menu wg-menu">
-            <button
-              type="button"
-              class="fluent-control nav-icon-btn places-trigger wg-trigger"
-              :class="{ 'nav-icon-btn--active': workGroupMenuOpen }"
-              :title="t('chrome.workGroupMenu')"
-              :aria-label="t('chrome.workGroupMenu')"
-              :aria-expanded="workGroupMenuOpen"
-              aria-haspopup="menu"
-              :disabled="workGroupChromeBusy"
-              @click.stop="toggleWorkGroupMenu"
-            >
-              <FluentIcon name="viewAll" size="sm" />
-              <span class="wg-trigger-label">{{
-                activeWorkGroup?.name || t("nav.workGroups")
-              }}</span>
-              <FluentIcon name="chevronDown" size="sm" class="places-chevron" />
-            </button>
-            <div
-              v-if="workGroupMenuOpen"
-              class="places-popover fluent-surface"
-              role="menu"
-              :aria-label="t('chrome.workGroupMenu')"
-            >
-              <p class="places-heading">{{ t("chrome.workGroupSwitch") }}</p>
-              <button
-                v-for="group in workGroupsDoc?.workGroups ?? []"
-                :key="'wg-' + group.id"
-                type="button"
-                class="fluent-list-row places-item"
-                :class="{ 'places-item--active': group.id === workGroupsDoc?.activeWorkGroupId }"
-                role="menuitem"
-                :disabled="workGroupChromeBusy || group.id === workGroupsDoc?.activeWorkGroupId"
-                :title="group.id"
-                @click="onSilentSwitchWorkGroup(group.id)"
-              >
-                <FluentIcon :name="group.isDefault ? 'home' : 'viewAll'" size="sm" />
-                <span>{{ group.name }}</span>
-              </button>
-              <p v-if="!(workGroupsDoc?.workGroups.length)" class="places-empty">
-                {{ t("chrome.workGroupEmpty") }}
-              </p>
-
-              <p class="places-heading places-heading--fav">{{ t("chrome.workGroupSave") }}</p>
-              <button
-                type="button"
-                class="fluent-list-row places-item"
-                role="menuitem"
-                :disabled="workGroupChromeBusy || !activeWorkGroup?.memberPaths.length"
-                @click="onOpenMembersIntoOpenState"
-              >
-                <FluentIcon name="folderOpen" size="sm" />
-                <span>{{ t("workGroups.openMembersIntoOpenState") }}</span>
-              </button>
-              <button
-                type="button"
-                class="fluent-list-row places-item"
-                role="menuitem"
-                :disabled="workGroupChromeBusy || !activeWorkGroup"
-                @click="onSaveMembersFromTabs"
-              >
-                <FluentIcon name="folder" size="sm" />
-                <span>{{ t("workGroups.saveMembersFromTabs") }}</span>
-              </button>
-              <button
-                type="button"
-                class="fluent-list-row places-item"
-                role="menuitem"
-                @click="openWorkGroupsPage"
-              >
-                <FluentIcon name="settings" size="sm" />
-                <span>{{ t("chrome.workGroupManage") }}</span>
-              </button>
-            </div>
-          </div>
-
           <div id="navigator-view-mode-menu" class="places-menu">
             <button
               type="button"
@@ -1232,26 +1233,6 @@ onUnmounted(() => {
             @click="toggleDualPane"
           >
             <FluentIcon name="dualPane" size="sm" force-svg />
-          </button>
-
-          <button
-            id="navigator-filter-toggle"
-            type="button"
-            class="fluent-control nav-icon-btn"
-            :class="{ 'nav-icon-btn--active': navigatorFilterOpen }"
-            :title="t('navigator.filterToggle')"
-            :aria-label="t('navigator.filterToggle')"
-            :aria-pressed="navigatorFilterOpen"
-            @click="
-              toggleNavigatorFilter();
-              if (navigatorFilterOpen) {
-                requestAnimationFrame(() => {
-                  document.getElementById('navigator-folder-filter')?.focus();
-                });
-              }
-            "
-          >
-            <FluentIcon name="search" size="sm" />
           </button>
 
           <div
@@ -1312,6 +1293,36 @@ onUnmounted(() => {
           <button type="submit" class="fluent-control address-go" :title="t('chrome.go')">
             {{ t("chrome.go") }}
           </button>
+
+          <div
+            id="navigator-filter-bar"
+            class="navigator-filter-inline"
+            role="search"
+            :aria-label="t('navigator.filterToggle')"
+          >
+            <FluentIcon name="search" size="sm" class="navigator-filter-icon" />
+            <input
+              id="navigator-folder-filter"
+              v-model="navigatorFilterQuery"
+              class="fluent-control navigator-filter-input"
+              type="search"
+              :placeholder="t('navigator.filterPlaceholder')"
+              :title="t('navigator.filterToggle')"
+              spellcheck="false"
+              @keydown.enter.prevent
+              @keydown.escape.prevent="clearNavigatorFilter"
+            />
+            <button
+              v-if="navigatorFilterQuery.trim()"
+              type="button"
+              class="fluent-control navigator-filter-clear"
+              :title="t('navigator.filterClear')"
+              :aria-label="t('navigator.filterClear')"
+              @click="clearNavigatorFilter"
+            >
+              <FluentIcon name="close" size="sm" />
+            </button>
+          </div>
         </form>
 
         <Teleport to="body">
@@ -1352,34 +1363,6 @@ onUnmounted(() => {
             </button>
           </div>
         </Teleport>
-
-        <div
-          v-if="navigatorFilterOpen"
-          id="navigator-filter-bar"
-          class="navigator-filter-bar"
-          role="search"
-          :aria-label="t('navigator.filterToggle')"
-        >
-          <FluentIcon name="search" size="sm" class="navigator-filter-icon" />
-          <input
-            id="navigator-folder-filter"
-            v-model="navigatorFilterQuery"
-            class="fluent-control navigator-filter-input"
-            type="search"
-            :placeholder="t('navigator.filterPlaceholder')"
-            spellcheck="false"
-            @keydown.escape.prevent="closeNavigatorFilter"
-          />
-          <button
-            type="button"
-            class="fluent-control"
-            :title="t('navigator.filterClear')"
-            :aria-label="t('navigator.filterClear')"
-            @click="closeNavigatorFilter"
-          >
-            {{ t("navigator.filterClear") }}
-          </button>
-        </div>
 
         <div
           class="tabstrip"
@@ -1720,12 +1703,45 @@ onUnmounted(() => {
   font-weight: var(--fluent-font-weight-semibold);
 }
 
+.navigator-chrome-sep {
+  display: inline-block;
+  width: 1px;
+  height: 1.1rem;
+  margin-inline: var(--fluent-space-xs);
+  background: var(--fluent-color-stroke-divider);
+  flex-shrink: 0;
+}
+
+.wg-menu {
+  flex-shrink: 0;
+}
+
 .wg-trigger {
-  max-width: 11rem;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fluent-space-xs);
+  max-width: 12rem;
+  height: var(--fluent-control-height-standard);
+  min-height: var(--fluent-control-height-standard);
+  padding-inline: var(--fluent-space-sm);
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: var(--fluent-radius-md);
+  background: var(--fluent-color-fill-subtle);
+  color: var(--fluent-color-text-primary);
+  font-weight: var(--fluent-font-weight-semibold);
+}
+
+.wg-trigger:hover:not(:disabled) {
+  background: var(--fluent-color-fill-subtle-secondary);
+}
+
+.wg-trigger--active {
+  background: var(--fluent-color-fill-selected);
+  border-color: var(--fluent-color-stroke-accent-soft, var(--fluent-color-fill-accent));
 }
 
 .wg-trigger-label {
-  max-width: 6.5rem;
+  max-width: 7rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2200,14 +2216,24 @@ onUnmounted(() => {
   gap: var(--fluent-space-sm);
 }
 
-.navigator-filter-bar {
+.navigator-filter-inline {
   display: flex;
   align-items: center;
-  gap: var(--fluent-space-sm);
-  padding: var(--fluent-space-xs) var(--fluent-space-md);
-  border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  gap: var(--fluent-space-xs);
+  flex: 0 1 14rem;
+  min-width: 8rem;
+  max-width: 18rem;
+  height: var(--fluent-control-height-standard);
+  padding-inline: var(--fluent-space-sm);
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: var(--fluent-radius-md);
+  background: var(--fluent-color-fill-subtle);
+}
+
+.navigator-filter-inline:focus-within {
+  outline: 2px solid var(--fluent-color-stroke-focus);
+  outline-offset: 1px;
   background: var(--fluent-color-fill-control);
-  flex-shrink: 0;
 }
 
 .navigator-filter-icon {
@@ -2217,6 +2243,37 @@ onUnmounted(() => {
 
 .navigator-filter-input {
   flex: 1;
-  min-height: var(--fluent-control-height-standard);
+  min-width: 0;
+  min-height: calc(var(--fluent-control-height-standard) - 4px);
+  height: calc(var(--fluent-control-height-standard) - 4px);
+  border: 0;
+  padding-inline: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.navigator-filter-input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.navigator-filter-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fluent-color-text-secondary);
+  flex-shrink: 0;
+}
+
+.navigator-filter-clear:hover {
+  color: var(--fluent-color-text-primary);
+  background: var(--fluent-color-fill-selected);
 }
 </style>

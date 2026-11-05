@@ -67,4 +67,32 @@ if (en.chrome.workGroupMenu !== "Work Group") {
   process.exit(1);
 }
 
+// AIA-147: Work Groups chip leads the navigator toolbar and is visually distinct.
+{
+  const chromeStart = shell.indexOf('class="navigator-chrome"');
+  const chromeEnd = shell.indexOf('class="tabstrip"');
+  if (chromeStart < 0 || chromeEnd <= chromeStart) {
+    console.error("cannot locate navigator-chrome block");
+    process.exit(1);
+  }
+  const chrome = shell.slice(chromeStart, chromeEnd);
+  const wgIdx = chrome.indexOf("navigator-work-group-menu");
+  const backIdx = Math.max(
+    chrome.indexOf('t("chrome.back")'),
+    chrome.indexOf("t('chrome.back')"),
+  );
+  if (wgIdx < 0 || backIdx < 0 || wgIdx > backIdx) {
+    console.error("Work Groups menu must be first in navigator toolbar (before Back)");
+    process.exit(1);
+  }
+  if (!chrome.includes("wg-trigger") || !chrome.includes("wg-trigger-label")) {
+    console.error("Work Groups trigger must use distinct text+chevron chip (wg-trigger)");
+    process.exit(1);
+  }
+  if (!shell.includes(".wg-trigger {") && !shell.includes(".wg-trigger{")) {
+    console.error("AppShell missing .wg-trigger distinct chip styles");
+    process.exit(1);
+  }
+}
+
 console.log("navigator-wg-chrome: ok");

@@ -27,10 +27,13 @@ if (!shell.includes('name="dualPane"')) {
 }
 
 // Places must not still use home as its trigger icon (home is dedicated).
-const placesBlock = shell.slice(
-  shell.indexOf("navigator-places-menu"),
-  shell.indexOf("navigator-work-group-menu"),
-);
+const placesStart = shell.indexOf("navigator-places-menu");
+const placesEnd = shell.indexOf("navigator-view-mode-menu");
+if (placesStart < 0 || placesEnd < 0 || placesEnd <= placesStart) {
+  console.error("cannot locate Places menu block before view-mode menu");
+  process.exit(1);
+}
+const placesBlock = shell.slice(placesStart, placesEnd);
 if (placesBlock.includes('name="home"')) {
   console.error("Places menu still uses home glyph as trigger");
   process.exit(1);
