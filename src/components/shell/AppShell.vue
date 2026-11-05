@@ -1062,6 +1062,62 @@ onUnmounted(() => {
 
       <div class="workspace">
       <template v-if="isNavigatorRoute">
+        <div
+          class="tabstrip"
+          role="tablist"
+          :aria-label="t('chrome.tabs')"
+        >
+          <div
+            v-for="tab in stripTabs"
+            :key="tab.id"
+            class="tab"
+            :class="{
+              'tab--active': liveOpenState.currentTabGroupIndex === tab.groupIndex,
+              'tab--drag-over': tabDragOver === tab.groupIndex,
+              'tab--dragging': tabDragFrom === tab.groupIndex && tabDragMoved,
+            }"
+            role="tab"
+            :data-tab-group-index="tab.groupIndex"
+            :aria-selected="liveOpenState.currentTabGroupIndex === tab.groupIndex"
+            :title="tab.path"
+            @click="onTabClick(tab.groupIndex)"
+            @pointerdown="onTabPointerDown($event, tab.groupIndex)"
+          >
+            <FluentIcon name="folder" size="sm" class="tab-icon" aria-hidden="true" />
+            <span class="tab-label">{{ tab.name || tabLabel(tab.path) }}</span>
+            <button
+              type="button"
+              class="tab-close"
+              :aria-label="t('chrome.closeTab')"
+              :title="t('chrome.closeTab')"
+              @click="onCloseNavigatorTab($event, tab.groupIndex)"
+              @pointerdown.stop
+            >
+              <FluentIcon name="close" size="sm" aria-hidden="true" />
+            </button>
+          </div>
+          <button
+            v-if="!stripTabs.length"
+            type="button"
+            role="tab"
+            class="tab tab--active"
+            :aria-selected="true"
+            @click="openTab('navigator', '/navigator')"
+          >
+            <FluentIcon name="folderOpen" size="sm" />
+            <span>{{ t("nav.navigator") }}</span>
+          </button>
+          <button
+            type="button"
+            class="tab tab--add"
+            :title="t('chrome.newTab')"
+            :aria-label="t('chrome.newTab')"
+            @click="onNewNavigatorTab"
+          >
+            <FluentIcon name="add" size="sm" />
+          </button>
+        </div>
+
         <form
           class="navigator-chrome"
           role="toolbar"
@@ -1438,62 +1494,6 @@ onUnmounted(() => {
             </button>
           </div>
         </Teleport>
-
-        <div
-          class="tabstrip"
-          role="tablist"
-          :aria-label="t('chrome.tabs')"
-        >
-          <div
-            v-for="tab in stripTabs"
-            :key="tab.id"
-            class="tab"
-            :class="{
-              'tab--active': liveOpenState.currentTabGroupIndex === tab.groupIndex,
-              'tab--drag-over': tabDragOver === tab.groupIndex,
-              'tab--dragging': tabDragFrom === tab.groupIndex && tabDragMoved,
-            }"
-            role="tab"
-            :data-tab-group-index="tab.groupIndex"
-            :aria-selected="liveOpenState.currentTabGroupIndex === tab.groupIndex"
-            :title="tab.path"
-            @click="onTabClick(tab.groupIndex)"
-            @pointerdown="onTabPointerDown($event, tab.groupIndex)"
-          >
-            <FluentIcon name="folder" size="sm" class="tab-icon" aria-hidden="true" />
-            <span class="tab-label">{{ tab.name || tabLabel(tab.path) }}</span>
-            <button
-              type="button"
-              class="tab-close"
-              :aria-label="t('chrome.closeTab')"
-              :title="t('chrome.closeTab')"
-              @click="onCloseNavigatorTab($event, tab.groupIndex)"
-              @pointerdown.stop
-            >
-              <FluentIcon name="close" size="sm" aria-hidden="true" />
-            </button>
-          </div>
-          <button
-            v-if="!stripTabs.length"
-            type="button"
-            role="tab"
-            class="tab tab--active"
-            :aria-selected="true"
-            @click="openTab('navigator', '/navigator')"
-          >
-            <FluentIcon name="folderOpen" size="sm" />
-            <span>{{ t("nav.navigator") }}</span>
-          </button>
-          <button
-            type="button"
-            class="tab tab--add"
-            :title="t('chrome.newTab')"
-            :aria-label="t('chrome.newTab')"
-            @click="onNewNavigatorTab"
-          >
-            <FluentIcon name="add" size="sm" />
-          </button>
-        </div>
 
         </template>
 
