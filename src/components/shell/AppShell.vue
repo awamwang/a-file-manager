@@ -29,6 +29,7 @@ import {
   listing,
   liveOpenState,
   navigateTo,
+  openOrFocusNavigatorTab,
   newNavigatorTab,
   stripTabs,
   switchNavigatorTab,
@@ -149,7 +150,7 @@ function closeChromeMenus() {
 async function openPlacesPath(path: string) {
   closePlacesMenu();
   await ensureNavigatorRoute();
-  await navigateTo(path);
+  await openOrFocusNavigatorTab(path);
 }
 
 /** Home → Settings `core.defaultLocation`, else OS USERPROFILE via navigator_default_path. */
@@ -160,14 +161,14 @@ async function goHome() {
     const doc = await invoke<SettingsDocument>("settings_get");
     const configured = String(doc.values?.["core.defaultLocation"] ?? "").trim();
     if (configured) {
-      await navigateTo(configured);
+      await openOrFocusNavigatorTab(configured);
       return;
     }
   } catch {
     /* fall through to OS default */
   }
   const path = await invoke<string>("navigator_default_path");
-  await navigateTo(path);
+  await openOrFocusNavigatorTab(path);
 }
 
 async function onSilentSwitchWorkGroup(targetId: string) {

@@ -303,9 +303,13 @@ export async function goUp(): Promise<void> {
   }
 }
 
+/**
+ * Open a directory into Navigator: focus an existing same-path tab, else append a new tab.
+ * In-tab navigation (address bar / breadcrumbs / back-forward / goUp) still uses `navigateTo`.
+ */
 export async function openEntry(entry: NavigatorEntry): Promise<void> {
   if (entry.kind === "dir") {
-    await navigateTo(entry.path);
+    await openOrFocusNavigatorTab(entry.path);
   }
 }
 

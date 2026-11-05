@@ -3,7 +3,7 @@
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
-import { navigateTo, type NavigatorEntry } from "../state/navigatorBrowse";
+import { openOrFocusNavigatorTab, type NavigatorEntry } from "../state/navigatorBrowse";
 import { useRouter } from "vue-router";
 import {
   consumeGlobalSearchFocus,
@@ -193,10 +193,10 @@ async function runSearch() {
 async function openHit(hit: DiscoveryHit) {
   const path = hit.path.replace(/\//g, "\\");
   if (hit.isDir) {
-    await navigateTo(path);
+    await openOrFocusNavigatorTab(path);
   } else {
     const parent = path.includes("\\") ? path.slice(0, path.lastIndexOf("\\")) : path;
-    await navigateTo(parent || path);
+    await openOrFocusNavigatorTab(parent || path);
   }
   await router.push("/navigator");
 }

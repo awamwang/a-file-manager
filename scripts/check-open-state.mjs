@@ -55,6 +55,27 @@ for (const token of [
   }
 }
 
+// Directory open entries must open-or-focus (new tab), not replace via navigateTo.
+if (!/openEntry[\s\S]*?openOrFocusNavigatorTab/.test(browse)) {
+  console.error("openEntry must openOrFocusNavigatorTab for directories");
+  process.exit(1);
+}
+
+const discovery = readFileSync(join(root, "src/views/DiscoveryView.vue"), "utf8");
+if (!discovery.includes("openOrFocusNavigatorTab") || /openHit[\s\S]*?navigateTo\(/.test(discovery)) {
+  console.error("Discovery openHit must use openOrFocusNavigatorTab");
+  process.exit(1);
+}
+
+if (
+  !shell.includes("openOrFocusNavigatorTab") ||
+  !/openPlacesPath[\s\S]*?openOrFocusNavigatorTab/.test(shell) ||
+  !/goHome[\s\S]*?openOrFocusNavigatorTab/.test(shell)
+) {
+  console.error("AppShell places/home must openOrFocusNavigatorTab");
+  process.exit(1);
+}
+
 if (
   !shell.includes("switchNavigatorTabAdjacent") ||
   !shell.includes("navigator.nextTabGroup") ||
