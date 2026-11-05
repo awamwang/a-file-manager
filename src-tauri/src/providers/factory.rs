@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use super::browser::BrowserProvider;
 use super::knowledge::KnowledgeProvider;
 use super::rclone::RcloneProvider;
 use super::registry::ProviderRegistry;
 use super::stubs::InterfaceOnlyProvider;
 use std::sync::Arc;
 
-/// Day-1 registry: rclone + knowledge; downloads/prowlarr interface-only.
+/// Day-1 registry: rclone + knowledge + browser; downloads/prowlarr interface-only.
 /// Does **not** register `local` (ADR 0001/0003).
 pub fn build_day1_registry() -> ProviderRegistry {
     let registry = ProviderRegistry::new();
@@ -16,6 +17,9 @@ pub fn build_day1_registry() -> ProviderRegistry {
     registry
         .register(Arc::new(KnowledgeProvider::from_env_or_default()))
         .expect("register knowledge");
+    registry
+        .register(Arc::new(BrowserProvider::system_default()))
+        .expect("register browser");
     registry
         .register(Arc::new(InterfaceOnlyProvider::downloads()))
         .expect("register downloads stub");
@@ -28,6 +32,7 @@ pub fn build_day1_registry() -> ProviderRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::providers::browser::BrowserProvider;
     use crate::providers::rclone::{CommandOutput, RcloneProvider, RcloneRunner};
     use std::path::PathBuf;
     use std::time::Duration;
@@ -52,7 +57,7 @@ mod tests {
     }
 
     #[test]
-    fn day1_has_rclone_knowledge_stubs_not_local() {
+    fn day1_has_rclone_knowledge_browser_stubs_not_local() {
         let dir = std::env::temp_dir().join(format!(
             "a-file-manager-providers-{}",
             std::process::id()
@@ -68,6 +73,12 @@ mod tests {
             .register(Arc::new(KnowledgeProvider::new(PathBuf::from(&dir))))
             .unwrap();
         registry
+            .register(Arc::new(BrowserProvider::with_user_data_roots(
+                dir.join("edge-missing"),
+                dir.join("chrome-missing"),
+            )))
+            .unwrap();
+        registry
             .register(Arc::new(InterfaceOnlyProvider::downloads()))
             .unwrap();
         registry
@@ -76,6 +87,7 @@ mod tests {
 
         assert!(registry.contains("rclone"));
         assert!(registry.contains("knowledge"));
+        assert!(registry.contains("browser"));
         assert!(registry.contains("downloads"));
         assert!(registry.contains("prowlarr"));
         assert!(!registry.contains("local"));

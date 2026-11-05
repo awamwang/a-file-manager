@@ -6,6 +6,7 @@
 //! AIA-226: prefer live awam-file gateway discovery (`/api/backends`); fall back to
 //! builtin Day-1 registry when the gateway is offline.
 
+mod browser;
 mod cache;
 mod factory;
 mod gateway;

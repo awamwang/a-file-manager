@@ -496,7 +496,8 @@
     "statusDown": "offline",
     "statusOk": "ok",
     "title": "Anbieter",
-    "uriPlaceholder": "Anbieterpfad einfügen (z. B. Cloud- oder Wissenswurzel)"
+    "uriPlaceholder": "Anbieterpfad einfügen (z. B. Cloud- oder Wissenswurzel)",
+    "openUnsupported": "Dieser Eintrag lässt sich aus Anbietern noch nicht öffnen."
   },
   "settings": {
     "fields": {
