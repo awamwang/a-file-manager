@@ -8,6 +8,18 @@
   </head>
 
   <body>
+    <!--
+      Boot sentinel for tauri-plugin-frame (AIA-80):
+      frame-page-load often fires before Vue mounts. Without this marker,
+      titlebar.js injects a position:fixed full-width drag overlay that steals
+      minimize/close clicks from the Fluent caption. frame-tb-* stubs make
+      controls.js no-op as well. Removed in AppShell onBeforeMount.
+    -->
+    <div id="afm-frame-boot" data-tauri-frame-tb hidden>
+      <button id="frame-tb-minimize" type="button" tabindex="-1" aria-hidden="true"></button>
+      <button id="frame-tb-maximize" type="button" tabindex="-1" aria-hidden="true"></button>
+      <button id="frame-tb-close" type="button" tabindex="-1" aria-hidden="true"></button>
+    </div>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onBeforeMount, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
@@ -329,16 +329,40 @@ async function refreshMaximized() {
 }
 
 async function minimizeWindow() {
-  await getCurrentWindow().minimize();
+  try {
+    await getCurrentWindow().minimize();
+  } catch (err) {
+    console.error("window minimize failed", err);
+  }
 }
 
 async function toggleMaximizeWindow() {
-  await getCurrentWindow().toggleMaximize();
-  await refreshMaximized();
+  try {
+    await getCurrentWindow().toggleMaximize();
+    await refreshMaximized();
+  } catch (err) {
+    console.error("window toggleMaximize failed", err);
+  }
 }
 
 async function closeWindow() {
-  await getCurrentWindow().close();
+  try {
+    await getCurrentWindow().close();
+  } catch (err) {
+    console.error("window close failed", err);
+  }
+}
+
+/** Drop plugin boot sentinel / any fixed ghost titlebar so Fluent caption receives clicks. */
+function reclaimFluentTitlebar() {
+  document.getElementById("afm-frame-boot")?.remove();
+  for (const el of document.querySelectorAll("[data-tauri-frame-tb]")) {
+    if (el.classList.contains("titlebar")) continue;
+    const pos = window.getComputedStyle(el).position;
+    if (pos === "fixed" || el.id === "afm-frame-boot") {
+      el.remove();
+    }
+  }
 }
 
 function isNavActive(item: NavItem) {
@@ -388,7 +412,12 @@ async function onNewNavigatorTab() {
   await newNavigatorTab();
 }
 
+onBeforeMount(() => {
+  reclaimFluentTitlebar();
+});
+
 onMounted(() => {
+  reclaimFluentTitlebar();
   void loadHealth();
   void refreshMaximized();
   void bootstrapNavigatorOpenState();
@@ -429,7 +458,12 @@ onUnmounted(() => {
 <template>
   <div class="shell fluent-chrome">
     <header class="titlebar" data-tauri-frame-tb :aria-label="t('chrome.titleBar')">
-      <div class="titlebar-drag" data-tauri-drag-region>
+      <div
+        class="titlebar-drag"
+        data-tauri-drag-region
+        :title="t('chrome.titleBar')"
+        @dblclick.prevent="toggleMaximizeWindow"
+      >
         <span class="brand" data-tauri-drag-region>{{ t("app.name") }}</span>
         <span class="caption-meta" data-tauri-drag-region>{{ t("app.captionMeta") }}</span>
       </div>
@@ -439,7 +473,8 @@ onUnmounted(() => {
           type="button"
           class="win-btn"
           :aria-label="t('chrome.minimize')"
-          @click="minimizeWindow"
+          :title="t('chrome.minimize')"
+          @click.stop.prevent="minimizeWindow"
         >
           <FluentIcon name="minimize" size="sm" />
         </button>
@@ -453,7 +488,8 @@ onUnmounted(() => {
           class="win-btn"
           :class="{ 'win-btn--hover': maxHover }"
           :aria-label="isMaximized ? t('chrome.restore') : t('chrome.maximize')"
-          @click="toggleMaximizeWindow"
+          :title="isMaximized ? t('chrome.restore') : t('chrome.maximize')"
+          @click.stop.prevent="toggleMaximizeWindow"
         >
           <FluentIcon :name="isMaximized ? 'restore' : 'maximize'" size="sm" />
         </button>
@@ -462,7 +498,8 @@ onUnmounted(() => {
           type="button"
           class="win-btn win-btn--close"
           :aria-label="t('chrome.close')"
-          @click="closeWindow"
+          :title="t('chrome.close')"
+          @click.stop.prevent="closeWindow"
         >
           <FluentIcon name="close" size="sm" />
         </button>
@@ -768,6 +805,12 @@ onUnmounted(() => {
 .window-controls {
   display: flex;
   flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+  /* Must not be a drag region — caption buttons need real clicks. */
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
 .win-btn {
@@ -778,6 +821,10 @@ onUnmounted(() => {
   color: var(--fluent-color-text-primary);
   font-size: 12px;
   line-height: 1;
+  cursor: default;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
   transition: background-color 80ms ease;
 }
 

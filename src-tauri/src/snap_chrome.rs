@@ -8,6 +8,15 @@
 //! on Windows 11” and tauri-plugin-frame / Zbrooklyn frameless Snap notes.
 //!
 //! Geometry must match CSS: `--fluent-titlebar-height` and `.win-btn` width.
+//!
+//! AIA-80 caption ownership:
+//! - Fluent Vue draws minimize / maximize / close (`frame-tb-*`) and handles clicks
+//!   via `@tauri-apps/api` (`core:window:allow-*` capabilities).
+//! - Plugin `auto_titlebar(false)` still evals titlebar.js/controls.js on
+//!   `frame-page-load`. A boot sentinel in `index.html` (`#afm-frame-boot`) prevents
+//!   titlebar.js from injecting a fixed full-width drag overlay that stole min/close
+//!   hits before Vue mounted. `withGlobalTauri` lets controls.js exit cleanly once
+//!   it sees existing `frame-tb-*` stubs.
 
 /// Logical titlebar height — keep in sync with `--fluent-titlebar-height` (40px).
 pub const TITLEBAR_HEIGHT_PX: u32 = 40;
