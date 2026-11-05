@@ -463,22 +463,8 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
 </script>
 
 <template>
-  <section class="fluent-page">
-    <header class="fluent-page-header">
-      <h1 class="fluent-page-title">{{ t("navigator.title") }}</h1>
-      <p class="fluent-page-meta">
-        <template v-if="listing">
-          {{
-            t("navigator.metaConnected", {
-              dirs: listing.dirCount,
-              files: listing.fileCount,
-            })
-          }}
-        </template>
-        <template v-else>{{ t("navigator.metaDisconnected") }}</template>
-      </p>
-    </header>
-
+  <!-- AIA-78: no in-page title / Kernel status meta — path via shell address bar + pane-path; counts in shell statusbar. -->
+  <section class="fluent-page fluent-page--navigator">
     <p v-if="notice" class="fluent-banner fluent-banner--success">{{ notice }}</p>
 
     <div class="panes" :class="{ 'panes--dual': dualPaneEnabled }">
@@ -487,7 +473,7 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
       :class="{ 'pane--active': activePane === 'primary' || !dualPaneEnabled }"
       @mousedown="setActivePane('primary')"
     >
-    <p class="pane-path" :title="currentPath">{{ currentPath || t("navigator.metaDisconnected") }}</p>
+    <p class="pane-path" :title="currentPath">{{ currentPath || t("navigator.noPath") }}</p>
     <p v-if="listLoading" class="fluent-banner">{{ t("navigator.loading") }}</p>
     <p v-else-if="listError" class="fluent-banner fluent-banner--error">{{ listError }}</p>
     <p v-else-if="listing && listing.entries.length === 0" class="fluent-banner">
@@ -573,7 +559,7 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
       @mousedown="setActivePane('secondary')"
     >
       <p class="pane-path" :title="secondaryPath">
-        {{ secondaryPath || t("navigator.metaDisconnected") }}
+        {{ secondaryPath || t("navigator.noPath") }}
       </p>
       <p v-if="secondaryLoading" class="fluent-banner">{{ t("navigator.loading") }}</p>
       <p v-else-if="secondaryError" class="fluent-banner fluent-banner--error">{{ secondaryError }}</p>
@@ -620,6 +606,12 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
 </template>
 
 <style scoped>
+.fluent-page--navigator {
+  gap: var(--fluent-space-sm);
+  height: 100%;
+  min-height: 0;
+}
+
 .panes {
   display: flex;
   flex: 1;

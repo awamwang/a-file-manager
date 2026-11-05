@@ -50,8 +50,8 @@
     "healthOk": "健康: 正常 · v{version}",
     "healthError": "健康: 错误",
     "healthPending": "健康: …",
-    "navigatorLoading": "导航器: 加载中",
-    "navigatorError": "导航器: 错误",
+    "navigatorLoading": "加载中…",
+    "navigatorError": "无法列出文件夹",
     "navigatorCounts": "{dirs} 个文件夹 · {files} 个文件"
   },
   "nav": {
@@ -90,6 +90,7 @@
     "title": "导航器",
     "metaConnected": "内核磁盘浏览 · {dirs} 个文件夹 · {files} 个文件",
     "metaDisconnected": "内核磁盘浏览 · 未连接",
+    "noPath": "未打开文件夹",
     "loading": "加载中…",
     "empty": "此文件夹为空。",
     "folder": "文件夹",

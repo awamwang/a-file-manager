@@ -262,25 +262,28 @@ watch(
   { immediate: true },
 );
 
-const statusText = computed(() => {
+/** Files-like primary status (item counts) — left side of the shell status bar. */
+const browseStatusText = computed(() => {
   void locale.value;
-  const healthPart = healthError.value
-    ? t("chrome.healthError")
-    : health.value?.ok
-      ? t("chrome.healthOk", { version: health.value.version })
-      : t("chrome.healthPending");
-
-  if (route.path === "/navigator") {
-    if (listLoading.value) return `${healthPart} · ${t("chrome.navigatorLoading")}`;
-    if (listError.value) return `${healthPart} · ${t("chrome.navigatorError")}`;
-    if (listing.value) {
-      return `${healthPart} · ${t("chrome.navigatorCounts", {
-        dirs: listing.value.dirCount,
-        files: listing.value.fileCount,
-      })}`;
-    }
+  if (route.path !== "/navigator") return "";
+  if (listLoading.value) return t("chrome.navigatorLoading");
+  if (listError.value) return t("chrome.navigatorError");
+  if (listing.value) {
+    return t("chrome.navigatorCounts", {
+      dirs: listing.value.dirCount,
+      files: listing.value.fileCount,
+    });
   }
-  return healthPart;
+  return t("navigator.noPath");
+});
+
+const healthStatusText = computed(() => {
+  void locale.value;
+  if (healthError.value) return t("chrome.healthError");
+  if (health.value?.ok) {
+    return t("chrome.healthOk", { version: health.value.version });
+  }
+  return t("chrome.healthPending");
 });
 
 async function loadHealth() {
@@ -705,16 +708,19 @@ onUnmounted(() => {
     </div>
 
     <footer class="statusbar" :aria-label="t('chrome.status')">
-      <span
-        class="status-text"
-        :class="{
-          'fluent-status-text--down': Boolean(healthError),
-          'fluent-status-text--ok': health?.ok && !healthError,
-        }"
-      >{{ statusText }}</span>
-      <button type="button" class="status-refresh" @click="loadHealth">
-        {{ t("chrome.refreshHealth") }}
-      </button>
+      <span class="status-text status-primary">{{ browseStatusText }}</span>
+      <div class="status-trailing">
+        <span
+          class="status-health"
+          :class="{
+            'fluent-status-text--down': Boolean(healthError),
+            'fluent-status-text--ok': health?.ok && !healthError,
+          }"
+        >{{ healthStatusText }}</span>
+        <button type="button" class="status-refresh" @click="loadHealth">
+          {{ t("chrome.refreshHealth") }}
+        </button>
+      </div>
     </footer>
 
     <CommandPanel :commands="panelCommands" />
@@ -1172,6 +1178,24 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.status-primary {
+  flex: 1;
+}
+
+.status-trailing {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  flex-shrink: 0;
+}
+
+.status-health {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 28ch;
 }
 
 .status-refresh {

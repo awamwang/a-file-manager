@@ -50,8 +50,8 @@
     "healthOk": "health: ok · v{version}",
     "healthError": "health: error",
     "healthPending": "health: …",
-    "navigatorLoading": "navigator: loading",
-    "navigatorError": "navigator: error",
+    "navigatorLoading": "Loading…",
+    "navigatorError": "Could not list folder",
     "navigatorCounts": "{dirs} folders · {files} files"
   },
   "nav": {
@@ -90,6 +90,7 @@
     "title": "Navigator",
     "metaConnected": "Kernel OS browse · {dirs} folders · {files} files",
     "metaDisconnected": "Kernel OS browse · not connected",
+    "noPath": "No folder open",
     "loading": "Loading…",
     "empty": "This folder is empty.",
     "folder": "Folder",
