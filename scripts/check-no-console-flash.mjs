@@ -63,6 +63,17 @@ assert.ok(
   menu.includes("preloadLaunchersIfNeeded"),
   "context menu must warm launchers via preloadLaunchersIfNeeded",
 );
+// AIA-181: warm on first open / submenu — not on Navigator mount.
+{
+  const mountIdx = menu.indexOf("onMounted(() => {");
+  assert.ok(mountIdx >= 0, "NavigatorContextMenu must have onMounted");
+  const mountEnd = menu.indexOf("});", mountIdx);
+  const mountBody = menu.slice(mountIdx, mountEnd >= 0 ? mountEnd : menu.length);
+  assert.ok(
+    !mountBody.includes("preloadLaunchersIfNeeded();"),
+    "onMounted must not warm launchers (deferred to first open)",
+  );
+}
 // Every-open re-probe was the "隔一段时间又弹" loop (where.exe storm on each right-click).
 assert.ok(
   !/props\.open[\s\S]{0,400}void loadLaunchers\(\)/.test(menu),

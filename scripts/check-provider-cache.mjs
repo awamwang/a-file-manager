@@ -14,12 +14,15 @@ const lib = readFileSync(join(root, "src-tauri/src/lib.rs"), "utf8");
 const providersView = readFileSync(join(root, "src/views/ProvidersView.vue"), "utf8");
 
 assert.ok(state.includes("provider_preload"), "frontend must invoke provider_preload");
-assert.ok(state.includes("app start"), "must document app-start wire choice");
-assert.ok(!state.includes("Providers route"), "state should not claim Providers-route wire");
-assert.ok(app.includes("preloadProviderCache"), "App.vue must warm cache on mount");
 assert.ok(
-  app.includes("not Providers route") || app.includes("AIA-76"),
-  "App.vue must document app-start choice",
+  state.includes("idle after app start") || state.includes("scheduleIdle"),
+  "must document idle-after-start wire choice (AIA-181)",
+);
+assert.ok(app.includes("preloadProviderCache"), "App.vue must schedule cache warm");
+assert.ok(app.includes("scheduleIdle"), "App.vue must defer preload via scheduleIdle");
+assert.ok(
+  app.includes("AIA-181") || app.includes("navigator_list"),
+  "App.vue must document deferred preload rationale",
 );
 
 assert.ok(cache.includes("TTL_OK"), "cache must define ok TTL");
@@ -31,11 +34,11 @@ assert.ok(providersMod.includes("interface_only"), "preload must skip interface-
 assert.ok(lib.includes("providers::provider_preload"));
 assert.ok(lib.includes("providers::provider_cache_invalidate"));
 
-// Providers route must keep using provider_list (cache hit path), not a separate wire.
+// Providers route uses provider_list (cache hit) and may re-warm if idle preload deferred.
 assert.ok(providersView.includes("provider_list"));
 assert.ok(
-  !providersView.includes("preloadProviderCache"),
-  "ProvidersView must not own preload (app start owns it)",
+  providersView.includes("preloadProviderCache"),
+  "ProvidersView must warm on first visit when idle preload has not finished",
 );
 
 const cargo = spawnSync(
@@ -47,4 +50,4 @@ if (cargo.stdout) process.stdout.write(cargo.stdout);
 if (cargo.stderr) process.stderr.write(cargo.stderr);
 assert.equal(cargo.status, 0, "provider cache rust tests failed");
 
-console.log("Provider depth-1 cache checks OK (AIA-76).");
+console.log("Provider depth-1 cache checks OK (AIA-76 / AIA-181).");
