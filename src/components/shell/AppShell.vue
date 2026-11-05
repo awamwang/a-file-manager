@@ -111,6 +111,11 @@ const isMaximized = ref(false);
 const maxHover = ref(false);
 const placesMenuOpen = ref(false);
 const workGroupMenuOpen = ref(false);
+const crumbMenuIndex = ref<number | null>(null);
+const crumbSiblings = ref<Array<{ name: string; path: string }>>([]);
+const crumbMenuLoading = ref(false);
+const crumbMenuError = ref<string | null>(null);
+const crumbMenuActivePath = ref<string | null>(null);
 const closeConfirmOpen = ref(false);
 const closeConfirmRemember = ref(true);
 const closeConfirmBusy = ref(false);
@@ -142,9 +147,56 @@ function closeWorkGroupMenu() {
   workGroupMenuOpen.value = false;
 }
 
+function closeCrumbMenu() {
+  crumbMenuIndex.value = null;
+  crumbSiblings.value = [];
+  crumbMenuLoading.value = false;
+  crumbMenuError.value = null;
+  crumbMenuActivePath.value = null;
+}
+
 function closeChromeMenus() {
   closePlacesMenu();
   closeWorkGroupMenu();
+  closeCrumbMenu();
+}
+
+function pathKey(path: string): string {
+  return path.replace(/\//g, "\\").replace(/\\+$/, "").toLowerCase();
+}
+
+async function toggleCrumbMenu(index: number, parentPath: string) {
+  closePlacesMenu();
+  closeWorkGroupMenu();
+  if (crumbMenuIndex.value === index) {
+    closeCrumbMenu();
+    return;
+  }
+  crumbMenuIndex.value = index;
+  crumbSiblings.value = [];
+  crumbMenuError.value = null;
+  crumbMenuLoading.value = true;
+  const next = breadcrumbs.value[index + 1];
+  crumbMenuActivePath.value = next?.path ?? null;
+  try {
+    const listing = await invoke<{
+      entries: Array<{ name: string; path: string; kind: string }>;
+    }>("navigator_list", { path: parentPath });
+    crumbSiblings.value = listing.entries
+      .filter((entry) => entry.kind === "dir")
+      .map((entry) => ({ name: entry.name, path: entry.path }));
+  } catch (err) {
+    crumbMenuError.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    crumbMenuLoading.value = false;
+  }
+}
+
+async function onCrumbSibling(path: string) {
+  closeCrumbMenu();
+  addressEditing.value = false;
+  await ensureNavigatorRoute();
+  await navigateTo(path);
 }
 
 async function openPlacesPath(path: string) {
@@ -269,7 +321,10 @@ function onGlobalKeydown(event: KeyboardEvent) {
     event.preventDefault();
     return;
   }
-  if (event.key === "Escape" && (placesMenuOpen.value || workGroupMenuOpen.value)) {
+  if (
+    event.key === "Escape" &&
+    (placesMenuOpen.value || workGroupMenuOpen.value || crumbMenuIndex.value !== null)
+  ) {
     closeChromeMenus();
     event.preventDefault();
     return;
@@ -280,16 +335,22 @@ function onGlobalKeydown(event: KeyboardEvent) {
 }
 
 function onDocumentPointerDown(event: PointerEvent) {
-  if (!placesMenuOpen.value && !workGroupMenuOpen.value) return;
+  if (!placesMenuOpen.value && !workGroupMenuOpen.value && crumbMenuIndex.value === null) {
+    return;
+  }
   const target = event.target;
   if (!(target instanceof Node)) return;
   const placesRoot = document.getElementById("navigator-places-menu");
   const wgRoot = document.getElementById("navigator-work-group-menu");
+  const crumbRoot = document.getElementById("navigator-crumb-menu");
   if (placesMenuOpen.value && placesRoot && !placesRoot.contains(target)) {
     closePlacesMenu();
   }
   if (workGroupMenuOpen.value && wgRoot && !wgRoot.contains(target)) {
     closeWorkGroupMenu();
+  }
+  if (crumbMenuIndex.value !== null && crumbRoot && !crumbRoot.contains(target)) {
+    closeCrumbMenu();
   }
 }
 
@@ -935,23 +996,78 @@ onUnmounted(() => {
 
           <div
             v-if="!addressEditing"
+            id="navigator-crumb-menu"
             class="breadcrumbs"
             role="navigation"
             :aria-label="t('chrome.breadcrumbs')"
             @click="focusAddressBar"
           >
             <template v-if="breadcrumbs.length">
-              <button
+              <div
                 v-for="(crumb, index) in breadcrumbs"
                 :key="crumb.path + String(index)"
-                type="button"
-                class="crumb"
-                :title="crumb.path"
-                @click.stop="onBreadcrumb(crumb.path)"
+                class="crumb-seg"
               >
-                <span v-if="index > 0" class="crumb-sep" aria-hidden="true">›</span>
-                <span class="crumb-label">{{ crumb.label }}</span>
-              </button>
+                <button
+                  type="button"
+                  class="crumb"
+                  :title="crumb.path"
+                  @click.stop="onBreadcrumb(crumb.path)"
+                >
+                  <span class="crumb-label">{{ crumb.label }}</span>
+                </button>
+                <div class="crumb-chevron-wrap">
+                  <button
+                    type="button"
+                    class="crumb-chevron"
+                    :class="{ 'crumb-chevron--open': crumbMenuIndex === index }"
+                    :title="t('chrome.crumbSiblings')"
+                    :aria-label="t('chrome.crumbSiblings')"
+                    :aria-expanded="crumbMenuIndex === index"
+                    :aria-controls="
+                      crumbMenuIndex === index ? 'navigator-crumb-siblings' : undefined
+                    "
+                    @click.stop="toggleCrumbMenu(index, crumb.path)"
+                  >
+                    ›
+                  </button>
+                  <div
+                    v-if="crumbMenuIndex === index"
+                    id="navigator-crumb-siblings"
+                    class="crumb-menu fluent-surface"
+                    role="menu"
+                    :aria-label="t('chrome.crumbSiblings')"
+                    @click.stop
+                  >
+                    <p v-if="crumbMenuLoading" class="crumb-menu-status">
+                      {{ t("chrome.crumbSiblingsLoading") }}
+                    </p>
+                    <p v-else-if="crumbMenuError" class="crumb-menu-status crumb-menu-status--error">
+                      {{ crumbMenuError }}
+                    </p>
+                    <p v-else-if="!crumbSiblings.length" class="crumb-menu-status">
+                      {{ t("chrome.crumbSiblingsEmpty") }}
+                    </p>
+                    <button
+                      v-for="sibling in crumbSiblings"
+                      :key="sibling.path"
+                      type="button"
+                      class="crumb-menu-item"
+                      role="menuitem"
+                      :class="{
+                        'crumb-menu-item--active':
+                          crumbMenuActivePath &&
+                          pathKey(sibling.path) === pathKey(crumbMenuActivePath),
+                      }"
+                      :title="sibling.path"
+                      @click="onCrumbSibling(sibling.path)"
+                    >
+                      <FluentIcon name="folder" size="sm" />
+                      <span>{{ sibling.name }}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </template>
             <span v-else class="crumb-placeholder">{{ t("chrome.pathPlaceholder") }}</span>
           </div>
@@ -1354,12 +1470,20 @@ onUnmounted(() => {
   background: var(--fluent-color-fill-subtle-secondary);
 }
 
+.crumb-seg {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
 .crumb {
   display: inline-flex;
   align-items: center;
   max-width: 10rem;
   border: 0;
-  padding: 0.1rem 0.2rem;
+  padding: 0.1rem 0.25rem;
   border-radius: var(--fluent-radius-sm);
   background: transparent;
   color: var(--fluent-color-text-primary);
@@ -1374,15 +1498,94 @@ onUnmounted(() => {
   outline: none;
 }
 
-.crumb-sep {
-  margin-inline-end: 0.25rem;
-  color: var(--fluent-color-text-secondary);
-}
-
 .crumb-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.crumb-chevron-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.crumb-chevron {
+  border: 0;
+  padding: 0.1rem 0.2rem;
+  border-radius: var(--fluent-radius-sm);
+  background: transparent;
+  color: var(--fluent-color-text-secondary);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.crumb-chevron:hover,
+.crumb-chevron:focus-visible,
+.crumb-chevron--open {
+  background: var(--fluent-color-fill-selected);
+  color: var(--fluent-color-text-primary);
+  outline: none;
+}
+
+.crumb-menu {
+  position: absolute;
+  top: calc(100% + 0.2rem);
+  left: 0;
+  z-index: 40;
+  min-width: 11rem;
+  max-width: min(18rem, 70vw);
+  max-height: min(18rem, 50vh);
+  overflow: auto;
+  padding: var(--fluent-space-xs);
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  box-shadow: var(--fluent-shadow-flyout, 0 8px 24px rgba(0, 0, 0, 0.18));
+}
+
+.crumb-menu-status {
+  margin: 0;
+  padding: var(--fluent-space-sm);
+  color: var(--fluent-color-text-secondary);
+  font-size: var(--fluent-font-size-caption);
+}
+
+.crumb-menu-status--error {
+  color: var(--fluent-color-status-danger);
+}
+
+.crumb-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  width: 100%;
+  border: 0;
+  border-radius: var(--fluent-radius-sm);
+  padding: 0.35rem 0.5rem;
+  background: transparent;
+  color: var(--fluent-color-text-primary);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.crumb-menu-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crumb-menu-item:hover,
+.crumb-menu-item:focus-visible {
+  background: var(--fluent-color-fill-selected);
+  outline: none;
+}
+
+.crumb-menu-item--active {
+  background: var(--fluent-color-fill-subtle-secondary, var(--fluent-color-fill-selected));
+  font-weight: 600;
 }
 
 .crumb-placeholder {
