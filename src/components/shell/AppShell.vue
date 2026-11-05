@@ -32,6 +32,7 @@ import {
   navigateTo,
   openOrFocusNavigatorTab,
   newNavigatorTab,
+  reorderNavigatorTabs,
   stripTabs,
   switchNavigatorTab,
   switchNavigatorTabAdjacent,
@@ -673,6 +674,44 @@ async function onSwitchNavigatorTabAdjacent(direction: "next" | "previous") {
   await switchNavigatorTabAdjacent(direction);
 }
 
+const tabDragFrom = ref<number | null>(null);
+const tabDragOver = ref<number | null>(null);
+
+function onTabDragStart(event: DragEvent, groupIndex: number) {
+  tabDragFrom.value = groupIndex;
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(groupIndex));
+  }
+}
+
+function onTabDragOver(event: DragEvent, groupIndex: number) {
+  event.preventDefault();
+  if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+  tabDragOver.value = groupIndex;
+}
+
+function onTabDragLeave(groupIndex: number) {
+  if (tabDragOver.value === groupIndex) tabDragOver.value = null;
+}
+
+async function onTabDrop(event: DragEvent, toIndex: number) {
+  event.preventDefault();
+  event.stopPropagation();
+  const from =
+    tabDragFrom.value ??
+    Number(event.dataTransfer?.getData("text/plain") ?? Number.NaN);
+  tabDragFrom.value = null;
+  tabDragOver.value = null;
+  if (!Number.isFinite(from) || from === toIndex) return;
+  await reorderNavigatorTabs(from, toIndex);
+}
+
+function onTabDragEnd() {
+  tabDragFrom.value = null;
+  tabDragOver.value = null;
+}
+
 async function onCloseNavigatorTab(event: Event, groupIndex: number) {
   event.stopPropagation();
   event.preventDefault();
@@ -1174,11 +1213,18 @@ onUnmounted(() => {
             class="tab"
             :class="{
               'tab--active': liveOpenState.currentTabGroupIndex === tab.groupIndex,
+              'tab--drag-over': tabDragOver === tab.groupIndex,
             }"
             role="tab"
+            draggable="true"
             :aria-selected="liveOpenState.currentTabGroupIndex === tab.groupIndex"
             :title="tab.path"
             @click="onSwitchNavigatorTab(tab.groupIndex)"
+            @dragstart="onTabDragStart($event, tab.groupIndex)"
+            @dragover="onTabDragOver($event, tab.groupIndex)"
+            @dragleave="onTabDragLeave(tab.groupIndex)"
+            @drop="onTabDrop($event, tab.groupIndex)"
+            @dragend="onTabDragEnd"
           >
             <FluentIcon name="folder" size="sm" class="tab-icon" />
             <span class="tab-label">{{ tab.name || tabLabel(tab.path) }}</span>
@@ -1707,6 +1753,19 @@ onUnmounted(() => {
   color: var(--fluent-color-text-primary);
   font-weight: var(--fluent-font-weight-semibold);
   box-shadow: inset 0 -2px 0 var(--fluent-color-fill-accent);
+}
+
+.tab--drag-over {
+  outline: 2px solid var(--fluent-color-stroke-accent-soft, var(--fluent-color-fill-accent));
+  outline-offset: -2px;
+}
+
+.tab[draggable="true"] {
+  cursor: grab;
+}
+
+.tab[draggable="true"]:active {
+  cursor: grabbing;
 }
 
 .tab-icon {

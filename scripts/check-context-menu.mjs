@@ -28,6 +28,12 @@ assert.ok(menu.includes("shell_show_context_menu"));
 assert.ok(menu.includes("open_in_terminal"));
 assert.ok(menu.includes("terminal_list_apps"));
 assert.ok(menu.includes("open_native_open_with_dialog"));
+assert.ok(
+  menu.includes("open_path_default") ||
+    readFileSync(join(root, "src/state/navigatorBrowse.ts"), "utf8").includes(
+      "open_path_default",
+    ),
+);
 assert.ok(menu.includes("z-index: 1200") || menu.includes("z-index:1200"));
 assert.ok((menu.match(/Teleport to="body"/g) || []).length >= 2);
 assert.ok(menu.includes("toggleFavorite"));

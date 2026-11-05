@@ -162,11 +162,10 @@ function sortIndicator(column: "name" | "size"): string {
 }
 
 function onActivate(entry: NavigatorEntry) {
-  if (activePane.value === "secondary" && dualPaneEnabled.value) {
-    if (entry.kind === "dir") void navigateSecondary(entry.path);
-    return;
-  }
-  void openEntry(entry);
+  // Primary list always uses openEntry; secondary pane has its own handler.
+  void openEntry(entry).catch((err) => {
+    toastError(err instanceof Error ? err.message : String(err));
+  });
 }
 
 function onActivateSecondary(entry: NavigatorEntry) {
@@ -175,8 +174,9 @@ function onActivateSecondary(entry: NavigatorEntry) {
     void navigateSecondary(entry.path);
     return;
   }
-  // AIA-118: file activate follows the same Settings policy as primary pane.
-  void openEntry(entry);
+  void openEntry(entry).catch((err) => {
+    toastError(err instanceof Error ? err.message : String(err));
+  });
 }
 
 function onRowClick(event: MouseEvent, entry: NavigatorEntry) {

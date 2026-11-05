@@ -11,6 +11,37 @@ pub struct OpenWithResult {
     pub error: Option<String>,
 }
 
+/// Open a file/folder with the OS default association (ShellExecute "open").
+/// Prefer this over `plugin-opener` for arbitrary FS paths (opener path ACL).
+#[tauri::command]
+pub fn open_path_default(path: String) -> OpenWithResult {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return OpenWithResult {
+            success: false,
+            error: Some("Path is empty".to_string()),
+        };
+    }
+    let p = Path::new(trimmed);
+    if !p.exists() {
+        return OpenWithResult {
+            success: false,
+            error: Some(format!("Path not found: {trimmed}")),
+        };
+    }
+    #[cfg(windows)]
+    {
+        windows_impl::open_default(trimmed)
+    }
+    #[cfg(not(windows))]
+    {
+        OpenWithResult {
+            success: false,
+            error: Some("open_path_default is only supported on Windows".to_string()),
+        }
+    }
+}
+
 #[tauri::command]
 pub fn open_native_open_with_dialog(path: String) -> OpenWithResult {
     let trimmed = path.trim();
@@ -76,6 +107,49 @@ mod windows_impl {
         }
     }
 
+    pub fn open_default(path: &str) -> OpenWithResult {
+        let absolute = path.replace('/', "\\");
+        let file_wide: Vec<u16> = OsStr::new(&absolute)
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        let verb_wide: Vec<u16> = OsStr::new("open")
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+
+        unsafe {
+            let mut sei: SHELLEXECUTEINFOW = std::mem::zeroed();
+            sei.cbSize = std::mem::size_of::<SHELLEXECUTEINFOW>() as u32;
+            sei.lpVerb = PCWSTR(verb_wide.as_ptr());
+            sei.lpFile = PCWSTR(file_wide.as_ptr());
+            sei.nShow = SW_SHOWNORMAL.0;
+
+            if ShellExecuteExW(&mut sei).is_ok() {
+                return OpenWithResult {
+                    success: true,
+                    error: None,
+                };
+            }
+        }
+
+        // Fallback: cmd start "" "path"
+        match Command::new("cmd.exe")
+            .args(["/C", "start", "", &absolute])
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn()
+        {
+            Ok(_) => OpenWithResult {
+                success: true,
+                error: None,
+            },
+            Err(err) => OpenWithResult {
+                success: false,
+                error: Some(format!("Failed to open path: {err}")),
+            },
+        }
+    }
+
     pub fn open_as(path: &str) -> OpenWithResult {
         let absolute = path.replace('/', "\\");
         let verb_wide: Vec<u16> = OsStr::new("openas")
@@ -127,6 +201,18 @@ mod tests {
     #[test]
     fn empty_path_fails() {
         let result = open_native_open_with_dialog(String::new());
+        assert!(!result.success);
+    }
+
+    #[test]
+    fn open_path_default_empty_fails() {
+        let result = open_path_default(String::new());
+        assert!(!result.success);
+    }
+
+    #[test]
+    fn open_path_default_missing_fails() {
+        let result = open_path_default("Z:/missing-afm-open-default-xyz.bin".into());
         assert!(!result.success);
     }
 

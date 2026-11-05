@@ -10,6 +10,7 @@ import {
   normalizeRestoredOpenState,
   openStateAfterCloseGroup,
   openStateAfterNavigate,
+  openStateAfterReorderGroups,
   openStateAfterSwitchAdjacent,
   openStateAfterSwitchGroup,
   normalizePathKey,
@@ -92,6 +93,21 @@ assert.equal(cycle.currentTabGroupIndex, 2);
 assert.equal(activeStripTab(cycle)?.name, "C");
 const single = openStateFromPaths(["G:/only"]);
 assert.equal(openStateAfterSwitchAdjacent(single, "next").currentTabGroupIndex, 0);
+
+// Strip drag-reorder: move last group to front; active index follows moved tab.
+let reorder = openStateFromPaths([
+  "G:/Projects/A",
+  "G:/Projects/B",
+  "G:/Projects/C",
+]);
+reorder = openStateAfterSwitchGroup(reorder, 2);
+reorder = openStateAfterReorderGroups(reorder, 2, 0);
+assert.equal(reorder.tabGroups[0][0].path, "G:/Projects/C");
+assert.equal(reorder.currentTabGroupIndex, 0);
+assert.equal(activeStripTab(reorder)?.name, "C");
+reorder = openStateAfterReorderGroups(reorder, 0, 2);
+assert.equal(reorder.tabGroups[2][0].path, "G:/Projects/C");
+assert.equal(reorder.currentTabGroupIndex, 2);
 
 assert.equal(findTabGroupIndexByPath(restored, "G:\\Projects\\Tools"), 1);
 assert.equal(findTabGroupIndexByPath(restored, "G:/missing"), -1);

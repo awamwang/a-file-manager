@@ -3,7 +3,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
-import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { NavigatorEntry } from "../../state/navigatorBrowse";
 import { currentPath, navigateTo, newNavigatorTab, openEntry } from "../../state/navigatorBrowse";
 import {
@@ -290,14 +290,10 @@ async function run(id: string) {
   switch (id) {
     case "open":
       if (!entry) break;
-      if (entry.kind === "dir") {
+      try {
         await openEntry(entry);
-      } else {
-        try {
-          await openPath(entry.path);
-        } catch (err) {
-          emit("notice", err instanceof Error ? err.message : String(err));
-        }
+      } catch (err) {
+        emit("notice", err instanceof Error ? err.message : String(err));
       }
       break;
     case "openInNewTab":
@@ -308,7 +304,13 @@ async function run(id: string) {
     case "openWithSystemDefault":
       if (!entry) break;
       try {
-        await openPath(entry.path);
+        const result = await invoke<{ success: boolean; error: string | null }>(
+          "open_path_default",
+          { path: entry.path },
+        );
+        if (!result.success && result.error) {
+          emit("notice", result.error);
+        }
       } catch (err) {
         emit("notice", err instanceof Error ? err.message : String(err));
       }

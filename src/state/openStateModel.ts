@@ -148,6 +148,40 @@ export function openStateAfterSwitchGroup(
   return clampOpenStateIndices(next);
 }
 
+/**
+ * Reorder page groups (Navigator strip tabs). Moves `fromIndex` to `toIndex`
+ * and keeps the previously active group focused after the move.
+ */
+export function openStateAfterReorderGroups(
+  state: WorkGroupOpenState,
+  fromIndex: number,
+  toIndex: number,
+): WorkGroupOpenState {
+  const next = cloneOpenState(state);
+  const total = next.tabGroups.length;
+  if (
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= total ||
+    toIndex >= total ||
+    fromIndex === toIndex
+  ) {
+    return clampOpenStateIndices(next);
+  }
+  const [moved] = next.tabGroups.splice(fromIndex, 1);
+  next.tabGroups.splice(toIndex, 0, moved);
+
+  const active = state.currentTabGroupIndex;
+  if (active === fromIndex) {
+    next.currentTabGroupIndex = toIndex;
+  } else if (fromIndex < active && toIndex >= active) {
+    next.currentTabGroupIndex = active - 1;
+  } else if (fromIndex > active && toIndex <= active) {
+    next.currentTabGroupIndex = active + 1;
+  }
+  return clampOpenStateIndices(next);
+}
+
 /** Case-insensitive path key for tab-group identity (Sigma openOrFocus / dedupe). Aligns with Rust `normalize_path_for_comparison`. */
 export function normalizePathKey(path: string): string {
   return path

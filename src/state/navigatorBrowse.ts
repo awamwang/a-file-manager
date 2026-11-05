@@ -2,13 +2,14 @@
 
 import { computed, ref, shallowRef } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import {
   activeStripTab,
   createEmptyOpenState,
   normalizeRestoredOpenState,
   openStateAfterCloseGroup,
   openStateAfterNavigate,
+  openStateAfterReorderGroups,
   openStateAfterSwitchAdjacent,
   openStateAfterSwitchGroup,
   openStateEnsureMemberPaths,
@@ -222,6 +223,20 @@ export async function switchNavigatorTab(groupIndex: number): Promise<void> {
   }
 }
 
+/** Drag-reorder strip tabs (page groups) and persist Open State. */
+export async function reorderNavigatorTabs(
+  fromIndex: number,
+  toIndex: number,
+): Promise<void> {
+  if (fromIndex === toIndex) return;
+  liveOpenState.value = openStateAfterReorderGroups(
+    liveOpenState.value,
+    fromIndex,
+    toIndex,
+  );
+  schedulePersist(true);
+}
+
 /** Cycle page groups (Sigma Ctrl+Tab / Ctrl+Shift+Tab → switchToAdjacentTabGroup). */
 export async function switchNavigatorTabAdjacent(
   direction: SwitchAdjacentDirection,
@@ -355,12 +370,22 @@ export type FileDoubleClickAction =
  * `core.fileDoubleClickAction` (系统默认 / 打开方式… / Reveal / IDE / none).
  * In-tab navigation (address bar / breadcrumbs / back-forward / goUp) still uses `navigateTo`.
  */
+async function openPathWithSystemDefault(path: string): Promise<void> {
+  const result = await invoke<{ success: boolean; error: string | null }>(
+    "open_path_default",
+    { path },
+  );
+  if (!result.success) {
+    throw new Error(result.error ?? "Failed to open path");
+  }
+}
+
 export async function openEntry(entry: NavigatorEntry): Promise<void> {
   if (entry.kind === "dir") {
     await openOrFocusNavigatorTab(entry.path);
     return;
   }
-  if (entry.kind !== "file") return;
+  // Non-dir entries (file / symlink-as-file) follow double-click Settings.
   const action = await readFileDoubleClickAction();
   switch (action) {
     case "none":
@@ -393,7 +418,7 @@ export async function openEntry(entry: NavigatorEntry): Promise<void> {
     }
     case "systemDefault":
     default:
-      await openPath(entry.path);
+      await openPathWithSystemDefault(entry.path);
   }
 }
 
