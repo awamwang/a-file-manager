@@ -115,4 +115,33 @@ assert.ok(
   );
 }
 
+// --- P1: non-default routes lazy-loaded ---
+{
+  const router = read("src/router/index.ts");
+  assert.ok(
+    /import NavigatorView from ["'].*NavigatorView\.vue["']/.test(router),
+    "Navigator (default startup) stays eager",
+  );
+  assert.ok(
+    !/import DiscoveryView from/.test(router),
+    "Discovery must not be a static import",
+  );
+  assert.ok(
+    /component:\s*\(\)\s*=>\s*import\(["'].*DiscoveryView\.vue["']\)/.test(router),
+    "Discovery must use dynamic import()",
+  );
+  assert.ok(
+    /component:\s*\(\)\s*=>\s*import\(["'].*ProvidersView\.vue["']\)/.test(router),
+    "Providers must use dynamic import()",
+  );
+  assert.ok(
+    /component:\s*\(\)\s*=>\s*import\(["'].*SettingsView\.vue["']\)/.test(router),
+    "Settings must use dynamic import()",
+  );
+  assert.ok(
+    /component:\s*\(\)\s*=>\s*import\(["'].*ProjectsView\.vue["']\)/.test(router),
+    "Projects must use dynamic import()",
+  );
+}
+
 console.log("startup-async checks OK (AIA-181/182).");
