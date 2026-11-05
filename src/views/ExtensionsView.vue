@@ -3,6 +3,7 @@
 import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
+import { toastInfo, toastSuccess } from "../state/toast";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 
 const { t } = useI18n();
@@ -53,7 +54,6 @@ const catalog = ref<MarketplaceCatalog | null>(null);
 const installed = ref<InstalledExtension[]>([]);
 const hooks = ref<FsHook[]>([]);
 const error = ref<string | null>(null);
-const notice = ref<string | null>(null);
 const loading = ref(false);
 
 const DEMO_MANIFEST = {
@@ -86,7 +86,6 @@ async function refresh() {
 }
 
 async function installDemo() {
-  notice.value = null;
   const result = await invoke<InstallResult>("extension_host_install", {
     manifest: DEMO_MANIFEST,
   });
@@ -94,7 +93,7 @@ async function installDemo() {
     error.value = result.error ?? t("extensions.errorInstallFailed");
     return;
   }
-  notice.value = t("extensions.noticeInstalled", { id: result.extension?.id ?? "" });
+  toastSuccess(t("extensions.noticeInstalled", { id: result.extension?.id ?? "" }));
   await refresh();
 }
 
@@ -105,7 +104,7 @@ async function setEnabled(id: string, enabled: boolean) {
 
 async function uninstall(id: string) {
   await invoke("extension_host_uninstall", { extensionId: id });
-  notice.value = t("extensions.noticeUninstalled", { id });
+  toastSuccess(t("extensions.noticeUninstalled", { id }));
   await refresh();
 }
 
@@ -117,11 +116,15 @@ async function runHello(id: string) {
   }>("extension_host_dispatch_ui_command", {
     request: { extensionId: id, commandId: "hello", args: { ping: true } },
   });
-  notice.value = result.ok
-    ? t("extensions.noticeHelloOk", { id })
-    : t("extensions.noticeHelloFail", {
+  if (result.ok) {
+    toastSuccess(t("extensions.noticeHelloOk", { id }));
+  } else {
+    toastInfo(
+      t("extensions.noticeHelloFail", {
         error: result.error ?? t("extensions.unknownError"),
-      });
+      }),
+    );
+  }
   await refresh();
 }
 
@@ -142,10 +145,6 @@ onMounted(() => {
 
     <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
     <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
-    <p v-if="notice" class="fluent-banner fluent-banner--info banner--soft">
-      {{ notice }}
-      <button type="button" class="linkish" @click="notice = null">{{ t("common.dismiss") }}</button>
-    </p>
 
     <div v-if="status" class="grid">
       <article class="fluent-surface card" :class="{ 'card--warn': status.crashedCount > 0 }">
@@ -256,12 +255,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.banner--soft {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--fluent-space-md);
-}
-
 .inline {
   margin-top: var(--fluent-space-sm);
   padding: var(--fluent-space-sm) var(--fluent-space-md);
@@ -280,14 +273,6 @@ onMounted(() => {
   pointer-events: none;
   cursor: default;
   font-size: var(--fluent-font-size-caption);
-}
-
-.linkish {
-  border: 0;
-  background: transparent;
-  color: var(--fluent-color-fill-accent);
-  cursor: pointer;
-  font: inherit;
 }
 
 .grid {

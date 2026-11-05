@@ -61,12 +61,12 @@
 
 ## 5. 建议跟进（不阻塞 91/93）
 
-1. Extensions 瞬时 notice → toast，与 93 对齐。
-2. Toast dismiss / 种类文案 i18n。
-3. Discovery 语法帮助一句。
-4. 双栏窄窗布局守卫（可选）。
-5. 暗色主题下 toast 对比度目视。
+1. ~~Extensions 瞬时 notice → toast~~ — 已做（AIA-97）。
+2. ~~Toast dismiss aria-label i18n~~ — 已做（`common.dismiss`）。
+3. ~~Discovery 语法帮助一句~~ — 已做（`discovery.syntaxHint`）。
+4. 双栏窄窗布局守卫（可选，未强制）。
+5. 暗色主题下 toast 对比度目视（可选，未强制）。
 
 ## 6. 结论
 
-Shell 布局（AIA-91）与浮动 toast（AIA-93）已到位；主路径反馈不再顶推内容区。剩余主要是 Extensions 残留 banner 与少量文案/a11y 打磨，不构成回归阻塞。
+Shell 布局（AIA-91）与浮动 toast（AIA-93）已到位；AIA-97 已清掉 §5 中的 P2 项。窄窗/暗色仍为可选跟进。

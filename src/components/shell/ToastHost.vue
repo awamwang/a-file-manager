@@ -1,6 +1,9 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
+import { useI18n } from "vue-i18n";
 import { dismissToast, toasts } from "../../state/toast";
+
+const { t } = useI18n();
 </script>
 
 <template>
@@ -16,7 +19,7 @@ import { dismissToast, toasts } from "../../state/toast";
       <button
         type="button"
         class="toast-dismiss"
-        :aria-label="'Dismiss'"
+        :aria-label="t('common.dismiss')"
         @click="dismissToast(item.id)"
       >
         ×

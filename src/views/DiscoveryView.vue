@@ -322,6 +322,9 @@ onMounted(() => {
     <p v-if="result && result.hits.length === 0" class="fluent-banner fluent-banner--info">
       {{ t("discovery.noHits", { engine: resultEngineLabel, total: result.totalCount }) }}
     </p>
+    <p v-if="result && result.hits.length === 0" class="fluent-page-meta discovery-syntax-hint">
+      {{ t("discovery.syntaxHint") }}
+    </p>
 
     <div v-if="result && result.hits.length" class="fluent-surface list" role="list">
       <p class="fluent-page-meta list-meta">
@@ -482,6 +485,10 @@ onMounted(() => {
 .list-meta {
   padding: var(--fluent-space-sm) var(--fluent-space-md);
   border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+}
+
+.discovery-syntax-hint {
+  margin-top: calc(-1 * var(--fluent-space-sm));
 }
 
 .row {
