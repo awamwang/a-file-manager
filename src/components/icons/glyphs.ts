@@ -197,13 +197,15 @@ export const FLUENT_GLYPHS: Record<FluentGlyphId, FluentGlyph> = {
       "M8 2.4 9.7 6l3.9.6-2.8 2.8.7 3.9L8 11.4l-3.5 1.9.7-3.9L2.4 6.6 6.3 6 8 2.4zm0 2.4L7 7.1l-2.3.3 1.7 1.6-.4 2.3L8 10.1l2 1.2-.4-2.3 1.7-1.6-2.3-.3L8 4.8z",
     ],
   },
-  /** Two panes with a dashed vertical divider (Dual Pane toggle). */
+  /**
+   * Window frame + dashed vertical split (Dual Pane).
+   * Must not share viewAll's Segoe codepoint (\uE8A9) — Windows prefers Segoe.
+   */
   dualPane: {
-    codepoint: "\uE8A9",
+    codepoint: "\uE8A0",
     paths: [
-      "M2.2 3.2h4.8v9.6H2.2V3.2zm1.2 1.2v7.2h2.4V4.4H3.4z",
-      "M9 3.2h4.8v9.6H9V3.2zm1.2 1.2v7.2h2.4V4.4h-2.4z",
-      "M7.55 4.1h.9v1.1h-.9V4.1zm0 1.9h.9v1.1h-.9V6zm0 1.9h.9v1.1h-.9V7.9zm0 1.9h.9v1.1h-.9V9.8zm0 1.9h.9v1.1h-.9v-1.1z",
+      "M2 2.8h12v10.4H2V2.8zm1.15 1.15v8.1h9.7v-8.1H3.15z",
+      "M7.55 4.25h.9v1.1h-.9V4.25zm0 1.85h.9v1.1h-.9V6.1zm0 1.85h.9v1.1h-.9V7.95zm0 1.85h.9v1.1h-.9V9.8zm0 1.85h.9v1.05h-.9v-1.05z",
     ],
   },
   add: {

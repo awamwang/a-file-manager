@@ -40,6 +40,28 @@ if (!glyphs.includes("star:") || !glyphs.includes("dualPane:")) {
   console.error("glyphs catalog missing star / dualPane");
   process.exit(1);
 }
+
+// Dual Pane must be its own glyph — not the page-group / viewAll 2×2 tile.
+const dualPaneBlock = glyphs.slice(glyphs.indexOf("dualPane:"), glyphs.indexOf("add:"));
+if (dualPaneBlock.includes("\\uE8A9")) {
+  console.error("dualPane must not reuse viewAll Segoe codepoint U+E8A9");
+  process.exit(1);
+}
+if (!dualPaneBlock.includes("7.55")) {
+  // Dashed center column uses x≈7.55 segments in the SVG paths.
+  console.error("dualPane SVG should emphasize a dashed vertical split");
+  process.exit(1);
+}
+const dualBtnIdx = shell.indexOf('name="dualPane"');
+if (dualBtnIdx < 0) {
+  console.error("AppShell missing dualPane FluentIcon");
+  process.exit(1);
+}
+const dualBtn = shell.slice(Math.max(0, dualBtnIdx - 100), dualBtnIdx + 60);
+if (!dualBtn.includes("force-svg") && !dualBtn.includes("forceSvg")) {
+  console.error("Dual Pane FluentIcon should force-svg for dashed split metaphor");
+  process.exit(1);
+}
 if (en.chrome.home !== "Home") {
   console.error("en.chrome.home mismatch");
   process.exit(1);

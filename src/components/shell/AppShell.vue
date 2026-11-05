@@ -801,7 +801,7 @@ onUnmounted(() => {
           :aria-pressed="dualPaneEnabled"
           @click="toggleDualPane"
         >
-          <FluentIcon name="dualPane" size="sm" />
+          <FluentIcon name="dualPane" size="sm" force-svg />
         </button>
 
         <div
