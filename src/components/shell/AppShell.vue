@@ -985,7 +985,18 @@ onUnmounted(() => {
         :title="t('chrome.titleBar')"
         @dblclick.prevent="toggleMaximizeWindow"
       >
-        <span class="brand" data-tauri-drag-region>{{ t("app.name") }}</span>
+        <span class="brand-cluster" data-tauri-drag-region>
+          <img
+            class="brand-icon"
+            src="/app-icon.png"
+            width="18"
+            height="18"
+            alt=""
+            draggable="false"
+            data-tauri-drag-region
+          />
+          <span class="brand" data-tauri-drag-region>{{ t("app.name") }}</span>
+        </span>
         <span class="caption-meta" data-tauri-drag-region>{{ t("app.captionMeta") }}</span>
       </div>
       <div class="titlebar-actions" role="group" :aria-label="t('chrome.commands')">
@@ -1598,6 +1609,22 @@ onUnmounted(() => {
   gap: var(--fluent-space-md);
   padding-inline: var(--fluent-space-lg);
   min-width: 0;
+}
+
+.brand-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  min-width: 0;
+}
+
+.brand-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 3px;
+  object-fit: contain;
+  pointer-events: none;
 }
 
 .brand {
