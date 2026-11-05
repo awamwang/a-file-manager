@@ -15,6 +15,15 @@ assert.ok(shell.includes("navigator-crumb-siblings") || shell.includes("crumb-me
 assert.ok(shell.includes("crumb-chevron"));
 assert.ok(shell.includes("Teleport"));
 assert.ok(shell.includes("positionCrumbMenu"));
+// Teleport must not sit between address-bar v-if / v-else siblings.
+const crumbsIdx = shell.indexOf('v-if="!addressEditing"');
+const inputIdx = shell.indexOf('id="address-input"', crumbsIdx);
+const teleportIdx = shell.indexOf("<Teleport", crumbsIdx);
+assert.ok(crumbsIdx >= 0 && inputIdx > crumbsIdx, "address bar v-if / input missing");
+assert.ok(
+  teleportIdx < 0 || teleportIdx > inputIdx,
+  "Teleport must not break address v-if/v-else adjacency",
+);
 assert.ok(shell.includes('navigator_list'));
 assert.ok(/toggleCrumbMenu[\s\S]*?navigator_list/.test(shell));
 assert.ok(/onCrumbSibling[\s\S]*?navigateTo/.test(shell));

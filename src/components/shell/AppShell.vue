@@ -1082,44 +1082,6 @@ onUnmounted(() => {
             </template>
             <span v-else class="crumb-placeholder">{{ t("chrome.pathPlaceholder") }}</span>
           </div>
-          <Teleport to="body">
-            <div
-              v-if="crumbMenuIndex !== null"
-              id="navigator-crumb-siblings"
-              class="crumb-menu fluent-surface"
-              role="menu"
-              :aria-label="t('chrome.crumbSiblings')"
-              :style="crumbMenuStyle"
-              @click.stop
-            >
-              <p v-if="crumbMenuLoading" class="crumb-menu-status">
-                {{ t("chrome.crumbSiblingsLoading") }}
-              </p>
-              <p v-else-if="crumbMenuError" class="crumb-menu-status crumb-menu-status--error">
-                {{ crumbMenuError }}
-              </p>
-              <p v-else-if="!crumbSiblings.length" class="crumb-menu-status">
-                {{ t("chrome.crumbSiblingsEmpty") }}
-              </p>
-              <button
-                v-for="sibling in crumbSiblings"
-                :key="sibling.path"
-                type="button"
-                class="crumb-menu-item"
-                role="menuitem"
-                :class="{
-                  'crumb-menu-item--active':
-                    crumbMenuActivePath &&
-                    pathKey(sibling.path) === pathKey(crumbMenuActivePath),
-                }"
-                :title="sibling.path"
-                @click="onCrumbSibling(sibling.path)"
-              >
-                <FluentIcon name="folder" size="sm" />
-                <span>{{ sibling.name }}</span>
-              </button>
-            </div>
-          </Teleport>
           <input
             v-else
             id="address-input"
@@ -1136,6 +1098,45 @@ onUnmounted(() => {
             {{ t("chrome.go") }}
           </button>
         </form>
+
+        <Teleport to="body">
+          <div
+            v-if="crumbMenuIndex !== null"
+            id="navigator-crumb-siblings"
+            class="crumb-menu fluent-surface"
+            role="menu"
+            :aria-label="t('chrome.crumbSiblings')"
+            :style="crumbMenuStyle"
+            @click.stop
+          >
+            <p v-if="crumbMenuLoading" class="crumb-menu-status">
+              {{ t("chrome.crumbSiblingsLoading") }}
+            </p>
+            <p v-else-if="crumbMenuError" class="crumb-menu-status crumb-menu-status--error">
+              {{ crumbMenuError }}
+            </p>
+            <p v-else-if="!crumbSiblings.length" class="crumb-menu-status">
+              {{ t("chrome.crumbSiblingsEmpty") }}
+            </p>
+            <button
+              v-for="sibling in crumbSiblings"
+              :key="sibling.path"
+              type="button"
+              class="crumb-menu-item"
+              role="menuitem"
+              :class="{
+                'crumb-menu-item--active':
+                  crumbMenuActivePath &&
+                  pathKey(sibling.path) === pathKey(crumbMenuActivePath),
+              }"
+              :title="sibling.path"
+              @click="onCrumbSibling(sibling.path)"
+            >
+              <FluentIcon name="folder" size="sm" />
+              <span>{{ sibling.name }}</span>
+            </button>
+          </div>
+        </Teleport>
 
         <div
           v-if="navigatorFilterOpen"
