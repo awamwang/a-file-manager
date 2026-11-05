@@ -158,6 +158,15 @@ fn migrate_step(
             );
             Ok(())
         }
+        (7, 8) => {
+            for (key, value) in default_document().values {
+                values.entry(key).or_insert(value);
+            }
+            notes.push(
+                "Added power.providerPreloadKnowledge (schema v8)".to_string(),
+            );
+            Ok(())
+        }
         _ => Err(format!("No migration path from {from} → {to}")),
     }
 }

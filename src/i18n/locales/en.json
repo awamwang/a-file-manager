@@ -342,6 +342,10 @@
         "perPathOverridesEnabled": {
           "title": "Per-path overrides",
           "description": "Allow per-path Explorer defaults to override group/global"
+        },
+        "providerPreloadKnowledge": {
+          "title": "Preload knowledge provider",
+          "description": "Warm awam://knowledge during provider preload (disable if the knowledge root is huge)"
         }
       },
       "experimental": {

@@ -463,6 +463,10 @@
         "perPathOverridesEnabled": {
           "description": "Pfadbezogene Explorer-Standards dürfen Gruppe/Global überschreiben",
           "title": "Pfadbezogene Überschreibungen"
+        },
+        "providerPreloadKnowledge": {
+          "title": "Knowledge-Provider vorladen",
+          "description": "awam://knowledge beim Provider-Preload warmhalten (bei großem Root abschalten)"
         }
       }
     },

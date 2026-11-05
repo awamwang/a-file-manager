@@ -4,8 +4,10 @@
  *
  * Wire choice: **idle after app start** (`App.vue` → `scheduleIdle`), plus
  * Providers-route first visit as a safety warm. Keeps rclone/knowledge off the
- * first `navigator_list` critical path. Idempotent concurrent callers share one invoke.
- * Server-side TTL: 60s ok / 15s error; `provider_list` reads the same cache.
+ * first `navigator_list` critical path. Knowledge root warm is gated by
+ * `power.providerPreloadKnowledge` (default on). Idempotent concurrent callers
+ * share one invoke. Server-side TTL: 60s ok / 15s error; `provider_list` reads
+ * the same cache.
  */
 
 import { ref } from "vue";

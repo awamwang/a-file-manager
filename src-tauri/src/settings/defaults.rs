@@ -299,6 +299,15 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             json!(true),
         ),
         def(
+            "power.providerPreloadKnowledge",
+            SettingsTier::Power,
+            "Preload knowledge provider",
+            "Warm awam://knowledge during provider preload (disable if the knowledge root is huge)",
+            SettingValueKind::Boolean,
+            None,
+            json!(true),
+        ),
+        def(
             "experimental.debugStatusInTitlebar",
             SettingsTier::Experimental,
             "Debug status in titlebar",

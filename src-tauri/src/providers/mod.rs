@@ -21,6 +21,7 @@ use registry::ProviderRegistry;
 use serde::Serialize;
 use std::sync::{LazyLock, Mutex};
 use std::time::Instant;
+use tauri::AppHandle;
 use types::{BackendInfo, DirListing, ResolveResult, StatResult};
 use uri::parse_awam_uri;
 
@@ -58,10 +59,13 @@ pub fn provider_resolve(uri: String) -> Result<ResolveResult, String> {
 }
 
 /// Preload depth-1 listings: `awam://root` + each non-interface-only backend root.
-/// Wired from the frontend on **app start** (see `src/state/providerCache.ts`).
+/// Wired from the frontend on idle / Providers visit (see `src/state/providerCache.ts`).
+/// Respects `power.providerPreloadKnowledge` (AIA-182).
 #[tauri::command]
-pub fn provider_preload() -> Result<PreloadReport, String> {
-    preload_depth1(&REGISTRY, &LISTING_CACHE)
+pub fn provider_preload(app: AppHandle) -> Result<PreloadReport, String> {
+    let include_knowledge =
+        crate::settings::read_bool_setting_or(&app, "power.providerPreloadKnowledge", true);
+    preload_depth1(&REGISTRY, &LISTING_CACHE, include_knowledge)
 }
 
 /// Invalidate depth-1 cache. Omit `uri` (or pass empty) to clear all.
@@ -111,6 +115,7 @@ fn list_with_cache(
 fn preload_depth1(
     registry: &ProviderRegistry,
     cache_lock: &Mutex<ListingCache>,
+    include_knowledge: bool,
 ) -> Result<PreloadReport, String> {
     let mut uris = Vec::new();
     let mut skipped = Vec::new();
@@ -132,6 +137,10 @@ fn preload_depth1(
         let target = format!("awam://{}", backend.id);
         if backend.interface_only {
             skipped.push(format!("{target} (interface-only)"));
+            continue;
+        }
+        if backend.id.eq_ignore_ascii_case("knowledge") && !include_knowledge {
+            skipped.push(format!("{target} (preload disabled by settings)"));
             continue;
         }
         if !backend
@@ -302,7 +311,7 @@ mod tests {
             .unwrap();
         let cache = Mutex::new(ListingCache::new());
 
-        let report = preload_depth1(&registry, &cache).unwrap();
+        let report = preload_depth1(&registry, &cache, true).unwrap();
         assert!(report.uris.iter().any(|u| u == "awam://root"));
         assert!(report.uris.iter().any(|u| u.contains("knowledge")));
         assert!(report
@@ -316,5 +325,27 @@ mod tests {
         // Second list hits cache
         let _ = list_with_cache(&registry, &cache, "awam://knowledge").unwrap();
         assert_eq!(hits.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn preload_can_skip_knowledge_when_disabled() {
+        let hits = Arc::new(AtomicUsize::new(0));
+        let registry = ProviderRegistry::new();
+        registry
+            .register(Arc::new(CountingProvider {
+                id: "knowledge",
+                hits: hits.clone(),
+            }))
+            .unwrap();
+        let cache = Mutex::new(ListingCache::new());
+
+        let report = preload_depth1(&registry, &cache, false).unwrap();
+        assert!(report.uris.iter().any(|u| u == "awam://root"));
+        assert!(!report.uris.iter().any(|u| u.contains("knowledge")));
+        assert!(report
+            .skipped
+            .iter()
+            .any(|s| s.contains("knowledge") && s.contains("preload disabled")));
+        assert_eq!(hits.load(Ordering::SeqCst), 0);
     }
 }

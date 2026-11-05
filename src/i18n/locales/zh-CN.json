@@ -342,6 +342,10 @@
         "perPathOverridesEnabled": {
           "title": "按路径覆盖",
           "description": "允许按路径的浏览默认值覆盖组/全局设置"
+        },
+        "providerPreloadKnowledge": {
+          "title": "预加载知识库 Provider",
+          "description": "在 provider preload 时预热 awam://knowledge（知识库根很大时可关闭）"
         }
       },
       "experimental": {

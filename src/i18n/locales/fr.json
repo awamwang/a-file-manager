@@ -463,6 +463,10 @@
         "perPathOverridesEnabled": {
           "description": "Autoriser les défauts Explorateur par chemin à remplacer groupe/global",
           "title": "Remplacements par chemin"
+        },
+        "providerPreloadKnowledge": {
+          "title": "Précharger le provider knowledge",
+          "description": "Réchauffer awam://knowledge pendant le preload (désactiver si la racine est très large)"
         }
       }
     },

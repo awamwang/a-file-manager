@@ -31,6 +31,10 @@ assert.ok(cache.includes("depth1_cache_key"), "depth-1 key helper required");
 assert.ok(providersMod.includes("provider_preload"), "preload command required");
 assert.ok(providersMod.includes("provider_cache_invalidate"), "invalidate command required");
 assert.ok(providersMod.includes("interface_only"), "preload must skip interface-only");
+assert.ok(
+  providersMod.includes("power.providerPreloadKnowledge"),
+  "preload must honor knowledge toggle (AIA-182)",
+);
 assert.ok(lib.includes("providers::provider_preload"));
 assert.ok(lib.includes("providers::provider_cache_invalidate"));
 

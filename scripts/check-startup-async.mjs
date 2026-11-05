@@ -154,4 +154,21 @@ assert.ok(
   );
 }
 
+// --- P2: knowledge preload toggle ---
+{
+  const defaults = read("src-tauri/src/settings/defaults.rs");
+  const providersMod = read("src-tauri/src/providers/mod.rs");
+  const fields = read("src/i18n/settingsFields.ts");
+  assert.ok(defaults.includes('"power.providerPreloadKnowledge"'));
+  assert.ok(fields.includes('"power.providerPreloadKnowledge"'));
+  assert.ok(
+    providersMod.includes("power.providerPreloadKnowledge"),
+    "provider_preload must read knowledge toggle",
+  );
+  assert.ok(
+    providersMod.includes("preload disabled by settings"),
+    "preload must skip knowledge when disabled",
+  );
+}
+
 console.log("startup-async checks OK (AIA-181/182).");

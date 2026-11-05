@@ -29,6 +29,7 @@ export const SCHEMA_SETTING_KEYS = [
   "core.openTool.qoder.path",
   "power.confirmBeforeDelete",
   "power.perPathOverridesEnabled",
+  "power.providerPreloadKnowledge",
   "experimental.debugStatusInTitlebar",
   "experimental.previewPane",
   "preview.externalProvider",
