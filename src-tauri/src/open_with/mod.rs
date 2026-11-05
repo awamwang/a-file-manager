@@ -84,7 +84,9 @@ mod windows_impl {
     use std::os::windows::process::CommandExt;
     use std::process::Command;
     use windows::core::PCWSTR;
-    use windows::Win32::UI::Shell::{ShellExecuteExW, SEE_MASK_INVOKEIDLIST, SHELLEXECUTEINFOW};
+    use windows::Win32::UI::Shell::{
+        ShellExecuteExW, SEE_MASK_ASYNCOK, SEE_MASK_INVOKEIDLIST, SHELLEXECUTEINFOW,
+    };
     use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 
     const CREATE_NO_WINDOW: u32 = 0x08000000;
@@ -118,9 +120,15 @@ mod windows_impl {
             .chain(std::iter::once(0))
             .collect();
 
+        // Tauri sync commands run off the UI apartment (no message pump).
+        // ShellExecuteEx without SEE_MASK_ASYNCOK waits for DDE / async
+        // activation to finish — MKV player associations commonly DDE, and a
+        // pump-less wait times out around ~30s before returning. Ask the shell
+        // to return immediately; Explorer-like open latency.
         unsafe {
             let mut sei: SHELLEXECUTEINFOW = std::mem::zeroed();
             sei.cbSize = std::mem::size_of::<SHELLEXECUTEINFOW>() as u32;
+            sei.fMask = SEE_MASK_ASYNCOK;
             sei.lpVerb = PCWSTR(verb_wide.as_ptr());
             sei.lpFile = PCWSTR(file_wide.as_ptr());
             sei.nShow = SW_SHOWNORMAL.0;
