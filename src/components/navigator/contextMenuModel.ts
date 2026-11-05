@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /** Pure Navigator context-menu item model (labels supplied by caller / i18n). */
 
+import type { FluentGlyphId } from "../icons/glyphs";
 import type { NavigatorEntry } from "../../state/navigatorBrowse";
 
 export type ContextMenuActionId =
   | "open"
   | "openInNewTab"
-  | "openWith"
+  | "openWithNative"
+  | "openWithIde"
   | "openInTerminal"
   | "toggleFavorite"
   | "systemMenu"
@@ -18,16 +20,22 @@ export type ContextMenuActionId =
   | "newFolder"
   | "newFile"
   | "copyPath"
+  | "properties"
   | "delete";
 
 export type ContextMenuItemDef = {
-  id: ContextMenuActionId;
+  id: ContextMenuActionId | string;
   /** i18n key under `contextMenu.*`. */
   labelKey: string;
   enabled: boolean;
   danger?: boolean;
   stub?: boolean;
   separatorBefore?: boolean;
+  icon?: FluentGlyphId;
+  /** Nested submenu (Sigma-style). */
+  children?: ContextMenuItemDef[];
+  /** Payload for IDE open. */
+  ideId?: string;
 };
 
 export type ContextMenuBuildOptions = {
@@ -35,6 +43,7 @@ export type ContextMenuBuildOptions = {
   canPaste?: boolean;
   /** Empty-area menu (no entry): paste + new folder only. */
   emptyArea?: boolean;
+  ideApps?: Array<{ id: string; name: string; available: boolean }>;
 };
 
 /** Day-1 visibility rules for a single selected Navigator entry. */
@@ -49,40 +58,73 @@ export function buildContextMenuItems(
         id: "paste",
         labelKey: "contextMenu.paste",
         enabled: Boolean(options.canPaste),
+        icon: "document",
       },
       {
         id: "newFolder",
         labelKey: "contextMenu.newFolder",
         enabled: true,
         separatorBefore: true,
+        icon: "folder",
       },
       {
         id: "newFile",
         labelKey: "contextMenu.newFile",
         enabled: true,
+        icon: "document",
       },
     ];
   }
   const isDir = entry.kind === "dir";
   const isFavorite = Boolean(options.isFavorite);
-  return [
-    { id: "open", labelKey: "contextMenu.open", enabled: true },
+  // AIA-118: IDE/Agent Open with is folder-only. Files keep double-click default + Reveal.
+  const ideChildren: ContextMenuItemDef[] = isDir
+    ? (options.ideApps ?? [])
+        .filter((app) => app.available)
+        .map((app) => ({
+          id: `openWithIde:${app.id}`,
+          labelKey: "contextMenu.openWithIde",
+          enabled: true,
+          ideId: app.id,
+          icon: "puzzle" as FluentGlyphId,
+        }))
+    : [];
+
+  const items: ContextMenuItemDef[] = [
+    { id: "open", labelKey: "contextMenu.open", enabled: true, icon: "folderOpen" },
     {
       id: "openInNewTab",
       labelKey: "contextMenu.openInNewTab",
       enabled: isDir,
+      icon: "add",
     },
-    {
+  ];
+
+  if (isDir) {
+    items.push({
       id: "openWith",
       labelKey: "contextMenu.openWith",
-      // Native Open With dialog — files only (Sigma-aligned).
-      enabled: !isDir,
-    },
+      enabled: true,
+      icon: "view",
+      children: [
+        ...ideChildren,
+        {
+          id: "openWithNative",
+          labelKey: "contextMenu.openWithExplorer",
+          enabled: true,
+          separatorBefore: ideChildren.length > 0,
+          icon: "folder",
+        },
+      ],
+    });
+  }
+
+  items.push(
     {
       id: "openInTerminal",
       labelKey: "contextMenu.openInTerminal",
-      // Files open their parent directory (Sigma-aligned).
       enabled: true,
+      icon: "commands",
     },
     {
       id: "toggleFavorite",
@@ -90,35 +132,58 @@ export function buildContextMenuItems(
         ? "contextMenu.removeFavorite"
         : "contextMenu.addFavorite",
       enabled: true,
+      icon: "star",
     },
     {
       id: "systemMenu",
       labelKey: "contextMenu.systemMenu",
       enabled: true,
+      icon: "viewAll",
+      children: [
+        {
+          id: "systemMenu",
+          labelKey: "contextMenu.systemMenuShow",
+          enabled: true,
+          icon: "viewAll",
+        },
+      ],
     },
-    { id: "reveal", labelKey: "contextMenu.reveal", enabled: true },
+    { id: "reveal", labelKey: "contextMenu.reveal", enabled: true, icon: "eye" },
+  );
+
+  return [
+    ...items,
     {
       id: "copy",
       labelKey: "contextMenu.copy",
       enabled: true,
       separatorBefore: true,
+      icon: "document",
     },
-    { id: "cut", labelKey: "contextMenu.cut", enabled: true },
+    { id: "cut", labelKey: "contextMenu.cut", enabled: true, icon: "document" },
     {
       id: "paste",
       labelKey: "contextMenu.paste",
       enabled: Boolean(options.canPaste),
+      icon: "document",
     },
-    { id: "rename", labelKey: "contextMenu.rename", enabled: true },
-    { id: "newFolder", labelKey: "contextMenu.newFolder", enabled: true },
-    { id: "newFile", labelKey: "contextMenu.newFile", enabled: true },
-    { id: "copyPath", labelKey: "contextMenu.copyPath", enabled: true },
+    { id: "rename", labelKey: "contextMenu.rename", enabled: true, icon: "color" },
+    { id: "newFolder", labelKey: "contextMenu.newFolder", enabled: true, icon: "folder" },
+    { id: "newFile", labelKey: "contextMenu.newFile", enabled: true, icon: "document" },
+    { id: "copyPath", labelKey: "contextMenu.copyPath", enabled: true, icon: "globe" },
+    {
+      id: "properties",
+      labelKey: "contextMenu.properties",
+      enabled: true,
+      icon: "settings",
+    },
     {
       id: "delete",
       labelKey: "contextMenu.delete",
       enabled: true,
       danger: true,
       separatorBefore: true,
+      icon: "close",
     },
   ];
 }

@@ -27,15 +27,13 @@ pub fn open_native_open_with_dialog(path: String) -> OpenWithResult {
             error: Some(format!("Path not found: {trimmed}")),
         };
     }
-    if p.is_dir() {
-        return OpenWithResult {
-            success: false,
-            error: Some("Open with is only available for files".to_string()),
-        };
-    }
-
+    // Files use the native Open With dialog; folders are accepted so callers can
+    // fall back to IDE launchers / Explorer when the OS dialog is unsuitable.
     #[cfg(windows)]
     {
+        if p.is_dir() {
+            return windows_impl::open_folder_in_explorer(trimmed);
+        }
         windows_impl::open_as(trimmed)
     }
     #[cfg(not(windows))]
@@ -59,6 +57,24 @@ mod windows_impl {
     use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 
     const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+    pub fn open_folder_in_explorer(path: &str) -> OpenWithResult {
+        let absolute = path.replace('/', "\\");
+        match Command::new("explorer.exe")
+            .arg(&absolute)
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn()
+        {
+            Ok(_) => OpenWithResult {
+                success: true,
+                error: None,
+            },
+            Err(err) => OpenWithResult {
+                success: false,
+                error: Some(format!("Failed to open folder: {err}")),
+            },
+        }
+    }
 
     pub fn open_as(path: &str) -> OpenWithResult {
         let absolute = path.replace('/', "\\");
@@ -123,17 +139,12 @@ mod tests {
     }
 
     #[test]
-    fn directory_rejected() {
+    fn directory_accepted_on_windows() {
         let dir = std::env::temp_dir();
         let result = open_native_open_with_dialog(dir.to_string_lossy().into_owned());
+        #[cfg(windows)]
+        assert!(result.success);
+        #[cfg(not(windows))]
         assert!(!result.success);
-        assert!(
-            result
-                .error
-                .as_deref()
-                .unwrap_or("")
-                .to_lowercase()
-                .contains("file")
-        );
     }
 }

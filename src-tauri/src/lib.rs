@@ -8,6 +8,7 @@ mod visit_stats;
 mod file_ops;
 mod navigator;
 mod shell_icons;
+mod ide_launch;
 mod open_with;
 mod projects;
 mod providers;
@@ -112,6 +113,9 @@ pub fn run() {
             navigator::navigator_list,
             navigator::navigator_default_path,
             navigator::navigator_parent,
+            navigator::navigator_stat,
+            ide_launch::ide_list_apps,
+            ide_launch::ide_open_path,
             file_ops::file_ops_copy,
             file_ops::file_ops_move,
             file_ops::file_ops_rename,

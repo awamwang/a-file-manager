@@ -2,6 +2,7 @@
 //! Thin Kernel Navigator — OS path listing only (S2).
 
 mod list;
+mod stat;
 pub(crate) mod path_guard;
 
 #[tauri::command]
@@ -17,4 +18,9 @@ pub fn navigator_default_path() -> Result<String, String> {
 #[tauri::command]
 pub fn navigator_parent(path: String) -> Result<Option<String>, String> {
     list::parent_path(&path)
+}
+
+#[tauri::command]
+pub fn navigator_stat(path: String) -> Result<stat::NavigatorEntryStat, String> {
+    stat::stat_path(&path)
 }

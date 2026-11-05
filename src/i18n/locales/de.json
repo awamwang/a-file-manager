@@ -243,7 +243,10 @@
     "noticeMembersSaved": "Mitglieder in gebundene Arbeitsgruppe gespeichert",
     "errorDefaultWorkGroup": "Die Standard-Arbeitsgruppe kann nicht an ein Projekt gebunden werden",
     "errorUnknownWorkGroup": "Unbekannte Arbeitsgruppe",
-    "errorUnbound": "Projekt hat keine gebundene Arbeitsgruppe"
+    "errorUnbound": "Projekt hat keine gebundene Arbeitsgruppe",
+    "rename": "Umbenennen",
+    "renamePrompt": "Projektname",
+    "renamed": "Projekt umbenannt"
   },
   "providers": {
     "emptyBackends": "Noch keine Anbieter verfügbar. Lokales Browsen bleibt im Navigator.",
@@ -335,6 +338,22 @@
         "discoveryBlacklist": {
           "title": "Discovery-Verzeichnis-Blacklist",
           "description": "Von Discovery-Ergebnissen ausgeschlossene Verzeichnisse (ein Pfad pro Zeile)"
+        },
+        "newFolderDefaultName": {
+          "title": "Standardname neuer Ordner",
+          "description": "Vorschlag beim Erstellen (leer = Sprachstandard)"
+        },
+        "newFileDefaultName": {
+          "title": "Standardname neuer Dateien",
+          "description": "Vorschlag beim Erstellen (leer = Sprachstandard)"
+        },
+        "fileDoubleClickAction": {
+          "title": "Doppelklick auf Dateien",
+          "description": "Aktion bei Doppelklick auf eine Datei (AIA-118)",
+          "options": {
+            "systemDefault": "Mit Systemstandard öffnen",
+            "none": "Keine Aktion"
+          }
         }
       },
       "experimental": {
@@ -398,7 +417,9 @@
     "renamed": "Arbeitsgruppe umbenannt",
     "delete": "Arbeitsgruppe löschen",
     "deleteConfirm": "Arbeitsgruppe \"{name}\" löschen? Tabs bleiben bis zum Wechsel.",
-    "deleted": "Arbeitsgruppe gelöscht"
+    "deleted": "Arbeitsgruppe gelöscht",
+    "deleteConfirmClearTabs": "Arbeitsgruppe \"{name}\" löschen? Gespeicherte Open-State-Registerkarten werden entfernt. Bei aktiver Gruppe wird zur Standardgruppe gewechselt.",
+    "deletedSwitched": "Arbeitsgruppe gelöscht; zur Standardgruppe gewechselt"
   },
   "shortcuts": {
     "meta": "Eingebaute Akkorde aus der zentralen Registry. Bei Konflikten gewinnt die erste Registrierung; blockierte Einträge bleiben gelistet.",
@@ -465,7 +486,12 @@
     "newFile": "Neue Datei",
     "newFilePrompt": "Dateiname",
     "newFileDefault": "Neues Textdokument.txt",
-    "fileCreated": "Datei erstellt"
+    "fileCreated": "Datei erstellt",
+    "openWithExplorer": "Im Explorer öffnen",
+    "openWithChoose": "Andere App wählen…",
+    "systemMenuShow": "Systemmenü anzeigen…",
+    "properties": "Eigenschaften",
+    "openWithIde": "In IDE öffnen"
   },
   "favorites": {
     "label": "Favoriten",
@@ -476,5 +502,18 @@
     "label": "Zuletzt besucht",
     "empty": "Kürzlich besuchte Ordner erscheinen hier",
     "openCount": "{count}-mal geöffnet"
+  },
+  "properties": {
+    "title": "Eigenschaften",
+    "name": "Name",
+    "kind": "Typ",
+    "path": "Pfad",
+    "size": "Größe",
+    "modified": "Geändert",
+    "created": "Erstellt",
+    "readonly": "Schreibgeschützt",
+    "kindFolder": "Ordner",
+    "kindFile": "Datei",
+    "unknown": "Unbekannt"
   }
 }

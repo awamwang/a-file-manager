@@ -108,6 +108,13 @@ fn migrate_step(
             notes.push("Migrated flat/legacy settings to schema v1".to_string());
             Ok(())
         }
+        (1, 2) => {
+            for (key, value) in default_document().values {
+                values.entry(key).or_insert(value);
+            }
+            notes.push("Added new-file/folder default name settings (schema v2)".to_string());
+            Ok(())
+        }
         _ => Err(format!("No migration path from {from} → {to}")),
     }
 }
@@ -135,7 +142,7 @@ mod tests {
         });
         let result = migrate_to_latest(&raw).unwrap();
         assert!(result.migrated);
-        assert_eq!(result.document.version, 1);
+        assert_eq!(result.document.version, SETTINGS_SCHEMA_VERSION);
         assert_eq!(result.document.values.get("core.theme"), Some(&json!("dark")));
         assert_eq!(
             result.document.values.get("core.listDensity"),

@@ -241,6 +241,22 @@
         "discoveryBlacklist": {
           "title": "Discovery directory blacklist",
           "description": "Directories excluded from Discovery search results (one path per line in Settings)"
+        },
+        "newFolderDefaultName": {
+          "title": "Default new folder name",
+          "description": "Suggested name when creating a folder (empty = current language default)"
+        },
+        "newFileDefaultName": {
+          "title": "Default new file name",
+          "description": "Suggested name when creating a file (empty = current language default)"
+        },
+        "fileDoubleClickAction": {
+          "title": "File double-click action",
+          "description": "What happens when double-clicking a file (AIA-118)",
+          "options": {
+            "systemDefault": "Open with system default",
+            "none": "Do nothing"
+          }
         }
       },
       "power": {
@@ -319,7 +335,9 @@
     "renamed": "Work Group renamed",
     "delete": "Delete Work Group",
     "deleteConfirm": "Delete Work Group \"{name}\"? Tabs stay until you switch.",
-    "deleted": "Work Group deleted"
+    "deleted": "Work Group deleted",
+    "deleteConfirmClearTabs": "Delete Work Group \"{name}\"? Its saved Open State tabs will be cleared. If it is active, you will switch to the default Work Group.",
+    "deletedSwitched": "Work Group deleted; switched to default"
   },
   "projects": {
     "title": "Projects",
@@ -367,7 +385,10 @@
     "noticeMembersSaved": "Members saved to bound Work Group",
     "errorDefaultWorkGroup": "The default Work Group cannot be bound to a Project",
     "errorUnknownWorkGroup": "Unknown Work Group",
-    "errorUnbound": "Project has no bound Work Group"
+    "errorUnbound": "Project has no bound Work Group",
+    "rename": "Rename",
+    "renamePrompt": "Project name",
+    "renamed": "Project renamed"
   },
   "extensions": {
     "title": "Extensions",
@@ -465,7 +486,12 @@
     "removeFavorite": "Remove from favorites",
     "favoriteAdded": "Added to favorites",
     "favoriteRemoved": "Removed from favorites",
-    "openWith": "Open with…"
+    "openWith": "Open with…",
+    "openWithExplorer": "Open in File Explorer",
+    "openWithChoose": "Choose another app…",
+    "systemMenuShow": "Show system menu…",
+    "properties": "Properties",
+    "openWithIde": "Open in IDE"
   },
   "favorites": {
     "label": "Favorites",
@@ -476,5 +502,18 @@
     "label": "Recent visits",
     "empty": "Folders you visited recently appear here",
     "openCount": "Opened {count} times"
+  },
+  "properties": {
+    "title": "Properties",
+    "name": "Name",
+    "kind": "Type",
+    "path": "Path",
+    "size": "Size",
+    "modified": "Modified",
+    "created": "Created",
+    "readonly": "Read-only",
+    "kindFolder": "Folder",
+    "kindFile": "File",
+    "unknown": "Unknown"
   }
 }

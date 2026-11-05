@@ -25,7 +25,10 @@ const openInTerminal = dirItems.find((item) => item.id === "openInTerminal");
 assert.ok(openInTerminal);
 assert.equal(openInTerminal.enabled, true);
 assert.equal(openInTerminal.stub, undefined);
-assert.equal(dirItems.find((item) => item.id === "openWith")?.enabled, false);
+assert.equal(dirItems.find((item) => item.id === "openWith")?.enabled, true);
+assert.ok(dirItems.find((item) => item.id === "openWith")?.children?.length);
+assert.ok(dirItems.find((item) => item.id === "systemMenu")?.children?.length);
+assert.ok(dirItems.find((item) => item.id === "properties")?.enabled);
 const addFavorite = dirItems.find((item) => item.id === "toggleFavorite");
 assert.ok(addFavorite);
 assert.equal(addFavorite.labelKey, "contextMenu.addFavorite");
@@ -51,8 +54,9 @@ assert.equal(fileOpenInNewTab.enabled, false);
 assert.ok(fileItems.find((item) => item.id === "systemMenu")?.enabled);
 assert.ok(fileItems.find((item) => item.id === "openInTerminal")?.enabled);
 assert.ok(fileItems.find((item) => item.id === "toggleFavorite")?.enabled);
-assert.equal(fileItems.find((item) => item.id === "openWith")?.enabled, true);
-assert.equal(fileItems.find((item) => item.id === "openWith")?.stub, undefined);
+// AIA-118: files have no Open-with submenu (double-click default + Reveal only).
+assert.equal(fileItems.find((item) => item.id === "openWith"), undefined);
+assert.ok(fileItems.find((item) => item.id === "reveal")?.enabled);
 assert.equal(fileItems.find((item) => item.id === "paste")?.enabled, false);
 
 const empty = buildContextMenuItems(null, { emptyArea: true, canPaste: false });

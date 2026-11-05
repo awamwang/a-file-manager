@@ -31,6 +31,10 @@ import {
   type FileOpsResult,
 } from "../state/fileClipboard";
 import {
+  resolveNewFileDefaultName,
+  resolveNewFolderDefaultName,
+} from "../state/newItemNames";
+import {
   clearSelection,
   isSelected,
   selectOnly,
@@ -62,6 +66,7 @@ import {
 } from "../shortcuts/index.ts";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import NavigatorContextMenu from "../components/navigator/NavigatorContextMenu.vue";
+import PropertiesPanel from "../components/navigator/PropertiesPanel.vue";
 import { entryKindIcon } from "../components/icons/glyphs";
 
 const { t } = useI18n();
@@ -71,6 +76,18 @@ const menuEntry = ref<NavigatorEntry | null>(null);
 const menuEmpty = ref(false);
 const menuX = ref(0);
 const menuY = ref(0);
+const propertiesOpen = ref(false);
+const propertiesPath = ref<string | null>(null);
+
+function openProperties(path: string) {
+  propertiesPath.value = path;
+  propertiesOpen.value = true;
+}
+
+function closeProperties() {
+  propertiesOpen.value = false;
+  propertiesPath.value = null;
+}
 
 const listRoot = ref<HTMLElement | null>(null);
 const marquee = ref<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -154,7 +171,12 @@ function onActivate(entry: NavigatorEntry) {
 
 function onActivateSecondary(entry: NavigatorEntry) {
   setActivePane("secondary");
-  if (entry.kind === "dir") void navigateSecondary(entry.path);
+  if (entry.kind === "dir") {
+    void navigateSecondary(entry.path);
+    return;
+  }
+  // AIA-118: file activate follows the same Settings policy as primary pane.
+  void openEntry(entry);
 }
 
 function onRowClick(event: MouseEvent, entry: NavigatorEntry) {
@@ -274,9 +296,8 @@ async function shortcutRename() {
 
 async function shortcutNewFolder() {
   if (!currentPath.value) return;
-  const name =
-    window.prompt(t("contextMenu.newFolderPrompt"), t("contextMenu.newFolderDefault")) ??
-    "";
+  const suggested = await resolveNewFolderDefaultName(t("contextMenu.newFolderDefault"));
+  const name = window.prompt(t("contextMenu.newFolderPrompt"), suggested) ?? "";
   const trimmed = name.trim();
   if (!trimmed) return;
   try {
@@ -294,8 +315,8 @@ async function shortcutNewFolder() {
 
 async function shortcutNewFile() {
   if (!currentPath.value) return;
-  const name =
-    window.prompt(t("contextMenu.newFilePrompt"), t("contextMenu.newFileDefault")) ?? "";
+  const suggested = await resolveNewFileDefaultName(t("contextMenu.newFileDefault"));
+  const name = window.prompt(t("contextMenu.newFilePrompt"), suggested) ?? "";
   const trimmed = name.trim();
   if (!trimmed) return;
   try {
@@ -640,6 +661,12 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
       @notice="onNotice"
       @favorites-changed="loadFavorites"
       @listing-changed="refreshListing"
+      @open-properties="openProperties"
+    />
+    <PropertiesPanel
+      :open="propertiesOpen"
+      :path="propertiesPath"
+      @close="closeProperties"
     />
   </section>
 </template>

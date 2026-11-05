@@ -241,6 +241,22 @@
         "discoveryBlacklist": {
           "title": "发现目录黑名单",
           "description": "从发现搜索结果中排除的目录（设置中每行一个路径）"
+        },
+        "newFolderDefaultName": {
+          "title": "默认新建文件夹名",
+          "description": "新建文件夹时的建议名称（空=使用当前语言默认）"
+        },
+        "newFileDefaultName": {
+          "title": "默认新建文件名",
+          "description": "新建文件时的建议名称（空=使用当前语言默认）"
+        },
+        "fileDoubleClickAction": {
+          "title": "文件双击行为",
+          "description": "双击文件时的动作（AIA-118）",
+          "options": {
+            "systemDefault": "用系统默认应用打开",
+            "none": "无动作"
+          }
         }
       },
       "power": {
@@ -319,7 +335,9 @@
     "renamed": "工作组已重命名",
     "delete": "删除工作组",
     "deleteConfirm": "删除工作组「{name}」？标签在切换前仍保留。",
-    "deleted": "工作组已删除"
+    "deleted": "工作组已删除",
+    "deleteConfirmClearTabs": "删除工作组「{name}」？将清除其保存的 Open State 标签。若当前正使用该组，将切换到默认工作组。",
+    "deletedSwitched": "工作组已删除；已切换到默认"
   },
   "projects": {
     "title": "项目",
@@ -367,7 +385,10 @@
     "noticeMembersSaved": "成员已保存到绑定工作组",
     "errorDefaultWorkGroup": "默认工作组不能绑定到项目",
     "errorUnknownWorkGroup": "未知工作组",
-    "errorUnbound": "项目尚未绑定工作组"
+    "errorUnbound": "项目尚未绑定工作组",
+    "rename": "重命名",
+    "renamePrompt": "项目名称",
+    "renamed": "项目已重命名"
   },
   "extensions": {
     "title": "扩展",
@@ -465,7 +486,12 @@
     "removeFavorite": "取消收藏",
     "favoriteAdded": "已加入收藏",
     "favoriteRemoved": "已取消收藏",
-    "openWith": "打开方式…"
+    "openWith": "打开方式…",
+    "openWithExplorer": "在资源管理器中打开",
+    "openWithChoose": "选择其他应用…",
+    "systemMenuShow": "显示系统菜单…",
+    "properties": "属性",
+    "openWithIde": "在 IDE 中打开"
   },
   "favorites": {
     "label": "收藏",
@@ -476,5 +502,18 @@
     "label": "近期访问",
     "empty": "最近访问过的文件夹会出现在这里",
     "openCount": "已打开 {count} 次"
+  },
+  "properties": {
+    "title": "属性",
+    "name": "名称",
+    "kind": "类型",
+    "path": "路径",
+    "size": "大小",
+    "modified": "修改时间",
+    "created": "创建时间",
+    "readonly": "只读",
+    "kindFolder": "文件夹",
+    "kindFile": "文件",
+    "unknown": "未知"
   }
 }

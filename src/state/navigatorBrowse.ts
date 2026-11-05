@@ -2,6 +2,7 @@
 
 import { computed, ref, shallowRef } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { openPath } from "@tauri-apps/plugin-opener";
 import {
   activeStripTab,
   createEmptyOpenState,
@@ -340,12 +341,28 @@ export async function goUp(): Promise<void> {
 }
 
 /**
- * Open a directory into Navigator: focus an existing same-path tab, else append a new tab.
+ * Open a directory into Navigator (tab), or activate a file per AIA-118 policy
+ * (`core.fileDoubleClickAction`: systemDefault | none).
  * In-tab navigation (address bar / breadcrumbs / back-forward / goUp) still uses `navigateTo`.
  */
 export async function openEntry(entry: NavigatorEntry): Promise<void> {
   if (entry.kind === "dir") {
     await openOrFocusNavigatorTab(entry.path);
+    return;
+  }
+  if (entry.kind !== "file") return;
+  const action = await readFileDoubleClickAction();
+  if (action === "none") return;
+  await openPath(entry.path);
+}
+
+async function readFileDoubleClickAction(): Promise<"systemDefault" | "none"> {
+  try {
+    const doc = await invoke<{ values: Record<string, unknown> }>("settings_get");
+    const raw = doc.values["core.fileDoubleClickAction"];
+    return raw === "none" ? "none" : "systemDefault";
+  } catch {
+    return "systemDefault";
   }
 }
 

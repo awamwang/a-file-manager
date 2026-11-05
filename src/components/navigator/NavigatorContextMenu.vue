@@ -16,11 +16,16 @@ import {
   renameEntry,
   setClipboard,
 } from "../../state/fileClipboard";
+import {
+  resolveNewFileDefaultName,
+  resolveNewFolderDefaultName,
+} from "../../state/newItemNames";
 import { selectedPaths } from "../../state/navigatorSelection";
 import {
   isFavoritePath,
   toggleFavorite,
 } from "../../state/favorites";
+import FluentIcon from "../icons/FluentIcon.vue";
 import {
   buildContextMenuItems,
   canOpenInNewTab,
@@ -45,21 +50,52 @@ const emit = defineEmits<{
   notice: [message: string];
   favoritesChanged: [];
   listingChanged: [];
+  openProperties: [path: string];
 }>();
 
 const { t } = useI18n();
 const root = ref<HTMLElement | null>(null);
 const pos = ref({ left: 0, top: 0 });
+const openSubmenuId = ref<string | null>(null);
+const ideApps = ref<Array<{ id: string; name: string; available: boolean }>>([]);
+
+type IdeAppInfo = { id: string; name: string; available: boolean; resolvedPath?: string | null };
+
+async function loadIdeApps() {
+  try {
+    ideApps.value = await invoke<IdeAppInfo[]>("ide_list_apps");
+  } catch {
+    ideApps.value = [];
+  }
+}
 
 const items = computed(() =>
   buildContextMenuItems(props.entry, {
     isFavorite: isFavoritePath(props.entry?.path),
     canPaste: hasClipboard.value,
     emptyArea: Boolean(props.emptyArea),
+    ideApps: ideApps.value,
   }).map((item) => ({
     ...item,
     label: t(item.labelKey),
+    children: item.children?.map((child) => ({
+      ...child,
+      label:
+        child.ideId != null
+          ? ideApps.value.find((app) => app.id === child.ideId)?.name ?? child.ideId
+          : t(child.labelKey),
+    })),
   })),
+);
+
+watch(
+  () => props.open,
+  (isOpen) => {
+    if (isOpen) {
+      openSubmenuId.value = null;
+      void loadIdeApps();
+    }
+  },
 );
 
 watch(
@@ -136,9 +172,8 @@ async function runNewFolder() {
     emit("notice", t("contextMenu.pasteNoFolder"));
     return;
   }
-  const name =
-    window.prompt(t("contextMenu.newFolderPrompt"), t("contextMenu.newFolderDefault")) ??
-    "";
+  const suggested = await resolveNewFolderDefaultName(t("contextMenu.newFolderDefault"));
+  const name = window.prompt(t("contextMenu.newFolderPrompt"), suggested) ?? "";
   const trimmed = name.trim();
   if (!trimmed) return;
   try {
@@ -160,8 +195,8 @@ async function runNewFile() {
     emit("notice", t("contextMenu.pasteNoFolder"));
     return;
   }
-  const name =
-    window.prompt(t("contextMenu.newFilePrompt"), t("contextMenu.newFileDefault")) ?? "";
+  const suggested = await resolveNewFileDefaultName(t("contextMenu.newFileDefault"));
+  const name = window.prompt(t("contextMenu.newFilePrompt"), suggested) ?? "";
   const trimmed = name.trim();
   if (!trimmed) return;
   try {
@@ -233,19 +268,18 @@ async function run(id: string) {
         await newNavigatorTab(entry.path);
       }
       break;
-    case "openWith":
-      if (entry?.kind === "file") {
-        try {
-          const result = await invoke<{
-            success: boolean;
-            error: string | null;
-          }>("open_native_open_with_dialog", { path: entry.path });
-          if (!result.success && result.error) {
-            emit("notice", result.error);
-          }
-        } catch (err) {
-          emit("notice", err instanceof Error ? err.message : String(err));
+    case "openWithNative":
+      if (!entry) break;
+      try {
+        const result = await invoke<{
+          success: boolean;
+          error: string | null;
+        }>("open_native_open_with_dialog", { path: entry.path });
+        if (!result.success && result.error) {
+          emit("notice", result.error);
         }
+      } catch (err) {
+        emit("notice", err instanceof Error ? err.message : String(err));
       }
       break;
     case "openInTerminal":
@@ -326,12 +360,37 @@ async function run(id: string) {
     case "copyPath":
       if (entry) await copyPath(entry.path);
       break;
+    case "properties":
+      if (entry) emit("openProperties", entry.path);
+      break;
     case "delete":
       if (entry) await runDelete(entry);
       break;
     default:
+      if (id.startsWith("openWithIde:") && entry) {
+        const ideId = id.slice("openWithIde:".length);
+        try {
+          const result = await invoke<{ success: boolean; error: string | null }>(
+            "ide_open_path",
+            { ideId, path: entry.path },
+          );
+          if (!result.success && result.error) {
+            emit("notice", result.error);
+          }
+        } catch (err) {
+          emit("notice", err instanceof Error ? err.message : String(err));
+        }
+      }
       break;
   }
+}
+
+function onItemClick(item: { id: string; children?: unknown[] }) {
+  if (item.children?.length) {
+    openSubmenuId.value = openSubmenuId.value === item.id ? null : item.id;
+    return;
+  }
+  void run(item.id);
 }
 
 function onDocPointer(event: MouseEvent) {
@@ -371,22 +430,55 @@ onUnmounted(() => {
       :style="{ left: `${pos.left}px`, top: `${pos.top}px` }"
       @contextmenu.prevent
     >
-      <button
+      <div
         v-for="item in items"
         :key="item.id"
-        type="button"
-        class="ctx-item"
-        role="menuitem"
-        :disabled="!item.enabled"
-        :class="{
-          'ctx-item--danger': item.danger,
-          'ctx-item--sep': item.separatorBefore,
-        }"
-        @click="run(item.id)"
+        class="ctx-row"
+        :class="{ 'ctx-row--sep': item.separatorBefore }"
       >
-        <span>{{ item.label }}</span>
-        <span v-if="item.stub" class="later">{{ t("chrome.later") }}</span>
-      </button>
+        <button
+          type="button"
+          class="ctx-item"
+          role="menuitem"
+          :aria-haspopup="item.children?.length ? 'menu' : undefined"
+          :aria-expanded="item.children?.length ? openSubmenuId === item.id : undefined"
+          :disabled="!item.enabled"
+          :class="{ 'ctx-item--danger': item.danger }"
+          @click="onItemClick(item)"
+          @mouseenter="item.children?.length ? (openSubmenuId = item.id) : undefined"
+        >
+          <span class="ctx-leading">
+            <FluentIcon v-if="item.icon" :name="item.icon" size="sm" class="ctx-icon" />
+            <span>{{ item.label }}</span>
+          </span>
+          <span v-if="item.children?.length" class="ctx-chevron" aria-hidden="true">›</span>
+          <span v-else-if="item.stub" class="later">{{ t("chrome.later") }}</span>
+        </button>
+        <div
+          v-if="item.children?.length && openSubmenuId === item.id"
+          class="ctx-sub fluent-surface"
+          role="menu"
+        >
+          <button
+            v-for="child in item.children"
+            :key="child.id"
+            type="button"
+            class="ctx-item"
+            role="menuitem"
+            :disabled="!child.enabled"
+            :class="{
+              'ctx-item--danger': child.danger,
+              'ctx-item--sep': child.separatorBefore,
+            }"
+            @click="run(child.id)"
+          >
+            <span class="ctx-leading">
+              <FluentIcon v-if="child.icon" :name="child.icon" size="sm" class="ctx-icon" />
+              <span>{{ child.label }}</span>
+            </span>
+          </button>
+        </div>
+      </div>
     </div>
   </Teleport>
 </template>
@@ -395,12 +487,22 @@ onUnmounted(() => {
 .ctx {
   position: fixed;
   z-index: 80;
-  min-width: 12.5rem;
+  min-width: 13.5rem;
   padding: var(--fluent-space-xs);
   border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   border-radius: var(--fluent-radius-md);
   box-shadow: var(--fluent-shadow-flyout, 0 8px 24px rgb(0 0 0 / 18%));
   background: var(--fluent-color-fill-control);
+}
+
+.ctx-row {
+  position: relative;
+}
+
+.ctx-row--sep {
+  margin-top: var(--fluent-space-xs);
+  border-top: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  padding-top: var(--fluent-space-xs);
 }
 
 .ctx-item {
@@ -420,11 +522,35 @@ onUnmounted(() => {
   cursor: pointer;
 }
 
-.ctx-item--sep {
-  margin-top: var(--fluent-space-xs);
-  border-top: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: 0 0 var(--fluent-radius-sm) var(--fluent-radius-sm);
-  padding-top: var(--fluent-space-xs);
+.ctx-leading {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  min-width: 0;
+}
+
+.ctx-icon {
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.ctx-chevron {
+  color: var(--fluent-color-text-secondary);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.ctx-sub {
+  position: absolute;
+  left: calc(100% - 0.25rem);
+  top: 0;
+  z-index: 1;
+  min-width: 12rem;
+  padding: var(--fluent-space-xs);
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: var(--fluent-radius-md);
+  box-shadow: var(--fluent-shadow-flyout, 0 8px 24px rgb(0 0 0 / 18%));
+  background: var(--fluent-color-fill-control);
 }
 
 .ctx-item:hover:not(:disabled),
@@ -440,6 +566,13 @@ onUnmounted(() => {
 
 .ctx-item--danger {
   color: var(--fluent-color-status-danger);
+}
+
+.ctx-item--sep {
+  margin-top: var(--fluent-space-xs);
+  border-top: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: 0 0 var(--fluent-radius-sm) var(--fluent-radius-sm);
+  padding-top: var(--fluent-space-xs);
 }
 
 .later {

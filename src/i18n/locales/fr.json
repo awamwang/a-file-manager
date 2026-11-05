@@ -243,7 +243,10 @@
     "noticeMembersSaved": "Membres enregistrés dans le groupe lié",
     "errorDefaultWorkGroup": "Le groupe de travail par défaut ne peut pas être lié à un projet",
     "errorUnknownWorkGroup": "Groupe de travail inconnu",
-    "errorUnbound": "Le projet n’a pas de groupe de travail lié"
+    "errorUnbound": "Le projet n’a pas de groupe de travail lié",
+    "rename": "Renommer",
+    "renamePrompt": "Nom du projet",
+    "renamed": "Projet renommé"
   },
   "providers": {
     "emptyBackends": "Aucun fournisseur pour l’instant. La navigation locale reste dans le Navigateur.",
@@ -335,6 +338,22 @@
         "discoveryBlacklist": {
           "title": "Liste noire des répertoires Discovery",
           "description": "Répertoires exclus des résultats Discovery (un chemin par ligne dans Réglages)"
+        },
+        "newFolderDefaultName": {
+          "title": "Nom par défaut des nouveaux dossiers",
+          "description": "Nom suggéré à la création (vide = défaut de la langue)"
+        },
+        "newFileDefaultName": {
+          "title": "Nom par défaut des nouveaux fichiers",
+          "description": "Nom suggéré à la création (vide = défaut de la langue)"
+        },
+        "fileDoubleClickAction": {
+          "title": "Double-clic sur un fichier",
+          "description": "Action au double-clic sur un fichier (AIA-118)",
+          "options": {
+            "systemDefault": "Ouvrir avec l'application par défaut",
+            "none": "Ne rien faire"
+          }
         }
       },
       "experimental": {
@@ -398,7 +417,9 @@
     "renamed": "Groupe de travail renommé",
     "delete": "Supprimer le groupe",
     "deleteConfirm": "Supprimer le groupe « {name} » ? Les onglets restent jusqu’au basculement.",
-    "deleted": "Groupe de travail supprimé"
+    "deleted": "Groupe de travail supprimé",
+    "deleteConfirmClearTabs": "Supprimer le groupe « {name} » ? Ses onglets Open State enregistrés seront effacés. S'il est actif, bascule vers le groupe par défaut.",
+    "deletedSwitched": "Groupe supprimé ; bascule vers le défaut"
   },
   "shortcuts": {
     "meta": "Accords intégrés du registre central. En cas de conflit, le premier enregistrement gagne ; les lignes bloquées restent listées.",
@@ -465,7 +486,12 @@
     "newFile": "Nouveau fichier",
     "newFilePrompt": "Nom du fichier",
     "newFileDefault": "Nouveau Document texte.txt",
-    "fileCreated": "Fichier créé"
+    "fileCreated": "Fichier créé",
+    "openWithExplorer": "Ouvrir dans l'Explorateur",
+    "openWithChoose": "Choisir une autre app…",
+    "systemMenuShow": "Afficher le menu système…",
+    "properties": "Propriétés",
+    "openWithIde": "Ouvrir dans l'IDE"
   },
   "favorites": {
     "label": "Favoris",
@@ -476,5 +502,18 @@
     "label": "Visites récentes",
     "empty": "Les dossiers visités récemment apparaissent ici",
     "openCount": "Ouvert {count} fois"
+  },
+  "properties": {
+    "title": "Propriétés",
+    "name": "Nom",
+    "kind": "Type",
+    "path": "Chemin",
+    "size": "Taille",
+    "modified": "Modifié",
+    "created": "Créé",
+    "readonly": "Lecture seule",
+    "kindFolder": "Dossier",
+    "kindFile": "Fichier",
+    "unknown": "Inconnu"
   }
 }

@@ -14,6 +14,9 @@ export const SCHEMA_SETTING_KEYS = [
   "core.launchAtStartupHidden",
   "core.closeBehavior",
   "core.discoveryBlacklist",
+  "core.newFolderDefaultName",
+  "core.newFileDefaultName",
+  "core.fileDoubleClickAction",
   "power.confirmBeforeDelete",
   "power.perPathOverridesEnabled",
   "experimental.debugStatusInTitlebar",
@@ -28,6 +31,7 @@ export const SCHEMA_ENUM_OPTIONS: Record<string, readonly string[]> = {
   "core.listDensity": ["standard", "compact"],
   "core.startupPage": ["navigator", "projects", "discovery"],
   "core.closeBehavior": ["ask", "tray", "quit"],
+  "core.fileDoubleClickAction": ["systemDefault", "none"],
 };
 
 export function settingFieldMessagePath(
