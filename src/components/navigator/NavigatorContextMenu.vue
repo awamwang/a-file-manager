@@ -154,7 +154,7 @@ function toolbarTipText(item: { id: string; label: string }): string {
   return `${item.label} (${formatChordLabel(def.chord)})`;
 }
 
-function showToolbarTip(event: MouseEvent, item: { id: string; label: string }) {
+function showToolbarTip(event: Event, item: { id: string; label: string }) {
   const btn = event.currentTarget;
   if (!(btn instanceof HTMLElement)) return;
   const rect = btn.getBoundingClientRect();
