@@ -6,6 +6,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const mainTs = readFileSync(join(root, "src/main.ts"), "utf8");
 const nav = readFileSync(join(root, "src/views/NavigatorView.vue"), "utf8");
 const menu = readFileSync(
   join(root, "src/components/navigator/NavigatorContextMenu.vue"),
@@ -18,6 +19,14 @@ const model = readFileSync(
 const en = JSON.parse(readFileSync(join(root, "src/i18n/locales/en.json"), "utf8"));
 const zh = JSON.parse(readFileSync(join(root, "src/i18n/locales/zh-CN.json"), "utf8"));
 
+// AIA-130: global native WebView context menu suppressed (capture-phase preventDefault).
+assert.ok(
+  mainTs.includes('addEventListener(') &&
+    mainTs.includes('"contextmenu"') &&
+    mainTs.includes("preventDefault") &&
+    /contextmenu[\s\S]{0,200}preventDefault[\s\S]{0,80},\s*true\s*,/.test(mainTs),
+  "main.ts must suppress native contextmenu globally (AIA-130)",
+);
 assert.ok(nav.includes("NavigatorContextMenu"));
 assert.ok(nav.includes("@contextmenu"));
 assert.ok(menu.includes("copyPath"));
