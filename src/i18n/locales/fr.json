@@ -269,7 +269,8 @@
     "statusDown": "indisponible",
     "statusOk": "ok",
     "title": "Fournisseurs",
-    "uriPlaceholder": "Collez un chemin de fournisseur (ex. racine cloud ou connaissances)"
+    "uriPlaceholder": "Collez un chemin de fournisseur (ex. racine cloud ou connaissances)",
+    "openUnsupported": "Cet élément ne peut pas encore être ouvert depuis Fournisseurs."
   },
   "settings": {
     "fields": {

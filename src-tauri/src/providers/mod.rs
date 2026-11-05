@@ -4,6 +4,7 @@
 //!
 //! AIA-76: depth-1 listing cache + `provider_preload` (warm on app start).
 
+mod browser;
 mod cache;
 mod factory;
 mod knowledge;

@@ -404,7 +404,8 @@
     "emptyBackends": "No providers available yet. Local browsing stays in Explorer.",
     "emptyListing": "This location has no items.",
     "folder": "Folder",
-    "file": "File"
+    "file": "File",
+    "openUnsupported": "This item cannot be opened from Providers yet."
   },
   "workGroups": {
     "title": "Work Groups",

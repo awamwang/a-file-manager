@@ -404,7 +404,8 @@
     "emptyBackends": "暂无可用提供方；本地浏览请使用资源管理器。",
     "emptyListing": "此位置没有项目。",
     "folder": "文件夹",
-    "file": "文件"
+    "file": "文件",
+    "openUnsupported": "此项目暂时无法从提供程序打开。"
   },
   "workGroups": {
     "title": "工作组",

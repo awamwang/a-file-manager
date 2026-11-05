@@ -269,7 +269,8 @@
     "statusDown": "停止",
     "statusOk": "正常",
     "title": "プロバイダー",
-    "uriPlaceholder": "プロバイダーのパスを貼り付け（クラウドやナレッジのルートなど）"
+    "uriPlaceholder": "プロバイダーのパスを貼り付け（クラウドやナレッジのルートなど）",
+    "openUnsupported": "この項目はプロバイダーからまだ開けません。"
   },
   "settings": {
     "fields": {

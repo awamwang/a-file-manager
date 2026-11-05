@@ -3,6 +3,7 @@
 import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import { entryKindIcon } from "../components/icons/glyphs";
 
@@ -25,12 +26,21 @@ type ProviderEntry = {
   isFile: boolean;
   size: number;
   localPath?: string | null;
+  extra?: Record<string, unknown>;
 };
 
 type DirListing = {
   uri: string;
   backend: string;
   entries: ProviderEntry[];
+  error?: string | null;
+};
+
+type ResolveResult = {
+  uri: string;
+  localPath?: string | null;
+  action?: string | null;
+  actionArgs?: Record<string, unknown>;
   error?: string | null;
 };
 
@@ -63,9 +73,33 @@ async function listUri(target?: string) {
   }
 }
 
-function openEntry(entry: ProviderEntry) {
+function entrySecondary(entry: ProviderEntry): string {
+  const url = entry.extra?.url;
+  if (typeof url === "string" && url) return url;
+  return entry.uri;
+}
+
+async function openEntry(entry: ProviderEntry) {
   if (entry.isDir) {
     void listUri(entry.uri);
+    return;
+  }
+  try {
+    const resolved = await invoke<ResolveResult>("provider_resolve", { uri: entry.uri });
+    if (resolved.error) {
+      error.value = resolved.error;
+      return;
+    }
+    if (resolved.action === "open_url") {
+      const url = resolved.actionArgs?.url;
+      if (typeof url === "string" && url) {
+        await openUrl(url);
+        return;
+      }
+    }
+    error.value = t("providers.openUnsupported");
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err);
   }
 }
 
@@ -157,7 +191,7 @@ onMounted(() => {
           <FluentIcon :name="entryKindIcon(entry.isDir)" size="md" />
         </span>
         <span class="name">{{ entry.name }}</span>
-        <span class="path">{{ entry.uri }}</span>
+        <span class="path">{{ entrySecondary(entry) }}</span>
       </button>
     </div>
   </section>
