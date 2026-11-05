@@ -17,6 +17,7 @@
     "core:window:allow-is-minimized",
     "core:window:allow-start-dragging",
     "core:tray:default",
-    "opener:default"
+    "opener:default",
+    "drag:default"
   ]
 }

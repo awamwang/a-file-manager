@@ -70,6 +70,7 @@ import {
   navigatorFilterQuery,
 } from "../state/navigatorFilter";
 import { toastError, toastInfo, toastSuccess } from "../state/toast";
+import { armNativeFileDragOut } from "../state/fileDragOut";
 import {
   invokePreviewBridge,
   previewBridgeForcePane,
@@ -750,14 +751,16 @@ function hitTestRows(x: number, y: number, w: number, h: number): string[] {
   return hits;
 }
 
-/* —— Drag into folder —— */
+/* —— Drag into folder (HTML5) + drag out to external apps (OLE / CF_HDROP) —— */
 function onDragStart(event: DragEvent, entry: NavigatorEntry) {
   if (!isSelected(entry.path)) {
     selectOnly(entry.path);
   }
   const paths = selectionPaths();
   event.dataTransfer?.setData("application/x-afm-paths", JSON.stringify(paths));
-  event.dataTransfer!.effectAllowed = "move";
+  // copyMove: in-app folder moves stay move; leave-window OLE drag-out uses copy.
+  event.dataTransfer!.effectAllowed = "copyMove";
+  armNativeFileDragOut(paths);
 }
 
 function onDragOver(event: DragEvent, entry: NavigatorEntry) {

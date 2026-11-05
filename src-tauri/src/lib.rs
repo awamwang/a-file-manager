@@ -75,6 +75,8 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        // Native OLE/file drag-out (CF_HDROP) for dropping onto players / Explorer / etc.
+        .plugin(tauri_plugin_drag::init())
         .plugin(
             FramePluginBuilder::new()
                 // Keep Fluent self-drawn caption; plugin only installs HTMAXBUTTON overlay.
