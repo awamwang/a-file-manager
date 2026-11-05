@@ -82,6 +82,7 @@ assert.equal(en.contextMenu.cut, "Cut");
 assert.equal(en.contextMenu.paste, "Paste");
 assert.equal(en.contextMenu.rename, "Rename");
 assert.equal(en.contextMenu.newFolder, "New folder");
+assert.equal(en.contextMenu.open, "Open (current tab)");
 assert.equal(en.contextMenu.openInNewTab, "Open in new tab");
 assert.equal(en.contextMenu.openInTerminal, "Open in terminal");
 assert.equal(en.contextMenu.openWith, "Open with…");
@@ -89,6 +90,7 @@ assert.equal(en.contextMenu.addFavorite, "Add to favorites");
 assert.equal(en.contextMenu.removeFavorite, "Remove from favorites");
 assert.equal(en.contextMenu.systemMenu, "System menu");
 assert.equal(en.favorites.label, "Favorites");
+assert.equal(zh.contextMenu.open, "打开（当前标签）");
 assert.equal(zh.contextMenu.openInNewTab, "在新标签页打开");
 assert.equal(zh.contextMenu.openInTerminal, "在终端打开");
 assert.equal(zh.contextMenu.openWith, "打开方式…");
@@ -96,6 +98,10 @@ assert.equal(zh.contextMenu.addFavorite, "添加到收藏");
 assert.equal(zh.contextMenu.systemMenu, "系统右键菜单");
 assert.equal(zh.contextMenu.copy, "复制");
 assert.equal(zh.favorites.label, "收藏");
+assert.ok(
+  menu.includes("navigateTo(entry.path)"),
+  "folder Open must navigate current tab (AIA-126)",
+);
 
 for (const id of [
   "open",

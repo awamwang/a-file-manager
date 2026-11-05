@@ -456,7 +456,7 @@
   },
   "contextMenu": {
     "label": "Item actions",
-    "open": "Open",
+    "open": "Open (current tab)",
     "openInNewTab": "Open in new tab",
     "openInTerminal": "Open in terminal",
     "systemMenu": "System menu",

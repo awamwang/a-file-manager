@@ -456,7 +456,7 @@
   },
   "contextMenu": {
     "label": "Elementaktionen",
-    "open": "Öffnen",
+    "open": "Öffnen (aktueller Tab)",
     "openInNewTab": "In neuem Tab öffnen",
     "openInTerminal": "Im Terminal öffnen",
     "systemMenu": "Systemmenü",

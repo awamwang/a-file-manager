@@ -676,18 +676,42 @@ async function onSwitchNavigatorTabAdjacent(direction: "next" | "previous") {
 
 const tabDragFrom = ref<number | null>(null);
 const tabDragOver = ref<number | null>(null);
+/** Suppress click-to-switch after a real drag (AIA-126). */
+const tabDragMoved = ref(false);
 
 function onTabDragStart(event: DragEvent, groupIndex: number) {
+  // Close button / icons must not start native image drag.
+  if (event.target instanceof Element) {
+    const close = (event.target as Element).closest(".tab-close");
+    if (close) {
+      event.preventDefault();
+      return;
+    }
+  }
   tabDragFrom.value = groupIndex;
+  tabDragMoved.value = false;
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("text/plain", String(groupIndex));
+    // Empty drag image fallback keeps WebView2 from cancelling the gesture.
+    try {
+      const img = new Image();
+      img.src =
+        "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+      event.dataTransfer.setDragImage(img, 0, 0);
+    } catch {
+      /* ignore */
+    }
   }
 }
 
 function onTabDragOver(event: DragEvent, groupIndex: number) {
   event.preventDefault();
+  event.stopPropagation();
   if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+  if (tabDragFrom.value != null && tabDragFrom.value !== groupIndex) {
+    tabDragMoved.value = true;
+  }
   tabDragOver.value = groupIndex;
 }
 
@@ -704,12 +728,30 @@ async function onTabDrop(event: DragEvent, toIndex: number) {
   tabDragFrom.value = null;
   tabDragOver.value = null;
   if (!Number.isFinite(from) || from === toIndex) return;
+  tabDragMoved.value = true;
   await reorderNavigatorTabs(from, toIndex);
 }
 
 function onTabDragEnd() {
   tabDragFrom.value = null;
   tabDragOver.value = null;
+  // Keep tabDragMoved until the following click is swallowed.
+  window.setTimeout(() => {
+    tabDragMoved.value = false;
+  }, 0);
+}
+
+async function onTabClick(groupIndex: number) {
+  if (tabDragMoved.value) {
+    tabDragMoved.value = false;
+    return;
+  }
+  await onSwitchNavigatorTab(groupIndex);
+}
+
+function onTabStripDragOver(event: DragEvent) {
+  event.preventDefault();
+  if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
 }
 
 async function onCloseNavigatorTab(event: Event, groupIndex: number) {
@@ -1206,7 +1248,12 @@ onUnmounted(() => {
           </button>
         </div>
 
-        <div class="tabstrip" role="tablist" :aria-label="t('chrome.tabs')">
+        <div
+          class="tabstrip"
+          role="tablist"
+          :aria-label="t('chrome.tabs')"
+          @dragover="onTabStripDragOver"
+        >
           <div
             v-for="tab in stripTabs"
             :key="tab.id"
@@ -1214,28 +1261,31 @@ onUnmounted(() => {
             :class="{
               'tab--active': liveOpenState.currentTabGroupIndex === tab.groupIndex,
               'tab--drag-over': tabDragOver === tab.groupIndex,
+              'tab--dragging': tabDragFrom === tab.groupIndex,
             }"
             role="tab"
             draggable="true"
             :aria-selected="liveOpenState.currentTabGroupIndex === tab.groupIndex"
             :title="tab.path"
-            @click="onSwitchNavigatorTab(tab.groupIndex)"
+            @click="onTabClick(tab.groupIndex)"
             @dragstart="onTabDragStart($event, tab.groupIndex)"
             @dragover="onTabDragOver($event, tab.groupIndex)"
             @dragleave="onTabDragLeave(tab.groupIndex)"
             @drop="onTabDrop($event, tab.groupIndex)"
             @dragend="onTabDragEnd"
           >
-            <FluentIcon name="folder" size="sm" class="tab-icon" />
+            <FluentIcon name="folder" size="sm" class="tab-icon" aria-hidden="true" />
             <span class="tab-label">{{ tab.name || tabLabel(tab.path) }}</span>
             <button
               type="button"
               class="tab-close"
+              draggable="false"
               :aria-label="t('chrome.closeTab')"
               :title="t('chrome.closeTab')"
               @click="onCloseNavigatorTab($event, tab.groupIndex)"
+              @dragstart.stop.prevent
             >
-              <FluentIcon name="close" size="sm" />
+              <FluentIcon name="close" size="sm" aria-hidden="true" />
             </button>
           </div>
           <button
@@ -1724,6 +1774,8 @@ onUnmounted(() => {
   padding: var(--fluent-space-xs) var(--fluent-space-md) 0;
   border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   background: var(--fluent-color-fill-subtle);
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
 .tab {
@@ -1739,7 +1791,17 @@ onUnmounted(() => {
   background: transparent;
   color: var(--fluent-color-text-secondary);
   font: inherit;
-  cursor: pointer;
+  cursor: grab;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+  -webkit-user-drag: element;
+  user-select: none;
+}
+
+.tab .tab-icon,
+.tab .tab-label {
+  pointer-events: none;
+  -webkit-user-drag: none;
 }
 
 .tab:hover:not(:disabled) {
@@ -1760,12 +1822,18 @@ onUnmounted(() => {
   outline-offset: -2px;
 }
 
-.tab[draggable="true"] {
-  cursor: grab;
+.tab--dragging {
+  opacity: 0.55;
 }
 
-.tab[draggable="true"]:active {
+.tab:active {
   cursor: grabbing;
+}
+
+.tab-close {
+  -webkit-user-drag: none;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .tab-icon {

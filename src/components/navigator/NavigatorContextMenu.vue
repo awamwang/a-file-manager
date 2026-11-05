@@ -289,14 +289,21 @@ async function run(id: string) {
   emit("close");
   switch (id) {
     case "open":
+      // AIA-126: folders open in the *current* tab; files follow openEntry policy.
+      // (Double-click still uses openOrFocus via NavigatorView → openEntry.)
       if (!entry) break;
       try {
-        await openEntry(entry);
+        if (entry.kind === "dir") {
+          await navigateTo(entry.path);
+        } else {
+          await openEntry(entry);
+        }
       } catch (err) {
         emit("notice", err instanceof Error ? err.message : String(err));
       }
       break;
     case "openInNewTab":
+      // Always append a new page group (even if path already has a tab).
       if (entry && canOpenInNewTab(entry)) {
         await newNavigatorTab(entry.path);
       }

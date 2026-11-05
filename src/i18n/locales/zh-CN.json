@@ -456,7 +456,7 @@
   },
   "contextMenu": {
     "label": "项目操作",
-    "open": "打开",
+    "open": "打开（当前标签）",
     "openInNewTab": "在新标签页打开",
     "openInTerminal": "在终端打开",
     "systemMenu": "系统右键菜单",

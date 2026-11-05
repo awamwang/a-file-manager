@@ -456,7 +456,7 @@
   },
   "contextMenu": {
     "label": "項目アクション",
-    "open": "開く",
+    "open": "開く（現在のタブ）",
     "openInNewTab": "新しいタブで開く",
     "systemMenu": "システムメニュー",
     "systemMenuError": "システムコンテキストメニューを開けませんでした。",
