@@ -421,8 +421,7 @@ async function run(id: string) {
   emit("close");
   switch (id) {
     case "open":
-      // AIA-126: folders open in the *current* tab; files follow openEntry policy.
-      // (Double-click still uses openOrFocus via NavigatorView → openEntry.)
+      // Folders → current tab; files follow openEntry policy (same as dblclick).
       if (!entry) break;
       try {
         if (entry.kind === "dir") {

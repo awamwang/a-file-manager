@@ -430,9 +430,10 @@ export type FileDoubleClickAction =
   | "none";
 
 /**
- * Open a directory into Navigator (tab), or activate a file per Settings
- * `core.fileDoubleClickAction` (系统默认 / 打开方式… / Reveal / IDE / none).
- * In-tab navigation (address bar / breadcrumbs / back-forward / goUp) still uses `navigateTo`.
+ * Activate a Navigator listing entry (double-click / Enter).
+ * Directories navigate in the *current* tab (`navigateTo`); external places
+ * (Discovery / Favorites / Recent / Home) still call `openOrFocusNavigatorTab`.
+ * Files follow Settings `core.fileDoubleClickAction`.
  */
 async function openPathWithSystemDefault(path: string): Promise<void> {
   const result = await invoke<{ success: boolean; error: string | null }>(
@@ -446,7 +447,9 @@ async function openPathWithSystemDefault(path: string): Promise<void> {
 
 export async function openEntry(entry: NavigatorEntry): Promise<void> {
   if (entry.kind === "dir") {
-    await openOrFocusNavigatorTab(entry.path);
+    // AIA-150: in-list folder activate stays in the current tab (context Open
+    // already did; open-or-focus remains for shell places / Discovery / etc.).
+    await navigateTo(entry.path);
     return;
   }
   // Non-dir entries (file / symlink-as-file) follow double-click Settings.
