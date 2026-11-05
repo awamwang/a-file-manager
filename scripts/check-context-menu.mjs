@@ -46,9 +46,19 @@ assert.ok(
 assert.ok(menu.includes("z-index: 1200") || menu.includes("z-index:1200"));
 assert.ok((menu.match(/Teleport to="body"/g) || []).length >= 2);
 assert.ok(menu.includes("onItemEnter"), "submenu must open on hover");
+assert.ok(menu.includes("onMenuMouseMove"), "mousemove must drive submenu (Sigma hover)");
+assert.ok(
+  menu.includes("syncSubmenuFromClientPoint"),
+  "open-under-cursor must expand parent with children",
+);
 assert.ok(menu.includes("onSubmenuEnter"), "flyout must keep open while hovered");
 assert.ok(menu.includes("scheduleSubmenuClose"), "flyout needs leave delay");
 assert.ok(menu.includes("preloadLaunchersIfNeeded"), "launcher submenu should preload");
+assert.ok(menu.includes('data-ctx-id') || menu.includes("data-ctx-id"), "rows need ctx ids");
+assert.ok(
+  model.includes('id: "systemMenuShow"'),
+  "system submenu child id must be unique from parent",
+);
 assert.ok(menu.includes("toggleFavorite"));
 assert.ok(menu.includes("setClipboard"));
 assert.ok(menu.includes("pasteClipboard"));

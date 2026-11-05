@@ -201,7 +201,7 @@ export function buildContextMenuItems(
       icon: "viewAll",
       children: [
         {
-          id: "systemMenu",
+          id: "systemMenuShow",
           labelKey: "contextMenu.systemMenuShow",
           enabled: true,
           icon: "viewAll",

@@ -169,6 +169,9 @@ watch(
     const left = Math.min(props.x, window.innerWidth - w - pad);
     const top = Math.min(props.y, window.innerHeight - h - pad);
     pos.value = { left: Math.max(pad, left), top: Math.max(pad, top) };
+    // Right-click often opens the menu under the cursor — mouseenter never fires.
+    await nextTick();
+    syncSubmenuFromClientPoint(props.x, props.y);
   },
 );
 
@@ -444,6 +447,7 @@ async function run(id: string) {
       }
       break;
     case "systemMenu":
+    case "systemMenuShow":
       if (!entry) break;
       try {
         const result = await invoke<ShellMenuResult>("shell_show_context_menu", {
@@ -542,23 +546,29 @@ async function run(id: string) {
   }
 }
 
-async function placeSubmenu(anchor: HTMLElement) {
-  await nextTick();
+function positionSubmenuFromAnchor(anchor: HTMLElement, width = 200, height = 160) {
   const rect = anchor.getBoundingClientRect();
-  const sub = submenuRoot.value;
   const pad = 8;
-  const w = sub?.offsetWidth ?? 200;
-  const h = sub?.offsetHeight ?? 160;
-  // Slight overlap so the pointer can travel into the flyout without a dead gap.
-  let left = rect.right - 6;
-  if (left + w > window.innerWidth - pad) {
-    left = Math.max(pad, rect.left - w + 6);
+  // Overlap parent so the pointer can travel into the flyout without a dead gap.
+  let left = rect.right - 8;
+  if (left + width > window.innerWidth - pad) {
+    left = Math.max(pad, rect.left - width + 8);
   }
   let top = rect.top;
-  if (top + h > window.innerHeight - pad) {
-    top = Math.max(pad, window.innerHeight - h - pad);
+  if (top + height > window.innerHeight - pad) {
+    top = Math.max(pad, window.innerHeight - height - pad);
   }
   submenuPos.value = { left, top };
+}
+
+async function placeSubmenu(anchor: HTMLElement) {
+  // Position immediately (avoid flash at 0,0), then refine after Teleport mount.
+  positionSubmenuFromAnchor(anchor);
+  await nextTick();
+  await nextTick();
+  const sub = submenuRoot.value;
+  if (!sub) return;
+  positionSubmenuFromAnchor(anchor, sub.offsetWidth || 200, sub.offsetHeight || 160);
 }
 
 function clearSubmenuCloseTimer() {
@@ -574,7 +584,7 @@ function scheduleSubmenuClose() {
     openSubmenuId.value = null;
     submenuAnchor.value = null;
     submenuCloseTimer = null;
-  }, 180);
+  }, 220);
 }
 
 function openSubmenuFor(itemId: string, anchor: HTMLElement) {
@@ -582,9 +592,42 @@ function openSubmenuFor(itemId: string, anchor: HTMLElement) {
   if (itemId === "openWith" || itemId === "openInTerminal") {
     preloadLaunchersIfNeeded();
   }
+  // Position before mount so the flyout never appears at (0,0).
+  positionSubmenuFromAnchor(anchor);
   openSubmenuId.value = itemId;
   submenuAnchor.value = anchor;
   void placeSubmenu(anchor);
+}
+
+function findItemById(itemId: string) {
+  return items.value.find((item) => item.id === itemId) ?? null;
+}
+
+/** Sigma-style: which parent row is under the pointer → expand its submenu. */
+function syncSubmenuFromClientPoint(clientX: number, clientY: number) {
+  if (!props.open || !root.value) return;
+  const hit = document.elementFromPoint(clientX, clientY);
+  if (!(hit instanceof Element)) return;
+  // Still inside the open flyout — keep it.
+  if (submenuRoot.value?.contains(hit)) {
+    clearSubmenuCloseTimer();
+    return;
+  }
+  const btn = hit.closest<HTMLElement>("[data-ctx-id]");
+  if (!btn || !root.value.contains(btn)) {
+    // Pointer left the parent menu (and not over flyout) — delay-close.
+    if (openSubmenuId.value) scheduleSubmenuClose();
+    return;
+  }
+  const itemId = btn.dataset.ctxId;
+  if (!itemId) return;
+  const item = findItemById(itemId);
+  if (!item) return;
+  if (item.children?.length) {
+    openSubmenuFor(item.id, btn);
+    return;
+  }
+  scheduleSubmenuClose();
 }
 
 function onItemClick(item: { id: string; children?: unknown[] }, event: MouseEvent) {
@@ -600,7 +643,6 @@ function onItemClick(item: { id: string; children?: unknown[] }, event: MouseEve
 
 function onItemEnter(item: { id: string; children?: unknown[] }, event: MouseEvent) {
   if (!item.children?.length) {
-    // Delay close so the pointer can reach the flyout across the seam.
     scheduleSubmenuClose();
     return;
   }
@@ -609,11 +651,20 @@ function onItemEnter(item: { id: string; children?: unknown[] }, event: MouseEve
   }
 }
 
+function onMenuMouseMove(event: MouseEvent) {
+  syncSubmenuFromClientPoint(event.clientX, event.clientY);
+}
+
 function onSubmenuEnter() {
   clearSubmenuCloseTimer();
 }
 
-function onSubmenuLeave() {
+function onSubmenuLeave(event: MouseEvent) {
+  const related = event.relatedTarget;
+  if (related instanceof Node && root.value?.contains(related)) {
+    // Moving back to a parent row — let that row's enter/mousemove decide.
+    return;
+  }
   scheduleSubmenuClose();
 }
 
@@ -660,6 +711,7 @@ onUnmounted(() => {
       :aria-label="t('contextMenu.label')"
       :style="{ left: `${pos.left}px`, top: `${pos.top}px` }"
       @contextmenu.prevent
+      @mousemove="onMenuMouseMove"
     >
       <div
         v-for="item in items"
@@ -671,10 +723,14 @@ onUnmounted(() => {
           type="button"
           class="ctx-item"
           role="menuitem"
+          :data-ctx-id="item.id"
           :aria-haspopup="item.children?.length ? 'menu' : undefined"
           :aria-expanded="item.children?.length ? openSubmenuId === item.id : undefined"
           :disabled="!item.enabled"
-          :class="{ 'ctx-item--danger': item.danger }"
+          :class="{
+            'ctx-item--danger': item.danger,
+            'ctx-item--submenu-open': openSubmenuId === item.id,
+          }"
           @click="onItemClick(item, $event)"
           @mouseenter="onItemEnter(item, $event)"
         >
@@ -781,7 +837,8 @@ onUnmounted(() => {
 }
 
 .ctx-item:hover:not(:disabled),
-.ctx-item:focus-visible {
+.ctx-item:focus-visible,
+.ctx-item--submenu-open:not(:disabled) {
   background: var(--fluent-color-fill-selected);
   outline: none;
 }
