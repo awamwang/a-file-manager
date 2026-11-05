@@ -17,6 +17,20 @@ if (!shell.includes('v-if="isNavigatorRoute"') && !shell.includes("v-if=\"isNavi
   console.error("AppShell must gate navigator chrome with v-if=isNavigatorRoute");
   process.exit(1);
 }
+// AIA-91: chrome lives in right workspace, not above full-window body.
+if (!shell.includes('class="workspace"')) {
+  console.error("AppShell missing workspace column for navigator chrome");
+  process.exit(1);
+}
+{
+  const headerEnd = shell.indexOf("</header>");
+  const body = shell.indexOf('class="body"');
+  const between = shell.slice(headerEnd, body);
+  if (between.includes("navigator-chrome")) {
+    console.error("Navigator chrome must not sit between titlebar and body");
+    process.exit(1);
+  }
+}
 for (const needle of [
   "navigator-chrome",
   "nav-icon-btn",

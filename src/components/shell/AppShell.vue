@@ -695,343 +695,6 @@ onUnmounted(() => {
       </div>
     </header>
 
-    <template v-if="isNavigatorRoute">
-      <form
-        class="navigator-chrome"
-        role="toolbar"
-        :aria-label="t('chrome.toolbar')"
-        @submit.prevent="submitAddress"
-      >
-        <button
-          type="button"
-          class="fluent-control nav-icon-btn"
-          :disabled="!canGoBack"
-          :title="t('chrome.back')"
-          :aria-label="t('chrome.back')"
-          @click="onGoBack"
-        >
-          <FluentIcon name="back" size="sm" />
-        </button>
-        <button
-          type="button"
-          class="fluent-control nav-icon-btn"
-          :disabled="!canGoForward"
-          :title="t('chrome.forward')"
-          :aria-label="t('chrome.forward')"
-          @click="onGoForward"
-        >
-          <FluentIcon name="forward" size="sm" />
-        </button>
-        <button
-          type="button"
-          class="fluent-control nav-icon-btn"
-          :title="t('chrome.upTitle')"
-          :aria-label="t('chrome.up')"
-          @click="onGoUp"
-        >
-          <FluentIcon name="up" size="sm" />
-        </button>
-
-        <button
-          id="navigator-home-btn"
-          type="button"
-          class="fluent-control nav-icon-btn"
-          :title="t('chrome.home')"
-          :aria-label="t('chrome.home')"
-          @click="goHome"
-        >
-          <FluentIcon name="home" size="sm" />
-        </button>
-
-        <div id="navigator-places-menu" class="places-menu">
-          <button
-            type="button"
-            class="fluent-control nav-icon-btn places-trigger"
-            :class="{ 'nav-icon-btn--active': placesMenuOpen }"
-            :title="t('chrome.placesMenu')"
-            :aria-label="t('chrome.placesMenu')"
-            :aria-expanded="placesMenuOpen"
-            aria-haspopup="menu"
-            @click.stop="togglePlacesMenu"
-          >
-            <FluentIcon name="star" size="sm" />
-            <FluentIcon name="chevronDown" size="sm" class="places-chevron" />
-          </button>
-          <div
-            v-if="placesMenuOpen"
-            class="places-popover fluent-surface"
-            role="menu"
-            :aria-label="t('chrome.placesMenu')"
-          >
-            <p class="places-heading">{{ t("quickAccess.label") }}</p>
-            <button
-              v-for="item in quickAccessList"
-              :key="'qa-' + item.path"
-              type="button"
-              class="fluent-list-row places-item"
-              role="menuitem"
-              :title="`${item.path} · ${t('quickAccess.openCount', { count: item.openCount })}`"
-              @click="openPlacesPath(item.path)"
-            >
-              <FluentIcon :name="item.isDir ? 'folder' : 'document'" size="sm" />
-              <span>{{ quickAccessLabel(item.path) }}</span>
-            </button>
-            <p v-if="!quickAccessList.length" class="places-empty">{{ t("quickAccess.empty") }}</p>
-
-            <p class="places-heading places-heading--fav">{{ t("favorites.label") }}</p>
-            <button
-              v-for="fav in favoritesDoc.favorites"
-              :key="'fav-' + fav.path"
-              type="button"
-              class="fluent-list-row places-item"
-              role="menuitem"
-              :title="fav.path"
-              @click="openPlacesPath(fav.path)"
-            >
-              <FluentIcon :name="fav.isDir ? 'folder' : 'document'" size="sm" />
-              <span>{{ favoriteLabel(fav.path) }}</span>
-            </button>
-            <p v-if="!favoritesDoc.favorites.length" class="places-empty">
-              {{ t("favorites.empty") }}
-            </p>
-          </div>
-        </div>
-
-        <div id="navigator-work-group-menu" class="places-menu wg-menu">
-          <button
-            type="button"
-            class="fluent-control nav-icon-btn places-trigger wg-trigger"
-            :class="{ 'nav-icon-btn--active': workGroupMenuOpen }"
-            :title="t('chrome.workGroupMenu')"
-            :aria-label="t('chrome.workGroupMenu')"
-            :aria-expanded="workGroupMenuOpen"
-            aria-haspopup="menu"
-            :disabled="workGroupChromeBusy"
-            @click.stop="toggleWorkGroupMenu"
-          >
-            <FluentIcon name="viewAll" size="sm" />
-            <span class="wg-trigger-label">{{
-              activeWorkGroup?.name || t("nav.workGroups")
-            }}</span>
-            <FluentIcon name="chevronDown" size="sm" class="places-chevron" />
-          </button>
-          <div
-            v-if="workGroupMenuOpen"
-            class="places-popover fluent-surface"
-            role="menu"
-            :aria-label="t('chrome.workGroupMenu')"
-          >
-            <p class="places-heading">{{ t("chrome.workGroupSwitch") }}</p>
-            <button
-              v-for="group in workGroupsDoc?.workGroups ?? []"
-              :key="'wg-' + group.id"
-              type="button"
-              class="fluent-list-row places-item"
-              :class="{ 'places-item--active': group.id === workGroupsDoc?.activeWorkGroupId }"
-              role="menuitem"
-              :disabled="workGroupChromeBusy || group.id === workGroupsDoc?.activeWorkGroupId"
-              :title="group.id"
-              @click="onSilentSwitchWorkGroup(group.id)"
-            >
-              <FluentIcon :name="group.isDefault ? 'home' : 'viewAll'" size="sm" />
-              <span>{{ group.name }}</span>
-            </button>
-            <p v-if="!(workGroupsDoc?.workGroups.length)" class="places-empty">
-              {{ t("chrome.workGroupEmpty") }}
-            </p>
-
-            <p class="places-heading places-heading--fav">{{ t("chrome.workGroupSave") }}</p>
-            <button
-              type="button"
-              class="fluent-list-row places-item"
-              role="menuitem"
-              :disabled="workGroupChromeBusy || !activeWorkGroup"
-              @click="onSaveMembersFromTabs"
-            >
-              <FluentIcon name="folder" size="sm" />
-              <span>{{ t("workGroups.saveMembersFromTabs") }}</span>
-            </button>
-            <button
-              type="button"
-              class="fluent-list-row places-item"
-              role="menuitem"
-              @click="openWorkGroupsPage"
-            >
-              <FluentIcon name="settings" size="sm" />
-              <span>{{ t("chrome.workGroupManage") }}</span>
-            </button>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          class="fluent-control nav-icon-btn"
-          :class="{ 'nav-icon-btn--active': dualPaneEnabled }"
-          :title="t('chrome.dualPane')"
-          :aria-label="t('chrome.dualPane')"
-          :aria-pressed="dualPaneEnabled"
-          @click="toggleDualPane"
-        >
-          <FluentIcon name="dualPane" size="sm" force-svg />
-        </button>
-
-        <button
-          id="navigator-filter-toggle"
-          type="button"
-          class="fluent-control nav-icon-btn"
-          :class="{ 'nav-icon-btn--active': navigatorFilterOpen }"
-          :title="t('navigator.filterToggle')"
-          :aria-label="t('navigator.filterToggle')"
-          :aria-pressed="navigatorFilterOpen"
-          @click="
-            toggleNavigatorFilter();
-            if (navigatorFilterOpen) {
-              requestAnimationFrame(() => {
-                document.getElementById('navigator-folder-filter')?.focus();
-              });
-            }
-          "
-        >
-          <FluentIcon name="search" size="sm" />
-        </button>
-
-        <div
-          v-if="!addressEditing"
-          class="breadcrumbs"
-          role="navigation"
-          :aria-label="t('chrome.breadcrumbs')"
-          @click="focusAddressBar"
-        >
-          <template v-if="breadcrumbs.length">
-            <button
-              v-for="(crumb, index) in breadcrumbs"
-              :key="crumb.path + String(index)"
-              type="button"
-              class="crumb"
-              :title="crumb.path"
-              @click.stop="onBreadcrumb(crumb.path)"
-            >
-              <span v-if="index > 0" class="crumb-sep" aria-hidden="true">›</span>
-              <span class="crumb-label">{{ crumb.label }}</span>
-            </button>
-          </template>
-          <span v-else class="crumb-placeholder">{{ t("chrome.pathPlaceholder") }}</span>
-        </div>
-        <input
-          v-else
-          id="address-input"
-          v-model="addressDraft"
-          class="address-input"
-          type="text"
-          spellcheck="false"
-          autocomplete="off"
-          :placeholder="t('chrome.pathPlaceholder')"
-          @blur="onAddressBlur"
-          @keydown.escape.prevent="addressEditing = false"
-        />
-        <button type="submit" class="fluent-control address-go" :title="t('chrome.go')">
-          {{ t("chrome.go") }}
-        </button>
-      </form>
-
-      <div
-        v-if="navigatorFilterOpen"
-        id="navigator-filter-bar"
-        class="navigator-filter-bar"
-        role="search"
-        :aria-label="t('navigator.filterToggle')"
-      >
-        <FluentIcon name="search" size="sm" class="navigator-filter-icon" />
-        <input
-          id="navigator-folder-filter"
-          v-model="navigatorFilterQuery"
-          class="fluent-control navigator-filter-input"
-          type="search"
-          :placeholder="t('navigator.filterPlaceholder')"
-          spellcheck="false"
-          @keydown.escape.prevent="closeNavigatorFilter"
-        />
-        <button
-          type="button"
-          class="fluent-control"
-          :title="t('navigator.filterClear')"
-          :aria-label="t('navigator.filterClear')"
-          @click="closeNavigatorFilter"
-        >
-          {{ t("navigator.filterClear") }}
-        </button>
-      </div>
-
-      <div class="tabstrip" role="tablist" :aria-label="t('chrome.tabs')">
-        <div
-          v-for="tab in stripTabs"
-          :key="tab.id"
-          class="tab"
-          :class="{
-            'tab--active': liveOpenState.currentTabGroupIndex === tab.groupIndex,
-          }"
-          role="tab"
-          :aria-selected="liveOpenState.currentTabGroupIndex === tab.groupIndex"
-          :title="tab.path"
-          @click="onSwitchNavigatorTab(tab.groupIndex)"
-        >
-          <FluentIcon name="folder" size="sm" class="tab-icon" />
-          <span class="tab-label">{{ tab.name || tabLabel(tab.path) }}</span>
-          <button
-            type="button"
-            class="tab-close"
-            :aria-label="t('chrome.closeTab')"
-            :title="t('chrome.closeTab')"
-            @click="onCloseNavigatorTab($event, tab.groupIndex)"
-          >
-            <FluentIcon name="close" size="sm" />
-          </button>
-        </div>
-        <button
-          v-if="!stripTabs.length"
-          type="button"
-          role="tab"
-          class="tab tab--active"
-          :aria-selected="true"
-          @click="openTab('navigator', '/navigator')"
-        >
-          <FluentIcon name="folderOpen" size="sm" />
-          <span>{{ t("nav.navigator") }}</span>
-        </button>
-        <button
-          type="button"
-          class="tab tab--add"
-          :title="t('chrome.newTab')"
-          :aria-label="t('chrome.newTab')"
-          @click="onNewNavigatorTab"
-        >
-          <FluentIcon name="add" size="sm" />
-        </button>
-      </div>
-
-      <p
-        v-if="workGroupSoftNotice"
-        class="fluent-banner fluent-banner--info chrome-wg-banner"
-        role="status"
-      >
-        {{
-          t("workGroups.softSync", {
-            paths: workGroupSoftNotice.openedMemberPaths.join(", "),
-          })
-        }}
-        <button type="button" class="linkish" @click="dismissWorkGroupSoftNotice">
-          {{ t("common.dismiss") }}
-        </button>
-      </p>
-      <p
-        v-if="workGroupChromeError && workGroupChromeError !== 'REQUIRE_SAVE_PROMPT'"
-        class="fluent-banner fluent-banner--error chrome-wg-banner"
-        role="alert"
-      >
-        {{ workGroupChromeError }}
-      </p>
-    </template>
-
     <div class="body">
       <nav class="sidenav fluent-layer-alt" :aria-label="t('chrome.sideNav')">
         <button
@@ -1053,9 +716,348 @@ onUnmounted(() => {
         </button>
       </nav>
 
-      <main class="content">
-        <slot />
-      </main>
+      <div class="workspace">
+      <template v-if="isNavigatorRoute">
+        <form
+          class="navigator-chrome"
+          role="toolbar"
+          :aria-label="t('chrome.toolbar')"
+          @submit.prevent="submitAddress"
+        >
+          <button
+            type="button"
+            class="fluent-control nav-icon-btn"
+            :disabled="!canGoBack"
+            :title="t('chrome.back')"
+            :aria-label="t('chrome.back')"
+            @click="onGoBack"
+          >
+            <FluentIcon name="back" size="sm" />
+          </button>
+          <button
+            type="button"
+            class="fluent-control nav-icon-btn"
+            :disabled="!canGoForward"
+            :title="t('chrome.forward')"
+            :aria-label="t('chrome.forward')"
+            @click="onGoForward"
+          >
+            <FluentIcon name="forward" size="sm" />
+          </button>
+          <button
+            type="button"
+            class="fluent-control nav-icon-btn"
+            :title="t('chrome.upTitle')"
+            :aria-label="t('chrome.up')"
+            @click="onGoUp"
+          >
+            <FluentIcon name="up" size="sm" />
+          </button>
+
+          <button
+            id="navigator-home-btn"
+            type="button"
+            class="fluent-control nav-icon-btn"
+            :title="t('chrome.home')"
+            :aria-label="t('chrome.home')"
+            @click="goHome"
+          >
+            <FluentIcon name="home" size="sm" />
+          </button>
+
+          <div id="navigator-places-menu" class="places-menu">
+            <button
+              type="button"
+              class="fluent-control nav-icon-btn places-trigger"
+              :class="{ 'nav-icon-btn--active': placesMenuOpen }"
+              :title="t('chrome.placesMenu')"
+              :aria-label="t('chrome.placesMenu')"
+              :aria-expanded="placesMenuOpen"
+              aria-haspopup="menu"
+              @click.stop="togglePlacesMenu"
+            >
+              <FluentIcon name="star" size="sm" />
+              <FluentIcon name="chevronDown" size="sm" class="places-chevron" />
+            </button>
+            <div
+              v-if="placesMenuOpen"
+              class="places-popover fluent-surface"
+              role="menu"
+              :aria-label="t('chrome.placesMenu')"
+            >
+              <p class="places-heading">{{ t("quickAccess.label") }}</p>
+              <button
+                v-for="item in quickAccessList"
+                :key="'qa-' + item.path"
+                type="button"
+                class="fluent-list-row places-item"
+                role="menuitem"
+                :title="`${item.path} · ${t('quickAccess.openCount', { count: item.openCount })}`"
+                @click="openPlacesPath(item.path)"
+              >
+                <FluentIcon :name="item.isDir ? 'folder' : 'document'" size="sm" />
+                <span>{{ quickAccessLabel(item.path) }}</span>
+              </button>
+              <p v-if="!quickAccessList.length" class="places-empty">{{ t("quickAccess.empty") }}</p>
+
+              <p class="places-heading places-heading--fav">{{ t("favorites.label") }}</p>
+              <button
+                v-for="fav in favoritesDoc.favorites"
+                :key="'fav-' + fav.path"
+                type="button"
+                class="fluent-list-row places-item"
+                role="menuitem"
+                :title="fav.path"
+                @click="openPlacesPath(fav.path)"
+              >
+                <FluentIcon :name="fav.isDir ? 'folder' : 'document'" size="sm" />
+                <span>{{ favoriteLabel(fav.path) }}</span>
+              </button>
+              <p v-if="!favoritesDoc.favorites.length" class="places-empty">
+                {{ t("favorites.empty") }}
+              </p>
+            </div>
+          </div>
+
+          <div id="navigator-work-group-menu" class="places-menu wg-menu">
+            <button
+              type="button"
+              class="fluent-control nav-icon-btn places-trigger wg-trigger"
+              :class="{ 'nav-icon-btn--active': workGroupMenuOpen }"
+              :title="t('chrome.workGroupMenu')"
+              :aria-label="t('chrome.workGroupMenu')"
+              :aria-expanded="workGroupMenuOpen"
+              aria-haspopup="menu"
+              :disabled="workGroupChromeBusy"
+              @click.stop="toggleWorkGroupMenu"
+            >
+              <FluentIcon name="viewAll" size="sm" />
+              <span class="wg-trigger-label">{{
+                activeWorkGroup?.name || t("nav.workGroups")
+              }}</span>
+              <FluentIcon name="chevronDown" size="sm" class="places-chevron" />
+            </button>
+            <div
+              v-if="workGroupMenuOpen"
+              class="places-popover fluent-surface"
+              role="menu"
+              :aria-label="t('chrome.workGroupMenu')"
+            >
+              <p class="places-heading">{{ t("chrome.workGroupSwitch") }}</p>
+              <button
+                v-for="group in workGroupsDoc?.workGroups ?? []"
+                :key="'wg-' + group.id"
+                type="button"
+                class="fluent-list-row places-item"
+                :class="{ 'places-item--active': group.id === workGroupsDoc?.activeWorkGroupId }"
+                role="menuitem"
+                :disabled="workGroupChromeBusy || group.id === workGroupsDoc?.activeWorkGroupId"
+                :title="group.id"
+                @click="onSilentSwitchWorkGroup(group.id)"
+              >
+                <FluentIcon :name="group.isDefault ? 'home' : 'viewAll'" size="sm" />
+                <span>{{ group.name }}</span>
+              </button>
+              <p v-if="!(workGroupsDoc?.workGroups.length)" class="places-empty">
+                {{ t("chrome.workGroupEmpty") }}
+              </p>
+
+              <p class="places-heading places-heading--fav">{{ t("chrome.workGroupSave") }}</p>
+              <button
+                type="button"
+                class="fluent-list-row places-item"
+                role="menuitem"
+                :disabled="workGroupChromeBusy || !activeWorkGroup"
+                @click="onSaveMembersFromTabs"
+              >
+                <FluentIcon name="folder" size="sm" />
+                <span>{{ t("workGroups.saveMembersFromTabs") }}</span>
+              </button>
+              <button
+                type="button"
+                class="fluent-list-row places-item"
+                role="menuitem"
+                @click="openWorkGroupsPage"
+              >
+                <FluentIcon name="settings" size="sm" />
+                <span>{{ t("chrome.workGroupManage") }}</span>
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            class="fluent-control nav-icon-btn"
+            :class="{ 'nav-icon-btn--active': dualPaneEnabled }"
+            :title="t('chrome.dualPane')"
+            :aria-label="t('chrome.dualPane')"
+            :aria-pressed="dualPaneEnabled"
+            @click="toggleDualPane"
+          >
+            <FluentIcon name="dualPane" size="sm" force-svg />
+          </button>
+
+          <button
+            id="navigator-filter-toggle"
+            type="button"
+            class="fluent-control nav-icon-btn"
+            :class="{ 'nav-icon-btn--active': navigatorFilterOpen }"
+            :title="t('navigator.filterToggle')"
+            :aria-label="t('navigator.filterToggle')"
+            :aria-pressed="navigatorFilterOpen"
+            @click="
+              toggleNavigatorFilter();
+              if (navigatorFilterOpen) {
+                requestAnimationFrame(() => {
+                  document.getElementById('navigator-folder-filter')?.focus();
+                });
+              }
+            "
+          >
+            <FluentIcon name="search" size="sm" />
+          </button>
+
+          <div
+            v-if="!addressEditing"
+            class="breadcrumbs"
+            role="navigation"
+            :aria-label="t('chrome.breadcrumbs')"
+            @click="focusAddressBar"
+          >
+            <template v-if="breadcrumbs.length">
+              <button
+                v-for="(crumb, index) in breadcrumbs"
+                :key="crumb.path + String(index)"
+                type="button"
+                class="crumb"
+                :title="crumb.path"
+                @click.stop="onBreadcrumb(crumb.path)"
+              >
+                <span v-if="index > 0" class="crumb-sep" aria-hidden="true">›</span>
+                <span class="crumb-label">{{ crumb.label }}</span>
+              </button>
+            </template>
+            <span v-else class="crumb-placeholder">{{ t("chrome.pathPlaceholder") }}</span>
+          </div>
+          <input
+            v-else
+            id="address-input"
+            v-model="addressDraft"
+            class="address-input"
+            type="text"
+            spellcheck="false"
+            autocomplete="off"
+            :placeholder="t('chrome.pathPlaceholder')"
+            @blur="onAddressBlur"
+            @keydown.escape.prevent="addressEditing = false"
+          />
+          <button type="submit" class="fluent-control address-go" :title="t('chrome.go')">
+            {{ t("chrome.go") }}
+          </button>
+        </form>
+
+        <div
+          v-if="navigatorFilterOpen"
+          id="navigator-filter-bar"
+          class="navigator-filter-bar"
+          role="search"
+          :aria-label="t('navigator.filterToggle')"
+        >
+          <FluentIcon name="search" size="sm" class="navigator-filter-icon" />
+          <input
+            id="navigator-folder-filter"
+            v-model="navigatorFilterQuery"
+            class="fluent-control navigator-filter-input"
+            type="search"
+            :placeholder="t('navigator.filterPlaceholder')"
+            spellcheck="false"
+            @keydown.escape.prevent="closeNavigatorFilter"
+          />
+          <button
+            type="button"
+            class="fluent-control"
+            :title="t('navigator.filterClear')"
+            :aria-label="t('navigator.filterClear')"
+            @click="closeNavigatorFilter"
+          >
+            {{ t("navigator.filterClear") }}
+          </button>
+        </div>
+
+        <div class="tabstrip" role="tablist" :aria-label="t('chrome.tabs')">
+          <div
+            v-for="tab in stripTabs"
+            :key="tab.id"
+            class="tab"
+            :class="{
+              'tab--active': liveOpenState.currentTabGroupIndex === tab.groupIndex,
+            }"
+            role="tab"
+            :aria-selected="liveOpenState.currentTabGroupIndex === tab.groupIndex"
+            :title="tab.path"
+            @click="onSwitchNavigatorTab(tab.groupIndex)"
+          >
+            <FluentIcon name="folder" size="sm" class="tab-icon" />
+            <span class="tab-label">{{ tab.name || tabLabel(tab.path) }}</span>
+            <button
+              type="button"
+              class="tab-close"
+              :aria-label="t('chrome.closeTab')"
+              :title="t('chrome.closeTab')"
+              @click="onCloseNavigatorTab($event, tab.groupIndex)"
+            >
+              <FluentIcon name="close" size="sm" />
+            </button>
+          </div>
+          <button
+            v-if="!stripTabs.length"
+            type="button"
+            role="tab"
+            class="tab tab--active"
+            :aria-selected="true"
+            @click="openTab('navigator', '/navigator')"
+          >
+            <FluentIcon name="folderOpen" size="sm" />
+            <span>{{ t("nav.navigator") }}</span>
+          </button>
+          <button
+            type="button"
+            class="tab tab--add"
+            :title="t('chrome.newTab')"
+            :aria-label="t('chrome.newTab')"
+            @click="onNewNavigatorTab"
+          >
+            <FluentIcon name="add" size="sm" />
+          </button>
+        </div>
+
+        <p
+          v-if="workGroupSoftNotice"
+          class="fluent-banner fluent-banner--info chrome-wg-banner"
+          role="status"
+        >
+          {{
+            t("workGroups.softSync", {
+              paths: workGroupSoftNotice.openedMemberPaths.join(", "),
+            })
+          }}
+          <button type="button" class="linkish" @click="dismissWorkGroupSoftNotice">
+            {{ t("common.dismiss") }}
+          </button>
+        </p>
+        <p
+          v-if="workGroupChromeError && workGroupChromeError !== 'REQUIRE_SAVE_PROMPT'"
+          class="fluent-banner fluent-banner--error chrome-wg-banner"
+          role="alert"
+        >
+          {{ workGroupChromeError }}
+        </p>
+      </template>
+
+        <main class="content" :class="{ 'content--navigator': isNavigatorRoute }">
+          <slot />
+        </main>
+      </div>
     </div>
 
     <footer class="statusbar" :aria-label="t('chrome.status')">
@@ -1520,6 +1522,14 @@ onUnmounted(() => {
   min-height: 0;
 }
 
+.workspace {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .sidenav {
   width: var(--fluent-sidenav-width);
   flex-shrink: 0;
@@ -1594,10 +1604,15 @@ onUnmounted(() => {
 .content {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   padding: var(--fluent-space-lg);
   overflow: auto;
   background: var(--fluent-color-fill-subtle);
   color: var(--fluent-color-text-primary);
+}
+
+.content--navigator {
+  padding-top: var(--fluent-space-md);
 }
 
 .statusbar {
