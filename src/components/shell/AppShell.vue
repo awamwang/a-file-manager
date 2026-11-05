@@ -44,6 +44,18 @@ import {
 import { favoritesDoc, loadFavorites } from "../../state/favorites";
 import { quickAccessList, loadVisitStats } from "../../state/visitStats";
 import { dualPaneEnabled, toggleDualPane } from "../../state/dualPane";
+import {
+  activeWorkGroup,
+  dismissWorkGroupSoftNotice,
+  loadWorkGroupsChrome,
+  saveActiveMembersFromTabsHard,
+  saveActiveOpenStateHard,
+  silentSwitchWorkGroup,
+  workGroupChromeBusy,
+  workGroupChromeError,
+  workGroupsDoc,
+  workGroupSoftNotice,
+} from "../../state/workGroupChrome";
 
 const { t, locale } = useI18n();
 
@@ -52,6 +64,11 @@ type HealthPayload = {
   name: string;
   version: string;
   identifier: string;
+};
+
+type SettingsDocument = {
+  version: number;
+  values: Record<string, unknown>;
 };
 
 type NavItem = {
@@ -76,6 +93,7 @@ const healthError = ref<string | null>(null);
 const isMaximized = ref(false);
 const maxHover = ref(false);
 const placesMenuOpen = ref(false);
+const workGroupMenuOpen = ref(false);
 const unlisteners: UnlistenFn[] = [];
 
 const breadcrumbs = computed(() => buildBreadcrumbs(currentPath.value));
@@ -84,6 +102,7 @@ const isNavigatorRoute = computed(
 );
 
 function togglePlacesMenu() {
+  workGroupMenuOpen.value = false;
   placesMenuOpen.value = !placesMenuOpen.value;
 }
 
@@ -91,10 +110,69 @@ function closePlacesMenu() {
   placesMenuOpen.value = false;
 }
 
+function toggleWorkGroupMenu() {
+  placesMenuOpen.value = false;
+  workGroupMenuOpen.value = !workGroupMenuOpen.value;
+  if (workGroupMenuOpen.value) {
+    void loadWorkGroupsChrome();
+  }
+}
+
+function closeWorkGroupMenu() {
+  workGroupMenuOpen.value = false;
+}
+
+function closeChromeMenus() {
+  closePlacesMenu();
+  closeWorkGroupMenu();
+}
+
 async function openPlacesPath(path: string) {
   closePlacesMenu();
   await ensureNavigatorRoute();
   await navigateTo(path);
+}
+
+/** Home → Settings `core.defaultLocation`, else OS USERPROFILE via navigator_default_path. */
+async function goHome() {
+  closeChromeMenus();
+  await ensureNavigatorRoute();
+  try {
+    const doc = await invoke<SettingsDocument>("settings_get");
+    const configured = String(doc.values?.["core.defaultLocation"] ?? "").trim();
+    if (configured) {
+      await navigateTo(configured);
+      return;
+    }
+  } catch {
+    /* fall through to OS default */
+  }
+  const path = await invoke<string>("navigator_default_path");
+  await navigateTo(path);
+}
+
+async function onSilentSwitchWorkGroup(targetId: string) {
+  closeWorkGroupMenu();
+  await ensureNavigatorRoute();
+  const result = await silentSwitchWorkGroup(targetId);
+  if (result?.requireSavePrompt || workGroupChromeError.value === "REQUIRE_SAVE_PROMPT") {
+    workGroupChromeError.value = t("workGroups.errorSavePrompt");
+  }
+}
+
+async function onSaveOpenState() {
+  closeWorkGroupMenu();
+  await saveActiveOpenStateHard();
+}
+
+async function onSaveMembersFromTabs() {
+  closeWorkGroupMenu();
+  await saveActiveMembersFromTabsHard();
+}
+
+async function openWorkGroupsPage() {
+  closeWorkGroupMenu();
+  await router.push("/work-groups");
 }
 
 async function ensureNavigatorThenGoUp() {
@@ -166,8 +244,8 @@ function quickAccessLabel(path: string): string {
 }
 
 function onGlobalKeydown(event: KeyboardEvent) {
-  if (event.key === "Escape" && placesMenuOpen.value) {
-    closePlacesMenu();
+  if (event.key === "Escape" && (placesMenuOpen.value || workGroupMenuOpen.value)) {
+    closeChromeMenus();
     event.preventDefault();
     return;
   }
@@ -177,12 +255,16 @@ function onGlobalKeydown(event: KeyboardEvent) {
 }
 
 function onDocumentPointerDown(event: PointerEvent) {
-  if (!placesMenuOpen.value) return;
+  if (!placesMenuOpen.value && !workGroupMenuOpen.value) return;
   const target = event.target;
   if (!(target instanceof Node)) return;
-  const root = document.getElementById("navigator-places-menu");
-  if (root && !root.contains(target)) {
+  const placesRoot = document.getElementById("navigator-places-menu");
+  const wgRoot = document.getElementById("navigator-work-group-menu");
+  if (placesMenuOpen.value && placesRoot && !placesRoot.contains(target)) {
     closePlacesMenu();
+  }
+  if (workGroupMenuOpen.value && wgRoot && !wgRoot.contains(target)) {
+    closeWorkGroupMenu();
   }
 }
 
@@ -271,7 +353,7 @@ watch(
 );
 
 watch(isNavigatorRoute, (onNavigator) => {
-  if (!onNavigator) closePlacesMenu();
+  if (!onNavigator) closeChromeMenus();
 });
 
 /** Files-like primary status (item counts) — left side of the shell status bar. */
@@ -435,6 +517,7 @@ onMounted(() => {
   void bootstrapNavigatorOpenState();
   void loadFavorites().catch(() => undefined);
   void loadVisitStats().catch(() => undefined);
+  void loadWorkGroupsChrome().catch(() => undefined);
   registerShellShortcuts();
   window.addEventListener("keydown", onGlobalKeydown);
   document.addEventListener("pointerdown", onDocumentPointerDown, true);
@@ -568,6 +651,17 @@ onUnmounted(() => {
           <FluentIcon name="up" size="sm" />
         </button>
 
+        <button
+          id="navigator-home-btn"
+          type="button"
+          class="fluent-control nav-icon-btn"
+          :title="t('chrome.home')"
+          :aria-label="t('chrome.home')"
+          @click="goHome"
+        >
+          <FluentIcon name="home" size="sm" />
+        </button>
+
         <div id="navigator-places-menu" class="places-menu">
           <button
             type="button"
@@ -579,7 +673,7 @@ onUnmounted(() => {
             aria-haspopup="menu"
             @click.stop="togglePlacesMenu"
           >
-            <FluentIcon name="home" size="sm" />
+            <FluentIcon name="star" size="sm" />
             <FluentIcon name="chevronDown" size="sm" class="places-chevron" />
           </button>
           <div
@@ -622,6 +716,82 @@ onUnmounted(() => {
           </div>
         </div>
 
+        <div id="navigator-work-group-menu" class="places-menu wg-menu">
+          <button
+            type="button"
+            class="fluent-control nav-icon-btn places-trigger wg-trigger"
+            :class="{ 'nav-icon-btn--active': workGroupMenuOpen }"
+            :title="t('chrome.workGroupMenu')"
+            :aria-label="t('chrome.workGroupMenu')"
+            :aria-expanded="workGroupMenuOpen"
+            aria-haspopup="menu"
+            :disabled="workGroupChromeBusy"
+            @click.stop="toggleWorkGroupMenu"
+          >
+            <FluentIcon name="viewAll" size="sm" />
+            <span class="wg-trigger-label">{{
+              activeWorkGroup?.name || t("nav.workGroups")
+            }}</span>
+            <FluentIcon name="chevronDown" size="sm" class="places-chevron" />
+          </button>
+          <div
+            v-if="workGroupMenuOpen"
+            class="places-popover fluent-surface"
+            role="menu"
+            :aria-label="t('chrome.workGroupMenu')"
+          >
+            <p class="places-heading">{{ t("chrome.workGroupSwitch") }}</p>
+            <button
+              v-for="group in workGroupsDoc?.workGroups ?? []"
+              :key="'wg-' + group.id"
+              type="button"
+              class="fluent-list-row places-item"
+              :class="{ 'places-item--active': group.id === workGroupsDoc?.activeWorkGroupId }"
+              role="menuitem"
+              :disabled="workGroupChromeBusy || group.id === workGroupsDoc?.activeWorkGroupId"
+              :title="group.id"
+              @click="onSilentSwitchWorkGroup(group.id)"
+            >
+              <FluentIcon :name="group.isDefault ? 'home' : 'viewAll'" size="sm" />
+              <span>{{ group.name }}</span>
+            </button>
+            <p v-if="!(workGroupsDoc?.workGroups.length)" class="places-empty">
+              {{ t("chrome.workGroupEmpty") }}
+            </p>
+
+            <p class="places-heading places-heading--fav">{{ t("chrome.workGroupSave") }}</p>
+            <button
+              type="button"
+              class="fluent-list-row places-item"
+              role="menuitem"
+              :disabled="workGroupChromeBusy || !activeWorkGroup"
+              @click="onSaveOpenState"
+            >
+              <FluentIcon name="document" size="sm" />
+              <span>{{ t("workGroups.saveOpenState") }}</span>
+            </button>
+            <button
+              type="button"
+              class="fluent-list-row places-item"
+              role="menuitem"
+              :disabled="workGroupChromeBusy || !activeWorkGroup"
+              @click="onSaveMembersFromTabs"
+            >
+              <FluentIcon name="folder" size="sm" />
+              <span>{{ t("workGroups.saveMembersFromTabs") }}</span>
+            </button>
+            <button
+              type="button"
+              class="fluent-list-row places-item"
+              role="menuitem"
+              @click="openWorkGroupsPage"
+            >
+              <FluentIcon name="settings" size="sm" />
+              <span>{{ t("chrome.workGroupManage") }}</span>
+            </button>
+          </div>
+        </div>
+
         <button
           type="button"
           class="fluent-control nav-icon-btn"
@@ -631,7 +801,7 @@ onUnmounted(() => {
           :aria-pressed="dualPaneEnabled"
           @click="toggleDualPane"
         >
-          <FluentIcon name="view" size="sm" />
+          <FluentIcon name="dualPane" size="sm" />
         </button>
 
         <div
@@ -719,6 +889,28 @@ onUnmounted(() => {
           <FluentIcon name="add" size="sm" />
         </button>
       </div>
+
+      <p
+        v-if="workGroupSoftNotice"
+        class="fluent-banner fluent-banner--info chrome-wg-banner"
+        role="status"
+      >
+        {{
+          t("workGroups.softSync", {
+            paths: workGroupSoftNotice.openedMemberPaths.join(", "),
+          })
+        }}
+        <button type="button" class="linkish" @click="dismissWorkGroupSoftNotice">
+          {{ t("common.dismiss") }}
+        </button>
+      </p>
+      <p
+        v-if="workGroupChromeError && workGroupChromeError !== 'REQUIRE_SAVE_PROMPT'"
+        class="fluent-banner fluent-banner--error chrome-wg-banner"
+        role="alert"
+      >
+        {{ workGroupChromeError }}
+      </p>
     </template>
 
     <div class="body">
@@ -960,6 +1152,41 @@ onUnmounted(() => {
   padding: var(--fluent-space-xs) var(--fluent-space-sm);
   font-size: var(--fluent-font-size-caption);
   color: var(--fluent-color-text-secondary);
+}
+
+.places-item--active {
+  background: var(--fluent-color-fill-selected);
+  font-weight: var(--fluent-font-weight-semibold);
+}
+
+.wg-trigger {
+  max-width: 11rem;
+}
+
+.wg-trigger-label {
+  max-width: 6.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fluent-font-size-caption);
+}
+
+.chrome-wg-banner {
+  margin: 0;
+  padding: var(--fluent-space-xs) var(--fluent-space-md);
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  flex-shrink: 0;
+}
+
+.chrome-wg-banner .linkish {
+  border: 0;
+  background: transparent;
+  color: var(--fluent-color-text-accent, var(--fluent-color-fill-accent));
+  cursor: pointer;
+  text-decoration: underline;
+  font: inherit;
 }
 
 .breadcrumbs {

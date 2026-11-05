@@ -40,7 +40,13 @@
     "view": "Ansicht",
     "dualPane": "Doppelansicht",
     "windowControls": "Fenstersteuerung",
-    "placesMenu": "Schnellzugriff und Favoriten"
+    "home": "Startordner",
+    "placesMenu": "Schnellzugriff und Favoriten",
+    "workGroupMenu": "Arbeitsgruppe",
+    "workGroupSwitch": "Arbeitsgruppe wechseln",
+    "workGroupSave": "In Hard-Config speichern",
+    "workGroupManage": "Arbeitsgruppen verwalten…",
+    "workGroupEmpty": "Noch keine Arbeitsgruppen"
   },
   "commands": {
     "empty": "Keine passenden Befehle",

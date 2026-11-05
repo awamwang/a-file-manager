@@ -53,7 +53,13 @@
     "navigatorLoading": "Loading…",
     "navigatorError": "Could not list folder",
     "navigatorCounts": "{dirs} folders · {files} files",
-    "placesMenu": "Quick access and favorites"
+    "home": "Home",
+    "placesMenu": "Quick access and favorites",
+    "workGroupMenu": "Work Group",
+    "workGroupSwitch": "Switch Work Group",
+    "workGroupSave": "Save to hard config",
+    "workGroupManage": "Manage Work Groups…",
+    "workGroupEmpty": "No Work Groups yet"
   },
   "nav": {
     "navigator": "Navigator",

@@ -40,7 +40,13 @@
     "view": "表示",
     "dualPane": "デュアルペイン",
     "windowControls": "ウィンドウ操作",
-    "placesMenu": "クイックアクセスとお気に入り"
+    "home": "ホーム",
+    "placesMenu": "クイックアクセスとお気に入り",
+    "workGroupMenu": "ワークグループ",
+    "workGroupSwitch": "ワークグループを切り替え",
+    "workGroupSave": "ハード設定に保存",
+    "workGroupManage": "ワークグループを管理…",
+    "workGroupEmpty": "ワークグループはまだありません"
   },
   "commands": {
     "empty": "一致するコマンドはありません",

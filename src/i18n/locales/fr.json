@@ -40,7 +40,13 @@
     "view": "Affichage",
     "dualPane": "Double volet",
     "windowControls": "Contrôles de fenêtre",
-    "placesMenu": "Acces rapide et favoris"
+    "home": "Dossier d’accueil",
+    "placesMenu": "Acces rapide et favoris",
+    "workGroupMenu": "Groupe de travail",
+    "workGroupSwitch": "Changer de groupe de travail",
+    "workGroupSave": "Enregistrer dans la config dure",
+    "workGroupManage": "Gérer les groupes de travail…",
+    "workGroupEmpty": "Aucun groupe de travail"
   },
   "commands": {
     "empty": "Aucune commande correspondante",
