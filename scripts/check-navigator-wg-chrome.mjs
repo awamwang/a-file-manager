@@ -14,6 +14,8 @@ for (const needle of [
   "navigator-work-group-menu",
   "silentSwitchWorkGroup",
   "saveActiveMembersFromTabsHard",
+  "openActiveMembersIntoOpenState",
+  "onOpenMembersIntoOpenState",
   "chrome.workGroupMenu",
 ]) {
   if (!shell.includes(needle)) {
@@ -41,11 +43,23 @@ for (const needle of [
   "work_groups_silent_switch",
   "work_groups_save_members_from_open_state",
   "restoreWorkGroupOpenState",
+  "openActiveMembersIntoOpenState",
+  "openMembersIntoOpenState",
 ]) {
   if (!chrome.includes(needle)) {
     console.error(`workGroupChrome missing ${needle}`);
     process.exit(1);
   }
+}
+
+if (!wgView.includes("openMembersIntoRuntime") || !wgView.includes("openMembersIntoOpenState")) {
+  console.error("WorkGroupsView missing open-members into Open State");
+  process.exit(1);
+}
+
+if (!en.workGroups?.openMembersIntoOpenState) {
+  console.error("en.workGroups.openMembersIntoOpenState missing");
+  process.exit(1);
 }
 
 if (en.chrome.workGroupMenu !== "Work Group") {

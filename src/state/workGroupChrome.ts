@@ -5,6 +5,7 @@ import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import {
   activeWorkGroupId,
+  openMembersIntoOpenState,
   restoreWorkGroupOpenState,
   snapshotLiveOpenState,
   type SilentSwitchResult,
@@ -88,6 +89,22 @@ export async function saveActiveMembersFromTabsHard(): Promise<boolean> {
   } catch (err) {
     workGroupChromeError.value = err instanceof Error ? err.message : String(err);
     return false;
+  } finally {
+    workGroupChromeBusy.value = false;
+  }
+}
+
+/** Soft-sync active WG hard members into the live Open State strip (Sigma-style). */
+export async function openActiveMembersIntoOpenState(): Promise<string[] | null> {
+  const active = activeWorkGroup.value;
+  if (!active?.memberPaths.length) return [];
+  workGroupChromeBusy.value = true;
+  workGroupChromeError.value = null;
+  try {
+    return await openMembersIntoOpenState(active.memberPaths);
+  } catch (err) {
+    workGroupChromeError.value = err instanceof Error ? err.message : String(err);
+    return null;
   } finally {
     workGroupChromeBusy.value = false;
   }

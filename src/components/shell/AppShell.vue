@@ -9,7 +9,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import CommandPanel from "../command/CommandPanel.vue";
 import ToastHost from "./ToastHost.vue";
 import FluentIcon from "../icons/FluentIcon.vue";
-import { toastError, toastInfo } from "../../state/toast";
+import { toastError, toastInfo, toastSuccess } from "../../state/toast";
 import { NAV_ICON_BY_ID } from "../icons/glyphs";
 import { buildAppCommands } from "../../commands/registry";
 import { toggleCommandPanel } from "../../state/commandPanel";
@@ -52,6 +52,7 @@ import {
   activeWorkGroup,
   dismissWorkGroupSoftNotice,
   loadWorkGroupsChrome,
+  openActiveMembersIntoOpenState,
   saveActiveMembersFromTabsHard,
   silentSwitchWorkGroup,
   workGroupChromeBusy,
@@ -262,6 +263,20 @@ async function onSilentSwitchWorkGroup(targetId: string) {
 async function onSaveMembersFromTabs() {
   closeWorkGroupMenu();
   await saveActiveMembersFromTabsHard();
+}
+
+async function onOpenMembersIntoOpenState() {
+  closeWorkGroupMenu();
+  await ensureNavigatorRoute();
+  const opened = await openActiveMembersIntoOpenState();
+  if (opened === null) return;
+  if (opened.length) {
+    toastSuccess(t("workGroups.openMembersDone", { count: opened.length }));
+  } else if (!(activeWorkGroup.value?.memberPaths.length)) {
+    toastInfo(t("workGroups.openMembersEmpty"));
+  } else {
+    toastInfo(t("workGroups.openMembersNone"));
+  }
 }
 
 async function openWorkGroupsPage() {
@@ -985,6 +1000,16 @@ onUnmounted(() => {
               </p>
 
               <p class="places-heading places-heading--fav">{{ t("chrome.workGroupSave") }}</p>
+              <button
+                type="button"
+                class="fluent-list-row places-item"
+                role="menuitem"
+                :disabled="workGroupChromeBusy || !activeWorkGroup?.memberPaths.length"
+                @click="onOpenMembersIntoOpenState"
+              >
+                <FluentIcon name="folderOpen" size="sm" />
+                <span>{{ t("workGroups.openMembersIntoOpenState") }}</span>
+              </button>
               <button
                 type="button"
                 class="fluent-list-row places-item"

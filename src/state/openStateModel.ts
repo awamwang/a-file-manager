@@ -249,6 +249,38 @@ export function openStateFromPaths(paths: string[]): WorkGroupOpenState {
   };
 }
 
+export type EnsureMemberTabsResult = {
+  state: WorkGroupOpenState;
+  /** Member paths that were newly appended as tab groups. */
+  opened: string[];
+};
+
+/**
+ * Hard members → runtime Open State (Sigma soft sync):
+ * append a directory tab group for each missing member path; never close extras.
+ */
+export function openStateEnsureMemberPaths(
+  state: WorkGroupOpenState,
+  memberPaths: string[],
+): EnsureMemberTabsResult {
+  const next = cloneOpenState(state);
+  const opened: string[] = [];
+  const seenKeys = new Set<string>();
+
+  for (const raw of memberPaths) {
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    const key = normalizePathKey(trimmed);
+    if (!key || seenKeys.has(key)) continue;
+    seenKeys.add(key);
+    if (findTabGroupIndexByPath(next, trimmed) >= 0) continue;
+    next.tabGroups.push([createDirectoryTab(trimmed)]);
+    opened.push(trimmed);
+  }
+
+  return { state: clampOpenStateIndices(next), opened };
+}
+
 export function normalizeRestoredOpenState(
   state: WorkGroupOpenState | null | undefined,
 ): WorkGroupOpenState {

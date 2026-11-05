@@ -48,6 +48,7 @@ for (const token of [
   "switchNavigatorTab",
   "switchNavigatorTabAdjacent",
   "openOrFocusNavigatorTab",
+  "openMembersIntoOpenState",
 ]) {
   if (!browse.includes(token)) {
     console.error(`navigatorBrowse missing ${token}`);
@@ -89,6 +90,7 @@ const model = readFileSync(join(root, "src/state/openStateModel.ts"), "utf8");
 for (const token of [
   "openStateAfterSwitchAdjacent",
   "openStateOpenOrFocusPath",
+  "openStateEnsureMemberPaths",
   "findTabGroupIndexByPath",
 ]) {
   if (!model.includes(token)) {
@@ -98,8 +100,22 @@ for (const token of [
 }
 
 const wg = readFileSync(join(root, "src/views/WorkGroupsView.vue"), "utf8");
-if (!wg.includes("restoreWorkGroupOpenState") || !wg.includes("snapshotLiveOpenState")) {
-  console.error("WorkGroupsView not wired to shared Open State");
+if (
+  !wg.includes("restoreWorkGroupOpenState") ||
+  !wg.includes("snapshotLiveOpenState") ||
+  !wg.includes("openMembersIntoOpenState") ||
+  !wg.includes("openMembersIntoRuntime")
+) {
+  console.error("WorkGroupsView not wired to shared Open State / open-members");
+  process.exit(1);
+}
+
+const projects = readFileSync(join(root, "src/views/ProjectsView.vue"), "utf8");
+if (
+  !projects.includes("openMembersIntoOpenState") ||
+  !projects.includes("openBoundMembersIntoRuntime")
+) {
+  console.error("ProjectsView missing open-members into Open State");
   process.exit(1);
 }
 

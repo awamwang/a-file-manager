@@ -10,6 +10,7 @@ import {
   openStateAfterNavigate,
   openStateAfterSwitchAdjacent,
   openStateAfterSwitchGroup,
+  openStateEnsureMemberPaths,
   openStateFromPaths,
   openStateOpenOrFocusPath,
   openStateWithNewTab,
@@ -247,6 +248,28 @@ export async function openOrFocusNavigatorTab(path: string): Promise<void> {
   if (active?.path) {
     await navigateTo(active.path, { syncOpenState: false });
   }
+}
+
+/**
+ * Sigma-style soft sync: ensure each Work Group member path has a tab in the live Open State.
+ * Appends missing members only; does not close existing tabs. Returns newly opened paths.
+ */
+export async function openMembersIntoOpenState(
+  memberPaths: string[],
+): Promise<string[]> {
+  const { state, opened } = openStateEnsureMemberPaths(
+    liveOpenState.value,
+    memberPaths,
+  );
+  liveOpenState.value = state;
+  schedulePersist(true);
+  const active = activeStripTab(liveOpenState.value);
+  if (active?.path) {
+    await navigateTo(active.path, { syncOpenState: false });
+  } else if (opened[0]) {
+    await navigateTo(opened[0], { syncOpenState: false });
+  }
+  return opened;
 }
 
 /** Apply Open State restored by Work Group silent switch / hard-member sync. */

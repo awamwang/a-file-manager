@@ -7,6 +7,7 @@ import { useRouter } from "vue-router";
 import {
   activeWorkGroupId,
   liveOpenState,
+  openMembersIntoOpenState,
   openOrFocusNavigatorTab,
   restoreWorkGroupOpenState,
   snapshotLiveOpenState,
@@ -145,6 +146,20 @@ async function saveMembersFromTabs() {
   });
 }
 
+async function openMembersIntoRuntime() {
+  if (!active.value?.memberPaths.length) {
+    toastInfo(t("workGroups.openMembersEmpty"));
+    return;
+  }
+  const opened = await openMembersIntoOpenState(active.value.memberPaths);
+  if (opened.length) {
+    toastSuccess(t("workGroups.openMembersDone", { count: opened.length }));
+    await router.push("/navigator");
+  } else {
+    toastInfo(t("workGroups.openMembersNone"));
+  }
+}
+
 async function promoteToProject() {
   if (!active.value || active.value.isDefault) return;
   error.value = null;
@@ -276,12 +291,20 @@ onMounted(() => {
         <p v-else class="fluent-page-meta">{{ t("workGroups.noOpenTabs") }}</p>
 
         <div class="actions">
+          <button
+            class="fluent-control fluent-control--accent"
+            type="button"
+            :disabled="!active.memberPaths.length"
+            @click="openMembersIntoRuntime"
+          >
+            {{ t("workGroups.openMembersIntoOpenState") }}
+          </button>
           <button class="fluent-control" type="button" @click="saveMembersFromTabs">
             {{ t("workGroups.saveMembersFromTabs") }}
           </button>
           <button
             v-if="!active.isDefault"
-            class="fluent-control fluent-control--accent"
+            class="fluent-control"
             type="button"
             @click="promoteToProject"
           >

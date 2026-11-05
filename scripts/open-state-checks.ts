@@ -12,6 +12,7 @@ import {
   openStateAfterNavigate,
   openStateAfterSwitchAdjacent,
   openStateAfterSwitchGroup,
+  openStateEnsureMemberPaths,
   openStateFromPaths,
   openStateOpenOrFocusPath,
   openStateWithNewTab,
@@ -104,5 +105,24 @@ assert.equal(focusMiss.focusedExisting, false);
 assert.equal(focusMiss.state.tabGroups.length, 4);
 assert.equal(focusMiss.state.currentTabGroupIndex, 3);
 assert.equal(activeStripTab(focusMiss.state)?.name, "NewFolder");
+
+// Soft sync: append missing members only; keep extras; do not jump focus.
+const softBase = openStateFromPaths(["G:/Projects/A", "G:/Projects/Extra"]);
+softBase.currentTabGroupIndex = 1;
+const soft = openStateEnsureMemberPaths(softBase, [
+  "G:/Projects/A",
+  "G:\\Projects\\B",
+  "g:/projects/b",
+  "G:/Projects/C",
+]);
+assert.equal(soft.opened.length, 2);
+assert.deepEqual(soft.opened, ["G:\\Projects\\B", "G:/Projects/C"]);
+assert.equal(soft.state.tabGroups.length, 4);
+assert.equal(soft.state.currentTabGroupIndex, 1);
+assert.equal(activeStripTab(soft.state)?.path, "G:/Projects/Extra");
+
+const softNone = openStateEnsureMemberPaths(soft.state, ["G:/Projects/A", "G:/Projects/B"]);
+assert.equal(softNone.opened.length, 0);
+assert.equal(softNone.state.tabGroups.length, 4);
 
 console.log("open-state-checks: ok");

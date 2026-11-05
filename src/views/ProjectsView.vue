@@ -6,6 +6,7 @@ import { useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
 import {
   applyProjectSilentSwitch,
+  openMembersIntoOpenState,
   openOrFocusNavigatorTab,
   openPathsAsNavigatorTabs,
   snapshotLiveOpenState,
@@ -67,6 +68,7 @@ type WorkGroupOption = {
   id: string;
   name: string;
   isDefault: boolean;
+  memberPaths?: string[];
 };
 
 type ActivateResult = {
@@ -261,6 +263,32 @@ async function saveMembersFromTabs() {
     await refresh();
   } catch (err) {
     error.value = mapProjectError(err);
+  }
+}
+
+const boundMemberPaths = computed(() => {
+  const id = selected.value?.workGroupId;
+  if (!id) return [] as string[];
+  return workGroups.value.find((group) => group.id === id)?.memberPaths ?? [];
+});
+
+async function openBoundMembersIntoRuntime() {
+  if (!selected.value?.workGroupId) {
+    error.value = t("projects.errorUnbound");
+    return;
+  }
+  error.value = null;
+  const paths = boundMemberPaths.value;
+  if (!paths.length) {
+    toastInfo(t("workGroups.openMembersEmpty"));
+    return;
+  }
+  const opened = await openMembersIntoOpenState(paths);
+  if (opened.length) {
+    toastSuccess(t("workGroups.openMembersDone", { count: opened.length }));
+    await router.push("/navigator");
+  } else {
+    toastInfo(t("workGroups.openMembersNone"));
   }
 }
 
@@ -472,6 +500,15 @@ onMounted(() => {
           </select>
           <button class="fluent-control fluent-control--accent" type="submit">
             {{ t("projects.bindSave") }}
+          </button>
+          <button
+            v-if="selected.workGroupId"
+            class="fluent-control fluent-control--accent"
+            type="button"
+            :disabled="!boundMemberPaths.length"
+            @click="openBoundMembersIntoRuntime"
+          >
+            {{ t("projects.openMembersIntoOpenState") }}
           </button>
           <button
             v-if="selected.workGroupId"
