@@ -201,7 +201,8 @@ function formatSize(entry: NavigatorEntry): string {
   if (entry.kind === "dir") return "—";
   if (entry.size < 1024) return `${entry.size} B`;
   if (entry.size < 1024 * 1024) return `${(entry.size / 1024).toFixed(1)} KB`;
-  return `${(entry.size / (1024 * 1024)).toFixed(1)} MB`;
+  if (entry.size < 1024 * 1024 * 1024) return `${(entry.size / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(entry.size / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
 function formatModified(entry: NavigatorEntry): string {
@@ -218,6 +219,22 @@ function formatModified(entry: NavigatorEntry): string {
   } catch {
     return "—";
   }
+}
+
+/** Native hover tip (Win Explorer–like): kind + size (files) + locale modified time. */
+function entryHoverTitle(entry: NavigatorEntry): string {
+  const lines: string[] = [
+    entry.kind === "dir" ? t("navigator.folder") : t("navigator.file"),
+  ];
+  // Folders: omit size (no listing child-count field today). Files: human size.
+  if (entry.kind !== "dir") {
+    lines.push(`${t("navigator.colSize")}: ${formatSize(entry)}`);
+  }
+  const modified = formatModified(entry);
+  if (modified !== "—") {
+    lines.push(`${t("navigator.colModified")}: ${modified}`);
+  }
+  return lines.join("\n");
 }
 
 function sortIndicator(column: "name" | "size" | "modified"): string {
@@ -674,6 +691,7 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
         draggable="true"
         :data-entry-path="entry.path"
         :aria-selected="isSelected(entry.path)"
+        :title="entryHoverTitle(entry)"
         @click="onRowClick($event, entry)"
         @dblclick="onActivate(entry)"
         @keydown.enter.prevent="onActivate(entry)"
@@ -686,7 +704,6 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
         <span
           class="kind"
           :data-kind="entry.kind"
-          :title="entry.kind === 'dir' ? t('navigator.folder') : t('navigator.file')"
         >
           <img
             v-if="shellIcon(entry.path)"
@@ -748,6 +765,7 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
           :class="{ 'row--icon': isIconView }"
           role="listitem"
           tabindex="0"
+          :title="entryHoverTitle(entry)"
           @dblclick="onActivateSecondary(entry)"
           @keydown.enter.prevent="onActivateSecondary(entry)"
         >
