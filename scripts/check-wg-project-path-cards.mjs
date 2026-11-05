@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Work Groups / Projects: clickable Fluent path cards + usage hints.
+// Work Groups / Projects: path cards, usage hints, unified edit chrome.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const wg = readFileSync(join(root, "src/views/WorkGroupsView.vue"), "utf8");
 const projects = readFileSync(join(root, "src/views/ProjectsView.vue"), "utf8");
+const pathCards = readFileSync(join(root, "src/styles/path-cards.css"), "utf8");
 const en = JSON.parse(readFileSync(join(root, "src/i18n/locales/en.json"), "utf8"));
 const zh = JSON.parse(readFileSync(join(root, "src/i18n/locales/zh-CN.json"), "utf8"));
 
@@ -22,4 +23,43 @@ assert.ok(en.projects.usageHint.length > 10);
 assert.ok(zh.workGroups.usageHint.includes("标签") || zh.workGroups.usageHint.length > 8);
 assert.ok(zh.projects.usageHint.includes("项目") || zh.projects.usageHint.length > 8);
 
-console.log("wg/project path cards + usage hints OK.");
+// Unified edit chrome: ⋯ only (no standalone delete tag), right-aligned.
+assert.ok(!wg.includes("name-tag--danger"));
+assert.ok(!projects.includes("name-tag--danger"));
+assert.ok(wg.includes('class="more-menu"') || wg.includes("class=\"more-menu\"") || wg.includes("more-menu"));
+assert.ok(projects.includes("more-menu"));
+assert.ok(wg.includes("margin-inline-start: auto"));
+assert.ok(projects.includes("margin-inline-start: auto"));
+
+// Inline rename: Enter saves; blur/Escape cancel without save; toast on save.
+assert.ok(wg.includes('@keydown.enter.prevent="commitInlineRename"'));
+assert.ok(wg.includes('@keydown.escape.prevent="cancelInlineRename"'));
+assert.ok(wg.includes('@blur="onRenameBlur"'));
+assert.ok(wg.includes("onRenameBlur"));
+assert.ok(!wg.includes('@blur="commitInlineRename"'));
+assert.ok(wg.includes("toastSuccess(t(\"workGroups.renamed\"))") || wg.includes("toastSuccess(t('workGroups.renamed'))"));
+assert.ok(projects.includes('@keydown.enter.prevent="commitProjectInlineRename"'));
+assert.ok(projects.includes('@keydown.escape.prevent="cancelProjectInlineRename"'));
+assert.ok(projects.includes('@blur="onProjectRenameBlur"'));
+assert.ok(projects.includes("onProjectRenameBlur"));
+assert.ok(!projects.includes('@blur="commitProjectInlineRename"'));
+assert.ok(
+  projects.includes("toastSuccess(t(\"projects.renamed\"))") ||
+    projects.includes("toastSuccess(t('projects.renamed'))"),
+);
+
+// Click-away closes menus / cancels rename.
+assert.ok(wg.includes("pointerdown"));
+assert.ok(projects.includes("pointerdown"));
+assert.ok(wg.includes("onDetailPointerDown"));
+assert.ok(projects.includes("onProjectDetailPointerDown"));
+
+// Member/link remove is trailing chrome on the card row (not a stacked full-width row).
+assert.match(pathCards, /\.path-card--with-action\s*\{[^}]*flex-direction:\s*row/s);
+assert.ok(!/flex-direction:\s*column/.test(pathCards.match(/\.path-card--with-action\s*\{[^}]*\}/s)?.[0] ?? ""));
+assert.ok(wg.includes('name="close"'));
+assert.ok(projects.includes('name="close"'));
+assert.ok(wg.includes("@click.stop=\"removeMember"));
+assert.ok(projects.includes("@click.stop=\"removeLink"));
+
+console.log("wg/project path cards + unified edit chrome OK.");

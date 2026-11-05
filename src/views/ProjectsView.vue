@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
@@ -232,14 +232,18 @@ async function createProject() {
 const renamingProject = ref(false);
 const projectRenameDraft = ref("");
 const projectMoreOpen = ref(false);
+const projectRenameInputEl = ref<HTMLInputElement | null>(null);
+const projectMoreMenuEl = ref<HTMLElement | null>(null);
+const projectTitleRowEl = ref<HTMLElement | null>(null);
 
 function startProjectInlineRename() {
   if (!selected.value) return;
   projectRenameDraft.value = selected.value.name;
   renamingProject.value = true;
   projectMoreOpen.value = false;
-  requestAnimationFrame(() => {
-    document.getElementById("project-inline-rename")?.focus();
+  void nextTick(() => {
+    projectRenameInputEl.value?.focus();
+    projectRenameInputEl.value?.select();
   });
 }
 
@@ -248,10 +252,18 @@ function cancelProjectInlineRename() {
   projectRenameDraft.value = "";
 }
 
+function onProjectRenameBlur() {
+  // Defer so Enter-commit can clear `renamingProject` first in the same turn.
+  queueMicrotask(() => {
+    if (renamingProject.value) cancelProjectInlineRename();
+  });
+}
+
 async function commitProjectInlineRename() {
   if (!selected.value || !renamingProject.value) return;
   const next = projectRenameDraft.value.trim();
   renamingProject.value = false;
+  projectRenameDraft.value = "";
   if (!next || next === selected.value.name) return;
   error.value = null;
   try {
@@ -262,6 +274,25 @@ async function commitProjectInlineRename() {
     toastSuccess(t("projects.renamed"));
   } catch (err) {
     error.value = mapProjectError(err);
+  }
+}
+
+function onProjectDetailPointerDown(event: PointerEvent) {
+  const target = event.target as Node | null;
+  if (!target) return;
+  if (
+    projectMoreOpen.value &&
+    projectMoreMenuEl.value &&
+    !projectMoreMenuEl.value.contains(target)
+  ) {
+    projectMoreOpen.value = false;
+  }
+  if (
+    renamingProject.value &&
+    projectTitleRowEl.value &&
+    !projectTitleRowEl.value.contains(target)
+  ) {
+    cancelProjectInlineRename();
   }
 }
 
@@ -423,6 +454,11 @@ async function openLink(path: string) {
 
 onMounted(() => {
   void refresh();
+  window.addEventListener("pointerdown", onProjectDetailPointerDown, true);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("pointerdown", onProjectDetailPointerDown, true);
 });
 </script>
 
@@ -479,73 +515,66 @@ onMounted(() => {
       </aside>
 
       <div v-if="selected" class="fluent-surface detail">
-        <div class="detail-head">
-          <div>
-            <div class="detail-title-row">
-              <input
-                v-if="renamingProject"
-                id="project-inline-rename"
-                v-model="projectRenameDraft"
-                class="fluent-control inline-rename"
-                @keydown.enter.prevent="commitProjectInlineRename"
-                @keydown.escape.prevent="cancelProjectInlineRename"
-                @blur="commitProjectInlineRename"
-              />
-              <h2
-                v-else
-                class="inline-title"
-                :title="t('projects.renameHint')"
-                @dblclick="startProjectInlineRename"
+        <div ref="projectTitleRowEl" class="detail-title-row">
+          <input
+            v-if="renamingProject"
+            ref="projectRenameInputEl"
+            v-model="projectRenameDraft"
+            class="fluent-control inline-rename"
+            @keydown.enter.prevent="commitProjectInlineRename"
+            @keydown.escape.prevent="cancelProjectInlineRename"
+            @blur="onProjectRenameBlur"
+          />
+          <h2
+            v-else
+            class="inline-title"
+            :title="t('projects.renameHint')"
+            @dblclick="startProjectInlineRename"
+          >
+            {{ selected.name }}
+          </h2>
+          <div ref="projectMoreMenuEl" class="more-menu">
+            <button
+              type="button"
+              class="fluent-control more-trigger"
+              :aria-expanded="projectMoreOpen"
+              aria-haspopup="menu"
+              :title="t('common.more')"
+              @click="projectMoreOpen = !projectMoreOpen"
+            >
+              ···
+            </button>
+            <div v-if="projectMoreOpen" class="more-popover fluent-surface" role="menu">
+              <button
+                type="button"
+                class="more-item"
+                role="menuitem"
+                @click="startProjectInlineRename"
               >
-                {{ selected.name }}
-              </h2>
-              <button type="button" class="name-tag name-tag--danger" @click="deleteSelected">
+                {{ t("projects.rename") }}
+              </button>
+              <button
+                type="button"
+                class="more-item more-item--danger"
+                role="menuitem"
+                @click="
+                  projectMoreOpen = false;
+                  deleteSelected();
+                "
+              >
                 {{ t("common.delete") }}
               </button>
-              <div class="more-menu">
-                <button
-                  type="button"
-                  class="fluent-control more-trigger"
-                  :aria-expanded="projectMoreOpen"
-                  aria-haspopup="menu"
-                  :title="t('common.more')"
-                  @click="projectMoreOpen = !projectMoreOpen"
-                >
-                  ···
-                </button>
-                <div v-if="projectMoreOpen" class="more-popover fluent-surface" role="menu">
-                  <button
-                    type="button"
-                    class="more-item"
-                    role="menuitem"
-                    @click="startProjectInlineRename"
-                  >
-                    {{ t("projects.rename") }}
-                  </button>
-                  <button
-                    type="button"
-                    class="more-item more-item--danger"
-                    role="menuitem"
-                    @click="
-                      projectMoreOpen = false;
-                      deleteSelected();
-                    "
-                  >
-                    {{ t("common.delete") }}
-                  </button>
-                </div>
-              </div>
             </div>
-            <p class="fluent-page-meta">
-              {{ selected.description || t("projects.noDescription") }} ·
-              {{ t("projects.openTasks", { count: openTaskCount }) }}
-            </p>
           </div>
-          <div class="actions">
-            <button class="fluent-control fluent-control--accent" type="button" @click="openAllLinks">
-              {{ t("projects.openAllLinks") }}
-            </button>
-          </div>
+        </div>
+        <p class="fluent-page-meta">
+          {{ selected.description || t("projects.noDescription") }} ·
+          {{ t("projects.openTasks", { count: openTaskCount }) }}
+        </p>
+        <div class="actions">
+          <button class="fluent-control fluent-control--accent" type="button" @click="openAllLinks">
+            {{ t("projects.openAllLinks") }}
+          </button>
         </div>
 
         <h3>{{ t("projects.sessionBinding") }}</h3>
@@ -615,9 +644,9 @@ onMounted(() => {
               class="fluent-control path-card-remove"
               :title="t('common.remove')"
               :aria-label="t('common.remove')"
-              @click="removeLink(link.id)"
+              @click.stop="removeLink(link.id)"
             >
-              {{ t("common.remove") }}
+              <FluentIcon name="close" size="sm" />
             </button>
           </div>
         </div>
@@ -824,18 +853,12 @@ onMounted(() => {
   min-height: 12rem;
 }
 
-.detail-head {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--fluent-space-md);
-  flex-wrap: wrap;
-}
-
 .detail-title-row {
   display: flex;
   align-items: center;
   gap: var(--fluent-space-sm);
   flex-wrap: wrap;
+  margin-bottom: var(--fluent-space-xs);
 }
 
 .inline-title {
@@ -845,30 +868,15 @@ onMounted(() => {
 
 .inline-rename {
   min-width: 12rem;
+  flex: 1;
   font-size: var(--fluent-font-size-title);
   font-weight: var(--fluent-font-weight-semibold);
-}
-
-.name-tag {
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: 999px;
-  padding: 2px 10px;
-  background: var(--fluent-color-fill-subtle);
-  color: var(--fluent-color-text-secondary);
-  font: inherit;
-  font-size: var(--fluent-font-size-caption);
-  cursor: pointer;
-}
-
-.name-tag--danger {
-  color: var(--fluent-color-status-danger);
-  border-color: color-mix(in srgb, var(--fluent-color-status-danger) 35%, transparent);
-  background: var(--fluent-color-status-danger-bg);
 }
 
 .more-menu {
   position: relative;
   margin-inline-start: auto;
+  flex-shrink: 0;
 }
 
 .more-trigger {

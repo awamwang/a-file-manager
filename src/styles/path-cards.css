@@ -28,7 +28,9 @@
 }
 
 .path-card--with-action {
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
+  cursor: default;
   gap: var(--fluent-space-sm);
 }
 
@@ -75,5 +77,14 @@
 }
 
 .path-card-remove {
-  align-self: flex-end;
+  flex-shrink: 0;
+  align-self: center;
+  min-width: 2rem;
+  padding-inline: var(--fluent-space-sm);
+  color: var(--fluent-color-text-secondary);
+}
+
+.path-card-remove:hover,
+.path-card-remove:focus-visible {
+  color: var(--fluent-color-status-danger);
 }

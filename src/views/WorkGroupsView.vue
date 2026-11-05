@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { useRouter } from "vue-router";
@@ -157,14 +157,18 @@ async function removeMember(path: string) {
 const renaming = ref(false);
 const renameDraft = ref("");
 const moreMenuOpen = ref(false);
+const renameInputEl = ref<HTMLInputElement | null>(null);
+const moreMenuEl = ref<HTMLElement | null>(null);
+const detailTitleRowEl = ref<HTMLElement | null>(null);
 
 function startInlineRename() {
   if (!active.value) return;
   renameDraft.value = active.value.name;
   renaming.value = true;
   moreMenuOpen.value = false;
-  requestAnimationFrame(() => {
-    document.getElementById("wg-inline-rename")?.focus();
+  void nextTick(() => {
+    renameInputEl.value?.focus();
+    renameInputEl.value?.select();
   });
 }
 
@@ -173,16 +177,35 @@ function cancelInlineRename() {
   renameDraft.value = "";
 }
 
+function onRenameBlur() {
+  // Defer so Enter-commit can clear `renaming` first in the same turn.
+  queueMicrotask(() => {
+    if (renaming.value) cancelInlineRename();
+  });
+}
+
 async function commitInlineRename() {
   if (!active.value || !renaming.value) return;
   const next = renameDraft.value.trim();
   renaming.value = false;
+  renameDraft.value = "";
   if (!next || next === active.value.name) return;
   document.value = await invoke<UserWorkGroups>("work_groups_rename", {
     workGroupId: active.value.id,
     name: next,
   });
   toastSuccess(t("workGroups.renamed"));
+}
+
+function onDetailPointerDown(event: PointerEvent) {
+  const target = event.target as Node | null;
+  if (!target) return;
+  if (moreMenuOpen.value && moreMenuEl.value && !moreMenuEl.value.contains(target)) {
+    moreMenuOpen.value = false;
+  }
+  if (renaming.value && detailTitleRowEl.value && !detailTitleRowEl.value.contains(target)) {
+    cancelInlineRename();
+  }
 }
 
 async function deleteActiveGroup() {
@@ -249,6 +272,11 @@ async function promoteToProject() {
 
 onMounted(() => {
   void refresh();
+  window.addEventListener("pointerdown", onDetailPointerDown, true);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("pointerdown", onDetailPointerDown, true);
 });
 </script>
 
@@ -298,15 +326,15 @@ onMounted(() => {
       </aside>
 
       <div v-if="active" class="fluent-surface detail">
-        <div class="detail-title-row">
+        <div ref="detailTitleRowEl" class="detail-title-row">
           <input
             v-if="renaming"
-            id="wg-inline-rename"
+            ref="renameInputEl"
             v-model="renameDraft"
             class="fluent-control inline-rename"
             @keydown.enter.prevent="commitInlineRename"
             @keydown.escape.prevent="cancelInlineRename"
-            @blur="commitInlineRename"
+            @blur="onRenameBlur"
           />
           <h2
             v-else
@@ -316,15 +344,7 @@ onMounted(() => {
           >
             {{ active.name }}
           </h2>
-          <button
-            v-if="!active.isDefault"
-            type="button"
-            class="name-tag name-tag--danger"
-            @click="deleteActiveGroup"
-          >
-            {{ t("workGroups.delete") }}
-          </button>
-          <div class="more-menu">
+          <div ref="moreMenuEl" class="more-menu">
             <button
               type="button"
               class="fluent-control more-trigger"
@@ -383,9 +403,10 @@ onMounted(() => {
               type="button"
               class="fluent-control path-card-remove"
               :title="t('workGroups.removeMember')"
-              @click="removeMember(path)"
+              :aria-label="t('workGroups.removeMember')"
+              @click.stop="removeMember(path)"
             >
-              {{ t("common.remove") }}
+              <FluentIcon name="close" size="sm" />
             </button>
           </div>
         </div>
@@ -465,30 +486,15 @@ onMounted(() => {
 
 .inline-rename {
   min-width: 12rem;
+  flex: 1;
   font-size: var(--fluent-font-size-title);
   font-weight: var(--fluent-font-weight-semibold);
-}
-
-.name-tag {
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: 999px;
-  padding: 2px 10px;
-  background: var(--fluent-color-fill-subtle);
-  color: var(--fluent-color-text-secondary);
-  font: inherit;
-  font-size: var(--fluent-font-size-caption);
-  cursor: pointer;
-}
-
-.name-tag--danger {
-  color: var(--fluent-color-status-danger);
-  border-color: color-mix(in srgb, var(--fluent-color-status-danger) 35%, transparent);
-  background: var(--fluent-color-status-danger-bg);
 }
 
 .more-menu {
   position: relative;
   margin-inline-start: auto;
+  flex-shrink: 0;
 }
 
 .more-trigger {
