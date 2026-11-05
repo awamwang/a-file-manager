@@ -28,6 +28,14 @@ assert.ok(view.includes('@keydown.escape.prevent.stop="cancelInlineRename"'));
 assert.ok(view.includes('registerShortcutHandler("navigator.rename"'));
 assert.ok(view.includes("min-width: 10rem"));
 assert.ok(view.includes("isIconView.value ? 2 : 1"));
+// Drag-select must scroll through overflow — never clip with overflow:hidden.
+assert.ok(view.includes("overflow-x: auto"));
+assert.ok(view.includes("overflow-y: hidden"));
+assert.ok(view.includes("overflow-y: auto"));
+assert.ok(view.includes("user-select: text"));
+assert.ok(view.includes("scrollbar-width: none"));
+assert.match(view, /\.inline-rename\s*\{[^}]*overflow-x:\s*auto/s);
+assert.ok(!/\.inline-rename\s*\{[^}]*overflow:\s*hidden/s.test(view));
 assert.ok(!view.includes("window.prompt(t(\"contextMenu.renamePrompt\")"));
 assert.ok(!view.includes("window.prompt(t('contextMenu.renamePrompt')"));
 
@@ -38,4 +46,4 @@ assert.ok(!menu.includes("runRename"));
 assert.ok(!menu.includes("window.prompt(t(\"contextMenu.renamePrompt\")"));
 assert.ok(!menu.includes("renameEntry"));
 
-console.log("Navigator inline rename checks OK (AIA-171/AIA-172).");
+console.log("Navigator inline rename checks OK (AIA-171/AIA-172/AIA-173).");

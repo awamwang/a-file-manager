@@ -1147,6 +1147,9 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   line-height: 1.25;
+  /* Height-capped wrap: scroll so drag-select can reach every line. */
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .list--icons .shell-icon {
@@ -1266,9 +1269,20 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
   font: inherit;
   line-height: inherit;
   resize: none;
-  overflow: hidden;
+  /*
+   * Overflow must scroll (not clip): mouse-drag selection auto-scrolls through
+   * the field so every character is reachable. Hide scrollbars like Explorer.
+   */
+  overflow-x: auto;
+  overflow-y: hidden;
   white-space: nowrap;
   field-sizing: fixed;
+  user-select: text;
+  scrollbar-width: none;
+}
+
+.inline-rename::-webkit-scrollbar {
+  display: none;
 }
 
 .size {
