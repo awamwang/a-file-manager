@@ -63,6 +63,13 @@ import {
   quitApplication,
   type CloseBehavior,
 } from "../../state/closeBehavior";
+import {
+  closeNavigatorFilter,
+  navigatorFilterOpen,
+  navigatorFilterQuery,
+  openNavigatorFilter,
+  toggleNavigatorFilter,
+} from "../../state/navigatorFilter";
 
 const { t, locale } = useI18n();
 
@@ -254,6 +261,11 @@ function onGlobalKeydown(event: KeyboardEvent) {
     event.preventDefault();
     return;
   }
+  if (event.key === "Escape" && navigatorFilterOpen.value && isNavigatorRoute.value) {
+    closeNavigatorFilter();
+    event.preventDefault();
+    return;
+  }
   if (event.key === "Escape" && (placesMenuOpen.value || workGroupMenuOpen.value)) {
     closeChromeMenus();
     event.preventDefault();
@@ -283,6 +295,14 @@ function registerShellShortcuts() {
     toggleCommandPanel();
   });
   registerShortcutHandler("discovery.globalSearch", () => {
+    // On Navigator: open in-folder filter. Elsewhere: Discovery global search.
+    if (route.path === "/navigator" || route.path === "/") {
+      openNavigatorFilter();
+      requestAnimationFrame(() => {
+        document.getElementById("navigator-folder-filter")?.focus();
+      });
+      return;
+    }
     requestGlobalSearchFocus();
     if (route.path !== "/discovery") {
       void router.push("/discovery");
@@ -363,7 +383,10 @@ watch(
 );
 
 watch(isNavigatorRoute, (onNavigator) => {
-  if (!onNavigator) closeChromeMenus();
+  if (!onNavigator) {
+    closeChromeMenus();
+    closeNavigatorFilter();
+  }
 });
 
 /** Files-like primary status (item counts) — left side of the shell status bar. */
@@ -852,6 +875,26 @@ onUnmounted(() => {
           <FluentIcon name="dualPane" size="sm" force-svg />
         </button>
 
+        <button
+          id="navigator-filter-toggle"
+          type="button"
+          class="fluent-control nav-icon-btn"
+          :class="{ 'nav-icon-btn--active': navigatorFilterOpen }"
+          :title="t('navigator.filterToggle')"
+          :aria-label="t('navigator.filterToggle')"
+          :aria-pressed="navigatorFilterOpen"
+          @click="
+            toggleNavigatorFilter();
+            if (navigatorFilterOpen) {
+              requestAnimationFrame(() => {
+                document.getElementById('navigator-folder-filter')?.focus();
+              });
+            }
+          "
+        >
+          <FluentIcon name="search" size="sm" />
+        </button>
+
         <div
           v-if="!addressEditing"
           class="breadcrumbs"
@@ -890,6 +933,34 @@ onUnmounted(() => {
           {{ t("chrome.go") }}
         </button>
       </form>
+
+      <div
+        v-if="navigatorFilterOpen"
+        id="navigator-filter-bar"
+        class="navigator-filter-bar"
+        role="search"
+        :aria-label="t('navigator.filterToggle')"
+      >
+        <FluentIcon name="search" size="sm" class="navigator-filter-icon" />
+        <input
+          id="navigator-folder-filter"
+          v-model="navigatorFilterQuery"
+          class="fluent-control navigator-filter-input"
+          type="search"
+          :placeholder="t('navigator.filterPlaceholder')"
+          spellcheck="false"
+          @keydown.escape.prevent="closeNavigatorFilter"
+        />
+        <button
+          type="button"
+          class="fluent-control"
+          :title="t('navigator.filterClear')"
+          :aria-label="t('navigator.filterClear')"
+          @click="closeNavigatorFilter"
+        >
+          {{ t("navigator.filterClear") }}
+        </button>
+      </div>
 
       <div class="tabstrip" role="tablist" :aria-label="t('chrome.tabs')">
         <div
@@ -1624,5 +1695,25 @@ onUnmounted(() => {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--fluent-space-sm);
+}
+
+.navigator-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  padding: var(--fluent-space-xs) var(--fluent-space-md);
+  border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  background: var(--fluent-color-fill-control);
+  flex-shrink: 0;
+}
+
+.navigator-filter-icon {
+  color: var(--fluent-color-fill-accent);
+  flex-shrink: 0;
+}
+
+.navigator-filter-input {
+  flex: 1;
+  min-height: var(--fluent-control-height-standard);
 }
 </style>

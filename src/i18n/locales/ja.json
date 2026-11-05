@@ -90,32 +90,38 @@
     "yes": "はい"
   },
   "discovery": {
-    "degraded": "低下",
-    "engine": "エンジン",
-    "fallback": "自己インデックスのフォールバックスタブを有効化（Everything 停止時のみ）",
-    "file": "ファイル",
-    "folder": "フォルダー",
-    "meta": "Everything IPC を第一級 · es.exe なし · 有効時のみフォールバックスタブ",
-    "noHits": "ヒットなし（engine={engine}, total={total}）。",
+    "title": "ディスカバリー",
+    "meta": "名前やパスでこの PC を検索",
+    "engineCards": "検索エンジン",
+    "engines": {
+      "everything": "Everything",
+      "fallback": "予備検索",
+      "unavailable": "利用不可"
+    },
+    "everythingReady": "接続済み・利用可能",
+    "everythingReadyCount": "接続済み · 約 {count} 件インデックス",
+    "everythingOffline": "現在利用できません",
+    "everythingConfigTitle": "Everything",
+    "everythingConfigHint": "この PC で動作中の Everything を使います。結果に出したくないフォルダーは下で除外できます。",
+    "fallbackOff": "オフ — Everything が使えないときにオン",
+    "fallbackStandby": "待機中（Everything 不可時に使用）",
+    "fallbackActive": "使用中（Everything 不可）",
+    "fallbackConfigTitle": "予備検索",
+    "fallbackConfigHint": "限定的な内蔵フォールバックで、完全なローカル索引ではありません。Everything があるときはそちらを優先してください。",
+    "fallbackBlacklistNote": "除外フォルダーは Everything カードで編集し、Discovery 全体に適用されます。",
     "placeholder": "ファイル名 / パスを検索…",
     "search": "検索",
     "searching": "検索中…",
+    "noHits": "結果なし（{engine} · 合計 {total}）。",
     "shown": "{shown} 件表示 · 合計 {total} · {engine}",
-    "title": "ディスカバリー",
-    "indexState": "インデックス状態",
-    "indexStates": {
-      "ready": "準備完了",
-      "degraded": "低下",
-      "unavailable": "利用不可"
-    },
-    "indexCount": "約 {count} 件",
-    "indexCountUnknown": "件数不明",
-    "blacklistTitle": "ディレクトリのブラックリスト",
-    "blacklistHint": "これらのディレクトリ配下は Discovery 結果から除外されます。1行に1つの絶対パス。",
+    "folder": "フォルダー",
+    "file": "ファイル",
+    "blacklistTitle": "除外フォルダー",
+    "blacklistHint": "これらのフォルダー配下は Discovery 結果に出ません。1行に1つの絶対パス。",
     "blacklistPlaceholder": "C:\\\\Windows\\nD:\\\\Temp",
-    "blacklistSave": "ブラックリストを保存",
+    "blacklistSave": "除外を保存",
     "blacklistSaving": "保存中…",
-    "blacklistCount": "{count} 件"
+    "blacklistCount": "{count} フォルダー"
   },
   "extensions": {
     "api": "API {version}",
@@ -181,7 +187,11 @@
     "colName": "名前",
     "colSize": "サイズ",
     "nItems": "{count} 項目",
-    "movedInto": "{count} 項目を {name} へ移動しました"
+    "movedInto": "{count} 項目を {name} へ移動しました",
+    "filterPlaceholder": "このフォルダーを絞り込み…",
+    "filterToggle": "フォルダーを絞り込み",
+    "filterClear": "絞り込みをクリア",
+    "filterEmpty": "一致する項目がありません。"
   },
   "projects": {
     "addLink": "リンクを追加",

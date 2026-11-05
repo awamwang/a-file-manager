@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { navigateTo, type NavigatorEntry } from "../state/navigatorBrowse";
@@ -17,6 +17,7 @@ import { entryKindIcon } from "../components/icons/glyphs";
 
 type DiscoveryEngine = "everything" | "fallback" | "unavailable";
 type DiscoveryIndexState = "ready" | "degraded" | "unavailable";
+type EngineCardId = "everything" | "fallback";
 
 type DiscoveryStatus = {
   everythingAvailable: boolean;
@@ -46,6 +47,7 @@ type DiscoverySearchResult = {
 const { t } = useI18n();
 const router = useRouter();
 const status = ref<DiscoveryStatus | null>(null);
+const selectedCard = ref<EngineCardId>("everything");
 const query = ref("");
 const result = ref<DiscoverySearchResult | null>(null);
 const loading = ref(false);
@@ -60,6 +62,32 @@ const menuX = ref(0);
 const menuY = ref(0);
 const notice = ref<string | null>(null);
 let noticeTimer: ReturnType<typeof setTimeout> | null = null;
+
+const everythingStatusText = computed(() => {
+  if (!status.value) return "";
+  if (status.value.everythingAvailable) {
+    if (status.value.estimatedItemCount != null) {
+      return t("discovery.everythingReadyCount", {
+        count: status.value.estimatedItemCount,
+      });
+    }
+    return t("discovery.everythingReady");
+  }
+  return t("discovery.everythingOffline");
+});
+
+const fallbackStatusText = computed(() => {
+  if (!status.value) return "";
+  if (!status.value.fallbackEnabled) return t("discovery.fallbackOff");
+  if (status.value.activeEngine === "fallback") return t("discovery.fallbackActive");
+  return t("discovery.fallbackStandby");
+});
+
+const resultEngineLabel = computed(() => {
+  const engine = result.value?.engine;
+  if (!engine || engine === "unavailable") return t("discovery.engines.unavailable");
+  return t(`discovery.engines.${engine}`);
+});
 
 function normalizeHitPath(path: string): string {
   return path.replace(/\//g, "\\");
@@ -109,6 +137,22 @@ async function focusSearchInput() {
 async function refreshStatus() {
   status.value = await invoke<DiscoveryStatus>("discovery_status");
   blacklistDraft.value = (status.value.blacklist ?? []).join("\n");
+  // Prefer showing the card that matches live engine when first loaded.
+  if (status.value.activeEngine === "fallback") {
+    selectedCard.value = "fallback";
+  } else {
+    selectedCard.value = "everything";
+  }
+}
+
+async function selectEngineCard(card: EngineCardId) {
+  selectedCard.value = card;
+  if (!status.value) return;
+  const wantFallback = card === "fallback";
+  if (status.value.fallbackEnabled === wantFallback) return;
+  status.value = await invoke<DiscoveryStatus>("discovery_set_fallback_enabled", {
+    enabled: wantFallback,
+  });
 }
 
 async function saveBlacklist() {
@@ -135,7 +179,7 @@ async function runSearch() {
   error.value = null;
   result.value = null;
   try {
-    await refreshStatus();
+    status.value = await invoke<DiscoveryStatus>("discovery_status");
     result.value = await invoke<DiscoverySearchResult>("discovery_search", {
       query: query.value,
       options: { offset: 0, limit: 50 },
@@ -146,13 +190,6 @@ async function runSearch() {
   } finally {
     loading.value = false;
   }
-}
-
-async function toggleFallback() {
-  if (!status.value) return;
-  status.value = await invoke<DiscoveryStatus>("discovery_set_fallback_enabled", {
-    enabled: !status.value.fallbackEnabled,
-  });
 }
 
 async function openHit(hit: DiscoveryHit) {
@@ -190,53 +227,48 @@ onMounted(() => {
       <p class="fluent-page-meta">{{ t("discovery.meta") }}</p>
     </header>
 
-    <div
-      v-if="status"
-      class="fluent-surface status-card"
-      :class="{
-        'status-card--ok': status.activeEngine === 'everything' && !status.degraded,
-        'status-card--warn': status.degraded || status.activeEngine === 'fallback',
-        'status-card--down': status.activeEngine === 'unavailable',
-      }"
-    >
-      <div class="status-row">
-        <span>{{ t("discovery.engine") }}</span>
-        <span
-          class="fluent-chip engine-chip"
-          :class="{
-            'fluent-chip--ok': status.activeEngine === 'everything',
-            'fluent-chip--stub': status.activeEngine === 'fallback',
-            'fluent-chip--down': status.activeEngine === 'unavailable',
-          }"
-        >{{ status.activeEngine }}</span>
-        <span
-          v-if="status.degraded"
-          class="fluent-chip fluent-chip--stub degraded-chip"
-        >{{ t("discovery.degraded") }}</span>
-      </div>
-      <div class="status-row">
-        <span>{{ t("discovery.indexState") }}</span>
-        <span class="fluent-chip">{{ t(`discovery.indexStates.${status.indexState}`) }}</span>
-        <span v-if="status.estimatedItemCount != null" class="index-count">
-          {{ t("discovery.indexCount", { count: status.estimatedItemCount }) }}
+    <div class="engine-cards" role="radiogroup" :aria-label="t('discovery.engineCards')">
+      <button
+        type="button"
+        class="fluent-surface engine-card"
+        :class="{ 'engine-card--active': selectedCard === 'everything' }"
+        role="radio"
+        :aria-checked="selectedCard === 'everything'"
+        @click="selectEngineCard('everything')"
+      >
+        <span class="engine-card-icon">
+          <FluentIcon name="search" size="md" />
         </span>
-        <span v-else class="index-count">{{ t("discovery.indexCountUnknown") }}</span>
-      </div>
-      <p class="detail">{{ status.detail }}</p>
-      <label class="fallback">
-        <input
-          type="checkbox"
-          class="fluent-field-check"
-          :checked="status.fallbackEnabled"
-          @change="toggleFallback"
-        />
-        {{ t("discovery.fallback") }}
-      </label>
+        <strong>{{ t("discovery.engines.everything") }}</strong>
+        <span class="engine-card-status">{{ everythingStatusText }}</span>
+      </button>
+      <button
+        type="button"
+        class="fluent-surface engine-card"
+        :class="{ 'engine-card--active': selectedCard === 'fallback' }"
+        role="radio"
+        :aria-checked="selectedCard === 'fallback'"
+        @click="selectEngineCard('fallback')"
+      >
+        <span class="engine-card-icon">
+          <FluentIcon name="folder" size="md" />
+        </span>
+        <strong>{{ t("discovery.engines.fallback") }}</strong>
+        <span class="engine-card-status">{{ fallbackStatusText }}</span>
+      </button>
     </div>
 
-    <div class="fluent-surface blacklist-card">
-      <h2 class="blacklist-title">{{ t("discovery.blacklistTitle") }}</h2>
-      <p class="detail">{{ t("discovery.blacklistHint") }}</p>
+    <div
+      v-if="status && selectedCard === 'everything'"
+      class="fluent-surface config-panel"
+      data-engine-config="everything"
+    >
+      <h2 class="config-title">{{ t("discovery.everythingConfigTitle") }}</h2>
+      <p class="config-copy">{{ everythingStatusText }}</p>
+      <p class="config-copy">{{ t("discovery.everythingConfigHint") }}</p>
+
+      <h3 class="config-subtitle">{{ t("discovery.blacklistTitle") }}</h3>
+      <p class="config-copy">{{ t("discovery.blacklistHint") }}</p>
       <textarea
         v-model="blacklistDraft"
         class="fluent-control blacklist-input"
@@ -253,10 +285,21 @@ onMounted(() => {
         >
           {{ blacklistSaving ? t("discovery.blacklistSaving") : t("discovery.blacklistSave") }}
         </button>
-        <span class="detail">
-          {{ t("discovery.blacklistCount", { count: status?.blacklist.length ?? 0 }) }}
+        <span class="config-copy">
+          {{ t("discovery.blacklistCount", { count: status.blacklist.length }) }}
         </span>
       </div>
+    </div>
+
+    <div
+      v-else-if="status && selectedCard === 'fallback'"
+      class="fluent-surface config-panel"
+      data-engine-config="fallback"
+    >
+      <h2 class="config-title">{{ t("discovery.fallbackConfigTitle") }}</h2>
+      <p class="config-copy">{{ fallbackStatusText }}</p>
+      <p class="config-copy">{{ t("discovery.fallbackConfigHint") }}</p>
+      <p class="config-copy">{{ t("discovery.fallbackBlacklistNote") }}</p>
     </div>
 
     <form class="search" @submit.prevent="runSearch">
@@ -281,7 +324,7 @@ onMounted(() => {
     <p v-if="notice" class="fluent-banner fluent-banner--success">{{ notice }}</p>
     <p v-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
     <p v-else-if="result && result.hits.length === 0" class="fluent-banner fluent-banner--info">
-      {{ t("discovery.noHits", { engine: result.engine, total: result.totalCount }) }}
+      {{ t("discovery.noHits", { engine: resultEngineLabel, total: result.totalCount }) }}
     </p>
 
     <div v-if="result && result.hits.length" class="fluent-surface list" role="list">
@@ -290,7 +333,7 @@ onMounted(() => {
           t("discovery.shown", {
             shown: result.hits.length,
             total: result.totalCount,
-            engine: result.engine,
+            engine: resultEngineLabel,
           })
         }}
       </p>
@@ -340,62 +383,45 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.status-card {
-  padding: var(--fluent-space-md) var(--fluent-space-lg);
+.engine-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--fluent-space-md);
+}
+
+.engine-card {
   display: flex;
   flex-direction: column;
-  gap: var(--fluent-space-sm);
+  align-items: flex-start;
+  gap: var(--fluent-space-xs);
+  padding: var(--fluent-space-md) var(--fluent-space-lg);
+  text-align: left;
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  background: var(--fluent-color-fill-control);
+  color: inherit;
+  cursor: pointer;
 }
 
-.status-card--ok {
-  background: var(--fluent-color-status-success-bg);
-  border-color: var(--fluent-color-status-success);
+.engine-card:hover {
+  background: var(--fluent-color-fill-control-hover);
 }
 
-.status-card--warn {
-  background: var(--fluent-color-status-warning-bg);
-  border-color: var(--fluent-color-status-warning);
+.engine-card--active {
+  border-color: var(--fluent-color-fill-accent);
+  box-shadow: inset 0 0 0 1px var(--fluent-color-fill-accent);
 }
 
-.status-card--down {
-  background: var(--fluent-color-status-danger-bg);
-  border-color: var(--fluent-color-status-danger);
+.engine-card-icon {
+  color: var(--fluent-color-fill-accent);
 }
 
-.status-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--fluent-space-sm);
-}
-
-.engine-chip,
-.degraded-chip {
-  min-height: var(--fluent-control-height-standard);
-  pointer-events: none;
-  cursor: default;
-  font-size: var(--fluent-font-size-caption);
-}
-
-.detail {
-  margin: 0;
-  color: var(--fluent-color-text-secondary);
-  font-size: var(--fluent-font-size-caption);
-}
-
-.fallback {
-  display: flex;
-  align-items: center;
-  gap: var(--fluent-space-sm);
-  font-size: var(--fluent-font-size-caption);
-}
-
-.index-count {
+.engine-card-status {
   font-size: var(--fluent-font-size-caption);
   color: var(--fluent-color-text-secondary);
+  line-height: 1.4;
 }
 
-.blacklist-card {
+.config-panel {
   margin-top: var(--fluent-space-md);
   padding: var(--fluent-space-md) var(--fluent-space-lg);
   display: flex;
@@ -403,10 +429,23 @@ onMounted(() => {
   gap: var(--fluent-space-sm);
 }
 
-.blacklist-title {
+.config-title {
   margin: 0;
   font-size: var(--fluent-font-size-body);
   font-weight: var(--fluent-font-weight-semibold);
+}
+
+.config-subtitle {
+  margin: var(--fluent-space-sm) 0 0;
+  font-size: var(--fluent-font-size-body);
+  font-weight: var(--fluent-font-weight-semibold);
+}
+
+.config-copy {
+  margin: 0;
+  color: var(--fluent-color-text-secondary);
+  font-size: var(--fluent-font-size-caption);
+  line-height: 1.45;
 }
 
 .blacklist-input {
@@ -427,6 +466,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: var(--fluent-space-sm);
+  margin-top: var(--fluent-space-md);
 }
 
 .search-icon {

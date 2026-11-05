@@ -114,7 +114,9 @@ const visibleDefs = computed(() =>
       activeSection.value !== "health" &&
       activeSection.value !== "shortcuts" &&
       activeSection.value !== "favorites" &&
-      def.tier === activeSection.value,
+      def.tier === activeSection.value &&
+      // AIA-87/89: Discovery owns blacklist editing (Settings is not the authority UI).
+      def.key !== "core.discoveryBlacklist",
   ),
 );
 

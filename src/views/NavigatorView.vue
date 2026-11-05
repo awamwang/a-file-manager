@@ -51,6 +51,10 @@ import {
   setActivePane,
 } from "../state/dualPane";
 import {
+  entryMatchesFilter,
+  navigatorFilterQuery,
+} from "../state/navigatorFilter";
+import {
   registerShortcutHandler,
   unregisterShortcutHandler,
 } from "../shortcuts/index.ts";
@@ -74,13 +78,21 @@ let marqueeOrigin: { x: number; y: number } | null = null;
 let marqueeActive = false;
 const dragOverPath = ref<string | null>(null);
 
-const visibleEntries = computed(() =>
-  listing.value ? sortedEntries(listing.value.entries) : [],
-);
+const visibleEntries = computed(() => {
+  if (!listing.value) return [];
+  const sorted = sortedEntries(listing.value.entries);
+  const q = navigatorFilterQuery.value;
+  if (!q.trim()) return sorted;
+  return sorted.filter((entry) => entryMatchesFilter(entry.name, entry.path, q));
+});
 
-const secondaryEntries = computed(() =>
-  secondaryListing.value ? sortedEntries(secondaryListing.value.entries) : [],
-);
+const secondaryEntries = computed(() => {
+  if (!secondaryListing.value) return [];
+  const sorted = sortedEntries(secondaryListing.value.entries);
+  const q = navigatorFilterQuery.value;
+  if (!q.trim()) return sorted;
+  return sorted.filter((entry) => entryMatchesFilter(entry.name, entry.path, q));
+});
 
 const orderedPaths = computed(() => visibleEntries.value.map((e) => e.path));
 
@@ -478,6 +490,12 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
     <p v-else-if="listError" class="fluent-banner fluent-banner--error">{{ listError }}</p>
     <p v-else-if="listing && listing.entries.length === 0" class="fluent-banner">
       {{ t("navigator.empty") }}
+    </p>
+    <p
+      v-else-if="listing && listing.entries.length > 0 && !visibleEntries.length"
+      class="fluent-banner fluent-banner--info"
+    >
+      {{ t("navigator.filterEmpty") }}
     </p>
 
     <div
