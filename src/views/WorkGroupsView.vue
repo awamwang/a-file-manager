@@ -145,6 +145,37 @@ async function saveMembersFromTabs() {
   });
 }
 
+async function removeMember(path: string) {
+  if (!active.value) return;
+  document.value = await invoke<UserWorkGroups>("work_groups_remove_member", {
+    workGroupId: active.value.id,
+    memberPath: path,
+  });
+  toastInfo(t("workGroups.memberRemoved"));
+}
+
+async function renameActiveGroup() {
+  if (!active.value) return;
+  const next =
+    window.prompt(t("workGroups.renamePrompt"), active.value.name)?.trim() ?? "";
+  if (!next || next === active.value.name) return;
+  document.value = await invoke<UserWorkGroups>("work_groups_rename", {
+    workGroupId: active.value.id,
+    name: next,
+  });
+  toastSuccess(t("workGroups.renamed"));
+}
+
+async function deleteActiveGroup() {
+  if (!active.value || active.value.isDefault) return;
+  if (!window.confirm(t("workGroups.deleteConfirm", { name: active.value.name }))) return;
+  document.value = await invoke<UserWorkGroups>("work_groups_delete", {
+    workGroupId: active.value.id,
+  });
+  activeWorkGroupId.value = document.value.activeWorkGroupId;
+  toastSuccess(t("workGroups.deleted"));
+}
+
 async function openMembersIntoRuntime() {
   if (!active.value?.memberPaths.length) {
     toastInfo(t("workGroups.openMembersEmpty"));
@@ -238,22 +269,34 @@ onMounted(() => {
 
         <h3>{{ t("workGroups.hardMembers") }}</h3>
         <div v-if="active.memberPaths.length" class="path-card-grid">
-          <button
+          <div
             v-for="path in active.memberPaths"
             :key="path"
-            type="button"
-            class="fluent-surface path-card"
-            :title="path"
-            @click="openPathInNavigator(path)"
+            class="fluent-surface path-card path-card--with-action"
           >
-            <span class="fluent-icon-wash">
-              <FluentIcon name="folder" size="md" />
-            </span>
-            <span class="path-card-body">
-              <span class="path-card-name">{{ pathLabel(path) }}</span>
-              <span class="fluent-page-meta path-card-path">{{ path }}</span>
-            </span>
-          </button>
+            <button
+              type="button"
+              class="path-card-main"
+              :title="path"
+              @click="openPathInNavigator(path)"
+            >
+              <span class="fluent-icon-wash">
+                <FluentIcon name="folder" size="md" />
+              </span>
+              <span class="path-card-body">
+                <span class="path-card-name">{{ pathLabel(path) }}</span>
+                <span class="fluent-page-meta path-card-path">{{ path }}</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              class="fluent-control path-card-remove"
+              :title="t('workGroups.removeMember')"
+              @click="removeMember(path)"
+            >
+              {{ t("common.remove") }}
+            </button>
+          </div>
         </div>
         <p v-else class="fluent-page-meta">{{ t("workGroups.noHardMembers") }}</p>
 
@@ -301,6 +344,9 @@ onMounted(() => {
           <button class="fluent-control" type="button" @click="saveMembersFromTabs">
             {{ t("workGroups.saveMembersFromTabs") }}
           </button>
+          <button class="fluent-control" type="button" @click="renameActiveGroup">
+            {{ t("workGroups.rename") }}
+          </button>
           <button
             v-if="!active.isDefault"
             class="fluent-control"
@@ -308,6 +354,14 @@ onMounted(() => {
             @click="promoteToProject"
           >
             {{ t("workGroups.promoteToProject") }}
+          </button>
+          <button
+            v-if="!active.isDefault"
+            class="fluent-control"
+            type="button"
+            @click="deleteActiveGroup"
+          >
+            {{ t("workGroups.delete") }}
           </button>
         </div>
       </div>

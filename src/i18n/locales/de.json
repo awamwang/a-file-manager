@@ -390,7 +390,15 @@
     "softSync": "Weiche Sync: {paths} geöffnet",
     "title": "Arbeitsgruppen",
     "promoteToProject": "Zu Projekt hochstufen",
-    "promoteDone": "Projekt an \"{name}\" gebunden erstellt (Arbeitsgruppe bleibt)"
+    "promoteDone": "Projekt an \"{name}\" gebunden erstellt (Arbeitsgruppe bleibt)",
+    "removeMember": "Mitglied entfernen",
+    "memberRemoved": "Mitglied aus Arbeitsgruppe entfernt",
+    "rename": "Arbeitsgruppe umbenennen",
+    "renamePrompt": "Name der Arbeitsgruppe",
+    "renamed": "Arbeitsgruppe umbenannt",
+    "delete": "Arbeitsgruppe löschen",
+    "deleteConfirm": "Arbeitsgruppe \"{name}\" löschen? Tabs bleiben bis zum Wechsel.",
+    "deleted": "Arbeitsgruppe gelöscht"
   },
   "shortcuts": {
     "meta": "Eingebaute Akkorde aus der zentralen Registry. Bei Konflikten gewinnt die erste Registrierung; blockierte Einträge bleiben gelistet.",
@@ -414,7 +422,9 @@
       "navigatorSelectAll": "Alles auswählen",
       "focusAddress": "Adressleiste fokussieren",
       "openSettings": "Einstellungen öffnen",
-      "openShortcutList": "Tastenkürzel-Liste öffnen"
+      "openShortcutList": "Tastenkürzel-Liste öffnen",
+      "navigatorNewFile": "Neue leere Datei",
+      "navigatorRefresh": "Ordner aktualisieren"
     }
   },
   "contextMenu": {
@@ -451,7 +461,11 @@
     "removeFavorite": "Aus Favoriten entfernen",
     "favoriteAdded": "Zu Favoriten hinzugefügt",
     "favoriteRemoved": "Aus Favoriten entfernt",
-    "openWith": "Öffnen mit…"
+    "openWith": "Öffnen mit…",
+    "newFile": "Neue Datei",
+    "newFilePrompt": "Dateiname",
+    "newFileDefault": "Neues Textdokument.txt",
+    "fileCreated": "Datei erstellt"
   },
   "favorites": {
     "label": "Favoriten",

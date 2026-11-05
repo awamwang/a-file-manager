@@ -100,6 +100,18 @@ export const BUILTIN_SHORTCUTS: ShortcutDefinition[] = [
     scope: "global",
   },
   {
+    id: "navigator.newFile",
+    labelKey: "shortcuts.items.navigatorNewFile",
+    chord: { ctrl: true, alt: true, key: "n" },
+    scope: "global",
+  },
+  {
+    id: "navigator.refresh",
+    labelKey: "shortcuts.items.navigatorRefresh",
+    chord: { key: "f5" },
+    scope: "global",
+  },
+  {
     id: "navigator.delete",
     labelKey: "shortcuts.items.navigatorDelete",
     chord: { key: "delete" },

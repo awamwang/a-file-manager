@@ -234,6 +234,17 @@ pub fn create_directory(parent: &str, name: &str) -> Result<String, String> {
     Ok(display_path(&dest))
 }
 
+pub fn create_empty_file(parent: &str, name: &str) -> Result<String, String> {
+    let parent_pb = ensure_dir(parent)?;
+    let file_name = validate_file_name(name)?;
+    let dest = parent_pb.join(file_name);
+    if dest.exists() {
+        return Err(format!("A file named '{file_name}' already exists"));
+    }
+    fs::File::create(&dest).map_err(|err| format!("Failed to create file: {err}"))?;
+    Ok(display_path(&dest))
+}
+
 pub fn delete_paths(paths: &[String]) -> Result<Vec<String>, String> {
     let mut deleted = Vec::new();
     for path in paths {
@@ -271,6 +282,14 @@ pub fn file_ops_rename(path: String, new_name: String) -> FileOpsResult {
 #[tauri::command]
 pub fn file_ops_create_dir(parent: String, name: String) -> FileOpsResult {
     match create_directory(&parent, &name) {
+        Ok(p) => ok_paths(vec![p]),
+        Err(error) => err_msg(error),
+    }
+}
+
+#[tauri::command]
+pub fn file_ops_create_file(parent: String, name: String) -> FileOpsResult {
+    match create_empty_file(&parent, &name) {
         Ok(p) => ok_paths(vec![p]),
         Err(error) => err_msg(error),
     }
@@ -344,6 +363,10 @@ mod tests {
 
         let folder = create_directory(&display_path(&dest), "New folder").unwrap();
         assert!(Path::new(&folder).is_dir());
+
+        let empty = create_empty_file(&display_path(&dest), "New Text Document.txt").unwrap();
+        assert!(Path::new(&empty).is_file());
+        assert_eq!(fs::read(&empty).unwrap(), b"");
 
         let _ = fs::remove_dir_all(&dir);
     }

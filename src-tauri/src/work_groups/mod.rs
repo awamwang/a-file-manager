@@ -8,8 +8,10 @@ pub(crate) mod types;
 
 use store::{load_from_path, save_to_path};
 use sync::{
-    add_member_to_hard_config, create_work_group_in_list, save_members_from_open_state_to_hard,
-    save_runtime_open_state_to_hard, silent_switch_work_group,
+    add_member_to_hard_config, create_work_group_in_list, delete_work_group_in_list,
+    remove_member_from_hard_config, rename_work_group_in_list,
+    save_members_from_open_state_to_hard, save_runtime_open_state_to_hard,
+    silent_switch_work_group,
 };
 use tauri::{AppHandle, Manager};
 use types::{
@@ -66,6 +68,50 @@ pub fn work_groups_add_member(
     };
     save_to_path(&dir, &document)?;
     Ok((document, next_open, notice))
+}
+
+#[tauri::command]
+pub fn work_groups_remove_member(
+    app: AppHandle,
+    work_group_id: String,
+    member_path: String,
+) -> Result<UserWorkGroups, String> {
+    let dir = config_dir(&app)?;
+    let mut document = load_from_path(&dir)?;
+    let index = document
+        .work_groups
+        .iter()
+        .position(|group| group.id == work_group_id)
+        .ok_or_else(|| format!("Unknown Work Group: {work_group_id}"))?;
+    document.work_groups[index] =
+        remove_member_from_hard_config(&document.work_groups[index], &member_path)?;
+    save_to_path(&dir, &document)?;
+    Ok(document)
+}
+
+#[tauri::command]
+pub fn work_groups_rename(
+    app: AppHandle,
+    work_group_id: String,
+    name: String,
+) -> Result<UserWorkGroups, String> {
+    let dir = config_dir(&app)?;
+    let mut document = load_from_path(&dir)?;
+    document.work_groups = rename_work_group_in_list(&document.work_groups, &work_group_id, &name)?;
+    save_to_path(&dir, &document)?;
+    Ok(document)
+}
+
+#[tauri::command]
+pub fn work_groups_delete(
+    app: AppHandle,
+    work_group_id: String,
+) -> Result<UserWorkGroups, String> {
+    let dir = config_dir(&app)?;
+    let document = load_from_path(&dir)?;
+    let next = delete_work_group_in_list(&document, &work_group_id)?;
+    save_to_path(&dir, &next)?;
+    Ok(next)
 }
 
 #[tauri::command]

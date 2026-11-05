@@ -43,7 +43,10 @@ assert.ok(model.includes('id: "cut"'));
 assert.ok(model.includes('id: "paste"'));
 assert.ok(model.includes('id: "rename"'));
 assert.ok(model.includes('id: "newFolder"'));
+assert.ok(model.includes('id: "newFile"'));
 assert.ok(model.includes("enabled: isDir"));
+assert.ok(menu.includes("createFile") || menu.includes("runNewFile"));
+assert.ok(nav.includes("navigator.refresh") || nav.includes("navigator.newFile"));
 assert.ok(
   !/openInNewTab[\s\S]{0,120}stub:\s*true/.test(model),
   "openInNewTab must not be stubbed",

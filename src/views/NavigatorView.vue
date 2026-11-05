@@ -20,6 +20,7 @@ import {
 } from "../state/favorites";
 import {
   clearClipboard,
+  createFile,
   createFolder,
   deleteEntries,
   hasClipboard,
@@ -291,6 +292,25 @@ async function shortcutNewFolder() {
   }
 }
 
+async function shortcutNewFile() {
+  if (!currentPath.value) return;
+  const name =
+    window.prompt(t("contextMenu.newFilePrompt"), t("contextMenu.newFileDefault")) ?? "";
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  try {
+    const result = await createFile(currentPath.value, trimmed);
+    if (!result.ok) {
+      onNotice(result.error ?? t("contextMenu.opFailed"));
+      return;
+    }
+    onNotice(t("contextMenu.fileCreated"));
+    await refreshListing();
+  } catch (err) {
+    onNotice(err instanceof Error ? err.message : String(err));
+  }
+}
+
 async function shortcutDelete() {
   const paths = selectionPaths();
   if (!paths.length) return;
@@ -336,6 +356,12 @@ function registerNavFileShortcuts() {
   registerShortcutHandler("navigator.newFolder", () => {
     void shortcutNewFolder();
   });
+  registerShortcutHandler("navigator.newFile", () => {
+    void shortcutNewFile();
+  });
+  registerShortcutHandler("navigator.refresh", () => {
+    void refreshListing();
+  });
   registerShortcutHandler("navigator.delete", () => {
     void shortcutDelete();
   });
@@ -351,6 +377,8 @@ function unregisterNavFileShortcuts() {
     "navigator.paste",
     "navigator.rename",
     "navigator.newFolder",
+    "navigator.newFile",
+    "navigator.refresh",
     "navigator.delete",
     "navigator.selectAll",
   ]) {

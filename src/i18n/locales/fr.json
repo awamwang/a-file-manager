@@ -390,7 +390,15 @@
     "softSync": "Sync douce : ouvert {paths}",
     "title": "Groupes de travail",
     "promoteToProject": "Promouvoir en projet",
-    "promoteDone": "Projet lié à « {name} » créé (groupe de travail conservé)"
+    "promoteDone": "Projet lié à « {name} » créé (groupe de travail conservé)",
+    "removeMember": "Retirer le membre",
+    "memberRemoved": "Membre retiré du groupe de travail",
+    "rename": "Renommer le groupe",
+    "renamePrompt": "Nom du groupe de travail",
+    "renamed": "Groupe de travail renommé",
+    "delete": "Supprimer le groupe",
+    "deleteConfirm": "Supprimer le groupe « {name} » ? Les onglets restent jusqu’au basculement.",
+    "deleted": "Groupe de travail supprimé"
   },
   "shortcuts": {
     "meta": "Accords intégrés du registre central. En cas de conflit, le premier enregistrement gagne ; les lignes bloquées restent listées.",
@@ -414,7 +422,9 @@
       "navigatorSelectAll": "Tout sélectionner",
       "focusAddress": "Focus sur la barre d’adresse",
       "openSettings": "Ouvrir les Paramètres",
-      "openShortcutList": "Ouvrir la liste des raccourcis"
+      "openShortcutList": "Ouvrir la liste des raccourcis",
+      "navigatorNewFile": "Nouveau fichier vide",
+      "navigatorRefresh": "Actualiser le dossier"
     }
   },
   "contextMenu": {
@@ -451,7 +461,11 @@
     "removeFavorite": "Retirer des favoris",
     "favoriteAdded": "Ajouté aux favoris",
     "favoriteRemoved": "Retiré des favoris",
-    "openWith": "Ouvrir avec…"
+    "openWith": "Ouvrir avec…",
+    "newFile": "Nouveau fichier",
+    "newFilePrompt": "Nom du fichier",
+    "newFileDefault": "Nouveau Document texte.txt",
+    "fileCreated": "Fichier créé"
   },
   "favorites": {
     "label": "Favoris",

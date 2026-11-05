@@ -135,6 +135,83 @@ pub fn add_member_to_hard_config(
     (next_work_group, next_open, notice)
 }
 
+/// Remove one hard member by exact path match (slash/case-insensitive). Open State tabs are kept.
+pub fn remove_member_from_hard_config(
+    work_group: &WorkGroup,
+    member_path: &str,
+) -> Result<WorkGroup, String> {
+    let trimmed = member_path.trim();
+    if trimmed.is_empty() {
+        return Err("Member path must not be empty".to_string());
+    }
+    if !is_exact_member_path(trimmed, &work_group.member_paths) {
+        return Err(format!("Member not found: {trimmed}"));
+    }
+    let next_members: Vec<String> = work_group
+        .member_paths
+        .iter()
+        .filter(|path| !is_exact_member_path(trimmed, &[(*path).clone()]))
+        .cloned()
+        .collect();
+    Ok(WorkGroup {
+        member_paths: next_members,
+        ..work_group.clone()
+    })
+}
+
+pub fn rename_work_group_in_list(
+    work_groups: &[WorkGroup],
+    work_group_id: &str,
+    name: &str,
+) -> Result<Vec<WorkGroup>, String> {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        return Err("Work Group name must not be empty".to_string());
+    }
+    let mut next = work_groups.to_vec();
+    let index = next
+        .iter()
+        .position(|group| group.id == work_group_id)
+        .ok_or_else(|| format!("Unknown Work Group: {work_group_id}"))?;
+    next[index].name = trimmed.to_string();
+    Ok(next)
+}
+
+pub fn delete_work_group_in_list(
+    document: &UserWorkGroups,
+    work_group_id: &str,
+) -> Result<UserWorkGroups, String> {
+    let target = document
+        .work_groups
+        .iter()
+        .find(|group| group.id == work_group_id)
+        .ok_or_else(|| format!("Unknown Work Group: {work_group_id}"))?;
+    if target.is_default {
+        return Err("DEFAULT_WORK_GROUP_FORBIDDEN".to_string());
+    }
+    let next_groups: Vec<WorkGroup> = document
+        .work_groups
+        .iter()
+        .filter(|group| group.id != work_group_id)
+        .cloned()
+        .collect();
+    let next_active = if document.active_work_group_id == work_group_id {
+        next_groups
+            .iter()
+            .find(|group| group.is_default)
+            .map(|group| group.id.clone())
+            .or_else(|| next_groups.first().map(|group| group.id.clone()))
+            .unwrap_or_else(|| "default-work-group".to_string())
+    } else {
+        document.active_work_group_id.clone()
+    };
+    Ok(UserWorkGroups {
+        work_groups: next_groups,
+        active_work_group_id: next_active,
+        ..document.clone()
+    })
+}
+
 pub fn create_work_group_in_list(
     work_groups: &[WorkGroup],
     name: Option<String>,

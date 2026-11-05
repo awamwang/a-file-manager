@@ -56,9 +56,10 @@ assert.equal(fileItems.find((item) => item.id === "openWith")?.stub, undefined);
 assert.equal(fileItems.find((item) => item.id === "paste")?.enabled, false);
 
 const empty = buildContextMenuItems(null, { emptyArea: true, canPaste: false });
-assert.equal(empty.length, 2);
+assert.equal(empty.length, 3);
 assert.equal(empty.find((item) => item.id === "paste")?.enabled, false);
 assert.ok(empty.find((item) => item.id === "newFolder")?.enabled);
+assert.ok(empty.find((item) => item.id === "newFile")?.enabled);
 
 assert.equal(buildContextMenuItems(null).length, 0);
 

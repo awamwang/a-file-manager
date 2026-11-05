@@ -7,6 +7,7 @@ import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { NavigatorEntry } from "../../state/navigatorBrowse";
 import { currentPath, navigateTo, newNavigatorTab, openEntry } from "../../state/navigatorBrowse";
 import {
+  createFile,
   createFolder,
   deleteEntries,
   hasClipboard,
@@ -147,6 +148,29 @@ async function runNewFolder() {
       return;
     }
     emit("notice", t("contextMenu.folderCreated"));
+    await refreshListing();
+  } catch (err) {
+    emit("notice", err instanceof Error ? err.message : String(err));
+  }
+}
+
+async function runNewFile() {
+  const parent = currentPath.value;
+  if (!parent) {
+    emit("notice", t("contextMenu.pasteNoFolder"));
+    return;
+  }
+  const name =
+    window.prompt(t("contextMenu.newFilePrompt"), t("contextMenu.newFileDefault")) ?? "";
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  try {
+    const result = await createFile(parent, trimmed);
+    if (!result.ok) {
+      emit("notice", result.error ?? t("contextMenu.opFailed"));
+      return;
+    }
+    emit("notice", t("contextMenu.fileCreated"));
     await refreshListing();
   } catch (err) {
     emit("notice", err instanceof Error ? err.message : String(err));
@@ -295,6 +319,9 @@ async function run(id: string) {
       break;
     case "newFolder":
       await runNewFolder();
+      break;
+    case "newFile":
+      await runNewFile();
       break;
     case "copyPath":
       if (entry) await copyPath(entry.path);

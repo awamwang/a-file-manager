@@ -16,6 +16,7 @@ export type ContextMenuActionId =
   | "paste"
   | "rename"
   | "newFolder"
+  | "newFile"
   | "copyPath"
   | "delete";
 
@@ -54,6 +55,11 @@ export function buildContextMenuItems(
         labelKey: "contextMenu.newFolder",
         enabled: true,
         separatorBefore: true,
+      },
+      {
+        id: "newFile",
+        labelKey: "contextMenu.newFile",
+        enabled: true,
       },
     ];
   }
@@ -105,6 +111,7 @@ export function buildContextMenuItems(
     },
     { id: "rename", labelKey: "contextMenu.rename", enabled: true },
     { id: "newFolder", labelKey: "contextMenu.newFolder", enabled: true },
+    { id: "newFile", labelKey: "contextMenu.newFile", enabled: true },
     { id: "copyPath", labelKey: "contextMenu.copyPath", enabled: true },
     {
       id: "delete",

@@ -60,6 +60,13 @@ export async function createFolder(
   return invoke<FileOpsResult>("file_ops_create_dir", { parent, name });
 }
 
+export async function createFile(
+  parent: string,
+  name: string,
+): Promise<FileOpsResult> {
+  return invoke<FileOpsResult>("file_ops_create_file", { parent, name });
+}
+
 export async function deleteEntries(paths: string[]): Promise<FileOpsResult> {
   return invoke<FileOpsResult>("file_ops_delete", { paths });
 }

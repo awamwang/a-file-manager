@@ -23,6 +23,8 @@ const en = JSON.parse(readFileSync(join(root, "src/i18n/locales/en.json"), "utf8
 assert.ok(cargo.includes('trash = "5'));
 assert.ok(lib.includes("file_ops::file_ops_copy"));
 assert.ok(lib.includes("file_ops::file_ops_delete"));
+assert.ok(lib.includes("file_ops::file_ops_create_file"));
+assert.ok(rust.includes("create_empty_file"));
 assert.ok(rust.includes("delete_to_recycle"));
 assert.ok(rust.includes("path_can_use_recycle_bin"));
 assert.ok(rust.includes("trash::delete"));
@@ -38,8 +40,12 @@ assert.ok(model.includes('id: "cut"'));
 assert.ok(model.includes('id: "paste"'));
 assert.ok(model.includes('id: "rename"'));
 assert.ok(model.includes('id: "newFolder"'));
+assert.ok(model.includes('id: "newFile"'));
+assert.ok(clip.includes("file_ops_create_file"));
+assert.ok(menu.includes("runNewFile") || menu.includes("createFile"));
 assert.ok(!/id:\s*"delete"[\s\S]{0,80}stub:\s*true/.test(model));
 assert.equal(en.contextMenu.copy, "Copy");
+assert.equal(en.contextMenu.newFile, "New file");
 assert.equal(en.contextMenu.deleteConfirm.includes("Recycle"), true);
 
 const modelCheck = spawnSync(
