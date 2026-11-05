@@ -30,6 +30,7 @@ import {
   newNavigatorTab,
   stripTabs,
   switchNavigatorTab,
+  switchNavigatorTabAdjacent,
 } from "../../state/navigatorBrowse";
 import {
   beginHistoryNavigation,
@@ -193,6 +194,12 @@ function registerShellShortcuts() {
   registerShortcutHandler("navigator.newTab", () => {
     void onNewNavigatorTab();
   });
+  registerShortcutHandler("navigator.nextTabGroup", () => {
+    void onSwitchNavigatorTabAdjacent("next");
+  });
+  registerShortcutHandler("navigator.prevTabGroup", () => {
+    void onSwitchNavigatorTabAdjacent("previous");
+  });
   registerShortcutHandler("navigator.back", () => {
     void onGoBack();
   });
@@ -222,6 +229,8 @@ function unregisterShellShortcuts() {
     "discovery.globalSearch",
     "navigator.goUp",
     "navigator.newTab",
+    "navigator.nextTabGroup",
+    "navigator.prevTabGroup",
     "navigator.back",
     "navigator.forward",
     "navigator.backCtrlAlt",
@@ -357,6 +366,11 @@ async function ensureNavigatorRoute() {
 async function onSwitchNavigatorTab(groupIndex: number) {
   await ensureNavigatorRoute();
   await switchNavigatorTab(groupIndex);
+}
+
+async function onSwitchNavigatorTabAdjacent(direction: "next" | "previous") {
+  await ensureNavigatorRoute();
+  await switchNavigatorTabAdjacent(direction);
 }
 
 async function onCloseNavigatorTab(event: Event, groupIndex: number) {

@@ -347,6 +347,8 @@
       "navigatorBack": "后退",
       "navigatorForward": "前进",
       "navigatorNewTab": "新建导航标签",
+      "navigatorNextTabGroup": "切换到下一个页面分组",
+      "navigatorPrevTabGroup": "切换到上一个页面分组",
       "navigatorCopy": "复制所选",
       "navigatorCut": "剪切所选",
       "navigatorPaste": "粘贴",

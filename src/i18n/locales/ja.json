@@ -347,6 +347,8 @@
       "navigatorBack": "戻る",
       "navigatorForward": "進む",
       "navigatorNewTab": "新しいナビゲータータブ",
+      "navigatorNextTabGroup": "次のページグループに切り替え",
+      "navigatorPrevTabGroup": "前のページグループに切り替え",
       "navigatorCopy": "選択項目をコピー",
       "navigatorCut": "選択項目を切り取り",
       "navigatorPaste": "貼り付け",

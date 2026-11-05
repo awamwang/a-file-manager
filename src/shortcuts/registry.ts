@@ -58,6 +58,18 @@ export const BUILTIN_SHORTCUTS: ShortcutDefinition[] = [
     scope: "global",
   },
   {
+    id: "navigator.nextTabGroup",
+    labelKey: "shortcuts.items.navigatorNextTabGroup",
+    chord: { ctrl: true, key: "tab" },
+    scope: "global",
+  },
+  {
+    id: "navigator.prevTabGroup",
+    labelKey: "shortcuts.items.navigatorPrevTabGroup",
+    chord: { ctrl: true, shift: true, key: "tab" },
+    scope: "global",
+  },
+  {
     id: "navigator.copy",
     labelKey: "shortcuts.items.navigatorCopy",
     chord: { ctrl: true, key: "c" },

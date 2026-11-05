@@ -47,6 +47,8 @@ function displayMainKey(key: string): string {
     case " ":
     case "space":
       return "Space";
+    case "tab":
+      return "Tab";
     case ",":
       return ",";
     default:

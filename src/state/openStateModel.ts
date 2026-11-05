@@ -144,8 +144,72 @@ export function openStateAfterSwitchGroup(
     return clampOpenStateIndices(next);
   }
   next.currentTabGroupIndex = groupIndex;
-  next.currentTabIndex = 0;
+  // Preserve currentTabIndex like Sigma; clamp bounds it to the target group.
   return clampOpenStateIndices(next);
+}
+
+/** Case-insensitive path key for tab-group identity (Sigma openOrFocus / dedupe). */
+export function normalizePathKey(path: string): string {
+  return path.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+}
+
+/** Index of the first tab group that already shows `path`, or -1. */
+export function findTabGroupIndexByPath(
+  state: WorkGroupOpenState,
+  path: string,
+): number {
+  const key = normalizePathKey(path);
+  if (!key) return -1;
+  return state.tabGroups.findIndex((group) =>
+    group.some((tab) => normalizePathKey(tab.path ?? "") === key),
+  );
+}
+
+export type SwitchAdjacentDirection = "next" | "previous";
+
+/** Cycle `currentTabGroupIndex` (wrap). No-op when fewer than 2 groups. */
+export function openStateAfterSwitchAdjacent(
+  state: WorkGroupOpenState,
+  direction: SwitchAdjacentDirection,
+): WorkGroupOpenState {
+  const total = state.tabGroups.length;
+  if (total < 2) return clampOpenStateIndices(state);
+  const current = Math.min(Math.max(state.currentTabGroupIndex, 0), total - 1);
+  const offset = direction === "next" ? 1 : -1;
+  const nextIndex = (current + offset + total) % total;
+  return openStateAfterSwitchGroup(state, nextIndex);
+}
+
+export type OpenOrFocusResult = {
+  state: WorkGroupOpenState;
+  /** True when an existing page group was selected; false when a new group was appended. */
+  focusedExisting: boolean;
+  groupIndex: number;
+};
+
+/**
+ * Select an existing page group (tab group) that already shows `path`, or append a new group.
+ * Mirrors Sigma `workspaces.openOrFocusTabGroup`.
+ */
+export function openStateOpenOrFocusPath(
+  state: WorkGroupOpenState,
+  path: string,
+): OpenOrFocusResult {
+  const trimmed = path.trim();
+  const existing = findTabGroupIndexByPath(state, trimmed);
+  if (existing >= 0) {
+    return {
+      state: openStateAfterSwitchGroup(state, existing),
+      focusedExisting: true,
+      groupIndex: existing,
+    };
+  }
+  const next = openStateWithNewTab(state, trimmed);
+  return {
+    state: next,
+    focusedExisting: false,
+    groupIndex: next.currentTabGroupIndex,
+  };
 }
 
 /** Update the active pane path/name after address-bar / folder navigation. */

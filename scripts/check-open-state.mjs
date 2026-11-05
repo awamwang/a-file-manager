@@ -45,9 +45,33 @@ for (const token of [
   "bootstrapNavigatorOpenState",
   "newNavigatorTab",
   "closeNavigatorTab",
+  "switchNavigatorTab",
+  "switchNavigatorTabAdjacent",
+  "openOrFocusNavigatorTab",
 ]) {
   if (!browse.includes(token)) {
     console.error(`navigatorBrowse missing ${token}`);
+    process.exit(1);
+  }
+}
+
+if (
+  !shell.includes("switchNavigatorTabAdjacent") ||
+  !shell.includes("navigator.nextTabGroup") ||
+  !shell.includes("navigator.prevTabGroup")
+) {
+  console.error("AppShell missing page-group adjacent switch wiring");
+  process.exit(1);
+}
+
+const model = readFileSync(join(root, "src/state/openStateModel.ts"), "utf8");
+for (const token of [
+  "openStateAfterSwitchAdjacent",
+  "openStateOpenOrFocusPath",
+  "findTabGroupIndexByPath",
+]) {
+  if (!model.includes(token)) {
+    console.error(`openStateModel missing ${token}`);
     process.exit(1);
   }
 }

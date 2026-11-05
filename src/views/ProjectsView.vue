@@ -6,6 +6,7 @@ import { useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
 import {
   applyProjectSilentSwitch,
+  openOrFocusNavigatorTab,
   openPathsAsNavigatorTabs,
   snapshotLiveOpenState,
   type SoftSyncNotice,
@@ -348,7 +349,8 @@ async function openAllLinks() {
 }
 
 async function openLink(path: string) {
-  await openPathsAsNavigatorTabs([path]);
+  // Sigma openOrFocusTabGroup: select existing page group or append one.
+  await openOrFocusNavigatorTab(path);
   await router.push("/navigator");
 }
 

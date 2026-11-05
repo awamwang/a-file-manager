@@ -8,10 +8,13 @@ import {
   normalizeRestoredOpenState,
   openStateAfterCloseGroup,
   openStateAfterNavigate,
+  openStateAfterSwitchAdjacent,
   openStateAfterSwitchGroup,
   openStateFromPaths,
+  openStateOpenOrFocusPath,
   openStateWithNewTab,
   stripTabsFromOpenState,
+  type SwitchAdjacentDirection,
   type WorkGroupOpenState,
 } from "./openStateModel";
 import { recordNavHistory } from "./navHistory";
@@ -197,6 +200,35 @@ export async function closeNavigatorTab(groupIndex: number): Promise<void> {
 
 export async function switchNavigatorTab(groupIndex: number): Promise<void> {
   liveOpenState.value = openStateAfterSwitchGroup(liveOpenState.value, groupIndex);
+  schedulePersist(true);
+  const active = activeStripTab(liveOpenState.value);
+  if (active?.path) {
+    await navigateTo(active.path, { syncOpenState: false });
+  }
+}
+
+/** Cycle page groups (Sigma Ctrl+Tab / Ctrl+Shift+Tab → switchToAdjacentTabGroup). */
+export async function switchNavigatorTabAdjacent(
+  direction: SwitchAdjacentDirection,
+): Promise<void> {
+  if (liveOpenState.value.tabGroups.length < 2) return;
+  liveOpenState.value = openStateAfterSwitchAdjacent(liveOpenState.value, direction);
+  schedulePersist(true);
+  const active = activeStripTab(liveOpenState.value);
+  if (active?.path) {
+    await navigateTo(active.path, { syncOpenState: false });
+  }
+}
+
+/**
+ * Select an existing page group for `path`, or open a new one (Sigma openOrFocusTabGroup).
+ * Silent Open State persist — no WG nag modal.
+ */
+export async function openOrFocusNavigatorTab(path: string): Promise<void> {
+  const trimmed = path.trim();
+  if (!trimmed) return;
+  const result = openStateOpenOrFocusPath(liveOpenState.value, trimmed);
+  liveOpenState.value = result.state;
   schedulePersist(true);
   const active = activeStripTab(liveOpenState.value);
   if (active?.path) {

@@ -31,6 +31,28 @@ assert.equal(
   "navigator.forwardCtrlAlt",
 );
 assert.equal(
+  winners.get(chordKey({ ctrl: true, key: "tab" }))?.id,
+  "navigator.nextTabGroup",
+);
+assert.equal(
+  winners.get(chordKey({ ctrl: true, shift: true, key: "tab" }))?.id,
+  "navigator.prevTabGroup",
+);
+assert.equal(
+  eventMatchesChord(keyEvent({ ctrlKey: true, key: "Tab" }), {
+    ctrl: true,
+    key: "tab",
+  }),
+  true,
+);
+assert.equal(
+  eventMatchesChord(
+    keyEvent({ ctrlKey: true, shiftKey: true, key: "Tab" }),
+    { ctrl: true, shift: true, key: "tab" },
+  ),
+  true,
+);
+assert.equal(
   eventMatchesChord(keyEvent({ altKey: true, key: "ArrowLeft" }), {
     alt: true,
     key: "arrowleft",

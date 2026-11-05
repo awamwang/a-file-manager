@@ -347,6 +347,8 @@
       "navigatorBack": "Navigate back",
       "navigatorForward": "Navigate forward",
       "navigatorNewTab": "New Navigator tab",
+      "navigatorNextTabGroup": "Switch to next page group",
+      "navigatorPrevTabGroup": "Switch to previous page group",
       "navigatorCopy": "Copy selected items",
       "navigatorCut": "Cut selected items",
       "navigatorPaste": "Paste items",
