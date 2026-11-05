@@ -146,6 +146,10 @@ export function rememberHydratedWorkGroups(doc: UserWorkGroupsDoc): void {
   workGroupsHydrate = Promise.resolve(doc);
 }
 
+/**
+ * Restore tab strip immediately; directory listing fills asynchronously
+ * so chrome / tabs paint before `navigator_list` returns (AIA-181 P0).
+ */
 export function bootstrapNavigatorOpenState(): Promise<void> {
   if (!bootstrapPromise) {
     bootstrapPromise = (async () => {
@@ -156,16 +160,22 @@ export function bootstrapNavigatorOpenState(): Promise<void> {
         applyLiveOpenState(active?.openState ?? null);
         const activeTab = activeStripTab(liveOpenState.value);
         if (activeTab?.path) {
-          // Restore strip as saved; do not rewrite Open State on land.
-          await navigateTo(activeTab.path, { syncOpenState: false });
+          // Show restored path + loading skeleton; do not block bootstrap on listing.
+          currentPath.value = activeTab.path;
+          listLoading.value = true;
+          listError.value = null;
+          void navigateTo(activeTab.path, { syncOpenState: false });
         } else if (liveOpenState.value.tabGroups.length === 0) {
-          await loadDefaultPath();
-          // Ensure the seeded tab is on disk for the next restart.
-          await flushOpenStatePersist();
+          void (async () => {
+            await loadDefaultPath();
+            await flushOpenStatePersist();
+          })();
         }
       } catch {
-        await loadDefaultPath();
-        await flushOpenStatePersist();
+        void (async () => {
+          await loadDefaultPath();
+          await flushOpenStatePersist();
+        })();
       }
     })();
   }
