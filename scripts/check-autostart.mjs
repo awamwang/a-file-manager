@@ -24,6 +24,10 @@ assert.ok(libRs.includes("autostart::autostart_set_enabled"));
 assert.ok(libRs.includes("AFM_AUTOSTART_CLI_FLAG") || libRs.includes("autostart::AFM_AUTOSTART_CLI_FLAG"));
 assert.ok(libRs.includes("launchAtStartupHidden"));
 assert.ok(tray.includes("TrayIconBuilder"));
+assert.ok(tray.includes("include_bytes!"), "tray must embed AFM icon bytes");
+assert.ok(tray.includes("icons/128x128.png"), "tray must use regenerated Tauri icon PNG");
+assert.ok(tray.includes("load_app_icon"), "tray must expose load_app_icon");
+assert.ok(libRs.includes("set_icon"), "main window must set_icon for taskbar");
 assert.ok(tray.includes("destroy_system_tray") || tray.includes("remove_tray_by_id"));
 assert.ok(
   tray.includes("try_acquire_single_instance_lock") || libRs.includes("single_instance"),

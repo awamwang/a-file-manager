@@ -5,6 +5,7 @@
 use std::sync::Mutex;
 
 use tauri::{
+    image::Image,
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
     AppHandle, Manager,
@@ -12,9 +13,24 @@ use tauri::{
 
 const TRAY_ID: &str = "main";
 
+/// Compile-time AFM icon (same asset as `tauri.conf.json` / `npx tauri icon` output).
+/// Prefer this over `default_window_icon()` so tray/taskbar do not keep a stale PE embed.
+const APP_ICON_PNG: &[u8] = include_bytes!("../icons/128x128.png");
+
 /// Keeps the tray handle alive for the process lifetime (dropping it can remove the icon).
 /// Pinned to the default Wry runtime so managed state matches `AppHandle` at `run` time.
 pub struct TrayState(pub Mutex<Option<TrayIcon>>);
+
+/// Load the bundled AFM app icon for tray + window (taskbar) use.
+pub fn load_app_icon(app: &AppHandle) -> Option<Image<'_>> {
+    match Image::from_bytes(APP_ICON_PNG) {
+        Ok(icon) => Some(icon),
+        Err(err) => {
+            eprintln!("bundled app icon decode failed ({err}); falling back to default_window_icon");
+            app.default_window_icon().cloned()
+        }
+    }
+}
 
 fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let version = app.package_info().version.to_string();
@@ -45,8 +61,8 @@ pub fn setup_system_tray(app: &AppHandle) -> tauri::Result<()> {
     let name = app.package_info().name.to_string();
     let tooltip = format!("{name} – v{version}");
     let menu = build_tray_menu(app)?;
-    let Some(icon) = app.default_window_icon().cloned() else {
-        eprintln!("system tray skipped: no default window icon");
+    let Some(icon) = load_app_icon(app) else {
+        eprintln!("system tray skipped: no app icon available");
         return Ok(());
     };
 

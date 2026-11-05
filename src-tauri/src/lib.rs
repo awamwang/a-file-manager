@@ -84,8 +84,15 @@ pub fn run() {
                 .build(),
         )
         .setup(move |app| {
+            // Taskbar icon: set explicitly from bundled AFM PNG (PE resource can lag after icon swaps).
+            let app_icon = system_tray::load_app_icon(app.handle());
             if let Some(window) = app.get_webview_window("main") {
                 window.create_overlay_titlebar_with_height(snap_chrome::TITLEBAR_HEIGHT_PX)?;
+                if let Some(icon) = app_icon.clone() {
+                    if let Err(err) = window.set_icon(icon) {
+                        eprintln!("window set_icon failed: {err}");
+                    }
+                }
             }
 
             // Only the primary instance owns the tray icon.
