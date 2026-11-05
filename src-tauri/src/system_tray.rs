@@ -1,13 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! System tray for restore-after-autostart-hide (AIA-60).
+//! Single tray icon per process: replace-by-id on setup, destroy on exit (HMR-safe).
+
+use std::sync::Mutex;
 
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
-    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, Runtime,
+    tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
+    AppHandle, Manager,
 };
 
-fn build_tray_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
+const TRAY_ID: &str = "main";
+
+/// Keeps the tray handle alive for the process lifetime (dropping it can remove the icon).
+/// Pinned to the default Wry runtime so managed state matches `AppHandle` at `run` time.
+pub struct TrayState(pub Mutex<Option<TrayIcon>>);
+
+fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let version = app.package_info().version.to_string();
     let name = app.package_info().name.to_string();
     let title = format!("{name} – v{version}");
@@ -28,7 +37,10 @@ fn build_tray_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     )
 }
 
-pub fn setup_system_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
+/// Drop any existing `main` tray then create one. Prevents stacked icons on re-setup / HMR.
+pub fn setup_system_tray(app: &AppHandle) -> tauri::Result<()> {
+    destroy_system_tray(app);
+
     let version = app.package_info().version.to_string();
     let name = app.package_info().name.to_string();
     let tooltip = format!("{name} – v{version}");
@@ -38,7 +50,7 @@ pub fn setup_system_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         return Ok(());
     };
 
-    let _tray = TrayIconBuilder::with_id("main")
+    let tray = TrayIconBuilder::with_id(TRAY_ID)
         .tooltip(&tooltip)
         .icon(icon)
         .menu(&menu)
@@ -48,10 +60,26 @@ pub fn setup_system_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         })
         .build(app)?;
 
+    if let Some(state) = app.try_state::<TrayState>() {
+        *state.0.lock().expect("tray state lock") = Some(tray);
+    } else {
+        app.manage(TrayState(Mutex::new(Some(tray))));
+    }
+
     Ok(())
 }
 
-pub fn on_system_tray_event<R: Runtime>(app: &AppHandle<R>, event: TrayIconEvent) {
+/// Remove the tray icon from the shell (call on process exit / before recreate).
+pub fn destroy_system_tray(app: &AppHandle) {
+    if let Some(state) = app.try_state::<TrayState>() {
+        if let Ok(mut guard) = state.0.lock() {
+            *guard = None;
+        }
+    }
+    let _ = app.remove_tray_by_id(TRAY_ID);
+}
+
+pub fn on_system_tray_event(app: &AppHandle, event: TrayIconEvent) {
     if let TrayIconEvent::Click {
         button: MouseButton::Left,
         button_state: MouseButtonState::Up,
@@ -62,17 +90,18 @@ pub fn on_system_tray_event<R: Runtime>(app: &AppHandle<R>, event: TrayIconEvent
     }
 }
 
-pub fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, event: tauri::menu::MenuEvent) {
+pub fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
     match event.id().as_ref() {
         "show_main_window" => show_main_window(app),
         "quit" => {
+            destroy_system_tray(app);
             app.exit(0);
         }
         _ => {}
     }
 }
 
-pub fn show_main_window<R: Runtime>(app: &AppHandle<R>) {
+pub fn show_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
         let _ = window.unminimize();
@@ -80,7 +109,7 @@ pub fn show_main_window<R: Runtime>(app: &AppHandle<R>) {
     }
 }
 
-pub fn focus_main_window<R: Runtime>(app: &AppHandle<R>) {
+pub fn focus_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         if window.is_minimized().unwrap_or(false) {
             let _ = window.unminimize();
@@ -89,8 +118,43 @@ pub fn focus_main_window<R: Runtime>(app: &AppHandle<R>) {
     }
 }
 
-pub fn hide_main_window<R: Runtime>(app: &AppHandle<R>) {
+pub fn hide_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.hide();
     }
+}
+
+/// Named mutex so a second GUI process does not stack another tray icon.
+/// Returns false when another AFM instance already holds the lock.
+#[cfg(windows)]
+pub fn try_acquire_single_instance_lock() -> bool {
+    use windows::core::w;
+    use windows::Win32::Foundation::{CloseHandle, GetLastError, ERROR_ALREADY_EXISTS};
+    use windows::Win32::System::Threading::CreateMutexW;
+
+    // Keep the mutex handle for process lifetime (leaked on purpose).
+    static mut HOLD: Option<windows::Win32::Foundation::HANDLE> = None;
+
+    unsafe {
+        match CreateMutexW(None, true, w!("Local\\com.a-file-manager.app.single")) {
+            Ok(handle) => {
+                if GetLastError() == ERROR_ALREADY_EXISTS {
+                    let _ = CloseHandle(handle);
+                    false
+                } else {
+                    HOLD = Some(handle);
+                    true
+                }
+            }
+            Err(err) => {
+                eprintln!("single-instance mutex failed ({err}); continuing");
+                true
+            }
+        }
+    }
+}
+
+#[cfg(not(windows))]
+pub fn try_acquire_single_instance_lock() -> bool {
+    true
 }

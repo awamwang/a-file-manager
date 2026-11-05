@@ -208,7 +208,7 @@ export function buildContextMenuItems(
         },
       ],
     },
-    { id: "reveal", labelKey: "contextMenu.reveal", enabled: true, icon: "eye" },
+    // Reveal lives under Open with for folders (`openWithExplorer`); no top-level row.
     {
       id: "copy",
       labelKey: "contextMenu.copy",

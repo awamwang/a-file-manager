@@ -24,6 +24,12 @@ assert.ok(libRs.includes("autostart::autostart_set_enabled"));
 assert.ok(libRs.includes("AFM_AUTOSTART_CLI_FLAG") || libRs.includes("autostart::AFM_AUTOSTART_CLI_FLAG"));
 assert.ok(libRs.includes("launchAtStartupHidden"));
 assert.ok(tray.includes("TrayIconBuilder"));
+assert.ok(tray.includes("destroy_system_tray") || tray.includes("remove_tray_by_id"));
+assert.ok(
+  tray.includes("try_acquire_single_instance_lock") || libRs.includes("single_instance"),
+  "tray/GUI should use a single-instance lock",
+);
+assert.ok(libRs.includes("destroy_system_tray"), "exit path must destroy tray");
 assert.ok(settingsView.includes("applyLaunchAtStartupPreference"));
 assert.ok(sync.includes("autostart_set_enabled"));
 assert.ok(caps.includes("core:tray:default"));

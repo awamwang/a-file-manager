@@ -133,13 +133,22 @@ assert.ok(
   "Open in new tab handler must remain (under Open with)",
 );
 
+assert.ok(
+  !/return \[[\s\S]*?id:\s*"reveal"/.test(model) ||
+    model.includes("openWithExplorer"),
+  "top-level reveal removed; Explorer entry may remain under Open with",
+);
+assert.ok(
+  !model.includes('{ id: "reveal", labelKey: "contextMenu.reveal"'),
+  "top-level reveal row must be gone",
+);
+
 for (const id of [
   "openInNewTab",
   "openWith",
   "openInTerminal",
   "toggleFavorite",
   "systemMenu",
-  "reveal",
   "copy",
   "cut",
   "paste",

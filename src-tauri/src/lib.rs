@@ -51,6 +51,7 @@ fn health_get() -> HealthPayload {
 /// Quit the process (tray Quit + close-confirm Quit share this path — AIA-86).
 #[tauri::command]
 fn app_quit(app: tauri::AppHandle) {
+    system_tray::destroy_system_tray(&app);
     app.exit(0);
 }
 
@@ -62,6 +63,14 @@ pub fn run() {
     let raw_args: Vec<String> = std::env::args().collect();
     let from_autostart = launched_from_autostart(&raw_args);
     let add_favorite_path = favorites::take_add_favorite_path(&raw_args);
+
+    // GUI single-instance: avoid stacked tray icons from a second process.
+    // Shell-verb "add favorite" is allowed through so it can still mutate favorites.
+    let primary_instance = system_tray::try_acquire_single_instance_lock();
+    if !primary_instance && add_favorite_path.is_none() {
+        eprintln!("A File Manager is already running (single-instance); exiting.");
+        return;
+    }
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -79,8 +88,11 @@ pub fn run() {
                 window.create_overlay_titlebar_with_height(snap_chrome::TITLEBAR_HEIGHT_PX)?;
             }
 
-            if let Err(err) = system_tray::setup_system_tray(app.handle()) {
-                eprintln!("system tray setup failed: {err}");
+            // Only the primary instance owns the tray icon.
+            if primary_instance {
+                if let Err(err) = system_tray::setup_system_tray(app.handle()) {
+                    eprintln!("system tray setup failed: {err}");
+                }
             }
 
             // Hide to tray only when launched via OS login autostart AND user opted in.
@@ -99,6 +111,10 @@ pub fn run() {
                         if added { "added" } else { "already present" }
                     ),
                     Err(err) => eprintln!("AFM favorites shell verb failed: {err}"),
+                }
+                // Secondary process was only needed for the shell verb — exit after applying.
+                if !primary_instance {
+                    app.handle().exit(0);
                 }
             }
 
@@ -192,8 +208,17 @@ pub fn run() {
             archive::archive_compress_zip,
             archive::archive_extract_zip,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            // Drop the NotifyIcon on graceful exit so `tauri dev` / HMR does not stack ghosts.
+            if matches!(
+                event,
+                tauri::RunEvent::Exit | tauri::RunEvent::ExitRequested { .. }
+            ) {
+                system_tray::destroy_system_tray(app_handle);
+            }
+        });
 }
 
 #[cfg(test)]

@@ -70,7 +70,12 @@ assert.ok(
     .find((item) => item.id === "openWith")
     ?.children?.some((c) => c.id === "openWithIde:cursor"),
 );
-assert.ok(fileItems.find((item) => item.id === "reveal")?.enabled);
+assert.equal(fileItems.find((item) => item.id === "reveal"), undefined);
+assert.equal(dirItems.find((item) => item.id === "reveal"), undefined);
+assert.ok(
+  dirOpenWith?.children?.some((c) => c.id === "openWithNative"),
+  "folder Open with keeps Explorer entry",
+);
 assert.equal(fileItems.find((item) => item.id === "paste")?.enabled, false);
 assert.ok(fileItems.find((item) => item.id === "compressZip")?.enabled);
 assert.equal(fileItems.find((item) => item.id === "extractZip")?.enabled, false);
