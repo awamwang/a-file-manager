@@ -10,7 +10,7 @@ import CommandPanel from "../command/CommandPanel.vue";
 import ToastHost from "./ToastHost.vue";
 import FluentIcon from "../icons/FluentIcon.vue";
 import { toastError, toastInfo, toastSuccess } from "../../state/toast";
-import { NAV_ICON_BY_ID } from "../icons/glyphs";
+import { SIDE_NAV_ITEMS, isSideNavActive, sideNavIcon } from "../../shell/sideNav";
 import { buildAppCommands } from "../../commands/registry";
 import { toggleCommandPanel } from "../../state/commandPanel";
 import { requestGlobalSearchFocus } from "../../state/globalSearch";
@@ -89,17 +89,6 @@ type SettingsDocument = {
   version: number;
   values: Record<string, unknown>;
 };
-
-type NavItem = {
-  id: keyof typeof NAV_ICON_BY_ID | string;
-  labelKey: string;
-  to?: string;
-  later?: boolean;
-};
-
-function navIcon(id: string) {
-  return NAV_ICON_BY_ID[id] ?? "folder";
-}
 
 const route = useRoute();
 const router = useRouter();
@@ -472,16 +461,7 @@ function unregisterShellShortcuts() {
   }
 }
 
-/** Primary pillars first; Discovery + Providers sit above Settings; Health is Settings-only. */
-const navItems: NavItem[] = [
-  { id: "navigator", labelKey: "nav.navigator", to: "/navigator" },
-  { id: "work-groups", labelKey: "nav.workGroups", to: "/work-groups" },
-  { id: "projects", labelKey: "nav.projects", to: "/projects" },
-  { id: "extensions", labelKey: "nav.extensions", to: "/extensions" },
-  { id: "discovery", labelKey: "nav.discovery", to: "/discovery" },
-  { id: "providers", labelKey: "nav.providers", to: "/providers" },
-  { id: "settings", labelKey: "nav.settings", to: "/settings" },
-];
+const navItems = SIDE_NAV_ITEMS;
 
 watch(
   currentPath,
@@ -662,12 +642,8 @@ function reclaimFluentTitlebar() {
   }
 }
 
-function isNavActive(item: NavItem) {
-  if (!item.to) return false;
-  if (item.id === "settings") {
-    return route.path === "/settings" || route.path.startsWith("/settings/");
-  }
-  return route.path === item.to;
+function isNavActive(item: (typeof SIDE_NAV_ITEMS)[number]) {
+  return isSideNavActive(item, route.path);
 }
 
 function openTab(id: string, path: string) {
@@ -847,7 +823,7 @@ onUnmounted(() => {
           :title="item.later ? t('chrome.later') : undefined"
           @click="item.to && router.push(item.to)"
         >
-          <FluentIcon :name="navIcon(item.id)" size="md" class="sidenav-icon" />
+          <FluentIcon :name="sideNavIcon(item.id)" size="md" class="sidenav-icon" />
           <span class="sidenav-label">{{ t(item.labelKey) }}</span>
           <span v-if="item.later" class="later-badge">{{ t("chrome.later") }}</span>
         </button>

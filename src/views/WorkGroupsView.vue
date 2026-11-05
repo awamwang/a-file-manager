@@ -12,6 +12,7 @@ import {
   restoreWorkGroupOpenState,
   snapshotLiveOpenState,
 } from "../state/navigatorBrowse";
+import { displayNameFromPath } from "../state/openStateModel";
 import type { WorkGroupOpenState } from "../state/openStateModel";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import { toastError, toastInfo, toastSuccess } from "../state/toast";
@@ -60,9 +61,7 @@ const active = computed(
 const liveTabs = computed(() => (liveOpenState.value?.tabGroups ?? []).flat());
 
 function pathLabel(path: string): string {
-  const cleaned = path.replace(/\\/g, "/").replace(/\/+$/, "");
-  const parts = cleaned.split("/").filter(Boolean);
-  return parts[parts.length - 1] || path;
+  return displayNameFromPath(path);
 }
 
 async function openPathInNavigator(path: string) {
@@ -384,52 +383,5 @@ onMounted(() => {
 
 .usage-hint {
   max-width: 42rem;
-}
-
-.path-card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
-  gap: var(--fluent-space-sm);
-}
-
-.path-card {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--fluent-space-sm);
-  width: 100%;
-  min-height: var(--fluent-control-height-comfortable);
-  padding: var(--fluent-space-md);
-  border: 0;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.path-card:hover,
-.path-card:focus-visible {
-  background: var(--fluent-color-fill-selected);
-  outline: none;
-}
-
-.path-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  min-width: 0;
-  flex: 1;
-}
-
-.path-card-name {
-  font-weight: var(--fluent-font-weight-semibold);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.path-card-path {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 </style>

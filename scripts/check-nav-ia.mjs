@@ -7,11 +7,14 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const shell = readFileSync(join(root, "src/components/shell/AppShell.vue"), "utf8");
+const sideNav = readFileSync(join(root, "src/shell/sideNav.ts"), "utf8");
 const router = readFileSync(join(root, "src/router/index.ts"), "utf8");
 const settings = readFileSync(join(root, "src/views/SettingsView.vue"), "utf8");
 
-const navBlock = shell.match(/const navItems: NavItem\[] = \[([\s\S]*?)\];/);
-assert.ok(navBlock, "navItems block missing");
+assert.ok(shell.includes("SIDE_NAV_ITEMS"), "AppShell must consume SIDE_NAV_ITEMS");
+
+const navBlock = sideNav.match(/export const SIDE_NAV_ITEMS: SideNavItem\[] = \[([\s\S]*?)\];/);
+assert.ok(navBlock, "SIDE_NAV_ITEMS block missing");
 const ids = [...navBlock[1].matchAll(/id:\s*"([^"]+)"/g)].map((m) => m[1]);
 assert.deepEqual(
   ids,

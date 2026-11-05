@@ -148,9 +148,13 @@ export function openStateAfterSwitchGroup(
   return clampOpenStateIndices(next);
 }
 
-/** Case-insensitive path key for tab-group identity (Sigma openOrFocus / dedupe). */
+/** Case-insensitive path key for tab-group identity (Sigma openOrFocus / dedupe). Aligns with Rust `normalize_path_for_comparison`. */
 export function normalizePathKey(path: string): string {
-  return path.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+  return path
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/\/+$/, "")
+    .toLowerCase();
 }
 
 /** Index of the first tab group that already shows `path`, or -1. */

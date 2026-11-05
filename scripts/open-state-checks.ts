@@ -12,6 +12,7 @@ import {
   openStateAfterNavigate,
   openStateAfterSwitchAdjacent,
   openStateAfterSwitchGroup,
+  normalizePathKey,
   openStateEnsureMemberPaths,
   openStateFromPaths,
   openStateOpenOrFocusPath,
@@ -22,6 +23,7 @@ import {
 
 assert.equal(displayNameFromPath("G:/Projects/Stock/vibe-astock"), "vibe-astock");
 assert.equal(displayNameFromPath("C:\\Users\\Administrator\\"), "Administrator");
+assert.equal(normalizePathKey("  G:\\Projects\\A\\  "), normalizePathKey("g:/projects/a"));
 
 const empty = createEmptyOpenState();
 assert.deepEqual(empty.tabGroups, []);
