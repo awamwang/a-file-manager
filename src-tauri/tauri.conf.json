@@ -19,6 +19,8 @@
         "height": 720,
         "minWidth": 330,
         "minHeight": 400,
+        "maximized": true,
+        "fullscreen": false,
         "decorations": false
       }
     ],

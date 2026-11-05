@@ -28,8 +28,17 @@ if (!JSON.parse(conf).app?.withGlobalTauri) {
   console.error("tauri.conf.json must set app.withGlobalTauri so frame controls.js can exit");
   process.exit(1);
 }
-if (JSON.parse(conf).app?.windows?.[0]?.decorations !== false) {
+const mainWindow = JSON.parse(conf).app?.windows?.[0];
+if (mainWindow?.decorations !== false) {
   console.error("main window must use decorations:false for custom Fluent caption");
+  process.exit(1);
+}
+if (mainWindow?.maximized !== true) {
+  console.error("main window must start maximized (not exclusive fullscreen)");
+  process.exit(1);
+}
+if (mainWindow?.fullscreen === true) {
+  console.error("main window must not use exclusive fullscreen on launch");
   process.exit(1);
 }
 
