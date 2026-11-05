@@ -38,6 +38,7 @@ export const SCHEMA_ENUM_OPTIONS: Record<string, readonly string[]> = {
     "vscode",
     "cursor",
     "trae",
+    "qoder",
     "none",
   ],
 };

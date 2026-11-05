@@ -178,6 +178,7 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
                 "vscode".into(),
                 "cursor".into(),
                 "trae".into(),
+                "qoder".into(),
                 "none".into(),
             ]),
             json!("systemDefault"),

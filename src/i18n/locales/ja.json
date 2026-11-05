@@ -357,7 +357,8 @@
             "vscode": "Visual Studio Code",
             "cursor": "Cursor",
             "trae": "Trae",
-            "none": "何もしない"
+            "none": "何もしない",
+            "qoder": "Qoder CN"
           }
         }
       },

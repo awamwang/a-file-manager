@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Launch folders/files in VS Code / Cursor / Trae (Sigma-aligned IDE/Agent trio).
+//! Launch folders/files in preset IDEs/Agents (Sigma-aligned path discovery).
 
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -21,6 +21,9 @@ pub struct IdeLaunchResult {
     pub error: Option<String>,
 }
 
+/// Preset IDE/Agent launchers. Candidates mirror Sigma-style discovery:
+/// PATH shims first, then per-user Local\\Programs, then Program Files.
+/// Qoder CN also accepts Coder CN / Corder CN install-folder spellings.
 const IDE_DEFS: &[(&str, &str, &[&str])] = &[
     (
         "vscode",
@@ -50,6 +53,23 @@ const IDE_DEFS: &[(&str, &str, &[&str])] = &[
             "trae",
             r"C:\Users\{user}\AppData\Local\Programs\Trae\Trae.exe",
             r"C:\Program Files\Trae\Trae.exe",
+        ],
+    ),
+    (
+        "qoder",
+        "Qoder CN",
+        &[
+            "qoder.cmd",
+            "qoder",
+            "coder.cmd",
+            "corder.cmd",
+            r"C:\Users\{user}\AppData\Local\Programs\Qoder CN\Qoder CN.exe",
+            r"C:\Users\{user}\AppData\Local\Programs\Coder CN\Coder CN.exe",
+            r"C:\Users\{user}\AppData\Local\Programs\Corder CN\Corder CN.exe",
+            r"C:\Users\{user}\AppData\Local\Programs\Qoder\Qoder.exe",
+            r"C:\Program Files\Qoder CN\Qoder CN.exe",
+            r"C:\Program Files\Coder CN\Coder CN.exe",
+            r"C:\Program Files\Corder CN\Corder CN.exe",
         ],
     ),
 ];
@@ -172,17 +192,42 @@ mod tests {
     use super::*;
 
     #[test]
-    fn lists_three_ides() {
+    fn lists_preset_ides_including_qoder() {
         let apps = ide_list_apps();
-        assert_eq!(apps.len(), 3);
+        assert_eq!(apps.len(), 4);
         assert_eq!(apps[0].id, "vscode");
         assert_eq!(apps[1].id, "cursor");
         assert_eq!(apps[2].id, "trae");
+        assert_eq!(apps[3].id, "qoder");
+        assert_eq!(apps[3].name, "Qoder CN");
+    }
+
+    #[test]
+    fn qoder_candidates_cover_coder_corder_spellings() {
+        let def = IDE_DEFS.iter().find(|(id, _, _)| *id == "qoder").unwrap();
+        let joined = def.2.join("|");
+        assert!(joined.contains("Qoder CN"));
+        assert!(joined.contains("Coder CN"));
+        assert!(joined.contains("Corder CN"));
     }
 
     #[test]
     fn empty_path_fails() {
         let result = ide_open_path("vscode".into(), String::new());
         assert!(!result.success);
+    }
+
+    #[test]
+    fn qoder_resolves_when_local_install_present() {
+        let local = expand_user(
+            r"C:\Users\{user}\AppData\Local\Programs\Qoder CN\Qoder CN.exe",
+        );
+        if !PathBuf::from(&local).is_file() {
+            return;
+        }
+        let apps = ide_list_apps();
+        let qoder = apps.iter().find(|a| a.id == "qoder").expect("qoder preset");
+        assert!(qoder.available);
+        assert!(qoder.resolved_path.as_ref().unwrap().contains("Qoder CN"));
     }
 }

@@ -347,6 +347,7 @@ export type FileDoubleClickAction =
   | "vscode"
   | "cursor"
   | "trae"
+  | "qoder"
   | "none";
 
 /**
@@ -379,7 +380,8 @@ export async function openEntry(entry: NavigatorEntry): Promise<void> {
       return;
     case "vscode":
     case "cursor":
-    case "trae": {
+    case "trae":
+    case "qoder": {
       const result = await invoke<{ success: boolean; error: string | null }>(
         "ide_open_path",
         { ideId: action, path: entry.path },
@@ -403,6 +405,7 @@ async function readFileDoubleClickAction(): Promise<FileDoubleClickAction> {
     "vscode",
     "cursor",
     "trae",
+    "qoder",
     "none",
   ];
   try {

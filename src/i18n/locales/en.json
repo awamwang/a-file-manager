@@ -260,7 +260,8 @@
             "vscode": "Visual Studio Code",
             "cursor": "Cursor",
             "trae": "Trae",
-            "none": "Do nothing"
+            "none": "Do nothing",
+            "qoder": "Qoder CN"
           }
         }
       },
