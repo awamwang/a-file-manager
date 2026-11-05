@@ -130,6 +130,15 @@ export function buildContextMenuItems(
   }
 
   const openWithChildren: ContextMenuItemDef[] = [];
+  // Folders: new-tab lives under Open with (no top-level "Open current tab").
+  if (isDir) {
+    openWithChildren.push({
+      id: "openInNewTab",
+      labelKey: "contextMenu.openInNewTab",
+      enabled: true,
+      icon: "add",
+    });
+  }
   if (!isDir) {
     openWithChildren.push({
       id: "openWithSystemDefault",
@@ -163,13 +172,6 @@ export function buildContextMenuItems(
   }
 
   return [
-    { id: "open", labelKey: "contextMenu.open", enabled: true, icon: "folderOpen" },
-    {
-      id: "openInNewTab",
-      labelKey: "contextMenu.openInNewTab",
-      enabled: isDir,
-      icon: "add",
-    },
     {
       id: "openWith",
       labelKey: "contextMenu.openWith",

@@ -13,10 +13,13 @@ assert.equal(canOpenInNewTab(file), false);
 assert.equal(canOpenInNewTab(null), false);
 
 const dirItems = buildContextMenuItems(dir, { canPaste: true });
-const openInNewTab = dirItems.find((item) => item.id === "openInNewTab");
-assert.ok(openInNewTab);
-assert.equal(openInNewTab.enabled, true);
-assert.equal(openInNewTab.stub, undefined);
+// No top-level Open / Open in new tab — new tab lives under Open with.
+assert.equal(dirItems.find((item) => item.id === "open"), undefined);
+assert.equal(dirItems.find((item) => item.id === "openInNewTab"), undefined);
+const dirOpenWith = dirItems.find((item) => item.id === "openWith");
+assert.ok(dirOpenWith?.enabled);
+assert.ok(dirOpenWith?.children?.some((c) => c.id === "openInNewTab" && c.enabled));
+assert.ok(dirOpenWith?.children?.some((c) => c.id === "openWithNative"));
 const systemMenu = dirItems.find((item) => item.id === "systemMenu");
 assert.ok(systemMenu);
 assert.equal(systemMenu.enabled, true);
@@ -25,8 +28,6 @@ const openInTerminal = dirItems.find((item) => item.id === "openInTerminal");
 assert.ok(openInTerminal);
 assert.equal(openInTerminal.enabled, true);
 assert.equal(openInTerminal.stub, undefined);
-assert.equal(dirItems.find((item) => item.id === "openWith")?.enabled, true);
-assert.ok(dirItems.find((item) => item.id === "openWith")?.children?.length);
 assert.ok(dirItems.find((item) => item.id === "openInTerminal")?.children?.length);
 assert.ok(dirItems.find((item) => item.id === "systemMenu")?.children?.length);
 assert.ok(dirItems.find((item) => item.id === "properties")?.enabled);
@@ -51,17 +52,17 @@ assert.equal(
 );
 
 const fileItems = buildContextMenuItems(file);
-const fileOpenInNewTab = fileItems.find((item) => item.id === "openInNewTab");
-assert.ok(fileOpenInNewTab);
-assert.equal(fileOpenInNewTab.enabled, false);
+assert.equal(fileItems.find((item) => item.id === "open"), undefined);
+assert.equal(fileItems.find((item) => item.id === "openInNewTab"), undefined);
 assert.ok(fileItems.find((item) => item.id === "systemMenu")?.enabled);
 assert.ok(fileItems.find((item) => item.id === "openInTerminal")?.enabled);
 assert.ok(fileItems.find((item) => item.id === "toggleFavorite")?.enabled);
-// Files share Open-with (system default / choose app / IDEs) + Reveal.
+// Files share Open-with (system default / choose app / IDEs) + Reveal; no new-tab.
 const fileOpenWith = fileItems.find((item) => item.id === "openWith");
 assert.ok(fileOpenWith?.enabled);
 assert.ok(fileOpenWith?.children?.some((c) => c.id === "openWithSystemDefault"));
 assert.ok(fileOpenWith?.children?.some((c) => c.id === "openWithNative"));
+assert.ok(!fileOpenWith?.children?.some((c) => c.id === "openInNewTab"));
 assert.ok(
   buildContextMenuItems(file, {
     ideApps: [{ id: "cursor", name: "Cursor", available: true }],
