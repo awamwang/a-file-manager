@@ -84,11 +84,20 @@ export async function persistOpenStateNow(): Promise<void> {
   try {
     await invoke<UserWorkGroupsDoc>("work_groups_save_open_state", {
       workGroupId: activeWorkGroupId.value,
-      liveOpenState: liveOpenState.value,
+      liveOpenState: snapshotLiveOpenState(),
     });
   } catch {
     // Persistence failures should not block browsing; WG UI can still save explicitly.
   }
+}
+
+/** Flush debounced Open State to disk (close / tray / quit / hide). */
+export async function flushOpenStatePersist(): Promise<void> {
+  if (persistTimer) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
+  }
+  await persistOpenStateNow();
 }
 
 export function applyLiveOpenState(
@@ -111,12 +120,16 @@ export function bootstrapNavigatorOpenState(): Promise<void> {
         applyLiveOpenState(active?.openState ?? null);
         const activeTab = activeStripTab(liveOpenState.value);
         if (activeTab?.path) {
+          // Restore strip as saved; do not rewrite Open State on land.
           await navigateTo(activeTab.path, { syncOpenState: false });
-        } else {
+        } else if (liveOpenState.value.tabGroups.length === 0) {
           await loadDefaultPath();
+          // Ensure the seeded tab is on disk for the next restart.
+          await flushOpenStatePersist();
         }
       } catch {
         await loadDefaultPath();
+        await flushOpenStatePersist();
       }
     })();
   }

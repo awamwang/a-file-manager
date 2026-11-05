@@ -23,6 +23,7 @@ import {
   bootstrapNavigatorOpenState,
   closeNavigatorTab,
   currentPath,
+  flushOpenStatePersist,
   goUp,
   listError,
   listLoading,
@@ -593,6 +594,7 @@ async function applyCloseAction(action: Exclude<CloseBehavior, "ask">) {
       await persistCloseBehavior(action);
     }
     closeConfirmOpen.value = false;
+    await flushOpenStatePersist();
     if (action === "tray") {
       await hideMainWindowToTray();
       return;
@@ -612,18 +614,23 @@ function cancelCloseConfirm() {
 
 async function handleCloseRequested(event: { preventDefault: () => void }) {
   if (permitWindowClose.value) {
+    await flushOpenStatePersist();
     return;
   }
   event.preventDefault();
   const behavior = await loadCloseBehavior();
   if (behavior === "tray") {
+    await flushOpenStatePersist();
     await hideMainWindowToTray();
     return;
   }
   if (behavior === "quit") {
+    await flushOpenStatePersist();
     await quitApplication();
     return;
   }
+  // Ask: flush now so a later force-kill still keeps tabs.
+  await flushOpenStatePersist();
   closeConfirmRemember.value = true;
   closeConfirmOpen.value = true;
 }
@@ -691,6 +698,12 @@ onBeforeMount(() => {
   reclaimFluentTitlebar();
 });
 
+function onVisibilityFlush() {
+  if (document.visibilityState === "hidden") {
+    void flushOpenStatePersist();
+  }
+}
+
 onMounted(() => {
   reclaimFluentTitlebar();
   void loadHealth();
@@ -703,6 +716,7 @@ onMounted(() => {
   registerShellShortcuts();
   window.addEventListener("keydown", onGlobalKeydown);
   document.addEventListener("pointerdown", onDocumentPointerDown, true);
+  document.addEventListener("visibilitychange", onVisibilityFlush);
 
   const win = getCurrentWindow();
   void win.onCloseRequested((event) => {
@@ -731,6 +745,8 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener("keydown", onGlobalKeydown);
   document.removeEventListener("pointerdown", onDocumentPointerDown, true);
+  document.removeEventListener("visibilitychange", onVisibilityFlush);
+  void flushOpenStatePersist();
   unregisterShellShortcuts();
   for (const unlisten of unlisteners) {
     unlisten();
