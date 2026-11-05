@@ -39,6 +39,25 @@ assert.equal(
   "navigator.prevTabGroup",
 );
 assert.equal(
+  winners.get(chordKey({ alt: true, key: "n" }))?.id,
+  "view.work-groups",
+);
+assert.equal(
+  eventMatchesChord(keyEvent({ altKey: true, key: "n" }), {
+    alt: true,
+    key: "n",
+  }),
+  true,
+);
+assert.equal(
+  eventMatchesChord(
+    keyEvent({ ctrlKey: true, altKey: true, key: "n" }),
+    { alt: true, key: "n" },
+  ),
+  false,
+  "Ctrl+Alt+N (new file) must not match Alt+N (work groups)",
+);
+assert.equal(
   eventMatchesChord(keyEvent({ ctrlKey: true, key: "Tab" }), {
     ctrl: true,
     key: "tab",

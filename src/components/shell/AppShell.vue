@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, onBeforeMount, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeMount, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
@@ -344,7 +344,19 @@ async function onOpenMembersIntoOpenState() {
 
 async function openWorkGroupsPage() {
   closeWorkGroupMenu();
-  await router.push("/work-groups");
+  if (route.path !== "/work-groups") {
+    await router.push("/work-groups");
+  }
+  await nextTick();
+  // Focus Work Groups UI when already on route (or after navigation settles).
+  requestAnimationFrame(() => {
+    const target =
+      document.querySelector<HTMLElement>("#work-groups-page-title") ??
+      document.querySelector<HTMLElement>(
+        ".fluent-page .master-list [tabindex='0']",
+      );
+    target?.focus?.();
+  });
 }
 
 async function ensureNavigatorThenGoUp() {
@@ -532,6 +544,9 @@ function registerShellShortcuts() {
   registerShortcutHandler("view.shortcuts", () => {
     void router.push("/settings/shortcuts");
   });
+  registerShortcutHandler("view.work-groups", () => {
+    void openWorkGroupsPage();
+  });
 }
 
 function unregisterShellShortcuts() {
@@ -549,6 +564,7 @@ function unregisterShellShortcuts() {
     "chrome.focusAddress",
     "view.settings",
     "view.shortcuts",
+    "view.work-groups",
   ]) {
     unregisterShortcutHandler(id);
   }

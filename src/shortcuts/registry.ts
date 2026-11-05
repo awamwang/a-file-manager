@@ -147,6 +147,16 @@ export const BUILTIN_SHORTCUTS: ShortcutDefinition[] = [
     chord: { ctrl: true, shift: true, key: "/" },
     scope: "global",
   },
+  /**
+   * Open/focus Work Groups page (same id as Command Panel `view.work-groups`).
+   * Listed in Settings → Shortcuts; remap when user overrides land.
+   */
+  {
+    id: "view.work-groups",
+    labelKey: "shortcuts.items.openWorkGroups",
+    chord: { alt: true, key: "n" },
+    scope: "global",
+  },
 ];
 
 export function findShortcutConflicts(

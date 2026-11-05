@@ -361,7 +361,9 @@ onUnmounted(() => {
 <template>
   <section class="fluent-page">
     <header class="fluent-page-header">
-      <h1 class="fluent-page-title">{{ t("workGroups.title") }}</h1>
+      <h1 id="work-groups-page-title" class="fluent-page-title" tabindex="-1">
+        {{ t("workGroups.title") }}
+      </h1>
       <p class="fluent-page-meta">{{ t("workGroups.meta") }}</p>
       <p class="fluent-page-meta usage-hint">{{ t("workGroups.usageHint") }}</p>
     </header>
