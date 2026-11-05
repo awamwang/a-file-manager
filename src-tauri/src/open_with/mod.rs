@@ -79,25 +79,18 @@ pub fn open_native_open_with_dialog(path: String) -> OpenWithResult {
 #[cfg(windows)]
 mod windows_impl {
     use super::OpenWithResult;
+    use crate::win_process;
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
-    use std::os::windows::process::CommandExt;
-    use std::process::Command;
     use windows::core::PCWSTR;
     use windows::Win32::UI::Shell::{
         ShellExecuteExW, SEE_MASK_ASYNCOK, SEE_MASK_INVOKEIDLIST, SHELLEXECUTEINFOW,
     };
     use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 
-    const CREATE_NO_WINDOW: u32 = 0x08000000;
-
     pub fn open_folder_in_explorer(path: &str) -> OpenWithResult {
         let absolute = path.replace('/', "\\");
-        match Command::new("explorer.exe")
-            .arg(&absolute)
-            .creation_flags(CREATE_NO_WINDOW)
-            .spawn()
-        {
+        match win_process::command("explorer.exe").arg(&absolute).spawn() {
             Ok(_) => OpenWithResult {
                 success: true,
                 error: None,
@@ -142,9 +135,8 @@ mod windows_impl {
         }
 
         // Fallback: cmd start "" "path"
-        match Command::new("cmd.exe")
+        match win_process::command("cmd.exe")
             .args(["/C", "start", "", &absolute])
-            .creation_flags(CREATE_NO_WINDOW)
             .spawn()
         {
             Ok(_) => OpenWithResult {
@@ -185,9 +177,8 @@ mod windows_impl {
             }
         }
 
-        match Command::new("rundll32.exe")
+        match win_process::command("rundll32.exe")
             .args(["shell32.dll,OpenAs_RunDLL", &absolute])
-            .creation_flags(CREATE_NO_WINDOW)
             .spawn()
         {
             Ok(_) => OpenWithResult {

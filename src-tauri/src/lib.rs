@@ -21,6 +21,7 @@ mod system_tray;
 mod terminal;
 pub mod sigma_import;
 mod snap_chrome;
+mod win_process;
 mod work_groups;
 
 fn launched_from_autostart(args: &[String]) -> bool {

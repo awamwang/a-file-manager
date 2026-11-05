@@ -4,9 +4,9 @@ use super::provider::Provider;
 use super::types::{
     AwamUri, BackendInfo, DirListing, ProviderCapability, ProviderEntry, ResolveResult, StatResult,
 };
+use crate::win_process;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -45,7 +45,9 @@ impl BlockingRcloneRunner {
 
 impl RcloneRunner for BlockingRcloneRunner {
     fn run(&self, args: &[&str], _timeout: Duration) -> Result<CommandOutput, String> {
-        let output = Command::new(&self.exe)
+        // rclone is a console binary; CREATE_NO_WINDOW prevents flash on GUI builds
+        // (provider_preload / health / listremotes at app start and on Providers refresh).
+        let output = win_process::command(&self.exe)
             .args(args)
             .output()
             .map_err(|err| {

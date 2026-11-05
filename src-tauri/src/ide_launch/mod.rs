@@ -2,9 +2,9 @@
 //! Launch folders/files in preset IDEs/Agents (Sigma-aligned path discovery).
 //! Auto-discover first; fall back to Settings path when discovery fails.
 
+use crate::win_process;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use tauri::AppHandle;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -105,25 +105,8 @@ fn expand_user(path: &str) -> String {
 
 fn resolve_candidate(candidate: &str) -> Option<PathBuf> {
     let expanded = expand_user(candidate);
-    let path = PathBuf::from(&expanded);
-    if path.is_file() {
-        return Some(path);
-    }
-    // PATH lookup for bare commands
-    if !expanded.contains('\\') && !expanded.contains('/') {
-        if let Ok(output) = Command::new("where.exe").arg(&expanded).output() {
-            if output.status.success() {
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                if let Some(line) = stdout.lines().next() {
-                    let found = PathBuf::from(line.trim());
-                    if found.is_file() {
-                        return Some(found);
-                    }
-                }
-            }
-        }
-    }
-    None
+    // PATH lookup without spawning where.exe (avoids console flashes on GUI builds).
+    win_process::resolve_on_path(&expanded)
 }
 
 fn resolve_auto(id: &str) -> Option<PathBuf> {
@@ -214,37 +197,16 @@ pub fn ide_open_path(app: AppHandle, ide_id: String, path: String) -> IdeLaunchR
         };
     };
 
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        match Command::new(&exe)
-            .arg(trimmed)
-            .creation_flags(CREATE_NO_WINDOW)
-            .spawn()
-        {
-            Ok(_) => IdeLaunchResult {
-                success: true,
-                error: None,
-            },
-            Err(err) => IdeLaunchResult {
-                success: false,
-                error: Some(format!("Failed to launch IDE: {err}")),
-            },
-        }
-    }
-    #[cfg(not(windows))]
-    {
-        match Command::new(&exe).arg(trimmed).spawn() {
-            Ok(_) => IdeLaunchResult {
-                success: true,
-                error: None,
-            },
-            Err(err) => IdeLaunchResult {
-                success: false,
-                error: Some(format!("Failed to launch IDE: {err}")),
-            },
-        }
+    // .cmd/.bat shims (code.cmd, cursor.cmd, …) are console hosts — hide them.
+    match win_process::command(&exe).arg(trimmed).spawn() {
+        Ok(_) => IdeLaunchResult {
+            success: true,
+            error: None,
+        },
+        Err(err) => IdeLaunchResult {
+            success: false,
+            error: Some(format!("Failed to launch IDE: {err}")),
+        },
     }
 }
 

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Enumerate local terminals and open a path's directory (Sigma-aligned).
 
+use crate::win_process;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -40,24 +41,8 @@ fn expand_user(path: &str) -> String {
 
 fn path_is_file(candidate: &str) -> Option<PathBuf> {
     let expanded = expand_user(candidate);
-    let path = PathBuf::from(&expanded);
-    if path.is_file() {
-        return Some(path);
-    }
-    if !expanded.contains('\\') && !expanded.contains('/') {
-        if let Ok(output) = Command::new("where.exe").arg(&expanded).output() {
-            if output.status.success() {
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                if let Some(line) = stdout.lines().next() {
-                    let found = PathBuf::from(line.trim());
-                    if found.is_file() {
-                        return Some(found);
-                    }
-                }
-            }
-        }
-    }
-    None
+    // PATH lookup without spawning where.exe (avoids console flashes on GUI builds).
+    win_process::resolve_on_path(&expanded)
 }
 
 fn resolve_terminal_exe(id: &str) -> Option<PathBuf> {
@@ -167,6 +152,7 @@ fn spawn_terminal(dir: &Path, terminal_id: &str, elevated: bool) -> OpenInTermin
     let launched = if elevated {
         spawn_elevated(&exe, &args, dir)
     } else {
+        // Terminal UIs must remain visible — do not apply CREATE_NO_WINDOW here.
         let mut cmd = Command::new(&exe);
         cmd.args(&args).current_dir(dir);
         try_spawn(&mut cmd)

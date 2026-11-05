@@ -198,7 +198,8 @@ watch(
       openSubmenuId.value = null;
       submenuAnchor.value = null;
       hideToolbarTip();
-      void loadLaunchers();
+      // Warm once; do not re-probe PATH helpers on every right-click.
+      preloadLaunchersIfNeeded();
     } else {
       clearSubmenuCloseTimer();
       openSubmenuId.value = null;
