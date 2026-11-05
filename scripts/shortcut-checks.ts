@@ -47,6 +47,14 @@ assert.equal(
   "navigator.previewBridge",
 );
 assert.equal(
+  winners.get(chordKey({ ctrl: true, key: "d" }))?.id,
+  "navigator.delete",
+);
+assert.equal(
+  winners.get(chordKey({ key: "delete" }))?.id,
+  "navigator.deleteKey",
+);
+assert.equal(
   eventMatchesChord(keyEvent({ key: " " }), { key: "space" }),
   true,
 );

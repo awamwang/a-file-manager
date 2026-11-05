@@ -120,6 +120,13 @@ export const BUILTIN_SHORTCUTS: ShortcutDefinition[] = [
   {
     id: "navigator.delete",
     labelKey: "shortcuts.items.navigatorDelete",
+    chord: { ctrl: true, key: "d" },
+    scope: "global",
+  },
+  /** Alias: Delete key (exact chord; keeps OS-familiar delete). */
+  {
+    id: "navigator.deleteKey",
+    labelKey: "shortcuts.items.navigatorDelete",
     chord: { key: "delete" },
     scope: "global",
   },

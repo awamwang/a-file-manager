@@ -514,6 +514,9 @@ function registerNavFileShortcuts() {
   registerShortcutHandler("navigator.delete", () => {
     void shortcutDelete();
   });
+  registerShortcutHandler("navigator.deleteKey", () => {
+    void shortcutDelete();
+  });
   registerShortcutHandler("navigator.selectAll", () => {
     setSelection(orderedPaths.value);
   });
@@ -533,6 +536,7 @@ function unregisterNavFileShortcuts() {
     "navigator.newFile",
     "navigator.refresh",
     "navigator.delete",
+    "navigator.deleteKey",
     "navigator.selectAll",
     "navigator.previewBridge",
   ]) {
