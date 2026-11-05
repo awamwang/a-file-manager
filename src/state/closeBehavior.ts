@@ -4,13 +4,13 @@
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import {
+  hydrateSettings,
+  rememberSettingsDocument,
+  type SettingsDocument,
+} from "./settingsHydrate";
 
 export type CloseBehavior = "ask" | "tray" | "quit";
-
-type SettingsDocument = {
-  version: number;
-  values: Record<string, unknown>;
-};
 
 export const CLOSE_BEHAVIOR_SETTING_KEY = "core.closeBehavior";
 
@@ -26,7 +26,7 @@ export function parseCloseBehavior(value: unknown): CloseBehavior {
 
 export async function loadCloseBehavior(): Promise<CloseBehavior> {
   try {
-    const doc = await invoke<SettingsDocument>("settings_get");
+    const doc = await hydrateSettings();
     const next = parseCloseBehavior(doc.values?.[CLOSE_BEHAVIOR_SETTING_KEY]);
     closeBehavior.value = next;
     return next;
@@ -43,6 +43,7 @@ export async function persistCloseBehavior(
     [CLOSE_BEHAVIOR_SETTING_KEY]: next,
   };
   const doc = await invoke<SettingsDocument>("settings_set", { patch });
+  rememberSettingsDocument(doc);
   const saved = parseCloseBehavior(doc.values?.[CLOSE_BEHAVIOR_SETTING_KEY]);
   closeBehavior.value = saved;
   return saved;

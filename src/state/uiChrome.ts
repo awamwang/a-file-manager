@@ -1,14 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { invoke } from "@tauri-apps/api/core";
+import { hydrateSettings } from "./settingsHydrate";
 
 export type UiTheme = "light" | "dark" | "system";
 export type ListDensity = "standard" | "compact";
-
-type SettingsDocument = {
-  version: number;
-  values: Record<string, unknown>;
-};
 
 let currentTheme: UiTheme = "system";
 let currentDensity: ListDensity = "standard";
@@ -58,7 +53,7 @@ export function applyUiChromeFromValues(values: Record<string, unknown>): void {
 /** Load settings document and sync chrome tokens. Safe fallback if IPC unavailable. */
 export async function loadUiChromeFromSettings(): Promise<void> {
   try {
-    const doc = await invoke<SettingsDocument>("settings_get");
+    const doc = await hydrateSettings();
     applyUiChromeFromValues(doc.values ?? {});
     return;
   } catch {

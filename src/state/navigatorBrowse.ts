@@ -23,6 +23,7 @@ import {
 import { navigableParentPath, recordNavHistory } from "./navHistory";
 import { GUIDE_PATH, isGuidePath } from "./navigatorGuide";
 import { readNewTabBehavior } from "./newTabBehavior";
+import { hydrateSettings } from "./settingsHydrate";
 import { recordPathVisit } from "./visitStats";
 
 export type NavigatorEntry = {
@@ -68,6 +69,8 @@ export const navigatorTabs = computed(() => stripTabs.value.map((tab) => tab.pat
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let bootstrapPromise: Promise<void> | null = null;
+/** Single-flight `work_groups_get` so Shell chrome + OpenState bootstrap share one IPC. */
+let workGroupsHydrate: Promise<UserWorkGroupsDoc> | null = null;
 
 function schedulePersist(immediate = false) {
   if (!activeWorkGroupId.value) return;
@@ -117,11 +120,37 @@ export function applyLiveOpenState(
   }
 }
 
+/**
+ * Cold-start / concurrent `work_groups_get` bus (AIA-181 P0).
+ * Pass `{ force: true }` when the menu needs a fresh disk read.
+ */
+export function hydrateWorkGroups(options?: {
+  force?: boolean;
+}): Promise<UserWorkGroupsDoc> {
+  if (!options?.force && workGroupsHydrate) return workGroupsHydrate;
+  const run = (async () => {
+    const doc = await invoke<UserWorkGroupsDoc>("work_groups_get");
+    activeWorkGroupId.value = doc.activeWorkGroupId;
+    return doc;
+  })();
+  workGroupsHydrate = run.catch((err) => {
+    if (workGroupsHydrate === run) workGroupsHydrate = null;
+    throw err;
+  });
+  return workGroupsHydrate;
+}
+
+/** Keep hydrate cache aligned after silent switch / member save. */
+export function rememberHydratedWorkGroups(doc: UserWorkGroupsDoc): void {
+  activeWorkGroupId.value = doc.activeWorkGroupId;
+  workGroupsHydrate = Promise.resolve(doc);
+}
+
 export function bootstrapNavigatorOpenState(): Promise<void> {
   if (!bootstrapPromise) {
     bootstrapPromise = (async () => {
       try {
-        const doc = await invoke<UserWorkGroupsDoc>("work_groups_get");
+        const doc = await hydrateWorkGroups();
         activeWorkGroupId.value = doc.activeWorkGroupId;
         const active = doc.workGroups.find((g) => g.id === doc.activeWorkGroupId);
         applyLiveOpenState(active?.openState ?? null);
@@ -501,7 +530,7 @@ async function readFileDoubleClickAction(): Promise<FileDoubleClickAction> {
     "none",
   ];
   try {
-    const doc = await invoke<{ values: Record<string, unknown> }>("settings_get");
+    const doc = await hydrateSettings();
     const raw = doc.values["core.fileDoubleClickAction"];
     if (typeof raw === "string" && (allowed as string[]).includes(raw)) {
       return raw as FileDoubleClickAction;

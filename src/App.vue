@@ -2,20 +2,15 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { invoke } from "@tauri-apps/api/core";
 import AppShell from "./components/shell/AppShell.vue";
 import { applyAppLocaleFromValues } from "./i18n/index";
 import { preloadProviderCache } from "./state/providerCache";
+import { hydrateSettings } from "./state/settingsHydrate";
 import {
   STARTUP_PAGE_SETTING_KEY,
   startupRouteFor,
 } from "./state/startupPage";
 import { applyUiChromeFromValues } from "./state/uiChrome";
-
-type SettingsDocument = {
-  version: number;
-  values: Record<string, unknown>;
-};
 
 const router = useRouter();
 
@@ -23,7 +18,8 @@ onMounted(() => {
   void (async () => {
     let values: Record<string, unknown> = {};
     try {
-      const doc = await invoke<SettingsDocument>("settings_get");
+      // AIA-181: single-flight settings hydrate (shared with close/viewMode/etc.).
+      const doc = await hydrateSettings();
       values = doc.values ?? {};
       applyUiChromeFromValues(values);
       applyAppLocaleFromValues(values);

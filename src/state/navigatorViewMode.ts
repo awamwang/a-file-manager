@@ -3,6 +3,7 @@
 
 import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { hydrateSettings, rememberSettingsDocument } from "./settingsHydrate";
 
 export type NavigatorViewMode =
   | "iconsLarge"
@@ -51,7 +52,7 @@ export async function loadNavigatorViewMode(): Promise<NavigatorViewMode> {
   if (!loadPromise) {
     loadPromise = (async () => {
       try {
-        const doc = await invoke<{ values: Record<string, unknown> }>("settings_get");
+        const doc = await hydrateSettings();
         navigatorViewMode.value = coerceMode(doc.values["core.navigatorViewMode"]);
       } catch {
         navigatorViewMode.value = "details";
@@ -67,9 +68,13 @@ export async function loadNavigatorViewMode(): Promise<NavigatorViewMode> {
 export async function setNavigatorViewMode(mode: NavigatorViewMode): Promise<void> {
   navigatorViewMode.value = mode;
   try {
-    await invoke("settings_set", {
-      patch: { "core.navigatorViewMode": mode },
-    });
+    const doc = await invoke<{ version: number; values: Record<string, unknown> }>(
+      "settings_set",
+      {
+        patch: { "core.navigatorViewMode": mode },
+      },
+    );
+    rememberSettingsDocument(doc);
   } catch {
     // Keep local mode even if persist fails; next load may revert.
   }

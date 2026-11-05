@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /** Settings `core.newTabBehavior`: guide page vs duplicate active tab (AIA-148). */
 
-import { invoke } from "@tauri-apps/api/core";
+import { hydrateSettings } from "./settingsHydrate";
 
 export const NEW_TAB_BEHAVIOR_SETTING_KEY = "core.newTabBehavior";
 
@@ -13,7 +13,7 @@ export function parseNewTabBehavior(value: unknown): NewTabBehavior {
 
 export async function readNewTabBehavior(): Promise<NewTabBehavior> {
   try {
-    const doc = await invoke<{ values: Record<string, unknown> }>("settings_get");
+    const doc = await hydrateSettings();
     return parseNewTabBehavior(doc.values[NEW_TAB_BEHAVIOR_SETTING_KEY]);
   } catch {
     return "guide";

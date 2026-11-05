@@ -89,6 +89,7 @@ import {
   focusNavigatorFilter,
   navigatorFilterQuery,
 } from "../../state/navigatorFilter";
+import { hydrateSettings } from "../../state/settingsHydrate";
 
 const { t, locale } = useI18n();
 
@@ -97,11 +98,6 @@ type HealthPayload = {
   name: string;
   version: string;
   identifier: string;
-};
-
-type SettingsDocument = {
-  version: number;
-  values: Record<string, unknown>;
 };
 
 const route = useRoute();
@@ -152,7 +148,8 @@ function toggleWorkGroupMenu() {
   viewModeMenuOpen.value = false;
   workGroupMenuOpen.value = !workGroupMenuOpen.value;
   if (workGroupMenuOpen.value) {
-    void loadWorkGroupsChrome();
+    // Fresh disk read when opening the menu (startup hydrate is single-flight).
+    void loadWorkGroupsChrome({ force: true });
   }
 }
 
@@ -301,7 +298,7 @@ async function goHome() {
   closeChromeMenus();
   await ensureNavigatorRoute();
   try {
-    const doc = await invoke<SettingsDocument>("settings_get");
+    const doc = await hydrateSettings();
     const configured = String(doc.values?.["core.defaultLocation"] ?? "").trim();
     if (configured) {
       await openOrFocusNavigatorTab(configured);

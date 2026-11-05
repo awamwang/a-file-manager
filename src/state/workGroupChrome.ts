@@ -5,7 +5,9 @@ import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import {
   activeWorkGroupId,
+  hydrateWorkGroups,
   openMembersIntoOpenState,
+  rememberHydratedWorkGroups,
   restoreWorkGroupOpenState,
   snapshotLiveOpenState,
   type SilentSwitchResult,
@@ -27,10 +29,13 @@ export const activeWorkGroup = computed(
     ) ?? null,
 );
 
-export async function loadWorkGroupsChrome(): Promise<UserWorkGroupsDoc | null> {
+/** Load WG doc for chrome; shares startup hydrate with OpenState bootstrap unless `force`. */
+export async function loadWorkGroupsChrome(options?: {
+  force?: boolean;
+}): Promise<UserWorkGroupsDoc | null> {
   workGroupChromeError.value = null;
   try {
-    const doc = await invoke<UserWorkGroupsDoc>("work_groups_get");
+    const doc = await hydrateWorkGroups(options);
     workGroupsDoc.value = doc;
     activeWorkGroupId.value = doc.activeWorkGroupId;
     return doc;
@@ -57,6 +62,7 @@ export async function silentSwitchWorkGroup(
       workGroupChromeError.value = "REQUIRE_SAVE_PROMPT";
       return result;
     }
+    rememberHydratedWorkGroups(result.document);
     workGroupsDoc.value = result.document;
     workGroupSoftNotice.value = result.notice;
     await restoreWorkGroupOpenState(
@@ -78,13 +84,15 @@ export async function saveActiveMembersFromTabsHard(): Promise<boolean> {
   workGroupChromeBusy.value = true;
   workGroupChromeError.value = null;
   try {
-    workGroupsDoc.value = await invoke<UserWorkGroupsDoc>(
+    const doc = await invoke<UserWorkGroupsDoc>(
       "work_groups_save_members_from_open_state",
       {
         workGroupId: active.id,
         liveOpenState: snapshotLiveOpenState(),
       },
     );
+    rememberHydratedWorkGroups(doc);
+    workGroupsDoc.value = doc;
     return true;
   } catch (err) {
     workGroupChromeError.value = err instanceof Error ? err.message : String(err);

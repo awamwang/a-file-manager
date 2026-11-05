@@ -15,6 +15,7 @@ import {
 } from "../state/navigatorBrowse";
 import { isGuidePath } from "../state/navigatorGuide";
 import NavigatorGuide from "../components/navigator/NavigatorGuide.vue";
+import { hydrateSettings } from "../state/settingsHydrate";
 import { iconUrlFor, requestShellIcons } from "../state/shellIcons";
 import {
   loadFavorites,
@@ -110,7 +111,7 @@ const previewPath = computed(() => {
 
 async function refreshPreviewSetting() {
   try {
-    const doc = await invoke<{ values: Record<string, unknown> }>("settings_get");
+    const doc = await hydrateSettings();
     previewPaneSetting.value = doc.values["experimental.previewPane"] === true;
   } catch {
     previewPaneSetting.value = false;

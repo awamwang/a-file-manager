@@ -4,6 +4,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
 import { applyUiChromeFromValues } from "../state/uiChrome";
+import { rememberSettingsDocument } from "../state/settingsHydrate";
 import { applyAppLocaleFromValues } from "../i18n/index";
 import {
   settingEnumOptionPath,
@@ -279,6 +280,7 @@ async function loadAll() {
     ]);
     schema.value = manifest;
     document.value = doc;
+    rememberSettingsDocument(doc);
     applyUiChromeFromValues(doc.values);
     applyAppLocaleFromValues(doc.values);
     // Keep OS login item aligned with persisted preference (best-effort).
@@ -313,6 +315,7 @@ async function patchValue(key: string, value: unknown) {
     document.value = await invoke<SettingsDocument>("settings_set", {
       patch,
     });
+    rememberSettingsDocument(document.value);
     applyUiChromeFromValues(document.value.values);
     applyAppLocaleFromValues(document.value.values);
   } catch (err) {

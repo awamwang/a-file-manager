@@ -89,7 +89,8 @@ export function userFolderItems(folders: UserFolders | null): UserFolderItem[] {
 
 export async function resolveHomePath(): Promise<string> {
   try {
-    const doc = await invoke<{ values: Record<string, unknown> }>("settings_get");
+    const { hydrateSettings } = await import("./settingsHydrate");
+    const doc = await hydrateSettings();
     const configured = String(doc.values?.["core.defaultLocation"] ?? "").trim();
     if (configured) return configured;
   } catch {
