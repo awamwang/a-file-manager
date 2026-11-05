@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// AIA-168: Preview Bridge MVP — Space → selectedPaths → Peek/QL/builtin.
+// AIA-168 / AIA-174: Preview Bridge — Space → Peek/QL/builtin + selection follow.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -21,10 +21,13 @@ const fe = read("src/state/previewBridge.ts");
 const fields = read("src/i18n/settingsFields.ts");
 
 assert.ok(bridgeRs.includes("preview_bridge_invoke"));
+assert.ok(bridgeRs.includes("preview_bridge_switch"));
 assert.ok(bridgeRs.includes("PowerToys.Peek.UI.exe"));
 assert.ok(bridgeRs.includes("QuickLook.App.Pipe."));
 assert.ok(bridgeRs.includes("QuickLook.App.PipeMessages.Toggle|"));
+assert.ok(bridgeRs.includes("QuickLook.App.PipeMessages.Switch|"));
 assert.ok(bridgeRs.includes("fallback_builtin"));
+assert.ok(bridgeRs.includes("session_active"));
 assert.ok(
   bridgeRs.includes("not a claim") ||
     bridgeRs.includes("not zero-adapter") ||
@@ -32,6 +35,7 @@ assert.ok(
   "Rust module must not claim zero-adapter for all QL",
 );
 assert.ok(libRs.includes("preview_bridge::preview_bridge_invoke"));
+assert.ok(libRs.includes("preview_bridge::preview_bridge_switch"));
 assert.ok(defaults.includes('"preview.externalProvider"'));
 assert.ok(defaults.includes('"auto"'));
 assert.ok(defaults.includes('"peek"'));
@@ -45,8 +49,12 @@ assert.ok(chord.includes('if (key === " ") return "space"'));
 assert.ok(runtime.includes("isEditableTarget"));
 assert.ok(nav.includes("navigator.previewBridge"));
 assert.ok(nav.includes("invokePreviewBridge"));
+assert.ok(nav.includes("switchPreviewBridge"));
+assert.ok(nav.includes("previewBridgeSessionActive"));
 assert.ok(nav.includes("previewBridgeForcePane"));
 assert.ok(fe.includes("preview_bridge_invoke"));
+assert.ok(fe.includes("preview_bridge_switch"));
+assert.ok(fe.includes("previewBridgeSessionActive"));
 assert.ok(fields.includes('"preview.externalProvider"'));
 
 const en = JSON.parse(read("src/i18n/locales/en.json"));
@@ -57,4 +65,6 @@ assert.equal(
 assert.ok(en.shortcuts.items.navigatorPreviewBridge);
 assert.ok(en.previewBridge.fallbackBuiltin);
 
-console.log("Preview Bridge checks OK (Peek CLI / QL pipe / builtin fallback).");
+console.log(
+  "Preview Bridge checks OK (Peek CLI / QL Toggle+Switch / builtin + selection follow).",
+);

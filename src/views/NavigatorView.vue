@@ -74,6 +74,8 @@ import { armNativeFileDragOut } from "../state/fileDragOut";
 import {
   invokePreviewBridge,
   previewBridgeForcePane,
+  previewBridgeSessionActive,
+  switchPreviewBridge,
 } from "../state/previewBridge";
 import {
   registerShortcutHandler,
@@ -133,6 +135,34 @@ async function shortcutPreviewBridge() {
     toastError(err instanceof Error ? err.message : String(err));
   }
 }
+
+/** AIA-174: while Space preview session is open, push selection changes. */
+let followTimer: ReturnType<typeof setTimeout> | null = null;
+let followSeq = 0;
+watch(
+  selectedPaths,
+  (paths) => {
+    if (!previewBridgeSessionActive.value) return;
+    if (isGuidePath(currentPath.value)) return;
+    if (!paths.length) return;
+    if (followTimer) clearTimeout(followTimer);
+    // Debounce Peek kill/respawn under arrow-key scrubbing; QL Switch is cheap.
+    followTimer = setTimeout(() => {
+      followTimer = null;
+      const my = ++followSeq;
+      const snapshot = [...paths];
+      void (async () => {
+        try {
+          await switchPreviewBridge(snapshot);
+          if (my !== followSeq) return;
+        } catch {
+          // Selection follow is best-effort; avoid toast spam while scrubbing.
+        }
+      })();
+    }, 120);
+  },
+  { deep: true },
+);
 
 function openProperties(path: string) {
   propertiesPath.value = path;
