@@ -41,9 +41,9 @@ const loading = ref(false);
 const error = ref<string | null>(null);
 
 async function loadBackends() {
-  const all = await invoke<BackendInfo[]>("provider_backends");
-  // Hide interface-only stubs from the primary Providers surface.
-  backends.value = all.filter((backend) => !backend.interfaceOnly);
+  // Restore interface-only stubs (downloads / prowlarr) on the Providers surface
+  // after AIA-112 temporarily hid them (0e0a884).
+  backends.value = await invoke<BackendInfo[]>("provider_backends");
 }
 
 async function listUri(target?: string) {

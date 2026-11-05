@@ -41,7 +41,7 @@ mod win {
     }
 
     struct PendingReply {
-        results: Option<EverythingQueryResult>,
+        results: Option<Result<EverythingQueryResult, String>>,
     }
 
     unsafe extern "system" fn reply_wnd_proc(
@@ -61,12 +61,10 @@ mod win {
                 let cds = &*(lparam.0 as *const COPYDATASTRUCT);
                 if cds.dwData == COPYDATA_QUERYCOMPLETE as usize {
                     if let Some(state) = get_window_state(hwnd) {
-                        if let Ok(parsed) =
-                            parse_list_v1(cds.lpData as *const u8, cds.cbData as usize)
-                        {
-                            if let Ok(mut guard) = state.lock() {
-                                guard.results = Some(parsed);
-                            }
+                        let parsed =
+                            parse_list_v1(cds.lpData as *const u8, cds.cbData as usize);
+                        if let Ok(mut guard) = state.lock() {
+                            guard.results = Some(parsed);
                         }
                     }
                     return LRESULT(1);
@@ -211,14 +209,8 @@ mod win {
                 "Everything IPC unavailable — install/start Everything".to_string()
             })?;
 
-            if search.trim().is_empty() {
-                return Ok(EverythingQueryResult {
-                    total_count: 0,
-                    offset: offset as u64,
-                    hits: Vec::new(),
-                });
-            }
-
+            // Empty search is valid: Everything still replies with totitems (used for
+            // DiscoveryStatus.estimated_item_count). Do not short-circuit to zero.
             unsafe { query_via_copydata(everything_hwnd, search, max_results, offset) }
         }
     }
@@ -365,7 +357,7 @@ mod win {
             return Err("Timed out waiting for Everything IPC reply".to_string());
         }
 
-        result.ok_or_else(|| "Everything IPC reply missing".to_string())
+        result.ok_or_else(|| "Everything IPC reply missing".to_string())?
     }
 
     #[cfg(test)]
