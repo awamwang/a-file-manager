@@ -145,7 +145,7 @@
     "marketplace": "Marketplace",
     "marketplaceFlags": "Marketplace vide : {empty} · récupération distante : {remote}",
     "marketplacePolicy": "Les paquets marketplace hérités sont rejetés (apiVersion vnext.1 requis). Aucun registre distant n’est contacté.",
-    "meta": "hôte vNext · marketplace vide · pas de paquets hérités",
+    "meta": "Modules optionnels pour sources et commandes supplémentaires",
     "noHooks": "Aucun hook enregistré",
     "noInstalled": "Aucune extension installée.",
     "noticeHelloFail": "Échec de la commande : {error}",
@@ -165,7 +165,7 @@
     "fieldOk": "ok",
     "fieldVersion": "version",
     "loading": "Chargement…",
-    "meta": "Identité du noyau Rust via health_get",
+    "meta": "Identité de l’app et état du noyau",
     "refresh": "Actualiser",
     "title": "Santé"
   },
@@ -210,7 +210,7 @@
     "errorWorkGroupMutation": "Mutation inattendue de Groupe de travail lors de tout ouvrir",
     "list": "Liste",
     "listSummary": "{links} liens · {open} ouverts",
-    "meta": "Super-ensemble de session WG · tableau · Context · lier un WG non défaut",
+    "meta": "Suivre le travail entre dossiers—tableau, notes, session WG optionnelle",
     "usageHint": "Pour le projet entier : progrès partagé et base de connaissances. En codant, liez un WG pour co-éditer les espaces liés.",
     "newNamePlaceholder": "Nom du nouveau projet",
     "noDescription": "Aucune description",
@@ -246,17 +246,18 @@
     "errorUnbound": "Le projet n’a pas de groupe de travail lié"
   },
   "providers": {
-    "emptyListing": "Liste vide.",
+    "emptyBackends": "Aucun fournisseur pour l’instant. La navigation locale reste dans le Navigateur.",
+    "emptyListing": "Cet emplacement ne contient aucun élément.",
     "file": "Fichier",
     "folder": "Dossier",
     "interfaceOnly": "interface seule",
     "list": "Lister",
     "listing": "Listage…",
-    "meta": "couche d’extension awam · rclone + knowledge",
+    "meta": "Parcourir cloud et dossiers virtuels à côté du disque local",
     "statusDown": "indisponible",
     "statusOk": "ok",
     "title": "Fournisseurs",
-    "uriPlaceholder": "awam://rclone/… ou awam://knowledge/…"
+    "uriPlaceholder": "Collez un chemin de fournisseur (ex. racine cloud ou connaissances)"
   },
   "settings": {
     "fields": {
@@ -354,7 +355,7 @@
       }
     },
     "loading": "Chargement du schéma…",
-    "meta": "Le schéma Rust fait autorité",
+    "meta": "Langue, thème, démarrage et préférences de recherche",
     "metaKeys": "· {count} clés",
     "metaVersion": "· v{version}",
     "tierCore": "Cœur",
@@ -374,7 +375,7 @@
     "errorSavePrompt": "Invite d’enregistrement inattendue lors d’une bascule silencieuse",
     "hardMembers": "Membres",
     "membersCount": "{count} membres",
-    "meta": "Configuration ↔ Open State runtime · bascule silencieuse",
+    "meta": "Regrouper des dossiers liés sur une barre d’onglets à bascule silencieuse",
     "usageHint": "Ouvrez en lot des onglets de dossiers liés ou du même type de travail—un groupe, une barre de session.",
     "newNamePlaceholder": "Nom du nouveau groupe de travail",
     "noHardMembers": "Aucun membre pour l’instant",

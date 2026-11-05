@@ -145,7 +145,7 @@
     "marketplace": "マーケット",
     "marketplaceFlags": "マーケット空: {empty} · リモート取得: {remote}",
     "marketplacePolicy": "レガシーマーケットパッケージは拒否されます（apiVersion vnext.1 が必要）。リモートレジストリには接続しません。",
-    "meta": "vNext ホスト · 空のマーケット · レガシーパッケージなし",
+    "meta": "追加のファイル源やコマンド向けのオプション拡張",
     "noHooks": "フックは登録されていません",
     "noInstalled": "拡張機能はインストールされていません。",
     "noticeHelloFail": "コマンド失敗: {error}",
@@ -165,7 +165,7 @@
     "fieldOk": "状態",
     "fieldVersion": "バージョン",
     "loading": "読み込み中…",
-    "meta": "health_get による Rust コア識別",
+    "meta": "アプリの識別情報とコア状態",
     "refresh": "更新",
     "title": "ヘルス"
   },
@@ -210,7 +210,7 @@
     "errorWorkGroupMutation": "すべて開くで予期しないワークグループ変更",
     "list": "リスト",
     "listSummary": "{links} リンク · {open} 進行中",
-    "meta": "WG セッションの上位集合 · ボード · Context · 非デフォルト WG をバインド",
+    "meta": "フォルダー横断の進捗管理—ボード・メモ、任意で WG セッションを紐付け",
     "usageHint": "プロジェクト全体の進捗と共有ナレッジ向け。コーディング時は WG を紐づけ、関連ワークスペースをまとめて編集します。",
     "newNamePlaceholder": "新しいプロジェクト名",
     "noDescription": "説明なし",
@@ -246,17 +246,18 @@
     "errorUnbound": "プロジェクトにワークグループがバインドされていません"
   },
   "providers": {
-    "emptyListing": "一覧は空です。",
+    "emptyBackends": "利用可能なプロバイダーはまだありません。ローカル閲覧はナビゲーターへ。",
+    "emptyListing": "この場所には項目がありません。",
     "file": "ファイル",
     "folder": "フォルダー",
     "interfaceOnly": "インターフェースのみ",
     "list": "一覧",
     "listing": "一覧取得中…",
-    "meta": "awam 拡張レイヤー · rclone + knowledge",
+    "meta": "クラウドや仮想フォルダーをローカルと並べて閲覧",
     "statusDown": "停止",
     "statusOk": "正常",
     "title": "プロバイダー",
-    "uriPlaceholder": "awam://rclone/… または awam://knowledge/…"
+    "uriPlaceholder": "プロバイダーのパスを貼り付け（クラウドやナレッジのルートなど）"
   },
   "settings": {
     "fields": {
@@ -354,7 +355,7 @@
       }
     },
     "loading": "スキーマを読み込み中…",
-    "meta": "Rust スキーマが権威",
+    "meta": "言語・テーマ・起動・検索の設定",
     "metaKeys": "· {count} キー",
     "metaVersion": "· v{version}",
     "tierCore": "コア",
@@ -374,7 +375,7 @@
     "errorSavePrompt": "サイレント切替で予期しない保存プロンプト",
     "hardMembers": "メンバー",
     "membersCount": "{count} メンバー",
-    "meta": "設定 ↔ ランタイム Open State · サイレント切替",
+    "meta": "関連フォルダーを静かに切り替えられる 1 本のタブ帯にまとめる",
     "usageHint": "関連フォルダーや同種の作業タブをまとめて開く——1 つのワークグループが 1 本のセッション帯になります。",
     "newNamePlaceholder": "新しいワークグループ名",
     "noHardMembers": "メンバーはまだありません",

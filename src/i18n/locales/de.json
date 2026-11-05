@@ -145,7 +145,7 @@
     "marketplace": "Marktplatz",
     "marketplaceFlags": "Marktplatz leer: {empty} · Remote-Abruf: {remote}",
     "marketplacePolicy": "Legacy-Marktplatzpakete werden abgelehnt (apiVersion vnext.1 erforderlich). Keine Remote-Registry wird kontaktiert.",
-    "meta": "vNext-Host · leerer Marktplatz · keine Legacy-Pakete",
+    "meta": "Optionale Erweiterungen für zusätzliche Quellen und Befehle",
     "noHooks": "Keine Hooks registriert",
     "noInstalled": "Keine Erweiterungen installiert.",
     "noticeHelloFail": "Befehl fehlgeschlagen: {error}",
@@ -165,7 +165,7 @@
     "fieldOk": "ok",
     "fieldVersion": "Version",
     "loading": "Wird geladen…",
-    "meta": "Rust-Kernidentität über health_get",
+    "meta": "App-Identität und Kernstatus",
     "refresh": "Aktualisieren",
     "title": "Health"
   },
@@ -210,7 +210,7 @@
     "errorWorkGroupMutation": "Unerwartete Arbeitsgruppen-Änderung beim Öffnen aller",
     "list": "Liste",
     "listSummary": "{links} Links · {open} offen",
-    "meta": "WG-Sitzungs-Superset · Board · Context · Nicht-Standard-WG binden",
+    "meta": "Arbeit über Ordner hinweg—Board, Notizen, optional WG-Sitzung",
     "usageHint": "Für das Gesamtprojekt: gemeinsamer Fortschritt und Wissensbasis. Beim Codieren eine WG binden, damit verknüpfte Arbeitsbereiche zusammen bleiben.",
     "newNamePlaceholder": "Name des neuen Projekts",
     "noDescription": "Keine Beschreibung",
@@ -246,17 +246,18 @@
     "errorUnbound": "Projekt hat keine gebundene Arbeitsgruppe"
   },
   "providers": {
-    "emptyListing": "Leere Liste.",
+    "emptyBackends": "Noch keine Anbieter verfügbar. Lokales Browsen bleibt im Navigator.",
+    "emptyListing": "An diesem Ort gibt es keine Einträge.",
     "file": "Datei",
     "folder": "Ordner",
     "interfaceOnly": "nur Schnittstelle",
     "list": "Auflisten",
     "listing": "Liste wird geladen…",
-    "meta": "awam-Erweiterungsschicht · rclone + knowledge",
+    "meta": "Cloud- und virtuelle Ordner neben lokalen Laufwerken",
     "statusDown": "offline",
     "statusOk": "ok",
     "title": "Anbieter",
-    "uriPlaceholder": "awam://rclone/… oder awam://knowledge/…"
+    "uriPlaceholder": "Anbieterpfad einfügen (z. B. Cloud- oder Wissenswurzel)"
   },
   "settings": {
     "fields": {
@@ -354,7 +355,7 @@
       }
     },
     "loading": "Schema wird geladen…",
-    "meta": "Rust-Schema ist maßgeblich",
+    "meta": "Sprache, Design, Start und Sucheinstellungen",
     "metaKeys": "· {count} Schlüssel",
     "metaVersion": "· v{version}",
     "tierCore": "Kern",
@@ -374,7 +375,7 @@
     "errorSavePrompt": "Unerwartete Speicherabfrage beim stillen Wechsel",
     "hardMembers": "Mitglieder",
     "membersCount": "{count} Mitglieder",
-    "meta": "Konfiguration ↔ Laufzeit-Open-State · stiller Wechsel",
+    "meta": "Verwandte Ordner in eine still umschaltbare Tab-Leiste bündeln",
     "usageHint": "Tabs für verwandte Ordner oder gleichartige Arbeit gesammelt öffnen—eine Arbeitsgruppe, eine Sitzungsleiste.",
     "newNamePlaceholder": "Name der neuen Arbeitsgruppe",
     "noHardMembers": "Noch keine Mitglieder",

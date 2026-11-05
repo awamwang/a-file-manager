@@ -157,7 +157,7 @@
   },
   "settings": {
     "title": "Settings",
-    "meta": "Rust schema authority",
+    "meta": "Language, theme, startup, and search preferences",
     "metaVersion": "· v{version}",
     "metaKeys": "· {count} keys",
     "loading": "Loading schema…",
@@ -265,7 +265,7 @@
   },
   "health": {
     "title": "Health",
-    "meta": "Rust core identity via health_get",
+    "meta": "App identity and core status",
     "loading": "Loading…",
     "failed": "Health failed: {error}",
     "refresh": "Refresh",
@@ -276,20 +276,21 @@
   },
   "providers": {
     "title": "Providers",
-    "meta": "awam extension layer · rclone + knowledge",
+    "meta": "Browse cloud and virtual folders alongside local disks",
     "interfaceOnly": "interface-only",
     "statusOk": "ok",
     "statusDown": "down",
-    "uriPlaceholder": "awam://rclone/… or awam://knowledge/…",
+    "uriPlaceholder": "Paste a provider path (e.g. cloud or knowledge root)",
     "listing": "Listing…",
     "list": "List",
-    "emptyListing": "Empty listing.",
+    "emptyBackends": "No providers available yet. Local browsing stays in Navigator.",
+    "emptyListing": "This location has no items.",
     "folder": "Folder",
     "file": "File"
   },
   "workGroups": {
     "title": "Work Groups",
-    "meta": "Config ↔ runtime Open State · silent switch",
+    "meta": "Bundle related folders into one tab strip you can switch silently",
     "usageHint": "Batch-open tabs for related folders or the same kind of work—one Work Group, one strip of sessions.",
     "softSync": "Soft sync: opened {paths}",
     "default": "default",
@@ -314,7 +315,7 @@
   },
   "projects": {
     "title": "Projects",
-    "meta": "WG session super-set · board · Context · bind non-default Work Group",
+    "meta": "Track work across folders—board, notes, and an optional Work Group session",
     "usageHint": "Track the whole project—shared progress and knowledge. When coding, bind a Work Group so linked workspaces stay editable together.",
     "listSummary": "{links} links · {open} open",
     "newNamePlaceholder": "New project name",
@@ -362,7 +363,7 @@
   },
   "extensions": {
     "title": "Extensions",
-    "meta": "vNext host · empty marketplace · no legacy packages",
+    "meta": "Optional add-ons for extra file sources and commands",
     "hostPrefix": "ExtensionHost {version}",
     "hostStatus": "Host status",
     "api": "API {version}",

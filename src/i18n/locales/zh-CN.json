@@ -157,7 +157,7 @@
   },
   "settings": {
     "title": "设置",
-    "meta": "Rust 模式为权威来源",
+    "meta": "语言、主题、启动与搜索偏好",
     "metaVersion": "· v{version}",
     "metaKeys": "· {count} 项",
     "loading": "正在加载模式…",
@@ -265,7 +265,7 @@
   },
   "health": {
     "title": "健康",
-    "meta": "通过 health_get 读取 Rust 核心身份",
+    "meta": "应用身份与核心状态",
     "loading": "加载中…",
     "failed": "健康检查失败：{error}",
     "refresh": "刷新",
@@ -276,20 +276,21 @@
   },
   "providers": {
     "title": "提供程序",
-    "meta": "awam 扩展层 · rclone + knowledge",
+    "meta": "浏览云盘与虚拟文件夹，与本地磁盘并列",
     "interfaceOnly": "仅接口",
     "statusOk": "正常",
     "statusDown": "不可用",
-    "uriPlaceholder": "awam://rclone/… 或 awam://knowledge/…",
+    "uriPlaceholder": "粘贴提供方路径（如云盘或知识库根）",
     "listing": "列出中…",
     "list": "列出",
-    "emptyListing": "列表为空。",
+    "emptyBackends": "暂无可用提供方；本地浏览请使用导航器。",
+    "emptyListing": "此位置没有项目。",
     "folder": "文件夹",
     "file": "文件"
   },
   "workGroups": {
     "title": "工作组",
-    "meta": "配置 ↔ 运行时打开状态 · 静默切换",
+    "meta": "把相关文件夹收成一条可静默切换的标签带",
     "usageHint": "批量打开一批互相关联或同类型工作的标签——一个工作组对应一条会话标签带。",
     "softSync": "软同步：已打开 {paths}",
     "default": "默认",
@@ -314,7 +315,7 @@
   },
   "projects": {
     "title": "项目",
-    "meta": "基于工作组会话的超集 · 看板 · Context · 绑定非默认工作组",
+    "meta": "跨文件夹跟踪进度——看板、笔记，可绑定工作组会话",
     "usageHint": "面向项目整体：共同进度与共享知识库；写代码时绑定工作组，便于在关联工作区中共同编辑。",
     "listSummary": "{links} 个链接 · {open} 个进行中",
     "newNamePlaceholder": "新项目名称",
@@ -362,7 +363,7 @@
   },
   "extensions": {
     "title": "扩展",
-    "meta": "vNext 宿主 · 空市场 · 不接受旧包",
+    "meta": "可选扩展：额外文件源与命令",
     "hostPrefix": "ExtensionHost {version}",
     "hostStatus": "宿主状态",
     "api": "API {version}",

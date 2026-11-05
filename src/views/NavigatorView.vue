@@ -634,6 +634,12 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
   gap: var(--fluent-space-sm);
 }
 
+.panes--dual .pane {
+  /* Narrow-window guard: keep each pane usable (UI audit leftover). */
+  min-width: min(12rem, 40%);
+  flex: 1 1 12rem;
+}
+
 .pane {
   display: flex;
   flex-direction: column;

@@ -15,6 +15,10 @@ assert.ok(state.includes("navigateSecondary"));
 assert.ok(view.includes("panes--dual"));
 assert.ok(view.includes("dualPaneEnabled"));
 assert.ok(view.includes("secondaryEntries"));
+assert.ok(
+  view.includes("min-width: min(12rem, 40%)") || view.includes("flex: 1 1 12rem"),
+  "dual pane needs narrow-window min-width guard",
+);
 assert.ok(shell.includes("toggleDualPane"));
 assert.ok(shell.includes("chrome.dualPane") || shell.includes('t("chrome.dualPane")'));
 assert.equal(en.chrome.dualPane, "Dual pane");

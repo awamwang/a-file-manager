@@ -83,7 +83,10 @@ onMounted(() => {
       <p class="fluent-page-meta">{{ t("providers.meta") }}</p>
     </header>
 
-    <div class="backends">
+    <p v-if="!backends.length" class="fluent-banner fluent-banner--info">
+      {{ t("providers.emptyBackends") }}
+    </p>
+    <div v-else class="backends">
       <button
         v-for="backend in backends"
         :key="backend.id"
