@@ -31,6 +31,20 @@ assert.ok(projects.includes("more-menu"));
 assert.ok(wg.includes("margin-inline-start: auto"));
 assert.ok(projects.includes("margin-inline-start: auto"));
 
+// Master-list item ⋯ (rename + delete) + independent list scroll.
+assert.ok(wg.includes("list-more-menu"));
+assert.ok(projects.includes("list-more-menu"));
+assert.ok(wg.includes("startListRename"));
+assert.ok(projects.includes("startListRename"));
+assert.ok(wg.includes("commitListRename"));
+assert.ok(projects.includes("commitListRename"));
+assert.ok(wg.includes("deleteGroup"));
+assert.ok(projects.includes("deleteProject"));
+assert.ok(wg.includes("master-list-scroll"));
+assert.ok(projects.includes("master-list-scroll"));
+assert.match(wg, /\.master-list-scroll\s*\{[^}]*overflow-y:\s*auto/s);
+assert.match(projects, /\.master-list-scroll\s*\{[^}]*overflow-y:\s*auto/s);
+
 // Inline rename: Enter saves; blur/Escape cancel without save; toast on save.
 assert.ok(wg.includes('@keydown.enter.prevent="commitInlineRename"'));
 assert.ok(wg.includes('@keydown.escape.prevent="cancelInlineRename"'));
@@ -62,4 +76,4 @@ assert.ok(projects.includes('name="close"'));
 assert.ok(wg.includes("@click.stop=\"removeMember"));
 assert.ok(projects.includes("@click.stop=\"removeLink"));
 
-console.log("wg/project path cards + unified edit chrome OK.");
+console.log("wg/project path cards + list ⋯ + scroll chrome OK.");

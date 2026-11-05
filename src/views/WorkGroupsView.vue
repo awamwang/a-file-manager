@@ -160,12 +160,23 @@ const moreMenuOpen = ref(false);
 const renameInputEl = ref<HTMLInputElement | null>(null);
 const moreMenuEl = ref<HTMLElement | null>(null);
 const detailTitleRowEl = ref<HTMLElement | null>(null);
+const listMoreOpenId = ref<string | null>(null);
+const listRenamingId = ref<string | null>(null);
+const listRenameDraft = ref("");
+const listRenameInputEl = ref<HTMLInputElement | null>(null);
+const masterListEl = ref<HTMLElement | null>(null);
+
+function setListRenameInputEl(el: unknown) {
+  listRenameInputEl.value = el instanceof HTMLInputElement ? el : null;
+}
 
 function startInlineRename() {
   if (!active.value) return;
   renameDraft.value = active.value.name;
   renaming.value = true;
   moreMenuOpen.value = false;
+  listMoreOpenId.value = null;
+  listRenamingId.value = null;
   void nextTick(() => {
     renameInputEl.value?.focus();
     renameInputEl.value?.select();
@@ -197,6 +208,50 @@ async function commitInlineRename() {
   toastSuccess(t("workGroups.renamed"));
 }
 
+function toggleListMore(groupId: string, event: Event) {
+  event.stopPropagation();
+  moreMenuOpen.value = false;
+  listMoreOpenId.value = listMoreOpenId.value === groupId ? null : groupId;
+}
+
+function startListRename(group: WorkGroup, event?: Event) {
+  event?.stopPropagation();
+  listMoreOpenId.value = null;
+  moreMenuOpen.value = false;
+  renaming.value = false;
+  listRenamingId.value = group.id;
+  listRenameDraft.value = group.name;
+  void nextTick(() => {
+    listRenameInputEl.value?.focus();
+    listRenameInputEl.value?.select();
+  });
+}
+
+function cancelListRename() {
+  listRenamingId.value = null;
+  listRenameDraft.value = "";
+}
+
+function onListRenameBlur() {
+  queueMicrotask(() => {
+    if (listRenamingId.value) cancelListRename();
+  });
+}
+
+async function commitListRename(groupId: string) {
+  if (listRenamingId.value !== groupId) return;
+  const group = document.value?.workGroups.find((g) => g.id === groupId);
+  const next = listRenameDraft.value.trim();
+  listRenamingId.value = null;
+  listRenameDraft.value = "";
+  if (!group || !next || next === group.name) return;
+  document.value = await invoke<UserWorkGroups>("work_groups_rename", {
+    workGroupId: groupId,
+    name: next,
+  });
+  toastSuccess(t("workGroups.renamed"));
+}
+
 function onDetailPointerDown(event: PointerEvent) {
   const target = event.target as Node | null;
   if (!target) return;
@@ -206,19 +261,37 @@ function onDetailPointerDown(event: PointerEvent) {
   if (renaming.value && detailTitleRowEl.value && !detailTitleRowEl.value.contains(target)) {
     cancelInlineRename();
   }
+  if (listMoreOpenId.value) {
+    const openMenu = masterListEl.value?.querySelector(
+      `[data-list-more-id="${listMoreOpenId.value}"]`,
+    );
+    if (!openMenu?.contains(target)) {
+      listMoreOpenId.value = null;
+    }
+  }
+  if (listRenamingId.value) {
+    const row = masterListEl.value?.querySelector(
+      `[data-list-item-id="${listRenamingId.value}"]`,
+    );
+    if (!row?.contains(target)) {
+      cancelListRename();
+    }
+  }
 }
 
-async function deleteActiveGroup() {
-  if (!active.value || active.value.isDefault) return;
-  const deletingId = active.value.id;
+async function deleteGroup(group: WorkGroup) {
+  if (group.isDefault) return;
+  const deletingId = group.id;
   const wasActive = deletingId === activeWorkGroupId.value;
   if (
     !window.confirm(
-      t("workGroups.deleteConfirmClearTabs", { name: active.value.name }),
+      t("workGroups.deleteConfirmClearTabs", { name: group.name }),
     )
   ) {
     return;
   }
+  listMoreOpenId.value = null;
+  moreMenuOpen.value = false;
   document.value = await invoke<UserWorkGroups>("work_groups_delete", {
     workGroupId: deletingId,
   });
@@ -233,6 +306,11 @@ async function deleteActiveGroup() {
     );
   }
   toastSuccess(t("workGroups.deletedSwitched"));
+}
+
+async function deleteActiveGroup() {
+  if (!active.value) return;
+  await deleteGroup(active.value);
 }
 
 async function openMembersIntoRuntime() {
@@ -291,27 +369,83 @@ onUnmounted(() => {
     <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
 
     <div v-if="document" class="layout">
-      <aside class="master-list">
-        <button
-          v-for="group in document.workGroups"
-          :key="group.id"
-          type="button"
-          class="fluent-surface group"
-          :class="{ 'group--active': group.id === document.activeWorkGroupId }"
-          @click="silentSwitch(group.id)"
-        >
-          <span class="group-head">
-            <span class="fluent-icon-wash">
-              <FluentIcon :name="group.isDefault ? 'home' : 'viewAll'" size="md" />
-            </span>
-            <strong>{{ group.name }}</strong>
-          </span>
-          <span class="fluent-page-meta">{{
-            group.isDefault
-              ? t("workGroups.default")
-              : t("workGroups.membersCount", { count: group.memberPaths.length })
-          }}</span>
-        </button>
+      <aside ref="masterListEl" class="master-list">
+        <div class="master-list-scroll">
+          <div
+            v-for="group in document.workGroups"
+            :key="group.id"
+            class="fluent-surface group"
+            :class="{ 'group--active': group.id === document.activeWorkGroupId }"
+            role="button"
+            tabindex="0"
+            :data-list-item-id="group.id"
+            @click="silentSwitch(group.id)"
+            @keydown.enter.prevent="silentSwitch(group.id)"
+          >
+            <div class="group-top">
+              <span class="group-head">
+                <span class="fluent-icon-wash">
+                  <FluentIcon :name="group.isDefault ? 'home' : 'viewAll'" size="md" />
+                </span>
+                <input
+                  v-if="listRenamingId === group.id"
+                  :ref="setListRenameInputEl"
+                  v-model="listRenameDraft"
+                  class="fluent-control list-inline-rename"
+                  @click.stop
+                  @keydown.enter.prevent="commitListRename(group.id)"
+                  @keydown.escape.prevent="cancelListRename"
+                  @blur="onListRenameBlur"
+                />
+                <strong v-else>{{ group.name }}</strong>
+              </span>
+              <div
+                class="list-more-menu"
+                :data-list-more-id="group.id"
+                @click.stop
+              >
+                <button
+                  type="button"
+                  class="fluent-control more-trigger list-more-trigger"
+                  :aria-expanded="listMoreOpenId === group.id"
+                  aria-haspopup="menu"
+                  :title="t('common.more')"
+                  @click="toggleListMore(group.id, $event)"
+                >
+                  ···
+                </button>
+                <div
+                  v-if="listMoreOpenId === group.id"
+                  class="more-popover fluent-surface"
+                  role="menu"
+                >
+                  <button
+                    type="button"
+                    class="more-item"
+                    role="menuitem"
+                    @click="startListRename(group, $event)"
+                  >
+                    {{ t("workGroups.rename") }}
+                  </button>
+                  <button
+                    v-if="!group.isDefault"
+                    type="button"
+                    class="more-item more-item--danger"
+                    role="menuitem"
+                    @click="deleteGroup(group)"
+                  >
+                    {{ t("workGroups.delete") }}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <span class="fluent-page-meta">{{
+              group.isDefault
+                ? t("workGroups.default")
+                : t("workGroups.membersCount", { count: group.memberPaths.length })
+            }}</span>
+          </div>
+        </div>
 
         <form class="create" @submit.prevent="createGroup">
           <input
@@ -351,7 +485,10 @@ onUnmounted(() => {
               :aria-expanded="moreMenuOpen"
               aria-haspopup="menu"
               :title="t('common.more')"
-              @click="moreMenuOpen = !moreMenuOpen"
+              @click="
+                listMoreOpenId = null;
+                moreMenuOpen = !moreMenuOpen;
+              "
             >
               ···
             </button>
@@ -471,6 +608,12 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.fluent-page {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .detail-title-row {
   display: flex;
   align-items: center;
@@ -538,15 +681,32 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: 16rem 1fr;
   gap: var(--fluent-space-lg);
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
 }
 
 .master-list {
   display: flex;
   flex-direction: column;
   gap: var(--fluent-space-sm);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.master-list-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-sm);
+  flex: 1;
+  min-height: 0;
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .group {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -558,6 +718,15 @@ onUnmounted(() => {
   text-align: left;
   cursor: pointer;
   width: 100%;
+  box-sizing: border-box;
+}
+
+.group-top {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--fluent-space-sm);
+  width: 100%;
+  min-width: 0;
 }
 
 .group-head {
@@ -565,6 +734,30 @@ onUnmounted(() => {
   align-items: center;
   gap: var(--fluent-space-sm);
   min-width: 0;
+  flex: 1;
+}
+
+.group-head strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-more-menu {
+  position: relative;
+  flex-shrink: 0;
+  margin-inline-start: auto;
+}
+
+.list-more-trigger {
+  min-height: 1.75rem;
+  padding-block: 0;
+}
+
+.list-inline-rename {
+  min-width: 0;
+  flex: 1;
+  font-weight: var(--fluent-font-weight-semibold);
 }
 
 .group--active {
@@ -581,6 +774,10 @@ onUnmounted(() => {
   flex-wrap: wrap;
 }
 
+.create {
+  flex-shrink: 0;
+}
+
 .create .fluent-control:first-child,
 .row .fluent-control:first-child {
   flex: 1;
@@ -591,6 +788,8 @@ onUnmounted(() => {
   flex-direction: column;
   gap: var(--fluent-space-md);
   padding: var(--fluent-space-lg);
+  min-height: 0;
+  overflow: auto;
 }
 
 .detail h2,
@@ -600,5 +799,16 @@ onUnmounted(() => {
 
 .usage-hint {
   max-width: 42rem;
+}
+
+@media (max-width: 960px) {
+  .layout {
+    grid-template-columns: 1fr;
+    overflow: auto;
+  }
+
+  .master-list {
+    max-height: min(40vh, 20rem);
+  }
 }
 </style>

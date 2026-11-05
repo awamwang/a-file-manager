@@ -235,12 +235,23 @@ const projectMoreOpen = ref(false);
 const projectRenameInputEl = ref<HTMLInputElement | null>(null);
 const projectMoreMenuEl = ref<HTMLElement | null>(null);
 const projectTitleRowEl = ref<HTMLElement | null>(null);
+const listMoreOpenId = ref<string | null>(null);
+const listRenamingId = ref<string | null>(null);
+const listRenameDraft = ref("");
+const listRenameInputEl = ref<HTMLInputElement | null>(null);
+const masterListEl = ref<HTMLElement | null>(null);
+
+function setListRenameInputEl(el: unknown) {
+  listRenameInputEl.value = el instanceof HTMLInputElement ? el : null;
+}
 
 function startProjectInlineRename() {
   if (!selected.value) return;
   projectRenameDraft.value = selected.value.name;
   renamingProject.value = true;
   projectMoreOpen.value = false;
+  listMoreOpenId.value = null;
+  listRenamingId.value = null;
   void nextTick(() => {
     projectRenameInputEl.value?.focus();
     projectRenameInputEl.value?.select();
@@ -277,6 +288,55 @@ async function commitProjectInlineRename() {
   }
 }
 
+function toggleListMore(projectId: string, event: Event) {
+  event.stopPropagation();
+  projectMoreOpen.value = false;
+  listMoreOpenId.value = listMoreOpenId.value === projectId ? null : projectId;
+}
+
+function startListRename(project: UserProject, event?: Event) {
+  event?.stopPropagation();
+  listMoreOpenId.value = null;
+  projectMoreOpen.value = false;
+  renamingProject.value = false;
+  listRenamingId.value = project.id;
+  listRenameDraft.value = project.name;
+  void nextTick(() => {
+    listRenameInputEl.value?.focus();
+    listRenameInputEl.value?.select();
+  });
+}
+
+function cancelListRename() {
+  listRenamingId.value = null;
+  listRenameDraft.value = "";
+}
+
+function onListRenameBlur() {
+  queueMicrotask(() => {
+    if (listRenamingId.value) cancelListRename();
+  });
+}
+
+async function commitListRename(projectId: string) {
+  if (listRenamingId.value !== projectId) return;
+  const project = document.value?.projects.find((p) => p.id === projectId);
+  const next = listRenameDraft.value.trim();
+  listRenamingId.value = null;
+  listRenameDraft.value = "";
+  if (!project || !next || next === project.name) return;
+  error.value = null;
+  try {
+    document.value = await invoke<UserProjects>("projects_rename", {
+      projectId,
+      name: next,
+    });
+    toastSuccess(t("projects.renamed"));
+  } catch (err) {
+    error.value = mapProjectError(err);
+  }
+}
+
 function onProjectDetailPointerDown(event: PointerEvent) {
   const target = event.target as Node | null;
   if (!target) return;
@@ -293,6 +353,22 @@ function onProjectDetailPointerDown(event: PointerEvent) {
     !projectTitleRowEl.value.contains(target)
   ) {
     cancelProjectInlineRename();
+  }
+  if (listMoreOpenId.value) {
+    const openMenu = masterListEl.value?.querySelector(
+      `[data-list-more-id="${listMoreOpenId.value}"]`,
+    );
+    if (!openMenu?.contains(target)) {
+      listMoreOpenId.value = null;
+    }
+  }
+  if (listRenamingId.value) {
+    const row = masterListEl.value?.querySelector(
+      `[data-list-item-id="${listRenamingId.value}"]`,
+    );
+    if (!row?.contains(target)) {
+      cancelListRename();
+    }
   }
 }
 
@@ -359,14 +435,21 @@ async function openBoundMembersIntoRuntime() {
   }
 }
 
-async function deleteSelected() {
-  if (!selected.value) return;
-  if (!window.confirm(t("projects.confirmDelete", { name: selected.value.name }))) return;
+async function deleteProject(project: UserProject) {
+  if (!window.confirm(t("projects.confirmDelete", { name: project.name }))) return;
+  listMoreOpenId.value = null;
+  projectMoreOpen.value = false;
   document.value = await invoke<UserProjects>("projects_delete", {
-    projectId: selected.value.id,
+    projectId: project.id,
   });
   selectedId.value = document.value.activeProjectId;
+  syncBindDraft();
   syncContextDraft();
+}
+
+async function deleteSelected() {
+  if (!selected.value) return;
+  await deleteProject(selected.value);
 }
 
 async function addLink() {
@@ -474,33 +557,88 @@ onUnmounted(() => {
     <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
 
     <div v-if="document" class="layout">
-      <aside class="master-list">
-        <button
-          v-for="project in document.projects"
-          :key="project.id"
-          type="button"
-          class="fluent-surface group"
-          :class="{ 'group--active': project.id === selectedId }"
-          @click="selectProject(project.id)"
-        >
-          <span class="group-head">
-            <span class="fluent-icon-wash">
-              <FluentIcon name="board" size="md" />
-            </span>
-            <strong>{{ project.name }}</strong>
-          </span>
-          <span class="fluent-page-meta">{{
-            project.workGroupId
-              ? t("projects.listSummaryBound", {
-                  links: project.workspaceLinks.length,
-                  open: project.tasks.filter((task) => task.statusId !== "done").length,
-                })
-              : t("projects.listSummary", {
-                  links: project.workspaceLinks.length,
-                  open: project.tasks.filter((task) => task.statusId !== "done").length,
-                })
-          }}</span>
-        </button>
+      <aside ref="masterListEl" class="master-list">
+        <div class="master-list-scroll">
+          <div
+            v-for="project in document.projects"
+            :key="project.id"
+            class="fluent-surface group"
+            :class="{ 'group--active': project.id === selectedId }"
+            role="button"
+            tabindex="0"
+            :data-list-item-id="project.id"
+            @click="selectProject(project.id)"
+            @keydown.enter.prevent="selectProject(project.id)"
+          >
+            <div class="group-top">
+              <span class="group-head">
+                <span class="fluent-icon-wash">
+                  <FluentIcon name="board" size="md" />
+                </span>
+                <input
+                  v-if="listRenamingId === project.id"
+                  :ref="setListRenameInputEl"
+                  v-model="listRenameDraft"
+                  class="fluent-control list-inline-rename"
+                  @click.stop
+                  @keydown.enter.prevent="commitListRename(project.id)"
+                  @keydown.escape.prevent="cancelListRename"
+                  @blur="onListRenameBlur"
+                />
+                <strong v-else>{{ project.name }}</strong>
+              </span>
+              <div
+                class="list-more-menu"
+                :data-list-more-id="project.id"
+                @click.stop
+              >
+                <button
+                  type="button"
+                  class="fluent-control more-trigger list-more-trigger"
+                  :aria-expanded="listMoreOpenId === project.id"
+                  aria-haspopup="menu"
+                  :title="t('common.more')"
+                  @click="toggleListMore(project.id, $event)"
+                >
+                  ···
+                </button>
+                <div
+                  v-if="listMoreOpenId === project.id"
+                  class="more-popover fluent-surface"
+                  role="menu"
+                >
+                  <button
+                    type="button"
+                    class="more-item"
+                    role="menuitem"
+                    @click="startListRename(project, $event)"
+                  >
+                    {{ t("projects.rename") }}
+                  </button>
+                  <button
+                    type="button"
+                    class="more-item more-item--danger"
+                    role="menuitem"
+                    @click="deleteProject(project)"
+                  >
+                    {{ t("common.delete") }}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <span class="fluent-page-meta">{{
+              project.workGroupId
+                ? t("projects.listSummaryBound", {
+                    links: project.workspaceLinks.length,
+                    open: project.tasks.filter((task) => task.statusId !== "done").length,
+                  })
+                : t("projects.listSummary", {
+                    links: project.workspaceLinks.length,
+                    open: project.tasks.filter((task) => task.statusId !== "done").length,
+                  })
+            }}</span>
+          </div>
+        </div>
 
         <form class="create" @submit.prevent="createProject">
           <input
@@ -540,7 +678,10 @@ onUnmounted(() => {
               :aria-expanded="projectMoreOpen"
               aria-haspopup="menu"
               :title="t('common.more')"
-              @click="projectMoreOpen = !projectMoreOpen"
+              @click="
+                listMoreOpenId = null;
+                projectMoreOpen = !projectMoreOpen;
+              "
             >
               ···
             </button>
@@ -785,19 +926,42 @@ onUnmounted(() => {
   color: var(--fluent-color-status-danger);
 }
 
+.fluent-page {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .layout {
   display: grid;
   grid-template-columns: 16rem 1fr;
   gap: var(--fluent-space-lg);
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
 }
 
 .master-list {
   display: flex;
   flex-direction: column;
   gap: var(--fluent-space-sm);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.master-list-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-sm);
+  flex: 1;
+  min-height: 0;
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .group {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -809,6 +973,15 @@ onUnmounted(() => {
   text-align: left;
   cursor: pointer;
   width: 100%;
+  box-sizing: border-box;
+}
+
+.group-top {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--fluent-space-sm);
+  width: 100%;
+  min-width: 0;
 }
 
 .group-head {
@@ -816,6 +989,30 @@ onUnmounted(() => {
   align-items: center;
   gap: var(--fluent-space-sm);
   min-width: 0;
+  flex: 1;
+}
+
+.group-head strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-more-menu {
+  position: relative;
+  flex-shrink: 0;
+  margin-inline-start: auto;
+}
+
+.list-more-trigger {
+  min-height: 1.75rem;
+  padding-block: 0;
+}
+
+.list-inline-rename {
+  min-width: 0;
+  flex: 1;
+  font-weight: var(--fluent-font-weight-semibold);
 }
 
 .group--active {
@@ -835,6 +1032,10 @@ onUnmounted(() => {
   align-items: center;
 }
 
+.create {
+  flex-shrink: 0;
+}
+
 .create .fluent-control:first-child,
 .row .fluent-control:first-child {
   flex: 1;
@@ -845,6 +1046,8 @@ onUnmounted(() => {
   flex-direction: column;
   gap: var(--fluent-space-md);
   padding: var(--fluent-space-lg);
+  min-height: 0;
+  overflow: auto;
 }
 
 .detail--empty {
@@ -1016,6 +1219,11 @@ onUnmounted(() => {
 @media (max-width: 960px) {
   .layout {
     grid-template-columns: 1fr;
+    overflow: auto;
+  }
+
+  .master-list {
+    max-height: min(40vh, 20rem);
   }
 
   .board {
