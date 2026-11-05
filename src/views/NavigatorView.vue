@@ -152,14 +152,14 @@ const dragOverPath = ref<string | null>(null);
 /** Windows Explorer–style inline rename (no modal). */
 const renamingPath = ref<string | null>(null);
 const renameDraft = ref("");
-const renameInputEl = ref<HTMLInputElement | null>(null);
+const renameInputEl = ref<HTMLTextAreaElement | null>(null);
 /** Delay before name-click rename so double-click can still open. */
 const NAME_RENAME_DELAY_MS = 500;
 let pendingNameRenameTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingNameRenamePath: string | null = null;
 
 function setRenameInputEl(el: unknown) {
-  renameInputEl.value = el instanceof HTMLInputElement ? el : null;
+  renameInputEl.value = el instanceof HTMLTextAreaElement ? el : null;
 }
 
 function clearPendingNameRename() {
@@ -170,10 +170,33 @@ function clearPendingNameRename() {
   pendingNameRenamePath = null;
 }
 
+/**
+ * Match rename box height to how many lines the name wraps in the list
+ * (icon views clamp at 2; list/details stay single-line). Never pad empty lines.
+ */
+function syncRenameInputSize() {
+  const input = renameInputEl.value;
+  if (!input) return;
+  const maxLines = isIconView.value ? 2 : 1;
+  input.rows = 1;
+  input.style.height = "auto";
+  const style = getComputedStyle(input);
+  const lineHeight = Number.parseFloat(style.lineHeight) || Number.parseFloat(style.fontSize) * 1.25 || 16;
+  const padY =
+    (Number.parseFloat(style.paddingTop) || 0) + (Number.parseFloat(style.paddingBottom) || 0);
+  const borderY =
+    (Number.parseFloat(style.borderTopWidth) || 0) +
+    (Number.parseFloat(style.borderBottomWidth) || 0);
+  const maxHeight = lineHeight * maxLines + padY + borderY;
+  const next = Math.min(input.scrollHeight, maxHeight);
+  input.style.height = `${Math.max(next, lineHeight + padY + borderY)}px`;
+}
+
 /** Select basename for files (keep extension); full name for folders. */
 function focusRenameInput(name: string, kind: NavigatorEntry["kind"]) {
   const input = renameInputEl.value;
   if (!input) return;
+  syncRenameInputSize();
   input.focus();
   if (kind === "dir") {
     input.select();
@@ -185,6 +208,14 @@ function focusRenameInput(name: string, kind: NavigatorEntry["kind"]) {
   } else {
     input.select();
   }
+}
+
+function onRenameDraftInput() {
+  // Filenames are single-line tokens; keep Enter for commit, never embed newlines.
+  if (renameDraft.value.includes("\n") || renameDraft.value.includes("\r")) {
+    renameDraft.value = renameDraft.value.replace(/[\r\n]+/g, "");
+  }
+  syncRenameInputSize();
 }
 
 function startInlineRename(entry: NavigatorEntry) {
@@ -869,14 +900,18 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
           />
           <FluentIcon v-else :name="entryKindIcon(entry.kind === 'dir')" size="md" />
         </span>
-        <input
+        <textarea
           v-if="renamingPath === entry.path"
           :ref="setRenameInputEl"
           v-model="renameDraft"
           class="fluent-control inline-rename"
+          rows="1"
+          wrap="soft"
+          spellcheck="false"
           :aria-label="t('contextMenu.rename')"
           @click.stop
           @dblclick.stop
+          @input="onRenameDraftInput"
           @keydown.enter.prevent.stop="commitInlineRename"
           @keydown.escape.prevent.stop="cancelInlineRename"
           @blur="onRenameBlur"
@@ -1106,8 +1141,12 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
 
 .list--icons .row--icon .inline-rename {
   width: 100%;
+  min-width: 0;
   text-align: center;
   font-size: var(--fluent-font-size-caption);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
 }
 
 .list--icons .shell-icon {
@@ -1217,11 +1256,19 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
 }
 
 .inline-rename {
-  min-width: 0;
+  /* Slightly wider than a collapsed name cell; still fills the column. */
+  min-width: 10rem;
   width: 100%;
+  min-height: 0;
+  height: auto;
+  box-sizing: border-box;
   padding: 1px var(--fluent-space-xs);
   font: inherit;
   line-height: inherit;
+  resize: none;
+  overflow: hidden;
+  white-space: nowrap;
+  field-sizing: fixed;
 }
 
 .size {

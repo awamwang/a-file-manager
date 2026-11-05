@@ -17,10 +17,17 @@ assert.ok(view.includes("commitInlineRename"));
 assert.ok(view.includes("cancelInlineRename"));
 assert.ok(view.includes("onRenameBlur"));
 assert.ok(view.includes("onNameClick"));
+assert.ok(view.includes("syncRenameInputSize"));
+assert.ok(view.includes("onRenameDraftInput"));
+assert.ok(view.includes("HTMLTextAreaElement"));
 assert.ok(view.includes('class="fluent-control inline-rename"'));
+assert.ok(view.includes("<textarea"));
+assert.ok(view.includes('rows="1"'));
 assert.ok(view.includes('@keydown.enter.prevent.stop="commitInlineRename"'));
 assert.ok(view.includes('@keydown.escape.prevent.stop="cancelInlineRename"'));
 assert.ok(view.includes('registerShortcutHandler("navigator.rename"'));
+assert.ok(view.includes("min-width: 10rem"));
+assert.ok(view.includes("isIconView.value ? 2 : 1"));
 assert.ok(!view.includes("window.prompt(t(\"contextMenu.renamePrompt\")"));
 assert.ok(!view.includes("window.prompt(t('contextMenu.renamePrompt')"));
 
@@ -31,4 +38,4 @@ assert.ok(!menu.includes("runRename"));
 assert.ok(!menu.includes("window.prompt(t(\"contextMenu.renamePrompt\")"));
 assert.ok(!menu.includes("renameEntry"));
 
-console.log("Navigator inline rename checks OK (AIA-171).");
+console.log("Navigator inline rename checks OK (AIA-171/AIA-172).");
