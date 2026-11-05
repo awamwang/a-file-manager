@@ -39,7 +39,8 @@
     "upTitle": "一つ上のフォルダーへ",
     "view": "表示",
     "dualPane": "デュアルペイン",
-    "windowControls": "ウィンドウ操作"
+    "windowControls": "ウィンドウ操作",
+    "placesMenu": "クイックアクセスとお気に入り"
   },
   "commands": {
     "empty": "一致するコマンドはありません",
@@ -315,7 +316,9 @@
     "tierPower": "パワー",
     "sectionHealth": "ヘルス",
     "sectionShortcuts": "ショートカット",
-    "title": "設定"
+    "title": "設定",
+    "sectionFavorites": "お気に入り",
+    "favoritesMeta": "エクスプローラーの「AFM のお気に入りに追加」動詞を登録します。"
   },
   "workGroups": {
     "addMemberPlaceholder": "メンバーフォルダーパスを追加",

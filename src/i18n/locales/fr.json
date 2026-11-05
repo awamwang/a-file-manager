@@ -39,7 +39,8 @@
     "upTitle": "Remonter d’un niveau",
     "view": "Affichage",
     "dualPane": "Double volet",
-    "windowControls": "Contrôles de fenêtre"
+    "windowControls": "Contrôles de fenêtre",
+    "placesMenu": "Acces rapide et favoris"
   },
   "commands": {
     "empty": "Aucune commande correspondante",
@@ -315,7 +316,9 @@
     "tierPower": "Avancé",
     "sectionHealth": "Santé",
     "sectionShortcuts": "Raccourcis",
-    "title": "Paramètres"
+    "title": "Paramètres",
+    "sectionFavorites": "Favoris",
+    "favoritesMeta": "Enregistre le verbe Explorer Ajouter aux favoris AFM."
   },
   "workGroups": {
     "addMemberPlaceholder": "Ajouter un chemin de dossier membre",

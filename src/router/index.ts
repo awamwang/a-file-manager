@@ -28,6 +28,11 @@ const router = createRouter({
       name: "settings-shortcuts",
       component: SettingsView,
     },
+    {
+      path: "/settings/favorites",
+      name: "settings-favorites",
+      component: SettingsView,
+    },
   ],
 });
 

@@ -52,7 +52,8 @@
     "healthPending": "health: …",
     "navigatorLoading": "Loading…",
     "navigatorError": "Could not list folder",
-    "navigatorCounts": "{dirs} folders · {files} files"
+    "navigatorCounts": "{dirs} folders · {files} files",
+    "placesMenu": "Quick access and favorites"
   },
   "nav": {
     "navigator": "Navigator",
@@ -214,7 +215,9 @@
           "description": "Show phase/debug caption in the custom titlebar"
         }
       }
-    }
+    },
+    "sectionFavorites": "Favorites",
+    "favoritesMeta": "Register the Explorer context-menu verb that adds a path to AFM favorites."
   },
   "health": {
     "title": "Health",

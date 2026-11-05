@@ -41,13 +41,7 @@ import {
   popBack,
   popForward,
 } from "../../state/navHistory";
-import {
-  favoritesDoc,
-  favoritesOsHook,
-  loadFavorites,
-  loadFavoritesOsHookStatus,
-  setFavoritesOsHookEnabled,
-} from "../../state/favorites";
+import { favoritesDoc, loadFavorites } from "../../state/favorites";
 import { quickAccessList, loadVisitStats } from "../../state/visitStats";
 import { dualPaneEnabled, toggleDualPane } from "../../state/dualPane";
 
@@ -81,9 +75,27 @@ const health = ref<HealthPayload | null>(null);
 const healthError = ref<string | null>(null);
 const isMaximized = ref(false);
 const maxHover = ref(false);
+const placesMenuOpen = ref(false);
 const unlisteners: UnlistenFn[] = [];
 
 const breadcrumbs = computed(() => buildBreadcrumbs(currentPath.value));
+const isNavigatorRoute = computed(
+  () => route.path === "/navigator" || route.path === "/",
+);
+
+function togglePlacesMenu() {
+  placesMenuOpen.value = !placesMenuOpen.value;
+}
+
+function closePlacesMenu() {
+  placesMenuOpen.value = false;
+}
+
+async function openPlacesPath(path: string) {
+  closePlacesMenu();
+  await ensureNavigatorRoute();
+  await navigateTo(path);
+}
 
 async function ensureNavigatorThenGoUp() {
   if (route.path !== "/navigator") {
@@ -144,16 +156,6 @@ async function onBreadcrumb(path: string) {
   await navigateTo(path);
 }
 
-async function openFavoritePin(path: string) {
-  await ensureNavigatorRoute();
-  await navigateTo(path);
-}
-
-async function openQuickAccessPin(path: string) {
-  await ensureNavigatorRoute();
-  await navigateTo(path);
-}
-
 function favoriteLabel(path: string): string {
   const parts = path.replace(/\\/g, "/").replace(/\/+$/, "").split("/");
   return parts[parts.length - 1] || path;
@@ -163,18 +165,24 @@ function quickAccessLabel(path: string): string {
   return favoriteLabel(path);
 }
 
-async function onToggleOsFavoriteVerb(event: Event) {
-  const checked = (event.target as HTMLInputElement).checked;
-  try {
-    await setFavoritesOsHookEnabled(checked);
-  } catch {
-    await loadFavoritesOsHookStatus().catch(() => undefined);
+function onGlobalKeydown(event: KeyboardEvent) {
+  if (event.key === "Escape" && placesMenuOpen.value) {
+    closePlacesMenu();
+    event.preventDefault();
+    return;
+  }
+  if (dispatchShortcutEvent(event)) {
+    event.preventDefault();
   }
 }
 
-function onGlobalKeydown(event: KeyboardEvent) {
-  if (dispatchShortcutEvent(event)) {
-    event.preventDefault();
+function onDocumentPointerDown(event: PointerEvent) {
+  if (!placesMenuOpen.value) return;
+  const target = event.target;
+  if (!(target instanceof Node)) return;
+  const root = document.getElementById("navigator-places-menu");
+  if (root && !root.contains(target)) {
+    closePlacesMenu();
   }
 }
 
@@ -261,6 +269,10 @@ watch(
   },
   { immediate: true },
 );
+
+watch(isNavigatorRoute, (onNavigator) => {
+  if (!onNavigator) closePlacesMenu();
+});
 
 /** Files-like primary status (item counts) — left side of the shell status bar. */
 const browseStatusText = computed(() => {
@@ -422,10 +434,10 @@ onMounted(() => {
   void refreshMaximized();
   void bootstrapNavigatorOpenState();
   void loadFavorites().catch(() => undefined);
-  void loadFavoritesOsHookStatus().catch(() => undefined);
   void loadVisitStats().catch(() => undefined);
   registerShellShortcuts();
   window.addEventListener("keydown", onGlobalKeydown);
+  document.addEventListener("pointerdown", onDocumentPointerDown, true);
 
   const win = getCurrentWindow();
   void win.onResized(() => {
@@ -448,6 +460,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener("keydown", onGlobalKeydown);
+  document.removeEventListener("pointerdown", onDocumentPointerDown, true);
   unregisterShellShortcuts();
   for (const unlisten of unlisteners) {
     unlisten();
@@ -466,6 +479,18 @@ onUnmounted(() => {
       >
         <span class="brand" data-tauri-drag-region>{{ t("app.name") }}</span>
         <span class="caption-meta" data-tauri-drag-region>{{ t("app.captionMeta") }}</span>
+      </div>
+      <div class="titlebar-actions" role="group" :aria-label="t('chrome.commands')">
+        <button
+          type="button"
+          class="fluent-control titlebar-action"
+          :title="t('chrome.commandsTitle')"
+          :aria-label="t('chrome.commands')"
+          aria-keyshortcuts="Control+Shift+P"
+          @click="toggleCommandPanel"
+        >
+          <FluentIcon name="commands" size="sm" />
+        </button>
       </div>
       <div class="window-controls" :aria-label="t('chrome.windowControls')">
         <button
@@ -506,220 +531,198 @@ onUnmounted(() => {
       </div>
     </header>
 
-    <div class="toolbar" role="toolbar" :aria-label="t('chrome.toolbar')">
-      <button
-        type="button"
-        class="fluent-control toolbar-btn"
-        :disabled="!canGoBack"
-        :title="t('chrome.back')"
-        :aria-label="t('chrome.back')"
-        @click="onGoBack"
+    <template v-if="isNavigatorRoute">
+      <form
+        class="navigator-chrome"
+        role="toolbar"
+        :aria-label="t('chrome.toolbar')"
+        @submit.prevent="submitAddress"
       >
-        <FluentIcon name="back" size="sm" />
-        <span>{{ t("chrome.back") }}</span>
-      </button>
-      <button
-        type="button"
-        class="fluent-control toolbar-btn"
-        :disabled="!canGoForward"
-        :title="t('chrome.forward')"
-        :aria-label="t('chrome.forward')"
-        @click="onGoForward"
-      >
-        <FluentIcon name="forward" size="sm" />
-        <span>{{ t("chrome.forward") }}</span>
-      </button>
-      <button
-        type="button"
-        class="fluent-control toolbar-btn"
-        :title="t('chrome.upTitle')"
-        @click="onGoUp"
-      >
-        <FluentIcon name="up" size="sm" />
-        <span>{{ t("chrome.up") }}</span>
-      </button>
-      <span class="toolbar-spacer" />
-      <button
-        type="button"
-        class="fluent-control toolbar-btn"
-        :class="{ 'toolbar-btn--active': dualPaneEnabled }"
-        :title="t('chrome.dualPane')"
-        :aria-pressed="dualPaneEnabled"
-        @click="toggleDualPane"
-      >
-        <FluentIcon name="view" size="sm" />
-        <span>{{ t("chrome.dualPane") }}</span>
-      </button>
-      <button
-        type="button"
-        class="fluent-control toolbar-btn"
-        :title="t('chrome.commandsTitle')"
-        aria-keyshortcuts="Control+Shift+P"
-        @click="toggleCommandPanel"
-      >
-        <FluentIcon name="commands" size="sm" />
-        <span>{{ t("chrome.commands") }}</span>
-        <span class="toolbar-shortcut">{{ t("chrome.commandsShortcut") }}</span>
-      </button>
-    </div>
-
-    <form class="address" :aria-label="t('chrome.address')" @submit.prevent="submitAddress">
-      <label class="address-label" for="address-input">{{ t("chrome.path") }}</label>
-      <div
-        v-if="!addressEditing"
-        class="breadcrumbs"
-        role="navigation"
-        :aria-label="t('chrome.breadcrumbs')"
-        @click="focusAddressBar"
-      >
-        <template v-if="breadcrumbs.length">
-          <button
-            v-for="(crumb, index) in breadcrumbs"
-            :key="crumb.path + String(index)"
-            type="button"
-            class="crumb"
-            :title="crumb.path"
-            @click.stop="onBreadcrumb(crumb.path)"
-          >
-            <span v-if="index > 0" class="crumb-sep" aria-hidden="true">›</span>
-            <span class="crumb-label">{{ crumb.label }}</span>
-          </button>
-        </template>
-        <span v-else class="crumb-placeholder">{{ t("chrome.pathPlaceholder") }}</span>
-      </div>
-      <input
-        v-else
-        id="address-input"
-        v-model="addressDraft"
-        class="address-input"
-        type="text"
-        spellcheck="false"
-        autocomplete="off"
-        :placeholder="t('chrome.pathPlaceholder')"
-        @blur="onAddressBlur"
-        @keydown.escape.prevent="addressEditing = false"
-      />
-      <button type="submit" class="fluent-control address-go">{{ t("chrome.go") }}</button>
-    </form>
-
-    <div class="tabstrip" role="tablist" :aria-label="t('chrome.tabs')">
-      <div
-        v-for="tab in stripTabs"
-        :key="tab.id"
-        class="tab"
-        :class="{
-          'tab--active':
-            route.path === '/navigator' && liveOpenState.currentTabGroupIndex === tab.groupIndex,
-        }"
-        role="tab"
-        :aria-selected="
-          route.path === '/navigator' && liveOpenState.currentTabGroupIndex === tab.groupIndex
-        "
-        :title="tab.path"
-        @click="onSwitchNavigatorTab(tab.groupIndex)"
-      >
-        <FluentIcon name="folder" size="sm" class="tab-icon" />
-        <span class="tab-label">{{ tab.name || tabLabel(tab.path) }}</span>
         <button
           type="button"
-          class="tab-close"
-          :aria-label="t('chrome.closeTab')"
-          :title="t('chrome.closeTab')"
-          @click="onCloseNavigatorTab($event, tab.groupIndex)"
+          class="fluent-control nav-icon-btn"
+          :disabled="!canGoBack"
+          :title="t('chrome.back')"
+          :aria-label="t('chrome.back')"
+          @click="onGoBack"
         >
-          <FluentIcon name="close" size="sm" />
+          <FluentIcon name="back" size="sm" />
+        </button>
+        <button
+          type="button"
+          class="fluent-control nav-icon-btn"
+          :disabled="!canGoForward"
+          :title="t('chrome.forward')"
+          :aria-label="t('chrome.forward')"
+          @click="onGoForward"
+        >
+          <FluentIcon name="forward" size="sm" />
+        </button>
+        <button
+          type="button"
+          class="fluent-control nav-icon-btn"
+          :title="t('chrome.upTitle')"
+          :aria-label="t('chrome.up')"
+          @click="onGoUp"
+        >
+          <FluentIcon name="up" size="sm" />
+        </button>
+
+        <div id="navigator-places-menu" class="places-menu">
+          <button
+            type="button"
+            class="fluent-control nav-icon-btn places-trigger"
+            :class="{ 'nav-icon-btn--active': placesMenuOpen }"
+            :title="t('chrome.placesMenu')"
+            :aria-label="t('chrome.placesMenu')"
+            :aria-expanded="placesMenuOpen"
+            aria-haspopup="menu"
+            @click.stop="togglePlacesMenu"
+          >
+            <FluentIcon name="home" size="sm" />
+            <FluentIcon name="chevronDown" size="sm" class="places-chevron" />
+          </button>
+          <div
+            v-if="placesMenuOpen"
+            class="places-popover fluent-surface"
+            role="menu"
+            :aria-label="t('chrome.placesMenu')"
+          >
+            <p class="places-heading">{{ t("quickAccess.label") }}</p>
+            <button
+              v-for="item in quickAccessList"
+              :key="'qa-' + item.path"
+              type="button"
+              class="fluent-list-row places-item"
+              role="menuitem"
+              :title="`${item.path} · ${t('quickAccess.openCount', { count: item.openCount })}`"
+              @click="openPlacesPath(item.path)"
+            >
+              <FluentIcon :name="item.isDir ? 'folder' : 'document'" size="sm" />
+              <span>{{ quickAccessLabel(item.path) }}</span>
+            </button>
+            <p v-if="!quickAccessList.length" class="places-empty">{{ t("quickAccess.empty") }}</p>
+
+            <p class="places-heading places-heading--fav">{{ t("favorites.label") }}</p>
+            <button
+              v-for="fav in favoritesDoc.favorites"
+              :key="'fav-' + fav.path"
+              type="button"
+              class="fluent-list-row places-item"
+              role="menuitem"
+              :title="fav.path"
+              @click="openPlacesPath(fav.path)"
+            >
+              <FluentIcon :name="fav.isDir ? 'folder' : 'document'" size="sm" />
+              <span>{{ favoriteLabel(fav.path) }}</span>
+            </button>
+            <p v-if="!favoritesDoc.favorites.length" class="places-empty">
+              {{ t("favorites.empty") }}
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          class="fluent-control nav-icon-btn"
+          :class="{ 'nav-icon-btn--active': dualPaneEnabled }"
+          :title="t('chrome.dualPane')"
+          :aria-label="t('chrome.dualPane')"
+          :aria-pressed="dualPaneEnabled"
+          @click="toggleDualPane"
+        >
+          <FluentIcon name="view" size="sm" />
+        </button>
+
+        <div
+          v-if="!addressEditing"
+          class="breadcrumbs"
+          role="navigation"
+          :aria-label="t('chrome.breadcrumbs')"
+          @click="focusAddressBar"
+        >
+          <template v-if="breadcrumbs.length">
+            <button
+              v-for="(crumb, index) in breadcrumbs"
+              :key="crumb.path + String(index)"
+              type="button"
+              class="crumb"
+              :title="crumb.path"
+              @click.stop="onBreadcrumb(crumb.path)"
+            >
+              <span v-if="index > 0" class="crumb-sep" aria-hidden="true">›</span>
+              <span class="crumb-label">{{ crumb.label }}</span>
+            </button>
+          </template>
+          <span v-else class="crumb-placeholder">{{ t("chrome.pathPlaceholder") }}</span>
+        </div>
+        <input
+          v-else
+          id="address-input"
+          v-model="addressDraft"
+          class="address-input"
+          type="text"
+          spellcheck="false"
+          autocomplete="off"
+          :placeholder="t('chrome.pathPlaceholder')"
+          @blur="onAddressBlur"
+          @keydown.escape.prevent="addressEditing = false"
+        />
+        <button type="submit" class="fluent-control address-go" :title="t('chrome.go')">
+          {{ t("chrome.go") }}
+        </button>
+      </form>
+
+      <div class="tabstrip" role="tablist" :aria-label="t('chrome.tabs')">
+        <div
+          v-for="tab in stripTabs"
+          :key="tab.id"
+          class="tab"
+          :class="{
+            'tab--active': liveOpenState.currentTabGroupIndex === tab.groupIndex,
+          }"
+          role="tab"
+          :aria-selected="liveOpenState.currentTabGroupIndex === tab.groupIndex"
+          :title="tab.path"
+          @click="onSwitchNavigatorTab(tab.groupIndex)"
+        >
+          <FluentIcon name="folder" size="sm" class="tab-icon" />
+          <span class="tab-label">{{ tab.name || tabLabel(tab.path) }}</span>
+          <button
+            type="button"
+            class="tab-close"
+            :aria-label="t('chrome.closeTab')"
+            :title="t('chrome.closeTab')"
+            @click="onCloseNavigatorTab($event, tab.groupIndex)"
+          >
+            <FluentIcon name="close" size="sm" />
+          </button>
+        </div>
+        <button
+          v-if="!stripTabs.length"
+          type="button"
+          role="tab"
+          class="tab tab--active"
+          :aria-selected="true"
+          @click="openTab('navigator', '/navigator')"
+        >
+          <FluentIcon name="folderOpen" size="sm" />
+          <span>{{ t("nav.navigator") }}</span>
+        </button>
+        <button
+          type="button"
+          class="tab tab--add"
+          :title="t('chrome.newTab')"
+          :aria-label="t('chrome.newTab')"
+          @click="onNewNavigatorTab"
+        >
+          <FluentIcon name="add" size="sm" />
         </button>
       </div>
-      <button
-        v-if="!stripTabs.length"
-        type="button"
-        role="tab"
-        class="tab"
-        :class="{ 'tab--active': activeTab === 'navigator' || route.path === '/navigator' }"
-        :aria-selected="route.path === '/navigator'"
-        @click="openTab('navigator', '/navigator')"
-      >
-        <FluentIcon name="folderOpen" size="sm" />
-        <span>{{ t("nav.navigator") }}</span>
-      </button>
-      <button
-        type="button"
-        class="tab tab--add"
-        :title="t('chrome.newTab')"
-        :aria-label="t('chrome.newTab')"
-        @click="onNewNavigatorTab"
-      >
-        <FluentIcon name="add" size="sm" />
-      </button>
-    </div>
+    </template>
 
     <div class="body">
       <nav class="sidenav fluent-layer-alt" :aria-label="t('chrome.sideNav')">
-        <div class="quick-access" role="group" :aria-label="t('quickAccess.label')">
-          <div class="quick-access-title">
-            <FluentIcon name="home" size="sm" />
-            <span>{{ t("quickAccess.label") }}</span>
-          </div>
-          <button
-            v-for="item in quickAccessList"
-            :key="item.path"
-            type="button"
-            class="fluent-list-row sidenav-item quick-access-pin"
-            :title="`${item.path} · ${t('quickAccess.openCount', { count: item.openCount })}`"
-            :class="{
-              'sidenav-item--active':
-                route.path === '/navigator' &&
-                currentPath.replace(/\\/g, '/').toLowerCase() ===
-                  item.path.replace(/\\/g, '/').toLowerCase(),
-            }"
-            @click="openQuickAccessPin(item.path)"
-          >
-            <FluentIcon
-              :name="item.isDir ? 'folder' : 'document'"
-              size="md"
-              class="sidenav-icon"
-            />
-            <span class="sidenav-label">{{ quickAccessLabel(item.path) }}</span>
-          </button>
-          <p v-if="!quickAccessList.length" class="quick-access-empty">
-            {{ t("quickAccess.empty") }}
-          </p>
-        </div>
-        <div class="fav-pins" role="group" :aria-label="t('favorites.label')">
-          <div class="fav-pins-title">
-            <FluentIcon name="heart" size="sm" />
-            <span>{{ t("favorites.label") }}</span>
-          </div>
-          <label class="fav-os-hook" :title="favoritesOsHook?.note ?? ''">
-            <input
-              type="checkbox"
-              class="fluent-field-check"
-              :checked="Boolean(favoritesOsHook?.registered)"
-              @change="onToggleOsFavoriteVerb"
-            />
-            <span>{{ t("favorites.osVerb") }}</span>
-          </label>
-          <button
-            v-for="fav in favoritesDoc.favorites"
-            :key="fav.path"
-            type="button"
-            class="fluent-list-row sidenav-item fav-pin"
-            :title="fav.path"
-            :class="{
-              'sidenav-item--active':
-                route.path === '/navigator' &&
-                currentPath.replace(/\\/g, '/').toLowerCase() ===
-                  fav.path.replace(/\\/g, '/').toLowerCase(),
-            }"
-            @click="openFavoritePin(fav.path)"
-          >
-            <FluentIcon :name="fav.isDir ? 'folder' : 'document'" size="md" class="sidenav-icon" />
-            <span class="sidenav-label">{{ favoriteLabel(fav.path) }}</span>
-          </button>
-          <p v-if="!favoritesDoc.favorites.length" class="fav-empty">
-            {{ t("favorites.empty") }}
-          </p>
-        </div>
         <button
           v-for="item in navItems"
           :key="item.id"
@@ -842,46 +845,30 @@ onUnmounted(() => {
   color: var(--fluent-color-text-on-accent);
 }
 
-.toolbar {
+.titlebar-actions {
   display: flex;
   align-items: center;
-  gap: var(--fluent-space-sm);
-  height: var(--fluent-toolbar-height);
   flex-shrink: 0;
-  padding-inline: var(--fluent-space-md);
-  border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  background: var(--fluent-color-fill-control);
+  padding-inline-end: var(--fluent-space-xs);
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
-.toolbar-btn {
+.titlebar-action {
   display: inline-flex;
   align-items: center;
-  gap: var(--fluent-space-sm);
-  min-width: var(--fluent-control-height-comfortable);
+  justify-content: center;
+  width: var(--fluent-control-height-standard);
   height: var(--fluent-control-height-standard);
+  min-width: var(--fluent-control-height-standard);
   min-height: var(--fluent-control-height-standard);
-  padding-inline: var(--fluent-space-md);
+  padding: 0;
 }
 
-.toolbar-btn--active {
-  background: var(--fluent-color-fill-selected);
-}
-
-.toolbar-spacer {
-  flex: 1;
-}
-
-.toolbar-shortcut {
-  margin-inline-start: var(--fluent-space-sm);
-  font-size: var(--fluent-font-size-caption);
-  color: var(--fluent-color-text-secondary);
-  font-weight: var(--fluent-font-weight-regular);
-}
-
-.address {
+.navigator-chrome {
   display: flex;
   align-items: center;
-  gap: var(--fluent-space-sm);
+  gap: var(--fluent-space-xs);
   height: var(--fluent-addressbar-height);
   flex-shrink: 0;
   padding-inline: var(--fluent-space-md);
@@ -889,7 +876,88 @@ onUnmounted(() => {
   background: var(--fluent-color-fill-control);
 }
 
-.address-label {
+.nav-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--fluent-control-height-standard);
+  height: var(--fluent-control-height-standard);
+  min-width: var(--fluent-control-height-standard);
+  min-height: var(--fluent-control-height-standard);
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.nav-icon-btn--active {
+  background: var(--fluent-color-fill-selected);
+}
+
+.places-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.places-trigger {
+  width: auto;
+  min-width: var(--fluent-control-height-standard);
+  padding-inline: var(--fluent-space-xs);
+  gap: 2px;
+}
+
+.places-chevron {
+  opacity: 0.75;
+}
+
+.places-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 16rem;
+  max-width: 22rem;
+  max-height: min(70vh, 28rem);
+  overflow: auto;
+  padding: var(--fluent-space-sm);
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: var(--fluent-radius-md);
+  box-shadow: var(--fluent-shadow-flyout, 0 8px 24px rgba(0, 0, 0, 0.18));
+}
+
+.places-heading {
+  margin: var(--fluent-space-xs) var(--fluent-space-xs) 2px;
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+  font-weight: var(--fluent-font-weight-semibold);
+}
+
+.places-heading--fav {
+  margin-top: var(--fluent-space-sm);
+  padding-top: var(--fluent-space-sm);
+  border-top: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+}
+
+.places-item {
+  gap: var(--fluent-space-sm);
+  text-align: left;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--fluent-color-text-primary);
+  cursor: pointer;
+}
+
+.places-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.places-empty {
+  margin: 0;
+  padding: var(--fluent-space-xs) var(--fluent-space-sm);
   font-size: var(--fluent-font-size-caption);
   color: var(--fluent-color-text-secondary);
 }
@@ -1056,74 +1124,6 @@ onUnmounted(() => {
   display: flex;
   flex: 1;
   min-height: 0;
-}
-
-.quick-access {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding-bottom: var(--fluent-space-sm);
-  margin-bottom: var(--fluent-space-sm);
-  border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-}
-
-.quick-access-title {
-  display: flex;
-  align-items: center;
-  gap: var(--fluent-space-xs);
-  padding: var(--fluent-space-xs) var(--fluent-space-md);
-  font-size: var(--fluent-font-size-caption);
-  color: var(--fluent-color-text-secondary);
-}
-
-.quick-access-empty {
-  margin: 0;
-  padding: 0 var(--fluent-space-md) var(--fluent-space-xs);
-  font-size: var(--fluent-font-size-caption);
-  color: var(--fluent-color-text-secondary);
-}
-
-.quick-access-pin .sidenav-label {
-  font-size: var(--fluent-font-size-caption);
-}
-
-.fav-pins {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding-bottom: var(--fluent-space-sm);
-  margin-bottom: var(--fluent-space-sm);
-  border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-}
-
-.fav-pins-title {
-  display: flex;
-  align-items: center;
-  gap: var(--fluent-space-xs);
-  padding: var(--fluent-space-xs) var(--fluent-space-md);
-  font-size: var(--fluent-font-size-caption);
-  color: var(--fluent-color-text-secondary);
-}
-
-.fav-os-hook {
-  display: flex;
-  align-items: center;
-  gap: var(--fluent-space-xs);
-  padding: 0 var(--fluent-space-md) var(--fluent-space-xs);
-  font-size: var(--fluent-font-size-caption);
-  color: var(--fluent-color-text-secondary);
-  cursor: pointer;
-}
-
-.fav-empty {
-  margin: 0;
-  padding: 0 var(--fluent-space-md) var(--fluent-space-xs);
-  font-size: var(--fluent-font-size-caption);
-  color: var(--fluent-color-text-secondary);
-}
-
-.fav-pin .sidenav-label {
-  font-size: var(--fluent-font-size-caption);
 }
 
 .sidenav {

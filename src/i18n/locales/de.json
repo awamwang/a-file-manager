@@ -39,7 +39,8 @@
     "upTitle": "Eine Ebene nach oben",
     "view": "Ansicht",
     "dualPane": "Doppelansicht",
-    "windowControls": "Fenstersteuerung"
+    "windowControls": "Fenstersteuerung",
+    "placesMenu": "Schnellzugriff und Favoriten"
   },
   "commands": {
     "empty": "Keine passenden Befehle",
@@ -315,7 +316,9 @@
     "tierPower": "Power",
     "sectionHealth": "Health",
     "sectionShortcuts": "Tastenkürzel",
-    "title": "Einstellungen"
+    "title": "Einstellungen",
+    "sectionFavorites": "Favoriten",
+    "favoritesMeta": "Registriert den Explorer-Kontextmenuebefehl zum Hinzufuegen zu AFM-Favoriten."
   },
   "workGroups": {
     "addMemberPlaceholder": "Mitglieder-Ordnerpfad hinzufügen",

@@ -12,9 +12,9 @@ const rust = readFileSync(join(root, "src-tauri/src/visit_stats/mod.rs"), "utf8"
 const lib = readFileSync(join(root, "src-tauri/src/lib.rs"), "utf8");
 const en = JSON.parse(readFileSync(join(root, "src/i18n/locales/en.json"), "utf8"));
 
-assert.ok(shell.includes("quick-access"));
+assert.ok(shell.includes("places-menu") || shell.includes("quickAccessList"));
 assert.ok(shell.includes("quickAccessList"));
-assert.ok(shell.includes("openQuickAccessPin"));
+assert.ok(shell.includes("openPlacesPath"));
 assert.ok(shell.includes("loadVisitStats"));
 assert.ok(browse.includes("recordPathVisit"));
 assert.ok(rust.includes("visit-stats.json"));

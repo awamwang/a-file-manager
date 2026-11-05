@@ -52,7 +52,8 @@
     "healthPending": "健康: …",
     "navigatorLoading": "加载中…",
     "navigatorError": "无法列出文件夹",
-    "navigatorCounts": "{dirs} 个文件夹 · {files} 个文件"
+    "navigatorCounts": "{dirs} 个文件夹 · {files} 个文件",
+    "placesMenu": "快速访问与收藏"
   },
   "nav": {
     "navigator": "导航器",
@@ -214,7 +215,9 @@
           "description": "在自定义标题栏显示阶段/调试说明"
         }
       }
-    }
+    },
+    "sectionFavorites": "收藏",
+    "favoritesMeta": "注册资源管理器右键「添加到 AFM 收藏」动词。"
   },
   "health": {
     "title": "健康",

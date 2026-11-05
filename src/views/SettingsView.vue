@@ -18,6 +18,11 @@ import {
   listShortcutsForDisplay,
 } from "../shortcuts/index.ts";
 import { applyLaunchAtStartupPreference } from "../utils/autostartSync";
+import {
+  favoritesOsHook,
+  loadFavoritesOsHookStatus,
+  setFavoritesOsHookEnabled,
+} from "../state/favorites";
 
 const { t, te, locale } = useI18n();
 const route = useRoute();
@@ -39,7 +44,7 @@ function enumOptionLabel(settingKey: string, option: string): string {
 }
 
 type SettingsTier = "core" | "power" | "experimental";
-type SettingsSection = SettingsTier | "health" | "shortcuts";
+type SettingsSection = SettingsTier | "health" | "shortcuts" | "favorites";
 
 type SettingDefinition = {
   key: string;
@@ -84,6 +89,11 @@ const sections = computed(() => [
     icon: TIER_ICONS.experimental,
   },
   {
+    id: "favorites" as const,
+    label: t("settings.sectionFavorites"),
+    icon: "heart" as FluentGlyphId,
+  },
+  {
     id: "shortcuts" as const,
     label: t("settings.sectionShortcuts"),
     icon: "commands" as FluentGlyphId,
@@ -103,12 +113,17 @@ const visibleDefs = computed(() =>
     (def) =>
       activeSection.value !== "health" &&
       activeSection.value !== "shortcuts" &&
+      activeSection.value !== "favorites" &&
       def.tier === activeSection.value,
   ),
 );
 
 function isSpecialSettingsPath(path: string) {
-  return path.endsWith("/health") || path.endsWith("/shortcuts");
+  return (
+    path.endsWith("/health") ||
+    path.endsWith("/shortcuts") ||
+    path.endsWith("/favorites")
+  );
 }
 
 function syncSectionFromRoute() {
@@ -116,8 +131,23 @@ function syncSectionFromRoute() {
     activeSection.value = "health";
   } else if (route.path.endsWith("/shortcuts")) {
     activeSection.value = "shortcuts";
-  } else if (activeSection.value === "health" || activeSection.value === "shortcuts") {
+  } else if (route.path.endsWith("/favorites")) {
+    activeSection.value = "favorites";
+  } else if (
+    activeSection.value === "health" ||
+    activeSection.value === "shortcuts" ||
+    activeSection.value === "favorites"
+  ) {
     activeSection.value = "core";
+  }
+}
+
+async function onToggleOsFavoriteVerb(event: Event) {
+  const checked = (event.target as HTMLInputElement).checked;
+  try {
+    await setFavoritesOsHookEnabled(checked);
+  } catch {
+    await loadFavoritesOsHookStatus().catch(() => undefined);
   }
 }
 
@@ -132,6 +162,12 @@ function selectSection(section: SettingsSection) {
   if (section === "shortcuts") {
     if (route.path !== "/settings/shortcuts") {
       void router.push("/settings/shortcuts");
+    }
+    return;
+  }
+  if (section === "favorites") {
+    if (route.path !== "/settings/favorites") {
+      void router.push("/settings/favorites");
     }
     return;
   }
@@ -243,6 +279,7 @@ function onStringArrayChange(key: string, event: Event) {
 
 onMounted(() => {
   void loadAll();
+  void loadFavoritesOsHookStatus().catch(() => undefined);
 });
 </script>
 
@@ -284,6 +321,20 @@ onMounted(() => {
 
       <div v-if="activeSection === 'health'" class="health-slot">
         <HealthView />
+      </div>
+
+      <div v-else-if="activeSection === 'favorites'" class="fluent-surface favorites-panel">
+        <p class="favorites-meta">{{ t("settings.favoritesMeta") }}</p>
+        <label class="favorites-os-hook" :title="favoritesOsHook?.note ?? ''">
+          <input
+            type="checkbox"
+            class="fluent-field-check"
+            :checked="Boolean(favoritesOsHook?.registered)"
+            @change="onToggleOsFavoriteVerb"
+          />
+          <span>{{ t("favorites.osVerb") }}</span>
+        </label>
+        <p v-if="favoritesOsHook?.note" class="favorites-note">{{ favoritesOsHook.note }}</p>
       </div>
 
       <div v-else-if="activeSection === 'shortcuts'" class="fluent-surface shortcuts-panel">
@@ -455,14 +506,33 @@ onMounted(() => {
   min-width: 0;
 }
 
-.shortcuts-panel {
+.shortcuts-panel,
+.favorites-panel {
   display: flex;
   flex-direction: column;
   padding: var(--fluent-space-md) 0;
 }
 
-.shortcuts-meta {
+.shortcuts-meta,
+.favorites-meta {
   margin: 0 var(--fluent-space-lg) var(--fluent-space-md);
+  color: var(--fluent-color-text-secondary);
+  font-size: var(--fluent-font-size-caption);
+}
+
+.favorites-os-hook {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  margin: 0 var(--fluent-space-lg);
+  min-height: var(--fluent-control-height-comfortable);
+  font: inherit;
+  color: var(--fluent-color-text-primary);
+  cursor: pointer;
+}
+
+.favorites-note {
+  margin: var(--fluent-space-sm) var(--fluent-space-lg) 0;
   color: var(--fluent-color-text-secondary);
   font-size: var(--fluent-font-size-caption);
 }

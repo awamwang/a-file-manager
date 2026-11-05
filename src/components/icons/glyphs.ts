@@ -30,7 +30,8 @@ export type FluentGlyphId =
   | "bug"
   | "home"
   | "add"
-  | "check";
+  | "check"
+  | "chevronDown";
 
 export type FluentGlyph = {
   /** Segoe Fluent Icons / MDL2 private-use codepoint */
@@ -195,6 +196,10 @@ export const FLUENT_GLYPHS: Record<FluentGlyphId, FluentGlyph> = {
   check: {
     codepoint: "\uE73E",
     paths: ["M6.6 11.4 3.2 8l1-1 2.4 2.4 5.2-5.2 1 1-6.2 6.2z"],
+  },
+  chevronDown: {
+    codepoint: "\uE70D",
+    paths: ["M3.4 6.2 8 10.6l4.6-4.4.9.9L8 12.4 2.5 7.1l.9-.9z"],
   },
 };
 
