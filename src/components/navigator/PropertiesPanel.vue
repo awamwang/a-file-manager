@@ -13,6 +13,10 @@ export type EntryStat = {
   modifiedMs: number | null;
   createdMs: number | null;
   readonly: boolean;
+  totalSize?: number | null;
+  fileCount?: number | null;
+  dirCount?: number | null;
+  totalSizeTruncated?: boolean;
 };
 
 const props = defineProps<{
@@ -30,6 +34,54 @@ const stat = ref<EntryStat | null>(null);
 const kindLabel = computed(() => {
   if (!stat.value) return "";
   return stat.value.kind === "dir" ? t("properties.kindFolder") : t("properties.kindFile");
+});
+
+const rows = computed(() => {
+  const s = stat.value;
+  if (!s) return [] as Array<{ key: string; label: string; value: string; mono?: boolean }>;
+  const list: Array<{ key: string; label: string; value: string; mono?: boolean }> = [
+    { key: "name", label: t("properties.name"), value: s.name },
+    { key: "kind", label: t("properties.kind"), value: kindLabel.value },
+    { key: "path", label: t("properties.path"), value: s.path, mono: true },
+  ];
+  if (s.kind === "dir") {
+    if (s.totalSize != null) {
+      const sizeText = formatBytes(s.totalSize);
+      list.push({
+        key: "totalSize",
+        label: t("properties.totalSize"),
+        value: s.totalSizeTruncated
+          ? `${sizeText} ${t("properties.truncatedHint")}`
+          : sizeText,
+      });
+    }
+    if (s.fileCount != null) {
+      list.push({
+        key: "fileCount",
+        label: t("properties.fileCount"),
+        value: String(s.fileCount),
+      });
+    }
+    if (s.dirCount != null) {
+      list.push({
+        key: "dirCount",
+        label: t("properties.dirCount"),
+        value: String(s.dirCount),
+      });
+    }
+  } else {
+    list.push({ key: "size", label: t("properties.size"), value: formatBytes(s.size) });
+  }
+  list.push(
+    { key: "modified", label: t("properties.modified"), value: formatTime(s.modifiedMs) },
+    { key: "created", label: t("properties.created"), value: formatTime(s.createdMs) },
+    {
+      key: "readonly",
+      label: t("properties.readonly"),
+      value: s.readonly ? t("common.yes") : t("common.no"),
+    },
+  );
+  return list;
 });
 
 function formatBytes(size: number): string {
@@ -88,22 +140,12 @@ watch(
         </header>
         <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
         <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
-        <dl v-else-if="stat" class="props-grid">
-          <dt>{{ t("properties.name") }}</dt>
-          <dd>{{ stat.name }}</dd>
-          <dt>{{ t("properties.kind") }}</dt>
-          <dd>{{ kindLabel }}</dd>
-          <dt>{{ t("properties.path") }}</dt>
-          <dd class="mono" :title="stat.path">{{ stat.path }}</dd>
-          <dt v-if="stat.kind !== 'dir'">{{ t("properties.size") }}</dt>
-          <dd v-if="stat.kind !== 'dir'">{{ formatBytes(stat.size) }}</dd>
-          <dt>{{ t("properties.modified") }}</dt>
-          <dd>{{ formatTime(stat.modifiedMs) }}</dd>
-          <dt>{{ t("properties.created") }}</dt>
-          <dd>{{ formatTime(stat.createdMs) }}</dd>
-          <dt>{{ t("properties.readonly") }}</dt>
-          <dd>{{ stat.readonly ? t("common.yes") : t("common.no") }}</dd>
-        </dl>
+        <ul v-else-if="stat" class="props-list">
+          <li v-for="row in rows" :key="row.key" class="props-row">
+            <span class="props-label">{{ row.label }}</span>
+            <span class="props-value" :class="{ mono: row.mono }" :title="row.value">{{ row.value }}</span>
+          </li>
+        </ul>
       </aside>
     </div>
   </Teleport>
@@ -120,13 +162,15 @@ watch(
 }
 
 .props-panel {
-  width: min(22rem, 100%);
+  width: min(24rem, 100%);
   height: 100%;
-  padding: var(--fluent-space-lg);
+  padding: 0;
   border-radius: 0;
   border-left: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   box-shadow: var(--fluent-shadow-flyout, -8px 0 24px rgb(0 0 0 / 18%));
   overflow: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .props-head {
@@ -134,7 +178,8 @@ watch(
   align-items: center;
   justify-content: space-between;
   gap: var(--fluent-space-sm);
-  margin-bottom: var(--fluent-space-md);
+  padding: var(--fluent-space-md) var(--fluent-space-lg);
+  border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
 }
 
 .props-head h2 {
@@ -143,20 +188,35 @@ watch(
   font-weight: var(--fluent-font-weight-semibold);
 }
 
-.props-grid {
-  display: grid;
-  grid-template-columns: 6.5rem 1fr;
-  gap: var(--fluent-space-sm) var(--fluent-space-md);
+.props-list {
+  list-style: none;
   margin: 0;
+  padding: var(--fluent-space-sm) 0;
 }
 
-.props-grid dt {
+.props-row {
+  display: grid;
+  grid-template-columns: 7rem 1fr;
+  gap: var(--fluent-space-md);
+  align-items: start;
+  padding: var(--fluent-space-sm) var(--fluent-space-lg);
+  border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+}
+
+.props-row:last-child {
+  border-bottom: 0;
+}
+
+.props-label {
   color: var(--fluent-color-text-secondary);
+  font-size: var(--fluent-font-size-caption);
+  padding-top: 0.1rem;
 }
 
-.props-grid dd {
+.props-value {
   margin: 0;
   overflow-wrap: anywhere;
+  font-size: var(--fluent-font-size-body);
 }
 
 .mono {

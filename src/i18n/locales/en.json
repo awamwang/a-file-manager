@@ -279,6 +279,10 @@
         "debugStatusInTitlebar": {
           "title": "Debug status in titlebar",
           "description": "Show phase/debug caption in the custom titlebar"
+        },
+        "previewPane": {
+          "title": "Preview pane",
+          "description": "Show image and plain-text preview beside the Navigator list (experimental)"
         }
       }
     },
@@ -497,6 +501,10 @@
     "openWithChoose": "Choose another app…",
     "systemMenuShow": "Show system menu…",
     "properties": "Properties",
+    "compressZip": "Compress to ZIP",
+    "extractZip": "Extract ZIP",
+    "compressed": "Compressed to {path}",
+    "extracted": "Extracted to {path}",
     "openWithIde": "Open in IDE",
     "openWithSystemDefault": "System default",
     "openInTerminalApp": "Terminal",
@@ -520,11 +528,21 @@
     "kind": "Type",
     "path": "Path",
     "size": "Size",
+    "totalSize": "Total size",
+    "fileCount": "Files",
+    "dirCount": "Subfolders",
+    "truncatedHint": "(partial)",
     "modified": "Modified",
     "created": "Created",
     "readonly": "Read-only",
     "kindFolder": "Folder",
     "kindFile": "File",
     "unknown": "Unknown"
+  },
+  "preview": {
+    "title": "Preview",
+    "empty": "Select a single file to preview",
+    "unsupported": "Preview not available for this type",
+    "truncated": "Content truncated"
   }
 }

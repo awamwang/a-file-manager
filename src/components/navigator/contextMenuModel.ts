@@ -21,6 +21,8 @@ export type ContextMenuActionId =
   | "newFolder"
   | "newFile"
   | "copyPath"
+  | "compressZip"
+  | "extractZip"
   | "properties"
   | "delete";
 
@@ -224,6 +226,19 @@ export function buildContextMenuItems(
     { id: "newFile", labelKey: "contextMenu.newFile", enabled: true, icon: "document" },
     { id: "copyPath", labelKey: "contextMenu.copyPath", enabled: true, icon: "globe" },
     {
+      id: "compressZip",
+      labelKey: "contextMenu.compressZip",
+      enabled: true,
+      separatorBefore: true,
+      icon: "document",
+    },
+    {
+      id: "extractZip",
+      labelKey: "contextMenu.extractZip",
+      enabled: isZipEntry(entry),
+      icon: "folderOpen",
+    },
+    {
       id: "properties",
       labelKey: "contextMenu.properties",
       enabled: true,
@@ -238,6 +253,12 @@ export function buildContextMenuItems(
       icon: "close",
     },
   ];
+}
+
+function isZipEntry(entry: NavigatorEntry): boolean {
+  if (entry.kind !== "file") return false;
+  const name = entry.name.toLowerCase();
+  return name.endsWith(".zip");
 }
 
 /** True when Open in new tab should run (directory selection only). */

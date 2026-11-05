@@ -30,6 +30,8 @@ assert.ok(dirItems.find((item) => item.id === "openWith")?.children?.length);
 assert.ok(dirItems.find((item) => item.id === "openInTerminal")?.children?.length);
 assert.ok(dirItems.find((item) => item.id === "systemMenu")?.children?.length);
 assert.ok(dirItems.find((item) => item.id === "properties")?.enabled);
+assert.ok(dirItems.find((item) => item.id === "compressZip")?.enabled);
+assert.equal(dirItems.find((item) => item.id === "extractZip")?.enabled, false);
 const addFavorite = dirItems.find((item) => item.id === "toggleFavorite");
 assert.ok(addFavorite);
 assert.equal(addFavorite.labelKey, "contextMenu.addFavorite");
@@ -69,6 +71,12 @@ assert.ok(
 );
 assert.ok(fileItems.find((item) => item.id === "reveal")?.enabled);
 assert.equal(fileItems.find((item) => item.id === "paste")?.enabled, false);
+assert.ok(fileItems.find((item) => item.id === "compressZip")?.enabled);
+assert.equal(fileItems.find((item) => item.id === "extractZip")?.enabled, false);
+
+const zip = { name: "pack.zip", path: "C:/Docs/pack.zip", kind: "file" as const, size: 100 };
+const zipItems = buildContextMenuItems(zip);
+assert.equal(zipItems.find((item) => item.id === "extractZip")?.enabled, true);
 
 const withTerms = buildContextMenuItems(dir, {
   terminals: [

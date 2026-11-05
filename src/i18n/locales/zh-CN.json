@@ -279,6 +279,10 @@
         "debugStatusInTitlebar": {
           "title": "标题栏调试状态",
           "description": "在自定义标题栏显示阶段/调试说明"
+        },
+        "previewPane": {
+          "title": "预览栏",
+          "description": "在导航器列表旁显示图片与纯文本预览（实验）"
         }
       }
     },
@@ -497,6 +501,10 @@
     "openWithChoose": "选择其他应用…",
     "systemMenuShow": "显示系统菜单…",
     "properties": "属性",
+    "compressZip": "压缩为 ZIP",
+    "extractZip": "解压 ZIP",
+    "compressed": "已压缩到 {path}",
+    "extracted": "已解压到 {path}",
     "openWithIde": "在 IDE 中打开",
     "openWithSystemDefault": "系统默认",
     "openInTerminalApp": "终端",
@@ -520,11 +528,21 @@
     "kind": "类型",
     "path": "路径",
     "size": "大小",
+    "totalSize": "合计大小",
+    "fileCount": "文件数",
+    "dirCount": "子文件夹",
+    "truncatedHint": "（部分合计）",
     "modified": "修改时间",
     "created": "创建时间",
     "readonly": "只读",
     "kindFolder": "文件夹",
     "kindFile": "文件",
     "unknown": "未知"
+  },
+  "preview": {
+    "title": "预览",
+    "empty": "选中单个文件以预览",
+    "unsupported": "暂不支持此类型预览",
+    "truncated": "内容已截断"
   }
 }

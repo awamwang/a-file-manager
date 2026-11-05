@@ -284,6 +284,57 @@ async function runDelete(entry: NavigatorEntry) {
   }
 }
 
+type ArchiveResult = {
+  ok: boolean;
+  message: string;
+  outputPath: string | null;
+};
+
+async function runCompressZip(entry: NavigatorEntry) {
+  const paths = pathsForClipboard(entry);
+  try {
+    const result = await invoke<ArchiveResult>("archive_compress_zip", {
+      paths,
+      destZip: null,
+    });
+    if (!result.ok) {
+      emit("notice", result.message || t("contextMenu.opFailed"));
+      return;
+    }
+    emit(
+      "notice",
+      t("contextMenu.compressed", {
+        path: result.outputPath ?? "",
+      }),
+    );
+    await refreshListing();
+  } catch (err) {
+    emit("notice", err instanceof Error ? err.message : String(err));
+  }
+}
+
+async function runExtractZip(entry: NavigatorEntry) {
+  try {
+    const result = await invoke<ArchiveResult>("archive_extract_zip", {
+      zipPath: entry.path,
+      destDir: null,
+    });
+    if (!result.ok) {
+      emit("notice", result.message || t("contextMenu.opFailed"));
+      return;
+    }
+    emit(
+      "notice",
+      t("contextMenu.extracted", {
+        path: result.outputPath ?? "",
+      }),
+    );
+    await refreshListing();
+  } catch (err) {
+    emit("notice", err instanceof Error ? err.message : String(err));
+  }
+}
+
 async function run(id: string) {
   const entry = props.entry;
   emit("close");
@@ -417,6 +468,12 @@ async function run(id: string) {
       break;
     case "copyPath":
       if (entry) await copyPath(entry.path);
+      break;
+    case "compressZip":
+      if (entry) await runCompressZip(entry);
+      break;
+    case "extractZip":
+      if (entry) await runExtractZip(entry);
       break;
     case "properties":
       if (entry) emit("openProperties", entry.path);

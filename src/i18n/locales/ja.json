@@ -366,6 +366,10 @@
         "debugStatusInTitlebar": {
           "description": "カスタムタイトルバーにフェーズ/デバッグ文言を表示",
           "title": "タイトルバーにデバッグ状態"
+        },
+        "previewPane": {
+          "title": "プレビューペイン",
+          "description": "ナビゲーター一覧の横に画像・プレーンテキストをプレビュー（実験）"
         }
       },
       "power": {
@@ -497,6 +501,10 @@
     "openWithChoose": "別のアプリを選択…",
     "systemMenuShow": "システムメニューを表示…",
     "properties": "プロパティ",
+    "compressZip": "ZIP に圧縮",
+    "extractZip": "ZIP を展開",
+    "compressed": "{path} に圧縮しました",
+    "extracted": "{path} に展開しました",
     "openWithIde": "IDE で開く",
     "openWithSystemDefault": "システムの既定",
     "openInTerminalApp": "ターミナル",
@@ -520,11 +528,21 @@
     "kind": "種類",
     "path": "パス",
     "size": "サイズ",
+    "totalSize": "合計サイズ",
+    "fileCount": "ファイル数",
+    "dirCount": "サブフォルダー",
+    "truncatedHint": "（一部）",
     "modified": "更新日時",
     "created": "作成日時",
     "readonly": "読み取り専用",
     "kindFolder": "フォルダー",
     "kindFile": "ファイル",
     "unknown": "不明"
+  },
+  "preview": {
+    "title": "プレビュー",
+    "empty": "単一ファイルを選択してプレビュー",
+    "unsupported": "この種類はプレビューできません",
+    "truncated": "内容は切り詰められています"
   }
 }

@@ -210,6 +210,15 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             None,
             json!(true),
         ),
+        def(
+            "experimental.previewPane",
+            SettingsTier::Experimental,
+            "Preview pane",
+            "Show image and plain-text preview beside the Navigator list",
+            SettingValueKind::Boolean,
+            None,
+            json!(false),
+        ),
     ]
 }
 

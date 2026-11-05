@@ -366,6 +366,10 @@
         "debugStatusInTitlebar": {
           "description": "Phasen-/Debug-Text in der benutzerdefinierten Titelleiste anzeigen",
           "title": "Debug-Status in der Titelleiste"
+        },
+        "previewPane": {
+          "title": "Vorschaufenster",
+          "description": "Bild- und Klartextvorschau neben der Navigator-Liste (experimentell)"
         }
       },
       "power": {
@@ -497,6 +501,10 @@
     "openWithChoose": "Andere App wählen…",
     "systemMenuShow": "Systemmenü anzeigen…",
     "properties": "Eigenschaften",
+    "compressZip": "Als ZIP komprimieren",
+    "extractZip": "ZIP entpacken",
+    "compressed": "Komprimiert nach {path}",
+    "extracted": "Entpackt nach {path}",
     "openWithIde": "In IDE öffnen",
     "openWithSystemDefault": "Systemstandard",
     "openInTerminalApp": "Terminal",
@@ -520,11 +528,21 @@
     "kind": "Typ",
     "path": "Pfad",
     "size": "Größe",
+    "totalSize": "Gesamtgröße",
+    "fileCount": "Dateien",
+    "dirCount": "Unterordner",
+    "truncatedHint": "(teilweise)",
     "modified": "Geändert",
     "created": "Erstellt",
     "readonly": "Schreibgeschützt",
     "kindFolder": "Ordner",
     "kindFile": "Datei",
     "unknown": "Unbekannt"
+  },
+  "preview": {
+    "title": "Vorschau",
+    "empty": "Eine einzelne Datei zur Vorschau auswählen",
+    "unsupported": "Keine Vorschau für diesen Typ",
+    "truncated": "Inhalt gekürzt"
   }
 }

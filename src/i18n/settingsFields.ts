@@ -20,6 +20,7 @@ export const SCHEMA_SETTING_KEYS = [
   "power.confirmBeforeDelete",
   "power.perPathOverridesEnabled",
   "experimental.debugStatusInTitlebar",
+  "experimental.previewPane",
 ] as const;
 
 export type SchemaSettingKey = (typeof SCHEMA_SETTING_KEYS)[number];

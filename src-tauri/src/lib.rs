@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+mod archive;
 mod autostart;
 mod discovery;
 mod extension_host;
@@ -7,6 +8,7 @@ mod favorites;
 mod visit_stats;
 mod file_ops;
 mod navigator;
+mod preview;
 mod shell_icons;
 mod ide_launch;
 mod open_with;
@@ -186,6 +188,9 @@ pub fn run() {
             visit_stats::visit_stats_quick_access,
             open_with::open_path_default,
             open_with::open_native_open_with_dialog,
+            preview::preview_load,
+            archive::archive_compress_zip,
+            archive::archive_extract_zip,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

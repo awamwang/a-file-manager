@@ -66,6 +66,7 @@ import {
 } from "../shortcuts/index.ts";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import NavigatorContextMenu from "../components/navigator/NavigatorContextMenu.vue";
+import PreviewPane from "../components/navigator/PreviewPane.vue";
 import PropertiesPanel from "../components/navigator/PropertiesPanel.vue";
 import { entryKindIcon } from "../components/icons/glyphs";
 
@@ -78,6 +79,22 @@ const menuX = ref(0);
 const menuY = ref(0);
 const propertiesOpen = ref(false);
 const propertiesPath = ref<string | null>(null);
+const previewPaneEnabled = ref(false);
+
+const previewPath = computed(() => {
+  const paths = selectedPaths.value;
+  if (paths.length === 1) return paths[0] ?? null;
+  return null;
+});
+
+async function refreshPreviewSetting() {
+  try {
+    const doc = await invoke<{ values: Record<string, unknown> }>("settings_get");
+    previewPaneEnabled.value = doc.values["experimental.previewPane"] === true;
+  } catch {
+    previewPaneEnabled.value = false;
+  }
+}
 
 function openProperties(path: string) {
   propertiesPath.value = path;
@@ -129,11 +146,17 @@ watch(
   { immediate: true },
 );
 
+function onWindowFocus() {
+  void refreshPreviewSetting();
+}
+
 onMounted(() => {
   registerNavFileShortcuts();
   window.addEventListener("mousemove", onMarqueeMove);
   window.addEventListener("mouseup", onMarqueeEnd);
+  window.addEventListener("focus", onWindowFocus);
   void (async () => {
+    await refreshPreviewSetting();
     await bootstrapNavigatorOpenState();
     await loadFavorites().catch(() => undefined);
     await loadFavoritesOsHookStatus().catch(() => undefined);
@@ -147,6 +170,7 @@ onUnmounted(() => {
   unregisterNavFileShortcuts();
   window.removeEventListener("mousemove", onMarqueeMove);
   window.removeEventListener("mouseup", onMarqueeEnd);
+  window.removeEventListener("focus", onWindowFocus);
 });
 
 function formatSize(entry: NavigatorEntry): string {
@@ -521,6 +545,7 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
 <template>
   <!-- AIA-78: no in-page title / Kernel status meta — path via shell address bar + pane-path; counts in shell statusbar. -->
   <section class="fluent-page fluent-page--navigator">
+    <div class="navigator-body" :class="{ 'navigator-body--preview': previewPaneEnabled }">
     <div class="panes" :class="{ 'panes--dual': dualPaneEnabled }">
     <div
       class="pane"
@@ -650,6 +675,8 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
       </div>
     </div>
     </div>
+    <PreviewPane :enabled="previewPaneEnabled" :path="previewPath" />
+    </div>
 
     <NavigatorContextMenu
       :open="menuOpen"
@@ -678,10 +705,23 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
   min-height: 0;
 }
 
+.navigator-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  gap: 0;
+}
+
+.navigator-body--preview {
+  gap: 0;
+}
+
 .panes {
   display: flex;
   flex: 1;
   min-height: 0;
+  min-width: 0;
   gap: 0;
 }
 

@@ -115,6 +115,13 @@ fn migrate_step(
             notes.push("Added new-file/folder default name settings (schema v2)".to_string());
             Ok(())
         }
+        (2, 3) => {
+            for (key, value) in default_document().values {
+                values.entry(key).or_insert(value);
+            }
+            notes.push("Added experimental.previewPane (schema v3)".to_string());
+            Ok(())
+        }
         _ => Err(format!("No migration path from {from} → {to}")),
     }
 }

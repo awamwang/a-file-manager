@@ -366,6 +366,10 @@
         "debugStatusInTitlebar": {
           "description": "Afficher la légende de phase/débogage dans la barre de titre personnalisée",
           "title": "État de débogage dans la barre de titre"
+        },
+        "previewPane": {
+          "title": "Volet d’aperçu",
+          "description": "Afficher un aperçu image/texte à côté de la liste Navigateur (expérimental)"
         }
       },
       "power": {
@@ -497,6 +501,10 @@
     "openWithChoose": "Choisir une autre app…",
     "systemMenuShow": "Afficher le menu système…",
     "properties": "Propriétés",
+    "compressZip": "Compresser en ZIP",
+    "extractZip": "Extraire le ZIP",
+    "compressed": "Compressé vers {path}",
+    "extracted": "Extrait vers {path}",
     "openWithIde": "Ouvrir dans l'IDE",
     "openWithSystemDefault": "Par défaut du système",
     "openInTerminalApp": "Terminal",
@@ -520,11 +528,21 @@
     "kind": "Type",
     "path": "Chemin",
     "size": "Taille",
+    "totalSize": "Taille totale",
+    "fileCount": "Fichiers",
+    "dirCount": "Sous-dossiers",
+    "truncatedHint": "(partiel)",
     "modified": "Modifié",
     "created": "Créé",
     "readonly": "Lecture seule",
     "kindFolder": "Dossier",
     "kindFile": "Fichier",
     "unknown": "Inconnu"
+  },
+  "preview": {
+    "title": "Aperçu",
+    "empty": "Sélectionnez un seul fichier pour l’aperçu",
+    "unsupported": "Aperçu indisponible pour ce type",
+    "truncated": "Contenu tronqué"
   }
 }
