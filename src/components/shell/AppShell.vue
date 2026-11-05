@@ -679,63 +679,91 @@ const tabDragOver = ref<number | null>(null);
 /** Suppress click-to-switch after a real drag (AIA-126). */
 const tabDragMoved = ref(false);
 
-function onTabDragStart(event: DragEvent, groupIndex: number) {
-  // Close button / icons must not start native image drag.
-  if (event.target instanceof Element) {
-    const close = (event.target as Element).closest(".tab-close");
-    if (close) {
-      event.preventDefault();
-      return;
-    }
+/** Pointer-based reorder — HTML5 DnD is unreliable in WebView2 title/chrome areas. */
+const TAB_DRAG_THRESHOLD_PX = 6;
+let tabPointerId: number | null = null;
+let tabPointerStartX = 0;
+let tabPointerStartY = 0;
+let tabPointerFrom: number | null = null;
+
+function clearTabPointerListeners() {
+  window.removeEventListener("pointermove", onTabPointerMove);
+  window.removeEventListener("pointerup", onTabPointerUp);
+  window.removeEventListener("pointercancel", onTabPointerUp);
+  tabPointerId = null;
+}
+
+function onTabPointerDown(event: PointerEvent, groupIndex: number) {
+  if (event.button !== 0) return;
+  if (event.target instanceof Element && event.target.closest(".tab-close")) {
+    return;
   }
+  tabPointerId = event.pointerId;
+  tabPointerFrom = groupIndex;
+  tabPointerStartX = event.clientX;
+  tabPointerStartY = event.clientY;
   tabDragFrom.value = groupIndex;
+  tabDragOver.value = null;
   tabDragMoved.value = false;
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", String(groupIndex));
-    // Empty drag image fallback keeps WebView2 from cancelling the gesture.
-    try {
-      const img = new Image();
-      img.src =
-        "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
-      event.dataTransfer.setDragImage(img, 0, 0);
-    } catch {
-      /* ignore */
-    }
+  window.addEventListener("pointermove", onTabPointerMove);
+  window.addEventListener("pointerup", onTabPointerUp);
+  window.addEventListener("pointercancel", onTabPointerUp);
+  try {
+    (event.currentTarget as HTMLElement | null)?.setPointerCapture?.(event.pointerId);
+  } catch {
+    /* ignore */
   }
 }
 
-function onTabDragOver(event: DragEvent, groupIndex: number) {
-  event.preventDefault();
-  event.stopPropagation();
-  if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
-  if (tabDragFrom.value != null && tabDragFrom.value !== groupIndex) {
+function tabIndexAtPoint(clientX: number, clientY: number): number | null {
+  // Prefer geometry over elementFromPoint — pointer capture can skew hit-testing in WebView2.
+  const nodes = document.querySelectorAll<HTMLElement>("[data-tab-group-index]");
+  for (const node of nodes) {
+    const rect = node.getBoundingClientRect();
+    if (
+      clientX >= rect.left &&
+      clientX <= rect.right &&
+      clientY >= rect.top &&
+      clientY <= rect.bottom
+    ) {
+      const idx = Number(node.dataset.tabGroupIndex);
+      return Number.isFinite(idx) ? idx : null;
+    }
+  }
+  return null;
+}
+
+function onTabPointerMove(event: PointerEvent) {
+  if (tabPointerId !== event.pointerId || tabPointerFrom == null) return;
+  const dist = Math.hypot(
+    event.clientX - tabPointerStartX,
+    event.clientY - tabPointerStartY,
+  );
+  if (!tabDragMoved.value) {
+    if (dist < TAB_DRAG_THRESHOLD_PX) return;
     tabDragMoved.value = true;
   }
-  tabDragOver.value = groupIndex;
+  const idx = tabIndexAtPoint(event.clientX, event.clientY);
+  if (idx == null || idx === tabPointerFrom) {
+    tabDragOver.value = null;
+    return;
+  }
+  tabDragOver.value = idx;
 }
 
-function onTabDragLeave(groupIndex: number) {
-  if (tabDragOver.value === groupIndex) tabDragOver.value = null;
-}
-
-async function onTabDrop(event: DragEvent, toIndex: number) {
-  event.preventDefault();
-  event.stopPropagation();
-  const from =
-    tabDragFrom.value ??
-    Number(event.dataTransfer?.getData("text/plain") ?? Number.NaN);
+async function onTabPointerUp(event: PointerEvent) {
+  if (tabPointerId !== event.pointerId) return;
+  const from = tabPointerFrom;
+  const to = tabDragOver.value;
+  const moved = tabDragMoved.value;
+  clearTabPointerListeners();
   tabDragFrom.value = null;
   tabDragOver.value = null;
-  if (!Number.isFinite(from) || from === toIndex) return;
-  tabDragMoved.value = true;
-  await reorderNavigatorTabs(from, toIndex);
-}
-
-function onTabDragEnd() {
-  tabDragFrom.value = null;
-  tabDragOver.value = null;
-  // Keep tabDragMoved until the following click is swallowed.
+  tabPointerFrom = null;
+  if (moved && from != null && to != null && from !== to) {
+    await reorderNavigatorTabs(from, to);
+  }
+  // Keep tabDragMoved until the synthetic click is swallowed.
   window.setTimeout(() => {
     tabDragMoved.value = false;
   }, 0);
@@ -747,11 +775,6 @@ async function onTabClick(groupIndex: number) {
     return;
   }
   await onSwitchNavigatorTab(groupIndex);
-}
-
-function onTabStripDragOver(event: DragEvent) {
-  event.preventDefault();
-  if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
 }
 
 async function onCloseNavigatorTab(event: Event, groupIndex: number) {
@@ -1252,7 +1275,6 @@ onUnmounted(() => {
           class="tabstrip"
           role="tablist"
           :aria-label="t('chrome.tabs')"
-          @dragover="onTabStripDragOver"
         >
           <div
             v-for="tab in stripTabs"
@@ -1261,29 +1283,24 @@ onUnmounted(() => {
             :class="{
               'tab--active': liveOpenState.currentTabGroupIndex === tab.groupIndex,
               'tab--drag-over': tabDragOver === tab.groupIndex,
-              'tab--dragging': tabDragFrom === tab.groupIndex,
+              'tab--dragging': tabDragFrom === tab.groupIndex && tabDragMoved,
             }"
             role="tab"
-            draggable="true"
+            :data-tab-group-index="tab.groupIndex"
             :aria-selected="liveOpenState.currentTabGroupIndex === tab.groupIndex"
             :title="tab.path"
             @click="onTabClick(tab.groupIndex)"
-            @dragstart="onTabDragStart($event, tab.groupIndex)"
-            @dragover="onTabDragOver($event, tab.groupIndex)"
-            @dragleave="onTabDragLeave(tab.groupIndex)"
-            @drop="onTabDrop($event, tab.groupIndex)"
-            @dragend="onTabDragEnd"
+            @pointerdown="onTabPointerDown($event, tab.groupIndex)"
           >
             <FluentIcon name="folder" size="sm" class="tab-icon" aria-hidden="true" />
             <span class="tab-label">{{ tab.name || tabLabel(tab.path) }}</span>
             <button
               type="button"
               class="tab-close"
-              draggable="false"
               :aria-label="t('chrome.closeTab')"
               :title="t('chrome.closeTab')"
               @click="onCloseNavigatorTab($event, tab.groupIndex)"
-              @dragstart.stop.prevent
+              @pointerdown.stop
             >
               <FluentIcon name="close" size="sm" aria-hidden="true" />
             </button>
@@ -1792,16 +1809,15 @@ onUnmounted(() => {
   color: var(--fluent-color-text-secondary);
   font: inherit;
   cursor: grab;
+  touch-action: none;
   -webkit-app-region: no-drag;
   app-region: no-drag;
-  -webkit-user-drag: element;
   user-select: none;
 }
 
 .tab .tab-icon,
 .tab .tab-label {
   pointer-events: none;
-  -webkit-user-drag: none;
 }
 
 .tab:hover:not(:disabled) {
@@ -1831,9 +1847,9 @@ onUnmounted(() => {
 }
 
 .tab-close {
-  -webkit-user-drag: none;
   pointer-events: auto;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .tab-icon {

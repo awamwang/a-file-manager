@@ -59,10 +59,13 @@ const submenuRoot = ref<HTMLElement | null>(null);
 const pos = ref({ left: 0, top: 0 });
 const submenuPos = ref({ left: 0, top: 0 });
 const openSubmenuId = ref<string | null>(null);
+const submenuAnchor = ref<HTMLElement | null>(null);
+let submenuCloseTimer: ReturnType<typeof setTimeout> | null = null;
 const ideApps = ref<Array<{ id: string; name: string; available: boolean }>>([]);
 const terminals = ref<
   Array<{ id: string; name: string; available: boolean; supportsElevation: boolean }>
 >([]);
+let launchersWarm = false;
 
 type IdeAppInfo = { id: string; name: string; available: boolean; resolvedPath?: string | null };
 type TerminalAppInfo = {
@@ -83,6 +86,13 @@ async function loadLaunchers() {
   } catch {
     terminals.value = [];
   }
+  launchersWarm = true;
+}
+
+/** Warm IDE/terminal lists so Open-with / Terminal submenus open instantly. */
+function preloadLaunchersIfNeeded() {
+  if (launchersWarm && (ideApps.value.length || terminals.value.length)) return;
+  void loadLaunchers();
 }
 
 function childLabel(child: {
@@ -129,11 +139,23 @@ watch(
   () => props.open,
   (isOpen) => {
     if (isOpen) {
+      clearSubmenuCloseTimer();
       openSubmenuId.value = null;
+      submenuAnchor.value = null;
       void loadLaunchers();
+    } else {
+      clearSubmenuCloseTimer();
+      openSubmenuId.value = null;
+      submenuAnchor.value = null;
     }
   },
 );
+
+watch(openSubmenuChildren, async () => {
+  if (openSubmenuId.value && submenuAnchor.value) {
+    await placeSubmenu(submenuAnchor.value);
+  }
+});
 
 watch(
   () => [props.open, props.x, props.y] as const,
@@ -527,9 +549,10 @@ async function placeSubmenu(anchor: HTMLElement) {
   const pad = 8;
   const w = sub?.offsetWidth ?? 200;
   const h = sub?.offsetHeight ?? 160;
-  let left = rect.right - 4;
+  // Slight overlap so the pointer can travel into the flyout without a dead gap.
+  let left = rect.right - 6;
   if (left + w > window.innerWidth - pad) {
-    left = Math.max(pad, rect.left - w + 4);
+    left = Math.max(pad, rect.left - w + 6);
   }
   let top = rect.top;
   if (top + h > window.innerHeight - pad) {
@@ -538,12 +561,37 @@ async function placeSubmenu(anchor: HTMLElement) {
   submenuPos.value = { left, top };
 }
 
+function clearSubmenuCloseTimer() {
+  if (submenuCloseTimer != null) {
+    clearTimeout(submenuCloseTimer);
+    submenuCloseTimer = null;
+  }
+}
+
+function scheduleSubmenuClose() {
+  clearSubmenuCloseTimer();
+  submenuCloseTimer = setTimeout(() => {
+    openSubmenuId.value = null;
+    submenuAnchor.value = null;
+    submenuCloseTimer = null;
+  }, 180);
+}
+
+function openSubmenuFor(itemId: string, anchor: HTMLElement) {
+  clearSubmenuCloseTimer();
+  if (itemId === "openWith" || itemId === "openInTerminal") {
+    preloadLaunchersIfNeeded();
+  }
+  openSubmenuId.value = itemId;
+  submenuAnchor.value = anchor;
+  void placeSubmenu(anchor);
+}
+
 function onItemClick(item: { id: string; children?: unknown[] }, event: MouseEvent) {
   if (item.children?.length) {
-    const next = openSubmenuId.value === item.id ? null : item.id;
-    openSubmenuId.value = next;
-    if (next && event.currentTarget instanceof HTMLElement) {
-      void placeSubmenu(event.currentTarget);
+    // Hover owns expand; click keeps the flyout open (do not toggle shut).
+    if (event.currentTarget instanceof HTMLElement) {
+      openSubmenuFor(item.id, event.currentTarget);
     }
     return;
   }
@@ -552,13 +600,21 @@ function onItemClick(item: { id: string; children?: unknown[] }, event: MouseEve
 
 function onItemEnter(item: { id: string; children?: unknown[] }, event: MouseEvent) {
   if (!item.children?.length) {
-    openSubmenuId.value = null;
+    // Delay close so the pointer can reach the flyout across the seam.
+    scheduleSubmenuClose();
     return;
   }
-  openSubmenuId.value = item.id;
   if (event.currentTarget instanceof HTMLElement) {
-    void placeSubmenu(event.currentTarget);
+    openSubmenuFor(item.id, event.currentTarget);
   }
+}
+
+function onSubmenuEnter() {
+  clearSubmenuCloseTimer();
+}
+
+function onSubmenuLeave() {
+  scheduleSubmenuClose();
 }
 
 function onDocPointer(event: MouseEvent) {
@@ -583,9 +639,12 @@ function onKey(event: KeyboardEvent) {
 onMounted(() => {
   window.addEventListener("mousedown", onDocPointer, true);
   window.addEventListener("keydown", onKey, true);
+  // Warm launcher lists once the Navigator mounts this menu host.
+  preloadLaunchersIfNeeded();
 });
 
 onUnmounted(() => {
+  clearSubmenuCloseTimer();
   window.removeEventListener("mousedown", onDocPointer, true);
   window.removeEventListener("keydown", onKey, true);
 });
@@ -637,6 +696,8 @@ onUnmounted(() => {
       role="menu"
       :style="{ left: `${submenuPos.left}px`, top: `${submenuPos.top}px` }"
       @contextmenu.prevent
+      @mouseenter="onSubmenuEnter"
+      @mouseleave="onSubmenuLeave"
     >
       <button
         v-for="child in openSubmenuChildren"

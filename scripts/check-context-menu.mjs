@@ -45,6 +45,10 @@ assert.ok(
 );
 assert.ok(menu.includes("z-index: 1200") || menu.includes("z-index:1200"));
 assert.ok((menu.match(/Teleport to="body"/g) || []).length >= 2);
+assert.ok(menu.includes("onItemEnter"), "submenu must open on hover");
+assert.ok(menu.includes("onSubmenuEnter"), "flyout must keep open while hovered");
+assert.ok(menu.includes("scheduleSubmenuClose"), "flyout needs leave delay");
+assert.ok(menu.includes("preloadLaunchersIfNeeded"), "launcher submenu should preload");
 assert.ok(menu.includes("toggleFavorite"));
 assert.ok(menu.includes("setClipboard"));
 assert.ok(menu.includes("pasteClipboard"));
