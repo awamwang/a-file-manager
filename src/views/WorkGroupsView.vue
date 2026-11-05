@@ -3,9 +3,11 @@
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
+import { useRouter } from "vue-router";
 import {
   activeWorkGroupId,
   liveOpenState,
+  openOrFocusNavigatorTab,
   restoreWorkGroupOpenState,
   snapshotLiveOpenState,
 } from "../state/navigatorBrowse";
@@ -14,6 +16,7 @@ import FluentIcon from "../components/icons/FluentIcon.vue";
 import { toastError, toastInfo, toastSuccess } from "../state/toast";
 
 const { t } = useI18n();
+const router = useRouter();
 
 type WorkGroup = {
   id: string;
@@ -54,6 +57,17 @@ const active = computed(
 );
 
 const liveTabs = computed(() => (liveOpenState.value?.tabGroups ?? []).flat());
+
+function pathLabel(path: string): string {
+  const cleaned = path.replace(/\\/g, "/").replace(/\/+$/, "");
+  const parts = cleaned.split("/").filter(Boolean);
+  return parts[parts.length - 1] || path;
+}
+
+async function openPathInNavigator(path: string) {
+  await openOrFocusNavigatorTab(path);
+  await router.push("/navigator");
+}
 
 async function refresh() {
   loading.value = true;
@@ -162,6 +176,7 @@ onMounted(() => {
     <header class="fluent-page-header">
       <h1 class="fluent-page-title">{{ t("workGroups.title") }}</h1>
       <p class="fluent-page-meta">{{ t("workGroups.meta") }}</p>
+      <p class="fluent-page-meta usage-hint">{{ t("workGroups.usageHint") }}</p>
     </header>
 
     <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
@@ -208,12 +223,25 @@ onMounted(() => {
         </p>
 
         <h3>{{ t("workGroups.hardMembers") }}</h3>
-        <ul>
-          <li v-for="path in active.memberPaths" :key="path">{{ path }}</li>
-          <li v-if="!active.memberPaths.length" class="fluent-page-meta">
-            {{ t("workGroups.noHardMembers") }}
-          </li>
-        </ul>
+        <div v-if="active.memberPaths.length" class="path-card-grid">
+          <button
+            v-for="path in active.memberPaths"
+            :key="path"
+            type="button"
+            class="fluent-surface path-card"
+            :title="path"
+            @click="openPathInNavigator(path)"
+          >
+            <span class="fluent-icon-wash">
+              <FluentIcon name="folder" size="md" />
+            </span>
+            <span class="path-card-body">
+              <span class="path-card-name">{{ pathLabel(path) }}</span>
+              <span class="fluent-page-meta path-card-path">{{ path }}</span>
+            </span>
+          </button>
+        </div>
+        <p v-else class="fluent-page-meta">{{ t("workGroups.noHardMembers") }}</p>
 
         <form class="row" @submit.prevent="addMember">
           <input
@@ -227,10 +255,25 @@ onMounted(() => {
         </form>
 
         <h3>{{ t("workGroups.runtimeOpenState") }}</h3>
-        <ul>
-          <li v-for="tab in liveTabs" :key="tab.id">{{ tab.path }}</li>
-          <li v-if="!liveTabs.length" class="fluent-page-meta">{{ t("workGroups.noOpenTabs") }}</li>
-        </ul>
+        <div v-if="liveTabs.length" class="path-card-grid">
+          <button
+            v-for="tab in liveTabs"
+            :key="tab.id"
+            type="button"
+            class="fluent-surface path-card"
+            :title="tab.path"
+            @click="openPathInNavigator(tab.path)"
+          >
+            <span class="fluent-icon-wash">
+              <FluentIcon name="folderOpen" size="md" />
+            </span>
+            <span class="path-card-body">
+              <span class="path-card-name">{{ tab.name || pathLabel(tab.path) }}</span>
+              <span class="fluent-page-meta path-card-path">{{ tab.path }}</span>
+            </span>
+          </button>
+        </div>
+        <p v-else class="fluent-page-meta">{{ t("workGroups.noOpenTabs") }}</p>
 
         <div class="actions">
           <button class="fluent-control" type="button" @click="saveMembersFromTabs">
@@ -251,20 +294,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.banner--soft {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--fluent-space-md);
-}
-
-.linkish {
-  border: 0;
-  background: transparent;
-  color: var(--fluent-color-fill-accent);
-  cursor: pointer;
-  font: inherit;
-}
-
 .layout {
   display: grid;
   grid-template-columns: 16rem 1fr;
@@ -330,8 +359,54 @@ onMounted(() => {
   margin: 0;
 }
 
-.detail ul {
-  margin: 0;
-  padding-left: var(--fluent-space-lg);
+.usage-hint {
+  max-width: 42rem;
+}
+
+.path-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--fluent-space-sm);
+}
+
+.path-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--fluent-space-sm);
+  width: 100%;
+  min-height: var(--fluent-control-height-comfortable);
+  padding: var(--fluent-space-md);
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.path-card:hover,
+.path-card:focus-visible {
+  background: var(--fluent-color-fill-selected);
+  outline: none;
+}
+
+.path-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.path-card-name {
+  font-weight: var(--fluent-font-weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.path-card-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

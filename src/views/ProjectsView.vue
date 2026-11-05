@@ -367,6 +367,7 @@ onMounted(() => {
     <header class="fluent-page-header">
       <h1 class="fluent-page-title">{{ t("projects.title") }}</h1>
       <p class="fluent-page-meta">{{ t("projects.meta") }}</p>
+      <p class="fluent-page-meta usage-hint">{{ t("projects.usageHint") }}</p>
     </header>
 
     <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
@@ -483,20 +484,38 @@ onMounted(() => {
         </form>
 
         <h3>{{ t("projects.workspaceLinks") }}</h3>
-        <ul class="links">
-          <li v-for="link in selected.workspaceLinks" :key="link.id">
-            <button type="button" class="linkish" @click="openLink(link.path)">
-              {{ link.label }}
+        <div v-if="selected.workspaceLinks.length" class="path-card-grid">
+          <div
+            v-for="link in selected.workspaceLinks"
+            :key="link.id"
+            class="fluent-surface path-card path-card--with-action"
+          >
+            <button
+              type="button"
+              class="path-card-main"
+              :title="link.path"
+              @click="openLink(link.path)"
+            >
+              <span class="fluent-icon-wash">
+                <FluentIcon name="folder" size="md" />
+              </span>
+              <span class="path-card-body">
+                <span class="path-card-name">{{ link.label || link.path }}</span>
+                <span class="fluent-page-meta path-card-path">{{ link.path }}</span>
+              </span>
             </button>
-            <span class="fluent-page-meta path">{{ link.path }}</span>
-            <button type="button" class="linkish danger" @click="removeLink(link.id)">
+            <button
+              type="button"
+              class="fluent-control path-card-remove"
+              :title="t('common.remove')"
+              :aria-label="t('common.remove')"
+              @click="removeLink(link.id)"
+            >
               {{ t("common.remove") }}
             </button>
-          </li>
-          <li v-if="!selected.workspaceLinks.length" class="fluent-page-meta">
-            {{ t("projects.noFolderLinks") }}
-          </li>
-        </ul>
+          </div>
+        </div>
+        <p v-else class="fluent-page-meta">{{ t("projects.noFolderLinks") }}</p>
         <form class="row" @submit.prevent="addLink">
           <input
             v-model="linkPath"
@@ -693,26 +712,74 @@ onMounted(() => {
   margin: 0;
 }
 
-.links {
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.usage-hint {
+  max-width: 42rem;
+}
+
+.path-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--fluent-space-sm);
+}
+
+.path-card {
   display: flex;
+  align-items: flex-start;
+  gap: var(--fluent-space-sm);
+  min-height: var(--fluent-control-height-comfortable);
+  padding: var(--fluent-space-md);
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+
+.path-card--with-action {
   flex-direction: column;
   gap: var(--fluent-space-sm);
 }
 
-.links li {
+.path-card-main {
   display: flex;
-  flex-wrap: wrap;
+  align-items: flex-start;
   gap: var(--fluent-space-sm);
-  align-items: center;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
 }
 
-.path {
+.path-card-main:hover .path-card-name,
+.path-card-main:focus-visible .path-card-name {
+  color: var(--fluent-color-text-accent, var(--fluent-color-fill-accent));
+}
+
+.path-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
   flex: 1;
-  min-width: 8rem;
-  word-break: break-all;
+}
+
+.path-card-name {
+  font-weight: var(--fluent-font-weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.path-card-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.path-card-remove {
+  align-self: flex-end;
 }
 
 .context {
