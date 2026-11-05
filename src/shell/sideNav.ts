@@ -10,14 +10,14 @@ export type SideNavItem = {
   later?: boolean;
 };
 
-/** Primary pillars first; Discovery + Providers sit above Settings; Health is Settings-only. */
+/** Primary pillars first; Extensions sits second-to-last before Settings; Health is Settings-only. */
 export const SIDE_NAV_ITEMS: SideNavItem[] = [
   { id: "navigator", labelKey: "nav.navigator", to: "/navigator" },
   { id: "work-groups", labelKey: "nav.workGroups", to: "/work-groups" },
   { id: "projects", labelKey: "nav.projects", to: "/projects" },
-  { id: "extensions", labelKey: "nav.extensions", to: "/extensions" },
   { id: "discovery", labelKey: "nav.discovery", to: "/discovery" },
   { id: "providers", labelKey: "nav.providers", to: "/providers" },
+  { id: "extensions", labelKey: "nav.extensions", to: "/extensions" },
   { id: "settings", labelKey: "nav.settings", to: "/settings" },
 ];
 
