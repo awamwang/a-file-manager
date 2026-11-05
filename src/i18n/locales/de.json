@@ -442,6 +442,19 @@
           "description": "Bild- und Klartextvorschau neben der Explorer-Liste (experimentell)"
         }
       },
+      "preview": {
+        "externalProvider": {
+          "title": "Vorschau-Bridge-Anbieter",
+          "description": "Leertaste sendet die aktuelle Auswahl an PowerToys Peek (CLI) und/oder QuickLook (Named Pipe), sonst die eingebaute Leiste. Das ist eine AFM-Bridge — kein Zero-Adapter für jedes QL-Tool.",
+          "options": {
+            "auto": "Auto (Peek → QuickLook → eingebaut)",
+            "peek": "PowerToys Peek",
+            "quicklook": "QuickLook-Pipe",
+            "builtin": "Eingebaute Vorschauleiste",
+            "off": "Aus"
+          }
+        }
+      },
       "power": {
         "confirmBeforeDelete": {
           "description": "Vor endgültigem Löschen nachfragen",
@@ -532,6 +545,7 @@
       "navigatorNewFolder": "Neuer Ordner",
       "navigatorDelete": "In den Papierkorb verschieben",
       "navigatorSelectAll": "Alles auswählen",
+      "navigatorPreviewBridge": "Auswahl vorschauen (Peek / QuickLook / eingebaut)",
       "focusAddress": "Adressleiste fokussieren",
       "openSettings": "Einstellungen öffnen",
       "openShortcutList": "Tastenkürzel-Liste öffnen",
@@ -629,6 +643,10 @@
     "empty": "Eine einzelne Datei zur Vorschau auswählen",
     "unsupported": "Keine Vorschau für diesen Typ",
     "truncated": "Inhalt gekürzt"
+  },
+  "previewBridge": {
+    "noPath": "Lokale Datei zur Vorschau auswählen",
+    "fallbackBuiltin": "Kein externes Vorschau-Tool — eingebaute Leiste wird angezeigt"
   },
   "guide": {
     "title": "Dieser PC",

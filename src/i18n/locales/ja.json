@@ -442,6 +442,19 @@
           "description": "エクスプローラー一覧の横に画像・プレーンテキストをプレビュー（実験）"
         }
       },
+      "preview": {
+        "externalProvider": {
+          "title": "プレビューブリッジ提供元",
+          "description": "Space で現在の選択を PowerToys Peek（CLI）および/または QuickLook（名前付きパイプ）へ送り、なければ組み込みペインを開きます。AFM 側ブリッジであり、すべての QL 系ツールのゼロアダプターではありません。",
+          "options": {
+            "auto": "自動（Peek → QuickLook → 組み込み）",
+            "peek": "PowerToys Peek",
+            "quicklook": "QuickLook パイプ",
+            "builtin": "組み込みプレビューペイン",
+            "off": "オフ"
+          }
+        }
+      },
       "power": {
         "confirmBeforeDelete": {
           "description": "完全削除の前に確認する",
@@ -532,6 +545,7 @@
       "navigatorNewFolder": "新しいフォルダー",
       "navigatorDelete": "ごみ箱へ移動",
       "navigatorSelectAll": "すべて選択",
+      "navigatorPreviewBridge": "選択をプレビュー（Peek / QuickLook / 組み込み）",
       "focusAddress": "アドレスバーにフォーカス",
       "openSettings": "設定を開く",
       "openShortcutList": "ショートカット一覧を開く",
@@ -629,6 +643,10 @@
     "empty": "単一ファイルを選択してプレビュー",
     "unsupported": "この種類はプレビューできません",
     "truncated": "内容は切り詰められています"
+  },
+  "previewBridge": {
+    "noPath": "プレビューするローカルファイルを選択してください",
+    "fallbackBuiltin": "外部プレビューツールがありません — 組み込みペインを表示します"
   },
   "guide": {
     "title": "このPC",

@@ -442,6 +442,19 @@
           "description": "Afficher un aperçu image/texte à côté de la liste Explorateur (expérimental)"
         }
       },
+      "preview": {
+        "externalProvider": {
+          "title": "Fournisseur du pont d’aperçu",
+          "description": "Espace envoie la sélection à PowerToys Peek (CLI) et/ou QuickLook (Named Pipe), sinon le volet intégré. Pont côté AFM — pas zéro adaptateur pour tous les outils QL.",
+          "options": {
+            "auto": "Auto (Peek → QuickLook → intégré)",
+            "peek": "PowerToys Peek",
+            "quicklook": "Pipe QuickLook",
+            "builtin": "Volet d’aperçu intégré",
+            "off": "Désactivé"
+          }
+        }
+      },
       "power": {
         "confirmBeforeDelete": {
           "description": "Demander confirmation avant une suppression définitive",
@@ -532,6 +545,7 @@
       "navigatorNewFolder": "Nouveau dossier",
       "navigatorDelete": "Envoyer vers la Corbeille",
       "navigatorSelectAll": "Tout sélectionner",
+      "navigatorPreviewBridge": "Aperçu de la sélection (Peek / QuickLook / intégré)",
       "focusAddress": "Focus sur la barre d’adresse",
       "openSettings": "Ouvrir les Paramètres",
       "openShortcutList": "Ouvrir la liste des raccourcis",
@@ -629,6 +643,10 @@
     "empty": "Sélectionnez un seul fichier pour l’aperçu",
     "unsupported": "Aperçu indisponible pour ce type",
     "truncated": "Contenu tronqué"
+  },
+  "previewBridge": {
+    "noPath": "Sélectionnez un fichier local pour l’aperçu",
+    "fallbackBuiltin": "Aucun outil d’aperçu externe — affichage du volet intégré"
   },
   "guide": {
     "title": "Ce PC",

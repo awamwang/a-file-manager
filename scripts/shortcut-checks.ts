@@ -43,6 +43,14 @@ assert.equal(
   "view.work-groups",
 );
 assert.equal(
+  winners.get(chordKey({ key: "space" }))?.id,
+  "navigator.previewBridge",
+);
+assert.equal(
+  eventMatchesChord(keyEvent({ key: " " }), { key: "space" }),
+  true,
+);
+assert.equal(
   eventMatchesChord(keyEvent({ altKey: true, key: "n" }), {
     alt: true,
     key: "n",

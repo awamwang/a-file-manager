@@ -9,6 +9,7 @@ mod visit_stats;
 mod file_ops;
 mod navigator;
 mod preview;
+mod preview_bridge;
 mod shell_icons;
 mod ide_launch;
 mod open_with;
@@ -214,6 +215,7 @@ pub fn run() {
             open_with::open_path_default,
             open_with::open_native_open_with_dialog,
             preview::preview_load,
+            preview_bridge::preview_bridge_invoke,
             archive::archive_compress_zip,
             archive::archive_extract_zip,
         ])

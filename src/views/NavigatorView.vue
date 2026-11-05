@@ -69,7 +69,11 @@ import {
   entryMatchesFilter,
   navigatorFilterQuery,
 } from "../state/navigatorFilter";
-import { toastError, toastSuccess } from "../state/toast";
+import { toastError, toastInfo, toastSuccess } from "../state/toast";
+import {
+  invokePreviewBridge,
+  previewBridgeForcePane,
+} from "../state/previewBridge";
 import {
   registerShortcutHandler,
   unregisterShortcutHandler,
@@ -89,7 +93,11 @@ const menuX = ref(0);
 const menuY = ref(0);
 const propertiesOpen = ref(false);
 const propertiesPath = ref<string | null>(null);
-const previewPaneEnabled = ref(false);
+const previewPaneSetting = ref(false);
+
+const previewPaneEnabled = computed(
+  () => previewPaneSetting.value || previewBridgeForcePane.value,
+);
 
 const previewPath = computed(() => {
   const paths = selectedPaths.value;
@@ -100,9 +108,28 @@ const previewPath = computed(() => {
 async function refreshPreviewSetting() {
   try {
     const doc = await invoke<{ values: Record<string, unknown> }>("settings_get");
-    previewPaneEnabled.value = doc.values["experimental.previewPane"] === true;
+    previewPaneSetting.value = doc.values["experimental.previewPane"] === true;
   } catch {
-    previewPaneEnabled.value = false;
+    previewPaneSetting.value = false;
+  }
+}
+
+async function shortcutPreviewBridge() {
+  if (isGuidePath(currentPath.value)) return;
+  const paths = selectedPaths.value;
+  if (!paths.length) return;
+  try {
+    const result = await invokePreviewBridge(paths);
+    if (result.backend === "off") return;
+    if (!result.success && result.backend === "none") {
+      toastInfo(result.error ?? t("previewBridge.noPath"));
+      return;
+    }
+    if (result.fallbackBuiltin && result.error) {
+      toastInfo(t("previewBridge.fallbackBuiltin"));
+    }
+  } catch (err) {
+    toastError(err instanceof Error ? err.message : String(err));
   }
 }
 
@@ -490,6 +517,9 @@ function registerNavFileShortcuts() {
   registerShortcutHandler("navigator.selectAll", () => {
     setSelection(orderedPaths.value);
   });
+  registerShortcutHandler("navigator.previewBridge", () => {
+    void shortcutPreviewBridge();
+  });
 }
 
 function unregisterNavFileShortcuts() {
@@ -504,6 +534,7 @@ function unregisterNavFileShortcuts() {
     "navigator.refresh",
     "navigator.delete",
     "navigator.selectAll",
+    "navigator.previewBridge",
   ]) {
     unregisterShortcutHandler(id);
   }

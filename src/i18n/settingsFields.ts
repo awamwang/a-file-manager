@@ -31,6 +31,7 @@ export const SCHEMA_SETTING_KEYS = [
   "power.perPathOverridesEnabled",
   "experimental.debugStatusInTitlebar",
   "experimental.previewPane",
+  "preview.externalProvider",
 ] as const;
 
 export type SchemaSettingKey = (typeof SCHEMA_SETTING_KEYS)[number];
@@ -60,6 +61,13 @@ export const SCHEMA_ENUM_OPTIONS: Record<string, readonly string[]> = {
     "none",
   ],
   "core.newTabBehavior": ["guide", "duplicate"],
+  "preview.externalProvider": [
+    "auto",
+    "peek",
+    "quicklook",
+    "builtin",
+    "off",
+  ],
 };
 
 export function settingFieldMessagePath(

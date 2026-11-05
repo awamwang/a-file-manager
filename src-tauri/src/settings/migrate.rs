@@ -148,6 +148,16 @@ fn migrate_step(
             notes.push("Added core.newTabBehavior (guide | duplicate; schema v6)".to_string());
             Ok(())
         }
+        (6, 7) => {
+            for (key, value) in default_document().values {
+                values.entry(key).or_insert(value);
+            }
+            notes.push(
+                "Added preview.externalProvider (auto|peek|quicklook|builtin|off; schema v7)"
+                    .to_string(),
+            );
+            Ok(())
+        }
         _ => Err(format!("No migration path from {from} → {to}")),
     }
 }

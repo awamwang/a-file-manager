@@ -307,6 +307,7 @@ export const SETTINGS_ICON_BY_KEY: Record<string, FluentGlyphId> = {
   "power.perPathOverridesEnabled": "flash",
   "experimental.debugStatusInTitlebar": "bug",
   "experimental.previewPane": "eye",
+  "preview.externalProvider": "eye",
 };
 
 export function settingsIconForKey(key: string): FluentGlyphId {

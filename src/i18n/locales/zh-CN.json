@@ -353,6 +353,19 @@
           "title": "预览栏",
           "description": "在资源管理器列表旁显示图片与纯文本预览（实验）"
         }
+      },
+      "preview": {
+        "externalProvider": {
+          "title": "预览桥接提供方",
+          "description": "空格将当前选中推送到 PowerToys Peek（CLI）和/或 QuickLook（命名管道），否则使用内置预览栏。这是 AFM 侧桥接，并非对所有 QL 类工具零适配。",
+          "options": {
+            "auto": "自动（Peek → QuickLook → 内置）",
+            "peek": "PowerToys Peek",
+            "quicklook": "QuickLook 管道",
+            "builtin": "内置预览栏",
+            "off": "关闭"
+          }
+        }
       }
     },
     "sectionFavorites": "收藏",
@@ -534,6 +547,7 @@
       "navigatorRefresh": "刷新文件夹",
       "navigatorDelete": "删除到回收站",
       "navigatorSelectAll": "全选",
+      "navigatorPreviewBridge": "预览选中项（Peek / QuickLook / 内置）",
       "focusAddress": "聚焦地址栏",
       "openSettings": "打开设置",
       "openShortcutList": "打开快捷键列表",
@@ -629,6 +643,10 @@
     "empty": "选中单个文件以预览",
     "unsupported": "暂不支持此类型预览",
     "truncated": "内容已截断"
+  },
+  "previewBridge": {
+    "noPath": "请选择本地文件以预览",
+    "fallbackBuiltin": "未检测到外部预览工具 — 已显示内置预览栏"
   },
   "guide": {
     "title": "此电脑",

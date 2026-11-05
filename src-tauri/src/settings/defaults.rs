@@ -316,6 +316,21 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             None,
             json!(false),
         ),
+        def(
+            "preview.externalProvider",
+            SettingsTier::Experimental,
+            "Preview bridge provider",
+            "Space opens an external preview via Peek CLI / QuickLook pipe when available, else the built-in pane. Not zero-adapter for every QL tool.",
+            SettingValueKind::Enum,
+            Some(vec![
+                "auto".to_string(),
+                "peek".to_string(),
+                "quicklook".to_string(),
+                "builtin".to_string(),
+                "off".to_string(),
+            ]),
+            json!("auto"),
+        ),
     ]
 }
 
