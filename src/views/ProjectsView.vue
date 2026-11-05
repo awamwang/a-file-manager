@@ -542,24 +542,6 @@ onMounted(() => {
             </p>
           </div>
           <div class="actions">
-            <div class="toggle" role="group" :aria-label="t('projects.viewMode')">
-              <button
-                type="button"
-                class="fluent-control"
-                :class="{ 'fluent-control--accent': viewMode === 'list' }"
-                @click="viewMode = 'list'"
-              >
-                {{ t("projects.list") }}
-              </button>
-              <button
-                type="button"
-                class="fluent-control"
-                :class="{ 'fluent-control--accent': viewMode === 'board' }"
-                @click="viewMode = 'board'"
-              >
-                {{ t("projects.board") }}
-              </button>
-            </div>
             <button class="fluent-control fluent-control--accent" type="button" @click="openAllLinks">
               {{ t("projects.openAllLinks") }}
             </button>
@@ -662,7 +644,27 @@ onMounted(() => {
           {{ t("projects.saveContext") }}
         </button>
 
-        <h3>{{ t("projects.outcomes") }}</h3>
+        <div class="section-title-row">
+          <h3>{{ t("projects.outcomes") }}</h3>
+          <div class="toggle" role="group" :aria-label="t('projects.viewMode')">
+            <button
+              type="button"
+              class="fluent-control"
+              :class="{ 'fluent-control--accent': viewMode === 'list' }"
+              @click="viewMode = 'list'"
+            >
+              {{ t("projects.list") }}
+            </button>
+            <button
+              type="button"
+              class="fluent-control"
+              :class="{ 'fluent-control--accent': viewMode === 'board' }"
+              @click="viewMode = 'board'"
+            >
+              {{ t("projects.board") }}
+            </button>
+          </div>
+        </div>
         <form class="row" @submit.prevent="addTask">
           <input
             v-model="taskTitle"
@@ -904,6 +906,14 @@ onMounted(() => {
 
 .more-item--danger {
   color: var(--fluent-color-status-danger);
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fluent-space-md);
+  flex-wrap: wrap;
 }
 
 .detail h2,
