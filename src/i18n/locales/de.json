@@ -72,7 +72,7 @@
       "view": "Ansicht"
     },
     "hint": "↑↓ zum Bewegen · Enter zum Ausführen · Esc zum Schließen · Ctrl+Shift+P",
-    "openDiscovery": "Discovery öffnen",
+    "openDiscovery": "Suche öffnen",
     "openExtensions": "Erweiterungen öffnen",
     "openHealth": "Einstellungen · Health öffnen",
     "openNavigator": "Navigator öffnen",
@@ -100,7 +100,7 @@
     "more": "Mehr"
   },
   "discovery": {
-    "title": "Discovery",
+    "title": "Suche",
     "meta": "Diesen PC nach Name oder Pfad durchsuchen",
     "engineCards": "Suchmaschinen",
     "engines": {
@@ -118,7 +118,7 @@
     "fallbackActive": "Aktiv (Everything fehlt)",
     "fallbackConfigTitle": "Ersatzsuche",
     "fallbackConfigHint": "Begrenzter integrierter Fallback — kein vollständiger lokaler Index. Everything bevorzugen, wenn verfügbar.",
-    "fallbackBlacklistNote": "Ordnerausschlüsse werden auf der Everything-Karte bearbeitet und gelten für alle Discovery-Ergebnisse.",
+    "fallbackBlacklistNote": "Ordnerausschlüsse werden auf der Everything-Karte bearbeitet und gelten für alle Suchergebnisse.",
     "placeholder": "Dateiname / Pfad suchen…",
     "search": "Suchen",
     "searching": "Suche…",
@@ -128,7 +128,7 @@
     "folder": "Ordner",
     "file": "Datei",
     "blacklistTitle": "Ausgeschlossene Ordner",
-    "blacklistHint": "Pfade unter diesen Ordnern erscheinen nicht in Discovery. Ein absoluter Pfad pro Zeile.",
+    "blacklistHint": "Pfade unter diesen Ordnern erscheinen nicht in Suchergebnissen. Ein absoluter Pfad pro Zeile.",
     "blacklistPlaceholder": "C:\\\\Windows\\nD:\\\\Temp",
     "blacklistSave": "Ausschlüsse speichern",
     "blacklistSaving": "Speichern…",
@@ -177,7 +177,7 @@
     "title": "Health"
   },
   "nav": {
-    "discovery": "Discovery",
+    "discovery": "Suche",
     "extensions": "Erweiterungen",
     "health": "Health",
     "navigator": "Navigator",
@@ -284,11 +284,11 @@
           "options": {
             "navigator": "Navigator",
             "projects": "Projekte",
-            "discovery": "Discovery"
+            "discovery": "Suche"
           }
         },
         "everythingPreferred": {
-          "description": "Everything-IPC für Discovery bevorzugen, wenn verfügbar",
+          "description": "Everything-IPC für die Suche bevorzugen, wenn verfügbar",
           "title": "Everything bevorzugen"
         },
         "extensionsEnabled": {
@@ -345,8 +345,8 @@
           }
         },
         "discoveryBlacklist": {
-          "title": "Discovery-Verzeichnis-Blacklist",
-          "description": "Von Discovery-Ergebnissen ausgeschlossene Verzeichnisse (ein Pfad pro Zeile)"
+          "title": "Suchverzeichnis-Blacklist",
+          "description": "Von Suchergebnissen ausgeschlossene Verzeichnisse (ein Pfad pro Zeile)"
         },
         "newFolderDefaultName": {
           "title": "Standardname neuer Ordner",
@@ -518,7 +518,7 @@
     "blockedBy": "Blockiert durch {id}",
     "items": {
       "commandPanelToggle": "Befehlspalette umschalten",
-      "discoveryGlobalSearch": "Discovery-Suche fokussieren",
+      "discoveryGlobalSearch": "Suche fokussieren",
       "navigatorGoUp": "Eine Ebene nach oben",
       "navigatorBack": "Zurück",
       "navigatorForward": "Vorwärts",

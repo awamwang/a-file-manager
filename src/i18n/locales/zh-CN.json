@@ -79,7 +79,7 @@
   },
   "nav": {
     "navigator": "导航器",
-    "discovery": "发现",
+    "discovery": "搜索",
     "providers": "提供程序",
     "workGroups": "工作组",
     "projects": "项目",
@@ -95,7 +95,7 @@
     },
     "goUp": "返回上级文件夹",
     "openNavigator": "打开导航器",
-    "openDiscovery": "打开发现",
+    "openDiscovery": "打开搜索",
     "openProviders": "打开提供程序",
     "openWorkGroups": "打开工作组",
     "openProjects": "打开项目",
@@ -129,7 +129,7 @@
     "colModified": "修改日期"
   },
   "discovery": {
-    "title": "发现",
+    "title": "搜索",
     "meta": "按文件名或路径搜索本机",
     "engineCards": "搜索引擎",
     "engines": {
@@ -147,7 +147,7 @@
     "fallbackActive": "使用中（Everything 不可用）",
     "fallbackConfigTitle": "备用搜索",
     "fallbackConfigHint": "内置有限回退，不是完整本地索引。有 Everything 时请优先使用它。",
-    "fallbackBlacklistNote": "排除文件夹请在 Everything 卡片中编辑，对所有发现结果生效。",
+    "fallbackBlacklistNote": "排除文件夹请在 Everything 卡片中编辑，对所有搜索结果生效。",
     "placeholder": "搜索文件名 / 路径…",
     "search": "搜索",
     "searching": "搜索中…",
@@ -157,7 +157,7 @@
     "folder": "文件夹",
     "file": "文件",
     "blacklistTitle": "排除文件夹",
-    "blacklistHint": "这些文件夹下的路径不会出现在发现结果中。每行一个绝对路径。",
+    "blacklistHint": "这些文件夹下的路径不会出现在搜索结果中。每行一个绝对路径。",
     "blacklistPlaceholder": "C:\\\\Windows\\nD:\\\\Temp",
     "blacklistSave": "保存排除",
     "blacklistSaving": "保存中…",
@@ -206,7 +206,7 @@
           "options": {
             "navigator": "导航器",
             "projects": "项目",
-            "discovery": "发现"
+            "discovery": "搜索"
           }
         },
         "showHidden": {
@@ -223,7 +223,7 @@
         },
         "everythingPreferred": {
           "title": "优先使用 Everything",
-          "description": "可用时优先通过 Everything IPC 进行发现搜索"
+          "description": "可用时优先通过 Everything IPC 进行搜索"
         },
         "extensionsEnabled": {
           "title": "启用扩展",
@@ -247,8 +247,8 @@
           }
         },
         "discoveryBlacklist": {
-          "title": "发现目录黑名单",
-          "description": "从发现搜索结果中排除的目录（设置中每行一个路径）"
+          "title": "搜索目录黑名单",
+          "description": "从搜索结果中排除的目录（设置中每行一个路径）"
         },
         "newFolderDefaultName": {
           "title": "默认新建文件夹名",
@@ -518,7 +518,7 @@
     "blockedBy": "被 {id} 占用",
     "items": {
       "commandPanelToggle": "切换命令面板",
-      "discoveryGlobalSearch": "聚焦发现搜索",
+      "discoveryGlobalSearch": "聚焦搜索",
       "navigatorGoUp": "返回上级文件夹",
       "navigatorBack": "后退",
       "navigatorForward": "前进",

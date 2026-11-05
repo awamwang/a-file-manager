@@ -79,7 +79,7 @@
   },
   "nav": {
     "navigator": "Navigator",
-    "discovery": "Discovery",
+    "discovery": "Search",
     "providers": "Providers",
     "workGroups": "Work Groups",
     "projects": "Projects",
@@ -95,7 +95,7 @@
     },
     "goUp": "Go up one folder",
     "openNavigator": "Open Navigator",
-    "openDiscovery": "Open Discovery",
+    "openDiscovery": "Open Search",
     "openProviders": "Open Providers",
     "openWorkGroups": "Open Work Groups",
     "openProjects": "Open Projects",
@@ -129,7 +129,7 @@
     "colModified": "Date modified"
   },
   "discovery": {
-    "title": "Discovery",
+    "title": "Search",
     "meta": "Search your PC by name or path",
     "engineCards": "Search engines",
     "engines": {
@@ -147,7 +147,7 @@
     "fallbackActive": "In use (Everything is unavailable)",
     "fallbackConfigTitle": "Backup search",
     "fallbackConfigHint": "A limited built-in fallback — not a full local index. Prefer Everything when it is available.",
-    "fallbackBlacklistNote": "Folder exclusions are edited on the Everything card and apply to all Discovery results.",
+    "fallbackBlacklistNote": "Folder exclusions are edited on the Everything card and apply to all Search results.",
     "placeholder": "Search file name / path…",
     "search": "Search",
     "searching": "Searching…",
@@ -157,7 +157,7 @@
     "folder": "Folder",
     "file": "File",
     "blacklistTitle": "Excluded folders",
-    "blacklistHint": "Paths under these folders stay out of Discovery results. One absolute path per line.",
+    "blacklistHint": "Paths under these folders stay out of Search results. One absolute path per line.",
     "blacklistPlaceholder": "C:\\\\Windows\\nD:\\\\Temp",
     "blacklistSave": "Save exclusions",
     "blacklistSaving": "Saving…",
@@ -206,7 +206,7 @@
           "options": {
             "navigator": "Navigator",
             "projects": "Projects",
-            "discovery": "Discovery"
+            "discovery": "Search"
           }
         },
         "showHidden": {
@@ -223,7 +223,7 @@
         },
         "everythingPreferred": {
           "title": "Everything preferred",
-          "description": "Prefer Everything IPC for Discovery when available"
+          "description": "Prefer Everything IPC for Search when available"
         },
         "extensionsEnabled": {
           "title": "Extensions enabled",
@@ -247,8 +247,8 @@
           }
         },
         "discoveryBlacklist": {
-          "title": "Discovery directory blacklist",
-          "description": "Directories excluded from Discovery search results (one path per line in Settings)"
+          "title": "Search directory blacklist",
+          "description": "Directories excluded from Search results (one path per line in Settings)"
         },
         "newFolderDefaultName": {
           "title": "Default new folder name",
@@ -518,7 +518,7 @@
     "blockedBy": "Blocked by {id}",
     "items": {
       "commandPanelToggle": "Toggle Command Panel",
-      "discoveryGlobalSearch": "Focus Discovery search",
+      "discoveryGlobalSearch": "Focus Search",
       "navigatorGoUp": "Go up one folder",
       "navigatorBack": "Navigate back",
       "navigatorForward": "Navigate forward",

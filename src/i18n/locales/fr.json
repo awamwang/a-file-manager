@@ -72,7 +72,7 @@
       "view": "Affichage"
     },
     "hint": "↑↓ pour déplacer · Entrée pour exécuter · Échap pour fermer · Ctrl+Shift+P",
-    "openDiscovery": "Ouvrir la Découverte",
+    "openDiscovery": "Ouvrir la Recherche",
     "openExtensions": "Ouvrir les Extensions",
     "openHealth": "Ouvrir Paramètres · Santé",
     "openNavigator": "Ouvrir le Navigateur",
@@ -100,7 +100,7 @@
     "more": "Plus"
   },
   "discovery": {
-    "title": "Discovery",
+    "title": "Recherche",
     "meta": "Rechercher sur ce PC par nom ou chemin",
     "engineCards": "Moteurs de recherche",
     "engines": {
@@ -118,7 +118,7 @@
     "fallbackActive": "En cours (Everything indisponible)",
     "fallbackConfigTitle": "Recherche de secours",
     "fallbackConfigHint": "Secours intégré limité — pas un index local complet. Préférez Everything lorsqu’il est disponible.",
-    "fallbackBlacklistNote": "Les exclusions de dossiers s’éditent sur la carte Everything et s’appliquent à tous les résultats Discovery.",
+    "fallbackBlacklistNote": "Les exclusions de dossiers s’éditent sur la carte Everything et s’appliquent à tous les résultats de Recherche.",
     "placeholder": "Rechercher un nom / chemin…",
     "search": "Rechercher",
     "searching": "Recherche…",
@@ -128,7 +128,7 @@
     "folder": "Dossier",
     "file": "Fichier",
     "blacklistTitle": "Dossiers exclus",
-    "blacklistHint": "Les chemins sous ces dossiers n’apparaissent pas dans Discovery. Un chemin absolu par ligne.",
+    "blacklistHint": "Les chemins sous ces dossiers n’apparaissent pas dans les résultats de Recherche. Un chemin absolu par ligne.",
     "blacklistPlaceholder": "C:\\\\Windows\\nD:\\\\Temp",
     "blacklistSave": "Enregistrer les exclusions",
     "blacklistSaving": "Enregistrement…",
@@ -177,7 +177,7 @@
     "title": "Santé"
   },
   "nav": {
-    "discovery": "Découverte",
+    "discovery": "Recherche",
     "extensions": "Extensions",
     "health": "Santé",
     "navigator": "Navigateur",
@@ -284,11 +284,11 @@
           "options": {
             "navigator": "Navigateur",
             "projects": "Projets",
-            "discovery": "Découverte"
+            "discovery": "Recherche"
           }
         },
         "everythingPreferred": {
-          "description": "Préférer Everything IPC pour la Découverte lorsqu’il est disponible",
+          "description": "Préférer Everything IPC pour la Recherche lorsqu’il est disponible",
           "title": "Everything préféré"
         },
         "extensionsEnabled": {
@@ -345,8 +345,8 @@
           }
         },
         "discoveryBlacklist": {
-          "title": "Liste noire des répertoires Discovery",
-          "description": "Répertoires exclus des résultats Discovery (un chemin par ligne dans Réglages)"
+          "title": "Liste noire des répertoires de Recherche",
+          "description": "Répertoires exclus des résultats de Recherche (un chemin par ligne dans Réglages)"
         },
         "newFolderDefaultName": {
           "title": "Nom par défaut des nouveaux dossiers",
@@ -518,7 +518,7 @@
     "blockedBy": "Bloqué par {id}",
     "items": {
       "commandPanelToggle": "Basculer la palette de commandes",
-      "discoveryGlobalSearch": "Focus sur la recherche Découverte",
+      "discoveryGlobalSearch": "Focus sur la Recherche",
       "navigatorGoUp": "Remonter d’un dossier",
       "navigatorBack": "Précédent",
       "navigatorForward": "Suivant",

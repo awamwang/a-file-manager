@@ -72,7 +72,7 @@
       "view": "表示"
     },
     "hint": "↑↓ で移動 · Enter で実行 · Esc で閉じる · Ctrl+Shift+P",
-    "openDiscovery": "ディスカバリーを開く",
+    "openDiscovery": "検索を開く",
     "openExtensions": "拡張機能を開く",
     "openHealth": "設定 · ヘルスを開く",
     "openNavigator": "ナビゲーターを開く",
@@ -100,7 +100,7 @@
     "more": "その他"
   },
   "discovery": {
-    "title": "ディスカバリー",
+    "title": "検索",
     "meta": "名前やパスでこの PC を検索",
     "engineCards": "検索エンジン",
     "engines": {
@@ -118,7 +118,7 @@
     "fallbackActive": "使用中（Everything 不可）",
     "fallbackConfigTitle": "予備検索",
     "fallbackConfigHint": "限定的な内蔵フォールバックで、完全なローカル索引ではありません。Everything があるときはそちらを優先してください。",
-    "fallbackBlacklistNote": "除外フォルダーは Everything カードで編集し、Discovery 全体に適用されます。",
+    "fallbackBlacklistNote": "除外フォルダーは Everything カードで編集し、すべての検索結果に適用されます。",
     "placeholder": "ファイル名 / パスを検索…",
     "search": "検索",
     "searching": "検索中…",
@@ -128,7 +128,7 @@
     "folder": "フォルダー",
     "file": "ファイル",
     "blacklistTitle": "除外フォルダー",
-    "blacklistHint": "これらのフォルダー配下は Discovery 結果に出ません。1行に1つの絶対パス。",
+    "blacklistHint": "これらのフォルダー配下は検索結果に出ません。1行に1つの絶対パス。",
     "blacklistPlaceholder": "C:\\\\Windows\\nD:\\\\Temp",
     "blacklistSave": "除外を保存",
     "blacklistSaving": "保存中…",
@@ -177,7 +177,7 @@
     "title": "ヘルス"
   },
   "nav": {
-    "discovery": "ディスカバリー",
+    "discovery": "検索",
     "extensions": "拡張機能",
     "health": "ヘルス",
     "navigator": "ナビゲーター",
@@ -284,11 +284,11 @@
           "options": {
             "navigator": "ナビゲーター",
             "projects": "プロジェクト",
-            "discovery": "ディスカバリー"
+            "discovery": "検索"
           }
         },
         "everythingPreferred": {
-          "description": "利用可能ならディスカバリーで Everything IPC を優先",
+          "description": "利用可能なら検索で Everything IPC を優先",
           "title": "Everything を優先"
         },
         "extensionsEnabled": {
@@ -345,8 +345,8 @@
           }
         },
         "discoveryBlacklist": {
-          "title": "Discovery ディレクトリのブラックリスト",
-          "description": "Discovery 検索結果から除外するディレクトリ（設定では1行に1パス）"
+          "title": "検索ディレクトリのブラックリスト",
+          "description": "検索結果から除外するディレクトリ（設定では1行に1パス）"
         },
         "newFolderDefaultName": {
           "title": "新規フォルダーの既定名",
@@ -518,7 +518,7 @@
     "blockedBy": "{id} にブロックされています",
     "items": {
       "commandPanelToggle": "コマンドパネルの切り替え",
-      "discoveryGlobalSearch": "ディスカバリー検索にフォーカス",
+      "discoveryGlobalSearch": "検索にフォーカス",
       "navigatorGoUp": "一つ上のフォルダーへ",
       "navigatorBack": "戻る",
       "navigatorForward": "進む",
