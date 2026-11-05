@@ -30,6 +30,9 @@ export function nextTabId(prefix = "tab"): string {
 
 export function displayNameFromPath(path: string): string {
   const cleaned = path.replace(/\\/g, "/").replace(/\/+$/, "");
+  if (cleaned.toLowerCase() === "afm://guide") {
+    return "Guide";
+  }
   const parts = cleaned.split("/");
   return parts[parts.length - 1] || path || "Tab";
 }
@@ -278,7 +281,10 @@ export function openStateAfterNavigate(
   const pane = group[next.currentTabIndex] ?? group[0];
   pane.path = trimmed;
   pane.name = displayNameFromPath(trimmed);
-  pane.type = "directory";
+  pane.type =
+    trimmed.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase() === "afm://guide"
+      ? "guide"
+      : "directory";
   return next;
 }
 

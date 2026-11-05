@@ -18,6 +18,7 @@ export const SCHEMA_SETTING_KEYS = [
   "core.newFileDefaultName",
   "core.fileDoubleClickAction",
   "core.navigatorViewMode",
+  "core.newTabBehavior",
   "core.openTool.vscode.enabled",
   "core.openTool.vscode.path",
   "core.openTool.cursor.enabled",
@@ -58,6 +59,7 @@ export const SCHEMA_ENUM_OPTIONS: Record<string, readonly string[]> = {
     "qoder",
     "none",
   ],
+  "core.newTabBehavior": ["guide", "duplicate"],
 };
 
 export function settingFieldMessagePath(

@@ -283,6 +283,14 @@
             "details": "详细信息"
           }
         },
+        "newTabBehavior": {
+          "title": "新标签行为",
+          "description": "点击 + 时默认打开的内容",
+          "options": {
+            "guide": "引导页",
+            "duplicate": "复制当前标签"
+          }
+        },
         "openTool": {
           "vscode": {
             "enabled": {
@@ -620,5 +628,33 @@
     "empty": "选中单个文件以预览",
     "unsupported": "暂不支持此类型预览",
     "truncated": "内容已截断"
+  },
+  "guide": {
+    "title": "此电脑",
+    "subtitle": "快速打开常用文件夹、近期访问、收藏与驱动器",
+    "tabName": "此电脑",
+    "rootLabel": "此电脑",
+    "rootTitle": "打开此电脑引导页",
+    "rootMenu": "主文件夹、驱动器、近期访问、收藏",
+    "status": "引导页",
+    "sections": {
+      "folders": "常用文件夹",
+      "recent": "近期访问",
+      "favorites": "收藏",
+      "drives": "驱动器"
+    },
+    "folders": {
+      "home": "主文件夹",
+      "desktop": "桌面",
+      "documents": "文档",
+      "downloads": "下载",
+      "pictures": "图片",
+      "music": "音乐",
+      "videos": "视频"
+    },
+    "drive": "本地磁盘 ({letter}:)",
+    "driveNamed": "{label} ({letter}:)",
+    "emptyFolders": "未找到常用文件夹",
+    "emptyDrives": "未找到驱动器"
   }
 }

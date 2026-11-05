@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+/** Settings `core.newTabBehavior`: guide page vs duplicate active tab (AIA-148). */
+
+import { invoke } from "@tauri-apps/api/core";
+
+export const NEW_TAB_BEHAVIOR_SETTING_KEY = "core.newTabBehavior";
+
+export type NewTabBehavior = "guide" | "duplicate";
+
+export function parseNewTabBehavior(value: unknown): NewTabBehavior {
+  return value === "duplicate" ? "duplicate" : "guide";
+}
+
+export async function readNewTabBehavior(): Promise<NewTabBehavior> {
+  try {
+    const doc = await invoke<{ values: Record<string, unknown> }>("settings_get");
+    return parseNewTabBehavior(doc.values[NEW_TAB_BEHAVIOR_SETTING_KEY]);
+  } catch {
+    return "guide";
+  }
+}

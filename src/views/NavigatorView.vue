@@ -13,6 +13,8 @@ import {
   openEntry,
   type NavigatorEntry,
 } from "../state/navigatorBrowse";
+import { isGuidePath } from "../state/navigatorGuide";
+import NavigatorGuide from "../components/navigator/NavigatorGuide.vue";
 import { iconUrlFor, requestShellIcons } from "../state/shellIcons";
 import {
   loadFavorites,
@@ -176,7 +178,13 @@ onMounted(() => {
     await bootstrapNavigatorOpenState();
     await loadFavorites().catch(() => undefined);
     await loadFavoritesOsHookStatus().catch(() => undefined);
-    if (currentPath.value && !listing.value && !listError.value && !listLoading.value) {
+    if (
+      currentPath.value &&
+      !isGuidePath(currentPath.value) &&
+      !listing.value &&
+      !listError.value &&
+      !listLoading.value
+    ) {
       await navigateTo(currentPath.value, { syncOpenState: false });
     }
   })();
@@ -605,6 +613,11 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
       :class="{ 'pane--active': activePane === 'primary' || !dualPaneEnabled }"
       @mousedown="setActivePane('primary')"
     >
+    <NavigatorGuide
+      v-if="isGuidePath(currentPath)"
+      :open-path="(path) => navigateTo(path)"
+    />
+    <template v-else>
     <p class="pane-path" :title="currentPath">{{ currentPath || t("navigator.noPath") }}</p>
     <p v-if="listLoading" class="fluent-banner">{{ t("navigator.loading") }}</p>
     <p v-else-if="listError" class="fluent-banner fluent-banner--error">{{ listError }}</p>
@@ -701,6 +714,7 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
         }"
       />
     </div>
+    </template>
     </div>
 
     <div

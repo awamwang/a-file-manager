@@ -422,6 +422,14 @@
               "description": "自動検出失敗時の任意 Qoder CN.exe"
             }
           }
+        },
+        "newTabBehavior": {
+          "title": "新しいタブの動作",
+          "description": "+ ボタンで開く既定の内容",
+          "options": {
+            "guide": "ガイドページ",
+            "duplicate": "現在のタブを複製"
+          }
         }
       },
       "experimental": {
@@ -620,5 +628,33 @@
     "empty": "単一ファイルを選択してプレビュー",
     "unsupported": "この種類はプレビューできません",
     "truncated": "内容は切り詰められています"
+  },
+  "guide": {
+    "title": "このPC",
+    "subtitle": "よく使うフォルダー、最近の場所、お気に入り、ドライブへ移動",
+    "tabName": "このPC",
+    "rootLabel": "このPC",
+    "rootTitle": "このPCガイドを開く",
+    "rootMenu": "ホーム、ドライブ、最近、お気に入り",
+    "status": "ガイド",
+    "sections": {
+      "folders": "フォルダー",
+      "recent": "最近",
+      "favorites": "お気に入り",
+      "drives": "ドライブ"
+    },
+    "folders": {
+      "home": "ホーム",
+      "desktop": "デスクトップ",
+      "documents": "ドキュメント",
+      "downloads": "ダウンロード",
+      "pictures": "ピクチャ",
+      "music": "ミュージック",
+      "videos": "ビデオ"
+    },
+    "drive": "ローカル ディスク ({letter}:)",
+    "driveNamed": "{label} ({letter}:)",
+    "emptyFolders": "よく使うフォルダーが見つかりません",
+    "emptyDrives": "ドライブが見つかりません"
   }
 }

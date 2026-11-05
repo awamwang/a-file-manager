@@ -283,6 +283,14 @@
             "details": "Details"
           }
         },
+        "newTabBehavior": {
+          "title": "New tab behavior",
+          "description": "What the + control opens by default",
+          "options": {
+            "guide": "Guide page",
+            "duplicate": "Duplicate current tab"
+          }
+        },
         "openTool": {
           "vscode": {
             "enabled": {
@@ -620,5 +628,33 @@
     "empty": "Select a single file to preview",
     "unsupported": "Preview not available for this type",
     "truncated": "Content truncated"
+  },
+  "guide": {
+    "title": "This PC",
+    "subtitle": "Jump to common folders, recent places, favorites, or drives",
+    "tabName": "This PC",
+    "rootLabel": "This PC",
+    "rootTitle": "Open This PC guide",
+    "rootMenu": "Home, drives, Recent, Favorites",
+    "status": "Guide",
+    "sections": {
+      "folders": "Folders",
+      "recent": "Recent",
+      "favorites": "Favorites",
+      "drives": "Drives"
+    },
+    "folders": {
+      "home": "Home",
+      "desktop": "Desktop",
+      "documents": "Documents",
+      "downloads": "Downloads",
+      "pictures": "Pictures",
+      "music": "Music",
+      "videos": "Videos"
+    },
+    "drive": "Local Disk ({letter}:)",
+    "driveNamed": "{label} ({letter}:)",
+    "emptyFolders": "No common folders found",
+    "emptyDrives": "No drives found"
   }
 }

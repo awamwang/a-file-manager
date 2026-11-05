@@ -21,6 +21,8 @@ import {
   type WorkGroupOpenState,
 } from "./openStateModel";
 import { recordNavHistory } from "./navHistory";
+import { GUIDE_PATH, isGuidePath } from "./navigatorGuide";
+import { readNewTabBehavior } from "./newTabBehavior";
 import { recordPathVisit } from "./visitStats";
 
 export type NavigatorEntry = {
@@ -150,6 +152,28 @@ export async function navigateTo(
   // Tab switch / bootstrap pass syncOpenState:false — don't pollute back stack.
   const recordHistory = options?.recordHistory ?? syncOpenState;
   const previous = currentPath.value;
+
+  if (isGuidePath(trimmed)) {
+    listing.value = null;
+    listError.value = null;
+    listLoading.value = false;
+    currentPath.value = GUIDE_PATH;
+    if (recordHistory) {
+      recordNavHistory(previous, GUIDE_PATH);
+    }
+    if (syncOpenState) {
+      liveOpenState.value = openStateAfterNavigate(liveOpenState.value, GUIDE_PATH);
+      const group = liveOpenState.value.tabGroups[liveOpenState.value.currentTabGroupIndex];
+      const pane = group?.[liveOpenState.value.currentTabIndex] ?? group?.[0];
+      if (pane) {
+        pane.name = "Guide";
+        pane.type = "guide";
+      }
+      schedulePersist(false);
+    }
+    return;
+  }
+
   listLoading.value = true;
   listError.value = null;
   try {
@@ -191,15 +215,33 @@ export async function openPathsAsNavigatorTabs(paths: string[]): Promise<void> {
 }
 
 export async function newNavigatorTab(path?: string): Promise<void> {
-  let target = (path ?? currentPath.value).trim();
-  if (!target) {
-    try {
-      target = await invoke<string>("navigator_default_path");
-    } catch {
-      target = "C:/";
+  let target: string;
+  if (path != null && path.trim()) {
+    target = path.trim();
+  } else {
+    const behavior = await readNewTabBehavior();
+    if (behavior === "duplicate") {
+      target = currentPath.value.trim();
+      if (!target) {
+        try {
+          target = await invoke<string>("navigator_default_path");
+        } catch {
+          target = "C:/";
+        }
+      }
+    } else {
+      target = GUIDE_PATH;
     }
   }
   liveOpenState.value = openStateWithNewTab(liveOpenState.value, target);
+  if (isGuidePath(target)) {
+    const group = liveOpenState.value.tabGroups[liveOpenState.value.currentTabGroupIndex];
+    const pane = group?.[0];
+    if (pane) {
+      pane.name = "Guide";
+      pane.type = "guide";
+    }
+  }
   schedulePersist(true);
   await navigateTo(target, { syncOpenState: false });
 }
@@ -358,13 +400,16 @@ export async function loadDefaultPath(): Promise<void> {
 }
 
 export async function goUp(): Promise<void> {
-  if (!currentPath.value) return;
+  if (!currentPath.value || isGuidePath(currentPath.value)) return;
   const parent = await invoke<string | null>("navigator_parent", {
     path: currentPath.value,
   });
   if (parent) {
     await navigateTo(parent);
+    return;
   }
+  // Drive / share root → Windows-style guide / This PC landing.
+  await navigateTo(GUIDE_PATH);
 }
 
 export type FileDoubleClickAction =

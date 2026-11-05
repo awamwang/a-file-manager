@@ -39,7 +39,7 @@ import {
 } from "../../state/navigatorBrowse";
 import {
   beginHistoryNavigation,
-  buildBreadcrumbs,
+  buildNavigatorBreadcrumbs,
   canGoBack,
   canGoForward,
   endHistoryNavigation,
@@ -48,6 +48,13 @@ import {
 } from "../../state/navHistory";
 import { favoritesDoc, loadFavorites } from "../../state/favorites";
 import { quickAccessList, loadVisitStats } from "../../state/visitStats";
+import {
+  GUIDE_PATH,
+  drivesList,
+  isGuidePath,
+  loadNavigatorPlaces,
+  resolveHomePath,
+} from "../../state/navigatorGuide";
 import { dualPaneEnabled, toggleDualPane } from "../../state/dualPane";
 import {
   loadNavigatorViewMode,
@@ -121,10 +128,14 @@ const closeConfirmRemember = ref(true);
 const closeConfirmBusy = ref(false);
 const unlisteners: UnlistenFn[] = [];
 
-const breadcrumbs = computed(() => buildBreadcrumbs(currentPath.value));
+const breadcrumbs = computed(() => {
+  void locale.value;
+  return buildNavigatorBreadcrumbs(currentPath.value, t("guide.rootLabel"));
+});
 const isNavigatorRoute = computed(
   () => route.path === "/navigator" || route.path === "/",
 );
+const showingGuide = computed(() => isGuidePath(currentPath.value));
 
 function togglePlacesMenu() {
   workGroupMenuOpen.value = false;
@@ -219,8 +230,45 @@ async function toggleCrumbMenu(
   crumbSiblings.value = [];
   crumbMenuError.value = null;
   crumbMenuLoading.value = true;
+  const crumb = breadcrumbs.value[index];
   const next = breadcrumbs.value[index + 1];
   crumbMenuActivePath.value = next?.path ?? null;
+
+  // Root segment → Windows-style places: Home, drives, Recent, Favorites.
+  if (crumb?.kind === "root") {
+    try {
+      await loadNavigatorPlaces();
+      const home = await resolveHomePath();
+      const items: Array<{ name: string; path: string }> = [
+        { name: t("chrome.home"), path: home },
+      ];
+      for (const drive of drivesList.value) {
+        items.push({
+          name: t("guide.drive", { letter: drive.letter }),
+          path: drive.path,
+        });
+      }
+      for (const recent of quickAccessList.value) {
+        items.push({
+          name: `${t("guide.sections.recent")}: ${quickAccessLabel(recent.path)}`,
+          path: recent.path,
+        });
+      }
+      for (const fav of favoritesDoc.value.favorites) {
+        items.push({
+          name: `${t("favorites.label")}: ${favoriteLabel(fav.path)}`,
+          path: fav.path,
+        });
+      }
+      crumbSiblings.value = items;
+    } catch (err) {
+      crumbMenuError.value = err instanceof Error ? err.message : String(err);
+    } finally {
+      crumbMenuLoading.value = false;
+    }
+    return;
+  }
+
   try {
     const listing = await invoke<{
       entries: Array<{ name: string; path: string; kind: string }>;
@@ -356,6 +404,12 @@ async function onBreadcrumb(path: string) {
   addressEditing.value = false;
   await ensureNavigatorRoute();
   await navigateTo(path);
+}
+
+async function onRootCrumb() {
+  addressEditing.value = false;
+  await ensureNavigatorRoute();
+  await navigateTo(GUIDE_PATH);
 }
 
 function favoriteLabel(path: string): string {
@@ -534,6 +588,7 @@ watch(workGroupChromeError, (err) => {
 const browseStatusText = computed(() => {
   void locale.value;
   if (route.path !== "/navigator") return "";
+  if (showingGuide.value) return t("guide.status");
   if (listLoading.value) return t("chrome.navigatorLoading");
   if (listError.value) return t("chrome.navigatorError");
   if (listing.value) {
@@ -691,6 +746,7 @@ function openTab(id: string, path: string) {
 }
 
 function tabLabel(path: string) {
+  if (isGuidePath(path)) return t("guide.tabName");
   const parts = path.replace(/\\/g, "/").replace(/\/+$/, "").split("/");
   return parts[parts.length - 1] || path;
 }
@@ -875,6 +931,7 @@ onMounted(() => {
   void bootstrapNavigatorOpenState();
   void loadFavorites().catch(() => undefined);
   void loadVisitStats().catch(() => undefined);
+  void loadNavigatorPlaces().catch(() => undefined);
   void loadNavigatorViewMode().catch(() => undefined);
   void loadWorkGroupsChrome().catch(() => undefined);
   void loadCloseBehavior().catch(() => undefined);
@@ -1246,15 +1303,25 @@ onUnmounted(() => {
             <template v-if="breadcrumbs.length">
               <div
                 v-for="(crumb, index) in breadcrumbs"
-                :key="crumb.path + String(index)"
+                :key="crumb.path + String(index) + (crumb.kind ?? '')"
                 class="crumb-seg"
+                :class="{ 'crumb-seg--root': crumb.kind === 'root' }"
               >
                 <button
                   type="button"
                   class="crumb"
-                  :title="crumb.path"
-                  @click.stop="onBreadcrumb(crumb.path)"
+                  :class="{ 'crumb--root': crumb.kind === 'root' }"
+                  :title="crumb.kind === 'root' ? t('guide.rootTitle') : crumb.path"
+                  @click.stop="
+                    crumb.kind === 'root' ? onRootCrumb() : onBreadcrumb(crumb.path)
+                  "
                 >
+                  <FluentIcon
+                    v-if="crumb.kind === 'root'"
+                    name="home"
+                    size="sm"
+                    class="crumb-root-icon"
+                  />
                   <span class="crumb-label">{{ crumb.label }}</span>
                 </button>
                 <div class="crumb-chevron-wrap">
@@ -1263,8 +1330,16 @@ onUnmounted(() => {
                     class="crumb-chevron"
                     :data-crumb-chevron="index"
                     :class="{ 'crumb-chevron--open': crumbMenuIndex === index }"
-                    :title="t('chrome.crumbSiblings')"
-                    :aria-label="t('chrome.crumbSiblings')"
+                    :title="
+                      crumb.kind === 'root'
+                        ? t('guide.rootMenu')
+                        : t('chrome.crumbSiblings')
+                    "
+                    :aria-label="
+                      crumb.kind === 'root'
+                        ? t('guide.rootMenu')
+                        : t('chrome.crumbSiblings')
+                    "
                     :aria-expanded="crumbMenuIndex === index"
                     :aria-controls="
                       crumbMenuIndex === index ? 'navigator-crumb-siblings' : undefined

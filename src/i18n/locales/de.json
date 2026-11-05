@@ -422,6 +422,14 @@
               "description": "Optionaler Qoder CN.exe-Pfad bei fehlender Erkennung"
             }
           }
+        },
+        "newTabBehavior": {
+          "title": "Verhalten neuer Registerkarten",
+          "description": "Was die +-Schaltflaeche standardmaessig oeffnet",
+          "options": {
+            "guide": "Leitseite",
+            "duplicate": "Aktuelle Registerkarte duplizieren"
+          }
         }
       },
       "experimental": {
@@ -620,5 +628,33 @@
     "empty": "Eine einzelne Datei zur Vorschau auswählen",
     "unsupported": "Keine Vorschau für diesen Typ",
     "truncated": "Inhalt gekürzt"
+  },
+  "guide": {
+    "title": "Dieser PC",
+    "subtitle": "Zu gaengigen Ordnern, zuletzt verwendet, Favoriten oder Laufwerken springen",
+    "tabName": "Dieser PC",
+    "rootLabel": "Dieser PC",
+    "rootTitle": "Leitseite Dieser PC oeffnen",
+    "rootMenu": "Start, Laufwerke, Zuletzt, Favoriten",
+    "status": "Leitseite",
+    "sections": {
+      "folders": "Ordner",
+      "recent": "Zuletzt verwendet",
+      "favorites": "Favoriten",
+      "drives": "Laufwerke"
+    },
+    "folders": {
+      "home": "Startordner",
+      "desktop": "Desktop",
+      "documents": "Dokumente",
+      "downloads": "Downloads",
+      "pictures": "Bilder",
+      "music": "Musik",
+      "videos": "Videos"
+    },
+    "drive": "Lokaler Datentraeger ({letter}:)",
+    "driveNamed": "{label} ({letter}:)",
+    "emptyFolders": "Keine gaengigen Ordner gefunden",
+    "emptyDrives": "Keine Laufwerke gefunden"
   }
 }

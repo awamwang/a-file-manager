@@ -422,6 +422,14 @@
               "description": "Chemin Qoder CN.exe optionnel si la détection échoue"
             }
           }
+        },
+        "newTabBehavior": {
+          "title": "Comportement du nouvel onglet",
+          "description": "Contenu ouvert par defaut avec le bouton +",
+          "options": {
+            "guide": "Page guide",
+            "duplicate": "Dupliquer l'onglet actif"
+          }
         }
       },
       "experimental": {
@@ -620,5 +628,33 @@
     "empty": "Sélectionnez un seul fichier pour l’aperçu",
     "unsupported": "Aperçu indisponible pour ce type",
     "truncated": "Contenu tronqué"
+  },
+  "guide": {
+    "title": "Ce PC",
+    "subtitle": "Acceder aux dossiers courants, recents, favoris ou lecteurs",
+    "tabName": "Ce PC",
+    "rootLabel": "Ce PC",
+    "rootTitle": "Ouvrir le guide Ce PC",
+    "rootMenu": "Accueil, lecteurs, Recents, Favoris",
+    "status": "Guide",
+    "sections": {
+      "folders": "Dossiers",
+      "recent": "Recents",
+      "favorites": "Favoris",
+      "drives": "Lecteurs"
+    },
+    "folders": {
+      "home": "Dossier principal",
+      "desktop": "Bureau",
+      "documents": "Documents",
+      "downloads": "Telechargements",
+      "pictures": "Images",
+      "music": "Musique",
+      "videos": "Videos"
+    },
+    "drive": "Disque local ({letter}:)",
+    "driveNamed": "{label} ({letter}:)",
+    "emptyFolders": "Aucun dossier courant trouve",
+    "emptyDrives": "Aucun lecteur trouve"
   }
 }

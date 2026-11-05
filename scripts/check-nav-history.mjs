@@ -10,7 +10,9 @@ const shell = readFileSync(join(root, "src/components/shell/AppShell.vue"), "utf
 const registry = readFileSync(join(root, "src/shortcuts/registry.ts"), "utf8");
 const en = JSON.parse(readFileSync(join(root, "src/i18n/locales/en.json"), "utf8"));
 
-assert.ok(shell.includes("buildBreadcrumbs"));
+assert.ok(
+  shell.includes("buildNavigatorBreadcrumbs") || shell.includes("buildBreadcrumbs"),
+);
 assert.ok(shell.includes("onGoBack"));
 assert.ok(shell.includes("onGoForward"));
 assert.ok(shell.includes("class=\"breadcrumbs\"") || shell.includes("class='breadcrumbs'"));

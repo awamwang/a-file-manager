@@ -3,6 +3,16 @@
 
 import { computed, ref } from "vue";
 
+/** Keep in sync with `guidePath.ts` (avoid ESM extension issues in Node checks). */
+const GUIDE_PATH = "afm://guide";
+
+function isGuidePath(path: string): boolean {
+  return (
+    path.trim().replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase() ===
+    GUIDE_PATH
+  );
+}
+
 const backStack = ref<string[]>([]);
 const forwardStack = ref<string[]>([]);
 
@@ -66,25 +76,30 @@ function normalizeKey(path: string): string {
 export type BreadcrumbCrumb = {
   label: string;
   path: string;
+  /** Windows-style root / “This PC” segment — menu lists Home, drives, Recent, Favorites. */
+  kind?: "root" | "path";
 };
 
-/** Pure path → breadcrumb crumbs for the address bar. */
+/** Pure path → breadcrumb crumbs for the address bar (no root segment). */
 export function buildBreadcrumbs(path: string): BreadcrumbCrumb[] {
   const raw = path.trim().replace(/\//g, "\\");
   if (!raw) return [];
+  if (isGuidePath(raw) || normalizeGuideLike(raw)) {
+    return [];
+  }
 
   if (raw.startsWith("\\\\")) {
     const body = raw.slice(2);
     const parts = body.split("\\").filter(Boolean);
     if (!parts.length) {
-      return [{ label: raw, path: raw }];
+      return [{ label: raw, path: raw, kind: "path" }];
     }
     const crumbs: BreadcrumbCrumb[] = [];
     let acc = "\\\\" + parts[0];
-    crumbs.push({ label: "\\\\" + parts[0], path: acc });
+    crumbs.push({ label: "\\\\" + parts[0], path: acc, kind: "path" });
     for (let i = 1; i < parts.length; i++) {
       acc += "\\" + parts[i];
-      crumbs.push({ label: parts[i], path: acc });
+      crumbs.push({ label: parts[i], path: acc, kind: "path" });
     }
     return crumbs;
   }
@@ -93,12 +108,14 @@ export function buildBreadcrumbs(path: string): BreadcrumbCrumb[] {
   if (driveMatch) {
     const driveRoot = driveMatch[1] + "\\";
     const rest = driveMatch[2].replace(/^\\+/, "");
-    const crumbs: BreadcrumbCrumb[] = [{ label: driveMatch[1], path: driveRoot }];
+    const crumbs: BreadcrumbCrumb[] = [
+      { label: driveMatch[1], path: driveRoot, kind: "path" },
+    ];
     if (!rest) return crumbs;
     let acc = driveMatch[1];
     for (const part of rest.split("\\").filter(Boolean)) {
       acc += "\\" + part;
-      crumbs.push({ label: part, path: acc });
+      crumbs.push({ label: part, path: acc, kind: "path" });
     }
     return crumbs;
   }
@@ -108,7 +125,30 @@ export function buildBreadcrumbs(path: string): BreadcrumbCrumb[] {
   let acc = "";
   for (const part of parts) {
     acc = acc ? `${acc}\\${part}` : part;
-    crumbs.push({ label: part, path: acc });
+    crumbs.push({ label: part, path: acc, kind: "path" });
   }
   return crumbs;
+}
+
+function normalizeGuideLike(path: string): boolean {
+  return path.trim().toLowerCase().startsWith("afm://");
+}
+
+/**
+ * Windows-style breadcrumbs with a leading root segment.
+ * Root path is the guide landing (`afm://guide`); its chevron opens Home/drives/Recent/Favorites.
+ */
+export function buildNavigatorBreadcrumbs(
+  path: string,
+  rootLabel: string,
+): BreadcrumbCrumb[] {
+  const root: BreadcrumbCrumb = {
+    label: rootLabel,
+    path: GUIDE_PATH,
+    kind: "root",
+  };
+  if (!path.trim() || isGuidePath(path)) {
+    return [root];
+  }
+  return [root, ...buildBreadcrumbs(path)];
 }

@@ -198,6 +198,15 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             ]),
             json!("details"),
         ),
+        def(
+            "core.newTabBehavior",
+            SettingsTier::Core,
+            "New tab behavior",
+            "What the + new tab control opens: guide page or duplicate the active tab",
+            SettingValueKind::Enum,
+            Some(vec!["guide".to_string(), "duplicate".to_string()]),
+            json!("guide"),
+        ),
         // Open tools (IDE/Agent) — edited in dedicated Settings section; filtered from Core list.
         def(
             "core.openTool.vscode.enabled",
