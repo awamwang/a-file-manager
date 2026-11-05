@@ -59,7 +59,13 @@
     "workGroupSwitch": "Switch Work Group",
     "workGroupSave": "Save to config",
     "workGroupManage": "Manage Work Groups…",
-    "workGroupEmpty": "No Work Groups yet"
+    "workGroupEmpty": "No Work Groups yet",
+    "closeConfirmTitle": "Close window",
+    "closeConfirmMessage": "Hide to the system tray (taskbar notification area), or quit A File Manager?",
+    "closeConfirmTray": "Hide to tray",
+    "closeConfirmQuit": "Quit",
+    "closeConfirmCancel": "Cancel",
+    "closeConfirmRemember": "Remember this choice"
   },
   "nav": {
     "navigator": "Navigator",
@@ -199,6 +205,15 @@
         "launchAtStartupHidden": {
           "title": "Start hidden to tray",
           "description": "When launched at login, hide the main window to the system tray (taskbar notification area)"
+        },
+        "closeBehavior": {
+          "title": "When closing the window",
+          "description": "Ask each time, hide to the system tray, or quit the app",
+          "options": {
+            "ask": "Ask every time",
+            "tray": "Hide to tray",
+            "quit": "Quit"
+          }
         },
         "discoveryBlacklist": {
           "title": "Discovery directory blacklist",

@@ -59,7 +59,13 @@
     "workGroupSwitch": "切换工作组",
     "workGroupSave": "保存到配置",
     "workGroupManage": "管理工作组…",
-    "workGroupEmpty": "暂无工作组"
+    "workGroupEmpty": "暂无工作组",
+    "closeConfirmTitle": "关闭窗口",
+    "closeConfirmMessage": "隐藏到系统托盘（任务栏通知区域），还是退出 A File Manager？",
+    "closeConfirmTray": "隐藏到托盘",
+    "closeConfirmQuit": "退出",
+    "closeConfirmCancel": "取消",
+    "closeConfirmRemember": "记住此选择"
   },
   "nav": {
     "navigator": "导航器",
@@ -199,6 +205,15 @@
         "launchAtStartupHidden": {
           "title": "启动后隐藏到托盘",
           "description": "通过开机自启动启动时，将主窗口隐藏到系统托盘（任务栏通知区域）"
+        },
+        "closeBehavior": {
+          "title": "关闭窗口时",
+          "description": "每次询问、隐藏到系统托盘，或退出应用",
+          "options": {
+            "ask": "每次询问",
+            "tray": "隐藏到托盘",
+            "quit": "退出"
+          }
         },
         "discoveryBlacklist": {
           "title": "发现目录黑名单",

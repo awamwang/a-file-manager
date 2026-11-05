@@ -11,6 +11,7 @@ export const SCHEMA_SETTING_KEYS = [
   "core.extensionsEnabled",
   "core.launchAtStartup",
   "core.launchAtStartupHidden",
+  "core.closeBehavior",
   "core.discoveryBlacklist",
   "power.confirmBeforeDelete",
   "power.perPathOverridesEnabled",
@@ -24,6 +25,7 @@ export const SCHEMA_ENUM_OPTIONS: Record<string, readonly string[]> = {
   "core.language": ["en", "zh-CN", "ja", "de", "fr"],
   "core.theme": ["light", "dark", "system"],
   "core.listDensity": ["standard", "compact"],
+  "core.closeBehavior": ["ask", "tray", "quit"],
 };
 
 export function settingFieldMessagePath(

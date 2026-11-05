@@ -46,7 +46,13 @@
     "workGroupSwitch": "Arbeitsgruppe wechseln",
     "workGroupSave": "In Konfiguration speichern",
     "workGroupManage": "Arbeitsgruppen verwalten…",
-    "workGroupEmpty": "Noch keine Arbeitsgruppen"
+    "workGroupEmpty": "Noch keine Arbeitsgruppen",
+    "closeConfirmTitle": "Fenster schließen",
+    "closeConfirmMessage": "In den Systemtray (Infobereich) ausblenden oder A File Manager beenden?",
+    "closeConfirmTray": "In Tray ausblenden",
+    "closeConfirmQuit": "Beenden",
+    "closeConfirmCancel": "Abbrechen",
+    "closeConfirmRemember": "Diese Auswahl merken"
   },
   "commands": {
     "empty": "Keine passenden Befehle",
@@ -290,6 +296,15 @@
         "launchAtStartupHidden": {
           "title": "Versteckt im Tray starten",
           "description": "Bei Autostart das Hauptfenster im Infobereich der Taskleiste verstecken"
+        },
+        "closeBehavior": {
+          "title": "Beim Schließen des Fensters",
+          "description": "Jedes Mal fragen, in den Systemtray ausblenden oder die App beenden",
+          "options": {
+            "ask": "Jedes Mal fragen",
+            "tray": "In Tray ausblenden",
+            "quit": "Beenden"
+          }
         },
         "discoveryBlacklist": {
           "title": "Discovery-Verzeichnis-Blacklist",

@@ -56,6 +56,14 @@ import {
   workGroupsDoc,
   workGroupSoftNotice,
 } from "../../state/workGroupChrome";
+import {
+  hideMainWindowToTray,
+  loadCloseBehavior,
+  permitWindowClose,
+  persistCloseBehavior,
+  quitApplication,
+  type CloseBehavior,
+} from "../../state/closeBehavior";
 
 const { t, locale } = useI18n();
 
@@ -94,6 +102,9 @@ const isMaximized = ref(false);
 const maxHover = ref(false);
 const placesMenuOpen = ref(false);
 const workGroupMenuOpen = ref(false);
+const closeConfirmOpen = ref(false);
+const closeConfirmRemember = ref(true);
+const closeConfirmBusy = ref(false);
 const unlisteners: UnlistenFn[] = [];
 
 const breadcrumbs = computed(() => buildBreadcrumbs(currentPath.value));
@@ -244,6 +255,11 @@ function quickAccessLabel(path: string): string {
 }
 
 function onGlobalKeydown(event: KeyboardEvent) {
+  if (event.key === "Escape" && closeConfirmOpen.value) {
+    cancelCloseConfirm();
+    event.preventDefault();
+    return;
+  }
   if (event.key === "Escape" && (placesMenuOpen.value || workGroupMenuOpen.value)) {
     closeChromeMenus();
     event.preventDefault();
@@ -447,6 +463,48 @@ async function closeWindow() {
   }
 }
 
+async function applyCloseAction(action: Exclude<CloseBehavior, "ask">) {
+  closeConfirmBusy.value = true;
+  try {
+    if (closeConfirmRemember.value) {
+      await persistCloseBehavior(action);
+    }
+    closeConfirmOpen.value = false;
+    if (action === "tray") {
+      await hideMainWindowToTray();
+      return;
+    }
+    await quitApplication();
+  } catch (err) {
+    console.error("close action failed", err);
+  } finally {
+    closeConfirmBusy.value = false;
+  }
+}
+
+function cancelCloseConfirm() {
+  if (closeConfirmBusy.value) return;
+  closeConfirmOpen.value = false;
+}
+
+async function handleCloseRequested(event: { preventDefault: () => void }) {
+  if (permitWindowClose.value) {
+    return;
+  }
+  event.preventDefault();
+  const behavior = await loadCloseBehavior();
+  if (behavior === "tray") {
+    await hideMainWindowToTray();
+    return;
+  }
+  if (behavior === "quit") {
+    await quitApplication();
+    return;
+  }
+  closeConfirmRemember.value = true;
+  closeConfirmOpen.value = true;
+}
+
 /** Drop plugin boot sentinel / any fixed ghost titlebar so Fluent caption receives clicks. */
 function reclaimFluentTitlebar() {
   document.getElementById("afm-frame-boot")?.remove();
@@ -518,11 +576,17 @@ onMounted(() => {
   void loadFavorites().catch(() => undefined);
   void loadVisitStats().catch(() => undefined);
   void loadWorkGroupsChrome().catch(() => undefined);
+  void loadCloseBehavior().catch(() => undefined);
   registerShellShortcuts();
   window.addEventListener("keydown", onGlobalKeydown);
   document.addEventListener("pointerdown", onDocumentPointerDown, true);
 
   const win = getCurrentWindow();
+  void win.onCloseRequested((event) => {
+    void handleCloseRequested(event);
+  }).then((unlisten) => {
+    unlisteners.push(unlisten);
+  });
   void win.onResized(() => {
     void refreshMaximized();
   }).then((unlisten) => {
@@ -954,6 +1018,54 @@ onUnmounted(() => {
         </button>
       </div>
     </footer>
+
+    <div
+      v-if="closeConfirmOpen"
+      id="close-confirm-dialog"
+      class="close-confirm-backdrop"
+      role="presentation"
+      @click.self="cancelCloseConfirm"
+    >
+      <div
+        class="close-confirm-dialog fluent-surface"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="t('chrome.closeConfirmTitle')"
+      >
+        <h2 class="close-confirm-title">{{ t("chrome.closeConfirmTitle") }}</h2>
+        <p class="close-confirm-message">{{ t("chrome.closeConfirmMessage") }}</p>
+        <label class="close-confirm-remember">
+          <input v-model="closeConfirmRemember" type="checkbox" class="fluent-field-check" />
+          {{ t("chrome.closeConfirmRemember") }}
+        </label>
+        <div class="close-confirm-actions">
+          <button
+            type="button"
+            class="fluent-control"
+            :disabled="closeConfirmBusy"
+            @click="cancelCloseConfirm"
+          >
+            {{ t("chrome.closeConfirmCancel") }}
+          </button>
+          <button
+            type="button"
+            class="fluent-control"
+            :disabled="closeConfirmBusy"
+            @click="applyCloseAction('tray')"
+          >
+            {{ t("chrome.closeConfirmTray") }}
+          </button>
+          <button
+            type="button"
+            class="fluent-control fluent-control--accent"
+            :disabled="closeConfirmBusy"
+            @click="applyCloseAction('quit')"
+          >
+            {{ t("chrome.closeConfirmQuit") }}
+          </button>
+        </div>
+      </div>
+    </div>
 
     <CommandPanel :commands="panelCommands" />
   </div>
@@ -1480,5 +1592,53 @@ onUnmounted(() => {
   cursor: pointer;
   min-height: var(--fluent-control-height-standard);
   padding-inline: var(--fluent-space-sm);
+}
+
+.close-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--fluent-space-lg);
+  background: color-mix(in srgb, var(--fluent-color-text-primary) 28%, transparent);
+}
+
+.close-confirm-dialog {
+  width: min(26rem, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-md);
+  padding: var(--fluent-space-lg);
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: var(--fluent-radius-md);
+  box-shadow: var(--fluent-shadow-flyout, 0 12px 32px rgba(0, 0, 0, 0.22));
+}
+
+.close-confirm-title {
+  margin: 0;
+  font-size: var(--fluent-font-size-subtitle);
+  font-weight: var(--fluent-font-weight-semibold);
+}
+
+.close-confirm-message {
+  margin: 0;
+  color: var(--fluent-color-text-secondary);
+  line-height: 1.45;
+}
+
+.close-confirm-remember {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  font-size: var(--fluent-font-size-body);
+}
+
+.close-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--fluent-space-sm);
 }
 </style>

@@ -45,6 +45,12 @@ fn health_get() -> HealthPayload {
     }
 }
 
+/// Quit the process (tray Quit + close-confirm Quit share this path — AIA-86).
+#[tauri::command]
+fn app_quit(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     use tauri::Manager;
@@ -100,6 +106,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             health_get,
+            app_quit,
             autostart::autostart_status,
             autostart::autostart_set_enabled,
             navigator::navigator_list,

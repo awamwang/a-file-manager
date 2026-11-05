@@ -1,0 +1,60 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+/** Window close → tray / quit / ask (AIA-86). Aligns with system tray + autostart hide. */
+
+import { ref } from "vue";
+import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+
+export type CloseBehavior = "ask" | "tray" | "quit";
+
+type SettingsDocument = {
+  version: number;
+  values: Record<string, unknown>;
+};
+
+export const CLOSE_BEHAVIOR_SETTING_KEY = "core.closeBehavior";
+
+export const closeBehavior = ref<CloseBehavior>("ask");
+
+/** When true, the next CloseRequested must proceed (real quit). */
+export const permitWindowClose = ref(false);
+
+export function parseCloseBehavior(value: unknown): CloseBehavior {
+  if (value === "tray" || value === "quit" || value === "ask") return value;
+  return "ask";
+}
+
+export async function loadCloseBehavior(): Promise<CloseBehavior> {
+  try {
+    const doc = await invoke<SettingsDocument>("settings_get");
+    const next = parseCloseBehavior(doc.values?.[CLOSE_BEHAVIOR_SETTING_KEY]);
+    closeBehavior.value = next;
+    return next;
+  } catch {
+    closeBehavior.value = "ask";
+    return "ask";
+  }
+}
+
+export async function persistCloseBehavior(
+  next: CloseBehavior,
+): Promise<CloseBehavior> {
+  const patch: Record<string, unknown> = {
+    [CLOSE_BEHAVIOR_SETTING_KEY]: next,
+  };
+  const doc = await invoke<SettingsDocument>("settings_set", { patch });
+  const saved = parseCloseBehavior(doc.values?.[CLOSE_BEHAVIOR_SETTING_KEY]);
+  closeBehavior.value = saved;
+  return saved;
+}
+
+/** Hide main window to the existing system tray (same as autostart-hidden). */
+export async function hideMainWindowToTray(): Promise<void> {
+  await getCurrentWindow().hide();
+}
+
+/** Quit the process — same path as tray menu Quit. */
+export async function quitApplication(): Promise<void> {
+  permitWindowClose.value = true;
+  await invoke("app_quit");
+}

@@ -113,6 +113,19 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             json!(false),
         ),
         def(
+            "core.closeBehavior",
+            SettingsTier::Core,
+            "When closing the window",
+            "Ask each time, hide to the system tray, or quit the app",
+            SettingValueKind::Enum,
+            Some(vec![
+                "ask".to_string(),
+                "tray".to_string(),
+                "quit".to_string(),
+            ]),
+            json!("ask"),
+        ),
+        def(
             "core.discoveryBlacklist",
             SettingsTier::Core,
             "Discovery directory blacklist",

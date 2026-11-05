@@ -46,7 +46,13 @@
     "workGroupSwitch": "ワークグループを切り替え",
     "workGroupSave": "設定に保存",
     "workGroupManage": "ワークグループを管理…",
-    "workGroupEmpty": "ワークグループはまだありません"
+    "workGroupEmpty": "ワークグループはまだありません",
+    "closeConfirmTitle": "ウィンドウを閉じる",
+    "closeConfirmMessage": "システムトレイ（通知領域）に隠しますか、それとも A File Manager を終了しますか？",
+    "closeConfirmTray": "トレイに隠す",
+    "closeConfirmQuit": "終了",
+    "closeConfirmCancel": "キャンセル",
+    "closeConfirmRemember": "この選択を記憶する"
   },
   "commands": {
     "empty": "一致するコマンドはありません",
@@ -290,6 +296,15 @@
         "launchAtStartupHidden": {
           "title": "起動時にトレイへ隠す",
           "description": "ログイン起動時はメインウィンドウをシステムトレイに隠します"
+        },
+        "closeBehavior": {
+          "title": "ウィンドウを閉じるとき",
+          "description": "毎回確認、システムトレイに隠す、またはアプリを終了",
+          "options": {
+            "ask": "毎回確認",
+            "tray": "トレイに隠す",
+            "quit": "終了"
+          }
         },
         "discoveryBlacklist": {
           "title": "Discovery ディレクトリのブラックリスト",

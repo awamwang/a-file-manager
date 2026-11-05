@@ -46,7 +46,13 @@
     "workGroupSwitch": "Changer de groupe de travail",
     "workGroupSave": "Enregistrer dans la configuration",
     "workGroupManage": "Gérer les groupes de travail…",
-    "workGroupEmpty": "Aucun groupe de travail"
+    "workGroupEmpty": "Aucun groupe de travail",
+    "closeConfirmTitle": "Fermer la fenêtre",
+    "closeConfirmMessage": "Masquer dans la zone de notification, ou quitter A File Manager ?",
+    "closeConfirmTray": "Masquer dans la zone de notification",
+    "closeConfirmQuit": "Quitter",
+    "closeConfirmCancel": "Annuler",
+    "closeConfirmRemember": "Mémoriser ce choix"
   },
   "commands": {
     "empty": "Aucune commande correspondante",
@@ -290,6 +296,15 @@
         "launchAtStartupHidden": {
           "title": "Démarrer masqué dans la zone de notification",
           "description": "Lors du démarrage automatique, masquer la fenêtre principale dans la zone de notification"
+        },
+        "closeBehavior": {
+          "title": "À la fermeture de la fenêtre",
+          "description": "Demander à chaque fois, masquer dans la zone de notification, ou quitter l’application",
+          "options": {
+            "ask": "Demander à chaque fois",
+            "tray": "Masquer dans la zone de notification",
+            "quit": "Quitter"
+          }
         },
         "discoveryBlacklist": {
           "title": "Liste noire des répertoires Discovery",
