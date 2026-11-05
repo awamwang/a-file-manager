@@ -160,6 +160,7 @@ pub fn run() {
             settings::settings_get,
             settings::settings_set,
             discovery::discovery_status,
+            discovery::discovery_estimate_count,
             discovery::discovery_set_fallback_enabled,
             discovery::discovery_search,
             discovery::discovery_set_blacklist,

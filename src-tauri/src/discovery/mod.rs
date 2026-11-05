@@ -48,6 +48,12 @@ pub fn discovery_status() -> DiscoveryStatus {
     DISCOVERY.status()
 }
 
+/// Deferred totitems probe (empty Everything query). Call after light `discovery_status`.
+#[tauri::command]
+pub fn discovery_estimate_count() -> Option<u64> {
+    DISCOVERY.estimate_item_count()
+}
+
 #[tauri::command]
 pub fn discovery_set_fallback_enabled(enabled: bool) -> DiscoveryStatus {
     DISCOVERY.set_fallback_enabled(enabled);

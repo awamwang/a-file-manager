@@ -20,12 +20,19 @@ assert.ok(types.includes("DiscoveryIndexState"));
 assert.ok(types.includes("estimated_item_count"));
 assert.ok(types.includes("blacklist"));
 assert.ok(service.includes("set_blacklist"));
-assert.ok(service.includes("estimated_item_count"));
+assert.ok(service.includes("estimate_item_count"));
+assert.ok(
+  /estimated_item_count:\s*None/.test(service),
+  "status() must not embed empty-query estimate (AIA-182)",
+);
 assert.ok(blacklist.includes("path_is_blacklisted"));
 assert.ok(modRs.includes("discovery_set_blacklist"));
+assert.ok(modRs.includes("discovery_estimate_count"));
 assert.ok(defaults.includes('"core.discoveryBlacklist"'));
 assert.ok(fields.includes('"core.discoveryBlacklist"'));
 assert.ok(view.includes("discovery_set_blacklist"));
+assert.ok(view.includes("discovery_estimate_count"));
+assert.ok(view.includes("refreshEstimate"));
 assert.ok(view.includes("blacklistDraft"));
 assert.ok(view.includes("engine-card"));
 assert.ok(view.includes("selectEngineCard"));
@@ -38,4 +45,4 @@ assert.equal(zh.discovery.engines.fallback, "备用搜索");
 assert.equal(zh.discovery.blacklistTitle, "排除文件夹");
 assert.ok(en.settings.fields.core.discoveryBlacklist.title.length > 0);
 
-console.log("Discovery index/blacklist + engine cards checks OK (AIA-61/87/89).");
+console.log("Discovery index/blacklist + engine cards checks OK (AIA-61/87/89/182).");

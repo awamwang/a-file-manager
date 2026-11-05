@@ -50,17 +50,19 @@ impl DiscoveryService {
         cleaned
     }
 
-    fn estimated_item_count(&self, everything_available: bool) -> Option<u64> {
-        if !everything_available {
+    /// Empty Everything query for totitems — can take up to QUERY_TIMEOUT (~5s).
+    /// Kept off the light `status()` path so Discovery first paint stays snappy (AIA-182).
+    pub fn estimate_item_count(&self) -> Option<u64> {
+        if !self.everything.probe().available {
             return None;
         }
-        // Lightweight probe: empty query still returns Everything's total item count.
         match self.everything.query("", 1, 0) {
             Ok(result) => Some(result.total_count),
             Err(_) => None,
         }
     }
 
+    /// Light status: FindWindow probe + engine flags only (no empty-query estimate).
     pub fn status(&self) -> DiscoveryStatus {
         let probe = self.everything.probe();
         let fallback_enabled = self.fallback_enabled();
@@ -94,8 +96,6 @@ impl DiscoveryService {
             )
         };
 
-        let estimated_item_count = self.estimated_item_count(probe.available);
-
         DiscoveryStatus {
             everything_available: probe.available,
             fallback_enabled,
@@ -103,7 +103,7 @@ impl DiscoveryService {
             degraded,
             detail,
             index_state,
-            estimated_item_count,
+            estimated_item_count: None,
             blacklist,
         }
     }
@@ -198,7 +198,8 @@ mod tests {
         assert_eq!(status.active_engine, DiscoveryEngine::Everything);
         assert_eq!(status.index_state, DiscoveryIndexState::Ready);
         assert!(!status.degraded);
-        assert!(status.estimated_item_count.is_some());
+        assert!(status.estimated_item_count.is_none());
+        assert!(service.estimate_item_count().is_some());
     }
 
     #[test]

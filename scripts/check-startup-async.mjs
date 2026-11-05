@@ -98,4 +98,21 @@ assert.ok(
   );
 }
 
-console.log("startup-async checks OK (AIA-181 P0).");
+// --- P1: Discovery estimate deferred ---
+{
+  const discoveryMod = read("src-tauri/src/discovery/mod.rs");
+  const discoveryService = read("src-tauri/src/discovery/service.rs");
+  const discoveryView = read("src/views/DiscoveryView.vue");
+  assert.ok(discoveryMod.includes("discovery_estimate_count"), "estimate command registered");
+  assert.ok(
+    /estimated_item_count:\s*None/.test(discoveryService),
+    "status() must leave estimated_item_count None",
+  );
+  assert.ok(discoveryView.includes("discovery_estimate_count"), "UI must fetch estimate separately");
+  assert.ok(
+    /void refreshEstimate\(/.test(discoveryView),
+    "estimate must be fire-and-forget after light status",
+  );
+}
+
+console.log("startup-async checks OK (AIA-181/182).");

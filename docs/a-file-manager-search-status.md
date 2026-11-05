@@ -28,12 +28,13 @@
 
 - **默认 fallback 关闭**（`DiscoveryService::new(..., false)`），避免与自建索引双默认。
 - Everything 索引范围 = 本机 Everything 服务已索引的路径；AFM **不自建**全盘索引。
-- `estimatedItemCount`：Everything 可用时对空查询做 best-effort 总量探测；否则为 `null`（UI 显示「未知」）。
+- `estimatedItemCount`：Everything 可用时对空查询做 best-effort 总量探测；否则为 `null`（UI 显示「未知」）。**不**在轻量 `discovery_status` 内同步取；Discovery 页先画 probe，再后台调 `discovery_estimate_count` 补齐。
 - Fallback 是 stub，不是完整自建索引；开启后仅降级可用。
 
 IPC / 命令：
 
-- `discovery_status`
+- `discovery_status`（轻量 probe；`estimatedItemCount` 恒为 `null`）
+- `discovery_estimate_count`（延后空查询 totitems）
 - `discovery_search`（`offset` / `limit`，默认 limit 100，上限 1000）
 - `discovery_set_fallback_enabled`
 - `discovery_set_blacklist`（同时写入 `core.discoveryBlacklist`）

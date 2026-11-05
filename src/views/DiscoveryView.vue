@@ -128,6 +128,18 @@ async function focusSearchInput() {
   searchInput.value?.select();
 }
 
+/** Fill estimatedItemCount after light status (empty Everything query can take ~5s). */
+async function refreshEstimate() {
+  try {
+    const count = await invoke<number | null>("discovery_estimate_count");
+    if (status.value) {
+      status.value = { ...status.value, estimatedItemCount: count };
+    }
+  } catch {
+    // Keep null count; probe/status already painted.
+  }
+}
+
 async function refreshStatus() {
   status.value = await invoke<DiscoveryStatus>("discovery_status");
   blacklistDraft.value = (status.value.blacklist ?? []).join("\n");
@@ -137,6 +149,7 @@ async function refreshStatus() {
   } else {
     selectedCard.value = "everything";
   }
+  void refreshEstimate();
 }
 
 async function selectEngineCard(card: EngineCardId) {
@@ -147,6 +160,7 @@ async function selectEngineCard(card: EngineCardId) {
   status.value = await invoke<DiscoveryStatus>("discovery_set_fallback_enabled", {
     enabled: wantFallback,
   });
+  void refreshEstimate();
 }
 
 async function saveBlacklist() {
@@ -161,6 +175,7 @@ async function saveBlacklist() {
       paths,
     });
     blacklistDraft.value = (status.value.blacklist ?? []).join("\n");
+    void refreshEstimate();
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     error.value = msg;
@@ -175,7 +190,9 @@ async function runSearch() {
   error.value = null;
   result.value = null;
   try {
+    // Light status only — do not await estimate on the search critical path.
     status.value = await invoke<DiscoveryStatus>("discovery_status");
+    void refreshEstimate();
     result.value = await invoke<DiscoverySearchResult>("discovery_search", {
       query: query.value,
       options: { offset: 0, limit: 50 },
