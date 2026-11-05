@@ -56,10 +56,17 @@ assert.ok(
 // AIA-182: timeout must kill the child — not advisory-only `output()`.
 assert.ok(rclone.includes("child.kill()"), "rclone must kill on timeout");
 assert.ok(rclone.includes("try_wait()"), "rclone must poll child instead of blocking output()");
-assert.ok(
-  !/fn run\([\s\S]*?_timeout:\s*Duration/.test(rclone.split("impl RcloneRunner for BlockingRcloneRunner")[1] ?? ""),
-  "BlockingRcloneRunner must honor timeout parameter",
-);
+{
+  const blockStart = rclone.indexOf("impl RcloneRunner for BlockingRcloneRunner");
+  assert.ok(blockStart >= 0, "BlockingRcloneRunner impl must exist");
+  const blockEnd = rclone.indexOf("\nimpl ", blockStart + 1);
+  const block = rclone.slice(blockStart, blockEnd > blockStart ? blockEnd : rclone.length);
+  assert.ok(
+    /fn run\(\s*&self,\s*args:\s*&\[&str\],\s*timeout:\s*Duration/.test(block),
+    "BlockingRcloneRunner must honor timeout parameter",
+  );
+  assert.ok(!block.includes(".output()"), "must not use blocking Command::output()");
+}
 
 assert.ok(
   openWith.includes("win_process::command"),
