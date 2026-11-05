@@ -122,6 +122,15 @@ fn migrate_step(
             notes.push("Added experimental.previewPane (schema v3)".to_string());
             Ok(())
         }
+        (3, 4) => {
+            for (key, value) in default_document().values {
+                values.entry(key).or_insert(value);
+            }
+            notes.push(
+                "Added open-tool toggles/paths + navigator view mode (schema v4)".to_string(),
+            );
+            Ok(())
+        }
         _ => Err(format!("No migration path from {from} → {to}")),
     }
 }

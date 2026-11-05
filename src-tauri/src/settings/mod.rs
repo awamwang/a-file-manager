@@ -22,17 +22,38 @@ fn config_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
 
 /// Read a boolean setting from disk (defaults to `false` on missing/error).
 pub fn read_bool_setting(app: &AppHandle, key: &str) -> bool {
+    read_bool_setting_or(app, key, false)
+}
+
+/// Read a boolean setting; use `default` when missing or unloadable.
+pub fn read_bool_setting_or(app: &AppHandle, key: &str, default: bool) -> bool {
     let Ok(dir) = config_dir(app) else {
-        return false;
+        return default;
     };
     let Ok(document) = load_from_path(&dir) else {
-        return false;
+        return default;
     };
     document
         .values
         .get(key)
         .and_then(|value| value.as_bool())
-        .unwrap_or(false)
+        .unwrap_or(default)
+}
+
+/// Read a string setting from disk (empty on missing/error).
+pub fn read_string_setting(app: &AppHandle, key: &str) -> String {
+    let Ok(dir) = config_dir(app) else {
+        return String::new();
+    };
+    let Ok(document) = load_from_path(&dir) else {
+        return String::new();
+    };
+    document
+        .values
+        .get(key)
+        .and_then(|value| value.as_str())
+        .unwrap_or("")
+        .to_string()
 }
 
 /// Load settings document from a config directory (used by Discovery blacklist sync).

@@ -46,6 +46,10 @@ import {
 } from "../state/navigatorSelection";
 import { sortedEntries, sortColumn, sortDirection, toggleSort } from "../state/navigatorSort";
 import {
+  loadNavigatorViewMode,
+  navigatorViewMode,
+} from "../state/navigatorViewMode";
+import {
   activePane,
   dualPaneEnabled,
   navigateSecondary,
@@ -148,6 +152,7 @@ watch(
 
 function onWindowFocus() {
   void refreshPreviewSetting();
+  void loadNavigatorViewMode();
 }
 
 onMounted(() => {
@@ -157,6 +162,7 @@ onMounted(() => {
   window.addEventListener("focus", onWindowFocus);
   void (async () => {
     await refreshPreviewSetting();
+    await loadNavigatorViewMode();
     await bootstrapNavigatorOpenState();
     await loadFavorites().catch(() => undefined);
     await loadFavoritesOsHookStatus().catch(() => undefined);
@@ -180,10 +186,28 @@ function formatSize(entry: NavigatorEntry): string {
   return `${(entry.size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function sortIndicator(column: "name" | "size"): string {
+function formatModified(entry: NavigatorEntry): string {
+  const ms = entry.modifiedMs;
+  if (ms == null || !Number.isFinite(ms)) return "—";
+  try {
+    return new Date(ms).toLocaleString(undefined, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "—";
+  }
+}
+
+function sortIndicator(column: "name" | "size" | "modified"): string {
   if (sortColumn.value !== column) return "";
   return sortDirection.value === "asc" ? " ▲" : " ▼";
 }
+
+const isDetailsView = computed(() => navigatorViewMode.value === "details");
 
 function onActivate(entry: NavigatorEntry) {
   // Primary list always uses openEntry; secondary pane has its own handler.
@@ -569,17 +593,21 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
       v-if="listing"
       ref="listRoot"
       class="fluent-surface list"
+      :class="isDetailsView ? 'list--details' : 'list--list'"
       role="list"
       @contextmenu="onListContextMenu"
       @mousedown="onListMouseDown"
       @click.self="clearSelection()"
     >
-      <div class="list-header" role="row">
+      <div v-if="isDetailsView" class="list-header" role="row">
         <button type="button" class="col-sort col-name" @click="toggleSort('name')">
           {{ t("navigator.colName") }}{{ sortIndicator("name") }}
         </button>
         <button type="button" class="col-sort col-size" @click="toggleSort('size')">
           {{ t("navigator.colSize") }}{{ sortIndicator("size") }}
+        </button>
+        <button type="button" class="col-sort col-modified" @click="toggleSort('modified')">
+          {{ t("navigator.colModified") }}{{ sortIndicator("modified") }}
         </button>
       </div>
 
@@ -621,7 +649,8 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
           <FluentIcon v-else :name="entryKindIcon(entry.kind === 'dir')" size="md" />
         </span>
         <span class="name">{{ entry.name }}</span>
-        <span class="size">{{ formatSize(entry) }}</span>
+        <span v-if="isDetailsView" class="size">{{ formatSize(entry) }}</span>
+        <span v-if="isDetailsView" class="modified">{{ formatModified(entry) }}</span>
       </div>
 
       <div
@@ -648,7 +677,12 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
       </p>
       <p v-if="secondaryLoading" class="fluent-banner">{{ t("navigator.loading") }}</p>
       <p v-else-if="secondaryError" class="fluent-banner fluent-banner--error">{{ secondaryError }}</p>
-      <div v-else-if="secondaryListing" class="fluent-surface list" role="list">
+      <div
+        v-else-if="secondaryListing"
+        class="fluent-surface list"
+        :class="isDetailsView ? 'list--details' : 'list--list'"
+        role="list"
+      >
         <div
           v-for="entry in secondaryEntries"
           :key="entry.path"
@@ -670,7 +704,8 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
             <FluentIcon v-else :name="entryKindIcon(entry.kind === 'dir')" size="md" />
           </span>
           <span class="name">{{ entry.name }}</span>
-          <span class="size">{{ formatSize(entry) }}</span>
+          <span v-if="isDetailsView" class="size">{{ formatSize(entry) }}</span>
+          <span v-if="isDetailsView" class="modified">{{ formatModified(entry) }}</span>
         </div>
       </div>
     </div>
@@ -769,9 +804,17 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
   user-select: none;
 }
 
+.list--list .row {
+  grid-template-columns: 2rem 1fr;
+}
+
+.list--details .list-header,
+.list--details .row {
+  grid-template-columns: 2rem minmax(0, 1fr) 5.5rem 9.5rem;
+}
+
 .list-header {
   display: grid;
-  grid-template-columns: 2rem 1fr 5.5rem;
   gap: var(--fluent-space-sm);
   position: sticky;
   top: 0;
@@ -808,6 +851,11 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
   text-align: right;
 }
 
+.col-modified {
+  grid-column: 4;
+  text-align: left;
+}
+
 .row {
   width: 100%;
   border: 0;
@@ -818,7 +866,6 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
   text-align: left;
   cursor: default;
   display: grid;
-  grid-template-columns: 2rem 1fr 5.5rem;
   gap: var(--fluent-space-sm);
 }
 
@@ -870,6 +917,15 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
   font-size: var(--fluent-font-size-caption);
   color: var(--fluent-color-text-secondary);
   font-variant-numeric: tabular-nums;
+}
+
+.modified {
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .marquee {

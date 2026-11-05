@@ -33,6 +33,11 @@ const router = createRouter({
       name: "settings-favorites",
       component: SettingsView,
     },
+    {
+      path: "/settings/open-tools",
+      name: "settings-open-tools",
+      component: SettingsView,
+    },
   ],
 });
 

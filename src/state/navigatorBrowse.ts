@@ -28,6 +28,8 @@ export type NavigatorEntry = {
   path: string;
   kind: "dir" | "file" | string;
   size: number;
+  /** Last write time as Unix epoch milliseconds when reported. */
+  modifiedMs?: number | null;
 };
 
 export type NavigatorListing = {

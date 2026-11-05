@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-/** Setting ids from Rust `setting_definitions()` ? keep in sync with defaults.rs. */
+/** Setting ids from Rust `setting_definitions()` — keep in sync with defaults.rs. */
 export const SCHEMA_SETTING_KEYS = [
   "core.language",
   "core.theme",
@@ -17,6 +17,15 @@ export const SCHEMA_SETTING_KEYS = [
   "core.newFolderDefaultName",
   "core.newFileDefaultName",
   "core.fileDoubleClickAction",
+  "core.navigatorViewMode",
+  "core.openTool.vscode.enabled",
+  "core.openTool.vscode.path",
+  "core.openTool.cursor.enabled",
+  "core.openTool.cursor.path",
+  "core.openTool.trae.enabled",
+  "core.openTool.trae.path",
+  "core.openTool.qoder.enabled",
+  "core.openTool.qoder.path",
   "power.confirmBeforeDelete",
   "power.perPathOverridesEnabled",
   "experimental.debugStatusInTitlebar",
@@ -32,6 +41,7 @@ export const SCHEMA_ENUM_OPTIONS: Record<string, readonly string[]> = {
   "core.listDensity": ["standard", "compact"],
   "core.startupPage": ["navigator", "projects", "discovery"],
   "core.closeBehavior": ["ask", "tray", "quit"],
+  "core.navigatorViewMode": ["list", "details"],
   "core.fileDoubleClickAction": [
     "systemDefault",
     "openWithDialog",

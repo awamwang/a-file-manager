@@ -65,10 +65,18 @@ assert.ok(fileOpenWith?.children?.some((c) => c.id === "openWithNative"));
 assert.ok(!fileOpenWith?.children?.some((c) => c.id === "openInNewTab"));
 assert.ok(
   buildContextMenuItems(file, {
-    ideApps: [{ id: "cursor", name: "Cursor", available: true }],
+    ideApps: [{ id: "cursor", name: "Cursor", available: true, enabled: true }],
   })
     .find((item) => item.id === "openWith")
     ?.children?.some((c) => c.id === "openWithIde:cursor"),
+);
+assert.ok(
+  !buildContextMenuItems(file, {
+    ideApps: [{ id: "cursor", name: "Cursor", available: true, enabled: false }],
+  })
+    .find((item) => item.id === "openWith")
+    ?.children?.some((c) => c.id === "openWithIde:cursor"),
+  "disabled open-tool must not appear in Open with",
 );
 assert.equal(fileItems.find((item) => item.id === "reveal"), undefined);
 assert.equal(dirItems.find((item) => item.id === "reveal"), undefined);

@@ -49,7 +49,7 @@ export type ContextMenuBuildOptions = {
   canPaste?: boolean;
   /** Empty-area menu (no entry): paste + new folder only. */
   emptyArea?: boolean;
-  ideApps?: Array<{ id: string; name: string; available: boolean }>;
+  ideApps?: Array<{ id: string; name: string; available: boolean; enabled?: boolean }>;
   terminals?: Array<{
     id: string;
     name: string;
@@ -90,7 +90,7 @@ export function buildContextMenuItems(
   const isDir = entry.kind === "dir";
   const isFavorite = Boolean(options.isFavorite);
   const ideChildren: ContextMenuItemDef[] = (options.ideApps ?? [])
-    .filter((app) => app.available)
+    .filter((app) => app.available && app.enabled !== false)
     .map((app) => ({
       id: `openWithIde:${app.id}`,
       labelKey: "contextMenu.openWithIde",

@@ -55,7 +55,10 @@
     "closeConfirmTray": "Masquer dans la zone de notification",
     "closeConfirmQuit": "Quitter",
     "closeConfirmCancel": "Annuler",
-    "closeConfirmRemember": "Mémoriser ce choix"
+    "closeConfirmRemember": "Mémoriser ce choix",
+    "viewMode": "Affichage",
+    "viewList": "Liste",
+    "viewDetails": "Détails"
   },
   "commands": {
     "empty": "Aucune commande correspondante",
@@ -195,7 +198,8 @@
     "filterPlaceholder": "Filtrer ce dossier…",
     "filterToggle": "Filtrer le dossier",
     "filterClear": "Effacer le filtre",
-    "filterEmpty": "Aucun élément ne correspond."
+    "filterEmpty": "Aucun élément ne correspond.",
+    "colModified": "Date de modification"
   },
   "projects": {
     "addLink": "Ajouter un lien",
@@ -360,6 +364,56 @@
             "none": "Ne rien faire",
             "qoder": "Qoder CN"
           }
+        },
+        "navigatorViewMode": {
+          "title": "Vue du navigateur",
+          "description": "Style Windows : Liste ou Détails (Détails inclut la date de modification)",
+          "options": {
+            "list": "Liste",
+            "details": "Détails"
+          }
+        },
+        "openTool": {
+          "vscode": {
+            "enabled": {
+              "title": "Visual Studio Code",
+              "description": "Afficher VS Code dans Ouvrir avec"
+            },
+            "path": {
+              "title": "Chemin VS Code",
+              "description": "Chemin Code.exe optionnel si la détection échoue"
+            }
+          },
+          "cursor": {
+            "enabled": {
+              "title": "Cursor",
+              "description": "Afficher Cursor dans Ouvrir avec"
+            },
+            "path": {
+              "title": "Chemin Cursor",
+              "description": "Chemin Cursor.exe optionnel si la détection échoue"
+            }
+          },
+          "trae": {
+            "enabled": {
+              "title": "Trae",
+              "description": "Afficher Trae dans Ouvrir avec"
+            },
+            "path": {
+              "title": "Chemin Trae",
+              "description": "Chemin Trae.exe optionnel si la détection échoue"
+            }
+          },
+          "qoder": {
+            "enabled": {
+              "title": "Qoder CN",
+              "description": "Afficher Qoder CN dans Ouvrir avec"
+            },
+            "path": {
+              "title": "Chemin Qoder CN",
+              "description": "Chemin Qoder CN.exe optionnel si la détection échoue"
+            }
+          }
         }
       },
       "experimental": {
@@ -394,7 +448,17 @@
     "sectionShortcuts": "Raccourcis",
     "title": "Paramètres",
     "sectionFavorites": "Favoris",
-    "favoritesMeta": "Enregistre le verbe Explorer Ajouter aux favoris AFM."
+    "favoritesMeta": "Enregistre le verbe Explorer Ajouter aux favoris AFM.",
+    "sectionOpenTools": "Outils d’ouverture",
+    "openTools": {
+      "meta": "IDE/Agents dans Ouvrir avec. Découverte auto d’abord ; chemin seulement en secours.",
+      "enabled": "Afficher dans les menus",
+      "pathPlaceholder": "Chemin .exe optionnel…",
+      "rediscover": "Redécouvrir",
+      "notFound": "Introuvable — indiquez un chemin si installé ailleurs",
+      "viaAuto": "Trouvé automatiquement",
+      "viaConfigured": "Chemin configuré"
+    }
   },
   "workGroups": {
     "addMemberPlaceholder": "Ajouter un chemin de dossier membre",

@@ -5,6 +5,7 @@ use serde::Serialize;
 use std::cmp::Ordering;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -14,6 +15,8 @@ pub struct NavigatorEntry {
     /// `"dir"` or `"file"` (symlinks reported by target kind when possible).
     pub kind: String,
     pub size: u64,
+    /// Last write time as Unix epoch milliseconds (when the FS reports it).
+    pub modified_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -54,12 +57,14 @@ pub fn list_directory(path: &str) -> Result<NavigatorListing, String> {
         let kind = if is_dir { "dir" } else { "file" }.to_string();
         let size = if metadata.is_file() { metadata.len() } else { 0 };
         let name = entry.file_name().to_string_lossy().to_string();
+        let modified_ms = metadata.modified().ok().and_then(system_time_ms);
 
         entries.push(NavigatorEntry {
             name,
             path: display_path(&entry_path),
             kind,
             size,
+            modified_ms,
         });
     }
 
@@ -99,6 +104,12 @@ pub fn parent_path(path: &str) -> Result<Option<String>, String> {
 
 fn display_path(path: &Path) -> String {
     path.to_string_lossy().replace('/', "\\")
+}
+
+fn system_time_ms(time: SystemTime) -> Option<u64> {
+    time.duration_since(SystemTime::UNIX_EPOCH)
+        .ok()
+        .map(|d| d.as_millis() as u64)
 }
 
 fn compare_entries(left: &NavigatorEntry, right: &NavigatorEntry) -> Ordering {

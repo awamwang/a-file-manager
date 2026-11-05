@@ -55,7 +55,10 @@
     "closeConfirmTray": "トレイに隠す",
     "closeConfirmQuit": "終了",
     "closeConfirmCancel": "キャンセル",
-    "closeConfirmRemember": "この選択を記憶する"
+    "closeConfirmRemember": "この選択を記憶する",
+    "viewMode": "表示",
+    "viewList": "一覧",
+    "viewDetails": "詳細"
   },
   "commands": {
     "empty": "一致するコマンドはありません",
@@ -195,7 +198,8 @@
     "filterPlaceholder": "このフォルダーを絞り込み…",
     "filterToggle": "フォルダーを絞り込み",
     "filterClear": "絞り込みをクリア",
-    "filterEmpty": "一致する項目がありません。"
+    "filterEmpty": "一致する項目がありません。",
+    "colModified": "更新日時"
   },
   "projects": {
     "addLink": "リンクを追加",
@@ -360,6 +364,56 @@
             "none": "何もしない",
             "qoder": "Qoder CN"
           }
+        },
+        "navigatorViewMode": {
+          "title": "ナビゲーター表示",
+          "description": "Windows 風の一覧 / 詳細（詳細には更新日時）",
+          "options": {
+            "list": "一覧",
+            "details": "詳細"
+          }
+        },
+        "openTool": {
+          "vscode": {
+            "enabled": {
+              "title": "Visual Studio Code",
+              "description": "利用可能なとき Open with に表示"
+            },
+            "path": {
+              "title": "VS Code パス",
+              "description": "自動検出失敗時の任意 Code.exe"
+            }
+          },
+          "cursor": {
+            "enabled": {
+              "title": "Cursor",
+              "description": "利用可能なとき Open with に表示"
+            },
+            "path": {
+              "title": "Cursor パス",
+              "description": "自動検出失敗時の任意 Cursor.exe"
+            }
+          },
+          "trae": {
+            "enabled": {
+              "title": "Trae",
+              "description": "利用可能なとき Open with に表示"
+            },
+            "path": {
+              "title": "Trae パス",
+              "description": "自動検出失敗時の任意 Trae.exe"
+            }
+          },
+          "qoder": {
+            "enabled": {
+              "title": "Qoder CN",
+              "description": "利用可能なとき Open with に表示"
+            },
+            "path": {
+              "title": "Qoder CN パス",
+              "description": "自動検出失敗時の任意 Qoder CN.exe"
+            }
+          }
         }
       },
       "experimental": {
@@ -394,7 +448,17 @@
     "sectionShortcuts": "ショートカット",
     "title": "設定",
     "sectionFavorites": "お気に入り",
-    "favoritesMeta": "エクスプローラーの「AFM のお気に入りに追加」動詞を登録します。"
+    "favoritesMeta": "エクスプローラーの「AFM のお気に入りに追加」動詞を登録します。",
+    "sectionOpenTools": "開くツール",
+    "openTools": {
+      "meta": "「プログラムから開く」に出す IDE/Agent を管理します。まず自動検出、失敗時のみパスを指定します。",
+      "enabled": "メニューに表示",
+      "pathPlaceholder": "任意の .exe パス…",
+      "rediscover": "再検出",
+      "notFound": "未検出 — 別場所ならパスを指定",
+      "viaAuto": "自動検出済み",
+      "viaConfigured": "設定パスを使用"
+    }
   },
   "workGroups": {
     "addMemberPlaceholder": "メンバーフォルダーパスを追加",

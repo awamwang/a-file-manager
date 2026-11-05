@@ -55,7 +55,10 @@
     "closeConfirmTray": "In Tray ausblenden",
     "closeConfirmQuit": "Beenden",
     "closeConfirmCancel": "Abbrechen",
-    "closeConfirmRemember": "Diese Auswahl merken"
+    "closeConfirmRemember": "Diese Auswahl merken",
+    "viewMode": "Ansicht",
+    "viewList": "Liste",
+    "viewDetails": "Details"
   },
   "commands": {
     "empty": "Keine passenden Befehle",
@@ -195,7 +198,8 @@
     "filterPlaceholder": "Diesen Ordner filtern…",
     "filterToggle": "Ordner filtern",
     "filterClear": "Filter löschen",
-    "filterEmpty": "Keine Treffer für diesen Filter."
+    "filterEmpty": "Keine Treffer für diesen Filter.",
+    "colModified": "Änderungsdatum"
   },
   "projects": {
     "addLink": "Link hinzufügen",
@@ -360,6 +364,56 @@
             "none": "Keine Aktion",
             "qoder": "Qoder CN"
           }
+        },
+        "navigatorViewMode": {
+          "title": "Navigator-Ansicht",
+          "description": "Windows-ähnlich: Liste oder Details (Details inkl. Änderungsdatum)",
+          "options": {
+            "list": "Liste",
+            "details": "Details"
+          }
+        },
+        "openTool": {
+          "vscode": {
+            "enabled": {
+              "title": "Visual Studio Code",
+              "description": "VS Code in Öffnen mit anzeigen"
+            },
+            "path": {
+              "title": "VS-Code-Pfad",
+              "description": "Optionaler Code.exe-Pfad bei fehlender Erkennung"
+            }
+          },
+          "cursor": {
+            "enabled": {
+              "title": "Cursor",
+              "description": "Cursor in Öffnen mit anzeigen"
+            },
+            "path": {
+              "title": "Cursor-Pfad",
+              "description": "Optionaler Cursor.exe-Pfad bei fehlender Erkennung"
+            }
+          },
+          "trae": {
+            "enabled": {
+              "title": "Trae",
+              "description": "Trae in Öffnen mit anzeigen"
+            },
+            "path": {
+              "title": "Trae-Pfad",
+              "description": "Optionaler Trae.exe-Pfad bei fehlender Erkennung"
+            }
+          },
+          "qoder": {
+            "enabled": {
+              "title": "Qoder CN",
+              "description": "Qoder CN in Öffnen mit anzeigen"
+            },
+            "path": {
+              "title": "Qoder-CN-Pfad",
+              "description": "Optionaler Qoder CN.exe-Pfad bei fehlender Erkennung"
+            }
+          }
         }
       },
       "experimental": {
@@ -394,7 +448,17 @@
     "sectionShortcuts": "Tastenkürzel",
     "title": "Einstellungen",
     "sectionFavorites": "Favoriten",
-    "favoritesMeta": "Registriert den Explorer-Kontextmenuebefehl zum Hinzufuegen zu AFM-Favoriten."
+    "favoritesMeta": "Registriert den Explorer-Kontextmenuebefehl zum Hinzufuegen zu AFM-Favoriten.",
+    "sectionOpenTools": "Öffnen mit",
+    "openTools": {
+      "meta": "IDE/Agent-Apps für Öffnen-mit. Zuerst Auto-Erkennung; Pfad nur bei Fehlschlag.",
+      "enabled": "In Menüs zeigen",
+      "pathPlaceholder": "Optionaler .exe-Pfad…",
+      "rediscover": "Erneut suchen",
+      "notFound": "Nicht gefunden — Pfad setzen falls woanders installiert",
+      "viaAuto": "Automatisch gefunden",
+      "viaConfigured": "Konfigurierter Pfad"
+    }
   },
   "workGroups": {
     "addMemberPlaceholder": "Mitglieder-Ordnerpfad hinzufügen",

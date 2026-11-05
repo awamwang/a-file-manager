@@ -68,7 +68,10 @@
     "closeConfirmTray": "Hide to tray",
     "closeConfirmQuit": "Quit",
     "closeConfirmCancel": "Cancel",
-    "closeConfirmRemember": "Remember this choice"
+    "closeConfirmRemember": "Remember this choice",
+    "viewMode": "View",
+    "viewList": "List",
+    "viewDetails": "Details"
   },
   "nav": {
     "navigator": "Navigator",
@@ -118,7 +121,8 @@
     "filterPlaceholder": "Filter this folder…",
     "filterToggle": "Filter folder",
     "filterClear": "Clear filter",
-    "filterEmpty": "No items match this filter."
+    "filterEmpty": "No items match this filter.",
+    "colModified": "Date modified"
   },
   "discovery": {
     "title": "Discovery",
@@ -263,6 +267,56 @@
             "none": "Do nothing",
             "qoder": "Qoder CN"
           }
+        },
+        "navigatorViewMode": {
+          "title": "Navigator view",
+          "description": "Windows-style List or Details (Details includes date modified)",
+          "options": {
+            "list": "List",
+            "details": "Details"
+          }
+        },
+        "openTool": {
+          "vscode": {
+            "enabled": {
+              "title": "Visual Studio Code",
+              "description": "Show VS Code in Open with when available"
+            },
+            "path": {
+              "title": "VS Code path",
+              "description": "Optional Code.exe path when auto-discovery fails"
+            }
+          },
+          "cursor": {
+            "enabled": {
+              "title": "Cursor",
+              "description": "Show Cursor in Open with when available"
+            },
+            "path": {
+              "title": "Cursor path",
+              "description": "Optional Cursor.exe path when auto-discovery fails"
+            }
+          },
+          "trae": {
+            "enabled": {
+              "title": "Trae",
+              "description": "Show Trae in Open with when available"
+            },
+            "path": {
+              "title": "Trae path",
+              "description": "Optional Trae.exe path when auto-discovery fails"
+            }
+          },
+          "qoder": {
+            "enabled": {
+              "title": "Qoder CN",
+              "description": "Show Qoder CN in Open with when available"
+            },
+            "path": {
+              "title": "Qoder CN path",
+              "description": "Optional Qoder CN.exe path when auto-discovery fails"
+            }
+          }
         }
       },
       "power": {
@@ -287,7 +341,17 @@
       }
     },
     "sectionFavorites": "Favorites",
-    "favoritesMeta": "Register the Explorer context-menu verb that adds a path to AFM favorites."
+    "favoritesMeta": "Register the Explorer context-menu verb that adds a path to AFM favorites.",
+    "sectionOpenTools": "Open tools",
+    "openTools": {
+      "meta": "Enable IDE/Agent apps in Open with. Paths are discovered automatically; set a path only when discovery fails.",
+      "enabled": "Show in menus",
+      "pathPlaceholder": "Optional .exe path…",
+      "rediscover": "Rediscover",
+      "notFound": "Not found — set a path below if installed elsewhere",
+      "viaAuto": "Found automatically",
+      "viaConfigured": "Using configured path"
+    }
   },
   "health": {
     "title": "Health",

@@ -68,7 +68,10 @@
     "closeConfirmTray": "隐藏到托盘",
     "closeConfirmQuit": "退出",
     "closeConfirmCancel": "取消",
-    "closeConfirmRemember": "记住此选择"
+    "closeConfirmRemember": "记住此选择",
+    "viewMode": "视图",
+    "viewList": "列表",
+    "viewDetails": "详细信息"
   },
   "nav": {
     "navigator": "导航器",
@@ -118,7 +121,8 @@
     "filterPlaceholder": "筛选当前文件夹…",
     "filterToggle": "筛选文件夹",
     "filterClear": "清除筛选",
-    "filterEmpty": "没有匹配的项目。"
+    "filterEmpty": "没有匹配的项目。",
+    "colModified": "修改日期"
   },
   "discovery": {
     "title": "发现",
@@ -263,6 +267,56 @@
             "none": "无动作",
             "qoder": "Qoder CN"
           }
+        },
+        "navigatorViewMode": {
+          "title": "导航器视图",
+          "description": "对齐 Windows：列表或详细信息（详细信息含修改日期）",
+          "options": {
+            "list": "列表",
+            "details": "详细信息"
+          }
+        },
+        "openTool": {
+          "vscode": {
+            "enabled": {
+              "title": "Visual Studio Code",
+              "description": "在「打开方式」中显示 VS Code（可用时）"
+            },
+            "path": {
+              "title": "VS Code 路径",
+              "description": "自动发现失败时的可选 Code.exe 路径"
+            }
+          },
+          "cursor": {
+            "enabled": {
+              "title": "Cursor",
+              "description": "在「打开方式」中显示 Cursor（可用时）"
+            },
+            "path": {
+              "title": "Cursor 路径",
+              "description": "自动发现失败时的可选 Cursor.exe 路径"
+            }
+          },
+          "trae": {
+            "enabled": {
+              "title": "Trae",
+              "description": "在「打开方式」中显示 Trae（可用时）"
+            },
+            "path": {
+              "title": "Trae 路径",
+              "description": "自动发现失败时的可选 Trae.exe 路径"
+            }
+          },
+          "qoder": {
+            "enabled": {
+              "title": "Qoder CN",
+              "description": "在「打开方式」中显示 Qoder CN（可用时）"
+            },
+            "path": {
+              "title": "Qoder CN 路径",
+              "description": "自动发现失败时的可选 Qoder CN.exe 路径"
+            }
+          }
         }
       },
       "power": {
@@ -287,7 +341,17 @@
       }
     },
     "sectionFavorites": "收藏",
-    "favoritesMeta": "注册资源管理器右键「添加到 AFM 收藏」动词。"
+    "favoritesMeta": "注册资源管理器右键「添加到 AFM 收藏」动词。",
+    "sectionOpenTools": "打开工具",
+    "openTools": {
+      "meta": "控制「打开方式」中的 IDE/Agent。优先自动发现，失败后再用下方路径。",
+      "enabled": "在菜单中显示",
+      "pathPlaceholder": "可选 .exe 路径…",
+      "rediscover": "重新发现",
+      "notFound": "未找到 — 若安装在其他位置请填写路径",
+      "viaAuto": "已自动发现",
+      "viaConfigured": "使用配置路径"
+    }
   },
   "health": {
     "title": "健康",

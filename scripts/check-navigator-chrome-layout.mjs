@@ -73,5 +73,17 @@ if (!router.includes("/settings/favorites")) {
   console.error("Router missing /settings/favorites");
   process.exit(1);
 }
+if (!settings.includes("settings/open-tools") || !settings.includes("ide_list_apps")) {
+  console.error("Settings missing Open tools section");
+  process.exit(1);
+}
+if (!router.includes("/settings/open-tools")) {
+  console.error("Router missing /settings/open-tools");
+  process.exit(1);
+}
+if (!shell.includes("setNavigatorViewMode") || !shell.includes("viewDetails")) {
+  console.error("AppShell missing Windows-style list/details view toggle");
+  process.exit(1);
+}
 
 console.log("navigator-chrome-layout: ok");

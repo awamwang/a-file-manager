@@ -67,7 +67,15 @@ const terminals = ref<
 >([]);
 let launchersWarm = false;
 
-type IdeAppInfo = { id: string; name: string; available: boolean; resolvedPath?: string | null };
+type IdeAppInfo = {
+  id: string;
+  name: string;
+  available: boolean;
+  enabled?: boolean;
+  resolvedPath?: string | null;
+  resolution?: string;
+  configuredPath?: string;
+};
 type TerminalAppInfo = {
   id: string;
   name: string;

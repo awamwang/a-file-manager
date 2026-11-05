@@ -44,7 +44,19 @@ function enumOptionLabel(settingKey: string, option: string): string {
 }
 
 type SettingsTier = "core" | "power" | "experimental";
-type SettingsSection = SettingsTier | "health" | "shortcuts" | "favorites";
+type SettingsSection = SettingsTier | "health" | "shortcuts" | "favorites" | "openTools";
+
+type IdeAppInfo = {
+  id: string;
+  name: string;
+  available: boolean;
+  enabled?: boolean;
+  resolvedPath?: string | null;
+  resolution?: string;
+  configuredPath?: string;
+};
+
+const OPEN_TOOL_IDS = ["vscode", "cursor", "trae", "qoder"] as const;
 
 type SettingDefinition = {
   key: string;
@@ -84,6 +96,11 @@ const activeSection = ref<SettingsSection>("core");
 const sections = computed(() => [
   { id: "core" as const, label: t("settings.tierCore"), icon: TIER_ICONS.core },
   {
+    id: "openTools" as const,
+    label: t("settings.sectionOpenTools"),
+    icon: "puzzle" as FluentGlyphId,
+  },
+  {
     id: "favorites" as const,
     label: t("settings.sectionFavorites"),
     icon: "star" as FluentGlyphId,
@@ -106,6 +123,9 @@ const sections = computed(() => [
   },
 ]);
 
+const ideApps = ref<IdeAppInfo[]>([]);
+const ideAppsLoading = ref(false);
+
 const shortcutRows = computed(() => {
   void locale.value;
   return listShortcutsForDisplay();
@@ -119,9 +139,12 @@ const visibleDefs = computed(() =>
       activeSection.value !== "health" &&
       activeSection.value !== "shortcuts" &&
       activeSection.value !== "favorites" &&
+      activeSection.value !== "openTools" &&
       def.tier === activeSection.value &&
       // AIA-87/89: Discovery owns blacklist editing (Settings is not the authority UI).
-      def.key !== "core.discoveryBlacklist",
+      def.key !== "core.discoveryBlacklist" &&
+      // Open tools has its own section UI.
+      !def.key.startsWith("core.openTool."),
   ),
 );
 
@@ -129,7 +152,8 @@ function isSpecialSettingsPath(path: string) {
   return (
     path.endsWith("/health") ||
     path.endsWith("/shortcuts") ||
-    path.endsWith("/favorites")
+    path.endsWith("/favorites") ||
+    path.endsWith("/open-tools")
   );
 }
 
@@ -140,13 +164,60 @@ function syncSectionFromRoute() {
     activeSection.value = "shortcuts";
   } else if (route.path.endsWith("/favorites")) {
     activeSection.value = "favorites";
+  } else if (route.path.endsWith("/open-tools")) {
+    activeSection.value = "openTools";
   } else if (
     activeSection.value === "health" ||
     activeSection.value === "shortcuts" ||
-    activeSection.value === "favorites"
+    activeSection.value === "favorites" ||
+    activeSection.value === "openTools"
   ) {
     activeSection.value = "core";
   }
+}
+
+function openToolEnabledKey(id: string) {
+  return `core.openTool.${id}.enabled`;
+}
+
+function openToolPathKey(id: string) {
+  return `core.openTool.${id}.path`;
+}
+
+async function refreshIdeApps() {
+  ideAppsLoading.value = true;
+  try {
+    ideApps.value = await invoke<IdeAppInfo[]>("ide_list_apps");
+  } catch {
+    ideApps.value = OPEN_TOOL_IDS.map((id) => ({
+      id,
+      name: id,
+      available: false,
+      enabled: Boolean(valueOf(openToolEnabledKey(id)) ?? true),
+      configuredPath: String(valueOf(openToolPathKey(id)) ?? ""),
+      resolution: "none",
+    }));
+  } finally {
+    ideAppsLoading.value = false;
+  }
+}
+
+function ideStatusLabel(app: IdeAppInfo): string {
+  if (!app.available) return t("settings.openTools.notFound");
+  if (app.resolution === "configured") return t("settings.openTools.viaConfigured");
+  return t("settings.openTools.viaAuto");
+}
+
+async function onOpenToolEnabledChange(id: string, event: Event) {
+  const checked = (event.target as HTMLInputElement).checked;
+  await patchValue(openToolEnabledKey(id), checked);
+  await refreshIdeApps();
+}
+
+async function onOpenToolPathChange(id: string, event: Event) {
+  const value = (event.target as HTMLInputElement).value;
+  await patchValue(openToolPathKey(id), value);
+  await refreshIdeApps();
 }
 
 async function onToggleOsFavoriteVerb(event: Event) {
@@ -176,6 +247,13 @@ function selectSection(section: SettingsSection) {
     if (route.path !== "/settings/favorites") {
       void router.push("/settings/favorites");
     }
+    return;
+  }
+  if (section === "openTools") {
+    if (route.path !== "/settings/open-tools") {
+      void router.push("/settings/open-tools");
+    }
+    void refreshIdeApps();
     return;
   }
   if (isSpecialSettingsPath(route.path)) {
@@ -285,7 +363,11 @@ function onStringArrayChange(key: string, event: Event) {
 }
 
 onMounted(() => {
-  void loadAll();
+  void loadAll().then(() => {
+    if (activeSection.value === "openTools") {
+      void refreshIdeApps();
+    }
+  });
   void loadFavoritesOsHookStatus().catch(() => undefined);
 });
 </script>
@@ -342,6 +424,48 @@ onMounted(() => {
           <span>{{ t("favorites.osVerb") }}</span>
         </label>
         <p v-if="favoritesOsHook?.note" class="favorites-note">{{ favoritesOsHook.note }}</p>
+      </div>
+
+      <div v-else-if="activeSection === 'openTools'" class="fluent-surface open-tools-panel">
+        <p class="open-tools-meta">{{ t("settings.openTools.meta") }}</p>
+        <p v-if="ideAppsLoading" class="fluent-banner">{{ t("settings.loading") }}</p>
+        <div v-for="app in ideApps" :key="app.id" class="open-tool-row">
+          <div class="open-tool-text">
+            <span class="title">{{ app.name }}</span>
+            <p class="desc">{{ ideStatusLabel(app) }}</p>
+            <code v-if="app.resolvedPath" class="key" :title="app.resolvedPath">{{
+              app.resolvedPath
+            }}</code>
+          </div>
+          <div class="open-tool-controls">
+            <label class="open-tool-toggle">
+              <input
+                type="checkbox"
+                class="fluent-field-check"
+                :checked="Boolean(valueOf(openToolEnabledKey(app.id)) ?? true)"
+                :disabled="savingKey === openToolEnabledKey(app.id)"
+                @change="onOpenToolEnabledChange(app.id, $event)"
+              />
+              <span>{{ t("settings.openTools.enabled") }}</span>
+            </label>
+            <input
+              class="fluent-control text open-tool-path"
+              type="text"
+              :placeholder="t('settings.openTools.pathPlaceholder')"
+              :disabled="savingKey === openToolPathKey(app.id)"
+              :value="String(valueOf(openToolPathKey(app.id)) ?? '')"
+              @change="onOpenToolPathChange(app.id, $event)"
+            />
+          </div>
+        </div>
+        <button
+          type="button"
+          class="fluent-control open-tools-refresh"
+          :disabled="ideAppsLoading"
+          @click="refreshIdeApps"
+        >
+          {{ t("settings.openTools.rediscover") }}
+        </button>
       </div>
 
       <div v-else-if="activeSection === 'shortcuts'" class="fluent-surface shortcuts-panel">
@@ -514,17 +638,76 @@ onMounted(() => {
 }
 
 .shortcuts-panel,
-.favorites-panel {
+.favorites-panel,
+.open-tools-panel {
   display: flex;
   flex-direction: column;
   padding: var(--fluent-space-md) 0;
 }
 
 .shortcuts-meta,
-.favorites-meta {
+.favorites-meta,
+.open-tools-meta {
   margin: 0 var(--fluent-space-lg) var(--fluent-space-md);
   color: var(--fluent-color-text-secondary);
   font-size: var(--fluent-font-size-caption);
+}
+
+.open-tool-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(14rem, 18rem);
+  gap: var(--fluent-space-md);
+  align-items: start;
+  padding: var(--fluent-space-sm) var(--fluent-space-lg);
+  border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+}
+
+.open-tool-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.open-tool-text .title {
+  font-weight: var(--fluent-font-weight-semibold);
+}
+
+.open-tool-text .desc {
+  margin: 0;
+  color: var(--fluent-color-text-secondary);
+  font-size: var(--fluent-font-size-caption);
+}
+
+.open-tool-text .key {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+}
+
+.open-tool-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-xs);
+}
+
+.open-tool-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  font: inherit;
+  cursor: pointer;
+}
+
+.open-tool-path {
+  width: 100%;
+}
+
+.open-tools-refresh {
+  align-self: flex-start;
+  margin: var(--fluent-space-md) var(--fluent-space-lg) 0;
 }
 
 .favorites-os-hook {
@@ -664,6 +847,10 @@ onMounted(() => {
   .control {
     grid-column: 2;
     justify-content: flex-start;
+  }
+
+  .open-tool-row {
+    grid-template-columns: 1fr;
   }
 }
 </style>

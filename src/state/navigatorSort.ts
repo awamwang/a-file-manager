@@ -4,7 +4,7 @@
 import { ref } from "vue";
 import type { NavigatorEntry } from "./navigatorBrowse";
 
-export type SortColumn = "name" | "size";
+export type SortColumn = "name" | "size" | "modified";
 export type SortDirection = "asc" | "desc";
 
 export const sortColumn = ref<SortColumn>("name");
@@ -30,6 +30,11 @@ export function sortedEntries(entries: NavigatorEntry[]): NavigatorEntry[] {
     }
     if (col === "size") {
       if (a.size !== b.size) return (a.size - b.size) * dir;
+    }
+    if (col === "modified") {
+      const am = a.modifiedMs ?? 0;
+      const bm = b.modifiedMs ?? 0;
+      if (am !== bm) return (am - bm) * dir;
     }
     const nameCmp = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
     return nameCmp * dir;

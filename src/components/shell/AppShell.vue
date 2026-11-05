@@ -50,6 +50,11 @@ import { favoritesDoc, loadFavorites } from "../../state/favorites";
 import { quickAccessList, loadVisitStats } from "../../state/visitStats";
 import { dualPaneEnabled, toggleDualPane } from "../../state/dualPane";
 import {
+  loadNavigatorViewMode,
+  navigatorViewMode,
+  setNavigatorViewMode,
+} from "../../state/navigatorViewMode";
+import {
   activeWorkGroup,
   dismissWorkGroupSoftNotice,
   loadWorkGroupsChrome,
@@ -837,6 +842,7 @@ onMounted(() => {
   void bootstrapNavigatorOpenState();
   void loadFavorites().catch(() => undefined);
   void loadVisitStats().catch(() => undefined);
+  void loadNavigatorViewMode().catch(() => undefined);
   void loadWorkGroupsChrome().catch(() => undefined);
   void loadCloseBehavior().catch(() => undefined);
   registerShellShortcuts();
@@ -1141,6 +1147,31 @@ onUnmounted(() => {
                 <span>{{ t("chrome.workGroupManage") }}</span>
               </button>
             </div>
+          </div>
+
+          <div class="view-mode-group" role="group" :aria-label="t('chrome.viewMode')">
+            <button
+              type="button"
+              class="fluent-control nav-icon-btn"
+              :class="{ 'nav-icon-btn--active': navigatorViewMode === 'list' }"
+              :title="t('chrome.viewList')"
+              :aria-label="t('chrome.viewList')"
+              :aria-pressed="navigatorViewMode === 'list'"
+              @click="setNavigatorViewMode('list')"
+            >
+              <FluentIcon name="viewAll" size="sm" />
+            </button>
+            <button
+              type="button"
+              class="fluent-control nav-icon-btn"
+              :class="{ 'nav-icon-btn--active': navigatorViewMode === 'details' }"
+              :title="t('chrome.viewDetails')"
+              :aria-label="t('chrome.viewDetails')"
+              :aria-pressed="navigatorViewMode === 'details'"
+              @click="setNavigatorViewMode('details')"
+            >
+              <FluentIcon name="view" size="sm" />
+            </button>
           </div>
 
           <button
@@ -1558,6 +1589,12 @@ onUnmounted(() => {
 
 .nav-icon-btn--active {
   background: var(--fluent-color-fill-selected);
+}
+
+.view-mode-group {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 1px;
 }
 
 .places-menu {
