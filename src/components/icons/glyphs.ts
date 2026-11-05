@@ -29,6 +29,8 @@ export type FluentGlyphId =
   | "flash"
   | "bug"
   | "home"
+  | "star"
+  | "dualPane"
   | "add"
   | "check"
   | "chevronDown";
@@ -188,6 +190,21 @@ export const FLUENT_GLYPHS: Record<FluentGlyphId, FluentGlyph> = {
   home: {
     codepoint: "\uE80F",
     paths: ["M8 2.8 2.5 7.5V13h4.2V9.5h2.6V13h4.2V7.5L8 2.8z"],
+  },
+  star: {
+    codepoint: "\uE734",
+    paths: [
+      "M8 2.4 9.7 6l3.9.6-2.8 2.8.7 3.9L8 11.4l-3.5 1.9.7-3.9L2.4 6.6 6.3 6 8 2.4zm0 2.4L7 7.1l-2.3.3 1.7 1.6-.4 2.3L8 10.1l2 1.2-.4-2.3 1.7-1.6-2.3-.3L8 4.8z",
+    ],
+  },
+  /** Two panes with a dashed vertical divider (Dual Pane toggle). */
+  dualPane: {
+    codepoint: "\uE8A9",
+    paths: [
+      "M2.2 3.2h4.8v9.6H2.2V3.2zm1.2 1.2v7.2h2.4V4.4H3.4z",
+      "M9 3.2h4.8v9.6H9V3.2zm1.2 1.2v7.2h2.4V4.4h-2.4z",
+      "M7.55 4.1h.9v1.1h-.9V4.1zm0 1.9h.9v1.1h-.9V6zm0 1.9h.9v1.1h-.9V7.9zm0 1.9h.9v1.1h-.9V9.8zm0 1.9h.9v1.1h-.9v-1.1z",
+    ],
   },
   add: {
     codepoint: "\uE710",
