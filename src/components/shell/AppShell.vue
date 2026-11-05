@@ -1633,7 +1633,7 @@ onUnmounted(() => {
 
 .crumb-menu-item--active {
   background: var(--fluent-color-fill-subtle-secondary, var(--fluent-color-fill-selected));
-  font-weight: 600;
+  font-weight: var(--fluent-font-weight-semibold);
 }
 
 .crumb-placeholder {

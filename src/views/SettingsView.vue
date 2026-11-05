@@ -80,14 +80,9 @@ const schema = ref<SettingsSchemaManifest | null>(null);
 const document = ref<SettingsDocument | null>(null);
 const activeSection = ref<SettingsSection>("core");
 
+/** Common-use first; experimental always last. */
 const sections = computed(() => [
   { id: "core" as const, label: t("settings.tierCore"), icon: TIER_ICONS.core },
-  { id: "power" as const, label: t("settings.tierPower"), icon: TIER_ICONS.power },
-  {
-    id: "experimental" as const,
-    label: t("settings.tierExperimental"),
-    icon: TIER_ICONS.experimental,
-  },
   {
     id: "favorites" as const,
     label: t("settings.sectionFavorites"),
@@ -98,10 +93,16 @@ const sections = computed(() => [
     label: t("settings.sectionShortcuts"),
     icon: "commands" as FluentGlyphId,
   },
+  { id: "power" as const, label: t("settings.tierPower"), icon: TIER_ICONS.power },
   {
     id: "health" as const,
     label: t("settings.sectionHealth"),
     icon: "heartPulse" as FluentGlyphId,
+  },
+  {
+    id: "experimental" as const,
+    label: t("settings.tierExperimental"),
+    icon: TIER_ICONS.experimental,
   },
 ]);
 

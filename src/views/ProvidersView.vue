@@ -41,7 +41,9 @@ const loading = ref(false);
 const error = ref<string | null>(null);
 
 async function loadBackends() {
-  backends.value = await invoke<BackendInfo[]>("provider_backends");
+  const all = await invoke<BackendInfo[]>("provider_backends");
+  // Hide interface-only stubs from the primary Providers surface.
+  backends.value = all.filter((backend) => !backend.interfaceOnly);
 }
 
 async function listUri(target?: string) {

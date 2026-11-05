@@ -62,7 +62,7 @@
 }
 
 .path-card-name {
-  font-weight: var(--fluent-font-weight-semibold);
+  font-weight: var(--fluent-font-weight-regular);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
