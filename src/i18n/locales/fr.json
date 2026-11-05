@@ -349,9 +349,14 @@
         },
         "fileDoubleClickAction": {
           "title": "Double-clic sur un fichier",
-          "description": "Action au double-clic sur un fichier (AIA-118)",
+          "description": "Action au double-clic sur un fichier",
           "options": {
-            "systemDefault": "Ouvrir avec l'application par défaut",
+            "systemDefault": "Par défaut du système",
+            "openWithDialog": "Ouvrir avec…",
+            "reveal": "Afficher dans l'Explorateur",
+            "vscode": "Visual Studio Code",
+            "cursor": "Cursor",
+            "trae": "Trae",
             "none": "Ne rien faire"
           }
         }
@@ -491,7 +496,12 @@
     "openWithChoose": "Choisir une autre app…",
     "systemMenuShow": "Afficher le menu système…",
     "properties": "Propriétés",
-    "openWithIde": "Ouvrir dans l'IDE"
+    "openWithIde": "Ouvrir dans l'IDE",
+    "openWithSystemDefault": "Par défaut du système",
+    "openInTerminalApp": "Terminal",
+    "openInTerminalAdmin": "Administrateur",
+    "openInTerminalAdminNamed": "{name} (Admin)",
+    "openInTerminalDefault": "Terminal par défaut"
   },
   "favorites": {
     "label": "Favoris",

@@ -27,6 +27,7 @@ assert.equal(openInTerminal.enabled, true);
 assert.equal(openInTerminal.stub, undefined);
 assert.equal(dirItems.find((item) => item.id === "openWith")?.enabled, true);
 assert.ok(dirItems.find((item) => item.id === "openWith")?.children?.length);
+assert.ok(dirItems.find((item) => item.id === "openInTerminal")?.children?.length);
 assert.ok(dirItems.find((item) => item.id === "systemMenu")?.children?.length);
 assert.ok(dirItems.find((item) => item.id === "properties")?.enabled);
 const addFavorite = dirItems.find((item) => item.id === "toggleFavorite");
@@ -54,10 +55,31 @@ assert.equal(fileOpenInNewTab.enabled, false);
 assert.ok(fileItems.find((item) => item.id === "systemMenu")?.enabled);
 assert.ok(fileItems.find((item) => item.id === "openInTerminal")?.enabled);
 assert.ok(fileItems.find((item) => item.id === "toggleFavorite")?.enabled);
-// AIA-118: files have no Open-with submenu (double-click default + Reveal only).
-assert.equal(fileItems.find((item) => item.id === "openWith"), undefined);
+// Files share Open-with (system default / choose app / IDEs) + Reveal.
+const fileOpenWith = fileItems.find((item) => item.id === "openWith");
+assert.ok(fileOpenWith?.enabled);
+assert.ok(fileOpenWith?.children?.some((c) => c.id === "openWithSystemDefault"));
+assert.ok(fileOpenWith?.children?.some((c) => c.id === "openWithNative"));
+assert.ok(
+  buildContextMenuItems(file, {
+    ideApps: [{ id: "cursor", name: "Cursor", available: true }],
+  })
+    .find((item) => item.id === "openWith")
+    ?.children?.some((c) => c.id === "openWithIde:cursor"),
+);
 assert.ok(fileItems.find((item) => item.id === "reveal")?.enabled);
 assert.equal(fileItems.find((item) => item.id === "paste")?.enabled, false);
+
+const withTerms = buildContextMenuItems(dir, {
+  terminals: [
+    { id: "powershell", name: "Windows PowerShell", available: true, supportsElevation: true },
+    { id: "missing", name: "Nope", available: false },
+  ],
+});
+const termKids = withTerms.find((item) => item.id === "openInTerminal")?.children ?? [];
+assert.ok(termKids.some((c) => c.id === "terminal:powershell"));
+assert.ok(termKids.some((c) => c.id === "terminal:powershell:admin"));
+assert.ok(!termKids.some((c) => c.id.startsWith("terminal:missing")));
 
 const empty = buildContextMenuItems(null, { emptyArea: true, canPaste: false });
 assert.equal(empty.length, 3);

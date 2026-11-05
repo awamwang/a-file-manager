@@ -174,6 +174,7 @@ pub fn run() {
             extension_host::extension_host_list_fs_provider_hooks,
             extension_host::extension_host_register_fs_provider_hook,
             shell_menu::shell_show_context_menu,
+            terminal::terminal_list_apps,
             terminal::open_in_terminal,
             favorites::favorites_get,
             favorites::favorites_toggle,

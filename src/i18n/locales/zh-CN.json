@@ -252,9 +252,14 @@
         },
         "fileDoubleClickAction": {
           "title": "文件双击行为",
-          "description": "双击文件时的动作（AIA-118）",
+          "description": "双击文件时使用的打开方式",
           "options": {
-            "systemDefault": "用系统默认应用打开",
+            "systemDefault": "系统默认",
+            "openWithDialog": "打开方式…",
+            "reveal": "在资源管理器中显示",
+            "vscode": "Visual Studio Code",
+            "cursor": "Cursor",
+            "trae": "Trae",
             "none": "无动作"
           }
         }
@@ -491,7 +496,12 @@
     "openWithChoose": "选择其他应用…",
     "systemMenuShow": "显示系统菜单…",
     "properties": "属性",
-    "openWithIde": "在 IDE 中打开"
+    "openWithIde": "在 IDE 中打开",
+    "openWithSystemDefault": "系统默认",
+    "openInTerminalApp": "终端",
+    "openInTerminalAdmin": "管理员",
+    "openInTerminalAdminNamed": "{name}（管理员）",
+    "openInTerminalDefault": "默认终端"
   },
   "favorites": {
     "label": "收藏",

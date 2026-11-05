@@ -349,9 +349,14 @@
         },
         "fileDoubleClickAction": {
           "title": "ファイルのダブルクリック動作",
-          "description": "ファイルをダブルクリックしたときの動作（AIA-118）",
+          "description": "ファイルをダブルクリックしたときの開き方",
           "options": {
-            "systemDefault": "システムの既定アプリで開く",
+            "systemDefault": "システムの既定",
+            "openWithDialog": "プログラムから開く…",
+            "reveal": "エクスプローラーで表示",
+            "vscode": "Visual Studio Code",
+            "cursor": "Cursor",
+            "trae": "Trae",
             "none": "何もしない"
           }
         }
@@ -491,7 +496,12 @@
     "openWithChoose": "別のアプリを選択…",
     "systemMenuShow": "システムメニューを表示…",
     "properties": "プロパティ",
-    "openWithIde": "IDE で開く"
+    "openWithIde": "IDE で開く",
+    "openWithSystemDefault": "システムの既定",
+    "openInTerminalApp": "ターミナル",
+    "openInTerminalAdmin": "管理者",
+    "openInTerminalAdminNamed": "{name}（管理者）",
+    "openInTerminalDefault": "既定のターミナル"
   },
   "favorites": {
     "label": "お気に入り",

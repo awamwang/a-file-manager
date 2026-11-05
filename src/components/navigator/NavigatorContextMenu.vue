@@ -55,18 +55,53 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const root = ref<HTMLElement | null>(null);
+const submenuRoot = ref<HTMLElement | null>(null);
 const pos = ref({ left: 0, top: 0 });
+const submenuPos = ref({ left: 0, top: 0 });
 const openSubmenuId = ref<string | null>(null);
 const ideApps = ref<Array<{ id: string; name: string; available: boolean }>>([]);
+const terminals = ref<
+  Array<{ id: string; name: string; available: boolean; supportsElevation: boolean }>
+>([]);
 
 type IdeAppInfo = { id: string; name: string; available: boolean; resolvedPath?: string | null };
+type TerminalAppInfo = {
+  id: string;
+  name: string;
+  available: boolean;
+  supportsElevation: boolean;
+};
 
-async function loadIdeApps() {
+async function loadLaunchers() {
   try {
     ideApps.value = await invoke<IdeAppInfo[]>("ide_list_apps");
   } catch {
     ideApps.value = [];
   }
+  try {
+    terminals.value = await invoke<TerminalAppInfo[]>("terminal_list_apps");
+  } catch {
+    terminals.value = [];
+  }
+}
+
+function childLabel(child: {
+  labelKey: string;
+  ideId?: string;
+  terminalId?: string;
+  elevated?: boolean;
+}): string {
+  if (child.ideId != null) {
+    return ideApps.value.find((app) => app.id === child.ideId)?.name ?? child.ideId;
+  }
+  if (child.terminalId != null) {
+    const name =
+      terminals.value.find((app) => app.id === child.terminalId)?.name ?? child.terminalId;
+    return child.elevated
+      ? t("contextMenu.openInTerminalAdminNamed", { name })
+      : name;
+  }
+  return t(child.labelKey);
 }
 
 const items = computed(() =>
@@ -75,17 +110,19 @@ const items = computed(() =>
     canPaste: hasClipboard.value,
     emptyArea: Boolean(props.emptyArea),
     ideApps: ideApps.value,
+    terminals: terminals.value,
   }).map((item) => ({
     ...item,
     label: t(item.labelKey),
     children: item.children?.map((child) => ({
       ...child,
-      label:
-        child.ideId != null
-          ? ideApps.value.find((app) => app.id === child.ideId)?.name ?? child.ideId
-          : t(child.labelKey),
+      label: childLabel(child),
     })),
   })),
+);
+
+const openSubmenuChildren = computed(
+  () => items.value.find((item) => item.id === openSubmenuId.value)?.children ?? [],
 );
 
 watch(
@@ -93,7 +130,7 @@ watch(
   (isOpen) => {
     if (isOpen) {
       openSubmenuId.value = null;
-      void loadIdeApps();
+      void loadLaunchers();
     }
   },
 );
@@ -268,6 +305,14 @@ async function run(id: string) {
         await newNavigatorTab(entry.path);
       }
       break;
+    case "openWithSystemDefault":
+      if (!entry) break;
+      try {
+        await openPath(entry.path);
+      } catch (err) {
+        emit("notice", err instanceof Error ? err.message : String(err));
+      }
+      break;
     case "openWithNative":
       if (!entry) break;
       try {
@@ -289,7 +334,11 @@ async function run(id: string) {
           success: boolean;
           error: string | null;
           launcher: string | null;
-        }>("open_in_terminal", { path: entry.path });
+        }>("open_in_terminal", {
+          path: entry.path,
+          terminalId: null,
+          elevated: false,
+        });
         if (!result.success && result.error) {
           emit("notice", result.error);
         }
@@ -380,23 +429,80 @@ async function run(id: string) {
         } catch (err) {
           emit("notice", err instanceof Error ? err.message : String(err));
         }
+      } else if (id.startsWith("terminal:") && entry) {
+        const rest = id.slice("terminal:".length);
+        const elevated = rest.endsWith(":admin");
+        const terminalId = elevated ? rest.slice(0, -":admin".length) : rest;
+        try {
+          const result = await invoke<{
+            success: boolean;
+            error: string | null;
+            launcher: string | null;
+          }>("open_in_terminal", {
+            path: entry.path,
+            terminalId,
+            elevated,
+          });
+          if (!result.success && result.error) {
+            emit("notice", result.error);
+          }
+        } catch (err) {
+          emit("notice", err instanceof Error ? err.message : String(err));
+        }
       }
       break;
   }
 }
 
-function onItemClick(item: { id: string; children?: unknown[] }) {
+async function placeSubmenu(anchor: HTMLElement) {
+  await nextTick();
+  const rect = anchor.getBoundingClientRect();
+  const sub = submenuRoot.value;
+  const pad = 8;
+  const w = sub?.offsetWidth ?? 200;
+  const h = sub?.offsetHeight ?? 160;
+  let left = rect.right - 4;
+  if (left + w > window.innerWidth - pad) {
+    left = Math.max(pad, rect.left - w + 4);
+  }
+  let top = rect.top;
+  if (top + h > window.innerHeight - pad) {
+    top = Math.max(pad, window.innerHeight - h - pad);
+  }
+  submenuPos.value = { left, top };
+}
+
+function onItemClick(item: { id: string; children?: unknown[] }, event: MouseEvent) {
   if (item.children?.length) {
-    openSubmenuId.value = openSubmenuId.value === item.id ? null : item.id;
+    const next = openSubmenuId.value === item.id ? null : item.id;
+    openSubmenuId.value = next;
+    if (next && event.currentTarget instanceof HTMLElement) {
+      void placeSubmenu(event.currentTarget);
+    }
     return;
   }
   void run(item.id);
 }
 
+function onItemEnter(item: { id: string; children?: unknown[] }, event: MouseEvent) {
+  if (!item.children?.length) {
+    openSubmenuId.value = null;
+    return;
+  }
+  openSubmenuId.value = item.id;
+  if (event.currentTarget instanceof HTMLElement) {
+    void placeSubmenu(event.currentTarget);
+  }
+}
+
 function onDocPointer(event: MouseEvent) {
   if (!props.open) return;
-  const el = root.value;
-  if (el && event.target instanceof Node && el.contains(event.target)) return;
+  const target = event.target;
+  if (!(target instanceof Node)) {
+    emit("close");
+    return;
+  }
+  if (root.value?.contains(target) || submenuRoot.value?.contains(target)) return;
   emit("close");
 }
 
@@ -444,8 +550,8 @@ onUnmounted(() => {
           :aria-expanded="item.children?.length ? openSubmenuId === item.id : undefined"
           :disabled="!item.enabled"
           :class="{ 'ctx-item--danger': item.danger }"
-          @click="onItemClick(item)"
-          @mouseenter="item.children?.length ? (openSubmenuId = item.id) : undefined"
+          @click="onItemClick(item, $event)"
+          @mouseenter="onItemEnter(item, $event)"
         >
           <span class="ctx-leading">
             <FluentIcon v-if="item.icon" :name="item.icon" size="sm" class="ctx-icon" />
@@ -454,39 +560,45 @@ onUnmounted(() => {
           <span v-if="item.children?.length" class="ctx-chevron" aria-hidden="true">›</span>
           <span v-else-if="item.stub" class="later">{{ t("chrome.later") }}</span>
         </button>
-        <div
-          v-if="item.children?.length && openSubmenuId === item.id"
-          class="ctx-sub fluent-surface"
-          role="menu"
-        >
-          <button
-            v-for="child in item.children"
-            :key="child.id"
-            type="button"
-            class="ctx-item"
-            role="menuitem"
-            :disabled="!child.enabled"
-            :class="{
-              'ctx-item--danger': child.danger,
-              'ctx-item--sep': child.separatorBefore,
-            }"
-            @click="run(child.id)"
-          >
-            <span class="ctx-leading">
-              <FluentIcon v-if="child.icon" :name="child.icon" size="sm" class="ctx-icon" />
-              <span>{{ child.label }}</span>
-            </span>
-          </button>
-        </div>
       </div>
+    </div>
+  </Teleport>
+  <Teleport to="body">
+    <div
+      v-if="open && openSubmenuId && openSubmenuChildren.length"
+      ref="submenuRoot"
+      class="ctx-sub fluent-surface"
+      role="menu"
+      :style="{ left: `${submenuPos.left}px`, top: `${submenuPos.top}px` }"
+      @contextmenu.prevent
+    >
+      <button
+        v-for="child in openSubmenuChildren"
+        :key="child.id"
+        type="button"
+        class="ctx-item"
+        role="menuitem"
+        :disabled="!child.enabled"
+        :class="{
+          'ctx-item--danger': child.danger,
+          'ctx-item--sep': child.separatorBefore,
+        }"
+        @click="run(child.id)"
+      >
+        <span class="ctx-leading">
+          <FluentIcon v-if="child.icon" :name="child.icon" size="sm" class="ctx-icon" />
+          <span>{{ child.label }}</span>
+        </span>
+      </button>
     </div>
   </Teleport>
 </template>
 
 <style scoped>
-.ctx {
+.ctx,
+.ctx-sub {
   position: fixed;
-  z-index: 80;
+  z-index: 1200;
   min-width: 13.5rem;
   padding: var(--fluent-space-xs);
   border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
@@ -495,8 +607,9 @@ onUnmounted(() => {
   background: var(--fluent-color-fill-control);
 }
 
-.ctx-row {
-  position: relative;
+.ctx-sub {
+  min-width: 12.5rem;
+  z-index: 1201;
 }
 
 .ctx-row--sep {
@@ -538,19 +651,6 @@ onUnmounted(() => {
   color: var(--fluent-color-text-secondary);
   font-size: 1rem;
   line-height: 1;
-}
-
-.ctx-sub {
-  position: absolute;
-  left: calc(100% - 0.25rem);
-  top: 0;
-  z-index: 1;
-  min-width: 12rem;
-  padding: var(--fluent-space-xs);
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: var(--fluent-radius-md);
-  box-shadow: var(--fluent-shadow-flyout, 0 8px 24px rgb(0 0 0 / 18%));
-  background: var(--fluent-color-fill-control);
 }
 
 .ctx-item:hover:not(:disabled),

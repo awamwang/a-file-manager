@@ -31,7 +31,15 @@ export const SCHEMA_ENUM_OPTIONS: Record<string, readonly string[]> = {
   "core.listDensity": ["standard", "compact"],
   "core.startupPage": ["navigator", "projects", "discovery"],
   "core.closeBehavior": ["ask", "tray", "quit"],
-  "core.fileDoubleClickAction": ["systemDefault", "none"],
+  "core.fileDoubleClickAction": [
+    "systemDefault",
+    "openWithDialog",
+    "reveal",
+    "vscode",
+    "cursor",
+    "trae",
+    "none",
+  ],
 };
 
 export function settingFieldMessagePath(

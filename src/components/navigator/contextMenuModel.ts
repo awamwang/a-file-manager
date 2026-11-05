@@ -8,6 +8,7 @@ export type ContextMenuActionId =
   | "open"
   | "openInNewTab"
   | "openWithNative"
+  | "openWithSystemDefault"
   | "openWithIde"
   | "openInTerminal"
   | "toggleFavorite"
@@ -36,6 +37,9 @@ export type ContextMenuItemDef = {
   children?: ContextMenuItemDef[];
   /** Payload for IDE open. */
   ideId?: string;
+  /** Payload for terminal open. */
+  terminalId?: string;
+  elevated?: boolean;
 };
 
 export type ContextMenuBuildOptions = {
@@ -44,6 +48,12 @@ export type ContextMenuBuildOptions = {
   /** Empty-area menu (no entry): paste + new folder only. */
   emptyArea?: boolean;
   ideApps?: Array<{ id: string; name: string; available: boolean }>;
+  terminals?: Array<{
+    id: string;
+    name: string;
+    available: boolean;
+    supportsElevation?: boolean;
+  }>;
 };
 
 /** Day-1 visibility rules for a single selected Navigator entry. */
@@ -77,20 +87,80 @@ export function buildContextMenuItems(
   }
   const isDir = entry.kind === "dir";
   const isFavorite = Boolean(options.isFavorite);
-  // AIA-118: IDE/Agent Open with is folder-only. Files keep double-click default + Reveal.
-  const ideChildren: ContextMenuItemDef[] = isDir
-    ? (options.ideApps ?? [])
-        .filter((app) => app.available)
-        .map((app) => ({
-          id: `openWithIde:${app.id}`,
-          labelKey: "contextMenu.openWithIde",
-          enabled: true,
-          ideId: app.id,
-          icon: "puzzle" as FluentGlyphId,
-        }))
-    : [];
+  const ideChildren: ContextMenuItemDef[] = (options.ideApps ?? [])
+    .filter((app) => app.available)
+    .map((app) => ({
+      id: `openWithIde:${app.id}`,
+      labelKey: "contextMenu.openWithIde",
+      enabled: true,
+      ideId: app.id,
+      icon: "puzzle" as FluentGlyphId,
+    }));
 
-  const items: ContextMenuItemDef[] = [
+  const terminalChildren: ContextMenuItemDef[] = [];
+  for (const term of (options.terminals ?? []).filter((t) => t.available)) {
+    terminalChildren.push({
+      id: `terminal:${term.id}`,
+      labelKey: "contextMenu.openInTerminalApp",
+      enabled: true,
+      terminalId: term.id,
+      elevated: false,
+      icon: "commands",
+    });
+    if (term.supportsElevation !== false) {
+      terminalChildren.push({
+        id: `terminal:${term.id}:admin`,
+        labelKey: "contextMenu.openInTerminalAdmin",
+        enabled: true,
+        terminalId: term.id,
+        elevated: true,
+        icon: "shield",
+      });
+    }
+  }
+  if (terminalChildren.length === 0) {
+    terminalChildren.push({
+      id: "openInTerminal",
+      labelKey: "contextMenu.openInTerminalDefault",
+      enabled: true,
+      icon: "commands",
+    });
+  }
+
+  const openWithChildren: ContextMenuItemDef[] = [];
+  if (!isDir) {
+    openWithChildren.push({
+      id: "openWithSystemDefault",
+      labelKey: "contextMenu.openWithSystemDefault",
+      enabled: true,
+      icon: "folderOpen",
+    });
+    openWithChildren.push({
+      id: "openWithNative",
+      labelKey: "contextMenu.openWithChoose",
+      enabled: true,
+      icon: "view",
+    });
+  }
+  if (ideChildren.length) {
+    openWithChildren.push(
+      ...ideChildren.map((child, index) => ({
+        ...child,
+        separatorBefore: index === 0 && openWithChildren.length > 0,
+      })),
+    );
+  }
+  if (isDir) {
+    openWithChildren.push({
+      id: "openWithNative",
+      labelKey: "contextMenu.openWithExplorer",
+      enabled: true,
+      separatorBefore: openWithChildren.length > 0,
+      icon: "folder",
+    });
+  }
+
+  return [
     { id: "open", labelKey: "contextMenu.open", enabled: true, icon: "folderOpen" },
     {
       id: "openInNewTab",
@@ -98,33 +168,19 @@ export function buildContextMenuItems(
       enabled: isDir,
       icon: "add",
     },
-  ];
-
-  if (isDir) {
-    items.push({
+    {
       id: "openWith",
       labelKey: "contextMenu.openWith",
-      enabled: true,
+      enabled: openWithChildren.length > 0,
       icon: "view",
-      children: [
-        ...ideChildren,
-        {
-          id: "openWithNative",
-          labelKey: "contextMenu.openWithExplorer",
-          enabled: true,
-          separatorBefore: ideChildren.length > 0,
-          icon: "folder",
-        },
-      ],
-    });
-  }
-
-  items.push(
+      children: openWithChildren,
+    },
     {
       id: "openInTerminal",
       labelKey: "contextMenu.openInTerminal",
       enabled: true,
       icon: "commands",
+      children: terminalChildren,
     },
     {
       id: "toggleFavorite",
@@ -149,10 +205,6 @@ export function buildContextMenuItems(
       ],
     },
     { id: "reveal", labelKey: "contextMenu.reveal", enabled: true, icon: "eye" },
-  );
-
-  return [
-    ...items,
     {
       id: "copy",
       labelKey: "contextMenu.copy",

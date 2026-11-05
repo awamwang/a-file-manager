@@ -2,7 +2,7 @@
 
 import { computed, ref, shallowRef } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { openPath } from "@tauri-apps/plugin-opener";
+import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
 import {
   activeStripTab,
   createEmptyOpenState,
@@ -340,9 +340,18 @@ export async function goUp(): Promise<void> {
   }
 }
 
+export type FileDoubleClickAction =
+  | "systemDefault"
+  | "openWithDialog"
+  | "reveal"
+  | "vscode"
+  | "cursor"
+  | "trae"
+  | "none";
+
 /**
- * Open a directory into Navigator (tab), or activate a file per AIA-118 policy
- * (`core.fileDoubleClickAction`: systemDefault | none).
+ * Open a directory into Navigator (tab), or activate a file per Settings
+ * `core.fileDoubleClickAction` (系统默认 / 打开方式… / Reveal / IDE / none).
  * In-tab navigation (address bar / breadcrumbs / back-forward / goUp) still uses `navigateTo`.
  */
 export async function openEntry(entry: NavigatorEntry): Promise<void> {
@@ -352,18 +361,60 @@ export async function openEntry(entry: NavigatorEntry): Promise<void> {
   }
   if (entry.kind !== "file") return;
   const action = await readFileDoubleClickAction();
-  if (action === "none") return;
-  await openPath(entry.path);
+  switch (action) {
+    case "none":
+      return;
+    case "openWithDialog": {
+      const result = await invoke<{ success: boolean; error: string | null }>(
+        "open_native_open_with_dialog",
+        { path: entry.path },
+      );
+      if (!result.success && result.error) {
+        throw new Error(result.error);
+      }
+      return;
+    }
+    case "reveal":
+      await revealItemInDir(entry.path);
+      return;
+    case "vscode":
+    case "cursor":
+    case "trae": {
+      const result = await invoke<{ success: boolean; error: string | null }>(
+        "ide_open_path",
+        { ideId: action, path: entry.path },
+      );
+      if (!result.success && result.error) {
+        throw new Error(result.error);
+      }
+      return;
+    }
+    case "systemDefault":
+    default:
+      await openPath(entry.path);
+  }
 }
 
-async function readFileDoubleClickAction(): Promise<"systemDefault" | "none"> {
+async function readFileDoubleClickAction(): Promise<FileDoubleClickAction> {
+  const allowed: FileDoubleClickAction[] = [
+    "systemDefault",
+    "openWithDialog",
+    "reveal",
+    "vscode",
+    "cursor",
+    "trae",
+    "none",
+  ];
   try {
     const doc = await invoke<{ values: Record<string, unknown> }>("settings_get");
     const raw = doc.values["core.fileDoubleClickAction"];
-    return raw === "none" ? "none" : "systemDefault";
+    if (typeof raw === "string" && (allowed as string[]).includes(raw)) {
+      return raw as FileDoubleClickAction;
+    }
   } catch {
-    return "systemDefault";
+    /* fall through */
   }
+  return "systemDefault";
 }
 
 /** Snapshot for Work Groups IPC that need the leaving group's live Open State. */

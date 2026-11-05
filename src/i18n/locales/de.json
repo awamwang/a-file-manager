@@ -349,9 +349,14 @@
         },
         "fileDoubleClickAction": {
           "title": "Doppelklick auf Dateien",
-          "description": "Aktion bei Doppelklick auf eine Datei (AIA-118)",
+          "description": "Aktion bei Doppelklick auf eine Datei",
           "options": {
-            "systemDefault": "Mit Systemstandard öffnen",
+            "systemDefault": "Systemstandard",
+            "openWithDialog": "Öffnen mit…",
+            "reveal": "Im Explorer anzeigen",
+            "vscode": "Visual Studio Code",
+            "cursor": "Cursor",
+            "trae": "Trae",
             "none": "Keine Aktion"
           }
         }
@@ -491,7 +496,12 @@
     "openWithChoose": "Andere App wählen…",
     "systemMenuShow": "Systemmenü anzeigen…",
     "properties": "Eigenschaften",
-    "openWithIde": "In IDE öffnen"
+    "openWithIde": "In IDE öffnen",
+    "openWithSystemDefault": "Systemstandard",
+    "openInTerminalApp": "Terminal",
+    "openInTerminalAdmin": "Administrator",
+    "openInTerminalAdminNamed": "{name} (Admin)",
+    "openInTerminalDefault": "Standardterminal"
   },
   "favorites": {
     "label": "Favoriten",

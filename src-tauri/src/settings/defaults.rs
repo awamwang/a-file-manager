@@ -171,7 +171,15 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             "File double-click action",
             "What happens when double-clicking a file in Navigator (AIA-118)",
             SettingValueKind::Enum,
-            Some(vec!["systemDefault".into(), "none".into()]),
+            Some(vec![
+                "systemDefault".into(),
+                "openWithDialog".into(),
+                "reveal".into(),
+                "vscode".into(),
+                "cursor".into(),
+                "trae".into(),
+                "none".into(),
+            ]),
             json!("systemDefault"),
         ),
         def(

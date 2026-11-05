@@ -252,9 +252,14 @@
         },
         "fileDoubleClickAction": {
           "title": "File double-click action",
-          "description": "What happens when double-clicking a file (AIA-118)",
+          "description": "What happens when double-clicking a file",
           "options": {
-            "systemDefault": "Open with system default",
+            "systemDefault": "System default",
+            "openWithDialog": "Open with…",
+            "reveal": "Reveal in File Explorer",
+            "vscode": "Visual Studio Code",
+            "cursor": "Cursor",
+            "trae": "Trae",
             "none": "Do nothing"
           }
         }
@@ -491,7 +496,12 @@
     "openWithChoose": "Choose another app…",
     "systemMenuShow": "Show system menu…",
     "properties": "Properties",
-    "openWithIde": "Open in IDE"
+    "openWithIde": "Open in IDE",
+    "openWithSystemDefault": "System default",
+    "openInTerminalApp": "Terminal",
+    "openInTerminalAdmin": "Administrator",
+    "openInTerminalAdminNamed": "{name} (Admin)",
+    "openInTerminalDefault": "Default terminal"
   },
   "favorites": {
     "label": "Favorites",
