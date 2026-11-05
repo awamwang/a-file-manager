@@ -3,4 +3,6 @@
 
 路径段后的 `›` 打开该层子目录列表（`navigator_list` 过滤 `dir`）；选中后 `navigateTo`（页内替换当前标签）。当前路径下一段高亮。Esc / 点外侧关闭。
 
+下拉经 `Teleport` 挂到 `body` + `position: fixed`，避免被 `.breadcrumbs { overflow: hidden }` 裁切。
+
 检查：`npm run test:breadcrumb-siblings`

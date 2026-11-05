@@ -13,6 +13,8 @@ assert.ok(shell.includes("toggleCrumbMenu"));
 assert.ok(shell.includes("onCrumbSibling"));
 assert.ok(shell.includes("navigator-crumb-siblings") || shell.includes("crumb-menu"));
 assert.ok(shell.includes("crumb-chevron"));
+assert.ok(shell.includes("Teleport"));
+assert.ok(shell.includes("positionCrumbMenu"));
 assert.ok(shell.includes('navigator_list'));
 assert.ok(/toggleCrumbMenu[\s\S]*?navigator_list/.test(shell));
 assert.ok(/onCrumbSibling[\s\S]*?navigateTo/.test(shell));

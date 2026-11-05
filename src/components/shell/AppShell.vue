@@ -116,6 +116,7 @@ const crumbSiblings = ref<Array<{ name: string; path: string }>>([]);
 const crumbMenuLoading = ref(false);
 const crumbMenuError = ref<string | null>(null);
 const crumbMenuActivePath = ref<string | null>(null);
+const crumbMenuStyle = ref<Record<string, string>>({});
 const closeConfirmOpen = ref(false);
 const closeConfirmRemember = ref(true);
 const closeConfirmBusy = ref(false);
@@ -153,6 +154,22 @@ function closeCrumbMenu() {
   crumbMenuLoading.value = false;
   crumbMenuError.value = null;
   crumbMenuActivePath.value = null;
+  crumbMenuStyle.value = {};
+}
+
+function positionCrumbMenu(anchor: HTMLElement) {
+  const rect = anchor.getBoundingClientRect();
+  const menuWidth = Math.min(288, window.innerWidth * 0.7);
+  let left = rect.left;
+  if (left + menuWidth > window.innerWidth - 8) {
+    left = Math.max(8, window.innerWidth - menuWidth - 8);
+  }
+  crumbMenuStyle.value = {
+    position: "fixed",
+    top: `${Math.round(rect.bottom + 4)}px`,
+    left: `${Math.round(left)}px`,
+    zIndex: "120",
+  };
 }
 
 function closeChromeMenus() {
@@ -165,13 +182,22 @@ function pathKey(path: string): string {
   return path.replace(/\//g, "\\").replace(/\\+$/, "").toLowerCase();
 }
 
-async function toggleCrumbMenu(index: number, parentPath: string) {
+async function toggleCrumbMenu(
+  index: number,
+  parentPath: string,
+  event?: MouseEvent,
+) {
   closePlacesMenu();
   closeWorkGroupMenu();
   if (crumbMenuIndex.value === index) {
     closeCrumbMenu();
     return;
   }
+  const anchor =
+    event?.currentTarget instanceof HTMLElement
+      ? event.currentTarget
+      : document.querySelector<HTMLElement>(`[data-crumb-chevron="${index}"]`);
+  if (anchor) positionCrumbMenu(anchor);
   crumbMenuIndex.value = index;
   crumbSiblings.value = [];
   crumbMenuError.value = null;
@@ -342,15 +368,18 @@ function onDocumentPointerDown(event: PointerEvent) {
   if (!(target instanceof Node)) return;
   const placesRoot = document.getElementById("navigator-places-menu");
   const wgRoot = document.getElementById("navigator-work-group-menu");
-  const crumbRoot = document.getElementById("navigator-crumb-menu");
+  const crumbBar = document.getElementById("navigator-crumb-menu");
+  const crumbFlyout = document.getElementById("navigator-crumb-siblings");
   if (placesMenuOpen.value && placesRoot && !placesRoot.contains(target)) {
     closePlacesMenu();
   }
   if (workGroupMenuOpen.value && wgRoot && !wgRoot.contains(target)) {
     closeWorkGroupMenu();
   }
-  if (crumbMenuIndex.value !== null && crumbRoot && !crumbRoot.contains(target)) {
-    closeCrumbMenu();
+  if (crumbMenuIndex.value !== null) {
+    const inBar = crumbBar?.contains(target);
+    const inFlyout = crumbFlyout?.contains(target);
+    if (!inBar && !inFlyout) closeCrumbMenu();
   }
 }
 
@@ -1020,6 +1049,7 @@ onUnmounted(() => {
                   <button
                     type="button"
                     class="crumb-chevron"
+                    :data-crumb-chevron="index"
                     :class="{ 'crumb-chevron--open': crumbMenuIndex === index }"
                     :title="t('chrome.crumbSiblings')"
                     :aria-label="t('chrome.crumbSiblings')"
@@ -1027,50 +1057,53 @@ onUnmounted(() => {
                     :aria-controls="
                       crumbMenuIndex === index ? 'navigator-crumb-siblings' : undefined
                     "
-                    @click.stop="toggleCrumbMenu(index, crumb.path)"
+                    @click.stop="toggleCrumbMenu(index, crumb.path, $event)"
                   >
                     ›
                   </button>
-                  <div
-                    v-if="crumbMenuIndex === index"
-                    id="navigator-crumb-siblings"
-                    class="crumb-menu fluent-surface"
-                    role="menu"
-                    :aria-label="t('chrome.crumbSiblings')"
-                    @click.stop
-                  >
-                    <p v-if="crumbMenuLoading" class="crumb-menu-status">
-                      {{ t("chrome.crumbSiblingsLoading") }}
-                    </p>
-                    <p v-else-if="crumbMenuError" class="crumb-menu-status crumb-menu-status--error">
-                      {{ crumbMenuError }}
-                    </p>
-                    <p v-else-if="!crumbSiblings.length" class="crumb-menu-status">
-                      {{ t("chrome.crumbSiblingsEmpty") }}
-                    </p>
-                    <button
-                      v-for="sibling in crumbSiblings"
-                      :key="sibling.path"
-                      type="button"
-                      class="crumb-menu-item"
-                      role="menuitem"
-                      :class="{
-                        'crumb-menu-item--active':
-                          crumbMenuActivePath &&
-                          pathKey(sibling.path) === pathKey(crumbMenuActivePath),
-                      }"
-                      :title="sibling.path"
-                      @click="onCrumbSibling(sibling.path)"
-                    >
-                      <FluentIcon name="folder" size="sm" />
-                      <span>{{ sibling.name }}</span>
-                    </button>
-                  </div>
                 </div>
               </div>
             </template>
             <span v-else class="crumb-placeholder">{{ t("chrome.pathPlaceholder") }}</span>
           </div>
+          <Teleport to="body">
+            <div
+              v-if="crumbMenuIndex !== null"
+              id="navigator-crumb-siblings"
+              class="crumb-menu fluent-surface"
+              role="menu"
+              :aria-label="t('chrome.crumbSiblings')"
+              :style="crumbMenuStyle"
+              @click.stop
+            >
+              <p v-if="crumbMenuLoading" class="crumb-menu-status">
+                {{ t("chrome.crumbSiblingsLoading") }}
+              </p>
+              <p v-else-if="crumbMenuError" class="crumb-menu-status crumb-menu-status--error">
+                {{ crumbMenuError }}
+              </p>
+              <p v-else-if="!crumbSiblings.length" class="crumb-menu-status">
+                {{ t("chrome.crumbSiblingsEmpty") }}
+              </p>
+              <button
+                v-for="sibling in crumbSiblings"
+                :key="sibling.path"
+                type="button"
+                class="crumb-menu-item"
+                role="menuitem"
+                :class="{
+                  'crumb-menu-item--active':
+                    crumbMenuActivePath &&
+                    pathKey(sibling.path) === pathKey(crumbMenuActivePath),
+                }"
+                :title="sibling.path"
+                @click="onCrumbSibling(sibling.path)"
+              >
+                <FluentIcon name="folder" size="sm" />
+                <span>{{ sibling.name }}</span>
+              </button>
+            </div>
+          </Teleport>
           <input
             v-else
             id="address-input"
@@ -1529,11 +1562,8 @@ onUnmounted(() => {
   outline: none;
 }
 
+/* Portaled to body (fixed via inline style) so path-bar overflow cannot clip it. */
 .crumb-menu {
-  position: absolute;
-  top: calc(100% + 0.2rem);
-  left: 0;
-  z-index: 40;
   min-width: 11rem;
   max-width: min(18rem, 70vw);
   max-height: min(18rem, 50vh);
