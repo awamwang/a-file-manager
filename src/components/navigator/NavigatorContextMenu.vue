@@ -13,7 +13,6 @@ import {
   hasClipboard,
   pathsWithoutRecycle,
   pasteClipboard,
-  renameEntry,
   setClipboard,
 } from "../../state/fileClipboard";
 import {
@@ -53,6 +52,8 @@ const emit = defineEmits<{
   favoritesChanged: [];
   listingChanged: [];
   openProperties: [path: string];
+  /** Parent starts Windows-style inline rename (no modal). */
+  requestRename: [path: string];
 }>();
 
 const { t } = useI18n();
@@ -260,24 +261,6 @@ async function runPaste() {
       return;
     }
     emit("notice", t("contextMenu.pasted", { count: result.paths.length }));
-    await refreshListing();
-  } catch (err) {
-    emit("notice", err instanceof Error ? err.message : String(err));
-  }
-}
-
-async function runRename(entry: NavigatorEntry) {
-  const next = window.prompt(t("contextMenu.renamePrompt"), entry.name);
-  if (next == null) return;
-  const trimmed = next.trim();
-  if (!trimmed || trimmed === entry.name) return;
-  try {
-    const result = await renameEntry(entry.path, trimmed);
-    if (!result.ok) {
-      emit("notice", result.error ?? t("contextMenu.opFailed"));
-      return;
-    }
-    emit("notice", t("contextMenu.renamed"));
     await refreshListing();
   } catch (err) {
     emit("notice", err instanceof Error ? err.message : String(err));
@@ -539,7 +522,7 @@ async function run(id: string) {
       await runPaste();
       break;
     case "rename":
-      if (entry) await runRename(entry);
+      if (entry) emit("requestRename", entry.path);
       break;
     case "newFolder":
       await runNewFolder();

@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import {
@@ -149,6 +149,127 @@ let marqueeOrigin: { x: number; y: number } | null = null;
 let marqueeActive = false;
 const dragOverPath = ref<string | null>(null);
 
+/** Windows Explorer–style inline rename (no modal). */
+const renamingPath = ref<string | null>(null);
+const renameDraft = ref("");
+const renameInputEl = ref<HTMLInputElement | null>(null);
+/** Delay before name-click rename so double-click can still open. */
+const NAME_RENAME_DELAY_MS = 500;
+let pendingNameRenameTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingNameRenamePath: string | null = null;
+
+function setRenameInputEl(el: unknown) {
+  renameInputEl.value = el instanceof HTMLInputElement ? el : null;
+}
+
+function clearPendingNameRename() {
+  if (pendingNameRenameTimer != null) {
+    clearTimeout(pendingNameRenameTimer);
+    pendingNameRenameTimer = null;
+  }
+  pendingNameRenamePath = null;
+}
+
+/** Select basename for files (keep extension); full name for folders. */
+function focusRenameInput(name: string, kind: NavigatorEntry["kind"]) {
+  const input = renameInputEl.value;
+  if (!input) return;
+  input.focus();
+  if (kind === "dir") {
+    input.select();
+    return;
+  }
+  const dot = name.lastIndexOf(".");
+  if (dot > 0) {
+    input.setSelectionRange(0, dot);
+  } else {
+    input.select();
+  }
+}
+
+function startInlineRename(entry: NavigatorEntry) {
+  clearPendingNameRename();
+  selectOnly(entry.path);
+  renamingPath.value = entry.path;
+  renameDraft.value = entry.name;
+  void nextTick(() => {
+    focusRenameInput(entry.name, entry.kind);
+  });
+}
+
+function cancelInlineRename() {
+  clearPendingNameRename();
+  renamingPath.value = null;
+  renameDraft.value = "";
+}
+
+function onRenameBlur() {
+  // Defer so Enter-commit can clear `renamingPath` first in the same turn.
+  queueMicrotask(() => {
+    if (renamingPath.value) cancelInlineRename();
+  });
+}
+
+async function commitInlineRename() {
+  const path = renamingPath.value;
+  if (!path) return;
+  const entry = visibleEntries.value.find((e) => e.path === path) ?? null;
+  const next = renameDraft.value.trim();
+  renamingPath.value = null;
+  renameDraft.value = "";
+  if (!entry || !next || next === entry.name) return;
+  try {
+    const result = await renameEntry(entry.path, next);
+    if (!result.ok) {
+      onNotice(result.error ?? t("contextMenu.opFailed"), "error");
+      return;
+    }
+    onNotice(t("contextMenu.renamed"));
+    await refreshListing();
+    const renamed = result.paths[0];
+    if (renamed) selectOnly(renamed);
+  } catch (err) {
+    onNotice(err instanceof Error ? err.message : String(err), "error");
+  }
+}
+
+/**
+ * Explorer-like: click the name of an already-selected sole item → rename
+ * (delayed so dblclick still opens).
+ */
+function onNameClick(event: MouseEvent, entry: NavigatorEntry) {
+  if (event.shiftKey || event.ctrlKey || event.metaKey) return;
+  if (renamingPath.value === entry.path) {
+    event.stopPropagation();
+    return;
+  }
+  const soleSelected =
+    isSelected(entry.path) &&
+    selectedPaths.value.length === 1 &&
+    selectedPaths.value[0] === entry.path;
+  if (!soleSelected) return;
+  event.stopPropagation();
+  clearPendingNameRename();
+  pendingNameRenamePath = entry.path;
+  pendingNameRenameTimer = setTimeout(() => {
+    pendingNameRenameTimer = null;
+    if (pendingNameRenamePath !== entry.path) return;
+    pendingNameRenamePath = null;
+    if (
+      isSelected(entry.path) &&
+      selectedPaths.value.length === 1 &&
+      selectedPaths.value[0] === entry.path
+    ) {
+      startInlineRename(entry);
+    }
+  }, NAME_RENAME_DELAY_MS);
+}
+
+function onRequestRename(path: string) {
+  const entry = visibleEntries.value.find((e) => e.path === path);
+  if (entry) startInlineRename(entry);
+}
+
 const visibleEntries = computed(() => {
   if (!listing.value) return [];
   const sorted = sortedEntries(listing.value.entries);
@@ -218,10 +339,15 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  clearPendingNameRename();
   unregisterNavFileShortcuts();
   window.removeEventListener("mousemove", onMarqueeMove);
   window.removeEventListener("mouseup", onMarqueeEnd);
   window.removeEventListener("focus", onWindowFocus);
+});
+
+watch(currentPath, () => {
+  if (renamingPath.value) cancelInlineRename();
 });
 
 function formatSize(entry: NavigatorEntry): string {
@@ -276,6 +402,8 @@ function shellIcon(path: string): string | null {
 }
 
 function onActivate(entry: NavigatorEntry) {
+  clearPendingNameRename();
+  if (renamingPath.value) cancelInlineRename();
   // Primary list always uses openEntry; secondary pane has its own handler.
   void openEntry(entry).catch((err) => {
     toastError(err instanceof Error ? err.message : String(err));
@@ -294,11 +422,17 @@ function onActivateSecondary(entry: NavigatorEntry) {
 }
 
 function onRowClick(event: MouseEvent, entry: NavigatorEntry) {
+  // Clicking away from a pending name-rename (or another row) cancels the delay.
+  if (pendingNameRenamePath && pendingNameRenamePath !== entry.path) {
+    clearPendingNameRename();
+  }
   if (event.shiftKey) {
+    clearPendingNameRename();
     selectRange(orderedPaths.value, selectionAnchor.value, entry.path);
     return;
   }
   if (event.ctrlKey || event.metaKey) {
+    clearPendingNameRename();
     toggleInSelection(entry.path);
     return;
   }
@@ -398,25 +532,10 @@ async function shortcutCopyPath() {
   }
 }
 
-async function shortcutRename() {
+function shortcutRename() {
   const entry = primaryEntry();
   if (!entry) return;
-  const next = window.prompt(t("contextMenu.renamePrompt"), entry.name);
-  if (next == null) return;
-  const trimmed = next.trim();
-  if (!trimmed || trimmed === entry.name) return;
-  try {
-    const result = await renameEntry(entry.path, trimmed);
-    if (!result.ok) {
-      onNotice(result.error ?? t("contextMenu.opFailed"));
-      return;
-    }
-    onNotice(t("contextMenu.renamed"));
-    clearSelection();
-    await refreshListing();
-  } catch (err) {
-    onNotice(err instanceof Error ? err.message : String(err));
-  }
+  startInlineRename(entry);
 }
 
 async function shortcutNewFolder() {
@@ -497,7 +616,7 @@ function registerNavFileShortcuts() {
     void shortcutPaste();
   });
   registerShortcutHandler("navigator.rename", () => {
-    void shortcutRename();
+    shortcutRename();
   });
   registerShortcutHandler("navigator.copyPath", () => {
     void shortcutCopyPath();
@@ -750,7 +869,23 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
           />
           <FluentIcon v-else :name="entryKindIcon(entry.kind === 'dir')" size="md" />
         </span>
-        <span class="name">{{ entry.name }}</span>
+        <input
+          v-if="renamingPath === entry.path"
+          :ref="setRenameInputEl"
+          v-model="renameDraft"
+          class="fluent-control inline-rename"
+          :aria-label="t('contextMenu.rename')"
+          @click.stop
+          @dblclick.stop
+          @keydown.enter.prevent.stop="commitInlineRename"
+          @keydown.escape.prevent.stop="cancelInlineRename"
+          @blur="onRenameBlur"
+        />
+        <span
+          v-else
+          class="name"
+          @click="onNameClick($event, entry)"
+        >{{ entry.name }}</span>
         <span v-if="isDetailsView" class="size">{{ formatSize(entry) }}</span>
         <span v-if="isDetailsView" class="modified">{{ formatModified(entry) }}</span>
       </div>
@@ -836,6 +971,7 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
       @favorites-changed="loadFavorites"
       @listing-changed="refreshListing"
       @open-properties="openProperties"
+      @request-rename="onRequestRename"
     />
     <PropertiesPanel
       :open="propertiesOpen"
@@ -968,6 +1104,12 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
   font-size: var(--fluent-font-size-caption);
 }
 
+.list--icons .row--icon .inline-rename {
+  width: 100%;
+  text-align: center;
+  font-size: var(--fluent-font-size-caption);
+}
+
 .list--icons .shell-icon {
   width: auto;
   height: auto;
@@ -1071,6 +1213,15 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+}
+
+.inline-rename {
+  min-width: 0;
+  width: 100%;
+  padding: 1px var(--fluent-space-xs);
+  font: inherit;
+  line-height: inherit;
 }
 
 .size {
