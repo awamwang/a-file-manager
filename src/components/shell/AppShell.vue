@@ -7,7 +7,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import CommandPanel from "../command/CommandPanel.vue";
+import ToastHost from "./ToastHost.vue";
 import FluentIcon from "../icons/FluentIcon.vue";
+import { toastError, toastInfo } from "../../state/toast";
 import { NAV_ICON_BY_ID } from "../icons/glyphs";
 import { buildAppCommands } from "../../commands/registry";
 import { toggleCommandPanel } from "../../state/commandPanel";
@@ -387,6 +389,19 @@ watch(isNavigatorRoute, (onNavigator) => {
     closeChromeMenus();
     closeNavigatorFilter();
   }
+});
+
+watch(workGroupSoftNotice, (notice) => {
+  if (!notice) return;
+  toastInfo(
+    t("workGroups.softSync", { paths: notice.openedMemberPaths.join(", ") }),
+  );
+  dismissWorkGroupSoftNotice();
+});
+
+watch(workGroupChromeError, (err) => {
+  if (!err || err === "REQUIRE_SAVE_PROMPT") return;
+  toastError(err);
 });
 
 /** Files-like primary status (item counts) — left side of the shell status bar. */
@@ -1031,28 +1046,7 @@ onUnmounted(() => {
           </button>
         </div>
 
-        <p
-          v-if="workGroupSoftNotice"
-          class="fluent-banner fluent-banner--info chrome-wg-banner"
-          role="status"
-        >
-          {{
-            t("workGroups.softSync", {
-              paths: workGroupSoftNotice.openedMemberPaths.join(", "),
-            })
-          }}
-          <button type="button" class="linkish" @click="dismissWorkGroupSoftNotice">
-            {{ t("common.dismiss") }}
-          </button>
-        </p>
-        <p
-          v-if="workGroupChromeError && workGroupChromeError !== 'REQUIRE_SAVE_PROMPT'"
-          class="fluent-banner fluent-banner--error chrome-wg-banner"
-          role="alert"
-        >
-          {{ workGroupChromeError }}
-        </p>
-      </template>
+        </template>
 
         <main class="content" :class="{ 'content--navigator': isNavigatorRoute }">
           <slot />
@@ -1124,6 +1118,7 @@ onUnmounted(() => {
       </div>
     </div>
 
+    <ToastHost />
     <CommandPanel :commands="panelCommands" />
   </div>
 </template>
@@ -1338,24 +1333,6 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--fluent-font-size-caption);
-}
-
-.chrome-wg-banner {
-  margin: 0;
-  padding: var(--fluent-space-xs) var(--fluent-space-md);
-  display: flex;
-  align-items: center;
-  gap: var(--fluent-space-sm);
-  flex-shrink: 0;
-}
-
-.chrome-wg-banner .linkish {
-  border: 0;
-  background: transparent;
-  color: var(--fluent-color-text-accent, var(--fluent-color-fill-accent));
-  cursor: pointer;
-  text-decoration: underline;
-  font: inherit;
 }
 
 .breadcrumbs {

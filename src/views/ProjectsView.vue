@@ -9,9 +9,9 @@ import {
   openOrFocusNavigatorTab,
   openPathsAsNavigatorTabs,
   snapshotLiveOpenState,
-  type SoftSyncNotice,
   type SilentSwitchResult,
 } from "../state/navigatorBrowse";
+import { toastInfo, toastSuccess } from "../state/toast";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import type { FluentGlyphId } from "../components/icons/glyphs";
 
@@ -115,8 +115,6 @@ const workGroups = ref<WorkGroupOption[]>([]);
 const selectedId = ref<string | null>(null);
 const viewMode = ref<"list" | "board">("board");
 const error = ref<string | null>(null);
-const notice = ref<string | null>(null);
-const softNotice = ref<SoftSyncNotice | null>(null);
 const loading = ref(false);
 
 const newName = ref("");
@@ -189,7 +187,6 @@ function syncBindDraft() {
 
 async function selectProject(id: string) {
   error.value = null;
-  softNotice.value = null;
   selectedId.value = id;
   syncBindDraft();
   syncContextDraft();
@@ -199,7 +196,12 @@ async function selectProject(id: string) {
       liveOpenState: snapshotLiveOpenState(),
     });
     document.value = result.projects;
-    softNotice.value = await applyProjectSilentSwitch(result.silentSwitch);
+    const soft = await applyProjectSilentSwitch(result.silentSwitch);
+    if (soft?.openedMemberPaths?.length) {
+      toastInfo(
+        t("workGroups.softSync", { paths: soft.openedMemberPaths.join(", ") }),
+      );
+    }
   } catch (err) {
     error.value = mapProjectError(err);
   }
@@ -234,9 +236,11 @@ async function bindSelectedWorkGroup() {
       workGroupId: bindWorkGroupId.value.trim() || null,
     });
     syncBindDraft();
-    notice.value = bindWorkGroupId.value
-      ? t("projects.noticeBound")
-      : t("projects.noticeUnbound");
+    toastSuccess(
+      bindWorkGroupId.value
+        ? t("projects.noticeBound")
+        : t("projects.noticeUnbound"),
+    );
   } catch (err) {
     error.value = mapProjectError(err);
   }
@@ -253,7 +257,7 @@ async function saveMembersFromTabs() {
       projectId: selected.value.id,
       liveOpenState: snapshotLiveOpenState(),
     });
-    notice.value = t("projects.noticeMembersSaved");
+    toastSuccess(t("projects.noticeMembersSaved"));
     await refresh();
   } catch (err) {
     error.value = mapProjectError(err);
@@ -294,7 +298,7 @@ async function saveContext() {
     projectId: selected.value.id,
     contextNotes: contextDraft.value,
   });
-  notice.value = t("projects.noticeContextSaved");
+  toastSuccess(t("projects.noticeContextSaved"));
 }
 
 async function addTask() {
@@ -331,7 +335,6 @@ async function deleteTask(taskId: string) {
 async function openAllLinks() {
   if (!selected.value) return;
   error.value = null;
-  notice.value = null;
   const result = await invoke<OpenAllResult>("projects_open_all_links", {
     projectId: selected.value.id,
   });
@@ -340,11 +343,11 @@ async function openAllLinks() {
     return;
   }
   if (!result.paths.length) {
-    notice.value = t("projects.noticeNoLinks");
+    toastInfo(t("projects.noticeNoLinks"));
     return;
   }
   await openPathsAsNavigatorTabs(result.paths);
-  notice.value = t("projects.noticeOpened", { count: result.paths.length });
+  toastSuccess(t("projects.noticeOpened", { count: result.paths.length }));
   await router.push("/navigator");
 }
 
@@ -368,14 +371,6 @@ onMounted(() => {
 
     <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
     <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
-    <p v-if="notice" class="fluent-banner fluent-banner--info banner--soft">
-      {{ notice }}
-      <button type="button" class="linkish" @click="notice = null">{{ t("common.dismiss") }}</button>
-    </p>
-    <p v-if="softNotice" class="fluent-banner fluent-banner--info banner--soft">
-      {{ t("workGroups.softSync", { paths: softNotice.openedMemberPaths.join(", ") }) }}
-      <button type="button" class="linkish" @click="softNotice = null">{{ t("common.dismiss") }}</button>
-    </p>
 
     <div v-if="document" class="layout">
       <aside class="master-list">
@@ -604,12 +599,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.banner--soft {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--fluent-space-md);
-}
-
 .linkish {
   border: 0;
   background: transparent;

@@ -54,6 +54,7 @@ import {
   entryMatchesFilter,
   navigatorFilterQuery,
 } from "../state/navigatorFilter";
+import { toastError, toastSuccess } from "../state/toast";
 import {
   registerShortcutHandler,
   unregisterShortcutHandler,
@@ -69,8 +70,6 @@ const menuEntry = ref<NavigatorEntry | null>(null);
 const menuEmpty = ref(false);
 const menuX = ref(0);
 const menuY = ref(0);
-const notice = ref<string | null>(null);
-let noticeTimer: ReturnType<typeof setTimeout> | null = null;
 
 const listRoot = ref<HTMLElement | null>(null);
 const marquee = ref<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -197,13 +196,9 @@ function closeMenu() {
   menuEmpty.value = false;
 }
 
-function onNotice(message: string) {
-  notice.value = message;
-  if (noticeTimer) clearTimeout(noticeTimer);
-  noticeTimer = setTimeout(() => {
-    notice.value = null;
-    noticeTimer = null;
-  }, 2800);
+function onNotice(message: string, kind: "success" | "error" = "success") {
+  if (kind === "error") toastError(message);
+  else toastSuccess(message);
 }
 
 async function refreshListing() {
@@ -302,7 +297,7 @@ async function shortcutDelete() {
   try {
     const blocked = await pathsWithoutRecycle(paths);
     if (blocked.length) {
-      onNotice(t("contextMenu.deleteNoRecycle"));
+      onNotice(t("contextMenu.deleteNoRecycle"), "error");
       return;
     }
     const label =
@@ -477,8 +472,6 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
 <template>
   <!-- AIA-78: no in-page title / Kernel status meta — path via shell address bar + pane-path; counts in shell statusbar. -->
   <section class="fluent-page fluent-page--navigator">
-    <p v-if="notice" class="fluent-banner fluent-banner--success">{{ notice }}</p>
-
     <div class="panes" :class="{ 'panes--dual': dualPaneEnabled }">
     <div
       class="pane"

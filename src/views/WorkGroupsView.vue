@@ -11,6 +11,7 @@ import {
 } from "../state/navigatorBrowse";
 import type { WorkGroupOpenState } from "../state/openStateModel";
 import FluentIcon from "../components/icons/FluentIcon.vue";
+import { toastError, toastInfo, toastSuccess } from "../state/toast";
 
 const { t } = useI18n();
 
@@ -42,8 +43,6 @@ type SilentSwitchResult = {
 };
 
 const document = ref<UserWorkGroups | null>(null);
-const notice = ref<SoftNotice | null>(null);
-const promoteNotice = ref<string | null>(null);
 const error = ref<string | null>(null);
 const newName = ref("");
 const memberPath = ref("");
@@ -90,11 +89,17 @@ async function silentSwitch(targetId: string) {
     liveOpenState: snapshotLiveOpenState(),
   });
   if (result.requireSavePrompt) {
-    error.value = t("workGroups.errorSavePrompt");
+    const msg = t("workGroups.errorSavePrompt");
+    error.value = msg;
+    toastError(msg);
     return;
   }
   document.value = result.document;
-  notice.value = result.notice;
+  if (result.notice) {
+    toastInfo(
+      t("workGroups.softSync", { paths: result.notice.openedMemberPaths.join(", ") }),
+    );
+  }
   await restoreWorkGroupOpenState(
     result.document.activeWorkGroupId,
     result.openStateToRestore,
@@ -111,7 +116,9 @@ async function addMember() {
     liveOpenState: snapshotLiveOpenState(),
   });
   document.value = nextDoc;
-  notice.value = soft;
+  if (soft) {
+    toastInfo(t("workGroups.softSync", { paths: soft.openedMemberPaths.join(", ") }));
+  }
   memberPath.value = "";
   await restoreWorkGroupOpenState(active.value.id, nextOpen);
 }
@@ -127,21 +134,21 @@ async function saveMembersFromTabs() {
 async function promoteToProject() {
   if (!active.value || active.value.isDefault) return;
   error.value = null;
-  promoteNotice.value = null;
   try {
     await invoke("projects_promote_from_work_group", {
       workGroupId: active.value.id,
     });
-    promoteNotice.value = t("workGroups.promoteDone", { name: active.value.name });
+    toastSuccess(t("workGroups.promoteDone", { name: active.value.name }));
   } catch (err) {
     const raw = err instanceof Error ? err.message : String(err);
+    let msg = raw;
     if (raw.includes("PROJECT_DEFAULT_WORK_GROUP_FORBIDDEN")) {
-      error.value = t("projects.errorDefaultWorkGroup");
+      msg = t("projects.errorDefaultWorkGroup");
     } else if (raw.includes("PROJECT_UNKNOWN_WORK_GROUP")) {
-      error.value = t("projects.errorUnknownWorkGroup");
-    } else {
-      error.value = raw;
+      msg = t("projects.errorUnknownWorkGroup");
     }
+    error.value = msg;
+    toastError(msg);
   }
 }
 
@@ -158,15 +165,6 @@ onMounted(() => {
     </header>
 
     <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
-    <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
-    <p v-if="notice" class="fluent-banner fluent-banner--info banner--soft">
-      {{ t("workGroups.softSync", { paths: notice.openedMemberPaths.join(", ") }) }}
-      <button type="button" class="linkish" @click="notice = null">{{ t("common.dismiss") }}</button>
-    </p>
-    <p v-if="promoteNotice" class="fluent-banner fluent-banner--info banner--soft">
-      {{ promoteNotice }}
-      <button type="button" class="linkish" @click="promoteNotice = null">{{ t("common.dismiss") }}</button>
-    </p>
 
     <div v-if="document" class="layout">
       <aside class="master-list">

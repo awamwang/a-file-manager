@@ -14,6 +14,7 @@ import { loadFavorites } from "../state/favorites";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import NavigatorContextMenu from "../components/navigator/NavigatorContextMenu.vue";
 import { entryKindIcon } from "../components/icons/glyphs";
+import { toastError, toastSuccess } from "../state/toast";
 
 type DiscoveryEngine = "everything" | "fallback" | "unavailable";
 type DiscoveryIndexState = "ready" | "degraded" | "unavailable";
@@ -60,8 +61,6 @@ const menuOpen = ref(false);
 const menuEntry = ref<NavigatorEntry | null>(null);
 const menuX = ref(0);
 const menuY = ref(0);
-const notice = ref<string | null>(null);
-let noticeTimer: ReturnType<typeof setTimeout> | null = null;
 
 const everythingStatusText = computed(() => {
   if (!status.value) return "";
@@ -120,12 +119,7 @@ function onHitContext(event: MouseEvent, hit: DiscoveryHit) {
 }
 
 function onNotice(message: string) {
-  notice.value = message;
-  if (noticeTimer) clearTimeout(noticeTimer);
-  noticeTimer = setTimeout(() => {
-    notice.value = null;
-    noticeTimer = null;
-  }, 2800);
+  toastSuccess(message);
 }
 
 async function focusSearchInput() {
@@ -168,7 +162,9 @@ async function saveBlacklist() {
     });
     blacklistDraft.value = (status.value.blacklist ?? []).join("\n");
   } catch (err) {
-    error.value = err instanceof Error ? err.message : String(err);
+    const msg = err instanceof Error ? err.message : String(err);
+    error.value = msg;
+    toastError(msg);
   } finally {
     blacklistSaving.value = false;
   }
@@ -186,7 +182,9 @@ async function runSearch() {
     });
     requestShellIcons((result.value?.hits ?? []).map((h) => normalizeHitPath(h.path)));
   } catch (err) {
-    error.value = err instanceof Error ? err.message : String(err);
+    const msg = err instanceof Error ? err.message : String(err);
+    error.value = msg;
+    toastError(msg);
   } finally {
     loading.value = false;
   }
@@ -321,9 +319,7 @@ onMounted(() => {
       </button>
     </form>
 
-    <p v-if="notice" class="fluent-banner fluent-banner--success">{{ notice }}</p>
-    <p v-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
-    <p v-else-if="result && result.hits.length === 0" class="fluent-banner fluent-banner--info">
+    <p v-if="result && result.hits.length === 0" class="fluent-banner fluent-banner--info">
       {{ t("discovery.noHits", { engine: resultEngineLabel, total: result.totalCount }) }}
     </p>
 
