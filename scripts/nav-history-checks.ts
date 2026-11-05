@@ -7,6 +7,7 @@ import {
   canGoBack,
   canGoForward,
   endHistoryNavigation,
+  navigableParentPath,
   popBack,
   popForward,
   recordNavHistory,
@@ -61,6 +62,19 @@ assert.equal(withRoot[2].path, "C:\\Users");
 const guideOnly = buildNavigatorBreadcrumbs(GUIDE_PATH, "This PC");
 assert.equal(guideOnly.length, 1);
 assert.equal(guideOnly[0].kind, "root");
+
+// AIA-149: Up from drive / share root lands on the same guide as new-tab.
+assert.equal(navigableParentPath("D:\\"), GUIDE_PATH);
+assert.equal(navigableParentPath("D:/"), GUIDE_PATH);
+assert.equal(navigableParentPath("D:"), GUIDE_PATH);
+assert.equal(navigableParentPath("C:\\Users"), "C:\\");
+assert.equal(navigableParentPath("\\\\server\\share"), GUIDE_PATH);
+assert.equal(navigableParentPath("\\\\server\\share\\docs"), "\\\\server\\share");
+assert.equal(navigableParentPath(GUIDE_PATH), null);
+assert.equal(
+  buildNavigatorBreadcrumbs("D:\\", "This PC")[0].path,
+  navigableParentPath("D:\\"),
+);
 
 resetNavHistory();
 console.log("Nav history / breadcrumb checks OK (AIA-63).");

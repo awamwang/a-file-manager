@@ -167,4 +167,13 @@ mod tests {
         let parent = parent_path(r"C:\Windows\System32").unwrap();
         assert_eq!(parent.as_deref(), Some(r"C:\Windows"));
     }
+
+    #[test]
+    fn parent_of_drive_roots_is_none() {
+        for p in [r"D:\", r"D:/", r"D:", r"C:\", r"G:\", r"\\server\share"] {
+            let got = parent_path(p).unwrap();
+            assert!(got.is_none(), "{p} should have no FS parent, got {got:?}");
+        }
+        assert_eq!(parent_path(r"D:\Projects").unwrap().as_deref(), Some(r"D:\"));
+    }
 }

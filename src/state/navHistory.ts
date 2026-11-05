@@ -152,3 +152,37 @@ export function buildNavigatorBreadcrumbs(
   }
   return [root, ...buildBreadcrumbs(path)];
 }
+
+/**
+ * Up / parent target aligned with breadcrumb hierarchy.
+ * Drive roots (`D:\`) and UNC share roots (`\\server\share`) → guide (`afm://guide`).
+ * Guide / empty → `null` (nowhere further).
+ */
+export function navigableParentPath(path: string): string | null {
+  const trimmed = path.trim();
+  if (!trimmed || isGuidePath(trimmed) || normalizeGuideLike(trimmed)) {
+    return null;
+  }
+
+  const raw = trimmed.replace(/\//g, "\\");
+
+  // Windows drive root: `D:`, `D:\`, `D:/`
+  if (/^[A-Za-z]:\\?$/.test(raw)) {
+    return GUIDE_PATH;
+  }
+
+  // UNC host or share root: `\\server` / `\\server\share` (Kernel parent is None).
+  if (raw.startsWith("\\\\")) {
+    const parts = raw.slice(2).split("\\").filter(Boolean);
+    if (parts.length <= 2) {
+      return GUIDE_PATH;
+    }
+  }
+
+  const crumbs = buildBreadcrumbs(trimmed);
+  if (crumbs.length <= 1) {
+    // Single-segment roots still climb to the guide landing.
+    return GUIDE_PATH;
+  }
+  return crumbs[crumbs.length - 2]!.path;
+}

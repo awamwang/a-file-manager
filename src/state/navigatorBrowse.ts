@@ -20,7 +20,7 @@ import {
   type SwitchAdjacentDirection,
   type WorkGroupOpenState,
 } from "./openStateModel";
-import { recordNavHistory } from "./navHistory";
+import { navigableParentPath, recordNavHistory } from "./navHistory";
 import { GUIDE_PATH, isGuidePath } from "./navigatorGuide";
 import { readNewTabBehavior } from "./newTabBehavior";
 import { recordPathVisit } from "./visitStats";
@@ -401,6 +401,13 @@ export async function loadDefaultPath(): Promise<void> {
 
 export async function goUp(): Promise<void> {
   if (!currentPath.value || isGuidePath(currentPath.value)) return;
+  // Breadcrumb-aligned parent (drive / UNC share root → guide). Prefer pure
+  // path logic so Up matches the This PC crumb even when IPC parent is null.
+  const logical = navigableParentPath(currentPath.value);
+  if (logical) {
+    await navigateTo(logical);
+    return;
+  }
   const parent = await invoke<string | null>("navigator_parent", {
     path: currentPath.value,
   });
@@ -408,7 +415,7 @@ export async function goUp(): Promise<void> {
     await navigateTo(parent);
     return;
   }
-  // Drive / share root → Windows-style guide / This PC landing.
+  // Last resort: Kernel root with no FS parent → guide landing.
   await navigateTo(GUIDE_PATH);
 }
 

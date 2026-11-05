@@ -26,6 +26,10 @@ assert.ok(shell.includes("loadNavigatorPlaces"));
 assert.ok(shell.includes("resolveHomePath"));
 assert.ok(browse.includes("readNewTabBehavior"));
 assert.ok(browse.includes("GUIDE_PATH"));
+assert.ok(
+  browse.includes("navigableParentPath"),
+  "goUp must use breadcrumb-aligned navigableParentPath (drive root → guide)",
+);
 assert.ok(behavior.includes("core.newTabBehavior"));
 assert.ok(defaults.includes('"core.newTabBehavior"'));
 assert.ok(defaults.includes('"guide"'));
