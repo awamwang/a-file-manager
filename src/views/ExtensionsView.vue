@@ -149,7 +149,7 @@ onMounted(() => {
     <div v-if="status" class="grid">
       <article class="fluent-surface card" :class="{ 'card--warn': status.crashedCount > 0 }">
         <h2 class="section-title">
-          <span class="fluent-icon-wash"><FluentIcon name="heart" size="md" /></span>
+          <span class="fluent-icon-wash"><FluentIcon name="heartPulse" size="md" /></span>
           {{ t("extensions.hostStatus") }}
         </h2>
         <ul>

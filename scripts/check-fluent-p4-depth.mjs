@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 const checks = [
-  ["src/views/ExtensionsView.vue", ["section-title", 'name="puzzle"', 'name="cloud"', 'name="heart"']],
+  ["src/views/ExtensionsView.vue", ["section-title", 'name="puzzle"', 'name="cloud"', 'name="heartPulse"']],
   ["src/views/WorkGroupsView.vue", ["group-head", "viewAll", "'home'"]],
   [
     "src/views/ProjectsView.vue",

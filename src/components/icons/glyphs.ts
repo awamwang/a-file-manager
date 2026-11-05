@@ -20,6 +20,7 @@ export type FluentGlyphId =
   | "puzzle"
   | "settings"
   | "heart"
+  | "heartPulse"
   | "document"
   | "globe"
   | "color"
@@ -141,6 +142,13 @@ export const FLUENT_GLYPHS: Record<FluentGlyphId, FluentGlyph> = {
       "M8 13.2 3.4 8.4A3.2 3.2 0 0 1 8 3.9a3.2 3.2 0 0 1 4.6 4.5L8 13.2z",
     ],
   },
+  /** Segoe HeartPulse — health / ECG metaphor (not favorites). */
+  heartPulse: {
+    codepoint: "\uE95E",
+    paths: [
+      "M1.8 8.2h2.1l1.1-3.2 1.6 6.4 1.4-4.8.9 1.6H14.2v1.3H8.6l-.7-1.2-1.5 5.1-1.8-7.2-.5 1.5H1.8V8.2z",
+    ],
+  },
   document: {
     codepoint: "\uE8A5",
     paths: [
@@ -230,7 +238,7 @@ export const NAV_ICON_BY_ID: Record<string, FluentGlyphId> = {
   projects: "board",
   extensions: "puzzle",
   settings: "settings",
-  health: "heart",
+  health: "heartPulse",
 };
 
 export const SETTINGS_ICON_BY_KEY: Record<string, FluentGlyphId> = {

@@ -91,14 +91,18 @@ const sections = computed(() => [
   {
     id: "favorites" as const,
     label: t("settings.sectionFavorites"),
-    icon: "heart" as FluentGlyphId,
+    icon: "star" as FluentGlyphId,
   },
   {
     id: "shortcuts" as const,
     label: t("settings.sectionShortcuts"),
     icon: "commands" as FluentGlyphId,
   },
-  { id: "health" as const, label: t("settings.sectionHealth"), icon: "heart" as FluentGlyphId },
+  {
+    id: "health" as const,
+    label: t("settings.sectionHealth"),
+    icon: "heartPulse" as FluentGlyphId,
+  },
 ]);
 
 const shortcutRows = computed(() => {
