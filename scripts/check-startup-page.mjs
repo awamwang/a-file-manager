@@ -21,6 +21,6 @@ assert.ok(fields.includes('"navigator"') && fields.includes('"projects"'));
 assert.ok(startup.includes("startupRouteFor"));
 assert.ok(app.includes("startupRouteFor"));
 assert.ok(app.includes("STARTUP_PAGE_SETTING_KEY"));
-assert.equal(en.settings.fields.core.startupPage.options.navigator, "Navigator");
+assert.equal(en.settings.fields.core.startupPage.options.navigator, "Explorer");
 
 console.log("startup page checks OK (AIA-101).");

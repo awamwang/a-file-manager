@@ -75,7 +75,7 @@
     "openDiscovery": "Suche öffnen",
     "openExtensions": "Erweiterungen öffnen",
     "openHealth": "Einstellungen · Health öffnen",
-    "openNavigator": "Navigator öffnen",
+    "openNavigator": "Explorer öffnen",
     "openProjects": "Projekte öffnen",
     "openProviders": "Anbieter öffnen",
     "openSettings": "Einstellungen öffnen",
@@ -180,7 +180,7 @@
     "discovery": "Suche",
     "extensions": "Erweiterungen",
     "health": "Health",
-    "navigator": "Navigator",
+    "navigator": "Explorer",
     "projects": "Projekte",
     "providers": "Anbieter",
     "settings": "Einstellungen",
@@ -194,7 +194,7 @@
     "metaConnected": "Kernel-OS-Browse · {dirs} Ordner · {files} Dateien",
     "metaDisconnected": "Kernel-OS-Browse · nicht verbunden",
     "noPath": "Kein Ordner geöffnet",
-    "title": "Navigator",
+    "title": "Explorer",
     "colName": "Name",
     "colSize": "Größe",
     "nItems": "{count} Elemente",
@@ -226,7 +226,7 @@
     "noOutcomes": "Noch keine Ergebnisse — oben das erste hinzufügen.",
     "noticeContextSaved": "Context-Notizen gespeichert",
     "noticeNoLinks": "Keine Arbeitsbereichslinks zum Öffnen",
-    "noticeOpened": "{count} Pfad(e) als Navigator-Tabs geöffnet",
+    "noticeOpened": "{count} Pfad(e) als Explorer-Tabs geöffnet",
     "openAllLinks": "Alle Links öffnen",
     "openTasks": "{count} offene Aufgaben",
     "outcomes": "Ergebnisse",
@@ -258,7 +258,7 @@
     "renameHint": "Doppelklick zum Umbenennen"
   },
   "providers": {
-    "emptyBackends": "Noch keine Anbieter verfügbar. Lokales Browsen bleibt im Navigator.",
+    "emptyBackends": "Noch keine Anbieter verfügbar. Lokales Browsen bleibt im Explorer.",
     "emptyListing": "An diesem Ort gibt es keine Einträge.",
     "file": "Datei",
     "folder": "Ordner",
@@ -275,14 +275,14 @@
     "fields": {
       "core": {
         "defaultLocation": {
-          "description": "Standard-OS-Pfad im Navigator (leer = USERPROFILE)",
+          "description": "Standard-OS-Pfad im Explorer (leer = USERPROFILE)",
           "title": "Standardort"
         },
         "startupPage": {
           "title": "Startseite",
           "description": "Erste Seite nach dem Start",
           "options": {
-            "navigator": "Navigator",
+            "navigator": "Explorer",
             "projects": "Projekte",
             "discovery": "Suche"
           }
@@ -371,7 +371,7 @@
           }
         },
         "navigatorViewMode": {
-          "title": "Navigator-Ansicht",
+          "title": "Explorer-Ansicht",
           "description": "Windows-ähnlich: große/mittlere/kleine Symbole, Liste oder Details",
           "options": {
             "iconsLarge": "Sehr große Symbole",
@@ -439,7 +439,7 @@
         },
         "previewPane": {
           "title": "Vorschaufenster",
-          "description": "Bild- und Klartextvorschau neben der Navigator-Liste (experimentell)"
+          "description": "Bild- und Klartextvorschau neben der Explorer-Liste (experimentell)"
         }
       },
       "power": {
@@ -448,7 +448,7 @@
           "title": "Vor dem Löschen bestätigen"
         },
         "perPathOverridesEnabled": {
-          "description": "Pfadbezogene Navigator-Standards dürfen Gruppe/Global überschreiben",
+          "description": "Pfadbezogene Explorer-Standards dürfen Gruppe/Global überschreiben",
           "title": "Pfadbezogene Überschreibungen"
         }
       }
@@ -522,7 +522,7 @@
       "navigatorGoUp": "Eine Ebene nach oben",
       "navigatorBack": "Zurück",
       "navigatorForward": "Vorwärts",
-      "navigatorNewTab": "Neuen Navigator-Tab",
+      "navigatorNewTab": "Neuen Explorer-Tab",
       "navigatorNextTabGroup": "Zur nächsten Seitengruppe wechseln",
       "navigatorPrevTabGroup": "Zur vorherigen Seitengruppe wechseln",
       "navigatorCopy": "Auswahl kopieren",

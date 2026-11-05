@@ -53,7 +53,7 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             "core.defaultLocation",
             SettingsTier::Core,
             "Default location",
-            "Default OS path opened in Navigator (empty = USERPROFILE)",
+            "Default OS path opened in Explorer (empty = USERPROFILE)",
             SettingValueKind::String,
             None,
             json!(""),
@@ -169,7 +169,7 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             "core.fileDoubleClickAction",
             SettingsTier::Core,
             "File double-click action",
-            "What happens when double-clicking a file in Navigator (AIA-118)",
+            "What happens when double-clicking a file in Explorer (AIA-118)",
             SettingValueKind::Enum,
             Some(vec![
                 "systemDefault".into(),
@@ -186,7 +186,7 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
         def(
             "core.navigatorViewMode",
             SettingsTier::Core,
-            "Navigator view",
+            "Explorer view",
             "Windows-style icons (large/medium/small), list, or details",
             SettingValueKind::Enum,
             Some(vec![
@@ -311,7 +311,7 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             "experimental.previewPane",
             SettingsTier::Experimental,
             "Preview pane",
-            "Show image and plain-text preview beside the Navigator list",
+            "Show image and plain-text preview beside the Explorer list",
             SettingValueKind::Boolean,
             None,
             json!(false),

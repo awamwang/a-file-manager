@@ -29,14 +29,14 @@ export function buildAppCommands(deps: CommandPanelDeps): AppCommand[] {
       id: "nav.go-up",
       title: t("commands.goUp"),
       group: "Navigate",
-      keywords: ["parent", "up", "navigator", "向上"],
+      keywords: ["parent", "up", "navigator", "explorer", "向上"],
       run: () => deps.ensureNavigatorThenGoUp(),
     },
     {
       id: "nav.open-navigator",
       title: t("commands.openNavigator"),
       group: "Navigate",
-      keywords: ["browse", "files", "home", "导航"],
+      keywords: ["browse", "files", "home", "explorer", "导航", "资源管理器", "导航器"],
       run: () => go("/navigator"),
     },
     {

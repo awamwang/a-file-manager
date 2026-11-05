@@ -75,7 +75,7 @@
     "openDiscovery": "Ouvrir la Recherche",
     "openExtensions": "Ouvrir les Extensions",
     "openHealth": "Ouvrir Paramètres · Santé",
-    "openNavigator": "Ouvrir le Navigateur",
+    "openNavigator": "Ouvrir l’Explorateur",
     "openProjects": "Ouvrir les Projets",
     "openProviders": "Ouvrir les Fournisseurs",
     "openSettings": "Ouvrir les Paramètres",
@@ -180,7 +180,7 @@
     "discovery": "Recherche",
     "extensions": "Extensions",
     "health": "Santé",
-    "navigator": "Navigateur",
+    "navigator": "Explorateur",
     "projects": "Projets",
     "providers": "Fournisseurs",
     "settings": "Paramètres",
@@ -194,7 +194,7 @@
     "metaConnected": "Parcours OS noyau · {dirs} dossiers · {files} fichiers",
     "metaDisconnected": "Parcours OS noyau · non connecté",
     "noPath": "Aucun dossier ouvert",
-    "title": "Navigateur",
+    "title": "Explorateur",
     "colName": "Nom",
     "colSize": "Taille",
     "nItems": "{count} éléments",
@@ -226,7 +226,7 @@
     "noOutcomes": "Aucun résultat pour l’instant — ajoutez le premier ci-dessus.",
     "noticeContextSaved": "Notes Context enregistrées",
     "noticeNoLinks": "Aucun lien d’espace de travail à ouvrir",
-    "noticeOpened": "{count} chemin(s) ouverts en onglets Navigateur",
+    "noticeOpened": "{count} chemin(s) ouverts en onglets Explorateur",
     "openAllLinks": "Ouvrir tous les liens",
     "openTasks": "{count} tâches ouvertes",
     "outcomes": "Résultats",
@@ -258,7 +258,7 @@
     "renameHint": "Double-cliquez pour renommer"
   },
   "providers": {
-    "emptyBackends": "Aucun fournisseur pour l’instant. La navigation locale reste dans le Navigateur.",
+    "emptyBackends": "Aucun fournisseur pour l’instant. La navigation locale reste dans l’Explorateur.",
     "emptyListing": "Cet emplacement ne contient aucun élément.",
     "file": "Fichier",
     "folder": "Dossier",
@@ -275,14 +275,14 @@
     "fields": {
       "core": {
         "defaultLocation": {
-          "description": "Chemin OS ouvert par défaut dans le Navigateur (vide = USERPROFILE)",
+          "description": "Chemin OS ouvert par défaut dans l’Explorateur (vide = USERPROFILE)",
           "title": "Emplacement par défaut"
         },
         "startupPage": {
           "title": "Page de démarrage",
           "description": "Première page affichée au lancement",
           "options": {
-            "navigator": "Navigateur",
+            "navigator": "Explorateur",
             "projects": "Projets",
             "discovery": "Recherche"
           }
@@ -371,7 +371,7 @@
           }
         },
         "navigatorViewMode": {
-          "title": "Vue du navigateur",
+          "title": "Vue de l’Explorateur",
           "description": "Style Windows : grandes/moyennes/petites icônes, liste ou détails",
           "options": {
             "iconsLarge": "Très grandes icônes",
@@ -439,7 +439,7 @@
         },
         "previewPane": {
           "title": "Volet d’aperçu",
-          "description": "Afficher un aperçu image/texte à côté de la liste Navigateur (expérimental)"
+          "description": "Afficher un aperçu image/texte à côté de la liste Explorateur (expérimental)"
         }
       },
       "power": {
@@ -448,7 +448,7 @@
           "title": "Confirmer avant suppression"
         },
         "perPathOverridesEnabled": {
-          "description": "Autoriser les défauts Navigateur par chemin à remplacer groupe/global",
+          "description": "Autoriser les défauts Explorateur par chemin à remplacer groupe/global",
           "title": "Remplacements par chemin"
         }
       }
@@ -522,7 +522,7 @@
       "navigatorGoUp": "Remonter d’un dossier",
       "navigatorBack": "Précédent",
       "navigatorForward": "Suivant",
-      "navigatorNewTab": "Nouvel onglet Navigateur",
+      "navigatorNewTab": "Nouvel onglet Explorateur",
       "navigatorNextTabGroup": "Passer au groupe de pages suivant",
       "navigatorPrevTabGroup": "Passer au groupe de pages précédent",
       "navigatorCopy": "Copier la sélection",

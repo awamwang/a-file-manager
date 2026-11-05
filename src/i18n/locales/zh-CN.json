@@ -78,7 +78,7 @@
     "viewIconsSmall": "小图标"
   },
   "nav": {
-    "navigator": "导航器",
+    "navigator": "资源管理器",
     "discovery": "搜索",
     "providers": "提供程序",
     "workGroups": "工作组",
@@ -94,7 +94,7 @@
       "actions": "操作"
     },
     "goUp": "返回上级文件夹",
-    "openNavigator": "打开导航器",
+    "openNavigator": "打开资源管理器",
     "openDiscovery": "打开搜索",
     "openProviders": "打开提供程序",
     "openWorkGroups": "打开工作组",
@@ -110,7 +110,7 @@
     "hint": "↑↓ 移动 · Enter 执行 · Esc 关闭 · Ctrl+Shift+P"
   },
   "navigator": {
-    "title": "导航器",
+    "title": "资源管理器",
     "metaConnected": "内核磁盘浏览 · {dirs} 个文件夹 · {files} 个文件",
     "metaDisconnected": "内核磁盘浏览 · 未连接",
     "noPath": "未打开文件夹",
@@ -198,13 +198,13 @@
         },
         "defaultLocation": {
           "title": "默认位置",
-          "description": "导航器默认打开的操作系统路径（空 = USERPROFILE）"
+          "description": "资源管理器默认打开的操作系统路径（空 = USERPROFILE）"
         },
         "startupPage": {
           "title": "启动页",
           "description": "启动后首先打开的页面",
           "options": {
-            "navigator": "导航器",
+            "navigator": "资源管理器",
             "projects": "项目",
             "discovery": "搜索"
           }
@@ -273,7 +273,7 @@
           }
         },
         "navigatorViewMode": {
-          "title": "导航器视图",
+          "title": "资源管理器视图",
           "description": "对齐 Windows：大/中/小图标、列表或详细信息",
           "options": {
             "iconsLarge": "超大图标",
@@ -341,7 +341,7 @@
         },
         "perPathOverridesEnabled": {
           "title": "按路径覆盖",
-          "description": "允许按路径的导航器默认值覆盖组/全局设置"
+          "description": "允许按路径的浏览默认值覆盖组/全局设置"
         }
       },
       "experimental": {
@@ -351,7 +351,7 @@
         },
         "previewPane": {
           "title": "预览栏",
-          "description": "在导航器列表旁显示图片与纯文本预览（实验）"
+          "description": "在资源管理器列表旁显示图片与纯文本预览（实验）"
         }
       }
     },
@@ -388,7 +388,7 @@
     "uriPlaceholder": "粘贴提供方路径（如云盘或知识库根）",
     "listing": "列出中…",
     "list": "列出",
-    "emptyBackends": "暂无可用提供方；本地浏览请使用导航器。",
+    "emptyBackends": "暂无可用提供方；本地浏览请使用资源管理器。",
     "emptyListing": "此位置没有项目。",
     "folder": "文件夹",
     "file": "文件"
@@ -457,7 +457,7 @@
     "noticeContextSaved": "Context 备注已保存",
     "errorWorkGroupMutation": "全部打开时意外改动了工作组",
     "noticeNoLinks": "没有可打开的工作区链接",
-    "noticeOpened": "已打开 {count} 个路径为导航标签",
+    "noticeOpened": "已打开 {count} 个路径为浏览标签",
     "statusBacklog": "待办",
     "statusDoing": "进行中",
     "statusReview": "审查",
@@ -522,7 +522,7 @@
       "navigatorGoUp": "返回上级文件夹",
       "navigatorBack": "后退",
       "navigatorForward": "前进",
-      "navigatorNewTab": "新建导航标签",
+      "navigatorNewTab": "新建浏览标签",
       "navigatorNextTabGroup": "切换到下一个页面分组",
       "navigatorPrevTabGroup": "切换到上一个页面分组",
       "navigatorCopy": "复制所选",

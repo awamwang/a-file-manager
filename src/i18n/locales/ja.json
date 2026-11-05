@@ -75,7 +75,7 @@
     "openDiscovery": "検索を開く",
     "openExtensions": "拡張機能を開く",
     "openHealth": "設定 · ヘルスを開く",
-    "openNavigator": "ナビゲーターを開く",
+    "openNavigator": "エクスプローラーを開く",
     "openProjects": "プロジェクトを開く",
     "openProviders": "プロバイダーを開く",
     "openSettings": "設定を開く",
@@ -180,7 +180,7 @@
     "discovery": "検索",
     "extensions": "拡張機能",
     "health": "ヘルス",
-    "navigator": "ナビゲーター",
+    "navigator": "エクスプローラー",
     "projects": "プロジェクト",
     "providers": "プロバイダー",
     "settings": "設定",
@@ -194,7 +194,7 @@
     "metaConnected": "カーネル OS 参照 · {dirs} フォルダー · {files} ファイル",
     "metaDisconnected": "カーネル OS 参照 · 未接続",
     "noPath": "フォルダー未開",
-    "title": "ナビゲーター",
+    "title": "エクスプローラー",
     "colName": "名前",
     "colSize": "サイズ",
     "nItems": "{count} 項目",
@@ -226,7 +226,7 @@
     "noOutcomes": "成果はまだありません — 上で最初を追加してください。",
     "noticeContextSaved": "Context メモを保存しました",
     "noticeNoLinks": "開くワークスペースリンクがありません",
-    "noticeOpened": "{count} パスをナビタブとして開きました",
+    "noticeOpened": "{count} パスを閲覧タブとして開きました",
     "openAllLinks": "すべてのリンクを開く",
     "openTasks": "進行中タスク {count}",
     "outcomes": "成果",
@@ -258,7 +258,7 @@
     "renameHint": "ダブルクリックで名前変更"
   },
   "providers": {
-    "emptyBackends": "利用可能なプロバイダーはまだありません。ローカル閲覧はナビゲーターへ。",
+    "emptyBackends": "利用可能なプロバイダーはまだありません。ローカル閲覧はエクスプローラーへ。",
     "emptyListing": "この場所には項目がありません。",
     "file": "ファイル",
     "folder": "フォルダー",
@@ -275,14 +275,14 @@
     "fields": {
       "core": {
         "defaultLocation": {
-          "description": "ナビゲーターで開く既定の OS パス（空 = USERPROFILE）",
+          "description": "エクスプローラーで開く既定の OS パス（空 = USERPROFILE）",
           "title": "既定の場所"
         },
         "startupPage": {
           "title": "起動ページ",
           "description": "起動直後に開くページ",
           "options": {
-            "navigator": "ナビゲーター",
+            "navigator": "エクスプローラー",
             "projects": "プロジェクト",
             "discovery": "検索"
           }
@@ -371,7 +371,7 @@
           }
         },
         "navigatorViewMode": {
-          "title": "ナビゲーター表示",
+          "title": "エクスプローラー表示",
           "description": "Windows 風：大/中/小アイコン、一覧、詳細",
           "options": {
             "iconsLarge": "特大アイコン",
@@ -439,7 +439,7 @@
         },
         "previewPane": {
           "title": "プレビューペイン",
-          "description": "ナビゲーター一覧の横に画像・プレーンテキストをプレビュー（実験）"
+          "description": "エクスプローラー一覧の横に画像・プレーンテキストをプレビュー（実験）"
         }
       },
       "power": {
@@ -448,7 +448,7 @@
           "title": "削除前に確認"
         },
         "perPathOverridesEnabled": {
-          "description": "パスごとのナビゲーター既定値でグループ/全体を上書き可能にする",
+          "description": "パスごとの閲覧既定値でグループ/全体を上書き可能にする",
           "title": "パスごとの上書き"
         }
       }
@@ -522,7 +522,7 @@
       "navigatorGoUp": "一つ上のフォルダーへ",
       "navigatorBack": "戻る",
       "navigatorForward": "進む",
-      "navigatorNewTab": "新しいナビゲータータブ",
+      "navigatorNewTab": "新しいエクスプローラータブ",
       "navigatorNextTabGroup": "次のページグループに切り替え",
       "navigatorPrevTabGroup": "前のページグループに切り替え",
       "navigatorCopy": "選択項目をコピー",

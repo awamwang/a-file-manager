@@ -78,7 +78,7 @@
     "viewIconsSmall": "Small icons"
   },
   "nav": {
-    "navigator": "Navigator",
+    "navigator": "Explorer",
     "discovery": "Search",
     "providers": "Providers",
     "workGroups": "Work Groups",
@@ -94,7 +94,7 @@
       "actions": "Actions"
     },
     "goUp": "Go up one folder",
-    "openNavigator": "Open Navigator",
+    "openNavigator": "Open Explorer",
     "openDiscovery": "Open Search",
     "openProviders": "Open Providers",
     "openWorkGroups": "Open Work Groups",
@@ -110,7 +110,7 @@
     "hint": "↑↓ to move · Enter to run · Esc to close · Ctrl+Shift+P"
   },
   "navigator": {
-    "title": "Navigator",
+    "title": "Explorer",
     "metaConnected": "Kernel OS browse · {dirs} folders · {files} files",
     "metaDisconnected": "Kernel OS browse · not connected",
     "noPath": "No folder open",
@@ -198,13 +198,13 @@
         },
         "defaultLocation": {
           "title": "Default location",
-          "description": "Default OS path opened in Navigator (empty = USERPROFILE)"
+          "description": "Default OS path opened in Explorer (empty = USERPROFILE)"
         },
         "startupPage": {
           "title": "Startup page",
           "description": "First page shown after launch",
           "options": {
-            "navigator": "Navigator",
+            "navigator": "Explorer",
             "projects": "Projects",
             "discovery": "Search"
           }
@@ -273,7 +273,7 @@
           }
         },
         "navigatorViewMode": {
-          "title": "Navigator view",
+          "title": "Explorer view",
           "description": "Windows-style icons (large/medium/small), list, or details",
           "options": {
             "iconsLarge": "Extra large icons",
@@ -341,7 +341,7 @@
         },
         "perPathOverridesEnabled": {
           "title": "Per-path overrides",
-          "description": "Allow per-path navigator defaults to override group/global"
+          "description": "Allow per-path Explorer defaults to override group/global"
         }
       },
       "experimental": {
@@ -351,7 +351,7 @@
         },
         "previewPane": {
           "title": "Preview pane",
-          "description": "Show image and plain-text preview beside the Navigator list (experimental)"
+          "description": "Show image and plain-text preview beside the Explorer list (experimental)"
         }
       }
     },
@@ -388,7 +388,7 @@
     "uriPlaceholder": "Paste a provider path (e.g. cloud or knowledge root)",
     "listing": "Listing…",
     "list": "List",
-    "emptyBackends": "No providers available yet. Local browsing stays in Navigator.",
+    "emptyBackends": "No providers available yet. Local browsing stays in Explorer.",
     "emptyListing": "This location has no items.",
     "folder": "Folder",
     "file": "File"
@@ -457,7 +457,7 @@
     "noticeContextSaved": "Context notes saved",
     "errorWorkGroupMutation": "Unexpected Work Group mutation on open-all",
     "noticeNoLinks": "No workspace links to open",
-    "noticeOpened": "Opened {count} path(s) as Navigator tabs",
+    "noticeOpened": "Opened {count} path(s) as Explorer tabs",
     "statusBacklog": "Backlog",
     "statusDoing": "Doing",
     "statusReview": "Review",
@@ -522,7 +522,7 @@
       "navigatorGoUp": "Go up one folder",
       "navigatorBack": "Navigate back",
       "navigatorForward": "Navigate forward",
-      "navigatorNewTab": "New Navigator tab",
+      "navigatorNewTab": "New Explorer tab",
       "navigatorNextTabGroup": "Switch to next page group",
       "navigatorPrevTabGroup": "Switch to previous page group",
       "navigatorCopy": "Copy selected items",
