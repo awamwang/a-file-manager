@@ -59,6 +59,19 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             json!(""),
         ),
         def(
+            "core.startupPage",
+            SettingsTier::Core,
+            "Startup page",
+            "First page after launch: navigator | projects | discovery",
+            SettingValueKind::Enum,
+            Some(vec![
+                "navigator".to_string(),
+                "projects".to_string(),
+                "discovery".to_string(),
+            ]),
+            json!("navigator"),
+        ),
+        def(
             "core.showHidden",
             SettingsTier::Core,
             "Show hidden items",

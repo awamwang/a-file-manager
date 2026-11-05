@@ -211,6 +211,7 @@
     "list": "リスト",
     "listSummary": "{links} リンク · {open} 進行中",
     "meta": "WG セッションの上位集合 · ボード · Context · 非デフォルト WG をバインド",
+    "usageHint": "プロジェクト全体の進捗と共有ナレッジ向け。コーディング時は WG を紐づけ、関連ワークスペースをまとめて編集します。",
     "newNamePlaceholder": "新しいプロジェクト名",
     "noDescription": "説明なし",
     "noFolderLinks": "フォルダーリンクはまだありません",
@@ -262,6 +263,15 @@
         "defaultLocation": {
           "description": "ナビゲーターで開く既定の OS パス（空 = USERPROFILE）",
           "title": "既定の場所"
+        },
+        "startupPage": {
+          "title": "起動ページ",
+          "description": "起動直後に開くページ",
+          "options": {
+            "navigator": "ナビゲーター",
+            "projects": "プロジェクト",
+            "discovery": "ディスカバリー"
+          }
         },
         "everythingPreferred": {
           "description": "利用可能ならディスカバリーで Everything IPC を優先",
@@ -364,6 +374,7 @@
     "hardMembers": "メンバー",
     "membersCount": "{count} メンバー",
     "meta": "設定 ↔ ランタイム Open State · サイレント切替",
+    "usageHint": "関連フォルダーや同種の作業タブをまとめて開く——1 つのワークグループが 1 本のセッション帯になります。",
     "newNamePlaceholder": "新しいワークグループ名",
     "noHardMembers": "メンバーはまだありません",
     "noOpenTabs": "開いているタブはありません",

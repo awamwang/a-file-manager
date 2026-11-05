@@ -192,6 +192,15 @@
           "title": "默认位置",
           "description": "导航器默认打开的操作系统路径（空 = USERPROFILE）"
         },
+        "startupPage": {
+          "title": "启动页",
+          "description": "启动后首先打开的页面",
+          "options": {
+            "navigator": "导航器",
+            "projects": "项目",
+            "discovery": "发现"
+          }
+        },
         "showHidden": {
           "title": "显示隐藏项",
           "description": "在内核列表中包含隐藏文件/文件夹"
@@ -281,6 +290,7 @@
   "workGroups": {
     "title": "工作组",
     "meta": "配置 ↔ 运行时打开状态 · 静默切换",
+    "usageHint": "批量打开一批互相关联或同类型工作的标签——一个工作组对应一条会话标签带。",
     "softSync": "软同步：已打开 {paths}",
     "default": "默认",
     "membersCount": "{count} 个成员",
@@ -301,6 +311,7 @@
   "projects": {
     "title": "项目",
     "meta": "基于工作组会话的超集 · 看板 · Context · 绑定非默认工作组",
+    "usageHint": "面向项目整体：共同进度与共享知识库；写代码时绑定工作组，便于在关联工作区中共同编辑。",
     "listSummary": "{links} 个链接 · {open} 个进行中",
     "newNamePlaceholder": "新项目名称",
     "noDescription": "无描述",

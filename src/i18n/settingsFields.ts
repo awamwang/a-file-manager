@@ -5,6 +5,7 @@ export const SCHEMA_SETTING_KEYS = [
   "core.language",
   "core.theme",
   "core.defaultLocation",
+  "core.startupPage",
   "core.showHidden",
   "core.listDensity",
   "core.everythingPreferred",
@@ -25,6 +26,7 @@ export const SCHEMA_ENUM_OPTIONS: Record<string, readonly string[]> = {
   "core.language": ["en", "zh-CN", "ja", "de", "fr"],
   "core.theme": ["light", "dark", "system"],
   "core.listDensity": ["standard", "compact"],
+  "core.startupPage": ["navigator", "projects", "discovery"],
   "core.closeBehavior": ["ask", "tray", "quit"],
 };
 

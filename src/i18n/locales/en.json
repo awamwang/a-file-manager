@@ -192,6 +192,15 @@
           "title": "Default location",
           "description": "Default OS path opened in Navigator (empty = USERPROFILE)"
         },
+        "startupPage": {
+          "title": "Startup page",
+          "description": "First page shown after launch",
+          "options": {
+            "navigator": "Navigator",
+            "projects": "Projects",
+            "discovery": "Discovery"
+          }
+        },
         "showHidden": {
           "title": "Show hidden items",
           "description": "Include hidden files/folders in Kernel listings"
@@ -281,6 +290,7 @@
   "workGroups": {
     "title": "Work Groups",
     "meta": "Config ↔ runtime Open State · silent switch",
+    "usageHint": "Batch-open tabs for related folders or the same kind of work—one Work Group, one strip of sessions.",
     "softSync": "Soft sync: opened {paths}",
     "default": "default",
     "membersCount": "{count} members",
@@ -301,6 +311,7 @@
   "projects": {
     "title": "Projects",
     "meta": "WG session super-set · board · Context · bind non-default Work Group",
+    "usageHint": "Track the whole project—shared progress and knowledge. When coding, bind a Work Group so linked workspaces stay editable together.",
     "listSummary": "{links} links · {open} open",
     "newNamePlaceholder": "New project name",
     "noDescription": "No description",

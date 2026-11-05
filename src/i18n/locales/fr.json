@@ -211,6 +211,7 @@
     "list": "Liste",
     "listSummary": "{links} liens · {open} ouverts",
     "meta": "Super-ensemble de session WG · tableau · Context · lier un WG non défaut",
+    "usageHint": "Pour le projet entier : progrès partagé et base de connaissances. En codant, liez un WG pour co-éditer les espaces liés.",
     "newNamePlaceholder": "Nom du nouveau projet",
     "noDescription": "Aucune description",
     "noFolderLinks": "Aucun lien de dossier pour l’instant",
@@ -262,6 +263,15 @@
         "defaultLocation": {
           "description": "Chemin OS ouvert par défaut dans le Navigateur (vide = USERPROFILE)",
           "title": "Emplacement par défaut"
+        },
+        "startupPage": {
+          "title": "Page de démarrage",
+          "description": "Première page affichée au lancement",
+          "options": {
+            "navigator": "Navigateur",
+            "projects": "Projets",
+            "discovery": "Découverte"
+          }
         },
         "everythingPreferred": {
           "description": "Préférer Everything IPC pour la Découverte lorsqu’il est disponible",
@@ -364,6 +374,7 @@
     "hardMembers": "Membres",
     "membersCount": "{count} membres",
     "meta": "Configuration ↔ Open State runtime · bascule silencieuse",
+    "usageHint": "Ouvrez en lot des onglets de dossiers liés ou du même type de travail—un groupe, une barre de session.",
     "newNamePlaceholder": "Nom du nouveau groupe de travail",
     "noHardMembers": "Aucun membre pour l’instant",
     "noOpenTabs": "Aucun onglet ouvert",

@@ -211,6 +211,7 @@
     "list": "Liste",
     "listSummary": "{links} Links · {open} offen",
     "meta": "WG-Sitzungs-Superset · Board · Context · Nicht-Standard-WG binden",
+    "usageHint": "Für das Gesamtprojekt: gemeinsamer Fortschritt und Wissensbasis. Beim Codieren eine WG binden, damit verknüpfte Arbeitsbereiche zusammen bleiben.",
     "newNamePlaceholder": "Name des neuen Projekts",
     "noDescription": "Keine Beschreibung",
     "noFolderLinks": "Noch keine Ordnerlinks",
@@ -262,6 +263,15 @@
         "defaultLocation": {
           "description": "Standard-OS-Pfad im Navigator (leer = USERPROFILE)",
           "title": "Standardort"
+        },
+        "startupPage": {
+          "title": "Startseite",
+          "description": "Erste Seite nach dem Start",
+          "options": {
+            "navigator": "Navigator",
+            "projects": "Projekte",
+            "discovery": "Discovery"
+          }
         },
         "everythingPreferred": {
           "description": "Everything-IPC für Discovery bevorzugen, wenn verfügbar",
@@ -364,6 +374,7 @@
     "hardMembers": "Mitglieder",
     "membersCount": "{count} Mitglieder",
     "meta": "Konfiguration ↔ Laufzeit-Open-State · stiller Wechsel",
+    "usageHint": "Tabs für verwandte Ordner oder gleichartige Arbeit gesammelt öffnen—eine Arbeitsgruppe, eine Sitzungsleiste.",
     "newNamePlaceholder": "Name der neuen Arbeitsgruppe",
     "noHardMembers": "Noch keine Mitglieder",
     "noOpenTabs": "Keine offenen Registerkarten",
