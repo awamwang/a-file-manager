@@ -168,12 +168,29 @@ async function renameActiveGroup() {
 
 async function deleteActiveGroup() {
   if (!active.value || active.value.isDefault) return;
-  if (!window.confirm(t("workGroups.deleteConfirm", { name: active.value.name }))) return;
+  const deletingId = active.value.id;
+  const wasActive = deletingId === activeWorkGroupId.value;
+  if (
+    !window.confirm(
+      t("workGroups.deleteConfirmClearTabs", { name: active.value.name }),
+    )
+  ) {
+    return;
+  }
   document.value = await invoke<UserWorkGroups>("work_groups_delete", {
-    workGroupId: active.value.id,
+    workGroupId: deletingId,
   });
   activeWorkGroupId.value = document.value.activeWorkGroupId;
-  toastSuccess(t("workGroups.deleted"));
+  if (wasActive) {
+    const next = document.value.workGroups.find(
+      (g) => g.id === document.value!.activeWorkGroupId,
+    );
+    await restoreWorkGroupOpenState(
+      document.value.activeWorkGroupId,
+      next?.openState ?? null,
+    );
+  }
+  toastSuccess(t("workGroups.deletedSwitched"));
 }
 
 async function openMembersIntoRuntime() {
@@ -406,7 +423,6 @@ onMounted(() => {
 .group--active {
   border-color: var(--fluent-color-stroke-accent-soft);
   background: var(--fluent-color-fill-selected);
-  font-weight: var(--fluent-font-weight-semibold);
   box-shadow: inset 3px 0 0 var(--fluent-color-stroke-accent-soft);
 }
 

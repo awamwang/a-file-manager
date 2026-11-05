@@ -229,6 +229,23 @@ async function createProject() {
   }
 }
 
+async function renameSelectedProject() {
+  if (!selected.value) return;
+  const next =
+    window.prompt(t("projects.renamePrompt"), selected.value.name)?.trim() ?? "";
+  if (!next || next === selected.value.name) return;
+  error.value = null;
+  try {
+    document.value = await invoke<UserProjects>("projects_rename", {
+      projectId: selected.value.id,
+      name: next,
+    });
+    toastSuccess(t("projects.renamed"));
+  } catch (err) {
+    error.value = mapProjectError(err);
+  }
+}
+
 async function bindSelectedWorkGroup() {
   if (!selected.value) return;
   error.value = null;
@@ -452,6 +469,9 @@ onMounted(() => {
             </p>
           </div>
           <div class="actions">
+            <button class="fluent-control" type="button" @click="renameSelectedProject">
+              {{ t("projects.rename") }}
+            </button>
             <div class="toggle" role="group" :aria-label="t('projects.viewMode')">
               <button
                 type="button"
@@ -703,7 +723,6 @@ onMounted(() => {
 .group--active {
   border-color: var(--fluent-color-stroke-accent-soft);
   background: var(--fluent-color-fill-selected);
-  font-weight: var(--fluent-font-weight-semibold);
   box-shadow: inset 3px 0 0 var(--fluent-color-stroke-accent-soft);
 }
 
