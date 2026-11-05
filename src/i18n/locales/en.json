@@ -54,7 +54,7 @@
     "navigatorError": "Could not list folder",
     "navigatorCounts": "{dirs} folders · {files} files",
     "home": "Home",
-    "placesMenu": "Quick access and favorites",
+    "placesMenu": "Recent visits and favorites",
     "workGroupMenu": "Work Group",
     "workGroupSwitch": "Switch Work Group",
     "workGroupSave": "Save to config",
@@ -438,8 +438,8 @@
     "osVerb": "Explorer “Add to AFM favorites”"
   },
   "quickAccess": {
-    "label": "Quick access",
-    "empty": "Folders you open often appear here",
+    "label": "Recent visits",
+    "empty": "Folders you visited recently appear here",
     "openCount": "Opened {count} times"
   }
 }

@@ -41,7 +41,7 @@
     "dualPane": "Doppelansicht",
     "windowControls": "Fenstersteuerung",
     "home": "Startordner",
-    "placesMenu": "Schnellzugriff und Favoriten",
+    "placesMenu": "Zuletzt besucht und Favoriten",
     "workGroupMenu": "Arbeitsgruppe",
     "workGroupSwitch": "Arbeitsgruppe wechseln",
     "workGroupSave": "In Konfiguration speichern",
@@ -438,8 +438,8 @@
     "osVerb": "Explorer „Zu AFM-Favoriten hinzufügen“"
   },
   "quickAccess": {
-    "label": "Schnellzugriff",
-    "empty": "Häufig geöffnete Ordner erscheinen hier",
+    "label": "Zuletzt besucht",
+    "empty": "Kürzlich besuchte Ordner erscheinen hier",
     "openCount": "{count}-mal geöffnet"
   }
 }

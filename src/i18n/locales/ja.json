@@ -41,7 +41,7 @@
     "dualPane": "デュアルペイン",
     "windowControls": "ウィンドウ操作",
     "home": "ホーム",
-    "placesMenu": "クイックアクセスとお気に入り",
+    "placesMenu": "最近のアクセスとお気に入り",
     "workGroupMenu": "ワークグループ",
     "workGroupSwitch": "ワークグループを切り替え",
     "workGroupSave": "設定に保存",
@@ -438,8 +438,8 @@
     "osVerb": "エクスプローラー「AFM のお気に入りに追加」"
   },
   "quickAccess": {
-    "label": "クイック アクセス",
-    "empty": "よく開くフォルダーがここに表示されます",
+    "label": "最近のアクセス",
+    "empty": "最近開いたフォルダーがここに表示されます",
     "openCount": "{count} 回開きました"
   }
 }

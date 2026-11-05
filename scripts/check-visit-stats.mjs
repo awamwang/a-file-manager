@@ -25,7 +25,7 @@ assert.ok(
 );
 assert.ok(!rust.includes("work_groups"), "visit-stats must not touch WG store");
 assert.ok(lib.includes("visit_stats::visit_stats_record"));
-assert.equal(en.quickAccess.label, "Quick access");
+assert.equal(en.quickAccess.label, "Recent visits");
 assert.ok(en.quickAccess.openCount.includes("{count}"));
 
 const result = spawnSync(

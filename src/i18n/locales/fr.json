@@ -41,7 +41,7 @@
     "dualPane": "Double volet",
     "windowControls": "Contrôles de fenêtre",
     "home": "Dossier d’accueil",
-    "placesMenu": "Acces rapide et favoris",
+    "placesMenu": "Visites récentes et favoris",
     "workGroupMenu": "Groupe de travail",
     "workGroupSwitch": "Changer de groupe de travail",
     "workGroupSave": "Enregistrer dans la configuration",
@@ -438,8 +438,8 @@
     "osVerb": "Explorateur « Ajouter aux favoris AFM »"
   },
   "quickAccess": {
-    "label": "Accès rapide",
-    "empty": "Les dossiers souvent ouverts apparaissent ici",
+    "label": "Visites récentes",
+    "empty": "Les dossiers visités récemment apparaissent ici",
     "openCount": "Ouvert {count} fois"
   }
 }
