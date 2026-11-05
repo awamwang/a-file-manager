@@ -67,4 +67,26 @@ if (missing.length) {
   process.exit(1);
 }
 
+// CJK fallback must prefer YaHei (zh) / Yu Gothic (ja) over a JP-only default stack.
+if (!css.includes("Microsoft YaHei UI")) {
+  console.error("Fluent font stack missing Microsoft YaHei UI (zh-CN CJK fallback)");
+  process.exit(1);
+}
+if (!css.includes('html[lang="zh-CN"]') || !css.includes('html[lang="ja"]')) {
+  console.error("Fluent font stack missing locale-aware html[lang] overrides");
+  process.exit(1);
+}
+const familyBlock = css.match(/--fluent-font-family:\s*([^;]+);/);
+if (familyBlock) {
+  const stack = familyBlock[1];
+  const yu = stack.indexOf("Yu Gothic UI");
+  const yahei = stack.indexOf("Microsoft YaHei UI");
+  if (yu !== -1 && yahei !== -1 && yu < yahei) {
+    console.error(
+      "Default Fluent font stack still prefers Yu Gothic UI before Microsoft YaHei UI",
+    );
+    process.exit(1);
+  }
+}
+
 console.log(`Fluent token presence OK (${required.length} checks).`);

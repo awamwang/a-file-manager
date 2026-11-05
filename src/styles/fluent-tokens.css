@@ -24,14 +24,28 @@
   --fluent-sidenav-width: 200px;
   --fluent-checkbox-size: 18px;
 
+  /*
+   * UI type stack (Win11 / WebView2):
+   * - Latin → Segoe UI Variable / Segoe UI
+   * - CJK must NOT fall through Japanese-only faces first (old stack put
+   *   Yu Gothic UI ahead of YaHei → zh-CN looked uneven vs Latin).
+   * - Locale overrides below reorder CJK preference.
+   */
   --fluent-font-family:
-    "Segoe UI Variable", "Segoe UI", "Yu Gothic UI", "Meiryo UI", system-ui, sans-serif;
+    "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI",
+    "Microsoft YaHei UI", "Microsoft YaHei",
+    "Microsoft JhengHei UI", "Microsoft JhengHei",
+    "Yu Gothic UI", "Meiryo UI",
+    "Malgun Gothic",
+    system-ui, sans-serif;
   --fluent-font-family-mono: Consolas, "Courier New", ui-monospace, monospace;
   --fluent-font-size-caption: 12px;
   --fluent-font-size-body: 14px;
   --fluent-font-size-subtitle: 16px;
   --fluent-font-size-title: 20px;
   --fluent-font-weight-regular: 400;
+  /* 600 = Segoe Semibold; YaHei lacks 600 so engines pick Bold (700) —
+     keep 600 for Fluent chrome, disable synthesis to avoid muddy faux bold. */
   --fluent-font-weight-semibold: 600;
 
   --fluent-stroke-width: 1px;
@@ -74,6 +88,37 @@
   --fluent-color-chip-stub: #5d5d5d;
   --fluent-color-chip-stub-bg: #f0f0f0;
   --fluent-color-icon-wash: #eef3f9;
+}
+
+/* Locale-aware CJK preference (html[lang] set by applyAppLocale). */
+html[lang="zh-CN"] {
+  --fluent-font-family:
+    "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI",
+    "Microsoft YaHei UI", "Microsoft YaHei",
+    "Microsoft JhengHei UI", "Microsoft JhengHei",
+    "Yu Gothic UI", "Meiryo UI",
+    "Malgun Gothic",
+    system-ui, sans-serif;
+}
+
+html[lang="ja"] {
+  --fluent-font-family:
+    "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI",
+    "Yu Gothic UI", "Meiryo UI",
+    "Microsoft YaHei UI", "Microsoft YaHei",
+    "Microsoft JhengHei UI", "Microsoft JhengHei",
+    "Malgun Gothic",
+    system-ui, sans-serif;
+}
+
+html[lang="ko"],
+html[lang="ko-KR"] {
+  --fluent-font-family:
+    "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI",
+    "Malgun Gothic",
+    "Microsoft YaHei UI", "Microsoft YaHei",
+    "Yu Gothic UI", "Meiryo UI",
+    system-ui, sans-serif;
 }
 
 /* Native form controls / scrollbars follow OS or forced theme. */
@@ -203,6 +248,7 @@ html[data-theme="light"] {
   font-family: var(--fluent-font-family);
   font-size: var(--fluent-font-size-body);
   font-weight: var(--fluent-font-weight-regular);
+  font-synthesis: none;
   color: var(--fluent-color-text-primary);
 }
 

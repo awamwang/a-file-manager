@@ -17,6 +17,10 @@ body,
 body {
   font-family: var(--fluent-font-family);
   font-size: var(--fluent-font-size-body);
+  font-weight: var(--fluent-font-weight-regular);
+  /* Avoid synthetic emboldening when CJK faces lack a true 600 weight. */
+  font-synthesis: none;
+  font-optical-sizing: auto;
   color: var(--fluent-color-text-primary);
   background: var(--fluent-color-fill-subtle);
 }
