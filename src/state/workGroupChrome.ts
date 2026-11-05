@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-/** Navigator chrome Work Group switcher — Sigma silent-switch + hard save (AIA-81). */
+/** Navigator chrome Work Group switcher — silent switch (AIA-81/90); members save only. */
 
 import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
@@ -66,25 +66,6 @@ export async function silentSwitchWorkGroup(
   } catch (err) {
     workGroupChromeError.value = err instanceof Error ? err.message : String(err);
     return null;
-  } finally {
-    workGroupChromeBusy.value = false;
-  }
-}
-
-export async function saveActiveOpenStateHard(): Promise<boolean> {
-  const active = activeWorkGroup.value;
-  if (!active) return false;
-  workGroupChromeBusy.value = true;
-  workGroupChromeError.value = null;
-  try {
-    workGroupsDoc.value = await invoke<UserWorkGroupsDoc>("work_groups_save_open_state", {
-      workGroupId: active.id,
-      liveOpenState: snapshotLiveOpenState(),
-    });
-    return true;
-  } catch (err) {
-    workGroupChromeError.value = err instanceof Error ? err.message : String(err);
-    return false;
   } finally {
     workGroupChromeBusy.value = false;
   }

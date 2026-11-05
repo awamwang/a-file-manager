@@ -116,14 +116,6 @@ async function addMember() {
   await restoreWorkGroupOpenState(active.value.id, nextOpen);
 }
 
-async function saveOpenState() {
-  if (!active.value) return;
-  document.value = await invoke<UserWorkGroups>("work_groups_save_open_state", {
-    workGroupId: active.value.id,
-    liveOpenState: snapshotLiveOpenState(),
-  });
-}
-
 async function saveMembersFromTabs() {
   if (!active.value) return;
   document.value = await invoke<UserWorkGroups>("work_groups_save_members_from_open_state", {
@@ -243,9 +235,6 @@ onMounted(() => {
         </ul>
 
         <div class="actions">
-          <button class="fluent-control" type="button" @click="saveOpenState">
-            {{ t("workGroups.saveOpenState") }}
-          </button>
           <button class="fluent-control" type="button" @click="saveMembersFromTabs">
             {{ t("workGroups.saveMembersFromTabs") }}
           </button>

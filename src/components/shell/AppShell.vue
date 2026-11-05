@@ -49,7 +49,6 @@ import {
   dismissWorkGroupSoftNotice,
   loadWorkGroupsChrome,
   saveActiveMembersFromTabsHard,
-  saveActiveOpenStateHard,
   silentSwitchWorkGroup,
   workGroupChromeBusy,
   workGroupChromeError,
@@ -169,11 +168,6 @@ async function onSilentSwitchWorkGroup(targetId: string) {
   if (result?.requireSavePrompt || workGroupChromeError.value === "REQUIRE_SAVE_PROMPT") {
     workGroupChromeError.value = t("workGroups.errorSavePrompt");
   }
-}
-
-async function onSaveOpenState() {
-  closeWorkGroupMenu();
-  await saveActiveOpenStateHard();
 }
 
 async function onSaveMembersFromTabs() {
@@ -824,16 +818,6 @@ onUnmounted(() => {
             </p>
 
             <p class="places-heading places-heading--fav">{{ t("chrome.workGroupSave") }}</p>
-            <button
-              type="button"
-              class="fluent-list-row places-item"
-              role="menuitem"
-              :disabled="workGroupChromeBusy || !activeWorkGroup"
-              @click="onSaveOpenState"
-            >
-              <FluentIcon name="document" size="sm" />
-              <span>{{ t("workGroups.saveOpenState") }}</span>
-            </button>
             <button
               type="button"
               class="fluent-list-row places-item"
