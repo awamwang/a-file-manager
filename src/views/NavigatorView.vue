@@ -52,6 +52,8 @@ import {
   recordRenameUndo,
   undoLast,
 } from "../state/fileUndo";
+import { planMultiRename } from "../state/multiRename";
+import { loadNewFileTemplates } from "../state/newFileTemplates";
 import { confirmDeleteIfNeeded, confirmPermanentDelete } from "../state/confirmBeforeDelete";
 import { openPromptDialog } from "../state/promptDialog";
 import {
@@ -340,8 +342,33 @@ async function commitInlineRename() {
   const next = renameDraft.value.trim();
   renamingPath.value = null;
   renameDraft.value = "";
-  if (!entry || !next || next === entry.name) return;
+  if (!entry || !next) return;
   try {
+    const selected = selectedPaths.value.includes(entry.path)
+      ? orderedPaths.value.filter((path) => selectedPaths.value.includes(path))
+      : [entry.path];
+    if (selected.length > 1) {
+      const plan = planMultiRename(selected, next);
+      const renamedPaths: string[] = [];
+      for (const item of plan) {
+        if (item.newName === item.path.split(/[/\\]/).pop()) continue;
+        const result = await renameEntry(item.path, item.newName);
+        if (!result.ok) {
+          onNotice(result.error ?? t("contextMenu.opFailed"), "error");
+          await refreshListing();
+          return;
+        }
+        if (result.paths[0]) {
+          recordRenameUndo(item.path, result.paths[0]);
+          renamedPaths.push(result.paths[0]);
+        }
+      }
+      onNotice(t("contextMenu.renamedMulti", { count: renamedPaths.length || plan.length }));
+      await refreshListing();
+      if (renamedPaths.length) setSelection(renamedPaths);
+      return;
+    }
+    if (next === entry.name) return;
     const result = await renameEntry(entry.path, next);
     if (!result.ok) {
       onNotice(result.error ?? t("contextMenu.opFailed"), "error");
@@ -495,6 +522,7 @@ function onWindowFocus() {
 }
 
 onMounted(() => {
+  void loadNewFileTemplates();
   registerNavFileShortcuts();
   window.addEventListener("mousemove", onMarqueeMove);
   window.addEventListener("mouseup", onMarqueeEnd);

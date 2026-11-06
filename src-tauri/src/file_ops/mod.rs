@@ -3,6 +3,7 @@
 //! Recycle Bin is the default delete. Permanent delete is a separate confirmed command.
 
 pub(crate) mod clipboard;
+pub(crate) mod new_templates;
 pub(crate) mod recycle;
 
 use crate::navigator::path_guard::assert_os_path;
@@ -430,6 +431,11 @@ pub fn file_ops_restore(paths: Vec<String>) -> FileOpsResult {
         Ok(restored) => ok_paths(restored),
         Err(error) => err_msg(error),
     }
+}
+
+#[tauri::command]
+pub fn file_ops_new_templates() -> Result<Vec<new_templates::NewFileTemplate>, String> {
+    new_templates::list_new_file_templates()
 }
 
 #[cfg(test)]

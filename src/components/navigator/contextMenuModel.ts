@@ -42,6 +42,8 @@ export type ContextMenuItemDef = {
   /** Payload for terminal open. */
   terminalId?: string;
   elevated?: boolean;
+  /** Pre-resolved label (e.g. ShellNew template name); skips i18n. */
+  rawLabel?: string;
 };
 
 export type ContextMenuBuildOptions = {
@@ -58,6 +60,8 @@ export type ContextMenuBuildOptions = {
     available: boolean;
     supportsElevation?: boolean;
   }>;
+  /** ShellNew-backed new-file templates. */
+  newFileTemplates?: Array<{ extension: string; label: string; defaultName: string }>;
 };
 
 /** Day-1 visibility rules for a single selected Navigator entry. */
@@ -92,12 +96,7 @@ export function buildContextMenuItems(
         enabled: true,
         icon: "folder",
       },
-      {
-        id: "newFile",
-        labelKey: "contextMenu.newFile",
-        enabled: true,
-        icon: "document",
-      },
+      buildNewFileMenuItem(options.newFileTemplates),
     ];
   }
   const isDir = entry.kind === "dir";
@@ -223,7 +222,7 @@ export function buildContextMenuItems(
     },
     // Clipboard / rename / copy-path live in the Windows-style top toolbar.
     { id: "newFolder", labelKey: "contextMenu.newFolder", enabled: true, separatorBefore: true, icon: "folder" },
-    { id: "newFile", labelKey: "contextMenu.newFile", enabled: true, icon: "document" },
+    buildNewFileMenuItem(options.newFileTemplates),
     {
       id: "compressZip",
       labelKey: "contextMenu.compressZip",
@@ -291,6 +290,42 @@ export function buildContextToolbarItems(
       icon: "link",
     },
   ];
+}
+
+function buildNewFileMenuItem(
+  templates: ContextMenuBuildOptions["newFileTemplates"],
+): ContextMenuItemDef {
+  const children: ContextMenuItemDef[] = (templates ?? []).map((tpl) => ({
+    id: `newFileTemplate:${tpl.extension}`,
+    labelKey: "contextMenu.newFile",
+    enabled: true,
+    rawLabel: tpl.label,
+    icon: "document",
+  }));
+  if (!children.length) {
+    return {
+      id: "newFile",
+      labelKey: "contextMenu.newFile",
+      enabled: true,
+      icon: "document",
+    };
+  }
+  return {
+    id: "newFile",
+    labelKey: "contextMenu.newFile",
+    enabled: true,
+    icon: "document",
+    children: [
+      ...children,
+      {
+        id: "newFileCustom",
+        labelKey: "contextMenu.newFileCustom",
+        enabled: true,
+        separatorBefore: true,
+        icon: "document",
+      },
+    ],
+  };
 }
 
 function isZipEntry(entry: NavigatorEntry): boolean {

@@ -32,6 +32,10 @@ import {
   resolveNewFileDefaultName,
   resolveNewFolderDefaultName,
 } from "../../state/newItemNames";
+import {
+  loadNewFileTemplates,
+  newFileTemplates,
+} from "../../state/newFileTemplates";
 import { selectedPaths } from "../../state/navigatorSelection";
 import {
   isFavoritePath,
@@ -124,7 +128,9 @@ function childLabel(child: {
   ideId?: string;
   terminalId?: string;
   elevated?: boolean;
+  rawLabel?: string;
 }): string {
+  if (child.rawLabel) return child.rawLabel;
   if (child.ideId != null) {
     return ideApps.value.find((app) => app.id === child.ideId)?.name ?? child.ideId;
   }
@@ -190,6 +196,7 @@ const items = computed(() =>
     recycleMode: isRecyclePath(currentPath.value),
     ideApps: ideApps.value,
     terminals: terminals.value,
+    newFileTemplates: newFileTemplates.value,
   }).map((item) => ({
     ...item,
     label: t(item.labelKey),
@@ -209,6 +216,7 @@ watch(
   (isOpen) => {
     if (isOpen) {
       void refreshClipboardFromSystem();
+      void loadNewFileTemplates();
       clearSubmenuCloseTimer();
       openSubmenuId.value = null;
       submenuAnchor.value = null;
@@ -318,13 +326,15 @@ async function runNewFolder() {
   }
 }
 
-async function runNewFile() {
+async function runNewFile(defaultName?: string) {
   const parent = currentPath.value;
   if (!parent) {
     emit("notice", t("contextMenu.pasteNoFolder"));
     return;
   }
-  const suggested = await resolveNewFileDefaultName(t("contextMenu.newFileDefault"));
+  const suggested =
+    defaultName?.trim() ||
+    (await resolveNewFileDefaultName(t("contextMenu.newFileDefault")));
   const prompted = await openPromptDialog({
     title: t("contextMenu.newFile"),
     label: t("contextMenu.newFilePrompt"),
@@ -589,6 +599,7 @@ async function run(id: string) {
       await runNewFolder();
       break;
     case "newFile":
+    case "newFileCustom":
       await runNewFile();
       break;
     case "copyPath":
@@ -622,6 +633,12 @@ async function run(id: string) {
       if (entry) await runDelete(entry);
       break;
     default:
+      if (id.startsWith("newFileTemplate:")) {
+        const ext = id.slice("newFileTemplate:".length);
+        const tpl = newFileTemplates.value.find((item) => item.extension === ext);
+        await runNewFile(tpl?.defaultName ?? `New ${ext} file.${ext}`);
+        break;
+      }
       if (id.startsWith("openWithIde:") && entry) {
         const ideId = id.slice("openWithIde:".length);
         try {
