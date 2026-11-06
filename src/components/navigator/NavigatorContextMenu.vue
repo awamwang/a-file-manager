@@ -7,6 +7,8 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { NavigatorEntry } from "../../state/navigatorBrowse";
 import { currentPath, navigateTo, newNavigatorTab, openEntry } from "../../state/navigatorBrowse";
 import {
+  clipboardMode,
+  clipboardPaths,
   createFile,
   createFolder,
   deleteEntries,
@@ -16,6 +18,12 @@ import {
   refreshClipboardFromSystem,
   setClipboard,
 } from "../../state/fileClipboard";
+import {
+  recordCopyUndo,
+  recordCreateUndo,
+  recordDeleteUndo,
+  recordMoveUndo,
+} from "../../state/fileUndo";
 import { confirmDeleteIfNeeded, confirmPermanentDelete } from "../../state/confirmBeforeDelete";
 import { openPromptDialog } from "../../state/promptDialog";
 import {
@@ -260,11 +268,16 @@ async function runPaste() {
     return;
   }
   try {
+    await refreshClipboardFromSystem();
+    const sources = [...clipboardPaths.value];
+    const wasCut = clipboardMode.value === "cut";
     const result = await pasteClipboard(dest);
     if (!result.ok) {
       emit("notice", result.error ?? t("contextMenu.opFailed"));
       return;
     }
+    if (wasCut) recordMoveUndo(sources, result.paths);
+    else recordCopyUndo(result.paths);
     emit("notice", t("contextMenu.pasted", { count: result.paths.length }));
     await refreshListing();
   } catch (err) {
@@ -294,6 +307,7 @@ async function runNewFolder() {
       emit("notice", result.error ?? t("contextMenu.opFailed"));
       return;
     }
+    if (result.paths[0]) recordCreateUndo(result.paths[0]);
     emit("notice", t("contextMenu.folderCreated"));
     await refreshListing();
   } catch (err) {
@@ -323,6 +337,7 @@ async function runNewFile() {
       emit("notice", result.error ?? t("contextMenu.opFailed"));
       return;
     }
+    if (result.paths[0]) recordCreateUndo(result.paths[0]);
     emit("notice", t("contextMenu.fileCreated"));
     await refreshListing();
   } catch (err) {
@@ -360,6 +375,7 @@ async function runDelete(entry: NavigatorEntry) {
           emit("notice", recycled.error ?? t("contextMenu.opFailed"));
           return;
         }
+        recordDeleteUndo(recyclable);
       }
       const removed = await deleteEntries(blocked, true);
       if (!removed.ok) {
@@ -382,6 +398,7 @@ async function runDelete(entry: NavigatorEntry) {
       emit("notice", result.error ?? t("contextMenu.opFailed"));
       return;
     }
+    recordDeleteUndo(paths);
     emit("notice", t("contextMenu.deleted"));
     await refreshListing();
   } catch (err) {

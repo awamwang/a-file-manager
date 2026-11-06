@@ -67,6 +67,10 @@ assert.equal(
   "navigator.previewPane",
 );
 assert.equal(
+  winners.get(chordKey({ ctrl: true, key: "z" }))?.id,
+  "navigator.undo",
+);
+assert.equal(
   winners.get(chordKey({ key: "f6" }))?.id,
   "chrome.focusCycle",
 );

@@ -161,6 +161,12 @@ export const BUILTIN_SHORTCUTS: ShortcutDefinition[] = [
     chord: { ctrl: true, key: "a" },
     scope: "global",
   },
+  {
+    id: "navigator.undo",
+    labelKey: "shortcuts.items.navigatorUndo",
+    chord: { ctrl: true, key: "z" },
+    scope: "global",
+  },
   /**
    * AIA Preview Bridge: Space → selectedPaths → Peek CLI / QuickLook pipe /
    * built-in pane. Editable targets (address / rename) are skipped by runtime.

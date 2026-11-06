@@ -157,6 +157,8 @@ pub fn run() {
             file_ops::file_ops_delete,
             file_ops::file_ops_delete_permanent,
             file_ops::file_ops_can_recycle,
+            file_ops::file_ops_recycle_list,
+            file_ops::file_ops_restore,
             file_ops::clipboard::file_ops_clipboard_set,
             file_ops::clipboard::file_ops_clipboard_get,
             file_ops::clipboard::file_ops_clipboard_clear,

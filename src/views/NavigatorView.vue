@@ -29,6 +29,8 @@ import {
 } from "../state/favorites";
 import {
   clearClipboard,
+  clipboardMode,
+  clipboardPaths,
   createFile,
   createFolder,
   deleteEntries,
@@ -40,6 +42,14 @@ import {
   setClipboard,
   transferEntries,
 } from "../state/fileClipboard";
+import {
+  recordCopyUndo,
+  recordCreateUndo,
+  recordDeleteUndo,
+  recordMoveUndo,
+  recordRenameUndo,
+  undoLast,
+} from "../state/fileUndo";
 import { confirmDeleteIfNeeded, confirmPermanentDelete } from "../state/confirmBeforeDelete";
 import { openPromptDialog } from "../state/promptDialog";
 import {
@@ -335,9 +345,10 @@ async function commitInlineRename() {
       onNotice(result.error ?? t("contextMenu.opFailed"), "error");
       return;
     }
+    const renamed = result.paths[0];
+    if (renamed) recordRenameUndo(entry.path, renamed);
     onNotice(t("contextMenu.renamed"));
     await refreshListing();
-    const renamed = result.paths[0];
     if (renamed) selectOnly(renamed);
   } catch (err) {
     onNotice(err instanceof Error ? err.message : String(err), "error");
@@ -777,17 +788,39 @@ async function shortcutCut() {
 }
 
 async function shortcutPaste() {
-  if (!hasClipboard.value || !currentPath.value) return;
+  if (!currentPath.value) return;
   try {
+    await refreshClipboardFromSystem();
+    if (!hasClipboard.value) return;
+    const sources = [...clipboardPaths.value];
+    const wasCut = clipboardMode.value === "cut";
     const result = await pasteClipboard(currentPath.value);
     if (!result.ok) {
       onNotice(result.error ?? t("contextMenu.opFailed"));
       return;
     }
+    if (wasCut) recordMoveUndo(sources, result.paths);
+    else recordCopyUndo(result.paths);
     onNotice(t("contextMenu.pasted", { count: result.paths.length }));
     await refreshListing();
   } catch (err) {
     onNotice(err instanceof Error ? err.message : String(err));
+  }
+}
+
+async function shortcutUndo() {
+  try {
+    const result = await undoLast();
+    if (!result.ok) {
+      if (result.error && result.error !== "Nothing to undo") {
+        onNotice(result.error, "error");
+      }
+      return;
+    }
+    onNotice(t("contextMenu.undone"));
+    await refreshListing();
+  } catch (err) {
+    onNotice(err instanceof Error ? err.message : String(err), "error");
   }
 }
 
@@ -826,6 +859,7 @@ async function shortcutNewFolder() {
       onNotice(result.error ?? t("contextMenu.opFailed"));
       return;
     }
+    if (result.paths[0]) recordCreateUndo(result.paths[0]);
     onNotice(t("contextMenu.folderCreated"));
     await refreshListing();
   } catch (err) {
@@ -851,6 +885,7 @@ async function shortcutNewFile() {
       onNotice(result.error ?? t("contextMenu.opFailed"));
       return;
     }
+    if (result.paths[0]) recordCreateUndo(result.paths[0]);
     onNotice(t("contextMenu.fileCreated"));
     await refreshListing();
   } catch (err) {
@@ -883,6 +918,7 @@ async function shortcutDelete(permanent = false) {
           onNotice(recycled.error ?? t("contextMenu.opFailed"));
           return;
         }
+        recordDeleteUndo(recyclable);
       }
       const result = await deleteEntries(doomed, true);
       if (!result.ok) {
@@ -907,6 +943,7 @@ async function shortcutDelete(permanent = false) {
       onNotice(result.error ?? t("contextMenu.opFailed"));
       return;
     }
+    recordDeleteUndo(paths);
     onNotice(t("contextMenu.deleted"));
     clearSelection();
     clearClipboard();
@@ -953,6 +990,9 @@ function registerNavFileShortcuts() {
   registerShortcutHandler("navigator.selectAll", () => {
     setSelection(orderedPaths.value);
   });
+  registerShortcutHandler("navigator.undo", () => {
+    void shortcutUndo();
+  });
   registerShortcutHandler("navigator.previewBridge", () => {
     void shortcutPreviewBridge();
   });
@@ -989,6 +1029,7 @@ function unregisterNavFileShortcuts() {
     "navigator.deleteKey",
     "navigator.deletePermanent",
     "navigator.selectAll",
+    "navigator.undo",
     "navigator.previewBridge",
     "navigator.properties",
     "navigator.previewPane",
@@ -1116,6 +1157,8 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
       onNotice(result.error ?? t("contextMenu.opFailed"));
       return;
     }
+    if (mode === "copy") recordCopyUndo(result.paths);
+    else recordMoveUndo(paths, result.paths);
     const noticeKey = mode === "copy" ? "navigator.copiedInto" : "navigator.movedInto";
     onNotice(t(noticeKey, { count: result.paths.length, name: entry.name }));
     clearSelection();
