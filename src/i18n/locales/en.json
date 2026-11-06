@@ -22,7 +22,9 @@
   "dialog": {
     "confirmTitle": "Confirm",
     "deleteTitle": "Confirm delete",
-    "dontAskAgain": "Don't ask again"
+    "dontAskAgain": "Don't ask again",
+    "promptTitle": "Enter a name",
+    "promptLabel": "Name"
   },
   "chrome": {
     "titleBar": "Title bar",

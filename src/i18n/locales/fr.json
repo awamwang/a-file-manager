@@ -104,7 +104,9 @@
   "dialog": {
     "confirmTitle": "Confirmer",
     "deleteTitle": "Confirmer la suppression",
-    "dontAskAgain": "Ne plus demander"
+    "dontAskAgain": "Ne plus demander",
+    "promptTitle": "Saisir un nom",
+    "promptLabel": "Nom"
   },
   "discovery": {
     "title": "Recherche",

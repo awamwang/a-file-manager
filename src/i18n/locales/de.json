@@ -104,7 +104,9 @@
   "dialog": {
     "confirmTitle": "Bestätigen",
     "deleteTitle": "Löschen bestätigen",
-    "dontAskAgain": "Nicht mehr fragen"
+    "dontAskAgain": "Nicht mehr fragen",
+    "promptTitle": "Namen eingeben",
+    "promptLabel": "Name"
   },
   "discovery": {
     "title": "Suche",

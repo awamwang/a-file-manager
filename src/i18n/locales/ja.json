@@ -104,7 +104,9 @@
   "dialog": {
     "confirmTitle": "確認",
     "deleteTitle": "削除の確認",
-    "dontAskAgain": "今後表示しない"
+    "dontAskAgain": "今後表示しない",
+    "promptTitle": "名前を入力",
+    "promptLabel": "名前"
   },
   "discovery": {
     "title": "検索",

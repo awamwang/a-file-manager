@@ -16,6 +16,7 @@ import {
   setClipboard,
 } from "../../state/fileClipboard";
 import { confirmDeleteIfNeeded } from "../../state/confirmBeforeDelete";
+import { openPromptDialog } from "../../state/promptDialog";
 import {
   resolveNewFileDefaultName,
   resolveNewFolderDefaultName,
@@ -276,8 +277,14 @@ async function runNewFolder() {
     return;
   }
   const suggested = await resolveNewFolderDefaultName(t("contextMenu.newFolderDefault"));
-  const name = window.prompt(t("contextMenu.newFolderPrompt"), suggested) ?? "";
-  const trimmed = name.trim();
+  const prompted = await openPromptDialog({
+    title: t("contextMenu.newFolder"),
+    label: t("contextMenu.newFolderPrompt"),
+    defaultValue: suggested,
+    confirmLabel: t("common.create"),
+  });
+  if (!prompted.confirmed) return;
+  const trimmed = prompted.value.trim();
   if (!trimmed) return;
   try {
     const result = await createFolder(parent, trimmed);
@@ -299,8 +306,14 @@ async function runNewFile() {
     return;
   }
   const suggested = await resolveNewFileDefaultName(t("contextMenu.newFileDefault"));
-  const name = window.prompt(t("contextMenu.newFilePrompt"), suggested) ?? "";
-  const trimmed = name.trim();
+  const prompted = await openPromptDialog({
+    title: t("contextMenu.newFile"),
+    label: t("contextMenu.newFilePrompt"),
+    defaultValue: suggested,
+    confirmLabel: t("common.create"),
+  });
+  if (!prompted.confirmed) return;
+  const trimmed = prompted.value.trim();
   if (!trimmed) return;
   try {
     const result = await createFile(parent, trimmed);

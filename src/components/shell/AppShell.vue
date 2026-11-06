@@ -9,6 +9,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import CommandPanel from "../command/CommandPanel.vue";
 import ToastHost from "./ToastHost.vue";
 import ConfirmDialogHost from "./ConfirmDialogHost.vue";
+import PromptDialogHost from "./PromptDialogHost.vue";
 import FluentIcon from "../icons/FluentIcon.vue";
 import { toastError, toastInfo, toastSuccess } from "../../state/toast";
 import { SIDE_NAV_ITEMS, isSideNavActive, sideNavIcon } from "../../shell/sideNav";
@@ -1604,6 +1605,7 @@ onUnmounted(() => {
     </div>
 
     <ConfirmDialogHost />
+    <PromptDialogHost />
     <ToastHost />
     <CommandPanel :commands="panelCommands" />
   </div>

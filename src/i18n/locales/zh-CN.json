@@ -22,7 +22,9 @@
   "dialog": {
     "confirmTitle": "确认",
     "deleteTitle": "确认删除",
-    "dontAskAgain": "以后不再提问"
+    "dontAskAgain": "以后不再提问",
+    "promptTitle": "输入名称",
+    "promptLabel": "名称"
   },
   "chrome": {
     "titleBar": "标题栏",
