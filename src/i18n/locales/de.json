@@ -64,6 +64,9 @@
     "viewMode": "Ansicht",
     "viewList": "Liste",
     "viewDetails": "Details",
+    "viewTiles": "Kacheln",
+    "viewContent": "Inhalt",
+    "viewGroupByType": "Nach Typ gruppieren",
     "viewIconsLarge": "Sehr große Symbole",
     "viewIconsMedium": "Mittlere Symbole",
     "viewIconsSmall": "Kleine Symbole"
@@ -217,7 +220,11 @@
     "noPath": "Kein Ordner geöffnet",
     "title": "Explorer",
     "colName": "Name",
+    "colType": "Typ",
     "colSize": "Größe",
+    "typeFolder": "Dateiordner",
+    "typeFile": "Datei",
+    "typeFileExt": "{ext}-Datei",
     "nItems": "{count} Elemente",
     "movedInto": "{count} Element(e) nach {name} verschoben",
     "copiedInto": "{count} Element(e) nach {name} kopiert",
@@ -397,14 +404,20 @@
         },
         "navigatorViewMode": {
           "title": "Explorer-Ansicht",
-          "description": "Windows-ähnlich: große/mittlere/kleine Symbole, Liste oder Details",
+          "description": "Symbole, Liste, Details, Kacheln oder Inhalt",
           "options": {
             "iconsLarge": "Sehr große Symbole",
             "iconsMedium": "Mittlere Symbole",
             "iconsSmall": "Kleine Symbole",
             "list": "Liste",
-            "details": "Details"
+            "details": "Details",
+            "tiles": "Kacheln",
+            "content": "Inhalt"
           }
+        },
+        "navigatorGroupByType": {
+          "title": "Nach Typ gruppieren",
+          "description": "Explorer-Liste nach Dateityp abschnittsweise anzeigen"
         },
         "openTool": {
           "vscode": {

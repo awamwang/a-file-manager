@@ -18,6 +18,7 @@ export const SCHEMA_SETTING_KEYS = [
   "core.newFileDefaultName",
   "core.fileDoubleClickAction",
   "core.navigatorViewMode",
+  "core.navigatorGroupByType",
   "core.newTabBehavior",
   "core.openTool.vscode.enabled",
   "core.openTool.vscode.path",
@@ -50,6 +51,8 @@ export const SCHEMA_ENUM_OPTIONS: Record<string, readonly string[]> = {
     "iconsSmall",
     "list",
     "details",
+    "tiles",
+    "content",
   ],
   "core.fileDoubleClickAction": [
     "systemDefault",

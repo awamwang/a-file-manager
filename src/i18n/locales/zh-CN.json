@@ -94,6 +94,9 @@
     "viewMode": "视图",
     "viewList": "列表",
     "viewDetails": "详细信息",
+    "viewTiles": "平铺",
+    "viewContent": "内容",
+    "viewGroupByType": "按类型分组",
     "viewIconsLarge": "超大图标",
     "viewIconsMedium": "中等图标",
     "viewIconsSmall": "小图标"
@@ -140,7 +143,11 @@
     "folder": "文件夹",
     "file": "文件",
     "colName": "名称",
+    "colType": "类型",
     "colSize": "大小",
+    "typeFolder": "文件夹",
+    "typeFile": "文件",
+    "typeFileExt": "{ext} 文件",
     "nItems": "{count} 项",
     "movedInto": "已将 {count} 项移入 {name}",
     "copiedInto": "已将 {count} 项复制到 {name}",
@@ -299,14 +306,20 @@
         },
         "navigatorViewMode": {
           "title": "资源管理器视图",
-          "description": "对齐 Windows：大/中/小图标、列表或详细信息",
+          "description": "图标、列表、详细信息、平铺或内容",
           "options": {
             "iconsLarge": "超大图标",
             "iconsMedium": "中等图标",
             "iconsSmall": "小图标",
             "list": "列表",
-            "details": "详细信息"
+            "details": "详细信息",
+            "tiles": "平铺",
+            "content": "内容"
           }
+        },
+        "navigatorGroupByType": {
+          "title": "按类型分组",
+          "description": "按文件类型分段显示导航列表"
         },
         "newTabBehavior": {
           "title": "新标签行为",

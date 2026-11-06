@@ -64,6 +64,9 @@
     "viewMode": "Affichage",
     "viewList": "Liste",
     "viewDetails": "Détails",
+    "viewTiles": "Tuiles",
+    "viewContent": "Contenu",
+    "viewGroupByType": "Grouper par type",
     "viewIconsLarge": "Très grandes icônes",
     "viewIconsMedium": "Icônes moyennes",
     "viewIconsSmall": "Petites icônes"
@@ -217,7 +220,11 @@
     "noPath": "Aucun dossier ouvert",
     "title": "Explorateur",
     "colName": "Nom",
+    "colType": "Type",
     "colSize": "Taille",
+    "typeFolder": "Dossier de fichiers",
+    "typeFile": "Fichier",
+    "typeFileExt": "Fichier {ext}",
     "nItems": "{count} éléments",
     "movedInto": "{count} élément(s) déplacé(s) vers {name}",
     "copiedInto": "{count} élément(s) copié(s) vers {name}",
@@ -397,14 +404,20 @@
         },
         "navigatorViewMode": {
           "title": "Vue de l’Explorateur",
-          "description": "Style Windows : grandes/moyennes/petites icônes, liste ou détails",
+          "description": "Icônes, liste, détails, tuiles ou contenu",
           "options": {
             "iconsLarge": "Très grandes icônes",
             "iconsMedium": "Icônes moyennes",
             "iconsSmall": "Petites icônes",
             "list": "Liste",
-            "details": "Détails"
+            "details": "Détails",
+            "tiles": "Tuiles",
+            "content": "Contenu"
           }
+        },
+        "navigatorGroupByType": {
+          "title": "Grouper par type",
+          "description": "Afficher la liste par sections selon le type de fichier"
         },
         "openTool": {
           "vscode": {

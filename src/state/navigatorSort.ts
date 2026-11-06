@@ -3,8 +3,9 @@
 
 import { ref } from "vue";
 import type { NavigatorEntry } from "./navigatorBrowse";
+import { entryTypeKey } from "./entryType.ts";
 
-export type SortColumn = "name" | "size" | "modified";
+export type SortColumn = "name" | "size" | "modified" | "type";
 export type SortDirection = "asc" | "desc";
 
 export const sortColumn = ref<SortColumn>("name");
@@ -35,6 +36,12 @@ export function sortedEntries(entries: NavigatorEntry[]): NavigatorEntry[] {
       const am = a.modifiedMs ?? 0;
       const bm = b.modifiedMs ?? 0;
       if (am !== bm) return (am - bm) * dir;
+    }
+    if (col === "type") {
+      const at = entryTypeKey(a.kind, a.name);
+      const bt = entryTypeKey(b.kind, b.name);
+      const typeCmp = at.localeCompare(bt, undefined, { sensitivity: "base" });
+      if (typeCmp !== 0) return typeCmp * dir;
     }
     const nameCmp = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
     return nameCmp * dir;

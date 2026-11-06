@@ -64,6 +64,9 @@
     "viewMode": "表示",
     "viewList": "一覧",
     "viewDetails": "詳細",
+    "viewTiles": "タイル",
+    "viewContent": "コンテンツ",
+    "viewGroupByType": "種類でグループ化",
     "viewIconsLarge": "特大アイコン",
     "viewIconsMedium": "中アイコン",
     "viewIconsSmall": "小アイコン"
@@ -217,7 +220,11 @@
     "noPath": "フォルダー未開",
     "title": "エクスプローラー",
     "colName": "名前",
+    "colType": "種類",
     "colSize": "サイズ",
+    "typeFolder": "ファイル フォルダー",
+    "typeFile": "ファイル",
+    "typeFileExt": "{ext} ファイル",
     "nItems": "{count} 項目",
     "movedInto": "{count} 項目を {name} へ移動しました",
     "copiedInto": "{count} 項目を {name} へコピーしました",
@@ -397,14 +404,20 @@
         },
         "navigatorViewMode": {
           "title": "エクスプローラー表示",
-          "description": "Windows 風：大/中/小アイコン、一覧、詳細",
+          "description": "アイコン、一覧、詳細、タイル、コンテンツ",
           "options": {
             "iconsLarge": "特大アイコン",
             "iconsMedium": "中アイコン",
             "iconsSmall": "小アイコン",
             "list": "一覧",
-            "details": "詳細"
+            "details": "詳細",
+            "tiles": "タイル",
+            "content": "コンテンツ"
           }
+        },
+        "navigatorGroupByType": {
+          "title": "種類でグループ化",
+          "description": "ファイルの種類ごとにセクション表示"
         },
         "openTool": {
           "vscode": {

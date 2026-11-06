@@ -94,6 +94,9 @@
     "viewMode": "View",
     "viewList": "List",
     "viewDetails": "Details",
+    "viewTiles": "Tiles",
+    "viewContent": "Content",
+    "viewGroupByType": "Group by type",
     "viewIconsLarge": "Extra large icons",
     "viewIconsMedium": "Medium icons",
     "viewIconsSmall": "Small icons"
@@ -140,7 +143,11 @@
     "folder": "Folder",
     "file": "File",
     "colName": "Name",
+    "colType": "Type",
     "colSize": "Size",
+    "typeFolder": "File folder",
+    "typeFile": "File",
+    "typeFileExt": "{ext} File",
     "nItems": "{count} items",
     "movedInto": "Moved {count} item(s) into {name}",
     "copiedInto": "Copied {count} item(s) into {name}",
@@ -299,14 +306,20 @@
         },
         "navigatorViewMode": {
           "title": "Explorer view",
-          "description": "Windows-style icons (large/medium/small), list, or details",
+          "description": "Windows-style icons, list, details, tiles, or content",
           "options": {
             "iconsLarge": "Extra large icons",
             "iconsMedium": "Medium icons",
             "iconsSmall": "Small icons",
             "list": "List",
-            "details": "Details"
+            "details": "Details",
+            "tiles": "Tiles",
+            "content": "Content"
           }
+        },
+        "navigatorGroupByType": {
+          "title": "Group by type",
+          "description": "Section Navigator listings by file type"
         },
         "newTabBehavior": {
           "title": "New tab behavior",

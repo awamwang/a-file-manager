@@ -63,13 +63,25 @@ import {
 } from "../state/navigatorKeyboardNav";
 import { sortedEntries, sortColumn, sortDirection, toggleSort } from "../state/navigatorSort";
 import {
+  isContentView,
   isDetailsView,
   isIconView,
   isListView,
+  isTilesView,
   loadNavigatorViewMode,
+  navigatorGroupByType,
   navigatorViewMode,
   VIEW_ICON_SIZE,
 } from "../state/navigatorViewMode";
+import { entryTypeLabel } from "../state/entryType";
+import { groupEntriesByType } from "../state/navigatorGrouping";
+import {
+  DEFAULT_DETAILS_COLUMN_WIDTHS,
+  detailsGridTemplate,
+  resizeColumnWidth,
+  type DetailsColumnId,
+  type DetailsColumnWidths,
+} from "../state/navigatorColumns";
 import { isEditableTarget } from "../shortcuts/chord.ts";
 import {
   activePane,
@@ -545,9 +557,67 @@ function entryHoverTitle(entry: NavigatorEntry): string {
   return lines.join("\n");
 }
 
-function sortIndicator(column: "name" | "size" | "modified"): string {
+function sortIndicator(column: "name" | "size" | "modified" | "type"): string {
   if (sortColumn.value !== column) return "";
   return sortDirection.value === "asc" ? " ▲" : " ▼";
+}
+
+const columnWidths = ref<DetailsColumnWidths>({ ...DEFAULT_DETAILS_COLUMN_WIDTHS });
+const detailsGridStyle = computed(() => ({
+  gridTemplateColumns: detailsGridTemplate(columnWidths.value),
+}));
+
+const typeLabels = computed(() => ({
+  folder: t("navigator.typeFolder"),
+  file: t("navigator.typeFile"),
+  typedFile: (ext: string) => t("navigator.typeFileExt", { ext }),
+}));
+
+function formatEntryType(entry: NavigatorEntry): string {
+  return entryTypeLabel(entry.kind, entry.name, typeLabels.value);
+}
+
+const groupedVisibleEntries = computed(() => {
+  if (!navigatorGroupByType.value) return null;
+  return groupEntriesByType(visibleEntries.value, typeLabels.value);
+});
+
+let columnResize: {
+  column: DetailsColumnId;
+  startX: number;
+  widths: DetailsColumnWidths;
+} | null = null;
+
+function onColumnResizeStart(event: PointerEvent, column: DetailsColumnId) {
+  event.preventDefault();
+  event.stopPropagation();
+  columnResize = {
+    column,
+    startX: event.clientX,
+    widths: { ...columnWidths.value },
+  };
+  const target = event.currentTarget;
+  if (target instanceof HTMLElement) {
+    target.setPointerCapture(event.pointerId);
+  }
+  window.addEventListener("pointermove", onColumnResizeMove);
+  window.addEventListener("pointerup", onColumnResizeEnd);
+}
+
+function onColumnResizeMove(event: PointerEvent) {
+  if (!columnResize) return;
+  const delta = event.clientX - columnResize.startX;
+  columnWidths.value = resizeColumnWidth(
+    columnResize.widths,
+    columnResize.column,
+    delta,
+  );
+}
+
+function onColumnResizeEnd() {
+  columnResize = null;
+  window.removeEventListener("pointermove", onColumnResizeMove);
+  window.removeEventListener("pointerup", onColumnResizeEnd);
 }
 
 const iconPixelSize = computed(() => VIEW_ICON_SIZE[navigatorViewMode.value]);
@@ -1104,6 +1174,9 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
         'list--icons-large': navigatorViewMode === 'iconsLarge',
         'list--icons-medium': navigatorViewMode === 'iconsMedium',
         'list--icons-small': navigatorViewMode === 'iconsSmall',
+        'list--tiles': isTilesView,
+        'list--content': isContentView,
+        'list--grouped': navigatorGroupByType,
       }"
       role="list"
       tabindex="-1"
@@ -1113,27 +1186,141 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
       @mousedown="onListMouseDown"
       @click.self="clearSelection()"
     >
-      <div v-if="isDetailsView" class="list-header" role="row">
+      <div
+        v-if="isDetailsView"
+        class="list-header"
+        role="row"
+        :style="detailsGridStyle"
+      >
         <button type="button" class="col-sort col-name" @click="toggleSort('name')">
           {{ t("navigator.colName") }}{{ sortIndicator("name") }}
+          <span
+            class="col-resizer"
+            role="separator"
+            aria-orientation="vertical"
+            @pointerdown.stop="onColumnResizeStart($event, 'name')"
+          />
+        </button>
+        <button type="button" class="col-sort col-type" @click="toggleSort('type')">
+          {{ t("navigator.colType") }}{{ sortIndicator("type") }}
+          <span
+            class="col-resizer"
+            role="separator"
+            aria-orientation="vertical"
+            @pointerdown.stop="onColumnResizeStart($event, 'type')"
+          />
         </button>
         <button type="button" class="col-sort col-size" @click="toggleSort('size')">
           {{ t("navigator.colSize") }}{{ sortIndicator("size") }}
+          <span
+            class="col-resizer"
+            role="separator"
+            aria-orientation="vertical"
+            @pointerdown.stop="onColumnResizeStart($event, 'size')"
+          />
         </button>
         <button type="button" class="col-sort col-modified" @click="toggleSort('modified')">
           {{ t("navigator.colModified") }}{{ sortIndicator("modified") }}
+          <span
+            class="col-resizer"
+            role="separator"
+            aria-orientation="vertical"
+            @pointerdown.stop="onColumnResizeStart($event, 'modified')"
+          />
         </button>
       </div>
 
+      <template v-if="groupedVisibleEntries">
+        <div
+          v-for="group in groupedVisibleEntries"
+          :key="group.key"
+          class="list-group"
+        >
+          <div class="list-group-header" role="presentation">
+            {{ group.label }}
+            <span class="list-group-count">{{ group.entries.length }}</span>
+          </div>
+          <div
+            v-for="entry in group.entries"
+            :key="entry.path"
+            class="fluent-list-row fluent-list-row--density row"
+            :class="{
+              'row--icon': isIconView,
+              'row--tile': isTilesView,
+              'row--content': isContentView,
+              'row--selected': isSelected(entry.path),
+              'row--drop': dragOverPath === entry.path,
+            }"
+            :style="isDetailsView ? detailsGridStyle : undefined"
+            role="listitem"
+            tabindex="0"
+            draggable="true"
+            :data-entry-path="entry.path"
+            :aria-selected="isSelected(entry.path)"
+            :title="entryHoverTitle(entry)"
+            @click="onRowClick($event, entry)"
+            @dblclick="onActivate(entry)"
+            @keydown.enter.prevent="onActivate(entry)"
+            @contextmenu="onContextMenu($event, entry)"
+            @dragstart="onDragStart($event, entry)"
+            @dragover="onDragOver($event, entry)"
+            @dragleave="onDragLeave(entry)"
+            @drop="onDrop($event, entry)"
+          >
+            <span class="kind" :data-kind="entry.kind">
+              <img
+                v-if="shellIcon(entry.path)"
+                class="shell-icon"
+                :src="shellIcon(entry.path)!"
+                alt=""
+                :width="iconPixelSize"
+                :height="iconPixelSize"
+              />
+              <FluentIcon v-else :name="entryKindIcon(entry.kind === 'dir')" size="md" />
+            </span>
+            <textarea
+              v-if="renamingPath === entry.path"
+              :ref="setRenameInputEl"
+              v-model="renameDraft"
+              class="fluent-control inline-rename"
+              rows="1"
+              wrap="soft"
+              spellcheck="false"
+              :aria-label="t('contextMenu.rename')"
+              @click.stop
+              @dblclick.stop
+              @input="onRenameDraftInput"
+              @keydown.enter.prevent.stop="commitInlineRename"
+              @keydown.escape.prevent.stop="cancelInlineRename"
+              @blur="onRenameBlur"
+            />
+            <span v-else class="name-block">
+              <span class="name" @click="onNameClick($event, entry)">{{ entry.name }}</span>
+              <span v-if="folderSearchActive" class="row-location">{{ entryLocation(entry.path) }}</span>
+              <span v-if="isTilesView || isContentView" class="row-meta">
+                {{ formatEntryType(entry) }}
+                <template v-if="entry.kind !== 'dir'"> · {{ formatSize(entry) }}</template>
+              </span>
+            </span>
+            <span v-if="isDetailsView" class="type">{{ formatEntryType(entry) }}</span>
+            <span v-if="isDetailsView" class="size">{{ formatSize(entry) }}</span>
+            <span v-if="isDetailsView" class="modified">{{ formatModified(entry) }}</span>
+          </div>
+        </div>
+      </template>
+      <template v-else>
       <div
         v-for="entry in visibleEntries"
         :key="entry.path"
         class="fluent-list-row fluent-list-row--density row"
         :class="{
           'row--icon': isIconView,
+          'row--tile': isTilesView,
+          'row--content': isContentView,
           'row--selected': isSelected(entry.path),
           'row--drop': dragOverPath === entry.path,
         }"
+        :style="isDetailsView ? detailsGridStyle : undefined"
         role="listitem"
         tabindex="0"
         draggable="true"
@@ -1182,10 +1369,16 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
         <span v-else class="name-block">
           <span class="name" @click="onNameClick($event, entry)">{{ entry.name }}</span>
           <span v-if="folderSearchActive" class="row-location">{{ entryLocation(entry.path) }}</span>
+          <span v-if="isTilesView || isContentView" class="row-meta">
+            {{ formatEntryType(entry) }}
+            <template v-if="entry.kind !== 'dir'"> · {{ formatSize(entry) }}</template>
+          </span>
         </span>
+        <span v-if="isDetailsView" class="type">{{ formatEntryType(entry) }}</span>
         <span v-if="isDetailsView" class="size">{{ formatSize(entry) }}</span>
         <span v-if="isDetailsView" class="modified">{{ formatModified(entry) }}</span>
       </div>
+      </template>
 
       <div
         v-if="marquee"
@@ -1223,6 +1416,8 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
           'list--icons-large': navigatorViewMode === 'iconsLarge',
           'list--icons-medium': navigatorViewMode === 'iconsMedium',
           'list--icons-small': navigatorViewMode === 'iconsSmall',
+          'list--tiles': isTilesView,
+          'list--content': isContentView,
         }"
         role="list"
       >
@@ -1230,7 +1425,12 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
           v-for="entry in secondaryEntries"
           :key="entry.path"
           class="fluent-list-row fluent-list-row--density row"
-          :class="{ 'row--icon': isIconView }"
+          :class="{
+            'row--icon': isIconView,
+            'row--tile': isTilesView,
+            'row--content': isContentView,
+          }"
+          :style="isDetailsView ? detailsGridStyle : undefined"
           role="listitem"
           tabindex="0"
           :data-entry-path="entry.path"
@@ -1252,7 +1452,12 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
           <span class="name-block">
             <span class="name">{{ entry.name }}</span>
             <span v-if="folderSearchActive" class="row-location">{{ entryLocation(entry.path) }}</span>
+            <span v-if="isTilesView || isContentView" class="row-meta">
+              {{ formatEntryType(entry) }}
+              <template v-if="entry.kind !== 'dir'"> · {{ formatSize(entry) }}</template>
+            </span>
           </span>
+          <span v-if="isDetailsView" class="type">{{ formatEntryType(entry) }}</span>
           <span v-if="isDetailsView" class="size">{{ formatSize(entry) }}</span>
           <span v-if="isDetailsView" class="modified">{{ formatModified(entry) }}</span>
         </div>
@@ -1360,7 +1565,52 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
 
 .list--details .list-header,
 .list--details .row {
-  grid-template-columns: 2rem minmax(0, 1fr) 5.5rem 9.5rem;
+  grid-template-columns: 2rem minmax(0, 1fr) 7.5rem 5.5rem 9.5rem;
+}
+
+.list--tiles {
+  display: grid;
+  align-content: start;
+  gap: var(--fluent-space-sm);
+  padding: var(--fluent-space-sm);
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+}
+
+.list--content {
+  display: flex;
+  flex-direction: column;
+}
+
+.list-group {
+  display: contents;
+}
+
+.list--tiles .list-group,
+.list--icons .list-group {
+  display: contents;
+}
+
+.list--list .list-group,
+.list--details .list-group,
+.list--content .list-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.list-group-header {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  padding: var(--fluent-space-sm) var(--fluent-space-sm);
+  font-size: var(--fluent-font-size-caption);
+  font-weight: var(--fluent-font-weight-semibold);
+  color: var(--fluent-color-text-secondary);
+  border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  grid-column: 1 / -1;
+}
+
+.list-group-count {
+  color: var(--fluent-color-text-tertiary, var(--fluent-color-text-secondary));
 }
 
 .list--icons {
@@ -1437,6 +1687,7 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
 }
 
 .col-sort {
+  position: relative;
   border: 0;
   background: transparent;
   color: var(--fluent-color-text-secondary);
@@ -1454,18 +1705,64 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
   outline: none;
 }
 
+.col-resizer {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 2;
+}
+
 .col-name {
   grid-column: 2;
 }
 
-.col-size {
+.col-type {
   grid-column: 3;
+  text-align: left;
+}
+
+.col-size {
+  grid-column: 4;
   text-align: right;
 }
 
 .col-modified {
-  grid-column: 4;
+  grid-column: 5;
   text-align: left;
+}
+
+.row .type {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+}
+
+.row--tile,
+.row--content {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  padding: var(--fluent-space-sm);
+  border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+}
+
+.list--tiles .row--tile {
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: var(--fluent-radius-md);
+  min-height: 4.5rem;
+}
+
+.row-meta {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
 }
 
 .row {

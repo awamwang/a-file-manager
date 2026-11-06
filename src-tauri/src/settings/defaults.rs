@@ -187,7 +187,7 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             "core.navigatorViewMode",
             SettingsTier::Core,
             "Explorer view",
-            "Windows-style icons (large/medium/small), list, or details",
+            "Windows-style icons, list, details, tiles, or content",
             SettingValueKind::Enum,
             Some(vec![
                 "iconsLarge".to_string(),
@@ -195,8 +195,19 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
                 "iconsSmall".to_string(),
                 "list".to_string(),
                 "details".to_string(),
+                "tiles".to_string(),
+                "content".to_string(),
             ]),
             json!("details"),
+        ),
+        def(
+            "core.navigatorGroupByType",
+            SettingsTier::Core,
+            "Group by type",
+            "Section Navigator listings by file type",
+            SettingValueKind::Boolean,
+            None,
+            json!(false),
         ),
         def(
             "core.newTabBehavior",

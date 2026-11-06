@@ -70,7 +70,9 @@ import { dualPaneEnabled, navigateSecondary, secondaryPath, toggleDualPane } fro
 import {
   loadNavigatorViewMode,
   NAVIGATOR_VIEW_MODES,
+  navigatorGroupByType,
   navigatorViewMode,
+  setNavigatorGroupByType,
   setNavigatorViewMode,
   viewModeLabelKey,
   type NavigatorViewMode,
@@ -187,6 +189,10 @@ function closeViewModeMenu() {
 function chooseViewMode(mode: NavigatorViewMode) {
   void setNavigatorViewMode(mode);
   closeViewModeMenu();
+}
+
+function toggleGroupByType() {
+  void setNavigatorGroupByType(!navigatorGroupByType.value);
 }
 
 async function onToggleShowHidden() {
@@ -1472,6 +1478,18 @@ onUnmounted(() => {
                 />
                 <span>{{ t(viewModeLabelKey(mode)) }}</span>
               </button>
+              <div class="places-sep" role="separator" />
+              <button
+                type="button"
+                class="fluent-list-row places-item"
+                role="menuitemcheckbox"
+                :aria-checked="navigatorGroupByType"
+                :class="{ 'places-item--active': navigatorGroupByType }"
+                @click="toggleGroupByType"
+              >
+                <FluentIcon name="viewAll" size="sm" />
+                <span>{{ t("chrome.viewGroupByType") }}</span>
+              </button>
             </div>
           </div>
 
@@ -1957,6 +1975,12 @@ onUnmounted(() => {
 .places-item--active {
   background: var(--fluent-color-fill-selected);
   font-weight: var(--fluent-font-weight-semibold);
+}
+
+.places-sep {
+  height: 1px;
+  margin: var(--fluent-space-xs) var(--fluent-space-sm);
+  background: var(--fluent-color-stroke-divider);
 }
 
 .navigator-chrome-sep {
