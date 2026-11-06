@@ -611,6 +611,12 @@ function registerShellShortcuts() {
   registerShortcutHandler("chrome.focusAddress", () => {
     focusAddressBar();
   });
+  registerShortcutHandler("chrome.focusAddressAltD", () => {
+    focusAddressBar();
+  });
+  registerShortcutHandler("chrome.focusAddressF4", () => {
+    focusAddressBar();
+  });
   registerShortcutHandler("chrome.focusCycle", () => {
     cycleChromeFocus(false);
   });
@@ -643,6 +649,8 @@ function unregisterShellShortcuts() {
     "navigator.backCtrlAlt",
     "navigator.forwardCtrlAlt",
     "chrome.focusAddress",
+    "chrome.focusAddressAltD",
+    "chrome.focusAddressF4",
     "chrome.focusCycle",
     "chrome.focusCycleReverse",
     "view.settings",
@@ -767,7 +775,15 @@ async function submitAddress() {
   if (route.path !== "/navigator") {
     await router.push("/navigator");
   }
-  await navigateTo(addressDraft.value);
+  let target = addressDraft.value.trim();
+  if (target.includes("%")) {
+    try {
+      target = await invoke<string>("navigator_expand_path", { path: target });
+    } catch {
+      /* keep typed path */
+    }
+  }
+  await navigateTo(target);
 }
 
 function onAddressBlur() {

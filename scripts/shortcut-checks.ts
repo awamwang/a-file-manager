@@ -71,6 +71,14 @@ assert.equal(
   "navigator.undo",
 );
 assert.equal(
+  winners.get(chordKey({ alt: true, key: "d" }))?.id,
+  "chrome.focusAddressAltD",
+);
+assert.equal(
+  winners.get(chordKey({ key: "f4" }))?.id,
+  "chrome.focusAddressF4",
+);
+assert.equal(
   winners.get(chordKey({ key: "f6" }))?.id,
   "chrome.focusCycle",
 );

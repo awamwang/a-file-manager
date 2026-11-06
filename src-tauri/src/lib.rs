@@ -148,6 +148,7 @@ pub fn run() {
             navigator::navigator_user_folders,
             navigator::navigator_shell_places,
             navigator::navigator_disk_space,
+            navigator::navigator_expand_path,
             ide_launch::ide_list_apps,
             ide_launch::ide_open_path,
             file_ops::file_ops_name_exists,

@@ -2,6 +2,7 @@
 //! Thin Kernel Navigator — OS path listing only (S2).
 
 mod disk_space;
+mod env_path;
 mod list;
 mod places;
 mod search;
@@ -55,4 +56,9 @@ pub fn navigator_shell_places() -> Result<places::ShellPlaces, String> {
 #[tauri::command]
 pub fn navigator_disk_space(path: String) -> Result<disk_space::DiskSpaceInfo, String> {
     disk_space::disk_space_for_path(&path)
+}
+
+#[tauri::command]
+pub fn navigator_expand_path(path: String) -> String {
+    env_path::expand_env_path(&path)
 }

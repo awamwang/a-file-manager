@@ -196,6 +196,18 @@ export const BUILTIN_SHORTCUTS: ShortcutDefinition[] = [
     scope: "global",
   },
   {
+    id: "chrome.focusAddressAltD",
+    labelKey: "shortcuts.items.focusAddress",
+    chord: { alt: true, key: "d" },
+    scope: "global",
+  },
+  {
+    id: "chrome.focusAddressF4",
+    labelKey: "shortcuts.items.focusAddress",
+    chord: { key: "f4" },
+    scope: "global",
+  },
+  {
     id: "chrome.focusCycle",
     labelKey: "shortcuts.items.focusCycle",
     chord: { key: "f6" },
