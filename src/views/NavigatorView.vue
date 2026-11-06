@@ -13,6 +13,10 @@ import {
   openEntry,
   type NavigatorEntry,
 } from "../state/navigatorBrowse";
+import {
+  dirEntryFromPath,
+  folderContextMenuRequest,
+} from "../state/folderContextMenu";
 import { isGuidePath } from "../state/navigatorGuide";
 import NavigatorGuide from "../components/navigator/NavigatorGuide.vue";
 import { hydrateSettings } from "../state/settingsHydrate";
@@ -547,27 +551,35 @@ function onContextMenu(event: MouseEvent, entry: NavigatorEntry) {
   if (!isSelected(entry.path)) {
     selectOnly(entry.path);
   }
+  openFolderMenu(entry, event.clientX, event.clientY);
+}
+
+function openFolderMenu(entry: NavigatorEntry, x: number, y: number) {
   menuEntry.value = entry;
   menuEmpty.value = false;
-  menuX.value = event.clientX;
-  menuY.value = event.clientY;
+  menuX.value = x;
+  menuY.value = y;
   menuOpen.value = true;
 }
 
 function onListContextMenu(event: MouseEvent) {
+  // Background / empty listing: same folder verbs as the current directory entry.
   if (event.target !== event.currentTarget) return;
   event.preventDefault();
-  menuEntry.value = null;
-  menuEmpty.value = true;
-  menuX.value = event.clientX;
-  menuY.value = event.clientY;
-  menuOpen.value = true;
+  const path = currentPath.value;
+  if (!path || isGuidePath(path)) return;
+  openFolderMenu(dirEntryFromPath(path), event.clientX, event.clientY);
 }
 
 function closeMenu() {
   menuOpen.value = false;
   menuEmpty.value = false;
 }
+
+watch(folderContextMenuRequest, (req) => {
+  if (!req) return;
+  openFolderMenu(req.entry, req.x, req.y);
+});
 
 function onNotice(message: string, kind: "success" | "error" = "success") {
   if (kind === "error") toastError(message);

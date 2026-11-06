@@ -174,6 +174,15 @@ if (modelCheck.stdout) process.stdout.write(modelCheck.stdout);
 if (modelCheck.stderr) process.stderr.write(modelCheck.stderr);
 assert.equal(modelCheck.status, 0, "context menu model checks failed");
 
+const folderCtxCheck = spawnSync(
+  process.execPath,
+  ["--experimental-strip-types", join(root, "scripts/folder-context-menu-checks.ts")],
+  { cwd: root, encoding: "utf8" },
+);
+if (folderCtxCheck.stdout) process.stdout.write(folderCtxCheck.stdout);
+if (folderCtxCheck.stderr) process.stderr.write(folderCtxCheck.stderr);
+assert.equal(folderCtxCheck.status, 0, "folder context menu checks failed (AIA-183)");
+
 console.log(
   "Context menu checks OK (Open in new tab is real for directories; Copy path Day-1 set).",
 );

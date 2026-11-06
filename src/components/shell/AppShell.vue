@@ -46,6 +46,7 @@ import {
   popBack,
   popForward,
 } from "../../state/navHistory";
+import { requestFolderContextMenu } from "../../state/folderContextMenu";
 import { favoritesDoc, loadFavorites } from "../../state/favorites";
 import { quickAccessList, loadVisitStats } from "../../state/visitStats";
 import {
@@ -419,6 +420,15 @@ async function onRootCrumb() {
   addressEditing.value = false;
   await ensureNavigatorRoute();
   await navigateTo(GUIDE_PATH);
+}
+
+/** Path segment = folder: same directory context menu as a list dir entry. */
+function onBreadcrumbContextMenu(event: MouseEvent, crumb: { path: string; kind?: string }) {
+  if (crumb.kind === "root") return;
+  event.preventDefault();
+  event.stopPropagation();
+  closeChromeMenus();
+  requestFolderContextMenu(crumb.path, event.clientX, event.clientY);
 }
 
 function favoriteLabel(path: string): string {
@@ -1395,6 +1405,7 @@ onUnmounted(() => {
                   @click.stop="
                     crumb.kind === 'root' ? onRootCrumb() : onBreadcrumb(crumb.path)
                   "
+                  @contextmenu="onBreadcrumbContextMenu($event, crumb)"
                 >
                   <FluentIcon
                     v-if="crumb.kind === 'root'"
