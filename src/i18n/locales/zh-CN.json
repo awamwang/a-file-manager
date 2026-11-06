@@ -65,6 +65,8 @@
     "newTabLater": "新建标签稍后提供",
     "closeTab": "关闭标签",
     "sideNav": "侧边导航",
+    "expandFolder": "展开文件夹",
+    "collapseFolder": "折叠文件夹",
     "status": "状态栏",
     "refreshHealth": "刷新健康状态",
     "healthOk": "健康: 正常 · v{version}",

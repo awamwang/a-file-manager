@@ -12,6 +12,7 @@ import ConfirmDialogHost from "./ConfirmDialogHost.vue";
 import NameConflictDialogHost from "./NameConflictDialogHost.vue";
 import PromptDialogHost from "./PromptDialogHost.vue";
 import FluentIcon from "../icons/FluentIcon.vue";
+import FolderTree from "./FolderTree.vue";
 import { toastError, toastInfo, toastSuccess } from "../../state/toast";
 import { SIDE_NAV_ITEMS, isSideNavActive, sideNavIcon } from "../../shell/sideNav";
 import { buildAppCommands } from "../../commands/registry";
@@ -1115,6 +1116,7 @@ onUnmounted(() => {
           <span class="sidenav-label">{{ t(item.labelKey) }}</span>
           <span v-if="item.later" class="later-badge">{{ t("chrome.later") }}</span>
         </button>
+        <FolderTree v-if="isNavigatorRoute" />
       </nav>
 
       <div class="workspace">

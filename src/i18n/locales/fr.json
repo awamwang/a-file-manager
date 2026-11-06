@@ -25,6 +25,8 @@
     "maximize": "Agrandir",
     "minimize": "Réduire",
     "navigatorCounts": "{dirs} dossiers · {files} fichiers",
+    "collapseFolder": "Réduire le dossier",
+    "expandFolder": "Développer le dossier",
     "navigatorError": "Impossible de lister le dossier",
     "navigatorLoading": "Chargement…",
     "newTab": "Nouvel onglet",

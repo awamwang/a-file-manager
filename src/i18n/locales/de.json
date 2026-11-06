@@ -25,6 +25,8 @@
     "maximize": "Maximieren",
     "minimize": "Minimieren",
     "navigatorCounts": "{dirs} Ordner · {files} Dateien",
+    "collapseFolder": "Ordner einklappen",
+    "expandFolder": "Ordner ausklappen",
     "navigatorError": "Ordner konnte nicht geladen werden",
     "navigatorLoading": "Wird geladen…",
     "newTab": "Neue Registerkarte",

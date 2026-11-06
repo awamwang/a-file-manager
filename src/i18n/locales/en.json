@@ -65,6 +65,8 @@
     "newTabLater": "New tab later",
     "closeTab": "Close tab",
     "sideNav": "Side navigation",
+    "expandFolder": "Expand folder",
+    "collapseFolder": "Collapse folder",
     "status": "Status",
     "refreshHealth": "Refresh health",
     "healthOk": "health: ok · v{version}",
