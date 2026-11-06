@@ -577,6 +577,8 @@
       "navigatorDeletePermanent": "Delete permanently",
       "navigatorSelectAll": "Select all items",
       "navigatorPreviewBridge": "Preview selection (Peek / QuickLook / built-in)",
+      "navigatorProperties": "Properties",
+      "navigatorPreviewPane": "Toggle preview pane",
       "focusAddress": "Focus address bar",
       "openSettings": "Open Settings",
       "openShortcutList": "Open shortcut list",

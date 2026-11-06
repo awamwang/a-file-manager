@@ -577,6 +577,8 @@
       "navigatorDeletePermanent": "永久删除",
       "navigatorSelectAll": "全选",
       "navigatorPreviewBridge": "预览选中项（Peek / QuickLook / 内置）",
+      "navigatorProperties": "属性",
+      "navigatorPreviewPane": "切换预览窗格",
       "focusAddress": "聚焦地址栏",
       "openSettings": "打开设置",
       "openShortcutList": "打开快捷键列表",

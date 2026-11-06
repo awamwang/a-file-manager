@@ -575,6 +575,8 @@
       "navigatorDeletePermanent": "Endgültig löschen",
       "navigatorSelectAll": "Alles auswählen",
       "navigatorPreviewBridge": "Auswahl vorschauen (Peek / QuickLook / eingebaut)",
+      "navigatorProperties": "Eigenschaften",
+      "navigatorPreviewPane": "Vorschaufenster umschalten",
       "focusAddress": "Adressleiste fokussieren",
       "openSettings": "Einstellungen öffnen",
       "openShortcutList": "Tastenkürzel-Liste öffnen",

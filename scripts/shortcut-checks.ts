@@ -59,6 +59,14 @@ assert.equal(
   "navigator.previewBridge",
 );
 assert.equal(
+  winners.get(chordKey({ alt: true, key: "enter" }))?.id,
+  "navigator.properties",
+);
+assert.equal(
+  winners.get(chordKey({ alt: true, key: "p" }))?.id,
+  "navigator.previewPane",
+);
+assert.equal(
   winners.get(chordKey({ ctrl: true, key: "d" }))?.id,
   "navigator.delete",
 );

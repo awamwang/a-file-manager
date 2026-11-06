@@ -44,6 +44,8 @@ function displayMainKey(key: string): string {
       return "→";
     case "escape":
       return "Esc";
+    case "enter":
+      return "Enter";
     case " ":
     case "space":
       return "Space";

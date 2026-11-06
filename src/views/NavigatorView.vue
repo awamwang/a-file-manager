@@ -108,10 +108,13 @@ const menuY = ref(0);
 const propertiesOpen = ref(false);
 const propertiesPath = ref<string | null>(null);
 const previewPaneSetting = ref(false);
+/** Session override for Alt+P. Null follows experimental.previewPane. */
+const previewPaneSession = ref<boolean | null>(null);
 
-const previewPaneEnabled = computed(
-  () => previewPaneSetting.value || previewBridgeForcePane.value,
-);
+const previewPaneEnabled = computed(() => {
+  const base = previewPaneSession.value ?? previewPaneSetting.value;
+  return base || previewBridgeForcePane.value;
+});
 
 const previewPath = computed(() => {
   const paths = selectedPaths.value;
@@ -175,9 +178,22 @@ watch(
   { deep: true },
 );
 
+function shortcutProperties() {
+  if (isGuidePath(currentPath.value) && !selectedPaths.value.length) return;
+  const selected = selectedPaths.value.find((path) => path && !isGuidePath(path));
+  const path = selected || (isGuidePath(currentPath.value) ? "" : currentPath.value);
+  if (!path) return;
+  openProperties(path);
+}
+
 function openProperties(path: string) {
   propertiesPath.value = path;
   propertiesOpen.value = true;
+}
+
+function shortcutTogglePreviewPane() {
+  const currently = previewPaneSession.value ?? previewPaneSetting.value;
+  previewPaneSession.value = !currently;
 }
 
 function closeProperties() {
@@ -824,6 +840,12 @@ function registerNavFileShortcuts() {
   registerShortcutHandler("navigator.previewBridge", () => {
     void shortcutPreviewBridge();
   });
+  registerShortcutHandler("navigator.properties", () => {
+    shortcutProperties();
+  });
+  registerShortcutHandler("navigator.previewPane", () => {
+    shortcutTogglePreviewPane();
+  });
 }
 
 function unregisterNavFileShortcuts() {
@@ -841,6 +863,8 @@ function unregisterNavFileShortcuts() {
     "navigator.deletePermanent",
     "navigator.selectAll",
     "navigator.previewBridge",
+    "navigator.properties",
+    "navigator.previewPane",
   ]) {
     unregisterShortcutHandler(id);
   }

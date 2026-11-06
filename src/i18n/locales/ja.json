@@ -575,6 +575,8 @@
       "navigatorDeletePermanent": "完全に削除",
       "navigatorSelectAll": "すべて選択",
       "navigatorPreviewBridge": "選択をプレビュー（Peek / QuickLook / 組み込み）",
+      "navigatorProperties": "プロパティ",
+      "navigatorPreviewPane": "プレビューウィンドウを切り替え",
       "focusAddress": "アドレスバーにフォーカス",
       "openSettings": "設定を開く",
       "openShortcutList": "ショートカット一覧を開く",

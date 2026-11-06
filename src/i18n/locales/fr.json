@@ -575,6 +575,8 @@
       "navigatorDeletePermanent": "Supprimer définitivement",
       "navigatorSelectAll": "Tout sélectionner",
       "navigatorPreviewBridge": "Aperçu de la sélection (Peek / QuickLook / intégré)",
+      "navigatorProperties": "Propriétés",
+      "navigatorPreviewPane": "Afficher ou masquer le volet d’aperçu",
       "focusAddress": "Focus sur la barre d’adresse",
       "openSettings": "Ouvrir les Paramètres",
       "openShortcutList": "Ouvrir la liste des raccourcis",

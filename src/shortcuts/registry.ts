@@ -166,6 +166,18 @@ export const BUILTIN_SHORTCUTS: ShortcutDefinition[] = [
     scope: "navigator",
   },
   {
+    id: "navigator.properties",
+    labelKey: "shortcuts.items.navigatorProperties",
+    chord: { alt: true, key: "enter" },
+    scope: "navigator",
+  },
+  {
+    id: "navigator.previewPane",
+    labelKey: "shortcuts.items.navigatorPreviewPane",
+    chord: { alt: true, key: "p" },
+    scope: "navigator",
+  },
+  {
     id: "chrome.focusAddress",
     labelKey: "shortcuts.items.focusAddress",
     chord: { ctrl: true, key: "l" },
