@@ -40,6 +40,7 @@
     "test:status-extras": "node scripts/check-status-extras.mjs",
     "test:address-env": "node scripts/check-address-env.mjs",
     "test:new-file-rename": "node scripts/check-new-file-rename.mjs",
+    "test:properties-attrs": "node scripts/check-properties-attrs.mjs",
     "test:shell-icons": "node scripts/check-shell-icons.mjs",
     "test:favorites-sidebar": "node scripts/check-favorites-sidebar.mjs",
     "test:favorites-shell-verb": "node scripts/check-favorites-shell-verb.mjs",

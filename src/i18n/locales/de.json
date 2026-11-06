@@ -702,6 +702,10 @@
     "modified": "Geändert",
     "created": "Erstellt",
     "readonly": "Schreibgeschützt",
+    "hidden": "Versteckt",
+    "attributes": "Attribute",
+    "applyAttributes": "Übernehmen",
+    "attributesSaved": "Attribute aktualisiert",
     "kindFolder": "Ordner",
     "kindFile": "Datei",
     "unknown": "Unbekannt"

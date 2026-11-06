@@ -21,6 +21,7 @@ pub struct NavigatorEntryStat {
     pub modified_ms: Option<u64>,
     pub created_ms: Option<u64>,
     pub readonly: bool,
+    pub hidden: bool,
     /// Directory content total (files only); `None` for files or if not computed.
     pub total_size: Option<u64>,
     pub file_count: Option<u64>,
@@ -94,6 +95,7 @@ pub fn stat_path(path: &str) -> Result<NavigatorEntryStat, String> {
         modified_ms: meta.modified().ok().and_then(system_time_ms),
         created_ms: meta.created().ok().and_then(system_time_ms),
         readonly: meta.permissions().readonly(),
+        hidden: super::list::entry_is_hidden(&meta),
         total_size,
         file_count,
         dir_count,

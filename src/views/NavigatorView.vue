@@ -1579,6 +1579,7 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
       :open="propertiesOpen"
       :path="propertiesPath"
       @close="closeProperties"
+      @attributes-changed="refreshListing"
     />
   </section>
 </template>

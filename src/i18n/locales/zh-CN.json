@@ -702,6 +702,10 @@
     "modified": "修改时间",
     "created": "创建时间",
     "readonly": "只读",
+    "hidden": "隐藏",
+    "attributes": "属性",
+    "applyAttributes": "应用",
+    "attributesSaved": "属性已更新",
     "kindFolder": "文件夹",
     "kindFile": "文件",
     "unknown": "未知"

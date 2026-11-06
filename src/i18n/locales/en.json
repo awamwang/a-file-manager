@@ -702,6 +702,10 @@
     "modified": "Modified",
     "created": "Created",
     "readonly": "Read-only",
+    "hidden": "Hidden",
+    "attributes": "Attributes",
+    "applyAttributes": "Apply",
+    "attributesSaved": "Attributes updated",
     "kindFolder": "Folder",
     "kindFile": "File",
     "unknown": "Unknown"

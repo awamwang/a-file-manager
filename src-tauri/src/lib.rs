@@ -144,6 +144,8 @@ pub fn run() {
             navigator::navigator_default_path,
             navigator::navigator_parent,
             navigator::navigator_stat,
+            navigator::navigator_get_attributes,
+            navigator::navigator_set_attributes,
             navigator::navigator_list_drives,
             navigator::navigator_user_folders,
             navigator::navigator_shell_places,

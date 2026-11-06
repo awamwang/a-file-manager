@@ -702,6 +702,10 @@
     "modified": "更新日時",
     "created": "作成日時",
     "readonly": "読み取り専用",
+    "hidden": "隠し",
+    "attributes": "属性",
+    "applyAttributes": "適用",
+    "attributesSaved": "属性を更新しました",
     "kindFolder": "フォルダー",
     "kindFile": "ファイル",
     "unknown": "不明"

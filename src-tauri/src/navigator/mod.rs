@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Thin Kernel Navigator — OS path listing only (S2).
 
+mod attrs;
 mod disk_space;
 mod env_path;
 mod list;
@@ -36,6 +37,23 @@ pub fn navigator_parent(path: String) -> Result<Option<String>, String> {
 #[tauri::command]
 pub fn navigator_stat(path: String) -> Result<stat::NavigatorEntryStat, String> {
     stat::stat_path(&path)
+}
+
+#[tauri::command]
+pub fn navigator_get_attributes(path: String) -> Result<attrs::EntryAttributes, String> {
+    attrs::read_attributes(&path)
+}
+
+#[tauri::command]
+pub fn navigator_set_attributes(
+    path: String,
+    readonly: bool,
+    hidden: bool,
+) -> Result<attrs::EntryAttributes, String> {
+    attrs::set_attributes(
+        &path,
+        attrs::EntryAttributes { readonly, hidden },
+    )
 }
 
 #[tauri::command]

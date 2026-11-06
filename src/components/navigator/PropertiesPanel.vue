@@ -13,6 +13,7 @@ export type EntryStat = {
   modifiedMs: number | null;
   createdMs: number | null;
   readonly: boolean;
+  hidden: boolean;
   totalSize?: number | null;
   fileCount?: number | null;
   dirCount?: number | null;
@@ -24,12 +25,16 @@ const props = defineProps<{
   open: boolean;
 }>();
 
-const emit = defineEmits<{ close: [] }>();
+const emit = defineEmits<{ close: []; attributesChanged: [] }>();
 const { t, locale } = useI18n();
 
 const loading = ref(false);
+const saving = ref(false);
 const error = ref<string | null>(null);
+const notice = ref<string | null>(null);
 const stat = ref<EntryStat | null>(null);
+const draftReadonly = ref(false);
+const draftHidden = ref(false);
 
 const kindLabel = computed(() => {
   if (!stat.value) return "";
@@ -75,13 +80,15 @@ const rows = computed(() => {
   list.push(
     { key: "modified", label: t("properties.modified"), value: formatTime(s.modifiedMs) },
     { key: "created", label: t("properties.created"), value: formatTime(s.createdMs) },
-    {
-      key: "readonly",
-      label: t("properties.readonly"),
-      value: s.readonly ? t("common.yes") : t("common.no"),
-    },
   );
   return list;
+});
+
+const dirty = computed(() => {
+  if (!stat.value) return false;
+  return (
+    draftReadonly.value !== stat.value.readonly || draftHidden.value !== stat.value.hidden
+  );
 });
 
 function formatBytes(size: number): string {
@@ -104,13 +111,51 @@ async function load() {
   }
   loading.value = true;
   error.value = null;
+  notice.value = null;
   try {
-    stat.value = await invoke<EntryStat>("navigator_stat", { path: props.path });
+    const next = await invoke<EntryStat>("navigator_stat", { path: props.path });
+    stat.value = {
+      ...next,
+      hidden: Boolean(next.hidden),
+      readonly: Boolean(next.readonly),
+    };
+    draftReadonly.value = stat.value.readonly;
+    draftHidden.value = stat.value.hidden;
   } catch (err) {
     stat.value = null;
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
     loading.value = false;
+  }
+}
+
+async function applyAttributes() {
+  if (!props.path || !stat.value || !dirty.value) return;
+  saving.value = true;
+  error.value = null;
+  notice.value = null;
+  try {
+    const applied = await invoke<{ readonly: boolean; hidden: boolean }>(
+      "navigator_set_attributes",
+      {
+        path: props.path,
+        readonly: draftReadonly.value,
+        hidden: draftHidden.value,
+      },
+    );
+    stat.value = {
+      ...stat.value,
+      readonly: applied.readonly,
+      hidden: applied.hidden,
+    };
+    draftReadonly.value = applied.readonly;
+    draftHidden.value = applied.hidden;
+    notice.value = t("properties.attributesSaved");
+    emit("attributesChanged");
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    saving.value = false;
   }
 }
 
@@ -140,12 +185,36 @@ watch(
         </header>
         <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
         <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
-        <ul v-else-if="stat" class="props-list">
-          <li v-for="row in rows" :key="row.key" class="props-row">
-            <span class="props-label">{{ row.label }}</span>
-            <span class="props-value" :class="{ mono: row.mono }" :title="row.value">{{ row.value }}</span>
-          </li>
-        </ul>
+        <template v-else-if="stat">
+          <p v-if="notice" class="fluent-banner">{{ notice }}</p>
+          <ul class="props-list">
+            <li v-for="row in rows" :key="row.key" class="props-row">
+              <span class="props-label">{{ row.label }}</span>
+              <span class="props-value" :class="{ mono: row.mono }" :title="row.value">{{ row.value }}</span>
+            </li>
+            <li class="props-row props-row--attrs">
+              <span class="props-label">{{ t("properties.attributes") }}</span>
+              <div class="props-attrs">
+                <label class="props-check">
+                  <input v-model="draftReadonly" type="checkbox" />
+                  <span>{{ t("properties.readonly") }}</span>
+                </label>
+                <label class="props-check">
+                  <input v-model="draftHidden" type="checkbox" />
+                  <span>{{ t("properties.hidden") }}</span>
+                </label>
+                <button
+                  type="button"
+                  class="fluent-control props-apply"
+                  :disabled="!dirty || saving"
+                  @click="applyAttributes"
+                >
+                  {{ saving ? t("common.loading") : t("properties.applyAttributes") }}
+                </button>
+              </div>
+            </li>
+          </ul>
+        </template>
       </aside>
     </div>
   </Teleport>
@@ -222,5 +291,22 @@ watch(
 .mono {
   font-family: var(--fluent-font-family-mono);
   font-size: var(--fluent-font-size-caption);
+}
+
+.props-attrs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-sm);
+}
+
+.props-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  font-size: var(--fluent-font-size-body);
+}
+
+.props-apply {
+  align-self: flex-start;
 }
 </style>
