@@ -150,6 +150,17 @@ export function buildNavigatorBreadcrumbs(
   if (!path.trim() || isGuidePath(path)) {
     return [root];
   }
+  if (normalizeGuideLike(path)) {
+    const leaf = path.trim().replace(/^afm:\/\//i, "");
+    return [
+      root,
+      {
+        label: leaf || path,
+        path: path.trim(),
+        kind: "folder",
+      },
+    ];
+  }
   return [root, ...buildBreadcrumbs(path)];
 }
 

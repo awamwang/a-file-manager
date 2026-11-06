@@ -12,6 +12,7 @@ import {
   userFolders,
   type UserFolderId,
 } from "../../state/navigatorGuide";
+import { RECYCLE_PATH } from "../../state/recyclePath";
 
 const props = defineProps<{
   /** Navigate the current tab to this OS path. */
@@ -132,6 +133,22 @@ function onOpen(path: string) {
         </button>
       </div>
       <p v-if="!drivesList.length" class="guide-empty">{{ t("guide.emptyDrives") }}</p>
+    </section>
+
+    <section class="guide-section" :aria-label="t('recycleBin.section')">
+      <h2 class="guide-section-title">{{ t("recycleBin.section") }}</h2>
+      <div class="guide-grid">
+        <button
+          type="button"
+          class="guide-card fluent-surface"
+          :title="t('recycleBin.subtitle')"
+          @click="onOpen(RECYCLE_PATH)"
+        >
+          <FluentIcon name="close" size="md" />
+          <span class="guide-card-label">{{ t("recycleBin.tabName") }}</span>
+          <span class="guide-card-path">{{ t("recycleBin.subtitle") }}</span>
+        </button>
+      </div>
     </section>
   </div>
 </template>

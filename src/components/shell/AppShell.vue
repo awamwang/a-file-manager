@@ -66,6 +66,7 @@ import {
   loadNavigatorPlaces,
   resolveHomePath,
 } from "../../state/navigatorGuide";
+import { isRecyclePath, RECYCLE_PATH } from "../../state/recyclePath";
 import { dualPaneEnabled, navigateSecondary, secondaryPath, toggleDualPane } from "../../state/dualPane";
 import {
   loadNavigatorViewMode,
@@ -849,6 +850,7 @@ function openTab(id: string, path: string) {
 
 function tabLabel(path: string) {
   if (isGuidePath(path)) return t("guide.tabName");
+  if (isRecyclePath(path)) return t("recycleBin.tabName");
   const parts = path.replace(/\\/g, "/").replace(/\/+$/, "").split("/");
   return parts[parts.length - 1] || path;
 }
@@ -1439,6 +1441,18 @@ onUnmounted(() => {
               <p v-if="!favoritesDoc.favorites.length" class="places-empty">
                 {{ t("favorites.empty") }}
               </p>
+
+              <p class="places-heading places-heading--fav">{{ t("recycleBin.section") }}</p>
+              <button
+                type="button"
+                class="fluent-list-row places-item"
+                role="menuitem"
+                :class="{ 'places-item--active': isRecyclePath(currentPath) }"
+                @click="openPlacesPath(RECYCLE_PATH)"
+              >
+                <FluentIcon name="close" size="sm" />
+                <span>{{ t("recycleBin.tabName") }}</span>
+              </button>
             </div>
           </div>
 

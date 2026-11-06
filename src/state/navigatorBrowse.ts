@@ -24,6 +24,8 @@ import {
 } from "./openStateModel";
 import { navigableParentPath, recordNavHistory } from "./navHistory";
 import { GUIDE_PATH, isGuidePath } from "./navigatorGuide";
+import { isRecyclePath, RECYCLE_PATH } from "./recyclePath";
+import { loadRecycleListing } from "./recycleBin";
 import { readNewTabBehavior } from "./newTabBehavior";
 import { hydrateSettings } from "./settingsHydrate";
 import { recordPathVisit } from "./visitStats";
@@ -220,6 +222,37 @@ export async function navigateTo(
         pane.type = "guide";
       }
       schedulePersist(false);
+    }
+    return;
+  }
+
+  if (isRecyclePath(trimmed)) {
+    listLoading.value = true;
+    listError.value = null;
+    try {
+      listing.value = await loadRecycleListing();
+      currentPath.value = RECYCLE_PATH;
+      if (pathChanged) clearNavigatorFilter();
+      if (recordHistory) {
+        recordNavHistory(previous, RECYCLE_PATH);
+      }
+      if (syncOpenState) {
+        liveOpenState.value = openStateAfterNavigate(liveOpenState.value, RECYCLE_PATH);
+        const group = liveOpenState.value.tabGroups[liveOpenState.value.currentTabGroupIndex];
+        const pane = group?.[liveOpenState.value.currentTabIndex] ?? group?.[0];
+        if (pane) {
+          pane.name = "Recycle Bin";
+          pane.type = "recycle";
+        }
+        schedulePersist(false);
+      }
+    } catch (err) {
+      listing.value = null;
+      listError.value = err instanceof Error ? err.message : String(err);
+      currentPath.value = RECYCLE_PATH;
+      if (pathChanged) clearNavigatorFilter();
+    } finally {
+      listLoading.value = false;
     }
     return;
   }
@@ -465,6 +498,10 @@ export async function loadDefaultPath(): Promise<void> {
 
 export async function goUp(): Promise<void> {
   if (!currentPath.value || isGuidePath(currentPath.value)) return;
+  if (isRecyclePath(currentPath.value)) {
+    await navigateTo(GUIDE_PATH);
+    return;
+  }
   // Breadcrumb-aligned parent (drive / UNC share root → guide). Prefer pure
   // path logic so Up matches the This PC crumb even when IPC parent is null.
   const logical = navigableParentPath(currentPath.value);

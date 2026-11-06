@@ -49,6 +49,8 @@ export type ContextMenuBuildOptions = {
   canPaste?: boolean;
   /** Empty-area menu (no entry): paste + new folder only. */
   emptyArea?: boolean;
+  /** Recycle Bin listing: restore instead of normal file verbs. */
+  recycleMode?: boolean;
   ideApps?: Array<{ id: string; name: string; available: boolean; enabled?: boolean }>;
   terminals?: Array<{
     id: string;
@@ -63,6 +65,23 @@ export function buildContextMenuItems(
   entry: NavigatorEntry | null,
   options: ContextMenuBuildOptions = {},
 ): ContextMenuItemDef[] {
+  if (options.recycleMode) {
+    if (!entry) return [];
+    return [
+      {
+        id: "restore",
+        labelKey: "recycleBin.restore",
+        enabled: true,
+        icon: "folderOpen",
+      },
+      {
+        id: "properties",
+        labelKey: "contextMenu.properties",
+        enabled: true,
+        icon: "view",
+      },
+    ];
+  }
   if (options.emptyArea || !entry) {
     if (!options.emptyArea) return [];
     // Paste lives in the top toolbar; empty-area list is New only.

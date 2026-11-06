@@ -739,5 +739,12 @@
     "driveNamed": "{label} ({letter}:)",
     "emptyFolders": "Keine gaengigen Ordner gefunden",
     "emptyDrives": "Keine Laufwerke gefunden"
+  },
+  "recycleBin": {
+    "tabName": "Papierkorb",
+    "section": "Papierkorb",
+    "subtitle": "Geloeschte Elemente anzeigen und wiederherstellen",
+    "restore": "Wiederherstellen",
+    "restored": "{count} Element(e) wiederhergestellt"
   }
 }

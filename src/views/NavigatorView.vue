@@ -20,6 +20,8 @@ import {
   folderContextMenuRequest,
 } from "../state/folderContextMenu";
 import { isGuidePath } from "../state/navigatorGuide";
+import { isRecyclePath } from "../state/recyclePath";
+import { restoreRecyclePaths } from "../state/recycleBin";
 import NavigatorGuide from "../components/navigator/NavigatorGuide.vue";
 import { hydrateSettings } from "../state/settingsHydrate";
 import { iconUrlFor, requestShellIcons } from "../state/shellIcons";
@@ -637,9 +639,31 @@ function shellIcon(path: string): string | null {
   return iconUrlFor(path, iconPixelSize.value);
 }
 
+async function restoreSelection() {
+  const paths = selectionPaths();
+  if (!paths.length) return;
+  try {
+    const result = await restoreRecyclePaths(paths);
+    if (!result.ok) {
+      onNotice(result.error ?? t("contextMenu.opFailed"), "error");
+      return;
+    }
+    onNotice(t("recycleBin.restored", { count: result.paths.length }));
+    clearSelection();
+    await refreshListing();
+  } catch (err) {
+    onNotice(err instanceof Error ? err.message : String(err), "error");
+  }
+}
+
 function onActivate(entry: NavigatorEntry) {
   clearPendingNameRename();
   if (renamingPath.value) cancelInlineRename();
+  if (isRecyclePath(currentPath.value)) {
+    selectOnly(entry.path);
+    void restoreSelection();
+    return;
+  }
   // Primary list always uses openEntry; secondary pane has its own handler.
   void openEntry(entry).catch((err) => {
     toastError(err instanceof Error ? err.message : String(err));

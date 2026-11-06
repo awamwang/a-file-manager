@@ -739,5 +739,12 @@
     "driveNamed": "{label} ({letter}:)",
     "emptyFolders": "よく使うフォルダーが見つかりません",
     "emptyDrives": "ドライブが見つかりません"
+  },
+  "recycleBin": {
+    "tabName": "ごみ箱",
+    "section": "ごみ箱",
+    "subtitle": "削除した項目を表示して元に戻す",
+    "restore": "元に戻す",
+    "restored": "{count} 項目を元に戻しました"
   }
 }

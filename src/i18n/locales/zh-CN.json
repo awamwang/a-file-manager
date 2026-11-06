@@ -739,5 +739,12 @@
     "driveNamed": "{label} ({letter}:)",
     "emptyFolders": "未找到常用文件夹",
     "emptyDrives": "未找到驱动器"
+  },
+  "recycleBin": {
+    "tabName": "回收站",
+    "section": "回收站",
+    "subtitle": "浏览并还原已删除的项目",
+    "restore": "还原",
+    "restored": "已还原 {count} 项"
   }
 }

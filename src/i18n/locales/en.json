@@ -739,5 +739,12 @@
     "driveNamed": "{label} ({letter}:)",
     "emptyFolders": "No common folders found",
     "emptyDrives": "No drives found"
+  },
+  "recycleBin": {
+    "tabName": "Recycle Bin",
+    "section": "Recycle Bin",
+    "subtitle": "Browse and restore deleted items",
+    "restore": "Restore",
+    "restored": "Restored {count} item(s)"
   }
 }

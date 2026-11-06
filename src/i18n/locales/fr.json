@@ -739,5 +739,12 @@
     "driveNamed": "{label} ({letter}:)",
     "emptyFolders": "Aucun dossier courant trouve",
     "emptyDrives": "Aucun lecteur trouve"
+  },
+  "recycleBin": {
+    "tabName": "Corbeille",
+    "section": "Corbeille",
+    "subtitle": "Parcourir et restaurer les elements supprimes",
+    "restore": "Restaurer",
+    "restored": "{count} element(s) restaure(s)"
   }
 }

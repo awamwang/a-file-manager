@@ -14,6 +14,7 @@ import {
   userFolders,
   type UserFolderId,
 } from "../../state/navigatorGuide";
+import { isRecyclePath, RECYCLE_PATH } from "../../state/recyclePath";
 
 const { t } = useI18n();
 
@@ -36,6 +37,10 @@ onMounted(() => {
 
 function openGuide() {
   void navigateTo(GUIDE_PATH);
+}
+
+function openRecycleBin() {
+  void navigateTo(RECYCLE_PATH);
 }
 </script>
 
@@ -68,6 +73,16 @@ function openGuide() {
       :label="driveLabel(drive.letter, drive.label)"
     />
     <p v-if="!drivesList.length" class="folder-tree-empty">{{ t("guide.emptyDrives") }}</p>
+
+    <button
+      type="button"
+      class="folder-tree-heading folder-tree-heading--button"
+      :class="{ 'folder-tree-heading--active': isRecyclePath(currentPath) }"
+      @click="openRecycleBin"
+    >
+      <FluentIcon name="close" size="sm" />
+      <span>{{ t("recycleBin.tabName") }}</span>
+    </button>
   </div>
 </template>
 

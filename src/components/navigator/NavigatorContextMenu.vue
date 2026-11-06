@@ -24,6 +24,8 @@ import {
   recordDeleteUndo,
   recordMoveUndo,
 } from "../../state/fileUndo";
+import { isRecyclePath } from "../../state/recyclePath";
+import { restoreRecyclePaths } from "../../state/recycleBin";
 import { confirmDeleteIfNeeded, confirmPermanentDelete } from "../../state/confirmBeforeDelete";
 import { openPromptDialog } from "../../state/promptDialog";
 import {
@@ -185,6 +187,7 @@ const items = computed(() =>
     isFavorite: isFavoritePath(props.entry?.path),
     canPaste: hasClipboard.value,
     emptyArea: Boolean(props.emptyArea),
+    recycleMode: isRecyclePath(currentPath.value),
     ideApps: ideApps.value,
     terminals: terminals.value,
   }).map((item) => ({
@@ -599,6 +602,21 @@ async function run(id: string) {
       break;
     case "properties":
       if (entry) emit("openProperties", entry.path);
+      break;
+    case "restore":
+      if (!entry) break;
+      try {
+        const paths = pathsForClipboard(entry);
+        const result = await restoreRecyclePaths(paths);
+        if (!result.ok) {
+          emit("notice", result.error ?? t("contextMenu.opFailed"));
+          return;
+        }
+        emit("notice", t("recycleBin.restored", { count: result.paths.length }));
+        await refreshListing();
+      } catch (err) {
+        emit("notice", err instanceof Error ? err.message : String(err));
+      }
       break;
     case "delete":
       if (entry) await runDelete(entry);
