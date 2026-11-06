@@ -359,6 +359,14 @@ async function openWorkGroupsPage() {
   });
 }
 
+async function focusCurrentFolderSearch() {
+  if (route.path !== "/navigator" && route.path !== "/") {
+    await router.push("/navigator");
+    await nextTick();
+  }
+  focusNavigatorFilter();
+}
+
 async function ensureNavigatorThenGoUp() {
   if (route.path !== "/navigator") {
     await router.push("/navigator");
@@ -510,15 +518,17 @@ function registerShellShortcuts() {
     toggleCommandPanel();
   });
   registerShortcutHandler("discovery.globalSearch", () => {
-    // On Navigator: focus in-folder toolbar search. Elsewhere: Discovery global search.
-    if (route.path === "/navigator" || route.path === "/") {
-      focusNavigatorFilter();
-      return;
-    }
+    // Ctrl+Shift+F always opens Discovery. Current-folder search is Ctrl+E / F3.
     requestGlobalSearchFocus();
     if (route.path !== "/discovery") {
       void router.push("/discovery");
     }
+  });
+  registerShortcutHandler("navigator.folderSearch", () => {
+    void focusCurrentFolderSearch();
+  });
+  registerShortcutHandler("navigator.folderSearchF3", () => {
+    void focusCurrentFolderSearch();
   });
   registerShortcutHandler("navigator.goUp", () => {
     void ensureNavigatorThenGoUp();
@@ -562,6 +572,8 @@ function unregisterShellShortcuts() {
   for (const id of [
     "commandPanel.toggle",
     "discovery.globalSearch",
+    "navigator.folderSearch",
+    "navigator.folderSearchF3",
     "navigator.goUp",
     "navigator.newTab",
     "navigator.nextTabGroup",

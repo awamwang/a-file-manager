@@ -7,7 +7,7 @@ export const navigatorFilterQuery = ref("");
 
 const FILTER_INPUT_ID = "navigator-folder-filter";
 
-/** Focus the always-visible toolbar search input (Ctrl+Shift+F on Navigator). */
+/** Focus the always-visible toolbar search input (Ctrl+E / F3). */
 export function focusNavigatorFilter(seed = ""): void {
   if (seed) navigatorFilterQuery.value = seed;
   requestAnimationFrame(() => {

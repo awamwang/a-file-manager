@@ -52,6 +52,7 @@ function displayMainKey(key: string): string {
     case ",":
       return ",";
     default:
+      if (/^f\d{1,2}$/.test(key)) return key.toUpperCase();
       return key.length === 1 ? key.toUpperCase() : key;
   }
 }

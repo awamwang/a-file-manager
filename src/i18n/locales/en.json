@@ -544,7 +544,8 @@
     "blockedBy": "Blocked by {id}",
     "items": {
       "commandPanelToggle": "Toggle Command Panel",
-      "discoveryGlobalSearch": "Focus Search",
+      "discoveryGlobalSearch": "Open Discovery search",
+      "navigatorFolderSearch": "Search current folder",
       "navigatorGoUp": "Go up one folder",
       "navigatorBack": "Navigate back",
       "navigatorForward": "Navigate forward",

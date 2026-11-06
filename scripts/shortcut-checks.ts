@@ -19,6 +19,18 @@ assert.equal(
   "commandPanel.toggle",
 );
 assert.equal(
+  winners.get(chordKey({ ctrl: true, shift: true, key: "f" }))?.id,
+  "discovery.globalSearch",
+);
+assert.equal(
+  winners.get(chordKey({ ctrl: true, key: "e" }))?.id,
+  "navigator.folderSearch",
+);
+assert.equal(
+  winners.get(chordKey({ key: "f3" }))?.id,
+  "navigator.folderSearchF3",
+);
+assert.equal(
   winners.get(chordKey({ alt: true, key: "arrowleft" }))?.id,
   "navigator.back",
 );

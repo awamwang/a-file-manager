@@ -544,7 +544,8 @@
     "blockedBy": "{id} にブロックされています",
     "items": {
       "commandPanelToggle": "コマンドパネルの切り替え",
-      "discoveryGlobalSearch": "検索にフォーカス",
+      "discoveryGlobalSearch": "Discovery 検索を開く",
+      "navigatorFolderSearch": "現在のフォルダーを検索",
       "navigatorGoUp": "一つ上のフォルダーへ",
       "navigatorBack": "戻る",
       "navigatorForward": "進む",

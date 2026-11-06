@@ -544,7 +544,8 @@
     "blockedBy": "被 {id} 占用",
     "items": {
       "commandPanelToggle": "切换命令面板",
-      "discoveryGlobalSearch": "聚焦搜索",
+      "discoveryGlobalSearch": "打开 Discovery 搜索",
+      "navigatorFolderSearch": "搜索当前文件夹",
       "navigatorGoUp": "返回上级文件夹",
       "navigatorBack": "后退",
       "navigatorForward": "前进",

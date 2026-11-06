@@ -11,6 +11,9 @@ const discovery = readFileSync(join(root, "src/views/DiscoveryView.vue"), "utf8"
 for (const [label, text, needle] of [
   ["AppShell", shell, "discovery.globalSearch"],
   ["AppShell", shell, "requestGlobalSearchFocus"],
+  ["AppShell", shell, "Ctrl+Shift+F always opens Discovery"],
+  ["AppShell", shell, "navigator.folderSearch"],
+  ["AppShell", shell, "focusCurrentFolderSearch"],
   ["AppShell", shell, "dispatchShortcutEvent"],
   ["DiscoveryView", discovery, "discovery-global-search"],
   ["DiscoveryView", discovery, "consumeGlobalSearchFocus"],

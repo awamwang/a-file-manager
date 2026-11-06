@@ -21,6 +21,19 @@ export const BUILTIN_SHORTCUTS: ShortcutDefinition[] = [
     scope: "global",
   },
   {
+    id: "navigator.folderSearch",
+    labelKey: "shortcuts.items.navigatorFolderSearch",
+    chord: { ctrl: true, key: "e" },
+    scope: "global",
+  },
+  /** Alias: F3 focuses the same current-folder search box. */
+  {
+    id: "navigator.folderSearchF3",
+    labelKey: "shortcuts.items.navigatorFolderSearch",
+    chord: { key: "f3" },
+    scope: "global",
+  },
+  {
     id: "navigator.goUp",
     labelKey: "shortcuts.items.navigatorGoUp",
     chord: { alt: true, key: "arrowup" },

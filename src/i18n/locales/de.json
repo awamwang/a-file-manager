@@ -544,7 +544,8 @@
     "blockedBy": "Blockiert durch {id}",
     "items": {
       "commandPanelToggle": "Befehlspalette umschalten",
-      "discoveryGlobalSearch": "Suche fokussieren",
+      "discoveryGlobalSearch": "Discovery-Suche öffnen",
+      "navigatorFolderSearch": "Aktuellen Ordner durchsuchen",
       "navigatorGoUp": "Eine Ebene nach oben",
       "navigatorBack": "Zurück",
       "navigatorForward": "Vorwärts",
