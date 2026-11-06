@@ -56,6 +56,11 @@ import {
   setSelection,
   toggleInSelection,
 } from "../state/navigatorSelection";
+import {
+  arrowDirectionFromKey,
+  estimateIconColumns,
+  moveSelectionByArrow,
+} from "../state/navigatorKeyboardNav";
 import { sortedEntries, sortColumn, sortDirection, toggleSort } from "../state/navigatorSort";
 import {
   isDetailsView,
@@ -65,6 +70,7 @@ import {
   navigatorViewMode,
   VIEW_ICON_SIZE,
 } from "../state/navigatorViewMode";
+import { isEditableTarget } from "../shortcuts/chord.ts";
 import {
   activePane,
   dualPaneEnabled,
@@ -570,6 +576,40 @@ function onActivateSecondary(entry: NavigatorEntry) {
   });
 }
 
+function focusEntryRow(path: string) {
+  const root = listRoot.value;
+  if (!root) return;
+  const row = root.querySelector<HTMLElement>(`[data-entry-path="${CSS.escape(path)}"]`);
+  row?.focus({ preventScroll: true });
+  row?.scrollIntoView({ block: "nearest", inline: "nearest" });
+}
+
+function onListKeyDown(event: KeyboardEvent) {
+  if (event.altKey || event.metaKey || event.ctrlKey) return;
+  if (isEditableTarget(event.target)) return;
+  const direction = arrowDirectionFromKey(event.key);
+  if (!direction) return;
+  const columns = isIconView.value
+    ? estimateIconColumns(listRoot.value?.clientWidth ?? 0, navigatorViewMode.value)
+    : 1;
+  const moved = moveSelectionByArrow(
+    orderedPaths.value,
+    direction,
+    columns,
+    event.shiftKey,
+    {
+      selectedPaths: selectedPaths.value,
+      selectionAnchor: selectionAnchor.value,
+    },
+  );
+  if (!moved) return;
+  selectedPaths.value = moved.state.selectedPaths;
+  selectionAnchor.value = moved.state.selectionAnchor;
+  event.preventDefault();
+  event.stopPropagation();
+  void nextTick(() => focusEntryRow(moved.path));
+}
+
 function onRowClick(event: MouseEvent, entry: NavigatorEntry) {
   // Clicking away from a pending name-rename (or another row) cancels the delay.
   if (pendingNameRenamePath && pendingNameRenamePath !== entry.path) {
@@ -578,14 +618,17 @@ function onRowClick(event: MouseEvent, entry: NavigatorEntry) {
   if (event.shiftKey) {
     clearPendingNameRename();
     selectRange(orderedPaths.value, selectionAnchor.value, entry.path);
+    focusEntryRow(entry.path);
     return;
   }
   if (event.ctrlKey || event.metaKey) {
     clearPendingNameRename();
     toggleInSelection(entry.path);
+    focusEntryRow(entry.path);
     return;
   }
   selectOnly(entry.path);
+  focusEntryRow(entry.path);
 }
 
 function onContextMenu(event: MouseEvent, entry: NavigatorEntry) {
@@ -1063,6 +1106,9 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
         'list--icons-small': navigatorViewMode === 'iconsSmall',
       }"
       role="list"
+      tabindex="-1"
+      data-focus-default
+      @keydown="onListKeyDown"
       @contextmenu="onListContextMenu"
       @mousedown="onListMouseDown"
       @click.self="clearSelection()"

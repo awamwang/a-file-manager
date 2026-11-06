@@ -14,7 +14,7 @@ assert.ok(view.includes("toggleSort"));
 assert.ok(view.includes("onListMouseDown"));
 assert.ok(view.includes("marquee"));
 assert.ok(view.includes("application/x-afm-paths"));
-assert.ok(view.includes("file_ops_move"));
+assert.ok(view.includes("transferEntries") || view.includes("file_ops_move"));
 assert.ok(view.includes("selectRange"));
 assert.ok(view.includes("navigator.selectAll"));
 assert.ok(registry.includes('id: "navigator.selectAll"'));

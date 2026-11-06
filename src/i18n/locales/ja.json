@@ -592,6 +592,8 @@
       "navigatorProperties": "プロパティ",
       "navigatorPreviewPane": "プレビューウィンドウを切り替え",
       "focusAddress": "アドレスバーにフォーカス",
+      "focusCycle": "フォーカスを循環（F6）",
+      "focusCycleReverse": "フォーカスを逆循環（Shift+F6）",
       "openSettings": "設定を開く",
       "openShortcutList": "ショートカット一覧を開く",
       "openWorkGroups": "ワークグループを開く",

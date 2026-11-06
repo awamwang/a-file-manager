@@ -594,6 +594,8 @@
       "navigatorProperties": "Properties",
       "navigatorPreviewPane": "Toggle preview pane",
       "focusAddress": "Focus address bar",
+      "focusCycle": "Cycle focus (F6)",
+      "focusCycleReverse": "Cycle focus backward (Shift+F6)",
       "openSettings": "Open Settings",
       "openShortcutList": "Open shortcut list",
       "openWorkGroups": "Open Work Groups",

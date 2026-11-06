@@ -594,6 +594,8 @@
       "navigatorProperties": "属性",
       "navigatorPreviewPane": "切换预览窗格",
       "focusAddress": "聚焦地址栏",
+      "focusCycle": "循环焦点（F6）",
+      "focusCycleReverse": "反向循环焦点（Shift+F6）",
       "openSettings": "打开设置",
       "openShortcutList": "打开快捷键列表",
       "openWorkGroups": "打开工作组",

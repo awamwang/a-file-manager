@@ -592,6 +592,8 @@
       "navigatorProperties": "Eigenschaften",
       "navigatorPreviewPane": "Vorschaufenster umschalten",
       "focusAddress": "Adressleiste fokussieren",
+      "focusCycle": "Fokus wechseln (F6)",
+      "focusCycleReverse": "Fokus rückwärts wechseln (Shift+F6)",
       "openSettings": "Einstellungen öffnen",
       "openShortcutList": "Tastenkürzel-Liste öffnen",
       "openWorkGroups": "Arbeitsgruppen öffnen",

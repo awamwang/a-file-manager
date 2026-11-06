@@ -592,6 +592,8 @@
       "navigatorProperties": "Propriétés",
       "navigatorPreviewPane": "Afficher ou masquer le volet d’aperçu",
       "focusAddress": "Focus sur la barre d’adresse",
+      "focusCycle": "Parcourir le focus (F6)",
+      "focusCycleReverse": "Parcourir le focus en arrière (Maj+F6)",
       "openSettings": "Ouvrir les Paramètres",
       "openShortcutList": "Ouvrir la liste des raccourcis",
       "openWorkGroups": "Ouvrir les Groupes de travail",

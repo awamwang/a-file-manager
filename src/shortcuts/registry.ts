@@ -190,6 +190,18 @@ export const BUILTIN_SHORTCUTS: ShortcutDefinition[] = [
     scope: "global",
   },
   {
+    id: "chrome.focusCycle",
+    labelKey: "shortcuts.items.focusCycle",
+    chord: { key: "f6" },
+    scope: "global",
+  },
+  {
+    id: "chrome.focusCycleReverse",
+    labelKey: "shortcuts.items.focusCycleReverse",
+    chord: { shift: true, key: "f6" },
+    scope: "global",
+  },
+  {
     id: "view.settings",
     labelKey: "shortcuts.items.openSettings",
     chord: { ctrl: true, key: "," },

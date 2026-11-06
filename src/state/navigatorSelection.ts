@@ -51,6 +51,10 @@ export function selectRange(
   const start = Math.min(fromIndex, toIndex);
   const end = Math.max(fromIndex, toIndex);
   selectedPaths.value = orderedPaths.slice(start, end + 1);
+  // Keep the range origin unless none was set yet.
+  if (!selectionAnchor.value || !orderedPaths.includes(selectionAnchor.value)) {
+    selectionAnchor.value = fromPath && orderedPaths.includes(fromPath) ? fromPath : toPath;
+  }
 }
 
 export function setSelection(paths: string[], anchor?: string | null): void {

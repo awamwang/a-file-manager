@@ -24,6 +24,12 @@ import {
   unregisterShortcutHandler,
 } from "../../shortcuts/index.ts";
 import {
+  FOCUS_CYCLE_ATTR,
+  focusRegionElement,
+  nextFocusRegion,
+  regionFromElement,
+} from "../../state/focusCycle";
+import {
   bootstrapNavigatorOpenState,
   closeNavigatorTab,
   currentPath,
@@ -422,6 +428,19 @@ function focusAddressBar() {
   });
 }
 
+function cycleChromeFocus(reverse = false) {
+  const current = regionFromElement(document.activeElement);
+  let next = nextFocusRegion(current, reverse);
+  for (let i = 0; i < 4; i += 1) {
+    const host = document.querySelector<HTMLElement>(`[${FOCUS_CYCLE_ATTR}="${next}"]`);
+    if (host && host.offsetParent !== null) {
+      focusRegionElement(host);
+      return;
+    }
+    next = nextFocusRegion(next, reverse);
+  }
+}
+
 async function onGoBack() {
   const target = popBack(currentPath.value);
   if (!target) return;
@@ -583,6 +602,12 @@ function registerShellShortcuts() {
   registerShortcutHandler("chrome.focusAddress", () => {
     focusAddressBar();
   });
+  registerShortcutHandler("chrome.focusCycle", () => {
+    cycleChromeFocus(false);
+  });
+  registerShortcutHandler("chrome.focusCycleReverse", () => {
+    cycleChromeFocus(true);
+  });
   registerShortcutHandler("view.settings", () => {
     void router.push("/settings");
   });
@@ -609,6 +634,8 @@ function unregisterShellShortcuts() {
     "navigator.backCtrlAlt",
     "navigator.forwardCtrlAlt",
     "chrome.focusAddress",
+    "chrome.focusCycle",
+    "chrome.focusCycleReverse",
     "view.settings",
     "view.shortcuts",
     "view.work-groups",
@@ -1127,7 +1154,12 @@ onUnmounted(() => {
     </header>
 
     <div class="body">
-      <nav class="sidenav fluent-layer-alt" :aria-label="t('chrome.sideNav')">
+      <nav
+        class="sidenav fluent-layer-alt"
+        data-focus-region="sidenav"
+        tabindex="-1"
+        :aria-label="t('chrome.sideNav')"
+      >
         <button
           v-for="item in navItems"
           :key="item.id"
@@ -1153,6 +1185,8 @@ onUnmounted(() => {
         <div
           class="tabstrip"
           role="tablist"
+          data-focus-region="tabstrip"
+          tabindex="-1"
           :aria-label="t('chrome.tabs')"
         >
           <div
@@ -1615,13 +1649,23 @@ onUnmounted(() => {
 
         </template>
 
-        <main class="content" :class="{ 'content--navigator': isNavigatorRoute }">
+        <main
+          class="content"
+          data-focus-region="content"
+          tabindex="-1"
+          :class="{ 'content--navigator': isNavigatorRoute }"
+        >
           <slot />
         </main>
       </div>
     </div>
 
-    <footer class="statusbar" :aria-label="t('chrome.status')">
+    <footer
+      class="statusbar"
+      data-focus-region="statusbar"
+      tabindex="-1"
+      :aria-label="t('chrome.status')"
+    >
       <span class="status-text status-primary">{{ browseStatusText }}</span>
       <div class="status-trailing">
         <span
