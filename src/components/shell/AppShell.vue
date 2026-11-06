@@ -60,7 +60,7 @@ import {
   loadNavigatorPlaces,
   resolveHomePath,
 } from "../../state/navigatorGuide";
-import { dualPaneEnabled, toggleDualPane } from "../../state/dualPane";
+import { dualPaneEnabled, navigateSecondary, secondaryPath, toggleDualPane } from "../../state/dualPane";
 import {
   loadNavigatorViewMode,
   NAVIGATOR_VIEW_MODES,
@@ -95,8 +95,10 @@ import {
   navigatorFilterQuery,
   primarySearch,
   primarySearchLoading,
+  scheduleFolderSearch,
 } from "../../state/navigatorFilter";
 import { hydrateSettings } from "../../state/settingsHydrate";
+import { loadShowHidden, setShowHidden, showHiddenItems } from "../../state/showHidden";
 
 const { t, locale } = useI18n();
 
@@ -177,6 +179,24 @@ function closeViewModeMenu() {
 function chooseViewMode(mode: NavigatorViewMode) {
   void setNavigatorViewMode(mode);
   closeViewModeMenu();
+}
+
+async function onToggleShowHidden() {
+  await setShowHidden(!showHiddenItems.value);
+  if (currentPath.value && !isGuidePath(currentPath.value)) {
+    await navigateTo(currentPath.value, { syncOpenState: false });
+  }
+  if (
+    dualPaneEnabled.value &&
+    secondaryPath.value &&
+    !isGuidePath(secondaryPath.value)
+  ) {
+    await navigateSecondary(secondaryPath.value);
+  }
+  scheduleFolderSearch("primary", currentPath.value);
+  if (dualPaneEnabled.value) {
+    scheduleFolderSearch("secondary", secondaryPath.value);
+  }
 }
 
 function closeCrumbMenu() {
@@ -975,7 +995,10 @@ onMounted(() => {
   reclaimFluentTitlebar();
   void loadHealth();
   void refreshMaximized();
-  void bootstrapNavigatorOpenState();
+  void (async () => {
+    await loadShowHidden().catch(() => undefined);
+    await bootstrapNavigatorOpenState();
+  })();
   void loadFavorites().catch(() => undefined);
   void loadVisitStats().catch(() => undefined);
   void loadNavigatorPlaces().catch(() => undefined);
@@ -1116,7 +1139,7 @@ onUnmounted(() => {
           <span class="sidenav-label">{{ t(item.labelKey) }}</span>
           <span v-if="item.later" class="later-badge">{{ t("chrome.later") }}</span>
         </button>
-        <FolderTree v-if="isNavigatorRoute" />
+        <FolderTree v-if="isNavigatorRoute" :key="showHiddenItems ? 'show-hidden' : 'hide-hidden'" />
       </nav>
 
       <div class="workspace">
@@ -1394,6 +1417,18 @@ onUnmounted(() => {
               </button>
             </div>
           </div>
+
+          <button
+            type="button"
+            class="fluent-control nav-icon-btn"
+            :class="{ 'nav-icon-btn--active': showHiddenItems }"
+            :title="t('chrome.showHidden')"
+            :aria-label="t('chrome.showHidden')"
+            :aria-pressed="showHiddenItems"
+            @click="onToggleShowHidden"
+          >
+            <FluentIcon name="eye" size="sm" />
+          </button>
 
           <button
             type="button"

@@ -8,13 +8,17 @@ mod stat;
 pub(crate) mod path_guard;
 
 #[tauri::command]
-pub fn navigator_list(path: String) -> Result<list::NavigatorListing, String> {
-    list::list_directory(&path)
+pub fn navigator_list(path: String, show_hidden: Option<bool>) -> Result<list::NavigatorListing, String> {
+    list::list_directory(&path, show_hidden.unwrap_or(false))
 }
 
 #[tauri::command]
-pub fn navigator_search(path: String, query: String) -> Result<search::NavigatorSearch, String> {
-    search::search_directory(&path, &query)
+pub fn navigator_search(
+    path: String,
+    query: String,
+    show_hidden: Option<bool>,
+) -> Result<search::NavigatorSearch, String> {
+    search::search_directory(&path, &query, show_hidden.unwrap_or(false))
 }
 
 #[tauri::command]

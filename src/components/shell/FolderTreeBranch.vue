@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import FluentIcon from "../icons/FluentIcon.vue";
 import { currentPath, navigateTo, type NavigatorListing } from "../../state/navigatorBrowse";
 import { directoryChildren, treePathActive, type FolderTreeChild } from "../../state/folderTree";
+import { showHiddenItems } from "../../state/showHidden";
 
 const props = withDefaults(
   defineProps<{
@@ -26,7 +27,10 @@ const active = computed(() => treePathActive(currentPath.value, props.path));
 async function loadChildren() {
   loading.value = true;
   try {
-    const listing = await invoke<NavigatorListing>("navigator_list", { path: props.path });
+    const listing = await invoke<NavigatorListing>("navigator_list", {
+      path: props.path,
+      showHidden: showHiddenItems.value,
+    });
     children.value = directoryChildren(listing.entries);
   } catch {
     children.value = [];

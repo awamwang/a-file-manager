@@ -26,6 +26,7 @@ import { readNewTabBehavior } from "./newTabBehavior";
 import { hydrateSettings } from "./settingsHydrate";
 import { recordPathVisit } from "./visitStats";
 import { clearNavigatorFilter } from "./navigatorFilter";
+import { showHiddenItems } from "./showHidden";
 
 export type NavigatorEntry = {
   name: string;
@@ -223,7 +224,10 @@ export async function navigateTo(
   listLoading.value = true;
   listError.value = null;
   try {
-    const result = await invoke<NavigatorListing>("navigator_list", { path: trimmed });
+    const result = await invoke<NavigatorListing>("navigator_list", {
+      path: trimmed,
+      showHidden: showHiddenItems.value,
+    });
     listing.value = result;
     currentPath.value = result.path;
     if (normalizeBrowseKey(previous) !== normalizeBrowseKey(result.path)) {

@@ -28,7 +28,21 @@ pub struct NavigatorListing {
     pub file_count: u64,
 }
 
-pub fn list_directory(path: &str) -> Result<NavigatorListing, String> {
+pub(crate) fn entry_is_hidden(metadata: &fs::Metadata) -> bool {
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        const FILE_ATTRIBUTE_HIDDEN: u32 = 2;
+        metadata.file_attributes() & FILE_ATTRIBUTE_HIDDEN != 0
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = metadata;
+        false
+    }
+}
+
+pub fn list_directory(path: &str, show_hidden: bool) -> Result<NavigatorListing, String> {
     assert_os_path(path)?;
 
     let root = PathBuf::from(path.trim());
@@ -52,6 +66,10 @@ pub fn list_directory(path: &str) -> Result<NavigatorListing, String> {
             Ok(metadata) => metadata,
             Err(_) => continue,
         };
+
+        if !show_hidden && entry_is_hidden(&metadata) {
+            continue;
+        }
 
         let is_dir = metadata.is_dir();
         let kind = if is_dir { "dir" } else { "file" }.to_string();
@@ -138,7 +156,7 @@ mod tests {
         let mut file = File::create(dir.join("beta.txt")).unwrap();
         write!(file, "hi").unwrap();
 
-        let listing = list_directory(&dir.to_string_lossy()).unwrap();
+        let listing = list_directory(&dir.to_string_lossy(), true).unwrap();
         assert_eq!(listing.dir_count, 1);
         assert_eq!(listing.file_count, 1);
         assert_eq!(listing.entries[0].kind, "dir");
@@ -151,7 +169,7 @@ mod tests {
 
     #[test]
     fn rejects_awam_in_list() {
-        let err = list_directory("awam://local/C:/").unwrap_err();
+        let err = list_directory("awam://local/C:/", false).unwrap_err();
         assert!(err.contains("awam://"));
     }
 
@@ -175,5 +193,35 @@ mod tests {
             assert!(got.is_none(), "{p} should have no FS parent, got {got:?}");
         }
         assert_eq!(parent_path(r"D:\Projects").unwrap().as_deref(), Some(r"D:\"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn hidden_entries_are_omitted_until_show_hidden() {
+        let dir = std::env::temp_dir().join(format!(
+            "a-file-manager-hidden-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let visible = dir.join("visible.txt");
+        let hidden = dir.join("secret.txt");
+        File::create(&visible).unwrap();
+        File::create(&hidden).unwrap();
+        let status = std::process::Command::new("attrib")
+            .arg("+H")
+            .arg(&hidden)
+            .status()
+            .expect("attrib");
+        assert!(status.success());
+
+        let concealed = list_directory(&dir.to_string_lossy(), false).unwrap();
+        assert_eq!(concealed.entries.len(), 1);
+        assert_eq!(concealed.entries[0].name, "visible.txt");
+
+        let shown = list_directory(&dir.to_string_lossy(), true).unwrap();
+        assert_eq!(shown.entries.len(), 2);
+
+        let _ = fs::remove_dir_all(&dir);
     }
 }

@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { NavigatorListing } from "./navigatorBrowse";
 import { currentPath, navigateTo } from "./navigatorBrowse";
 import { clearNavigatorFilter } from "./navigatorFilter";
+import { showHiddenItems } from "./showHidden";
 
 export type PaneId = "primary" | "secondary";
 
@@ -44,7 +45,10 @@ export async function navigateSecondary(path: string): Promise<void> {
   secondaryLoading.value = true;
   secondaryError.value = null;
   try {
-    const result = await invoke<NavigatorListing>("navigator_list", { path: trimmed });
+    const result = await invoke<NavigatorListing>("navigator_list", {
+      path: trimmed,
+      showHidden: showHiddenItems.value,
+    });
     secondaryListing.value = result;
     secondaryPath.value = result.path;
     if (browseKey(previous) !== browseKey(result.path)) clearNavigatorFilter();

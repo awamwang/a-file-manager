@@ -5,6 +5,7 @@ import { ref, shallowRef } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { isGuidePath } from "./guidePath";
 import type { NavigatorEntry } from "./navigatorBrowse";
+import { showHiddenItems } from "./showHidden";
 
 export const navigatorFilterQuery = ref("");
 
@@ -93,7 +94,11 @@ async function runFolderSearch(
   const loading = pane === "primary" ? primarySearchLoading : secondarySearchLoading;
   const hits = pane === "primary" ? primarySearch : secondarySearch;
   try {
-    const result = await invoke<FolderSearchResult>("navigator_search", { path, query });
+    const result = await invoke<FolderSearchResult>("navigator_search", {
+      path,
+      query,
+      showHidden: showHiddenItems.value,
+    });
     const current = pane === "primary" ? primarySeq : secondarySeq;
     if (seq !== current) return;
     if (navigatorFilterQuery.value.trim() !== query) return;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Recursive name search under one folder (current directory and descendants).
 
-use super::list::{display_path, system_time_ms, NavigatorEntry};
+use super::list::{display_path, entry_is_hidden, system_time_ms, NavigatorEntry};
 use super::path_guard::assert_os_path;
 use serde::Serialize;
 use std::path::Path;
@@ -19,7 +19,7 @@ pub struct NavigatorSearch {
     pub truncated: bool,
 }
 
-pub fn search_directory(root: &str, query: &str) -> Result<NavigatorSearch, String> {
+pub fn search_directory(root: &str, query: &str, show_hidden: bool) -> Result<NavigatorSearch, String> {
     assert_os_path(root)?;
     let root_path = Path::new(root.trim());
     if !root_path.is_dir() {
@@ -43,6 +43,15 @@ pub fn search_directory(root: &str, query: &str) -> Result<NavigatorSearch, Stri
         .min_depth(1)
         .follow_links(false)
         .into_iter()
+        .filter_entry(|entry| {
+            if show_hidden {
+                return true;
+            }
+            match entry.metadata() {
+                Ok(metadata) => !entry_is_hidden(&metadata),
+                Err(_) => true,
+            }
+        })
     {
         visited += 1;
         if visited > MAX_VISITED {
@@ -163,7 +172,7 @@ mod tests {
         write!(file, "x").unwrap();
         File::create(dir.join("other.dat")).unwrap();
 
-        let hit = search_directory(&dir.to_string_lossy(), "invoice").unwrap();
+        let hit = search_directory(&dir.to_string_lossy(), "invoice", true).unwrap();
         assert_eq!(hit.entries.len(), 1);
         assert_eq!(hit.entries[0].name, "Invoice-2026.txt");
         assert!(hit.entries[0].path.contains("nested"));
@@ -179,7 +188,7 @@ mod tests {
         File::create(dir.join("a").join("note.pdf")).unwrap();
         File::create(dir.join("a").join("note.txt")).unwrap();
 
-        let hit = search_directory(&dir.to_string_lossy(), "*.pdf").unwrap();
+        let hit = search_directory(&dir.to_string_lossy(), "*.pdf", true).unwrap();
         assert_eq!(hit.entries.len(), 1);
         assert_eq!(hit.entries[0].name, "note.pdf");
 
@@ -190,7 +199,7 @@ mod tests {
     fn empty_query_does_not_walk() {
         let dir = scratch("empty");
         File::create(dir.join("keep.txt")).unwrap();
-        let hit = search_directory(&dir.to_string_lossy(), "   ").unwrap();
+        let hit = search_directory(&dir.to_string_lossy(), "   ", true).unwrap();
         assert!(hit.entries.is_empty());
         let _ = fs::remove_dir_all(&dir);
     }
