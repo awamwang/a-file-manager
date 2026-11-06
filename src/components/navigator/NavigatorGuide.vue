@@ -8,6 +8,7 @@ import { quickAccessList, loadVisitStats } from "../../state/visitStats";
 import {
   drivesList,
   loadNavigatorPlaces,
+  shellPlaces,
   userFolderItems,
   userFolders,
   type UserFolderId,
@@ -149,6 +150,69 @@ function onOpen(path: string) {
           <span class="guide-card-path">{{ t("recycleBin.subtitle") }}</span>
         </button>
       </div>
+    </section>
+
+    <section
+      v-if="shellPlaces?.onedrive"
+      class="guide-section"
+      :aria-label="t('shellPlaces.onedrive')"
+    >
+      <h2 class="guide-section-title">{{ t("shellPlaces.onedrive") }}</h2>
+      <div class="guide-grid">
+        <button
+          type="button"
+          class="guide-card fluent-surface"
+          :title="shellPlaces.onedrive"
+          @click="onOpen(shellPlaces.onedrive)"
+        >
+          <FluentIcon name="cloud" size="md" />
+          <span class="guide-card-label">{{ t("shellPlaces.onedrive") }}</span>
+          <span class="guide-card-path">{{ shellPlaces.onedrive }}</span>
+        </button>
+      </div>
+    </section>
+
+    <section
+      v-if="shellPlaces?.libraries?.length"
+      class="guide-section"
+      :aria-label="t('shellPlaces.libraries')"
+    >
+      <h2 class="guide-section-title">{{ t("shellPlaces.libraries") }}</h2>
+      <div class="guide-grid">
+        <button
+          v-for="lib in shellPlaces.libraries"
+          :key="lib.id"
+          type="button"
+          class="guide-card fluent-surface"
+          :title="lib.path"
+          @click="onOpen(lib.path)"
+        >
+          <FluentIcon name="folder" size="md" />
+          <span class="guide-card-label">{{ t(`guide.folders.${lib.id}`) }}</span>
+          <span class="guide-card-path">{{ lib.path }}</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="guide-section" :aria-label="t('shellPlaces.network')">
+      <h2 class="guide-section-title">{{ t("shellPlaces.network") }}</h2>
+      <div class="guide-grid">
+        <button
+          v-for="item in shellPlaces?.network ?? []"
+          :key="item.path"
+          type="button"
+          class="guide-card fluent-surface"
+          :title="item.path"
+          @click="onOpen(item.path)"
+        >
+          <FluentIcon name="globe" size="md" />
+          <span class="guide-card-label">{{ item.name }}</span>
+          <span class="guide-card-path">{{ item.path }}</span>
+        </button>
+      </div>
+      <p v-if="!(shellPlaces?.network?.length)" class="guide-empty">
+        {{ t("shellPlaces.networkEmpty") }}
+      </p>
     </section>
   </div>
 </template>

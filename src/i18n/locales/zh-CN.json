@@ -746,5 +746,11 @@
     "subtitle": "浏览并还原已删除的项目",
     "restore": "还原",
     "restored": "已还原 {count} 项"
+  },
+  "shellPlaces": {
+    "onedrive": "OneDrive",
+    "libraries": "库",
+    "network": "网络",
+    "networkEmpty": "暂无映射的网络位置。可在地址栏输入 \\\\server\\share。"
   }
 }

@@ -746,5 +746,11 @@
     "subtitle": "Browse and restore deleted items",
     "restore": "Restore",
     "restored": "Restored {count} item(s)"
+  },
+  "shellPlaces": {
+    "onedrive": "OneDrive",
+    "libraries": "Libraries",
+    "network": "Network",
+    "networkEmpty": "No mapped network locations. Type \\\\server\\share in the address bar."
   }
 }

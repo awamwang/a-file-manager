@@ -746,5 +746,11 @@
     "subtitle": "削除した項目を表示して元に戻す",
     "restore": "元に戻す",
     "restored": "{count} 項目を元に戻しました"
+  },
+  "shellPlaces": {
+    "onedrive": "OneDrive",
+    "libraries": "ライブラリ",
+    "network": "ネットワーク",
+    "networkEmpty": "マップされたネットワーク場所はありません。アドレスバーに \\\\server\\share を入力できます。"
   }
 }

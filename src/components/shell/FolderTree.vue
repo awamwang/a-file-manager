@@ -10,6 +10,7 @@ import {
   drivesList,
   isGuidePath,
   loadNavigatorPlaces,
+  shellPlaces,
   userFolderItems,
   userFolders,
   type UserFolderId,
@@ -83,6 +84,34 @@ function openRecycleBin() {
       <FluentIcon name="close" size="sm" />
       <span>{{ t("recycleBin.tabName") }}</span>
     </button>
+
+    <template v-if="shellPlaces?.onedrive">
+      <p class="folder-tree-heading">{{ t("shellPlaces.onedrive") }}</p>
+      <FolderTreeBranch
+        :path="shellPlaces.onedrive"
+        :label="t('shellPlaces.onedrive')"
+      />
+    </template>
+
+    <template v-if="shellPlaces?.libraries?.length">
+      <p class="folder-tree-heading">{{ t("shellPlaces.libraries") }}</p>
+      <FolderTreeBranch
+        v-for="lib in shellPlaces.libraries"
+        :key="lib.path"
+        :path="lib.path"
+        :label="t(`guide.folders.${lib.id}`)"
+      />
+    </template>
+
+    <template v-if="shellPlaces?.network?.length">
+      <p class="folder-tree-heading">{{ t("shellPlaces.network") }}</p>
+      <FolderTreeBranch
+        v-for="item in shellPlaces.network"
+        :key="item.path"
+        :path="item.path"
+        :label="item.name"
+      />
+    </template>
   </div>
 </template>
 

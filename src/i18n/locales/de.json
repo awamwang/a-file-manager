@@ -746,5 +746,11 @@
     "subtitle": "Geloeschte Elemente anzeigen und wiederherstellen",
     "restore": "Wiederherstellen",
     "restored": "{count} Element(e) wiederhergestellt"
+  },
+  "shellPlaces": {
+    "onedrive": "OneDrive",
+    "libraries": "Bibliotheken",
+    "network": "Netzwerk",
+    "networkEmpty": "Keine zugeordneten Netzwerkorte. Geben Sie \\\\server\\share in die Adressleiste ein."
   }
 }

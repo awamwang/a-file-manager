@@ -25,6 +25,29 @@ pub struct UserFolders {
     pub pictures: Option<String>,
     pub music: Option<String>,
     pub videos: Option<String>,
+    pub onedrive: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct LibraryPlace {
+    pub id: String,
+    pub path: String,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct NetworkPlace {
+    pub name: String,
+    pub path: String,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ShellPlaces {
+    pub onedrive: Option<String>,
+    pub libraries: Vec<LibraryPlace>,
+    pub network: Vec<NetworkPlace>,
 }
 
 fn display_path(path: &Path) -> String {
@@ -39,6 +62,20 @@ fn existing_dir(path: PathBuf) -> Option<String> {
     }
 }
 
+fn resolve_onedrive(home_path: &Path) -> Option<String> {
+    if let Ok(value) = std::env::var("OneDrive") {
+        if let Some(path) = existing_dir(PathBuf::from(value.trim())) {
+            return Some(path);
+        }
+    }
+    if let Ok(value) = std::env::var("OneDriveConsumer") {
+        if let Some(path) = existing_dir(PathBuf::from(value.trim())) {
+            return Some(path);
+        }
+    }
+    existing_dir(home_path.join("OneDrive"))
+}
+
 /// Resolve USERPROFILE (or fallback) and common child folders when they exist.
 pub fn user_folders() -> Result<UserFolders, String> {
     let home = super::list::default_path()?;
@@ -51,7 +88,69 @@ pub fn user_folders() -> Result<UserFolders, String> {
         pictures: existing_dir(home_path.join("Pictures")),
         music: existing_dir(home_path.join("Music")),
         videos: existing_dir(home_path.join("Videos")),
+        onedrive: resolve_onedrive(&home_path),
     })
+}
+
+/// Libraries / OneDrive / mapped network shares for Guide + Places.
+pub fn shell_places() -> Result<ShellPlaces, String> {
+    let folders = user_folders()?;
+    let home_path = PathBuf::from(&folders.home);
+    let mut libraries = Vec::new();
+    for (id, path) in [
+        ("documents", folders.documents.clone()),
+        ("music", folders.music.clone()),
+        ("pictures", folders.pictures.clone()),
+        ("videos", folders.videos.clone()),
+    ] {
+        if let Some(path) = path {
+            libraries.push(LibraryPlace {
+                id: id.to_string(),
+                path,
+            });
+        }
+    }
+    Ok(ShellPlaces {
+        onedrive: folders.onedrive.or_else(|| resolve_onedrive(&home_path)),
+        libraries,
+        network: list_network_places(),
+    })
+}
+
+fn list_network_places() -> Vec<NetworkPlace> {
+    let output = std::process::Command::new("cmd")
+        .args(["/C", "net use"])
+        .output();
+    let Ok(output) = output else {
+        return Vec::new();
+    };
+    if !output.status.success() {
+        return Vec::new();
+    }
+    let text = String::from_utf8_lossy(&output.stdout);
+    let mut places = Vec::new();
+    for line in text.lines() {
+        // Typical: OK  Z:  \\server\share  Microsoft Windows Network
+        let trimmed = line.trim();
+        if !trimmed.contains("\\\\") {
+            continue;
+        }
+        let parts: Vec<&str> = trimmed.split_whitespace().collect();
+        let unc = parts.iter().find(|part| part.starts_with(r"\\"));
+        let Some(unc) = unc else { continue };
+        let letter = parts
+            .iter()
+            .find(|part| part.len() == 2 && part.ends_with(':'))
+            .copied();
+        let name = letter.unwrap_or(*unc).to_string();
+        let path = if let Some(letter) = letter {
+            format!("{letter}\\")
+        } else {
+            (*unc).to_string()
+        };
+        places.push(NetworkPlace { name, path });
+    }
+    places
 }
 
 /// Enumerate mounted local drive roots (`A:\` … `Z:\`) that currently exist as directories.
@@ -92,6 +191,15 @@ mod tests {
         for drive in &drives {
             assert!(drive.path.ends_with('\\'));
             assert!(Path::new(&drive.path).is_dir());
+        }
+    }
+
+    #[test]
+    fn shell_places_libraries_come_from_user_folders() {
+        let places = shell_places().unwrap();
+        for lib in &places.libraries {
+            assert!(Path::new(&lib.path).is_dir());
+            assert!(["documents", "music", "pictures", "videos"].contains(&lib.id.as_str()));
         }
     }
 }

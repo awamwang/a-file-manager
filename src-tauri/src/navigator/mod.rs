@@ -45,3 +45,8 @@ pub fn navigator_list_drives() -> Result<Vec<places::DriveInfo>, String> {
 pub fn navigator_user_folders() -> Result<places::UserFolders, String> {
     places::user_folders()
 }
+
+#[tauri::command]
+pub fn navigator_shell_places() -> Result<places::ShellPlaces, String> {
+    places::shell_places()
+}

@@ -21,6 +21,23 @@ export type UserFolders = {
   pictures: string | null;
   music: string | null;
   videos: string | null;
+  onedrive?: string | null;
+};
+
+export type LibraryPlace = {
+  id: string;
+  path: string;
+};
+
+export type NetworkPlace = {
+  name: string;
+  path: string;
+};
+
+export type ShellPlaces = {
+  onedrive: string | null;
+  libraries: LibraryPlace[];
+  network: NetworkPlace[];
 };
 
 export type UserFolderId =
@@ -39,6 +56,7 @@ export type UserFolderItem = {
 
 export const drivesList = ref<DriveInfo[]>([]);
 export const userFolders = ref<UserFolders | null>(null);
+export const shellPlaces = ref<ShellPlaces | null>(null);
 
 export function guideTabName(translate: (key: string) => string): string {
   return translate("guide.tabName");
@@ -56,6 +74,12 @@ export async function loadUserFolders(): Promise<UserFolders> {
   return folders;
 }
 
+export async function loadShellPlaces(): Promise<ShellPlaces> {
+  const places = await invoke<ShellPlaces>("navigator_shell_places");
+  shellPlaces.value = places;
+  return places;
+}
+
 export async function loadNavigatorPlaces(): Promise<void> {
   await Promise.all([
     loadDrives().catch(() => {
@@ -63,6 +87,9 @@ export async function loadNavigatorPlaces(): Promise<void> {
     }),
     loadUserFolders().catch(() => {
       userFolders.value = null;
+    }),
+    loadShellPlaces().catch(() => {
+      shellPlaces.value = null;
     }),
   ]);
 }

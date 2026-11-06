@@ -746,5 +746,11 @@
     "subtitle": "Parcourir et restaurer les elements supprimes",
     "restore": "Restaurer",
     "restored": "{count} element(s) restaure(s)"
+  },
+  "shellPlaces": {
+    "onedrive": "OneDrive",
+    "libraries": "Bibliotheques",
+    "network": "Reseau",
+    "networkEmpty": "Aucun emplacement reseau mappe. Saisissez \\\\server\\share dans la barre d'adresse."
   }
 }
