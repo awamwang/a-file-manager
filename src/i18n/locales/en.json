@@ -24,7 +24,14 @@
     "deleteTitle": "Confirm delete",
     "dontAskAgain": "Don't ask again",
     "promptTitle": "Enter a name",
-    "promptLabel": "Name"
+    "promptLabel": "Name",
+    "conflictTitle": "File already exists",
+    "conflictMessage": "\"{name}\" already exists in this folder.",
+    "conflictReplace": "Replace",
+    "conflictSkip": "Skip",
+    "conflictKeep": "Keep both",
+    "conflictDefaultReplace": "Replace next time",
+    "conflictDefaultSkip": "Skip next time"
   },
   "chrome": {
     "titleBar": "Title bar",

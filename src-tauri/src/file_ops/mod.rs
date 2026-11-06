@@ -147,7 +147,55 @@ pub fn delete_to_recycle(path: &Path, path_text: &str) -> Result<(), String> {
     trash::delete(path).map_err(|err| format!("Failed to move to Recycle Bin: {err}"))
 }
 
-pub fn copy_paths(sources: &[String], dest_dir: &str) -> Result<Vec<String>, String> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NameConflict {
+    KeepBoth,
+    Replace,
+    Skip,
+}
+
+pub fn parse_name_conflict(value: Option<&str>) -> NameConflict {
+    match value.unwrap_or("keep") {
+        "replace" => NameConflict::Replace,
+        "skip" => NameConflict::Skip,
+        _ => NameConflict::KeepBoth,
+    }
+}
+
+/// `Ok(None)` means the existing name was skipped.
+fn place_dest(
+    parent: &Path,
+    file_name: &str,
+    source: &Path,
+    conflict: NameConflict,
+) -> Result<Option<PathBuf>, String> {
+    let exact = parent.join(file_name);
+    if exact == source {
+        return Ok(Some(exact));
+    }
+    if !exact.exists() {
+        return Ok(Some(exact));
+    }
+    match conflict {
+        NameConflict::KeepBoth => Ok(Some(unique_dest_path(parent, file_name))),
+        NameConflict::Skip => Ok(None),
+        NameConflict::Replace => {
+            if exact.is_dir() {
+                fs::remove_dir_all(&exact)
+                    .map_err(|err| format!("Failed to replace folder: {err}"))?;
+            } else {
+                fs::remove_file(&exact).map_err(|err| format!("Failed to replace file: {err}"))?;
+            }
+            Ok(Some(exact))
+        }
+    }
+}
+
+pub fn copy_paths(
+    sources: &[String],
+    dest_dir: &str,
+    conflict: NameConflict,
+) -> Result<Vec<String>, String> {
     let dest = ensure_dir(dest_dir)?;
     let mut out = Vec::new();
     for source in sources {
@@ -163,14 +211,20 @@ pub fn copy_paths(sources: &[String], dest_dir: &str) -> Result<Vec<String>, Str
             .ok_or_else(|| format!("Invalid source path: {source}"))?
             .to_string_lossy()
             .into_owned();
-        let target = unique_dest_path(&dest, &name);
+        let Some(target) = place_dest(&dest, &name, &src, conflict)? else {
+            continue;
+        };
         copy_entry(&src, &target)?;
         out.push(display_path(&target));
     }
     Ok(out)
 }
 
-pub fn move_paths(sources: &[String], dest_dir: &str) -> Result<Vec<String>, String> {
+pub fn move_paths(
+    sources: &[String],
+    dest_dir: &str,
+    conflict: NameConflict,
+) -> Result<Vec<String>, String> {
     let dest = ensure_dir(dest_dir)?;
     let mut out = Vec::new();
     for source in sources {
@@ -191,7 +245,9 @@ pub fn move_paths(sources: &[String], dest_dir: &str) -> Result<Vec<String>, Str
             out.push(display_path(&src));
             continue;
         }
-        let target = unique_dest_path(&dest, &name);
+        let Some(target) = place_dest(&dest, &name, &src, conflict)? else {
+            continue;
+        };
         match fs::rename(&src, &target) {
             Ok(()) => out.push(display_path(&target)),
             Err(_) => {
@@ -258,16 +314,31 @@ pub fn delete_paths(paths: &[String]) -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
-pub fn file_ops_copy(sources: Vec<String>, dest_dir: String) -> FileOpsResult {
-    match copy_paths(&sources, &dest_dir) {
+pub fn file_ops_name_exists(dest_dir: String, name: String) -> Result<bool, String> {
+    let dest = ensure_dir(&dest_dir)?;
+    let file_name = validate_file_name(&name)?;
+    Ok(dest.join(file_name).exists())
+}
+
+#[tauri::command]
+pub fn file_ops_copy(
+    sources: Vec<String>,
+    dest_dir: String,
+    conflict: Option<String>,
+) -> FileOpsResult {
+    match copy_paths(&sources, &dest_dir, parse_name_conflict(conflict.as_deref())) {
         Ok(paths) => ok_paths(paths),
         Err(error) => err_msg(error),
     }
 }
 
 #[tauri::command]
-pub fn file_ops_move(sources: Vec<String>, dest_dir: String) -> FileOpsResult {
-    match move_paths(&sources, &dest_dir) {
+pub fn file_ops_move(
+    sources: Vec<String>,
+    dest_dir: String,
+    conflict: Option<String>,
+) -> FileOpsResult {
+    match move_paths(&sources, &dest_dir, parse_name_conflict(conflict.as_deref())) {
         Ok(paths) => ok_paths(paths),
         Err(error) => err_msg(error),
     }
@@ -354,6 +425,7 @@ mod tests {
         let copied = copy_paths(
             &[display_path(&src.join("note.txt"))],
             &display_path(&dest),
+            NameConflict::KeepBoth,
         )
         .unwrap();
         assert_eq!(copied.len(), 1);
@@ -381,10 +453,46 @@ mod tests {
         fs::create_dir_all(&a).unwrap();
         fs::create_dir_all(&b).unwrap();
         fs::write(a.join("x.bin"), b"xx").unwrap();
-        let moved = move_paths(&[display_path(&a.join("x.bin"))], &display_path(&b)).unwrap();
+        let moved = move_paths(
+            &[display_path(&a.join("x.bin"))],
+            &display_path(&b),
+            NameConflict::KeepBoth,
+        )
+        .unwrap();
         assert_eq!(moved.len(), 1);
         assert!(Path::new(&moved[0]).is_file());
         assert!(!a.join("x.bin").exists());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn replace_overwrites_and_skip_leaves_existing() {
+        let dir = temp_workspace("conflict");
+        let src = dir.join("src");
+        let dest = dir.join("dest");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&dest).unwrap();
+        fs::write(src.join("note.txt"), b"new").unwrap();
+        fs::write(dest.join("note.txt"), b"old").unwrap();
+
+        let replaced = copy_paths(
+            &[display_path(&src.join("note.txt"))],
+            &display_path(&dest),
+            NameConflict::Replace,
+        )
+        .unwrap();
+        assert_eq!(replaced.len(), 1);
+        assert_eq!(fs::read(dest.join("note.txt")).unwrap(), b"new");
+
+        fs::write(src.join("note.txt"), b"later").unwrap();
+        let skipped = copy_paths(
+            &[display_path(&src.join("note.txt"))],
+            &display_path(&dest),
+            NameConflict::Skip,
+        )
+        .unwrap();
+        assert!(skipped.is_empty());
+        assert_eq!(fs::read(dest.join("note.txt")).unwrap(), b"new");
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -407,7 +515,7 @@ mod tests {
 
     #[test]
     fn rejects_awam_paths() {
-        let err = copy_paths(&["awam://x".into()], r"C:\").unwrap_err();
+        let err = copy_paths(&["awam://x".into()], r"C:\", NameConflict::KeepBoth).unwrap_err();
         assert!(err.to_ascii_lowercase().contains("awam"));
     }
 

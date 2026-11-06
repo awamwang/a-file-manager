@@ -106,7 +106,14 @@
     "deleteTitle": "削除の確認",
     "dontAskAgain": "今後表示しない",
     "promptTitle": "名前を入力",
-    "promptLabel": "名前"
+    "promptLabel": "名前",
+    "conflictTitle": "同じ名前があります",
+    "conflictMessage": "このフォルダーには既に「{name}」があります。",
+    "conflictReplace": "置き換える",
+    "conflictSkip": "スキップ",
+    "conflictKeep": "両方残す",
+    "conflictDefaultReplace": "次回から置き換える",
+    "conflictDefaultSkip": "次回からスキップ"
   },
   "discovery": {
     "title": "検索",

@@ -35,6 +35,17 @@ assert.ok(clip.includes("file_ops_clipboard_get"));
 assert.ok(rust.includes("mod clipboard") || rust.includes("pub(crate) mod clipboard"));
 assert.ok(lib.includes("file_ops_clipboard_set"));
 assert.ok(lib.includes("file_ops_clipboard_get"));
+assert.ok(lib.includes("file_ops_name_exists"));
+assert.ok(rust.includes("NameConflict::Replace"));
+assert.ok(rust.includes("NameConflict::Skip"));
+const conflictHost = readFileSync(
+  join(root, "src/components/shell/NameConflictDialogHost.vue"),
+  "utf8",
+);
+assert.ok(conflictHost.includes("conflictDefaultReplace"));
+assert.ok(conflictHost.includes("conflictDefaultSkip"));
+assert.equal(en.dialog.conflictReplace, "Replace");
+assert.equal(en.dialog.conflictKeep, "Keep both");
 assert.ok(menu.includes("setClipboard"));
 assert.ok(menu.includes("pasteClipboard"));
 assert.ok(menu.includes("deleteEntries"));

@@ -106,7 +106,14 @@
     "deleteTitle": "Löschen bestätigen",
     "dontAskAgain": "Nicht mehr fragen",
     "promptTitle": "Namen eingeben",
-    "promptLabel": "Name"
+    "promptLabel": "Name",
+    "conflictTitle": "Datei ist bereits vorhanden",
+    "conflictMessage": "\"{name}\" ist in diesem Ordner bereits vorhanden.",
+    "conflictReplace": "Ersetzen",
+    "conflictSkip": "Überspringen",
+    "conflictKeep": "Beide behalten",
+    "conflictDefaultReplace": "Nächstes Mal ersetzen",
+    "conflictDefaultSkip": "Nächstes Mal überspringen"
   },
   "discovery": {
     "title": "Suche",

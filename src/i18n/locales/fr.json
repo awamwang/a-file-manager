@@ -106,7 +106,14 @@
     "deleteTitle": "Confirmer la suppression",
     "dontAskAgain": "Ne plus demander",
     "promptTitle": "Saisir un nom",
-    "promptLabel": "Nom"
+    "promptLabel": "Nom",
+    "conflictTitle": "Le fichier existe déjà",
+    "conflictMessage": "« {name} » existe déjà dans ce dossier.",
+    "conflictReplace": "Remplacer",
+    "conflictSkip": "Ignorer",
+    "conflictKeep": "Conserver les deux",
+    "conflictDefaultReplace": "Remplacer la prochaine fois",
+    "conflictDefaultSkip": "Ignorer la prochaine fois"
   },
   "discovery": {
     "title": "Recherche",

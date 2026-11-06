@@ -3,6 +3,7 @@
 
 import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { resolveNameConflictChoice } from "./nameConflict";
 
 export type ClipboardMode = "copy" | "cut";
 
@@ -46,6 +47,18 @@ export async function refreshClipboardFromSystem(): Promise<void> {
   }
 }
 
+function samePath(left: string, right: string): boolean {
+  const norm = (value: string) =>
+    value.trim().replace(/\//g, "\\").replace(/\\+$/, "").toLowerCase();
+  return norm(left) === norm(right);
+}
+
+function baseName(path: string): string {
+  const norm = path.replace(/\//g, "\\").replace(/\\+$/, "");
+  const idx = norm.lastIndexOf("\\");
+  return idx >= 0 ? norm.slice(idx + 1) : norm;
+}
+
 export async function pasteClipboard(destDir: string): Promise<FileOpsResult> {
   await refreshClipboardFromSystem();
   const paths = [...clipboardPaths.value];
@@ -54,14 +67,31 @@ export async function pasteClipboard(destDir: string): Promise<FileOpsResult> {
     return { ok: false, paths: [], error: "Clipboard is empty" };
   }
   const command = mode === "copy" ? "file_ops_copy" : "file_ops_move";
-  const result = await invoke<FileOpsResult>(command, {
-    sources: paths,
-    destDir,
-  });
-  if (result.ok && mode === "cut") {
-    clearClipboard();
+  const transferred: string[] = [];
+  for (const source of paths) {
+    const name = baseName(source);
+    const destFile = `${destDir.replace(/[\\/]+$/, "")}\\${name}`;
+    let conflict = "keep";
+    if (!samePath(source, destFile)) {
+      const exists = await invoke<boolean>("file_ops_name_exists", { destDir, name });
+      if (exists) {
+        const choice = await resolveNameConflictChoice(name);
+        if (choice === "cancel") {
+          return { ok: false, paths: transferred, error: "Cancelled" };
+        }
+        conflict = choice;
+      }
+    }
+    const result = await invoke<FileOpsResult>(command, {
+      sources: [source],
+      destDir,
+      conflict,
+    });
+    if (!result.ok) return result;
+    transferred.push(...result.paths);
   }
-  return result;
+  if (mode === "cut") clearClipboard();
+  return { ok: true, paths: transferred, error: null };
 }
 
 export async function renameEntry(

@@ -917,6 +917,7 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
     const result = await invoke<FileOpsResult>("file_ops_move", {
       sources: paths,
       destDir: entry.path,
+      conflict: "keep",
     });
     if (!result.ok) {
       onNotice(result.error ?? t("contextMenu.opFailed"));
