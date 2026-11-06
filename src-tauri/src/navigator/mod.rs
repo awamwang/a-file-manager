@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Thin Kernel Navigator — OS path listing only (S2).
 
+mod disk_space;
 mod list;
 mod places;
 mod search;
@@ -49,4 +50,9 @@ pub fn navigator_user_folders() -> Result<places::UserFolders, String> {
 #[tauri::command]
 pub fn navigator_shell_places() -> Result<places::ShellPlaces, String> {
     places::shell_places()
+}
+
+#[tauri::command]
+pub fn navigator_disk_space(path: String) -> Result<disk_space::DiskSpaceInfo, String> {
+    disk_space::disk_space_for_path(&path)
 }

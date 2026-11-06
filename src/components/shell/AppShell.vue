@@ -67,6 +67,8 @@ import {
   resolveHomePath,
 } from "../../state/navigatorGuide";
 import { isRecyclePath, RECYCLE_PATH } from "../../state/recyclePath";
+import { selectedPaths } from "../../state/navigatorSelection";
+import { formatBytes, selectionByteSize } from "../../state/formatBytes";
 import { dualPaneEnabled, navigateSecondary, secondaryPath, toggleDualPane } from "../../state/dualPane";
 import {
   loadNavigatorViewMode,
@@ -681,6 +683,31 @@ watch(workGroupChromeError, (err) => {
   toastError(err);
 });
 
+const freeDiskText = ref("");
+
+async function refreshFreeDisk(path: string) {
+  if (!path || isGuidePath(path) || isRecyclePath(path) || path.toLowerCase().startsWith("afm://")) {
+    freeDiskText.value = "";
+    return;
+  }
+  try {
+    const info = await invoke<{ freeBytes: number; totalBytes: number }>("navigator_disk_space", {
+      path,
+    });
+    freeDiskText.value = t("chrome.freeSpace", { size: formatBytes(info.freeBytes) });
+  } catch {
+    freeDiskText.value = "";
+  }
+}
+
+watch(
+  currentPath,
+  (path) => {
+    void refreshFreeDisk(path);
+  },
+  { immediate: true },
+);
+
 /** Files-like primary status (item counts) — left side of the shell status bar. */
 const browseStatusText = computed(() => {
   void locale.value;
@@ -695,10 +722,23 @@ const browseStatusText = computed(() => {
   if (listLoading.value) return t("chrome.navigatorLoading");
   if (listError.value) return t("chrome.navigatorError");
   if (listing.value) {
-    return t("chrome.navigatorCounts", {
-      dirs: listing.value.dirCount,
-      files: listing.value.fileCount,
-    });
+    const parts = [
+      t("chrome.navigatorCounts", {
+        dirs: listing.value.dirCount,
+        files: listing.value.fileCount,
+      }),
+    ];
+    if (selectedPaths.value.length) {
+      const bytes = selectionByteSize(selectedPaths.value, listing.value.entries);
+      parts.push(
+        t("chrome.selectionStatus", {
+          count: selectedPaths.value.length,
+          size: formatBytes(bytes),
+        }),
+      );
+    }
+    if (freeDiskText.value) parts.push(freeDiskText.value);
+    return parts.join(" · ");
   }
   return t("navigator.noPath");
 });

@@ -27,6 +27,8 @@
     "maximize": "Agrandir",
     "minimize": "Réduire",
     "navigatorCounts": "{dirs} dossiers · {files} fichiers",
+    "selectionStatus": "{count} selectionne(s) ({size})",
+    "freeSpace": "{size} libre",
     "collapseFolder": "Réduire le dossier",
     "expandFolder": "Développer le dossier",
     "navigatorError": "Impossible de lister le dossier",

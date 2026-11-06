@@ -78,6 +78,8 @@
     "navigatorLoading": "加载中…",
     "navigatorError": "无法列出文件夹",
     "navigatorCounts": "{dirs} 个文件夹 · {files} 个文件",
+    "selectionStatus": "已选 {count} 项（{size}）",
+    "freeSpace": "可用 {size}",
     "home": "主目录",
     "placesMenu": "近期访问与收藏",
     "workGroupMenu": "工作组",

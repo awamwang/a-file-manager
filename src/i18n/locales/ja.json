@@ -27,6 +27,8 @@
     "maximize": "最大化",
     "minimize": "最小化",
     "navigatorCounts": "{dirs} フォルダー · {files} ファイル",
+    "selectionStatus": "{count} 項目を選択（{size}）",
+    "freeSpace": "空き容量 {size}",
     "collapseFolder": "フォルダーを折りたたむ",
     "expandFolder": "フォルダーを展開",
     "navigatorError": "フォルダーを一覧表示できません",

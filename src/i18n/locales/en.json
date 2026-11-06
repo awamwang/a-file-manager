@@ -78,6 +78,8 @@
     "navigatorLoading": "Loading…",
     "navigatorError": "Could not list folder",
     "navigatorCounts": "{dirs} folders · {files} files",
+    "selectionStatus": "{count} selected ({size})",
+    "freeSpace": "{size} free",
     "home": "Home",
     "placesMenu": "Recent visits and favorites",
     "workGroupMenu": "Work Group",
