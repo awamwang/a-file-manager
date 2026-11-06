@@ -215,6 +215,7 @@
     "colSize": "Größe",
     "nItems": "{count} Elemente",
     "movedInto": "{count} Element(e) nach {name} verschoben",
+    "copiedInto": "{count} Element(e) nach {name} kopiert",
     "filterPlaceholder": "Diesen Ordner durchsuchen…",
     "filterToggle": "Ordner durchsuchen",
     "filterClear": "Suche löschen",

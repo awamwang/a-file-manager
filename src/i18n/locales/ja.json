@@ -215,6 +215,7 @@
     "colSize": "サイズ",
     "nItems": "{count} 項目",
     "movedInto": "{count} 項目を {name} へ移動しました",
+    "copiedInto": "{count} 項目を {name} へコピーしました",
     "filterPlaceholder": "このフォルダーを検索…",
     "filterToggle": "フォルダーを検索",
     "filterClear": "検索をクリア",

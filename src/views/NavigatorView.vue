@@ -2,7 +2,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { invoke } from "@tauri-apps/api/core";
 import {
   bootstrapNavigatorOpenState,
   currentPath,
@@ -36,7 +35,7 @@ import {
   refreshClipboardFromSystem,
   renameEntry,
   setClipboard,
-  type FileOpsResult,
+  transferEntries,
 } from "../state/fileClipboard";
 import { confirmDeleteIfNeeded } from "../state/confirmBeforeDelete";
 import { openPromptDialog } from "../state/promptDialog";
@@ -82,6 +81,7 @@ import {
 } from "../state/navigatorFilter";
 import { toastError, toastInfo, toastSuccess } from "../state/toast";
 import { armNativeFileDragOut } from "../state/fileDragOut";
+import { dropTransferMode } from "../state/dropMode";
 import {
   invokePreviewBridge,
   previewBridgeForcePane,
@@ -881,7 +881,7 @@ function onDragStart(event: DragEvent, entry: NavigatorEntry) {
   }
   const paths = selectionPaths();
   event.dataTransfer?.setData("application/x-afm-paths", JSON.stringify(paths));
-  // copyMove: in-app folder moves stay move; leave-window OLE drag-out uses copy.
+  // copyMove: modifiers and volume pick copy vs move; OLE drag-out stays copy.
   event.dataTransfer!.effectAllowed = "copyMove";
   armNativeFileDragOut(paths);
 }
@@ -890,7 +890,11 @@ function onDragOver(event: DragEvent, entry: NavigatorEntry) {
   if (entry.kind !== "dir") return;
   if (isSelected(entry.path)) return;
   event.preventDefault();
-  event.dataTransfer!.dropEffect = "move";
+  const mode = dropTransferMode(selectionPaths(), entry.path, {
+    ctrl: event.ctrlKey,
+    shift: event.shiftKey,
+  });
+  event.dataTransfer!.dropEffect = mode;
   dragOverPath.value = entry.path;
 }
 
@@ -914,16 +918,17 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
   paths = paths.filter((p) => p !== entry.path);
   if (!paths.length) return;
   try {
-    const result = await invoke<FileOpsResult>("file_ops_move", {
-      sources: paths,
-      destDir: entry.path,
-      conflict: "keep",
+    const mode = dropTransferMode(paths, entry.path, {
+      ctrl: event.ctrlKey,
+      shift: event.shiftKey,
     });
+    const result = await transferEntries(paths, entry.path, mode);
     if (!result.ok) {
       onNotice(result.error ?? t("contextMenu.opFailed"));
       return;
     }
-    onNotice(t("navigator.movedInto", { count: result.paths.length, name: entry.name }));
+    const noticeKey = mode === "copy" ? "navigator.copiedInto" : "navigator.movedInto";
+    onNotice(t(noticeKey, { count: result.paths.length, name: entry.name }));
     clearSelection();
     await refreshListing();
   } catch (err) {

@@ -66,9 +66,19 @@ export async function pasteClipboard(destDir: string): Promise<FileOpsResult> {
   if (!paths.length || !mode) {
     return { ok: false, paths: [], error: "Clipboard is empty" };
   }
+  const result = await transferEntries(paths, destDir, mode === "copy" ? "copy" : "move");
+  if (result.ok && mode === "cut") clearClipboard();
+  return result;
+}
+
+export async function transferEntries(
+  sources: string[],
+  destDir: string,
+  mode: "copy" | "move",
+): Promise<FileOpsResult> {
   const command = mode === "copy" ? "file_ops_copy" : "file_ops_move";
   const transferred: string[] = [];
-  for (const source of paths) {
+  for (const source of sources) {
     const name = baseName(source);
     const destFile = `${destDir.replace(/[\\/]+$/, "")}\\${name}`;
     let conflict = "keep";
@@ -90,7 +100,6 @@ export async function pasteClipboard(destDir: string): Promise<FileOpsResult> {
     if (!result.ok) return result;
     transferred.push(...result.paths);
   }
-  if (mode === "cut") clearClipboard();
   return { ok: true, paths: transferred, error: null };
 }
 

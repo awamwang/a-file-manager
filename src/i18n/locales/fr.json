@@ -215,6 +215,7 @@
     "colSize": "Taille",
     "nItems": "{count} éléments",
     "movedInto": "{count} élément(s) déplacé(s) vers {name}",
+    "copiedInto": "{count} élément(s) copié(s) vers {name}",
     "filterPlaceholder": "Rechercher dans ce dossier…",
     "filterToggle": "Rechercher dans le dossier",
     "filterClear": "Effacer la recherche",

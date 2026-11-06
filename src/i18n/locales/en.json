@@ -138,6 +138,7 @@
     "colSize": "Size",
     "nItems": "{count} items",
     "movedInto": "Moved {count} item(s) into {name}",
+    "copiedInto": "Copied {count} item(s) into {name}",
     "filterPlaceholder": "Search this folder…",
     "filterToggle": "Search folder",
     "filterClear": "Clear search",
