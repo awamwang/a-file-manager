@@ -99,6 +99,8 @@ import {
 } from "../../state/navigatorFilter";
 import { hydrateSettings } from "../../state/settingsHydrate";
 import { loadShowHidden, setShowHidden, showHiddenItems } from "../../state/showHidden";
+import { isTabPinned, togglePinnedTab } from "../../state/tabPins";
+import { workGroupDisplayName } from "../../state/workGroupName";
 
 const { t, locale } = useI18n();
 
@@ -967,6 +969,10 @@ async function onTabClick(groupIndex: number) {
   await onSwitchNavigatorTab(groupIndex);
 }
 
+function onToggleTabPin(tabId: string) {
+  togglePinnedTab(tabId);
+}
+
 async function onCloseNavigatorTab(event: Event, groupIndex: number) {
   event.stopPropagation();
   event.preventDefault();
@@ -1155,6 +1161,7 @@ onUnmounted(() => {
             class="tab"
             :class="{
               'tab--active': liveOpenState.currentTabGroupIndex === tab.groupIndex,
+              'tab--pinned': isTabPinned(tab.id),
               'tab--drag-over': tabDragOver === tab.groupIndex,
               'tab--dragging': tabDragFrom === tab.groupIndex && tabDragMoved,
             }"
@@ -1163,8 +1170,22 @@ onUnmounted(() => {
             :aria-selected="liveOpenState.currentTabGroupIndex === tab.groupIndex"
             :title="tab.path"
             @click="onTabClick(tab.groupIndex)"
+            @dblclick.stop="onToggleTabPin(tab.id)"
             @pointerdown="onTabPointerDown($event, tab.groupIndex)"
           >
+            <button
+              type="button"
+              class="tab-pin"
+              :class="{ 'tab-pin--on': isTabPinned(tab.id) }"
+              :aria-label="isTabPinned(tab.id) ? t('chrome.unpinTab') : t('chrome.pinTab')"
+              :aria-pressed="isTabPinned(tab.id)"
+              :title="isTabPinned(tab.id) ? t('chrome.unpinTab') : t('chrome.pinTab')"
+              @click.stop="onToggleTabPin(tab.id)"
+              @dblclick.stop
+              @pointerdown.stop
+            >
+              <FluentIcon name="star" size="sm" aria-hidden="true" />
+            </button>
             <FluentIcon name="folder" size="sm" class="tab-icon" aria-hidden="true" />
             <span class="tab-label">{{ tab.name || tabLabel(tab.path) }}</span>
             <button
@@ -1220,7 +1241,9 @@ onUnmounted(() => {
             >
               <FluentIcon name="viewAll" size="sm" />
               <span class="wg-trigger-label">{{
-                activeWorkGroup?.name || t("nav.workGroups")
+                activeWorkGroup
+                  ? workGroupDisplayName(activeWorkGroup, t("workGroups.defaultName"))
+                  : t("nav.workGroups")
               }}</span>
               <FluentIcon name="chevronDown" size="sm" class="places-chevron" />
             </button>
@@ -1243,7 +1266,7 @@ onUnmounted(() => {
                 @click="onSilentSwitchWorkGroup(group.id)"
               >
                 <FluentIcon :name="group.isDefault ? 'home' : 'viewAll'" size="sm" />
-                <span>{{ group.name }}</span>
+                <span>{{ workGroupDisplayName(group, t("workGroups.defaultName")) }}</span>
               </button>
               <p v-if="!(workGroupsDoc?.workGroups.length)" class="places-empty">
                 {{ t("chrome.workGroupEmpty") }}
@@ -2165,6 +2188,24 @@ onUnmounted(() => {
 
 .tab:active {
   cursor: grabbing;
+}
+
+.tab-pin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--fluent-radius-sm);
+  background: transparent;
+  color: var(--fluent-color-text-secondary);
+  cursor: pointer;
+}
+
+.tab-pin--on {
+  color: var(--fluent-color-fill-accent);
 }
 
 .tab-close {

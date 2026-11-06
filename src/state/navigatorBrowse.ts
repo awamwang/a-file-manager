@@ -17,6 +17,8 @@ import {
   openStateOpenOrFocusPath,
   openStateWithNewTab,
   stripTabsFromOpenState,
+  mergePinnedIntoOpenState,
+  openStateWithoutPinned,
   type SwitchAdjacentDirection,
   type WorkGroupOpenState,
 } from "./openStateModel";
@@ -27,6 +29,7 @@ import { hydrateSettings } from "./settingsHydrate";
 import { recordPathVisit } from "./visitStats";
 import { clearNavigatorFilter } from "./navigatorFilter";
 import { showHiddenItems } from "./showHidden";
+import { forgetPinnedTabs, pinnedTabIds } from "./tabPins";
 
 export type NavigatorEntry = {
   name: string;
@@ -301,6 +304,8 @@ export async function newNavigatorTab(path?: string): Promise<void> {
 }
 
 export async function closeNavigatorTab(groupIndex: number): Promise<void> {
+  const closing = liveOpenState.value.tabGroups[groupIndex] ?? [];
+  forgetPinnedTabs(closing.map((tab) => tab.id));
   const next = openStateAfterCloseGroup(liveOpenState.value, groupIndex);
   liveOpenState.value = next;
   schedulePersist(true);
@@ -401,8 +406,13 @@ export async function restoreWorkGroupOpenState(
   workGroupId: string,
   state: WorkGroupOpenState | null | undefined,
 ): Promise<void> {
+  const merged = mergePinnedIntoOpenState(
+    normalizeRestoredOpenState(state),
+    liveOpenState.value,
+    new Set(pinnedTabIds.value),
+  );
   activeWorkGroupId.value = workGroupId;
-  applyLiveOpenState(state);
+  applyLiveOpenState(merged);
   const active = activeStripTab(liveOpenState.value);
   if (active?.path) {
     await navigateTo(active.path, { syncOpenState: false });
@@ -569,4 +579,9 @@ async function readFileDoubleClickAction(): Promise<FileDoubleClickAction> {
 /** Snapshot for Work Groups IPC that need the leaving group's live Open State. */
 export function snapshotLiveOpenState(): WorkGroupOpenState {
   return normalizeRestoredOpenState(liveOpenState.value);
+}
+
+/** Same snapshot without pinned tabs, so a switch does not store them on the leaving group. */
+export function snapshotLeavingOpenState(): WorkGroupOpenState {
+  return openStateWithoutPinned(snapshotLiveOpenState(), new Set(pinnedTabIds.value));
 }

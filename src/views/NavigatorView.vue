@@ -4,12 +4,15 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   bootstrapNavigatorOpenState,
+  closeNavigatorTab,
   currentPath,
   listing,
   listError,
   listLoading,
+  liveOpenState,
   navigateTo,
   openEntry,
+  switchNavigatorTab,
   type NavigatorEntry,
 } from "../state/navigatorBrowse";
 import {
@@ -846,6 +849,17 @@ function registerNavFileShortcuts() {
   registerShortcutHandler("navigator.previewPane", () => {
     shortcutTogglePreviewPane();
   });
+  registerShortcutHandler("navigator.closeTab", () => {
+    if (!liveOpenState.value.tabGroups.length) return;
+    void closeNavigatorTab(liveOpenState.value.currentTabGroupIndex);
+  });
+  for (let tabNumber = 1; tabNumber <= 9; tabNumber += 1) {
+    const index = tabNumber - 1;
+    registerShortcutHandler(`navigator.jumpTab${tabNumber}`, () => {
+      if (index >= liveOpenState.value.tabGroups.length) return;
+      void switchNavigatorTab(index);
+    });
+  }
 }
 
 function unregisterNavFileShortcuts() {
@@ -865,6 +879,16 @@ function unregisterNavFileShortcuts() {
     "navigator.previewBridge",
     "navigator.properties",
     "navigator.previewPane",
+    "navigator.closeTab",
+    "navigator.jumpTab1",
+    "navigator.jumpTab2",
+    "navigator.jumpTab3",
+    "navigator.jumpTab4",
+    "navigator.jumpTab5",
+    "navigator.jumpTab6",
+    "navigator.jumpTab7",
+    "navigator.jumpTab8",
+    "navigator.jumpTab9",
   ]) {
     unregisterShortcutHandler(id);
   }

@@ -83,6 +83,12 @@ export const BUILTIN_SHORTCUTS: ShortcutDefinition[] = [
     scope: "global",
   },
   {
+    id: "navigator.closeTab",
+    labelKey: "shortcuts.items.navigatorCloseTab",
+    chord: { ctrl: true, key: "w" },
+    scope: "navigator",
+  },
+  {
     id: "navigator.copy",
     labelKey: "shortcuts.items.navigatorCopy",
     chord: { ctrl: true, key: "c" },
@@ -206,6 +212,15 @@ export const BUILTIN_SHORTCUTS: ShortcutDefinition[] = [
     scope: "global",
   },
 ];
+
+for (let tabNumber = 1; tabNumber <= 9; tabNumber += 1) {
+  BUILTIN_SHORTCUTS.push({
+    id: `navigator.jumpTab${tabNumber}`,
+    labelKey: `shortcuts.items.navigatorJumpTab${tabNumber}`,
+    chord: { ctrl: true, key: String(tabNumber) },
+    scope: "navigator",
+  });
+}
 
 export function findShortcutConflicts(
   defs: ShortcutDefinition[] = BUILTIN_SHORTCUTS,

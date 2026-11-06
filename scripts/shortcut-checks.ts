@@ -75,8 +75,16 @@ assert.equal(
   "navigator.deleteKey",
 );
 assert.equal(
-  winners.get(chordKey({ shift: true, key: "delete" }))?.id,
-  "navigator.deletePermanent",
+  winners.get(chordKey({ ctrl: true, key: "w" }))?.id,
+  "navigator.closeTab",
+);
+assert.equal(
+  winners.get(chordKey({ ctrl: true, key: "1" }))?.id,
+  "navigator.jumpTab1",
+);
+assert.equal(
+  winners.get(chordKey({ ctrl: true, key: "9" }))?.id,
+  "navigator.jumpTab9",
 );
 assert.equal(
   eventMatchesChord(keyEvent({ key: " " }), { key: "space" }),

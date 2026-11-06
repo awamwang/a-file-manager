@@ -9,6 +9,7 @@ import {
   openMembersIntoOpenState,
   rememberHydratedWorkGroups,
   restoreWorkGroupOpenState,
+  snapshotLeavingOpenState,
   snapshotLiveOpenState,
   type SilentSwitchResult,
   type SoftSyncNotice,
@@ -56,7 +57,7 @@ export async function silentSwitchWorkGroup(
   try {
     const result = await invoke<SilentSwitchResult>("work_groups_silent_switch", {
       targetWorkGroupId: targetId,
-      liveOpenState: snapshotLiveOpenState(),
+      liveOpenState: snapshotLeavingOpenState(),
     });
     if (result.requireSavePrompt) {
       workGroupChromeError.value = "REQUIRE_SAVE_PROMPT";

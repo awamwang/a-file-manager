@@ -10,10 +10,12 @@ import {
   openMembersIntoOpenState,
   openOrFocusNavigatorTab,
   restoreWorkGroupOpenState,
+  snapshotLeavingOpenState,
   snapshotLiveOpenState,
 } from "../state/navigatorBrowse";
 import { displayNameFromPath } from "../state/openStateModel";
 import type { WorkGroupOpenState } from "../state/openStateModel";
+import { workGroupDisplayName } from "../state/workGroupName";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import { openConfirmDialog } from "../state/confirmDialog";
 import { toastError, toastInfo, toastSuccess } from "../state/toast";
@@ -101,7 +103,7 @@ async function silentSwitch(targetId: string) {
   error.value = null;
   const result = await invoke<SilentSwitchResult>("work_groups_silent_switch", {
     targetWorkGroupId: targetId,
-    liveOpenState: snapshotLiveOpenState(),
+    liveOpenState: snapshotLeavingOpenState(),
   });
   if (result.requireSavePrompt) {
     const msg = t("workGroups.errorSavePrompt");
@@ -172,7 +174,7 @@ function setListRenameInputEl(el: unknown) {
 }
 
 function startInlineRename() {
-  if (!active.value) return;
+  if (!active.value || active.value.isDefault) return;
   renameDraft.value = active.value.name;
   renaming.value = true;
   moreMenuOpen.value = false;
@@ -216,6 +218,7 @@ function toggleListMore(groupId: string, event: Event) {
 }
 
 function startListRename(group: WorkGroup, event?: Event) {
+  if (group.isDefault) return;
   event?.stopPropagation();
   listMoreOpenId.value = null;
   moreMenuOpen.value = false;
@@ -401,7 +404,7 @@ onUnmounted(() => {
                   @keydown.escape.prevent="cancelListRename"
                   @blur="onListRenameBlur"
                 />
-                <strong v-else>{{ group.name }}</strong>
+                <strong v-else>{{ workGroupDisplayName(group, t("workGroups.defaultName")) }}</strong>
               </span>
               <div
                 class="list-more-menu"
@@ -424,6 +427,7 @@ onUnmounted(() => {
                   role="menu"
                 >
                   <button
+                    v-if="!group.isDefault"
                     type="button"
                     class="more-item"
                     role="menuitem"
@@ -445,7 +449,7 @@ onUnmounted(() => {
             </div>
             <span class="fluent-page-meta">{{
               group.isDefault
-                ? t("workGroups.default")
+                ? t("workGroups.defaultHint")
                 : t("workGroups.membersCount", { count: group.memberPaths.length })
             }}</span>
           </div>
@@ -478,9 +482,9 @@ onUnmounted(() => {
             v-else
             class="inline-title"
             :title="t('workGroups.renameHint')"
-            @dblclick="startInlineRename"
+            @dblclick="active.isDefault ? undefined : startInlineRename"
           >
-            {{ active.name }}
+            {{ workGroupDisplayName(active, t("workGroups.defaultName")) }}
           </h2>
           <div ref="moreMenuEl" class="more-menu">
             <button
@@ -497,7 +501,13 @@ onUnmounted(() => {
               ···
             </button>
             <div v-if="moreMenuOpen" class="more-popover fluent-surface" role="menu">
-              <button type="button" class="more-item" role="menuitem" @click="startInlineRename">
+              <button
+                v-if="!active.isDefault"
+                type="button"
+                class="more-item"
+                role="menuitem"
+                @click="startInlineRename"
+              >
                 {{ t("workGroups.rename") }}
               </button>
               <button

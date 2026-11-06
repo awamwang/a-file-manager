@@ -9,6 +9,7 @@ import {
   openMembersIntoOpenState,
   openOrFocusNavigatorTab,
   openPathsAsNavigatorTabs,
+  snapshotLeavingOpenState,
   snapshotLiveOpenState,
   type SilentSwitchResult,
 } from "../state/navigatorBrowse";
@@ -196,7 +197,7 @@ async function selectProject(id: string) {
   try {
     const result = await invoke<ActivateResult>("projects_activate", {
       projectId: id,
-      liveOpenState: snapshotLiveOpenState(),
+      liveOpenState: snapshotLeavingOpenState(),
     });
     document.value = result.projects;
     const soft = await applyProjectSilentSwitch(result.silentSwitch);
