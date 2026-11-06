@@ -140,6 +140,7 @@ pub fn run() {
             autostart::autostart_status,
             autostart::autostart_set_enabled,
             navigator::navigator_list,
+            navigator::navigator_search,
             navigator::navigator_default_path,
             navigator::navigator_parent,
             navigator::navigator_stat,

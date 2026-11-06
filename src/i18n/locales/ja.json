@@ -208,10 +208,13 @@
     "colSize": "サイズ",
     "nItems": "{count} 項目",
     "movedInto": "{count} 項目を {name} へ移動しました",
-    "filterPlaceholder": "このフォルダーを絞り込み…",
-    "filterToggle": "フォルダーを絞り込み",
-    "filterClear": "絞り込みをクリア",
+    "filterPlaceholder": "このフォルダーを検索…",
+    "filterToggle": "フォルダーを検索",
+    "filterClear": "検索をクリア",
     "filterEmpty": "一致する項目がありません。",
+    "filterSearching": "検索しています…",
+    "filterStatus": "{count} 件",
+    "filterTruncated": "先頭 {count} 件だけ表示しています。",
     "colModified": "更新日時"
   },
   "projects": {

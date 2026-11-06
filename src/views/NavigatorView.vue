@@ -73,8 +73,11 @@ import {
   setActivePane,
 } from "../state/dualPane";
 import {
-  entryMatchesFilter,
   navigatorFilterQuery,
+  primarySearch,
+  primarySearchLoading,
+  scheduleFolderSearch,
+  secondarySearch,
 } from "../state/navigatorFilter";
 import { toastError, toastInfo, toastSuccess } from "../state/toast";
 import { armNativeFileDragOut } from "../state/fileDragOut";
@@ -340,21 +343,38 @@ function onRequestRename(path: string) {
   if (entry) startInlineRename(entry);
 }
 
+const folderSearchActive = computed(() => navigatorFilterQuery.value.trim().length > 0);
+
 const visibleEntries = computed(() => {
+  if (folderSearchActive.value) {
+    return sortedEntries(primarySearch.value?.entries ?? []);
+  }
   if (!listing.value) return [];
-  const sorted = sortedEntries(listing.value.entries);
-  const q = navigatorFilterQuery.value;
-  if (!q.trim()) return sorted;
-  return sorted.filter((entry) => entryMatchesFilter(entry.name, entry.path, q));
+  return sortedEntries(listing.value.entries);
 });
 
 const secondaryEntries = computed(() => {
+  if (folderSearchActive.value) {
+    return sortedEntries(secondarySearch.value?.entries ?? []);
+  }
   if (!secondaryListing.value) return [];
-  const sorted = sortedEntries(secondaryListing.value.entries);
-  const q = navigatorFilterQuery.value;
-  if (!q.trim()) return sorted;
-  return sorted.filter((entry) => entryMatchesFilter(entry.name, entry.path, q));
+  return sortedEntries(secondaryListing.value.entries);
 });
+
+watch([navigatorFilterQuery, currentPath], () => {
+  scheduleFolderSearch("primary", currentPath.value);
+});
+
+watch([navigatorFilterQuery, secondaryPath, dualPaneEnabled], () => {
+  if (!dualPaneEnabled.value) return;
+  scheduleFolderSearch("secondary", secondaryPath.value);
+});
+
+function entryLocation(path: string): string {
+  const norm = path.replace(/\//g, "\\");
+  const idx = norm.lastIndexOf("\\");
+  return idx > 0 ? norm.slice(0, idx) : norm;
+}
 
 const orderedPaths = computed(() => visibleEntries.value.map((e) => e.path));
 
@@ -927,14 +947,23 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
     <p class="pane-path" :title="currentPath">{{ currentPath || t("navigator.noPath") }}</p>
     <p v-if="listLoading" class="fluent-banner">{{ t("navigator.loading") }}</p>
     <p v-else-if="listError" class="fluent-banner fluent-banner--error">{{ listError }}</p>
+    <p v-else-if="folderSearchActive && primarySearchLoading" class="fluent-banner">
+      {{ t("navigator.filterSearching") }}
+    </p>
+    <p
+      v-else-if="folderSearchActive && !primarySearchLoading && !visibleEntries.length"
+      class="fluent-banner fluent-banner--info"
+    >
+      {{ t("navigator.filterEmpty") }}
+    </p>
     <p v-else-if="listing && listing.entries.length === 0" class="fluent-banner">
       {{ t("navigator.empty") }}
     </p>
     <p
-      v-else-if="listing && listing.entries.length > 0 && !visibleEntries.length"
+      v-if="folderSearchActive && primarySearch?.truncated"
       class="fluent-banner fluent-banner--info"
     >
-      {{ t("navigator.filterEmpty") }}
+      {{ t("navigator.filterTruncated", { count: visibleEntries.length }) }}
     </p>
 
     <div
@@ -1020,11 +1049,10 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
           @keydown.escape.prevent.stop="cancelInlineRename"
           @blur="onRenameBlur"
         />
-        <span
-          v-else
-          class="name"
-          @click="onNameClick($event, entry)"
-        >{{ entry.name }}</span>
+        <span v-else class="name-block">
+          <span class="name" @click="onNameClick($event, entry)">{{ entry.name }}</span>
+          <span v-if="folderSearchActive" class="row-location">{{ entryLocation(entry.path) }}</span>
+        </span>
         <span v-if="isDetailsView" class="size">{{ formatSize(entry) }}</span>
         <span v-if="isDetailsView" class="modified">{{ formatModified(entry) }}</span>
       </div>
@@ -1091,7 +1119,10 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
             />
             <FluentIcon v-else :name="entryKindIcon(entry.kind === 'dir')" size="md" />
           </span>
-          <span class="name">{{ entry.name }}</span>
+          <span class="name-block">
+            <span class="name">{{ entry.name }}</span>
+            <span v-if="folderSearchActive" class="row-location">{{ entryLocation(entry.path) }}</span>
+          </span>
           <span v-if="isDetailsView" class="size">{{ formatSize(entry) }}</span>
           <span v-if="isDetailsView" class="modified">{{ formatModified(entry) }}</span>
         </div>
@@ -1357,11 +1388,26 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
   flex-shrink: 0;
 }
 
+.name-block {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
 .name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+}
+
+.row-location {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  opacity: 0.72;
 }
 
 .inline-rename {

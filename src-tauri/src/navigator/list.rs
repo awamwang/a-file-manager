@@ -102,11 +102,11 @@ pub fn parent_path(path: &str) -> Result<Option<String>, String> {
     }
 }
 
-fn display_path(path: &Path) -> String {
+pub(crate) fn display_path(path: &Path) -> String {
     path.to_string_lossy().replace('/', "\\")
 }
 
-fn system_time_ms(time: SystemTime) -> Option<u64> {
+pub(crate) fn system_time_ms(time: SystemTime) -> Option<u64> {
     time.duration_since(SystemTime::UNIX_EPOCH)
         .ok()
         .map(|d| d.as_millis() as u64)

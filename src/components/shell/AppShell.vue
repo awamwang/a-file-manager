@@ -91,6 +91,8 @@ import {
   clearNavigatorFilter,
   focusNavigatorFilter,
   navigatorFilterQuery,
+  primarySearch,
+  primarySearchLoading,
 } from "../../state/navigatorFilter";
 import { hydrateSettings } from "../../state/settingsHydrate";
 
@@ -625,6 +627,12 @@ watch(workGroupChromeError, (err) => {
 const browseStatusText = computed(() => {
   void locale.value;
   if (route.path !== "/navigator") return "";
+  if (navigatorFilterQuery.value.trim()) {
+    if (primarySearchLoading.value) return t("navigator.filterSearching");
+    return t("navigator.filterStatus", {
+      count: primarySearch.value?.entries.length ?? 0,
+    });
+  }
   if (showingGuide.value) return t("guide.status");
   if (listLoading.value) return t("chrome.navigatorLoading");
   if (listError.value) return t("chrome.navigatorError");

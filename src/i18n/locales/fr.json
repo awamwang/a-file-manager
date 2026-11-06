@@ -208,10 +208,13 @@
     "colSize": "Taille",
     "nItems": "{count} éléments",
     "movedInto": "{count} élément(s) déplacé(s) vers {name}",
-    "filterPlaceholder": "Filtrer ce dossier…",
-    "filterToggle": "Filtrer le dossier",
-    "filterClear": "Effacer le filtre",
+    "filterPlaceholder": "Rechercher dans ce dossier…",
+    "filterToggle": "Rechercher dans le dossier",
+    "filterClear": "Effacer la recherche",
     "filterEmpty": "Aucun élément ne correspond.",
+    "filterSearching": "Recherche…",
+    "filterStatus": "{count} résultats",
+    "filterTruncated": "Affichage des {count} premiers résultats.",
     "colModified": "Date de modification"
   },
   "projects": {

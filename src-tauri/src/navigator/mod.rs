@@ -3,12 +3,18 @@
 
 mod list;
 mod places;
+mod search;
 mod stat;
 pub(crate) mod path_guard;
 
 #[tauri::command]
 pub fn navigator_list(path: String) -> Result<list::NavigatorListing, String> {
     list::list_directory(&path)
+}
+
+#[tauri::command]
+pub fn navigator_search(path: String, query: String) -> Result<search::NavigatorSearch, String> {
+    search::search_directory(&path, &query)
 }
 
 #[tauri::command]

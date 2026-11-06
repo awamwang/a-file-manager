@@ -131,10 +131,13 @@
     "colSize": "Size",
     "nItems": "{count} items",
     "movedInto": "Moved {count} item(s) into {name}",
-    "filterPlaceholder": "Filter this folder…",
-    "filterToggle": "Filter folder",
-    "filterClear": "Clear filter",
-    "filterEmpty": "No items match this filter.",
+    "filterPlaceholder": "Search this folder…",
+    "filterToggle": "Search folder",
+    "filterClear": "Clear search",
+    "filterEmpty": "No items match this search.",
+    "filterSearching": "Searching…",
+    "filterStatus": "{count} matches",
+    "filterTruncated": "Showing the first {count} matches.",
     "colModified": "Date modified"
   },
   "discovery": {

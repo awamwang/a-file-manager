@@ -25,6 +25,7 @@ import { GUIDE_PATH, isGuidePath } from "./navigatorGuide";
 import { readNewTabBehavior } from "./newTabBehavior";
 import { hydrateSettings } from "./settingsHydrate";
 import { recordPathVisit } from "./visitStats";
+import { clearNavigatorFilter } from "./navigatorFilter";
 
 export type NavigatorEntry = {
   name: string;
@@ -182,6 +183,10 @@ export function bootstrapNavigatorOpenState(): Promise<void> {
   return bootstrapPromise;
 }
 
+function normalizeBrowseKey(path: string): string {
+  return path.trim().replace(/\//g, "\\").replace(/\\+$/, "").toLowerCase();
+}
+
 export async function navigateTo(
   path: string,
   options?: { syncOpenState?: boolean; recordHistory?: boolean },
@@ -191,12 +196,14 @@ export async function navigateTo(
   // Tab switch / bootstrap pass syncOpenState:false — don't pollute back stack.
   const recordHistory = options?.recordHistory ?? syncOpenState;
   const previous = currentPath.value;
+  const pathChanged = normalizeBrowseKey(previous) !== normalizeBrowseKey(trimmed);
 
   if (isGuidePath(trimmed)) {
     listing.value = null;
     listError.value = null;
     listLoading.value = false;
     currentPath.value = GUIDE_PATH;
+    if (pathChanged) clearNavigatorFilter();
     if (recordHistory) {
       recordNavHistory(previous, GUIDE_PATH);
     }
@@ -219,6 +226,9 @@ export async function navigateTo(
     const result = await invoke<NavigatorListing>("navigator_list", { path: trimmed });
     listing.value = result;
     currentPath.value = result.path;
+    if (normalizeBrowseKey(previous) !== normalizeBrowseKey(result.path)) {
+      clearNavigatorFilter();
+    }
     // AIA-74: count directory landings (tab enter + folder nav share this path).
     void recordPathVisit(result.path, true);
     if (recordHistory) {
@@ -232,6 +242,7 @@ export async function navigateTo(
     listing.value = null;
     listError.value = err instanceof Error ? err.message : String(err);
     currentPath.value = trimmed;
+    if (pathChanged) clearNavigatorFilter();
     if (recordHistory) {
       recordNavHistory(previous, trimmed);
     }

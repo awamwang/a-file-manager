@@ -208,10 +208,13 @@
     "colSize": "Größe",
     "nItems": "{count} Elemente",
     "movedInto": "{count} Element(e) nach {name} verschoben",
-    "filterPlaceholder": "Diesen Ordner filtern…",
-    "filterToggle": "Ordner filtern",
-    "filterClear": "Filter löschen",
-    "filterEmpty": "Keine Treffer für diesen Filter.",
+    "filterPlaceholder": "Diesen Ordner durchsuchen…",
+    "filterToggle": "Ordner durchsuchen",
+    "filterClear": "Suche löschen",
+    "filterEmpty": "Keine Treffer für diese Suche.",
+    "filterSearching": "Suche läuft…",
+    "filterStatus": "{count} Treffer",
+    "filterTruncated": "Nur die ersten {count} Treffer.",
     "colModified": "Änderungsdatum"
   },
   "projects": {
