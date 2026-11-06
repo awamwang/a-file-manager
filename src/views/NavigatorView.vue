@@ -33,6 +33,7 @@ import {
   hasClipboard,
   pasteClipboard,
   pathsWithoutRecycle,
+  refreshClipboardFromSystem,
   renameEntry,
   setClipboard,
   type FileOpsResult,
@@ -440,6 +441,7 @@ watch(
 function onWindowFocus() {
   void refreshPreviewSetting();
   void loadNavigatorViewMode();
+  void refreshClipboardFromSystem();
 }
 
 onMounted(() => {

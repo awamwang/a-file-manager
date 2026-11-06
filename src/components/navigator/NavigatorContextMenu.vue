@@ -13,6 +13,7 @@ import {
   hasClipboard,
   pathsWithoutRecycle,
   pasteClipboard,
+  refreshClipboardFromSystem,
   setClipboard,
 } from "../../state/fileClipboard";
 import { confirmDeleteIfNeeded } from "../../state/confirmBeforeDelete";
@@ -196,6 +197,7 @@ watch(
   () => props.open,
   (isOpen) => {
     if (isOpen) {
+      void refreshClipboardFromSystem();
       clearSubmenuCloseTimer();
       openSubmenuId.value = null;
       submenuAnchor.value = null;

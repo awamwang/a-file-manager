@@ -2,6 +2,8 @@
 //! Kernel file operations: copy / move / rename / mkdir / recycle-delete (AIA-62).
 //! Permanent delete is not offered; recycle-unavailable paths return an error.
 
+pub(crate) mod clipboard;
+
 use crate::navigator::path_guard::assert_os_path;
 use serde::{Deserialize, Serialize};
 use std::fs;

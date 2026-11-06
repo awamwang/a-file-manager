@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-/** App-local file clipboard for Kernel copy / cut / paste (AIA-62). */
+/** Shell file clipboard (CF_HDROP) so copy/cut/paste works with File Explorer. */
 
 import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
@@ -22,14 +22,32 @@ export const hasClipboard = computed(
 export function setClipboard(paths: string[], mode: ClipboardMode): void {
   clipboardPaths.value = [...paths];
   clipboardMode.value = mode;
+  void invoke("file_ops_clipboard_set", { paths, mode }).catch(() => undefined);
 }
 
 export function clearClipboard(): void {
   clipboardPaths.value = [];
   clipboardMode.value = null;
+  void invoke("file_ops_clipboard_clear").catch(() => undefined);
+}
+
+/** Read CF_HDROP so paste works for copies made in File Explorer. */
+export async function refreshClipboardFromSystem(): Promise<void> {
+  try {
+    const result = await invoke<{ paths: string[]; mode: ClipboardMode | null }>(
+      "file_ops_clipboard_get",
+    );
+    clipboardPaths.value = result.paths ?? [];
+    clipboardMode.value =
+      result.mode === "copy" || result.mode === "cut" ? result.mode : null;
+    if (!clipboardPaths.value.length) clipboardMode.value = null;
+  } catch {
+    /* keep the last local snapshot if the shell clipboard is busy */
+  }
 }
 
 export async function pasteClipboard(destDir: string): Promise<FileOpsResult> {
+  await refreshClipboardFromSystem();
   const paths = [...clipboardPaths.value];
   const mode = clipboardMode.value;
   if (!paths.length || !mode) {
