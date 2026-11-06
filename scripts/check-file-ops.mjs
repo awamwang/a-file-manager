@@ -23,6 +23,8 @@ const en = JSON.parse(readFileSync(join(root, "src/i18n/locales/en.json"), "utf8
 assert.ok(cargo.includes('trash = "5'));
 assert.ok(lib.includes("file_ops::file_ops_copy"));
 assert.ok(lib.includes("file_ops::file_ops_delete"));
+assert.ok(lib.includes("file_ops_delete_permanent"));
+assert.ok(rust.includes("delete_permanent_paths"));
 assert.ok(lib.includes("file_ops::file_ops_create_file"));
 assert.ok(rust.includes("create_empty_file"));
 assert.ok(rust.includes("delete_to_recycle"));
@@ -49,7 +51,8 @@ assert.equal(en.dialog.conflictKeep, "Keep both");
 assert.ok(menu.includes("setClipboard"));
 assert.ok(menu.includes("pasteClipboard"));
 assert.ok(menu.includes("deleteEntries"));
-assert.ok(menu.includes("deleteNoRecycle"));
+assert.ok(menu.includes("deletePermanentConfirm"));
+assert.ok(menu.includes("confirmPermanentDelete"));
 assert.ok(menu.includes("confirmDeleteIfNeeded"));
 assert.ok(!menu.includes("window.confirm"));
 assert.ok(!menu.includes("window.prompt"));

@@ -155,6 +155,7 @@ pub fn run() {
             file_ops::file_ops_create_dir,
             file_ops::file_ops_create_file,
             file_ops::file_ops_delete,
+            file_ops::file_ops_delete_permanent,
             file_ops::file_ops_can_recycle,
             file_ops::clipboard::file_ops_clipboard_set,
             file_ops::clipboard::file_ops_clipboard_get,

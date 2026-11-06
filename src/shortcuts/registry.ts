@@ -144,6 +144,12 @@ export const BUILTIN_SHORTCUTS: ShortcutDefinition[] = [
     scope: "global",
   },
   {
+    id: "navigator.deletePermanent",
+    labelKey: "shortcuts.items.navigatorDeletePermanent",
+    chord: { shift: true, key: "delete" },
+    scope: "global",
+  },
+  {
     id: "navigator.selectAll",
     labelKey: "shortcuts.items.navigatorSelectAll",
     chord: { ctrl: true, key: "a" },

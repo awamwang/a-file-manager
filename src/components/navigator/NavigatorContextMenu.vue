@@ -16,7 +16,7 @@ import {
   refreshClipboardFromSystem,
   setClipboard,
 } from "../../state/fileClipboard";
-import { confirmDeleteIfNeeded } from "../../state/confirmBeforeDelete";
+import { confirmDeleteIfNeeded, confirmPermanentDelete } from "../../state/confirmBeforeDelete";
 import { openPromptDialog } from "../../state/promptDialog";
 import {
   resolveNewFileDefaultName,
@@ -341,14 +341,35 @@ async function runDelete(entry: NavigatorEntry) {
   const paths = pathsForClipboard(entry);
   try {
     const blocked = await pathsWithoutRecycle(paths);
-    if (blocked.length) {
-      emit("notice", t("contextMenu.deleteNoRecycle"));
-      return;
-    }
     const label =
       paths.length === 1
         ? entry.name
         : t("navigator.nItems", { count: paths.length });
+    if (blocked.length) {
+      const ok = await confirmPermanentDelete({
+        title: t("dialog.deleteTitle"),
+        message: t("contextMenu.deletePermanentConfirm", { name: label }),
+        confirmLabel: t("common.delete"),
+        cancelLabel: t("common.cancel"),
+      });
+      if (!ok) return;
+      const recyclable = paths.filter((path) => !blocked.includes(path));
+      if (recyclable.length) {
+        const recycled = await deleteEntries(recyclable, false);
+        if (!recycled.ok) {
+          emit("notice", recycled.error ?? t("contextMenu.opFailed"));
+          return;
+        }
+      }
+      const removed = await deleteEntries(blocked, true);
+      if (!removed.ok) {
+        emit("notice", removed.error ?? t("contextMenu.opFailed"));
+        return;
+      }
+      emit("notice", t("contextMenu.deletedPermanent"));
+      await refreshListing();
+      return;
+    }
     const ok = await confirmDeleteIfNeeded({
       title: t("dialog.deleteTitle"),
       message: t("contextMenu.deleteConfirm", { name: label }),

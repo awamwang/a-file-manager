@@ -37,7 +37,7 @@ import {
   setClipboard,
   transferEntries,
 } from "../state/fileClipboard";
-import { confirmDeleteIfNeeded } from "../state/confirmBeforeDelete";
+import { confirmDeleteIfNeeded, confirmPermanentDelete } from "../state/confirmBeforeDelete";
 import { openPromptDialog } from "../state/promptDialog";
 import {
   resolveNewFileDefaultName,
@@ -726,19 +726,43 @@ async function shortcutNewFile() {
   }
 }
 
-async function shortcutDelete() {
+async function shortcutDelete(permanent = false) {
   const paths = selectionPaths();
   if (!paths.length) return;
   try {
-    const blocked = await pathsWithoutRecycle(paths);
-    if (blocked.length) {
-      onNotice(t("contextMenu.deleteNoRecycle"), "error");
-      return;
-    }
+    const blocked = permanent ? paths : await pathsWithoutRecycle(paths);
     const label =
       paths.length === 1
         ? visibleEntries.value.find((e) => e.path === paths[0])?.name ?? paths[0]
         : t("navigator.nItems", { count: paths.length });
+    if (permanent || blocked.length) {
+      const ok = await confirmPermanentDelete({
+        title: t("dialog.deleteTitle"),
+        message: t("contextMenu.deletePermanentConfirm", { name: label }),
+        confirmLabel: t("common.delete"),
+        cancelLabel: t("common.cancel"),
+      });
+      if (!ok) return;
+      const recyclable = permanent ? [] : paths.filter((path) => !blocked.includes(path));
+      const doomed = permanent ? paths : blocked;
+      if (recyclable.length) {
+        const recycled = await deleteEntries(recyclable, false);
+        if (!recycled.ok) {
+          onNotice(recycled.error ?? t("contextMenu.opFailed"));
+          return;
+        }
+      }
+      const result = await deleteEntries(doomed, true);
+      if (!result.ok) {
+        onNotice(result.error ?? t("contextMenu.opFailed"));
+        return;
+      }
+      onNotice(t("contextMenu.deletedPermanent"));
+      clearSelection();
+      clearClipboard();
+      await refreshListing();
+      return;
+    }
     const ok = await confirmDeleteIfNeeded({
       title: t("dialog.deleteTitle"),
       message: t("contextMenu.deleteConfirm", { name: label }),
@@ -786,10 +810,13 @@ function registerNavFileShortcuts() {
     void refreshListing();
   });
   registerShortcutHandler("navigator.delete", () => {
-    void shortcutDelete();
+    void shortcutDelete(false);
   });
   registerShortcutHandler("navigator.deleteKey", () => {
-    void shortcutDelete();
+    void shortcutDelete(false);
+  });
+  registerShortcutHandler("navigator.deletePermanent", () => {
+    void shortcutDelete(true);
   });
   registerShortcutHandler("navigator.selectAll", () => {
     setSelection(orderedPaths.value);
@@ -811,6 +838,7 @@ function unregisterNavFileShortcuts() {
     "navigator.refresh",
     "navigator.delete",
     "navigator.deleteKey",
+    "navigator.deletePermanent",
     "navigator.selectAll",
     "navigator.previewBridge",
   ]) {

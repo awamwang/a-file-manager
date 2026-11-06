@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Kernel file operations: copy / move / rename / mkdir / recycle-delete (AIA-62).
-//! Permanent delete is not offered; recycle-unavailable paths return an error.
+//! Recycle Bin is the default delete. Permanent delete is a separate confirmed command.
 
 pub(crate) mod clipboard;
 
@@ -313,6 +313,32 @@ pub fn delete_paths(paths: &[String]) -> Result<Vec<String>, String> {
     Ok(deleted)
 }
 
+fn refuse_root(path: &Path) -> Result<(), String> {
+    let parent = path.parent();
+    if parent.map(|item| item.as_os_str().is_empty()).unwrap_or(true) {
+        return Err(format!(
+            "Refusing to permanently delete a root: {}",
+            display_path(path)
+        ));
+    }
+    Ok(())
+}
+
+pub fn delete_permanent_paths(paths: &[String]) -> Result<Vec<String>, String> {
+    let mut deleted = Vec::new();
+    for path in paths {
+        let pb = ensure_existing(path)?;
+        refuse_root(&pb)?;
+        if pb.is_dir() {
+            fs::remove_dir_all(&pb).map_err(|err| format!("Failed to permanently delete: {err}"))?;
+        } else {
+            fs::remove_file(&pb).map_err(|err| format!("Failed to permanently delete: {err}"))?;
+        }
+        deleted.push(display_path(&pb));
+    }
+    Ok(deleted)
+}
+
 #[tauri::command]
 pub fn file_ops_name_exists(dest_dir: String, name: String) -> Result<bool, String> {
     let dest = ensure_dir(&dest_dir)?;
@@ -371,6 +397,14 @@ pub fn file_ops_create_file(parent: String, name: String) -> FileOpsResult {
 #[tauri::command]
 pub fn file_ops_delete(paths: Vec<String>) -> FileOpsResult {
     match delete_paths(&paths) {
+        Ok(paths) => ok_paths(paths),
+        Err(error) => err_msg(error),
+    }
+}
+
+#[tauri::command]
+pub fn file_ops_delete_permanent(paths: Vec<String>) -> FileOpsResult {
+    match delete_permanent_paths(&paths) {
         Ok(paths) => ok_paths(paths),
         Err(error) => err_msg(error),
     }
@@ -505,6 +539,19 @@ mod tests {
         assert!(path_can_use_recycle_bin(&path));
         delete_paths(&[path]).unwrap();
         assert!(!file.exists());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn permanent_delete_removes_file_and_refuses_root() {
+        let dir = temp_workspace("perm");
+        let file = dir.join("gone.txt");
+        fs::write(&file, b"bye").unwrap();
+        let removed = delete_permanent_paths(&[display_path(&file)]).unwrap();
+        assert_eq!(removed.len(), 1);
+        assert!(!file.exists());
+        let err = delete_permanent_paths(&[r"C:\".to_string()]).unwrap_err();
+        assert!(err.contains("root"));
         let _ = fs::remove_dir_all(&dir);
     }
 

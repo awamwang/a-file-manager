@@ -77,3 +77,18 @@ export async function confirmDeleteIfNeeded(
   }
   return result.confirmed;
 }
+
+/** Permanent delete always asks, and does not offer 「以后不再提问」. */
+export async function confirmPermanentDelete(
+  labels: ConfirmDeleteLabels,
+): Promise<boolean> {
+  const result = await openConfirmDialog({
+    title: labels.title,
+    message: labels.message,
+    confirmLabel: labels.confirmLabel,
+    cancelLabel: labels.cancelLabel,
+    showDontAskAgain: false,
+    danger: true,
+  });
+  return result.confirmed;
+}

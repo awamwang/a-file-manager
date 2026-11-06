@@ -124,8 +124,12 @@ export async function createFile(
   return invoke<FileOpsResult>("file_ops_create_file", { parent, name });
 }
 
-export async function deleteEntries(paths: string[]): Promise<FileOpsResult> {
-  return invoke<FileOpsResult>("file_ops_delete", { paths });
+export async function deleteEntries(
+  paths: string[],
+  permanent = false,
+): Promise<FileOpsResult> {
+  const command = permanent ? "file_ops_delete_permanent" : "file_ops_delete";
+  return invoke<FileOpsResult>(command, { paths });
 }
 
 export async function pathsWithoutRecycle(paths: string[]): Promise<string[]> {
