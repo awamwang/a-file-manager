@@ -37,6 +37,7 @@ import {
   setClipboard,
   type FileOpsResult,
 } from "../state/fileClipboard";
+import { confirmDeleteIfNeeded } from "../state/confirmBeforeDelete";
 import {
   resolveNewFileDefaultName,
   resolveNewFolderDefaultName,
@@ -703,7 +704,12 @@ async function shortcutDelete() {
       paths.length === 1
         ? visibleEntries.value.find((e) => e.path === paths[0])?.name ?? paths[0]
         : t("navigator.nItems", { count: paths.length });
-    const ok = window.confirm(t("contextMenu.deleteConfirm", { name: label }));
+    const ok = await confirmDeleteIfNeeded({
+      title: t("dialog.deleteTitle"),
+      message: t("contextMenu.deleteConfirm", { name: label }),
+      confirmLabel: t("common.delete"),
+      cancelLabel: t("common.cancel"),
+    });
     if (!ok) return;
     const result = await deleteEntries(paths);
     if (!result.ok) {

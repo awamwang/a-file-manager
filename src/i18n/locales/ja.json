@@ -88,6 +88,8 @@
   "common": {
     "create": "作成",
     "delete": "削除",
+    "cancel": "キャンセル",
+    "confirm": "確認",
     "dismiss": "閉じる",
     "empty": "空",
     "file": "ファイル",
@@ -98,6 +100,11 @@
     "remove": "削除",
     "yes": "はい",
     "more": "その他"
+  },
+  "dialog": {
+    "confirmTitle": "確認",
+    "deleteTitle": "削除の確認",
+    "dontAskAgain": "今後表示しない"
   },
   "discovery": {
     "title": "検索",

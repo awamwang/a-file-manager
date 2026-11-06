@@ -15,6 +15,7 @@ import {
   pasteClipboard,
   setClipboard,
 } from "../../state/fileClipboard";
+import { confirmDeleteIfNeeded } from "../../state/confirmBeforeDelete";
 import {
   resolveNewFileDefaultName,
   resolveNewFolderDefaultName,
@@ -333,9 +334,12 @@ async function runDelete(entry: NavigatorEntry) {
       paths.length === 1
         ? entry.name
         : t("navigator.nItems", { count: paths.length });
-    const ok = window.confirm(
-      t("contextMenu.deleteConfirm", { name: label }),
-    );
+    const ok = await confirmDeleteIfNeeded({
+      title: t("dialog.deleteTitle"),
+      message: t("contextMenu.deleteConfirm", { name: label }),
+      confirmLabel: t("common.delete"),
+      cancelLabel: t("common.cancel"),
+    });
     if (!ok) return;
     const result = await deleteEntries(paths);
     if (!result.ok) {

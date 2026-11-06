@@ -8,6 +8,8 @@
     "dismiss": "Dismiss",
     "create": "Create",
     "delete": "Delete",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
     "refresh": "Refresh",
     "empty": "Empty",
     "remove": "Remove",
@@ -16,6 +18,11 @@
     "folder": "Folder",
     "file": "File",
     "more": "More"
+  },
+  "dialog": {
+    "confirmTitle": "Confirm",
+    "deleteTitle": "Confirm delete",
+    "dontAskAgain": "Don't ask again"
   },
   "chrome": {
     "titleBar": "Title bar",

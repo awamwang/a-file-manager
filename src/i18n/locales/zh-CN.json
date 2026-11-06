@@ -8,6 +8,8 @@
     "dismiss": "关闭",
     "create": "创建",
     "delete": "删除",
+    "cancel": "取消",
+    "confirm": "确定",
     "refresh": "刷新",
     "empty": "空",
     "remove": "移除",
@@ -16,6 +18,11 @@
     "folder": "文件夹",
     "file": "文件",
     "more": "更多"
+  },
+  "dialog": {
+    "confirmTitle": "确认",
+    "deleteTitle": "确认删除",
+    "dontAskAgain": "以后不再提问"
   },
   "chrome": {
     "titleBar": "标题栏",

@@ -12,6 +12,7 @@ import {
   snapshotLiveOpenState,
   type SilentSwitchResult,
 } from "../state/navigatorBrowse";
+import { openConfirmDialog } from "../state/confirmDialog";
 import { toastInfo, toastSuccess } from "../state/toast";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import type { FluentGlyphId } from "../components/icons/glyphs";
@@ -436,7 +437,14 @@ async function openBoundMembersIntoRuntime() {
 }
 
 async function deleteProject(project: UserProject) {
-  if (!window.confirm(t("projects.confirmDelete", { name: project.name }))) return;
+  const confirmed = await openConfirmDialog({
+    title: t("dialog.deleteTitle"),
+    message: t("projects.confirmDelete", { name: project.name }),
+    confirmLabel: t("common.delete"),
+    cancelLabel: t("common.cancel"),
+    danger: true,
+  });
+  if (!confirmed.confirmed) return;
   listMoreOpenId.value = null;
   projectMoreOpen.value = false;
   document.value = await invoke<UserProjects>("projects_delete", {

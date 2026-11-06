@@ -88,6 +88,8 @@
   "common": {
     "create": "Créer",
     "delete": "Supprimer",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
     "dismiss": "Fermer",
     "empty": "Vide",
     "file": "Fichier",
@@ -98,6 +100,11 @@
     "remove": "Retirer",
     "yes": "oui",
     "more": "Plus"
+  },
+  "dialog": {
+    "confirmTitle": "Confirmer",
+    "deleteTitle": "Confirmer la suppression",
+    "dontAskAgain": "Ne plus demander"
   },
   "discovery": {
     "title": "Recherche",

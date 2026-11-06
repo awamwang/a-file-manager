@@ -15,6 +15,7 @@ import {
 import { displayNameFromPath } from "../state/openStateModel";
 import type { WorkGroupOpenState } from "../state/openStateModel";
 import FluentIcon from "../components/icons/FluentIcon.vue";
+import { openConfirmDialog } from "../state/confirmDialog";
 import { toastError, toastInfo, toastSuccess } from "../state/toast";
 
 const { t } = useI18n();
@@ -283,13 +284,14 @@ async function deleteGroup(group: WorkGroup) {
   if (group.isDefault) return;
   const deletingId = group.id;
   const wasActive = deletingId === activeWorkGroupId.value;
-  if (
-    !window.confirm(
-      t("workGroups.deleteConfirmClearTabs", { name: group.name }),
-    )
-  ) {
-    return;
-  }
+  const confirmed = await openConfirmDialog({
+    title: t("dialog.deleteTitle"),
+    message: t("workGroups.deleteConfirmClearTabs", { name: group.name }),
+    confirmLabel: t("common.delete"),
+    cancelLabel: t("common.cancel"),
+    danger: true,
+  });
+  if (!confirmed.confirmed) return;
   listMoreOpenId.value = null;
   moreMenuOpen.value = false;
   document.value = await invoke<UserWorkGroups>("work_groups_delete", {

@@ -34,6 +34,8 @@ assert.ok(menu.includes("setClipboard"));
 assert.ok(menu.includes("pasteClipboard"));
 assert.ok(menu.includes("deleteEntries"));
 assert.ok(menu.includes("deleteNoRecycle"));
+assert.ok(menu.includes("confirmDeleteIfNeeded"));
+assert.ok(!menu.includes("window.confirm"));
 assert.ok(!menu.includes("deleteStub"));
 assert.ok(model.includes('id: "copy"'));
 assert.ok(model.includes('id: "cut"'));
