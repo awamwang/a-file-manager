@@ -13,6 +13,22 @@ if (!shell.includes("onToggleTabPin") || !shell.includes("@dblclick.stop=\"onTog
   console.error("tab strip must pin from the button and a double-click");
   process.exit(1);
 }
+const hasPinGlyph =
+  shell.includes("isTabPinned(tab.id) ? 'pin' : 'star'") ||
+  shell.includes('isTabPinned(tab.id) ? "pin" : "star"');
+if (!shell.includes("tab--pinned") || !hasPinGlyph) {
+  console.error("pinned tabs need tab--pinned chrome and a pin glyph when pinned");
+  process.exit(1);
+}
+const model = readFileSync(join(root, "src/state/openStateModel.ts"), "utf8");
+if (
+  !/currentTabGroupIndex:\s*Math\.max\(\s*0,\s*state\.currentTabGroupIndex\s*-\s*removedThroughActive/.test(
+    model,
+  )
+) {
+  console.error("openStateWithoutPinned must floor currentTabGroupIndex at 0");
+  process.exit(1);
+}
 if (!zh.includes("默认工作组")) {
   console.error("default work group label must be 默认工作组");
   process.exit(1);

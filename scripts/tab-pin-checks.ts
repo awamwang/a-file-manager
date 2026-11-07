@@ -57,6 +57,60 @@ assert.equal(duplicated.tabGroups.filter((group) => group[0]?.id === "p1").lengt
 
 assert.deepEqual(openStateWithoutPinned(createEmptyOpenState(), pinned).tabGroups, []);
 
+// AIA-228: pinning the active (or earlier) tab must not emit a negative index —
+// Rust deserializes currentTabGroupIndex as usize and rejects -1, blocking WG switch.
+const activePinned = openStateWithoutPinned(
+  state(
+    [[tab("p1", "C:\\Temp\\afm-fixture\\pin-a")], [tab("u1", "C:\\Temp\\afm-fixture\\keep")]],
+    0,
+  ),
+  new Set(["p1"]),
+);
+assert.equal(activePinned.currentTabGroupIndex, 0);
+assert.ok(activePinned.currentTabGroupIndex >= 0);
+assert.deepEqual(
+  activePinned.tabGroups.map((group) => group[0]?.id),
+  ["u1"],
+);
+
+const earlierPinned = openStateWithoutPinned(
+  state(
+    [
+      [tab("p1", "C:\\Temp\\afm-fixture\\pin-a")],
+      [tab("u1", "C:\\Temp\\afm-fixture\\keep")],
+      [tab("u2", "C:\\Temp\\afm-fixture\\keep-2")],
+    ],
+    2,
+  ),
+  new Set(["p1"]),
+);
+assert.equal(earlierPinned.currentTabGroupIndex, 1);
+assert.deepEqual(
+  earlierPinned.tabGroups.map((group) => group[0]?.id),
+  ["u1", "u2"],
+);
+
+const onlyPinned = openStateWithoutPinned(
+  state([[tab("p1", "C:\\Temp\\afm-fixture\\pin-a")]], 0),
+  new Set(["p1"]),
+);
+assert.deepEqual(onlyPinned.tabGroups, []);
+assert.equal(onlyPinned.currentTabGroupIndex, 0);
+
+const switchWithActivePin = mergePinnedIntoOpenState(
+  state([[tab("t1", "D:\\Temp\\afm-fixture\\one")]], 0),
+  state(
+    [[tab("p1", "C:\\Temp\\afm-fixture\\pin-a")], [tab("u1", "C:\\Temp\\afm-fixture\\old")]],
+    0,
+  ),
+  new Set(["p1"]),
+);
+assert.ok(switchWithActivePin.currentTabGroupIndex >= 0);
+assert.deepEqual(
+  switchWithActivePin.tabGroups.map((group) => group[0]?.id),
+  ["p1", "t1"],
+);
+
 assert.equal(
   workGroupDisplayName({ name: "Default", isDefault: true }, "默认工作组"),
   "默认工作组",

@@ -31,6 +31,7 @@ export type FluentGlyphId =
   | "bug"
   | "home"
   | "star"
+  | "pin"
   | "dualPane"
   | "add"
   | "check"
@@ -208,6 +209,13 @@ export const FLUENT_GLYPHS: Record<FluentGlyphId, FluentGlyph> = {
     codepoint: "\uE734",
     paths: [
       "M8 2.4 9.7 6l3.9.6-2.8 2.8.7 3.9L8 11.4l-3.5 1.9.7-3.9L2.4 6.6 6.3 6 8 2.4zm0 2.4L7 7.1l-2.3.3 1.7 1.6-.4 2.3L8 10.1l2 1.2-.4-2.3 1.7-1.6-2.3-.3L8 4.8z",
+    ],
+  },
+  /** Segoe Pin — pushpin for pinned Navigator tabs. */
+  pin: {
+    codepoint: "\uE718",
+    paths: [
+      "M9.6 2.4 13.6 6.4l-1.1 1.1-1.4-.3-.9.9 1.6 1.6-.9.9-1.6-1.6-.9.9.3 1.4-1.1 1.1-4-4 1.1-1.1 1.4.3.9-.9L5.4 6l.9-.9 1.6 1.6.9-.9-.3-1.4 1.1-1.1zm-5.3 7.1 1.8 1.8-3.4 2.5 1.6-4.3z",
     ],
   },
   /**

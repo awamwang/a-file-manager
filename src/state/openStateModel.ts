@@ -70,13 +70,16 @@ export function clampOpenStateIndices(state: WorkGroupOpenState): WorkGroupOpenS
     next.currentTabIndex = 0;
     return next;
   }
-  next.currentTabGroupIndex = Math.min(
-    next.currentTabGroupIndex,
-    next.tabGroups.length - 1,
+  // Floor at 0: pin-strip saves can briefly compute a negative index before clamp.
+  next.currentTabGroupIndex = Math.max(
+    0,
+    Math.min(next.currentTabGroupIndex, next.tabGroups.length - 1),
   );
   const group = next.tabGroups[next.currentTabGroupIndex] ?? [];
   next.currentTabIndex =
-    group.length === 0 ? 0 : Math.min(next.currentTabIndex, group.length - 1);
+    group.length === 0
+      ? 0
+      : Math.max(0, Math.min(next.currentTabIndex, group.length - 1));
   return next;
 }
 
@@ -355,7 +358,10 @@ export function openStateWithoutPinned(
   });
   return clampOpenStateIndices({
     tabGroups,
-    currentTabGroupIndex: state.currentTabGroupIndex - removedThroughActive,
+    currentTabGroupIndex: Math.max(
+      0,
+      state.currentTabGroupIndex - removedThroughActive,
+    ),
     currentTabIndex: state.currentTabIndex,
   });
 }

@@ -1283,7 +1283,11 @@ onUnmounted(() => {
               @dblclick.stop
               @pointerdown.stop
             >
-              <FluentIcon name="star" size="sm" aria-hidden="true" />
+              <FluentIcon
+                :name="isTabPinned(tab.id) ? 'pin' : 'star'"
+                size="sm"
+                aria-hidden="true"
+              />
             </button>
             <FluentIcon name="folder" size="sm" class="tab-icon" aria-hidden="true" />
             <span class="tab-label">{{ tab.name || tabLabel(tab.path) }}</span>
@@ -2316,6 +2320,21 @@ onUnmounted(() => {
   box-shadow: inset 0 -2px 0 var(--fluent-color-fill-accent);
 }
 
+/* AIA-227: pinned tabs keep a durable accent border + pin glyph (not hover-only). */
+.tab--pinned {
+  border-color: var(--fluent-color-stroke-accent-soft, var(--fluent-color-fill-accent));
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--fluent-color-fill-accent) 35%, transparent);
+}
+
+.tab--pinned.tab--active {
+  border-color: var(--fluent-color-fill-accent);
+  box-shadow:
+    inset 0 -2px 0 var(--fluent-color-fill-accent),
+    inset 0 0 0 1px
+      color-mix(in srgb, var(--fluent-color-fill-accent) 45%, transparent);
+}
+
 .tab--drag-over {
   outline: 2px solid var(--fluent-color-stroke-accent-soft, var(--fluent-color-fill-accent));
   outline-offset: -2px;
@@ -2340,11 +2359,19 @@ onUnmounted(() => {
   border-radius: var(--fluent-radius-sm);
   background: transparent;
   color: var(--fluent-color-text-secondary);
+  opacity: 0.55;
   cursor: pointer;
+}
+
+.tab:hover .tab-pin,
+.tab--active .tab-pin,
+.tab-pin--on {
+  opacity: 1;
 }
 
 .tab-pin--on {
   color: var(--fluent-color-fill-accent);
+  background: color-mix(in srgb, var(--fluent-color-fill-accent) 16%, transparent);
 }
 
 .tab-close {
