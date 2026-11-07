@@ -189,7 +189,10 @@ pub fn create_workspace_at(
     })
 }
 
-fn write_project_meta(workspace_dir: &Path, project: &WorkspaceProjectMeta) -> Result<(), String> {
+pub(crate) fn write_project_meta(
+    workspace_dir: &Path,
+    project: &WorkspaceProjectMeta,
+) -> Result<(), String> {
     let project_path = workspace_dir.join(WORKSPACE_PROJECT_FILE);
     let project_text = serde_json::to_string_pretty(project)
         .map_err(|err| format!("Failed to serialize project.json: {err}"))?;

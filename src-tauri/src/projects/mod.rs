@@ -7,9 +7,11 @@
 //! C3 (AIA-209): list / activate / bind WG on disk Workspaces.
 //! C4 (AIA-210): `members/` junctions; open real target paths.
 //! C5 (AIA-211): CONTEXT.md + board.json four-column board.
+//! C6 (AIA-212): delete / rename / Promote WG→Workspace.
 
 pub(crate) mod board;
 pub(crate) mod index;
+pub(crate) mod lifecycle;
 pub(crate) mod members;
 pub(crate) mod migrate;
 mod ops;
@@ -30,6 +32,7 @@ use store::{load_from_path, save_to_path};
 use tauri::{AppHandle, Manager};
 use types::{ActivateProjectResult, OpenAllLinksResult, ProjectTask, TaskPatch, UserProjects};
 use board::{BoardTask, BoardTaskPatch, WorkspaceBoard};
+use lifecycle::{DeleteWorkspaceResult, PromoteWorkspaceResult, RenameWorkspaceResult};
 use members::WorkspaceMember;
 use workspace::{
     ActivateWorkspaceResult, CreateWorkspaceResult, WorkspaceListItem, WorkspaceListResult,
@@ -290,6 +293,55 @@ pub fn projects_workspace_board_delete_task(
     let index = load_index(&app)?;
     let root = std::path::PathBuf::from(&index.projects_root);
     board::mutate_board_for_slug(&root, &slug, |b| board::delete_task(b, &task_id))
+}
+
+/// Delete entire Workspace directory (junction targets preserved). Clears thin-index active if needed.
+#[tauri::command]
+pub fn projects_workspace_delete(
+    app: AppHandle,
+    slug: String,
+) -> Result<DeleteWorkspaceResult, String> {
+    let dir = config_dir(&app)?;
+    let index = load_index(&app)?;
+    let root = std::path::PathBuf::from(&index.projects_root);
+    let result = lifecycle::delete_workspace(&root, &index, &slug)?;
+    save_index_to_path(&dir, &result.index)?;
+    Ok(result)
+}
+
+/// Rename displayName and/or slug (slug renames the directory; conflict → PROJECT_SLUG_CONFLICT).
+#[tauri::command]
+pub fn projects_workspace_rename(
+    app: AppHandle,
+    slug: String,
+    display_name: Option<String>,
+    new_slug: Option<String>,
+) -> Result<RenameWorkspaceResult, String> {
+    let dir = config_dir(&app)?;
+    let index = load_index(&app)?;
+    let root = std::path::PathBuf::from(&index.projects_root);
+    let result = lifecycle::rename_workspace(
+        &root,
+        &index,
+        &slug,
+        display_name.as_deref(),
+        new_slug.as_deref(),
+    )?;
+    save_index_to_path(&dir, &result.index)?;
+    Ok(result)
+}
+
+/// Promote non-default WG → Workspace: create + bind + seed members/ junctions from memberPaths.
+#[tauri::command]
+pub fn projects_workspace_promote_from_work_group(
+    app: AppHandle,
+    work_group_id: String,
+) -> Result<PromoteWorkspaceResult, String> {
+    let dir = config_dir(&app)?;
+    let index = load_index(&app)?;
+    let root = std::path::PathBuf::from(&index.projects_root);
+    let wgs = wg_store::load_from_path(&dir)?;
+    lifecycle::promote_work_group_to_workspace(&root, &wgs, &work_group_id)
 }
 
 fn with_document<F>(app: &AppHandle, f: F) -> Result<UserProjects, String>
