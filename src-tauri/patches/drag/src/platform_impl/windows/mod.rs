@@ -11,6 +11,7 @@ use std::{
     iter::once,
     os::windows::ffi::OsStrExt,
     path::{Path, PathBuf},
+    sync::atomic::{AtomicBool, Ordering},
     sync::Once,
 };
 use windows::{
@@ -31,10 +32,38 @@ use windows::{
                 BHID_DataObject, CLSID_DragDropHelper, Common, IDragSourceHelper, IShellItemArray,
                 SHCreateDataObject, SHCreateShellItemArrayFromIDLists, DROPFILES, SHDRAGIMAGE,
             },
-            WindowsAndMessaging::GetCursorPos,
+            WindowsAndMessaging::{
+                GetAncestor, GetCursorPos, GetForegroundWindow, IsChild, SetForegroundWindow,
+                GA_ROOT,
+            },
         },
     },
 };
+
+/// AIA-261: true while `DoDragDrop` is on the stack (Hybrid / plugin outbound).
+static OLE_DRAG_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
+
+/// Host window deferred activation after `MA_NOACTIVATE` (cleared when OLE starts).
+static PENDING_BACKGROUND_ACTIVATE: AtomicBool = AtomicBool::new(false);
+
+/// Whether a Windows OLE outbound drag is currently inside `DoDragDrop`.
+pub fn ole_drag_in_progress() -> bool {
+    OLE_DRAG_IN_PROGRESS.load(Ordering::SeqCst)
+}
+
+/// Record that `WM_MOUSEACTIVATE` deferred activation (background drag / click).
+pub fn note_deferred_activate() {
+    PENDING_BACKGROUND_ACTIVATE.store(true, Ordering::SeqCst);
+}
+
+/// Take-and-clear deferred activation; `false` once OLE outbound has started.
+pub fn take_pending_activate() -> bool {
+    PENDING_BACKGROUND_ACTIVATE.swap(false, Ordering::SeqCst)
+}
+
+fn clear_pending_activate() {
+    PENDING_BACKGROUND_ACTIVATE.store(false, Ordering::SeqCst);
+}
 
 mod image;
 
@@ -57,20 +86,68 @@ struct DataObject {
 }
 
 #[implement(IDropSource)]
-struct DropSource(());
+struct DropSource {
+    /// Root HWND of the AFM / drag-source window.
+    our_root: HWND,
+    /// Foreground window to keep on top when OLE started in the background
+    /// (Hybrid leave/blur). `None` when we were already foreground.
+    preserve_fg: Option<HWND>,
+}
 
 #[implement(IDropSource)]
 struct DummyDropSource(());
 
 impl DropSource {
-    fn new() -> Self {
-        Self(())
+    fn new(our_root: HWND, preserve_fg: Option<HWND>) -> Self {
+        Self {
+            our_root,
+            preserve_fg,
+        }
+    }
+}
+
+fn hwnd_is_ours(our_root: HWND, candidate: HWND) -> bool {
+    if candidate.0 == 0 || our_root.0 == 0 {
+        return false;
+    }
+    if candidate == our_root {
+        return true;
+    }
+    unsafe { IsChild(our_root, candidate).as_bool() }
+}
+
+fn root_hwnd(hwnd: HWND) -> HWND {
+    unsafe {
+        let root = GetAncestor(hwnd, GA_ROOT);
+        if root.0 == 0 {
+            hwnd
+        } else {
+            root
+        }
+    }
+}
+
+/// AIA-261: if OLE / WebView re-activates us mid-drag, put the prior foreground back
+/// so the drop target under the cursor stays usable (Explorer parity).
+fn restore_preserved_foreground(our_root: HWND, preserve_fg: Option<HWND>) {
+    let Some(prev) = preserve_fg else {
+        return;
+    };
+    if prev.0 == 0 {
+        return;
+    }
+    unsafe {
+        let fg = GetForegroundWindow();
+        if hwnd_is_ours(our_root, fg) {
+            let _ = SetForegroundWindow(prev);
+        }
     }
 }
 
 #[allow(non_snake_case)]
 impl IDropSource_Impl for DropSource {
     fn QueryContinueDrag(&self, fescapepressed: BOOL, grfkeystate: MODIFIERKEYS_FLAGS) -> HRESULT {
+        restore_preserved_foreground(self.our_root, self.preserve_fg);
         if fescapepressed.as_bool() {
             DRAGDROP_S_CANCEL
         } else if (grfkeystate & MK_LBUTTON) == MODIFIERKEYS_FLAGS(0) {
@@ -81,6 +158,7 @@ impl IDropSource_Impl for DropSource {
     }
 
     fn GiveFeedback(&self, _dweffect: DROPEFFECT) -> HRESULT {
+        restore_preserved_foreground(self.our_root, self.preserve_fg);
         DRAGDROP_S_USEDEFAULTCURSORS
     }
 }
@@ -220,7 +298,20 @@ pub fn start_drag<W: HasWindowHandle, F: Fn(DragResult, CursorPosition) + Send +
     on_drop_callback: F,
     options: Options,
 ) -> crate::Result<()> {
-    if let Ok(RawWindowHandle::Win32(_w)) = handle.window_handle().map(|h| h.as_raw()) {
+    if let Ok(RawWindowHandle::Win32(w)) = handle.window_handle().map(|h| h.as_raw()) {
+        let our_hwnd = HWND(w.hwnd.get());
+        let our_root = root_hwnd(our_hwnd);
+        // AIA-261: if Hybrid left/blur already moved focus to the drop target, remember it
+        // and refuse to stay raised over that window for the OLE drag lifetime.
+        let preserve_fg = unsafe {
+            let fg = GetForegroundWindow();
+            if hwnd_is_ours(our_root, fg) || fg.0 == 0 {
+                None
+            } else {
+                Some(fg)
+            }
+        };
+
         match item {
             DragItem::Files(files) => {
                 init_ole();
@@ -237,7 +328,7 @@ pub fn start_drag<W: HasWindowHandle, F: Fn(DragResult, CursorPosition) + Send +
                 }
 
                 let data_object: IDataObject = get_file_data_object(&paths).unwrap();
-                let drop_source: IDropSource = DropSource::new().into();
+                let drop_source: IDropSource = DropSource::new(our_root, preserve_fg).into();
 
                 unsafe {
                     if let Some(drag_image) = get_drag_image(image) {
@@ -254,8 +345,22 @@ pub fn start_drag<W: HasWindowHandle, F: Fn(DragResult, CursorPosition) + Send +
                     let _ = options.mode;
                     let effect = DROPEFFECT_COPY | DROPEFFECT_MOVE | DROPEFFECT_LINK;
 
+                    if let Some(prev) = preserve_fg {
+                        let _ = SetForegroundWindow(prev);
+                    }
+
+                    // OLE consumes the gesture — do not activate AFM on the trailing mouse-up.
+                    clear_pending_activate();
+                    OLE_DRAG_IN_PROGRESS.store(true, Ordering::SeqCst);
                     let drop_result =
                         DoDragDrop(&data_object, &drop_source, effect, &mut out_dropeffect);
+                    OLE_DRAG_IN_PROGRESS.store(false, Ordering::SeqCst);
+
+                    // Keep drop-target foreground after a background-started OLE drag.
+                    if let Some(prev) = preserve_fg {
+                        let _ = SetForegroundWindow(prev);
+                    }
+
                     let mut pt = POINT { x: 0, y: 0 };
                     GetCursorPos(&mut pt)?;
                     if drop_result == DRAGDROP_S_DROP {
@@ -290,12 +395,15 @@ pub fn start_drag<W: HasWindowHandle, F: Fn(DragResult, CursorPosition) + Send +
                     }
 
                     let mut out_dropeffect = DROPEFFECT::default();
+                    clear_pending_activate();
+                    OLE_DRAG_IN_PROGRESS.store(true, Ordering::SeqCst);
                     let drop_result = DoDragDrop(
                         &data_object,
                         &drop_source,
                         DROPEFFECT_COPY,
                         &mut out_dropeffect,
                     );
+                    OLE_DRAG_IN_PROGRESS.store(false, Ordering::SeqCst);
                     let mut pt = POINT { x: 0, y: 0 };
                     GetCursorPos(&mut pt)?;
                     if drop_result == DRAGDROP_S_DROP {

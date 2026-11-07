@@ -3,6 +3,9 @@
  * Native file drag-out (Windows OLE / CF_HDROP via tauri-plugin-drag + patched drag crate).
  * Keeps HTML5 in-app drops intact; starts OS drag when the cursor leaves (or nears the
  * edge of) the window so Explorer receives real paths with copy|move|link.
+ *
+ * AIA-261: outbound must not raise AFM over the drop target — host `WM_MOUSEACTIVATE`
+ * + patched `DoDragDrop` preserve/restore the prior foreground window (no setFocus here).
  */
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import { resolveResource } from "@tauri-apps/api/path";
@@ -31,7 +34,10 @@ function isOutsideOrNearEdge(clientX: number, clientY: number): boolean {
   );
 }
 
-/** Start Windows-native OLE file drag (patched drag offers COPY|MOVE|LINK). */
+/**
+ * Start Windows-native OLE file drag (patched drag offers COPY|MOVE|LINK).
+ * Does not call window focus APIs — see AIA-261.
+ */
 export async function startNativeFileDragOut(paths: string[]): Promise<void> {
   const cleaned = paths.map((p) => p.trim()).filter(Boolean);
   if (outboundBusy || cleaned.length === 0) return;

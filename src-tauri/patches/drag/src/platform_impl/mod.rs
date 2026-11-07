@@ -12,3 +12,6 @@ mod platform;
 #[path = "macos/mod.rs"]
 mod platform;
 pub use platform::start_drag;
+
+#[cfg(windows)]
+pub use platform::{note_deferred_activate, ole_drag_in_progress, take_pending_activate};

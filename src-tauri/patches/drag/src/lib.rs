@@ -86,6 +86,10 @@ use std::path::PathBuf;
 mod platform_impl;
 pub use platform_impl::start_drag;
 
+/// AIA-261: OLE drag-in-progress + deferred-activate helpers for the host window subclass.
+#[cfg(windows)]
+pub use platform_impl::{note_deferred_activate, ole_drag_in_progress, take_pending_activate};
+
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]

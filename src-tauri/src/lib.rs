@@ -22,6 +22,8 @@ mod shell_menu;
 mod system_tray;
 mod terminal;
 mod snap_chrome;
+#[cfg(windows)]
+mod drag_focus;
 mod win_process;
 mod work_groups;
 
@@ -102,6 +104,9 @@ pub fn run() {
                     }
                 }
             }
+            // AIA-261: Explorer-like — background mousedown for outbound drag must not raise AFM.
+            #[cfg(windows)]
+            drag_focus::install_for_main_window(app.handle());
 
             // Only the primary instance owns the tray icon.
             if primary_instance {
