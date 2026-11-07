@@ -196,6 +196,7 @@ pub fn run() {
             projects::projects_index_get,
             projects::projects_index_set_active,
             projects::projects_root_ensure,
+            projects::projects_workspace_create,
             projects::projects_get,
             projects::projects_create,
             projects::projects_rename,
