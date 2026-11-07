@@ -9,6 +9,7 @@ type HealthPayload = {
   name: string;
   version: string;
   identifier: string;
+  aiAddon?: boolean;
 };
 
 const { t } = useI18n();
@@ -67,6 +68,8 @@ onMounted(() => {
       <dd>{{ health.version }}</dd>
       <dt>{{ t("health.fieldIdentifier") }}</dt>
       <dd>{{ health.identifier }}</dd>
+      <dt>{{ t("health.fieldAiAddon") }}</dt>
+      <dd>{{ health.aiAddon ? t("health.aiAddonOn") : t("health.aiAddonOff") }}</dd>
     </dl>
 
     <button class="fluent-control fluent-control--accent" type="button" @click="loadHealth">

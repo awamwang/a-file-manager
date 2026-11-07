@@ -356,7 +356,10 @@
     "loading": "Chargement…",
     "meta": "Identité de l’app et état du noyau",
     "refresh": "Actualiser",
-    "title": "Santé"
+    "title": "Santé",
+    "fieldAiAddon": "aiAddon",
+    "aiAddonOn": "enabled (AI package)",
+    "aiAddonOff": "disabled (Core package)"
   },
   "nav": {
     "ai": "IA",

@@ -13,7 +13,6 @@ use once_cell::sync::Lazy;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::ffi::c_void;
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use windows::core::HSTRING;
@@ -236,6 +235,7 @@ pub fn shell_icon_get_many(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use std::io::Write;
 
     #[test]

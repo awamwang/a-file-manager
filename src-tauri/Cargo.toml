@@ -20,6 +20,12 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 name = "sigma-import"
 path = "src/bin/sigma_import.rs"
 
+[features]
+default = ["ai-addon"]
+## AI Add-on (AIA-222): Agent Targets, Skills, MCP, Harness, Providers, open-editor.
+## Core-only package: `cargo build --no-default-features` (+ `VITE_AFM_AI_ADDON=0`).
+ai-addon = []
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

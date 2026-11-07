@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { Router } from "vue-router";
+import { AI_ADDON_ENABLED } from "../config/flavor";
 import type { AppCommand } from "./types";
 
 export type TranslateFn = (key: string) => string;
@@ -24,7 +25,7 @@ export function buildAppCommands(deps: CommandPanelDeps): AppCommand[] {
   };
   const { t } = deps;
 
-  return [
+  const commands: AppCommand[] = [
     {
       id: "nav.go-up",
       title: t("commands.goUp"),
@@ -103,4 +104,8 @@ export function buildAppCommands(deps: CommandPanelDeps): AppCommand[] {
       run: () => deps.refreshHealth(),
     },
   ];
+
+  return AI_ADDON_ENABLED
+    ? commands
+    : commands.filter((cmd) => cmd.id !== "view.ai");
 }

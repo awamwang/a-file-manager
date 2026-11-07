@@ -120,6 +120,7 @@ type HealthPayload = {
   name: string;
   version: string;
   identifier: string;
+  aiAddon?: boolean;
 };
 
 const route = useRoute();

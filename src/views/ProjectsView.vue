@@ -21,8 +21,10 @@ import { openConfirmDialog } from "../state/confirmDialog";
 import { toastInfo, toastSuccess } from "../state/toast";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import type { FluentGlyphId } from "../components/icons/glyphs";
+import { AI_ADDON_ENABLED } from "../config/flavor";
 
 const { t } = useI18n();
+const aiAddonEnabled = AI_ADDON_ENABLED;
 
 const STATUS_ICONS: Record<string, FluentGlyphId> = {
   backlog: "board",
@@ -895,6 +897,7 @@ onUnmounted(() => {
             {{ t("projects.openAllLinks") }}
           </button>
           <button
+            v-if="aiAddonEnabled"
             class="fluent-control"
             type="button"
             :title="t('projects.openInCursorHint')"
@@ -903,6 +906,7 @@ onUnmounted(() => {
             {{ t("projects.openInCursor") }}
           </button>
           <button
+            v-if="aiAddonEnabled"
             class="fluent-control"
             type="button"
             :title="t('projects.openInQoderHint')"

@@ -595,7 +595,10 @@
     "fieldOk": "状态",
     "fieldName": "名称",
     "fieldVersion": "版本",
-    "fieldIdentifier": "标识符"
+    "fieldIdentifier": "标识符",
+    "fieldAiAddon": "AI Add-on",
+    "aiAddonOn": "已启用（带 AI 包）",
+    "aiAddonOff": "已禁用（不带 AI / Core 包）"
   },
   "providers": {
     "title": "提供程序",

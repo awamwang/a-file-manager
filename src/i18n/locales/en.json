@@ -595,7 +595,10 @@
     "fieldOk": "ok",
     "fieldName": "name",
     "fieldVersion": "version",
-    "fieldIdentifier": "identifier"
+    "fieldIdentifier": "identifier",
+    "fieldAiAddon": "aiAddon",
+    "aiAddonOn": "enabled (AI package)",
+    "aiAddonOff": "disabled (Core package)"
   },
   "providers": {
     "title": "Providers",

@@ -356,7 +356,10 @@
     "loading": "Wird geladen…",
     "meta": "App-Identität und Kernstatus",
     "refresh": "Aktualisieren",
-    "title": "Health"
+    "title": "Health",
+    "fieldAiAddon": "aiAddon",
+    "aiAddonOn": "enabled (AI package)",
+    "aiAddonOff": "disabled (Core package)"
   },
   "nav": {
     "ai": "AI",
