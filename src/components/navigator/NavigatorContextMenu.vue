@@ -59,6 +59,7 @@ import {
   buildContextMenuItems,
   buildContextToolbarItems,
   canOpenInNewTab,
+  type ShellEmbedMenuChild,
 } from "./contextMenuModel";
 import {
   flattenShellItems,
@@ -76,17 +77,6 @@ type GetShellContextMenuResult = {
 type InvokeShellMenuResult = {
   success: boolean;
   error: string | null;
-};
-
-type ShellEmbedChild = {
-  id: string;
-  labelKey: string;
-  rawLabel: string;
-  label: string;
-  enabled: boolean;
-  shellCommandId: number;
-  shellVerb: string | null;
-  separatorBefore?: boolean;
 };
 
 const props = defineProps<{
@@ -116,7 +106,7 @@ const openSubmenuId = ref<string | null>(null);
 const submenuAnchor = ref<HTMLElement | null>(null);
 let submenuCloseTimer: ReturnType<typeof setTimeout> | null = null;
 /** AIA-239: shell verbs loaded into AFM submenu (no native TrackPopupMenu). */
-const shellEmbedChildren = ref<ShellEmbedChild[]>([]);
+const shellEmbedChildren = ref<ShellEmbedMenuChild[]>([]);
 const shellEmbedPath = ref<string | null>(null);
 const shellEmbedLoading = ref(false);
 const shellEmbedError = ref<string | null>(null);
@@ -714,7 +704,7 @@ async function runExtractZip(entry: NavigatorEntry) {
   }
 }
 
-async function runShellVerb(child: ShellEmbedChild, path: string) {
+async function runShellVerb(child: ShellEmbedMenuChild, path: string) {
   try {
     const result = await invoke<InvokeShellMenuResult>("shell_invoke_context_menu_item", {
       path,

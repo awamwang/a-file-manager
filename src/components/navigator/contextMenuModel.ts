@@ -52,6 +52,20 @@ export type ContextMenuItemDef = {
   rawLabel?: string;
 };
 
+/**
+ * AIA-239 shell-embed submenu rows. Presentation optionals (`danger` / `icon` /
+ * `separatorBefore`) come from {@link ContextMenuItemDef} so unions with AFM
+ * children type-check in the submenu template.
+ */
+export type ShellEmbedMenuChild = Pick<
+  ContextMenuItemDef,
+  "id" | "labelKey" | "enabled" | "danger" | "icon" | "separatorBefore" | "rawLabel"
+> & {
+  label: string;
+  shellCommandId: number;
+  shellVerb: string | null;
+};
+
 export type ContextMenuBuildOptions = {
   isFavorite?: boolean;
   canPaste?: boolean;
