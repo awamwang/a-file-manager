@@ -3,12 +3,14 @@
 //!
 //! C1 (AIA-207): thin APPDATA index (`projects-index.json`) holds Projects Root +
 //! `activeProject` only. Legacy `projects.json` remains until C7 deprecates it.
+//! C2 (AIA-208): Core Workspace light create under Projects Root (ADR 0008).
 
 pub(crate) mod index;
 pub(crate) mod migrate;
 mod ops;
 pub(crate) mod store;
 pub(crate) mod types;
+pub(crate) mod workspace;
 
 use index::{load_from_path as load_index_from_path, save_to_path as save_index_to_path, ProjectsIndex};
 use ops::{
@@ -20,6 +22,7 @@ use ops::{
 use store::{load_from_path, save_to_path};
 use tauri::{AppHandle, Manager};
 use types::{ActivateProjectResult, OpenAllLinksResult, ProjectTask, TaskPatch, UserProjects};
+use workspace::CreateWorkspaceResult;
 use crate::work_groups::store as wg_store;
 use crate::work_groups::types::{UserWorkGroups, WorkGroupOpenState};
 
@@ -67,6 +70,37 @@ pub fn projects_index_set_active(
 #[tauri::command]
 pub fn projects_root_ensure(app: AppHandle) -> Result<ProjectsIndex, String> {
     load_index(&app)
+}
+
+/// Core light create: write `project.json` + `CONTEXT.md` + `members/` + `board.json` under Projects Root.
+/// Does not write `AGENTS.md` / `skills/` (ADR 0008). Does not activate (C3) or touch legacy projects.json.
+#[tauri::command]
+pub fn projects_workspace_create(
+    app: AppHandle,
+    display_name: String,
+    description: Option<String>,
+    slug: Option<String>,
+    work_group_id: Option<String>,
+) -> Result<CreateWorkspaceResult, String> {
+    let dir = config_dir(&app)?;
+    let index = load_index(&app)?;
+    let root = std::path::PathBuf::from(&index.projects_root);
+
+    let bound = if let Some(ref wg_id) = work_group_id {
+        let wgs = wg_store::load_from_path(&dir)?;
+        validate_bindable_work_group(&wgs, wg_id)?;
+        Some(wg_id.clone())
+    } else {
+        None
+    };
+
+    workspace::create_workspace_at(
+        &root,
+        &display_name,
+        description.as_deref(),
+        slug.as_deref(),
+        bound,
+    )
 }
 
 fn with_document<F>(app: &AppHandle, f: F) -> Result<UserProjects, String>
