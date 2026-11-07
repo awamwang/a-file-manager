@@ -21,12 +21,31 @@ if (!shell.includes("tab--pinned") || !hasPinGlyph) {
   process.exit(1);
 }
 const model = readFileSync(join(root, "src/state/openStateModel.ts"), "utf8");
+if (!model.includes("safeOpenStateIndex")) {
+  console.error("openStateModel must sanitize indices (safeOpenStateIndex)");
+  process.exit(1);
+}
 if (
-  !/currentTabGroupIndex:\s*Math\.max\(\s*0,\s*state\.currentTabGroupIndex\s*-\s*removedThroughActive/.test(
+  !/currentTabGroupIndex:\s*Math\.max\(\s*0,\s*safeOpenStateIndex\(\s*state\.currentTabGroupIndex\s*\)\s*-\s*removedThroughActive/.test(
     model,
   )
 ) {
   console.error("openStateWithoutPinned must floor currentTabGroupIndex at 0");
+  process.exit(1);
+}
+if (!shell.includes("border-left: 3px solid") || !shell.includes("tab-pin--on")) {
+  console.error("pinned tabs need durable left accent + pin-on chrome (AIA-245)");
+  process.exit(1);
+}
+const browse = readFileSync(join(root, "src/state/navigatorBrowse.ts"), "utf8");
+const persistIdx = browse.indexOf("export async function persistOpenStateNow");
+const persistSlice = persistIdx >= 0 ? browse.slice(persistIdx, persistIdx + 500) : "";
+if (
+  !persistSlice.includes("work_groups_save_open_state") ||
+  !persistSlice.includes("snapshotLeavingOpenState()") ||
+  persistSlice.includes("snapshotLiveOpenState()")
+) {
+  console.error("routine OpenState persist must strip pins via snapshotLeavingOpenState");
   process.exit(1);
 }
 if (!zh.includes("默认工作组")) {

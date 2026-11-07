@@ -104,9 +104,10 @@ function schedulePersist(immediate = false) {
 export async function persistOpenStateNow(): Promise<void> {
   if (!activeWorkGroupId.value) return;
   try {
+    // AIA-245: never persist session pins onto the active WG (same strip as silent switch).
     await invoke<UserWorkGroupsDoc>("work_groups_save_open_state", {
       workGroupId: activeWorkGroupId.value,
-      liveOpenState: snapshotLiveOpenState(),
+      liveOpenState: snapshotLeavingOpenState(),
     });
   } catch {
     // Persistence failures should not block browsing; WG UI can still save explicitly.

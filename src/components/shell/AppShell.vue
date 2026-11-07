@@ -2639,15 +2639,18 @@ onUnmounted(() => {
   box-shadow: inset 0 -2px 0 var(--fluent-color-fill-accent);
 }
 
-/* AIA-227: pinned tabs keep a durable accent border + pin glyph (not hover-only). */
+/* AIA-227 / AIA-245: pinned tabs keep a durable accent (left bar + pin glyph, not hover-only). */
 .tab--pinned {
   border-color: var(--fluent-color-stroke-accent-soft, var(--fluent-color-fill-accent));
+  border-left: 3px solid var(--fluent-color-fill-accent);
+  padding-left: calc(var(--fluent-space-md) - 2px);
   box-shadow: inset 0 0 0 1px
     color-mix(in srgb, var(--fluent-color-fill-accent) 35%, transparent);
 }
 
 .tab--pinned.tab--active {
   border-color: var(--fluent-color-fill-accent);
+  border-left-color: var(--fluent-color-fill-accent);
   box-shadow:
     inset 0 -2px 0 var(--fluent-color-fill-accent),
     inset 0 0 0 1px
@@ -2696,7 +2699,8 @@ onUnmounted(() => {
 
 .tab-pin--on {
   color: var(--fluent-color-fill-accent);
-  background: color-mix(in srgb, var(--fluent-color-fill-accent) 16%, transparent);
+  background: color-mix(in srgb, var(--fluent-color-fill-accent) 22%, transparent);
+  opacity: 1;
 }
 
 .tab-close {

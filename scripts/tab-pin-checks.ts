@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import assert from "node:assert/strict";
 import {
+  clampOpenStateIndices,
   createEmptyOpenState,
   mergePinnedIntoOpenState,
   openStateWithoutPinned,
+  safeOpenStateIndex,
   type WorkGroupOpenState,
   type WorkGroupOpenStateTab,
 } from "../src/state/openStateModel.ts";
@@ -119,5 +121,34 @@ assert.equal(
   workGroupDisplayName({ name: "Photos", isDefault: false }, "默认工作组"),
   "Photos",
 );
+
+// AIA-245: non-finite indices must not survive clamp (JSON would emit null → Rust usize fail).
+assert.equal(safeOpenStateIndex(Number.NaN), 0);
+assert.equal(safeOpenStateIndex(Number.POSITIVE_INFINITY), 0);
+assert.equal(safeOpenStateIndex(-3.7), 0);
+assert.equal(safeOpenStateIndex(2.9), 2);
+assert.equal(safeOpenStateIndex(null), 0);
+assert.equal(safeOpenStateIndex(undefined), 0);
+
+const nanClamped = clampOpenStateIndices(
+  state([[tab("u1", "C:\\Temp\\afm-fixture\\keep")]], Number.NaN),
+);
+assert.equal(nanClamped.currentTabGroupIndex, 0);
+assert.equal(JSON.parse(JSON.stringify(nanClamped)).currentTabGroupIndex, 0);
+
+const leavingAfterActivePin = openStateWithoutPinned(
+  state(
+    [
+      [tab("p1", "C:\\Temp\\afm-fixture\\pin-a")],
+      [tab("u1", "C:\\Temp\\afm-fixture\\keep")],
+    ],
+    0,
+  ),
+  new Set(["p1"]),
+);
+const ipcPayload = JSON.parse(JSON.stringify(leavingAfterActivePin));
+assert.equal(typeof ipcPayload.currentTabGroupIndex, "number");
+assert.ok(ipcPayload.currentTabGroupIndex >= 0);
+assert.notEqual(ipcPayload.currentTabGroupIndex, null);
 
 console.log("tab-pin checks OK.");

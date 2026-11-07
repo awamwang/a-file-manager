@@ -63,6 +63,17 @@ export function cloneOpenState(state: WorkGroupOpenState): WorkGroupOpenState {
   };
 }
 
+/**
+ * Coerce OpenState indices to a non-negative integer before range clamp.
+ * AIA-245 / AIA-228: NaN/±Infinity/nullish become 0 — JSON would otherwise emit
+ * `null`, which Rust `usize` rejects on silent WG switch.
+ */
+export function safeOpenStateIndex(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.trunc(n));
+}
+
 export function clampOpenStateIndices(state: WorkGroupOpenState): WorkGroupOpenState {
   const next = cloneOpenState(state);
   if (next.tabGroups.length === 0) {
@@ -71,15 +82,15 @@ export function clampOpenStateIndices(state: WorkGroupOpenState): WorkGroupOpenS
     return next;
   }
   // Floor at 0: pin-strip saves can briefly compute a negative index before clamp.
-  next.currentTabGroupIndex = Math.max(
-    0,
-    Math.min(next.currentTabGroupIndex, next.tabGroups.length - 1),
+  next.currentTabGroupIndex = Math.min(
+    safeOpenStateIndex(next.currentTabGroupIndex),
+    next.tabGroups.length - 1,
   );
   const group = next.tabGroups[next.currentTabGroupIndex] ?? [];
   next.currentTabIndex =
     group.length === 0
       ? 0
-      : Math.max(0, Math.min(next.currentTabIndex, group.length - 1));
+      : Math.min(safeOpenStateIndex(next.currentTabIndex), group.length - 1);
   return next;
 }
 
@@ -360,9 +371,9 @@ export function openStateWithoutPinned(
     tabGroups,
     currentTabGroupIndex: Math.max(
       0,
-      state.currentTabGroupIndex - removedThroughActive,
+      safeOpenStateIndex(state.currentTabGroupIndex) - removedThroughActive,
     ),
-    currentTabIndex: state.currentTabIndex,
+    currentTabIndex: safeOpenStateIndex(state.currentTabIndex),
   });
 }
 
