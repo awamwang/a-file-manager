@@ -312,6 +312,10 @@
           "description": "Chemin OS ouvert par défaut dans l’Explorateur (vide = USERPROFILE)",
           "title": "Emplacement par défaut"
         },
+        "projectsRoot": {
+          "title": "Racine des projets",
+          "description": "Dossier des Project Workspaces (vide = %APPDATA%\\com.a-file-manager.app\\projects\\)"
+        },
         "startupPage": {
           "title": "Page de démarrage",
           "description": "Première page affichée au lancement",

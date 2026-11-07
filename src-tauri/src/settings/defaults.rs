@@ -59,6 +59,15 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             json!(""),
         ),
         def(
+            "core.projectsRoot",
+            SettingsTier::Core,
+            "Projects Root",
+            "Folder that holds Project Workspaces (empty = %APPDATA%\\com.a-file-manager.app\\projects\\)",
+            SettingValueKind::String,
+            None,
+            json!(""),
+        ),
+        def(
             "core.startupPage",
             SettingsTier::Core,
             "Startup page",

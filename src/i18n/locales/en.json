@@ -234,6 +234,10 @@
           "title": "Default location",
           "description": "Default OS path opened in Explorer (empty = USERPROFILE)"
         },
+        "projectsRoot": {
+          "title": "Projects Root",
+          "description": "Folder that holds Project Workspaces (empty = %APPDATA%\\com.a-file-manager.app\\projects\\)"
+        },
         "startupPage": {
           "title": "Startup page",
           "description": "First page shown after launch",
