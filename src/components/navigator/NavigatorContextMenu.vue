@@ -556,7 +556,7 @@ async function run(id: string) {
       }
       break;
     case "systemMenu":
-    case "systemMenuShow":
+      // AIA-224: top-level click → Windows shell menu (no nested submenu hop).
       if (!entry) break;
       try {
         const result = await invoke<ShellMenuResult>("shell_show_context_menu", {

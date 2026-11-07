@@ -30,7 +30,8 @@ assert.ok(openInTerminal);
 assert.equal(openInTerminal.enabled, true);
 assert.equal(openInTerminal.stub, undefined);
 assert.ok(dirItems.find((item) => item.id === "openInTerminal")?.children?.length);
-assert.ok(dirItems.find((item) => item.id === "systemMenu")?.children?.length);
+// AIA-224: system menu is a direct action (no nested "Show system menu…" hop).
+assert.equal(dirItems.find((item) => item.id === "systemMenu")?.children, undefined);
 assert.ok(dirItems.find((item) => item.id === "properties")?.enabled);
 assert.ok(dirItems.find((item) => item.id === "compressZip")?.enabled);
 assert.equal(dirItems.find((item) => item.id === "extractZip")?.enabled, false);

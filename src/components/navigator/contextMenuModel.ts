@@ -207,18 +207,11 @@ export function buildContextMenuItems(
       icon: "star",
     },
     {
+      // AIA-224: leaf item — click invokes Windows IContextMenu directly (no nested hop).
       id: "systemMenu",
       labelKey: "contextMenu.systemMenu",
       enabled: true,
       icon: "viewAll",
-      children: [
-        {
-          id: "systemMenuShow",
-          labelKey: "contextMenu.systemMenuShow",
-          enabled: true,
-          icon: "viewAll",
-        },
-      ],
     },
     // Clipboard / rename / copy-path live in the Windows-style top toolbar.
     { id: "newFolder", labelKey: "contextMenu.newFolder", enabled: true, separatorBefore: true, icon: "folder" },

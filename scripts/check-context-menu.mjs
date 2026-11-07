@@ -56,8 +56,13 @@ assert.ok(menu.includes("scheduleSubmenuClose"), "flyout needs leave delay");
 assert.ok(menu.includes("preloadLaunchersIfNeeded"), "launcher submenu should preload");
 assert.ok(menu.includes('data-ctx-id') || menu.includes("data-ctx-id"), "rows need ctx ids");
 assert.ok(
-  model.includes('id: "systemMenuShow"'),
-  "system submenu child id must be unique from parent",
+  !model.includes('id: "systemMenuShow"'),
+  "AIA-224: systemMenu must be a leaf (no nested systemMenuShow hop)",
+);
+assert.ok(
+  /id:\s*"systemMenu"[\s\S]*?icon:\s*"viewAll",\s*\}/.test(model) ||
+    !/id:\s*"systemMenu"[\s\S]*?children:\s*\[/.test(model),
+  "AIA-224: systemMenu must not declare children",
 );
 assert.ok(menu.includes("toggleFavorite"));
 assert.ok(menu.includes("setClipboard"));
