@@ -215,7 +215,19 @@
       "errorNameInvalid": "Invalid skill name",
       "errorExists": "A skill with that name already exists in the library",
       "errorUnknown": "Unknown skill in library",
-      "errorRootInvalid": "Skills library root must be a directory"
+      "errorRootInvalid": "Skills library root must be a directory",
+      "deployTitle": "Deploy & project search",
+      "deployHint": "Junction-deploy library skills into enabled Agent Targets. Optional Workspace path also writes project-relative junctions.",
+      "fieldProjectWorkspace": "Project Workspace path (optional)",
+      "fieldProjectWorkspaceHint": "Absolute Workspace dir for project-relative deploy / search",
+      "searchProject": "Search project for SKILL.md",
+      "deploy": "Deploy",
+      "undeploy": "Undeploy",
+      "noticeDeployed": "Deployed to {count} location(s) · {skipped} skipped",
+      "noticeUndeployed": "Removed {count} junction(s)",
+      "errorDeployNoEnabled": "Enable at least one Agent Target before deploying",
+      "errorDeployConflict": "Deploy target already exists and is not this skill junction",
+      "errorDeployProject": "Project Workspace path must be an existing directory"
     }
   },
   "navigator": {

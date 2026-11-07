@@ -29,6 +29,9 @@ const loading = ref(false);
 const sourcePath = ref("");
 const importName = ref("");
 const rootDraft = ref("");
+const projectWorkspace = ref("");
+const lastDeployNote = ref<string | null>(null);
+const projectHits = ref<Array<{ name: string; path: string }>>([]);
 
 const SKILL_ERROR_KEYS: Record<string, string> = {
   AI_SKILL_SOURCE_INVALID: "ai.skills.errorSourceInvalid",
@@ -37,6 +40,9 @@ const SKILL_ERROR_KEYS: Record<string, string> = {
   AI_SKILL_EXISTS: "ai.skills.errorExists",
   AI_SKILL_UNKNOWN: "ai.skills.errorUnknown",
   AI_SKILL_ROOT_INVALID: "ai.skills.errorRootInvalid",
+  AI_DEPLOY_NO_ENABLED: "ai.skills.errorDeployNoEnabled",
+  AI_DEPLOY_TARGET_CONFLICT: "ai.skills.errorDeployConflict",
+  AI_DEPLOY_PROJECT_REQUIRED: "ai.skills.errorDeployProject",
 };
 
 function mapError(err: unknown): string {
@@ -114,6 +120,65 @@ async function removeSkill(name: string) {
   }
 }
 
+type DeployReport = {
+  skillName: string;
+  deployments: Array<{ agentId: string; scope: string; junctionPath: string }>;
+  skipped: string[];
+};
+
+async function deploySkill(name: string) {
+  error.value = null;
+  lastDeployNote.value = null;
+  try {
+    const report = await invoke<DeployReport>("ai_skills_deploy", {
+      skillName: name,
+      projectWorkspace: projectWorkspace.value.trim() || null,
+    });
+    lastDeployNote.value = t("ai.skills.noticeDeployed", {
+      count: report.deployments.length,
+      skipped: report.skipped.length,
+    });
+    toastSuccess(lastDeployNote.value);
+  } catch (err) {
+    error.value = mapError(err);
+  }
+}
+
+async function undeploySkill(name: string) {
+  error.value = null;
+  lastDeployNote.value = null;
+  try {
+    const report = await invoke<DeployReport>("ai_skills_undeploy", {
+      skillName: name,
+      projectWorkspace: projectWorkspace.value.trim() || null,
+    });
+    lastDeployNote.value = t("ai.skills.noticeUndeployed", {
+      count: report.deployments.length,
+    });
+    toastSuccess(lastDeployNote.value);
+  } catch (err) {
+    error.value = mapError(err);
+  }
+}
+
+async function searchProject() {
+  if (!projectWorkspace.value.trim()) return;
+  error.value = null;
+  try {
+    projectHits.value = await invoke("ai_skills_search_project", {
+      workspacePath: projectWorkspace.value.trim(),
+    });
+  } catch (err) {
+    error.value = mapError(err);
+  }
+}
+
+async function importFromHit(path: string, name: string) {
+  sourcePath.value = path;
+  importName.value = name;
+  await importSkill();
+}
+
 onMounted(() => {
   void refresh();
 });
@@ -159,6 +224,41 @@ onMounted(() => {
       </button>
     </div>
 
+    <div class="fluent-surface skills-block">
+      <h3 class="skills-subhead">{{ t("ai.skills.deployTitle") }}</h3>
+      <p class="skills-hint">{{ t("ai.skills.deployHint") }}</p>
+      <label class="skills-field">
+        <span>{{ t("ai.skills.fieldProjectWorkspace") }}</span>
+        <input
+          v-model="projectWorkspace"
+          class="fluent-control"
+          type="text"
+          :placeholder="t('ai.skills.fieldProjectWorkspaceHint')"
+        />
+      </label>
+      <div class="skills-row">
+        <button type="button" class="fluent-control" @click="searchProject">
+          {{ t("ai.skills.searchProject") }}
+        </button>
+      </div>
+      <ul v-if="projectHits.length" class="skills-list">
+        <li v-for="hit in projectHits" :key="hit.path" class="skills-list-item">
+          <div class="skills-list-main">
+            <strong>{{ hit.name }}</strong>
+            <span class="skills-list-meta">{{ hit.path }}</span>
+          </div>
+          <button
+            type="button"
+            class="fluent-control"
+            @click="importFromHit(hit.path, hit.name)"
+          >
+            {{ t("ai.skills.import") }}
+          </button>
+        </li>
+      </ul>
+      <p v-if="lastDeployNote" class="skills-hint">{{ lastDeployNote }}</p>
+    </div>
+
     <div v-if="status" class="skills-list-wrap">
       <p class="skills-summary">
         {{ t("ai.skills.summary", { count: status.skills.length }) }}
@@ -169,9 +269,17 @@ onMounted(() => {
             <strong>{{ skill.name }}</strong>
             <span class="skills-list-meta">{{ skill.path }}</span>
           </div>
-          <button type="button" class="fluent-control" @click="removeSkill(skill.name)">
-            {{ t("common.remove") }}
-          </button>
+          <div class="skills-row">
+            <button type="button" class="fluent-control" @click="deploySkill(skill.name)">
+              {{ t("ai.skills.deploy") }}
+            </button>
+            <button type="button" class="fluent-control" @click="undeploySkill(skill.name)">
+              {{ t("ai.skills.undeploy") }}
+            </button>
+            <button type="button" class="fluent-control" @click="removeSkill(skill.name)">
+              {{ t("common.remove") }}
+            </button>
+          </div>
         </li>
       </ul>
       <p v-else class="skills-empty">{{ t("ai.skills.empty") }}</p>

@@ -65,6 +65,10 @@ pub fn ensure_library_root(root: &Path) -> Result<(), String> {
     Ok(())
 }
 
+pub fn validate_skill_name_pub(name: &str) -> Result<String, String> {
+    validate_skill_name(name)
+}
+
 fn validate_skill_name(name: &str) -> Result<String, String> {
     let name = name.trim();
     if name.is_empty()

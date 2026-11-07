@@ -34,6 +34,9 @@ assert.ok(lib.includes("ai::ai_skills_library_get"), "skills library IPC");
 assert.ok(lib.includes("ai::ai_skills_import"), "skills import IPC");
 assert.ok(lib.includes("ai::ai_skills_remove"), "skills remove IPC");
 assert.ok(lib.includes("ai::ai_skills_library_set_root"), "skills root IPC");
+assert.ok(lib.includes("ai::ai_skills_deploy"), "skills deploy IPC");
+assert.ok(lib.includes("ai::ai_skills_undeploy"), "skills undeploy IPC");
+assert.ok(lib.includes("ai::ai_skills_search_project"), "skills project search IPC");
 
 assert.ok(
   rustAi.includes("AI Add-on") && rustAi.includes("ADR 0007"),
@@ -50,7 +53,9 @@ assert.ok(agents.includes("global_skills_dir"), "global skills dir");
 assert.ok(skills.includes("SKILL.md"), "SKILL.md gate");
 assert.ok(skills.includes("ERR_SKILL_MANIFEST_MISSING"), "manifest missing error");
 assert.ok(skills.includes(String.raw`.agents\skills`) || skills.includes(".agents"), "default library path");
-assert.ok(!skills.includes("mklink"), "A3 must not Junction-deploy (A4)");
+const deploy = read("src-tauri/src/ai/deploy.rs");
+assert.ok(deploy.includes("mklink"), "A4 Junction deploy via mklink /J");
+assert.ok(deploy.includes("search_project_skills"), "project skill search");
 
 assert.ok(index.includes("AI_MENU_SECTIONS"), "src/ai public export");
 assert.ok(sections.includes('id: "agents"'));
@@ -59,7 +64,8 @@ assert.ok(view.includes("SkillsLibraryPanel"));
 assert.ok(panel.includes("ai_agent_targets_list"));
 assert.ok(panel.includes("mcpUsagePrompt"));
 assert.ok(skillsPanel.includes("ai_skills_import"));
-assert.ok(skillsPanel.includes("SKILL.md") || skillsPanel.includes("skill.md") || skillsPanel.includes("Manifest"));
+assert.ok(skillsPanel.includes("ai_skills_deploy"));
+assert.ok(skillsPanel.includes("ai_skills_search_project"));
 assert.ok(router.includes('path: "/ai"'));
 assert.ok(sideNav.includes('id: "ai"'));
 assert.ok(registry.includes('id: "view.ai"'));
@@ -79,4 +85,4 @@ if (cargo.stdout) process.stdout.write(cargo.stdout);
 if (cargo.stderr) process.stderr.write(cargo.stderr);
 assert.equal(cargo.status, 0, "cargo test ai:: failed");
 
-console.log("AI Add-on checks OK (A1 shell · A2 agents · A3 skills library).");
+console.log("AI Add-on checks OK (A1–A4: shell · agents · skills library · junction deploy).");

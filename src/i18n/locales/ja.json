@@ -174,7 +174,19 @@
       "errorNameInvalid": "無効な skill 名です",
       "errorExists": "同名の skill が既にあります",
       "errorUnknown": "不明な skill です",
-      "errorRootInvalid": "ライブラリ根はディレクトリである必要があります"
+      "errorRootInvalid": "ライブラリ根はディレクトリである必要があります",
+      "deployTitle": "配備とプロジェクト検索",
+      "deployHint": "ライブラリ skill を有効な Agent Target へ Junction 配備します。任意の Workspace パスでプロジェクト相対も書き込みます。",
+      "fieldProjectWorkspace": "Project Workspace パス（任意）",
+      "fieldProjectWorkspaceHint": "プロジェクト相対配備/検索用の絶対 Workspace",
+      "searchProject": "プロジェクト内の SKILL.md を検索",
+      "deploy": "配備",
+      "undeploy": "配備解除",
+      "noticeDeployed": "{count} 箇所へ配備 · {skipped} 件スキップ",
+      "noticeUndeployed": "Junction {count} 件を削除",
+      "errorDeployNoEnabled": "配備前に Agent Target を1つ以上有効化してください",
+      "errorDeployConflict": "配備先が既に存在し、この skill の Junction ではありません",
+      "errorDeployProject": "Project Workspace は既存ディレクトリである必要があります"
     }
   },
   "common": {

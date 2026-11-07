@@ -215,7 +215,19 @@
       "errorNameInvalid": "无效的 skill 名称",
       "errorExists": "库中已存在同名 skill",
       "errorUnknown": "库中未知 skill",
-      "errorRootInvalid": "Skill 库根必须是目录"
+      "errorRootInvalid": "Skill 库根必须是目录",
+      "deployTitle": "部署与项目搜索",
+      "deployHint": "将库内 skill 以 Junction 部署到已启用的 Agent Target。可选 Workspace 路径同时写入项目相对目录。",
+      "fieldProjectWorkspace": "Project Workspace 路径（可选）",
+      "fieldProjectWorkspaceHint": "用于项目相对部署/搜索的绝对 Workspace 目录",
+      "searchProject": "在项目中搜索 SKILL.md",
+      "deploy": "部署",
+      "undeploy": "取消部署",
+      "noticeDeployed": "已部署到 {count} 处 · 跳过 {skipped}",
+      "noticeUndeployed": "已移除 {count} 个 Junction",
+      "errorDeployNoEnabled": "部署前请至少启用一个 Agent Target",
+      "errorDeployConflict": "部署目标已存在且不是本 skill 的 Junction",
+      "errorDeployProject": "Project Workspace 路径必须是已存在的目录"
     }
   },
   "navigator": {

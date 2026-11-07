@@ -174,7 +174,19 @@
       "errorNameInvalid": "Ungültiger Skill-Name",
       "errorExists": "Ein Skill mit diesem Namen existiert bereits",
       "errorUnknown": "Unbekannter Skill in der Bibliothek",
-      "errorRootInvalid": "Skills-Bibliotheksstamm muss ein Verzeichnis sein"
+      "errorRootInvalid": "Skills-Bibliotheksstamm muss ein Verzeichnis sein",
+      "deployTitle": "Deploy & Projektsuche",
+      "deployHint": "Bibliotheks-Skills per Junction in aktivierte Agent Targets deployen. Optionaler Workspace-Pfad schreibt auch projektrelative Junctions.",
+      "fieldProjectWorkspace": "Project-Workspace-Pfad (optional)",
+      "fieldProjectWorkspaceHint": "Absolutes Workspace-Verzeichnis für projektrelatives Deploy/Suche",
+      "searchProject": "Projekt nach SKILL.md durchsuchen",
+      "deploy": "Deployen",
+      "undeploy": "Undeployen",
+      "noticeDeployed": "Auf {count} Ort(e) deployt · {skipped} übersprungen",
+      "noticeUndeployed": "{count} Junction(s) entfernt",
+      "errorDeployNoEnabled": "Vor dem Deploy mindestens ein Agent Target aktivieren",
+      "errorDeployConflict": "Deploy-Ziel existiert bereits und ist nicht diese Skill-Junction",
+      "errorDeployProject": "Project-Workspace-Pfad muss ein vorhandenes Verzeichnis sein"
     }
   },
   "common": {

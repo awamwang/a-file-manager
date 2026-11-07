@@ -8,9 +8,11 @@
 //! - A1: shell status + section ids
 //! - A2: Agent Target registry (discover / enable / custom + MCP usage prompt placeholder)
 //! - A3: public Skill library + import (SKILL.md required)
-//! - Not yet: Skill Junction deploy (A4), MCP catalog/merge (A5), Providers (A7)
+//! - A4: Skill Junction deploy to enabled Agent Targets
+//! - Not yet: MCP catalog/merge (A5), Providers (A7)
 
 mod agents;
+mod deploy;
 mod skills;
 
 pub use agents::{AgentTargetPatch, AiConfigDocument};
@@ -22,7 +24,7 @@ use tauri::Manager;
 /// Stable section ids for the AI main menu shell (UI + future IPC).
 pub const AI_MENU_SECTION_IDS: &[&str] = &["agents", "mcp", "skills", "providers"];
 
-pub const AI_ADDON_SHELL_VERSION: u32 = 3;
+pub const AI_ADDON_SHELL_VERSION: u32 = 4;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -188,6 +190,48 @@ pub fn ai_skills_remove(app: AppHandle, name: String) -> Result<skills::SkillsLi
     let dir = config_dir(&app)?;
     let doc = agents::load_from_path(&dir)?;
     skills::remove_skill(&dir, &doc, &name)
+}
+
+/// Deploy a library skill via Junction into all **enabled** Agent Target skills dirs.
+/// Optional `projectWorkspace` also writes project-relative junctions under that Workspace.
+#[tauri::command]
+pub fn ai_skills_deploy(
+    app: AppHandle,
+    skill_name: String,
+    project_workspace: Option<String>,
+) -> Result<deploy::DeployReport, String> {
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    deploy::deploy_skill(
+        &dir,
+        &doc,
+        &skill_name,
+        project_workspace.as_deref(),
+    )
+}
+
+#[tauri::command]
+pub fn ai_skills_undeploy(
+    app: AppHandle,
+    skill_name: String,
+    project_workspace: Option<String>,
+) -> Result<deploy::DeployReport, String> {
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    deploy::undeploy_skill(
+        &dir,
+        &doc,
+        &skill_name,
+        project_workspace.as_deref(),
+    )
+}
+
+/// Search a Project Workspace for folders containing `SKILL.md` (for add-to-library).
+#[tauri::command]
+pub fn ai_skills_search_project(
+    workspace_path: String,
+) -> Result<Vec<deploy::ProjectSkillCandidate>, String> {
+    deploy::search_project_skills(&workspace_path)
 }
 
 #[cfg(test)]

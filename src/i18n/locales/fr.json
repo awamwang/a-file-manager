@@ -174,7 +174,19 @@
       "errorNameInvalid": "Nom de skill invalide",
       "errorExists": "Un skill portant ce nom existe déjà",
       "errorUnknown": "Skill inconnu dans la bibliothèque",
-      "errorRootInvalid": "La racine de la bibliothèque doit être un répertoire"
+      "errorRootInvalid": "La racine de la bibliothèque doit être un répertoire",
+      "deployTitle": "Déploiement et recherche projet",
+      "deployHint": "Déployer les skills de la bibliothèque en Junction vers les cibles Agent activées. Un chemin Workspace optionnel écrit aussi les Junctions relatives au projet.",
+      "fieldProjectWorkspace": "Chemin Project Workspace (facultatif)",
+      "fieldProjectWorkspaceHint": "Dossier Workspace absolu pour déploiement / recherche relatifs au projet",
+      "searchProject": "Chercher SKILL.md dans le projet",
+      "deploy": "Déployer",
+      "undeploy": "Retirer le déploiement",
+      "noticeDeployed": "Déployé vers {count} emplacement(s) · {skipped} ignoré(s)",
+      "noticeUndeployed": "{count} junction(s) supprimée(s)",
+      "errorDeployNoEnabled": "Activez au moins une cible Agent avant de déployer",
+      "errorDeployConflict": "La cible de déploiement existe déjà et n’est pas cette junction de skill",
+      "errorDeployProject": "Le chemin Project Workspace doit être un répertoire existant"
     }
   },
   "common": {
