@@ -68,6 +68,7 @@
     "pinTab": "固定标签",
     "unpinTab": "取消固定",
     "sideNav": "侧边导航",
+    "resizeSideNav": "调整导航窗格宽度",
     "expandFolder": "展开文件夹",
     "collapseFolder": "折叠文件夹",
     "status": "状态栏",

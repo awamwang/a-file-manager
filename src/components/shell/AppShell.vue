@@ -110,6 +110,15 @@ import {
 } from "../../state/navigatorFilter";
 import { hydrateSettings } from "../../state/settingsHydrate";
 import { loadShowHidden, setShowHidden, showHiddenItems } from "../../state/showHidden";
+import {
+  DEFAULT_SIDENAV_WIDTH,
+  MAX_SIDENAV_WIDTH,
+  MIN_SIDENAV_WIDTH,
+  applySidenavWidth,
+  loadSidenavWidth,
+  setSidenavWidth,
+  sidenavWidth,
+} from "../../state/sidenavWidth";
 import { isTabPinned, togglePinnedTab } from "../../state/tabPins";
 import { workGroupDisplayName } from "../../state/workGroupName";
 
@@ -929,6 +938,58 @@ async function onSwitchNavigatorTabAdjacent(direction: "next" | "previous") {
   await switchNavigatorTabAdjacent(direction);
 }
 
+/** AIA-237: drag the sidenav / folder-tree edge to widen path labels. */
+const sidenavResizing = ref(false);
+let sidenavResizeStartX = 0;
+let sidenavResizeStartWidth = DEFAULT_SIDENAV_WIDTH;
+
+function onSidenavResizeStart(event: PointerEvent) {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  sidenavResizing.value = true;
+  sidenavResizeStartX = event.clientX;
+  sidenavResizeStartWidth = sidenavWidth.value;
+  const target = event.currentTarget;
+  if (target instanceof HTMLElement) {
+    target.setPointerCapture(event.pointerId);
+  }
+  window.addEventListener("pointermove", onSidenavResizeMove);
+  window.addEventListener("pointerup", onSidenavResizeEnd);
+  window.addEventListener("pointercancel", onSidenavResizeEnd);
+}
+
+function onSidenavResizeMove(event: PointerEvent) {
+  if (!sidenavResizing.value) return;
+  const delta = event.clientX - sidenavResizeStartX;
+  applySidenavWidth(sidenavResizeStartWidth + delta, window.innerWidth);
+}
+
+function onSidenavResizeEnd() {
+  if (!sidenavResizing.value) return;
+  sidenavResizing.value = false;
+  window.removeEventListener("pointermove", onSidenavResizeMove);
+  window.removeEventListener("pointerup", onSidenavResizeEnd);
+  window.removeEventListener("pointercancel", onSidenavResizeEnd);
+  setSidenavWidth(sidenavWidth.value, window.innerWidth);
+}
+
+function onSidenavSplitterKey(event: KeyboardEvent) {
+  const step = event.shiftKey ? 32 : 8;
+  if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    setSidenavWidth(sidenavWidth.value - step, window.innerWidth);
+  } else if (event.key === "ArrowRight") {
+    event.preventDefault();
+    setSidenavWidth(sidenavWidth.value + step, window.innerWidth);
+  } else if (event.key === "Home") {
+    event.preventDefault();
+    setSidenavWidth(MIN_SIDENAV_WIDTH, window.innerWidth);
+  } else if (event.key === "End") {
+    event.preventDefault();
+    setSidenavWidth(MAX_SIDENAV_WIDTH, window.innerWidth);
+  }
+}
+
 const tabDragFrom = ref<number | null>(null);
 const tabDragOver = ref<number | null>(null);
 /** Suppress click / +new-tab after a real drag (capture-loss can retarget click onto +). */
@@ -1091,6 +1152,7 @@ function onVisibilityFlush() {
 
 onMounted(() => {
   reclaimFluentTitlebar();
+  loadSidenavWidth();
   void loadHealth();
   void refreshMaximized();
   void (async () => {
@@ -1136,6 +1198,7 @@ onUnmounted(() => {
   window.removeEventListener("keydown", onGlobalKeydown);
   document.removeEventListener("pointerdown", onDocumentPointerDown, true);
   document.removeEventListener("visibilitychange", onVisibilityFlush);
+  onSidenavResizeEnd();
   void flushOpenStatePersist();
   unregisterShellShortcuts();
   for (const unlisten of unlisteners) {
@@ -1224,6 +1287,7 @@ onUnmounted(() => {
         data-focus-region="sidenav"
         tabindex="-1"
         :aria-label="t('chrome.sideNav')"
+        :style="{ width: `${sidenavWidth}px` }"
       >
         <button
           v-for="item in navItems"
@@ -1244,6 +1308,19 @@ onUnmounted(() => {
         </button>
         <FolderTree v-if="isNavigatorRoute" :key="showHiddenItems ? 'show-hidden' : 'hide-hidden'" />
       </nav>
+      <div
+        class="sidenav-splitter"
+        :class="{ 'sidenav-splitter--active': sidenavResizing }"
+        role="separator"
+        aria-orientation="vertical"
+        tabindex="0"
+        :aria-label="t('chrome.resizeSideNav')"
+        :aria-valuenow="sidenavWidth"
+        :aria-valuemin="MIN_SIDENAV_WIDTH"
+        :aria-valuemax="MAX_SIDENAV_WIDTH"
+        @pointerdown="onSidenavResizeStart"
+        @keydown="onSidenavSplitterKey"
+      />
 
       <div class="workspace">
       <template v-if="isNavigatorRoute">
@@ -2434,11 +2511,40 @@ onUnmounted(() => {
   width: var(--fluent-sidenav-width);
   flex-shrink: 0;
   padding: var(--fluent-space-sm);
-  border-right: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   overflow: auto;
   display: flex;
   flex-direction: column;
   gap: var(--fluent-space-xs);
+}
+
+.sidenav-splitter {
+  position: relative;
+  flex: 0 0 5px;
+  width: 5px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-right: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+
+.sidenav-splitter::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -2px;
+  right: -2px;
+}
+
+.sidenav-splitter:hover,
+.sidenav-splitter:focus-visible,
+.sidenav-splitter--active {
+  border-right-color: var(--fluent-color-stroke-accent-soft);
+  background: color-mix(in srgb, var(--fluent-color-fill-accent) 18%, transparent);
 }
 
 .sidenav-item {
