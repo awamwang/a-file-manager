@@ -42,6 +42,7 @@ windows = { version = "0.62", features = [
   "Win32_System_Memory",
   "Win32_System_Registry",
   "Win32_System_Threading",
+  "Win32_UI_Input_KeyboardAndMouse",
   "Win32_UI_Shell",
   "Win32_UI_Shell_Common",
   "Win32_UI_WindowsAndMessaging",
@@ -55,12 +56,12 @@ once_cell = "1"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 walkdir = "2"
 tauri-plugin-drag = "2"
-# Direct dep so AIA-261 host subclass can read OLE-in-progress / deferred-activate flags.
+# Direct dep so AIA-261/264 host subclass can read OLE / deferred-activate / drag-gesture flags.
 drag = "2.1.1"
 ureq = { version = "3.5.1", features = ["json"] }
 
 # AIA-240: local drag patch offers COPY|MOVE|LINK on Windows DoDragDrop.
-# AIA-261: same patch also preserves drop-target foreground during DoDragDrop.
+# AIA-261/264: preserve prior foreground; distinguish click activate vs drag.
 [patch.crates-io]
 drag = { path = "patches/drag" }
 

@@ -11,7 +11,7 @@ use std::{
     iter::once,
     os::windows::ffi::OsStrExt,
     path::{Path, PathBuf},
-    sync::atomic::{AtomicBool, Ordering},
+    sync::atomic::{AtomicBool, AtomicI32, AtomicIsize, Ordering},
     sync::Once,
 };
 use windows::{
@@ -40,29 +40,89 @@ use windows::{
     },
 };
 
-/// AIA-261: true while `DoDragDrop` is on the stack (Hybrid / plugin outbound).
+/// AIA-261/264: true while `DoDragDrop` is on the stack (Hybrid / plugin outbound).
 static OLE_DRAG_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 
-/// Host window deferred activation after `MA_NOACTIVATE` (cleared when OLE starts).
+/// Host deferred activation after background `MA_NOACTIVATE` (cleared on drag / OLE / take).
 static PENDING_BACKGROUND_ACTIVATE: AtomicBool = AtomicBool::new(false);
+
+/// Press that crossed `SM_CXDRAG`/`SM_CYDRAG` (or entered OLE) — do not activate on mouse-up.
+static DRAG_GESTURE: AtomicBool = AtomicBool::new(false);
+
+/// Foreground HWND (as isize) at the background press that deferred activation.
+static PRESS_PRIOR_FG: AtomicIsize = AtomicIsize::new(0);
+
+/// Screen coordinates of that press (for drag-threshold detection).
+static PRESS_X: AtomicI32 = AtomicI32::new(0);
+static PRESS_Y: AtomicI32 = AtomicI32::new(0);
 
 /// Whether a Windows OLE outbound drag is currently inside `DoDragDrop`.
 pub fn ole_drag_in_progress() -> bool {
     OLE_DRAG_IN_PROGRESS.load(Ordering::SeqCst)
 }
 
-/// Record that `WM_MOUSEACTIVATE` deferred activation (background drag / click).
-pub fn note_deferred_activate() {
+/// Record background `WM_MOUSEACTIVATE` → defer activation; remember prior FG + press point.
+pub fn note_deferred_activate(prior_fg: isize, press_x: i32, press_y: i32) {
+    PRESS_PRIOR_FG.store(prior_fg, Ordering::SeqCst);
+    PRESS_X.store(press_x, Ordering::SeqCst);
+    PRESS_Y.store(press_y, Ordering::SeqCst);
+    DRAG_GESTURE.store(false, Ordering::SeqCst);
     PENDING_BACKGROUND_ACTIVATE.store(true, Ordering::SeqCst);
 }
 
-/// Take-and-clear deferred activation; `false` once OLE outbound has started.
+/// Take-and-clear deferred activation; `false` once a drag gesture / OLE started.
 pub fn take_pending_activate() -> bool {
     PENDING_BACKGROUND_ACTIVATE.swap(false, Ordering::SeqCst)
 }
 
-fn clear_pending_activate() {
+/// Mark the press as a drag (past system drag threshold or OLE). Suppresses click-activate.
+pub fn note_drag_gesture() {
+    DRAG_GESTURE.store(true, Ordering::SeqCst);
     PENDING_BACKGROUND_ACTIVATE.store(false, Ordering::SeqCst);
+}
+
+pub fn drag_gesture_active() -> bool {
+    DRAG_GESTURE.load(Ordering::SeqCst)
+}
+
+/// Prior foreground captured at deferred-activate time (`0` if none).
+pub fn press_prior_foreground() -> isize {
+    PRESS_PRIOR_FG.load(Ordering::SeqCst)
+}
+
+pub fn press_origin() -> (i32, i32) {
+    (
+        PRESS_X.load(Ordering::SeqCst),
+        PRESS_Y.load(Ordering::SeqCst),
+    )
+}
+
+/// True while we must keep the pre-press foreground on top (pending click deferral or drag).
+pub fn should_suppress_foreground_raise() -> bool {
+    PENDING_BACKGROUND_ACTIVATE.load(Ordering::SeqCst)
+        || DRAG_GESTURE.load(Ordering::SeqCst)
+        || OLE_DRAG_IN_PROGRESS.load(Ordering::SeqCst)
+}
+
+/// End of the press (mouse-up) or after OLE finishes consuming the gesture.
+pub fn clear_press_state() {
+    PENDING_BACKGROUND_ACTIVATE.store(false, Ordering::SeqCst);
+    DRAG_GESTURE.store(false, Ordering::SeqCst);
+    PRESS_PRIOR_FG.store(0, Ordering::SeqCst);
+}
+
+/// Resolve which HWND to keep above AFM for the OLE lifetime.
+/// Prefers the press-time prior FG (AIA-264: mousedown may have already raised us).
+pub fn resolve_preserve_foreground(our_root: isize, current_fg: isize) -> Option<isize> {
+    let prior = PRESS_PRIOR_FG.load(Ordering::SeqCst);
+    if prior != 0 && prior != our_root {
+        return Some(prior);
+    }
+    if current_fg == 0 || current_fg == our_root {
+        None
+    } else {
+        Some(current_fg)
+    }
 }
 
 mod image;
@@ -301,15 +361,11 @@ pub fn start_drag<W: HasWindowHandle, F: Fn(DragResult, CursorPosition) + Send +
     if let Ok(RawWindowHandle::Win32(w)) = handle.window_handle().map(|h| h.as_raw()) {
         let our_hwnd = HWND(w.hwnd.get());
         let our_root = root_hwnd(our_hwnd);
-        // AIA-261: if Hybrid left/blur already moved focus to the drop target, remember it
-        // and refuse to stay raised over that window for the OLE drag lifetime.
+        // AIA-261/264: prefer press-time prior FG (mousedown may have already raised AFM),
+        // else the FG at OLE start when Hybrid left/blur moved focus to the drop target.
         let preserve_fg = unsafe {
             let fg = GetForegroundWindow();
-            if hwnd_is_ours(our_root, fg) || fg.0 == 0 {
-                None
-            } else {
-                Some(fg)
-            }
+            resolve_preserve_foreground(our_root.0, fg.0).map(HWND)
         };
 
         match item {
@@ -349,12 +405,13 @@ pub fn start_drag<W: HasWindowHandle, F: Fn(DragResult, CursorPosition) + Send +
                         let _ = SetForegroundWindow(prev);
                     }
 
-                    // OLE consumes the gesture — do not activate AFM on the trailing mouse-up.
-                    clear_pending_activate();
+                    // OLE consumes the gesture — never click-activate on the trailing mouse-up.
+                    note_drag_gesture();
                     OLE_DRAG_IN_PROGRESS.store(true, Ordering::SeqCst);
                     let drop_result =
                         DoDragDrop(&data_object, &drop_source, effect, &mut out_dropeffect);
                     OLE_DRAG_IN_PROGRESS.store(false, Ordering::SeqCst);
+                    clear_press_state();
 
                     // Keep drop-target foreground after a background-started OLE drag.
                     if let Some(prev) = preserve_fg {
@@ -395,7 +452,7 @@ pub fn start_drag<W: HasWindowHandle, F: Fn(DragResult, CursorPosition) + Send +
                     }
 
                     let mut out_dropeffect = DROPEFFECT::default();
-                    clear_pending_activate();
+                    note_drag_gesture();
                     OLE_DRAG_IN_PROGRESS.store(true, Ordering::SeqCst);
                     let drop_result = DoDragDrop(
                         &data_object,
@@ -404,6 +461,7 @@ pub fn start_drag<W: HasWindowHandle, F: Fn(DragResult, CursorPosition) + Send +
                         &mut out_dropeffect,
                     );
                     OLE_DRAG_IN_PROGRESS.store(false, Ordering::SeqCst);
+                    clear_press_state();
                     let mut pt = POINT { x: 0, y: 0 };
                     GetCursorPos(&mut pt)?;
                     if drop_result == DRAGDROP_S_DROP {
@@ -495,5 +553,36 @@ fn get_file_item_id(path: &Path) -> *mut Common::ITEMIDLIST {
     unsafe {
         let wide_path: Vec<u16> = path.as_os_str().encode_wide().chain(once(0)).collect();
         windows::Win32::UI::Shell::ILCreateFromPathW(PCWSTR::from_raw(wide_path.as_ptr()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Mutex;
+
+    static LOCK: Mutex<()> = Mutex::new(());
+
+    #[test]
+    fn press_prior_drag_gesture_and_resolve() {
+        let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        clear_press_state();
+        // Background press remembered Explorer (0x100); by OLE start we are FG (0x200).
+        note_deferred_activate(0x100, 10, 20);
+        assert_eq!(press_prior_foreground(), 0x100);
+        assert_eq!(press_origin(), (10, 20));
+        assert_eq!(resolve_preserve_foreground(0x200, 0x200), Some(0x100));
+
+        assert!(PENDING_BACKGROUND_ACTIVATE.load(Ordering::SeqCst));
+        note_drag_gesture();
+        assert!(!take_pending_activate());
+        assert!(drag_gesture_active());
+        assert!(should_suppress_foreground_raise());
+        clear_press_state();
+        assert!(!should_suppress_foreground_raise());
+
+        assert_eq!(resolve_preserve_foreground(0x200, 0x100), Some(0x100));
+        assert_eq!(resolve_preserve_foreground(0x200, 0x200), None);
+        assert_eq!(resolve_preserve_foreground(0x200, 0), None);
     }
 }
