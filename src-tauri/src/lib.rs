@@ -24,6 +24,8 @@ mod terminal;
 mod snap_chrome;
 #[cfg(windows)]
 mod drag_focus;
+#[cfg(windows)]
+mod window_icon;
 mod win_process;
 mod work_groups;
 
@@ -80,6 +82,10 @@ pub fn run() {
         return;
     }
 
+    // AIA-271: AUMID before any HWND so taskbar grouping matches NSIS shortcuts.
+    #[cfg(windows)]
+    window_icon::set_process_app_user_model_id();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         // Native OLE/file drag-out (CF_HDROP) for dropping onto players / Explorer / etc.
@@ -94,7 +100,7 @@ pub fn run() {
                 .build(),
         )
         .setup(move |app| {
-            // Taskbar icon: set explicitly from bundled AFM PNG (PE resource can lag after icon swaps).
+            // Taskbar icon: Tauri set_icon only sets ICON_SMALL; also apply PE ICON_BIG (AIA-271).
             let app_icon = system_tray::load_app_icon(app.handle());
             if let Some(window) = app.get_webview_window("main") {
                 window.create_overlay_titlebar_with_height(snap_chrome::TITLEBAR_HEIGHT_PX)?;
@@ -104,6 +110,8 @@ pub fn run() {
                     }
                 }
             }
+            #[cfg(windows)]
+            window_icon::apply_main_window_icons(app.handle());
             // AIA-261: Explorer-like — background mousedown for outbound drag must not raise AFM.
             #[cfg(windows)]
             drag_focus::install_for_main_window(app.handle());
