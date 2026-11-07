@@ -51,7 +51,7 @@ assert.ok(
   "NavigatorView must arm native drag-out on dragstart",
 );
 assert.ok(
-  nav.includes('application/x-afm-paths'),
+  nav.includes("setOutboundPathPayload") || nav.includes("application/x-afm-paths"),
   "NavigatorView must keep in-app HTML5 path payload",
 );
 assert.ok(

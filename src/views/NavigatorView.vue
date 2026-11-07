@@ -116,6 +116,11 @@ import {
 } from "../state/navigatorFilter";
 import { toastError, toastInfo, toastSuccess } from "../state/toast";
 import { armNativeFileDragOut } from "../state/fileDragOut";
+import {
+  dataTransferLooksExternal,
+  pathsFromDataTransfer,
+  setOutboundPathPayload,
+} from "../state/dropPaths";
 import { dropTransferMode } from "../state/dropMode";
 import {
   invokePreviewBridge,
@@ -1156,27 +1161,43 @@ function hitTestRows(x: number, y: number, w: number, h: number): string[] {
   return hits;
 }
 
-/* —— Drag into folder (HTML5) + drag out to external apps (OLE / CF_HDROP) —— */
+/* —— Drag in (AFM + Explorer/external) · drag out (OLE / CF_HDROP) —— */
 function onDragStart(event: DragEvent, entry: NavigatorEntry) {
   if (!isSelected(entry.path)) {
     selectOnly(entry.path);
   }
   const paths = selectionPaths();
-  event.dataTransfer?.setData("application/x-afm-paths", JSON.stringify(paths));
-  // copyMove: modifiers and volume pick copy vs move; OLE drag-out stays copy.
-  event.dataTransfer!.effectAllowed = "copyMove";
+  if (event.dataTransfer) {
+    setOutboundPathPayload(event.dataTransfer, paths);
+    // copyMove: modifiers and volume pick copy vs move; OLE drag-out stays copy.
+    event.dataTransfer.effectAllowed = "copyMove";
+  }
   armNativeFileDragOut(paths);
+}
+
+function dropModeForEvent(event: DragEvent, destPath: string, sourcePaths: string[]): "copy" | "move" {
+  const external = dataTransferLooksExternal(event.dataTransfer);
+  if (external && sourcePaths.length === 0) {
+    // Paths often unavailable until drop — default copy into AFM from outside.
+    if (event.shiftKey) return "move";
+    return "copy";
+  }
+  return dropTransferMode(sourcePaths, destPath, {
+    ctrl: event.ctrlKey,
+    shift: event.shiftKey,
+  });
 }
 
 function onDragOver(event: DragEvent, entry: NavigatorEntry) {
   if (entry.kind !== "dir") return;
   if (isSelected(entry.path)) return;
   event.preventDefault();
-  const mode = dropTransferMode(selectionPaths(), entry.path, {
-    ctrl: event.ctrlKey,
-    shift: event.shiftKey,
-  });
-  event.dataTransfer!.dropEffect = mode;
+  event.stopPropagation();
+  const previewSources = dataTransferLooksExternal(event.dataTransfer)
+    ? []
+    : selectionPaths();
+  const mode = dropModeForEvent(event, entry.path, previewSources);
+  if (event.dataTransfer) event.dataTransfer.dropEffect = mode;
   dragOverPath.value = entry.path;
 }
 
@@ -1186,25 +1207,39 @@ function onDragLeave(entry: NavigatorEntry) {
   }
 }
 
-async function onDrop(event: DragEvent, entry: NavigatorEntry) {
+function onListDragOver(event: DragEvent, destPath: string | null | undefined) {
+  if (!destPath || isGuidePath(destPath) || isRecyclePath(destPath)) return;
+  // Row handlers stopPropagation when targeting a folder; background accepts drops.
   event.preventDefault();
+  const previewSources = dataTransferLooksExternal(event.dataTransfer)
+    ? []
+    : selectionPaths();
+  const mode = dropModeForEvent(event, destPath, previewSources);
+  if (event.dataTransfer) event.dataTransfer.dropEffect = mode;
+  if (!dragOverPath.value) dragOverPath.value = destPath;
+}
+
+function onListDragLeave(event: DragEvent, destPath: string | null | undefined) {
+  if (!destPath) return;
+  const related = event.relatedTarget as Node | null;
+  const root = event.currentTarget as HTMLElement | null;
+  if (root && related && root.contains(related)) return;
+  if (dragOverPath.value === destPath) dragOverPath.value = null;
+}
+
+async function transferDroppedPaths(
+  event: DragEvent,
+  destPath: string,
+  destLabel: string,
+) {
+  event.preventDefault();
+  event.stopPropagation();
   dragOverPath.value = null;
-  if (entry.kind !== "dir") return;
-  let paths: string[] = [];
-  try {
-    const raw = event.dataTransfer?.getData("application/x-afm-paths") ?? "[]";
-    paths = JSON.parse(raw) as string[];
-  } catch {
-    return;
-  }
-  paths = paths.filter((p) => p !== entry.path);
+  const paths = pathsFromDataTransfer(event.dataTransfer).filter((p) => p !== destPath);
   if (!paths.length) return;
   try {
-    const mode = dropTransferMode(paths, entry.path, {
-      ctrl: event.ctrlKey,
-      shift: event.shiftKey,
-    });
-    const result = await transferEntries(paths, entry.path, mode);
+    const mode = dropModeForEvent(event, destPath, paths);
+    const result = await transferEntries(paths, destPath, mode);
     if (!result.ok) {
       onNotice(result.error ?? t("contextMenu.opFailed"));
       return;
@@ -1212,12 +1247,23 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
     if (mode === "copy") recordCopyUndo(result.paths);
     else recordMoveUndo(paths, result.paths);
     const noticeKey = mode === "copy" ? "navigator.copiedInto" : "navigator.movedInto";
-    onNotice(t(noticeKey, { count: result.paths.length, name: entry.name }));
+    onNotice(t(noticeKey, { count: result.paths.length, name: destLabel }));
     clearSelection();
     await refreshListing();
   } catch (err) {
     onNotice(err instanceof Error ? err.message : String(err));
   }
+}
+
+async function onDrop(event: DragEvent, entry: NavigatorEntry) {
+  if (entry.kind !== "dir") return;
+  await transferDroppedPaths(event, entry.path, entry.name);
+}
+
+async function onListDrop(event: DragEvent, destPath: string | null | undefined) {
+  if (!destPath || isGuidePath(destPath) || isRecyclePath(destPath)) return;
+  const base = destPath.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || destPath;
+  await transferDroppedPaths(event, destPath, base);
 }
 </script>
 
@@ -1272,6 +1318,7 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
         'list--tiles': isTilesView,
         'list--content': isContentView,
         'list--grouped': navigatorGroupByType,
+        'list--drop': dragOverPath === currentPath,
       }"
       role="list"
       tabindex="-1"
@@ -1280,6 +1327,9 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
       @contextmenu="onListContextMenu"
       @mousedown="onListMouseDown"
       @click.self="clearSelection()"
+      @dragover="onListDragOver($event, currentPath)"
+      @dragleave="onListDragLeave($event, currentPath)"
+      @drop="onListDrop($event, currentPath)"
     >
       <div
         v-if="isDetailsView"
@@ -1513,8 +1563,12 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
           'list--icons-small': navigatorViewMode === 'iconsSmall',
           'list--tiles': isTilesView,
           'list--content': isContentView,
+          'list--drop': dragOverPath === secondaryPath,
         }"
         role="list"
+        @dragover="onListDragOver($event, secondaryPath)"
+        @dragleave="onListDragLeave($event, secondaryPath)"
+        @drop="onListDrop($event, secondaryPath)"
       >
         <div
           v-for="entry in secondaryEntries"
@@ -1891,6 +1945,11 @@ async function onDrop(event: DragEvent, entry: NavigatorEntry) {
 .row--drop {
   outline: 2px solid var(--fluent-color-stroke-focus);
   outline-offset: -2px;
+}
+
+.list--drop {
+  outline: 2px dashed var(--fluent-color-stroke-focus);
+  outline-offset: -4px;
 }
 
 .kind {
