@@ -4,6 +4,10 @@
 import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { hydrateSettings, rememberSettingsDocument } from "./settingsHydrate";
+import {
+  ICON_VIEW_ZOOM_ORDER,
+  nudgeIconViewMode as nudgeIconViewModePure,
+} from "./iconViewZoom";
 
 export type NavigatorViewMode =
   | "iconsLarge"
@@ -24,6 +28,8 @@ export const NAVIGATOR_VIEW_MODES: readonly NavigatorViewMode[] = [
   "content",
 ] as const;
 
+export { ICON_VIEW_ZOOM_ORDER };
+
 /** Shell icon / thumbnail edge length for each view. */
 export const VIEW_ICON_SIZE: Record<NavigatorViewMode, number> = {
   iconsLarge: 96,
@@ -34,6 +40,14 @@ export const VIEW_ICON_SIZE: Record<NavigatorViewMode, number> = {
   tiles: 48,
   content: 32,
 };
+
+/** AIA-232: Ctrl+wheel icon zoom step. */
+export function nudgeIconViewMode(
+  current: NavigatorViewMode,
+  direction: 1 | -1,
+): NavigatorViewMode {
+  return nudgeIconViewModePure(current, direction, ICON_VIEW_ZOOM_ORDER);
+}
 
 export const navigatorViewMode = ref<NavigatorViewMode>("details");
 

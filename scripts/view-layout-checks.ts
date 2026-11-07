@@ -10,6 +10,11 @@ import {
   detailsGridTemplate,
   resizeColumnWidth,
 } from "../src/state/navigatorColumns.ts";
+import {
+  ICON_VIEW_ZOOM_ORDER,
+  nudgeIconViewMode,
+} from "../src/state/iconViewZoom.ts";
+
 assert.equal(entryExtension("notes.txt"), "txt");
 assert.equal(entryExtension("archive.tar.gz"), "gz");
 assert.equal(entryExtension("README"), "");
@@ -57,4 +62,15 @@ byType.sort((a, b) => a.key.localeCompare(b.key));
 assert.equal(byType[0]?.name, "Folder");
 assert.equal(byType[1]?.name, "a.png");
 
-console.log("view-layout checks OK (AIA-191).");
+// AIA-232: Ctrl+wheel icon ladder.
+assert.deepEqual([...ICON_VIEW_ZOOM_ORDER], ["iconsSmall", "iconsMedium", "iconsLarge"]);
+assert.equal(nudgeIconViewMode("iconsSmall", 1), "iconsMedium");
+assert.equal(nudgeIconViewMode("iconsMedium", 1), "iconsLarge");
+assert.equal(nudgeIconViewMode("iconsLarge", 1), "iconsLarge");
+assert.equal(nudgeIconViewMode("iconsLarge", -1), "iconsMedium");
+assert.equal(nudgeIconViewMode("iconsSmall", -1), "iconsSmall");
+assert.equal(nudgeIconViewMode("details", 1), "iconsMedium");
+assert.equal(nudgeIconViewMode("details", -1), "iconsSmall");
+assert.equal(nudgeIconViewMode("list", 1), "iconsMedium");
+
+console.log("view-layout checks OK (AIA-191/232).");

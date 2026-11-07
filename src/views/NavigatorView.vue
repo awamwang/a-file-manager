@@ -85,6 +85,8 @@ import {
   loadNavigatorViewMode,
   navigatorGroupByType,
   navigatorViewMode,
+  nudgeIconViewMode,
+  setNavigatorViewMode,
   VIEW_ICON_SIZE,
 } from "../state/navigatorViewMode";
 import { entryTypeLabel } from "../state/entryType";
@@ -722,6 +724,18 @@ function focusEntryRow(path: string) {
   row?.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 
+/** AIA-232: Ctrl+wheel zooms icon size (Explorer-like). */
+function onListWheel(event: WheelEvent) {
+  if (!event.ctrlKey && !event.metaKey) return;
+  if (isGuidePath(currentPath.value)) return;
+  event.preventDefault();
+  if (event.deltaY === 0) return;
+  const direction: 1 | -1 = event.deltaY < 0 ? 1 : -1;
+  const next = nudgeIconViewMode(navigatorViewMode.value, direction);
+  if (next === navigatorViewMode.value) return;
+  void setNavigatorViewMode(next);
+}
+
 function onListKeyDown(event: KeyboardEvent) {
   if (event.altKey || event.metaKey || event.ctrlKey) return;
   if (isEditableTarget(event.target)) return;
@@ -1324,6 +1338,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
       tabindex="-1"
       data-focus-default
       @keydown="onListKeyDown"
+      @wheel="onListWheel"
       @contextmenu="onListContextMenu"
       @mousedown="onListMouseDown"
       @click.self="clearSelection()"
@@ -1566,6 +1581,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           'list--drop': dragOverPath === secondaryPath,
         }"
         role="list"
+        @wheel="onListWheel"
         @dragover="onListDragOver($event, secondaryPath)"
         @dragleave="onListDragLeave($event, secondaryPath)"
         @drop="onListDrop($event, secondaryPath)"
