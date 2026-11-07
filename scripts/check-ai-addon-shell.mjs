@@ -42,12 +42,15 @@ assert.ok(lib.includes("ai::ai_mcp_catalog_upsert"), "mcp catalog upsert IPC");
 assert.ok(lib.includes("ai::ai_mcp_deploy"), "mcp merge deploy IPC");
 assert.ok(lib.includes("ai::ai_mcp_undeploy"), "mcp undeploy IPC");
 assert.ok(lib.includes("ai::ai_harness_init"), "harness init IPC");
+assert.ok(lib.includes("ai::ai_providers_list"), "providers list IPC");
+assert.ok(lib.includes("ai::ai_providers_upsert_compatible"), "providers compatible IPC");
 
 assert.ok(
   rustAi.includes("AI Add-on") && rustAi.includes("ADR 0007"),
   "Rust AI module must document Core vs Add-on boundary",
 );
 assert.ok(rustAi.includes("mod harness"), "harness module");
+assert.ok(rustAi.includes("mod providers"), "providers module");
 assert.ok(rustAi.includes('"agents"'), "agents section id");
 assert.ok(agents.includes("ai-config.json"), "APPDATA AI config file");
 assert.ok(agents.includes("mcp_usage_prompt"), "MCP usage prompt field");
@@ -86,6 +89,14 @@ assert.ok(harness.includes("ERR_HARNESS_WORKSPACE"), "workspace gate");
 const harnessPanel = read("src/ai/HarnessInitPanel.vue");
 assert.ok(harnessPanel.includes("ai_harness_init"));
 assert.ok(harnessPanel.includes("includeSdd"));
+assert.ok(view.includes("ProvidersPanel"));
+const providersRs = read("src-tauri/src/ai/providers.rs");
+assert.ok(providersRs.includes("compatible"), "Compatible kind");
+assert.ok(providersRs.includes("openai"), "OpenAI preset");
+assert.ok(providersRs.includes("No billing"), "documents no billing panel");
+const providersPanel = read("src/ai/ProvidersPanel.vue");
+assert.ok(providersPanel.includes("ai_providers_list"));
+assert.ok(providersPanel.includes("ai_providers_upsert_compatible"));
 assert.ok(router.includes('path: "/ai"'));
 assert.ok(sideNav.includes('id: "ai"'));
 assert.ok(registry.includes('id: "view.ai"'));
@@ -94,7 +105,8 @@ const projectsMod = read("src-tauri/src/projects/mod.rs");
 assert.ok(
   !projectsMod.includes("ai_agent_targets") &&
     !projectsMod.includes("ai_skills_") &&
-    !projectsMod.includes("ai_harness_"),
+    !projectsMod.includes("ai_harness_") &&
+    !projectsMod.includes("ai_providers_"),
   "Core projects must not host AI Add-on IPC",
 );
 
@@ -108,5 +120,5 @@ if (cargo.stderr) process.stderr.write(cargo.stderr);
 assert.equal(cargo.status, 0, "cargo test ai:: failed");
 
 console.log(
-  "AI Add-on checks OK (A1–A6: shell · agents · skills · junction · MCP merge · harness).",
+  "AI Add-on checks OK (A1–A7: shell · agents · skills · junction · MCP · harness · providers).",
 );

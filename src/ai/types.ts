@@ -47,11 +47,24 @@ export type McpCatalogEntry = {
   updatedAt: number;
 };
 
+export type AiProvider = {
+  id: string;
+  displayName: string;
+  kind: "preset" | "compatible" | string;
+  enabled: boolean;
+  baseUrl: string;
+  apiKey: string;
+  defaultModel: string;
+  createdAt: number;
+  updatedAt: number;
+};
+
 export type AiConfigDocument = {
   schemaVersion: number;
   agentTargets: AgentTarget[];
   skillsLibraryRoot?: string;
   mcpCatalog?: McpCatalogEntry[];
+  aiProviders?: AiProvider[];
 };
 
 export type AgentTargetPatch = {

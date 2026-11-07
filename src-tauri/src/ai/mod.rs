@@ -11,16 +11,18 @@
 //! - A4: Skill Junction deploy to enabled Agent Targets
 //! - A5: public MCP catalog + merge deploy (no whole-file overwrite)
 //! - A6: explicit Harness / SDD init (ADR 0008)
-//! - Not yet: Providers (A7)
+//! - A7: AI Providers MVP (presets + Compatible)
 
 mod agents;
 mod deploy;
 mod harness;
 mod mcp;
+mod providers;
 mod skills;
 
 pub use agents::{AgentTargetPatch, AiConfigDocument};
 pub use harness::HarnessInitReport;
+pub use providers::AiProviderPatch;
 
 use serde::Serialize;
 use tauri::AppHandle;
@@ -29,13 +31,13 @@ use tauri::Manager;
 /// Stable section ids for the AI main menu shell (UI + future IPC).
 pub const AI_MENU_SECTION_IDS: &[&str] = &["agents", "mcp", "skills", "providers"];
 
-pub const AI_ADDON_SHELL_VERSION: u32 = 5;
+pub const AI_ADDON_SHELL_VERSION: u32 = 6;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct AiMenuSectionStatus {
     pub id: String,
-    /// Agents ready since A2; Skills ready since A3.
+    /// Agents A2 · Skills A3 · MCP A5 · Providers A7.
     pub ready: bool,
 }
 
@@ -55,7 +57,7 @@ fn config_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
 }
 
 fn section_ready(id: &str) -> bool {
-    matches!(id, "agents" | "skills" | "mcp")
+    matches!(id, "agents" | "skills" | "mcp" | "providers")
 }
 
 /// Shell probe for the AI main menu.
@@ -306,25 +308,84 @@ pub fn ai_harness_init(
     )
 }
 
+#[tauri::command]
+pub fn ai_providers_list(app: AppHandle) -> Result<AiConfigDocument, String> {
+    let dir = config_dir(&app)?;
+    agents::load_from_path(&dir)
+}
+
+#[tauri::command]
+pub fn ai_providers_set_enabled(
+    app: AppHandle,
+    id: String,
+    enabled: bool,
+) -> Result<AiConfigDocument, String> {
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    let next = providers::set_enabled(&doc, &id, enabled)?;
+    agents::save_to_path(&dir, &next)?;
+    Ok(next)
+}
+
+#[tauri::command]
+pub fn ai_providers_update(
+    app: AppHandle,
+    id: String,
+    patch: AiProviderPatch,
+) -> Result<AiConfigDocument, String> {
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    let next = providers::update_provider(&doc, &id, patch)?;
+    agents::save_to_path(&dir, &next)?;
+    Ok(next)
+}
+
+#[tauri::command]
+pub fn ai_providers_upsert_compatible(
+    app: AppHandle,
+    id: Option<String>,
+    display_name: String,
+    base_url: String,
+    api_key: String,
+    default_model: String,
+) -> Result<AiConfigDocument, String> {
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    let next = providers::upsert_compatible(
+        &doc,
+        id,
+        display_name,
+        base_url,
+        api_key,
+        default_model,
+    )?;
+    agents::save_to_path(&dir, &next)?;
+    Ok(next)
+}
+
+#[tauri::command]
+pub fn ai_providers_remove(app: AppHandle, id: String) -> Result<AiConfigDocument, String> {
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    let next = providers::remove_compatible(&doc, &id)?;
+    agents::save_to_path(&dir, &next)?;
+    Ok(next)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn shell_marks_agents_skills_mcp_ready() {
+    fn shell_marks_all_sections_ready() {
         let status = ai_addon_status();
         assert_eq!(status.layer, "ai-addon");
         assert_eq!(status.shell_version, AI_ADDON_SHELL_VERSION);
-        for id in ["agents", "skills", "mcp"] {
+        for id in ["agents", "skills", "mcp", "providers"] {
             assert!(
                 status.sections.iter().find(|s| s.id == id).unwrap().ready,
                 "{id} should be ready"
             );
         }
-        assert!(status
-            .sections
-            .iter()
-            .filter(|s| !matches!(s.id.as_str(), "agents" | "skills" | "mcp"))
-            .all(|s| !s.ready));
     }
 }

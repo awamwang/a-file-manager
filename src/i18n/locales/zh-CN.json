@@ -159,7 +159,7 @@
       },
       "providers": {
         "title": "AI Providers",
-        "body": "主流预设 + Compatible（Base URL / API Key）。与文件系统「提供程序」不同。当前占位。"
+        "body": "主流完整预设 + Compatible（Base URL / API Key）。存于 APPDATA AI 配置，与文件系统 Providers 分开。无计费面板。"
       }
     },
     "agents": {
@@ -261,6 +261,35 @@
       "init": "初始化 Harness",
       "noticeDone": "Harness 完成 · 写入 {written} · 跳过 {skipped}",
       "errorWorkspace": "Workspace 路径须为含 project.json 的已有 Project 目录"
+    },
+    "providers": {
+      "hint": "为 AI Add-on 配置模型 Providers。密钥仅存 APPDATA；此处不计费。",
+      "summary": "{total} 个 Provider · {enabled} 已启用 · {compatible} 个 Compatible",
+      "refresh": "刷新",
+      "addCompatible": "添加 Compatible",
+      "enable": "启用",
+      "disable": "禁用",
+      "editTitle": "编辑 Provider",
+      "compatibleTitle": "新建 Compatible Provider",
+      "fieldName": "显示名称",
+      "fieldId": "Id（可选）",
+      "fieldBaseUrl": "Base URL",
+      "fieldApiKey": "API Key",
+      "fieldModel": "默认模型",
+      "save": "保存",
+      "saveCompatible": "保存 Compatible",
+      "remove": "删除",
+      "noticeEnabled": "已启用 Provider",
+      "noticeDisabled": "已禁用 Provider",
+      "noticeSaved": "Provider 已保存",
+      "noticeCompatibleAdded": "已添加 Compatible Provider",
+      "noticeRemoved": "已删除 Compatible Provider",
+      "errorIdEmpty": "Provider id 不能为空",
+      "errorIdInvalid": "Provider id 须为小写 ASCII",
+      "errorNameEmpty": "显示名称不能为空",
+      "errorUnknown": "未知 Provider",
+      "errorBuiltinRemove": "不能删除预设 Provider",
+      "errorIdConflict": "该 id 与预设 Provider 冲突"
     }
   },
   "navigator": {

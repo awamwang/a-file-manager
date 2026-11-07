@@ -12,6 +12,7 @@ import AgentTargetsPanel from "../ai/AgentTargetsPanel.vue";
 import SkillsLibraryPanel from "../ai/SkillsLibraryPanel.vue";
 import McpCatalogPanel from "../ai/McpCatalogPanel.vue";
 import HarnessInitPanel from "../ai/HarnessInitPanel.vue";
+import ProvidersPanel from "../ai/ProvidersPanel.vue";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 
 const { t } = useI18n();
@@ -94,6 +95,7 @@ onMounted(() => {
         <AgentTargetsPanel v-if="section.id === 'agents'" />
         <SkillsLibraryPanel v-else-if="section.id === 'skills'" />
         <McpCatalogPanel v-else-if="section.id === 'mcp'" />
+        <ProvidersPanel v-else-if="section.id === 'providers'" />
       </article>
     </div>
 

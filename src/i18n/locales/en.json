@@ -159,7 +159,7 @@
       },
       "providers": {
         "title": "AI Providers",
-        "body": "Mainstream presets plus Compatible (Base URL / API Key). Separate from file-system Providers. Placeholder for now."
+        "body": "Mainstream presets plus Compatible (Base URL / API Key). Stored in APPDATA AI config — separate from file-system Providers. No billing panel."
       }
     },
     "agents": {
@@ -261,6 +261,35 @@
       "init": "Initialize Harness",
       "noticeDone": "Harness init · wrote {written} · skipped {skipped}",
       "errorWorkspace": "Workspace path must be an existing Project directory with project.json"
+    },
+    "providers": {
+      "hint": "Configure model Providers for the AI Add-on. Keys stay in APPDATA; nothing is billed here.",
+      "summary": "{total} providers · {enabled} enabled · {compatible} Compatible",
+      "refresh": "Refresh",
+      "addCompatible": "Add Compatible",
+      "enable": "Enable",
+      "disable": "Disable",
+      "editTitle": "Edit provider",
+      "compatibleTitle": "New Compatible provider",
+      "fieldName": "Display name",
+      "fieldId": "Id (optional)",
+      "fieldBaseUrl": "Base URL",
+      "fieldApiKey": "API Key",
+      "fieldModel": "Default model",
+      "save": "Save",
+      "saveCompatible": "Save Compatible",
+      "remove": "Remove",
+      "noticeEnabled": "Provider enabled",
+      "noticeDisabled": "Provider disabled",
+      "noticeSaved": "Provider saved",
+      "noticeCompatibleAdded": "Compatible provider added",
+      "noticeRemoved": "Compatible provider removed",
+      "errorIdEmpty": "Provider id cannot be empty",
+      "errorIdInvalid": "Provider id must be lowercase ASCII",
+      "errorNameEmpty": "Display name cannot be empty",
+      "errorUnknown": "Unknown provider",
+      "errorBuiltinRemove": "Preset providers cannot be removed",
+      "errorIdConflict": "That id conflicts with a preset provider"
     }
   },
   "navigator": {

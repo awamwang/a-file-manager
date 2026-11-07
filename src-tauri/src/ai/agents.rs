@@ -65,6 +65,9 @@ pub struct AiConfigDocument {
     /// Public MCP catalog (ADR 0006 / A5) — APPDATA only, not per-Workspace.
     #[serde(default)]
     pub mcp_catalog: Vec<McpCatalogEntry>,
+    /// AI model Providers MVP (A7) — presets + Compatible; not FS Providers.
+    #[serde(default)]
+    pub ai_providers: Vec<crate::ai::providers::AiProvider>,
 }
 
 /// One public MCP server entry (stored in APPDATA AI config).
@@ -86,6 +89,7 @@ impl AiConfigDocument {
             agent_targets: Vec::new(),
             skills_library_root: String::new(),
             mcp_catalog: Vec::new(),
+            ai_providers: Vec::new(),
         }
     }
 }
@@ -308,7 +312,7 @@ pub fn load_from_path(config_dir: &Path) -> Result<AiConfigDocument, String> {
         serde_json::from_str(&text)
             .map_err(|err| format!("Failed to parse AI config JSON: {err}"))?
     };
-    let synced = sync_builtins_and_discover(&document);
+    let synced = crate::ai::providers::sync_presets(&sync_builtins_and_discover(&document));
     if synced != document {
         save_to_path(config_dir, &synced)?;
     }
