@@ -44,6 +44,13 @@ assert.ok(wg.includes("master-list-scroll"));
 assert.ok(projects.includes("master-list-scroll"));
 assert.match(wg, /\.master-list-scroll\s*\{[^}]*overflow-y:\s*auto/s);
 assert.match(projects, /\.master-list-scroll\s*\{[^}]*overflow-y:\s*auto/s);
+// AIA-255: list/detail ⋯ menus Teleport to body (not clipped by fluent-surface overflow).
+assert.ok(wg.includes('<Teleport to="body">'));
+assert.ok(projects.includes('<Teleport to="body">'));
+assert.ok(wg.includes("more-popover--portal"));
+assert.ok(projects.includes("more-popover--portal"));
+assert.ok(wg.includes("positionMorePopover"));
+assert.ok(projects.includes("positionMorePopover"));
 
 // Inline rename: Enter saves; blur/Escape cancel without save; toast on save.
 assert.ok(wg.includes('@keydown.enter.prevent="commitInlineRename"'));

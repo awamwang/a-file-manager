@@ -330,12 +330,39 @@ const projectRenameDraft = ref("");
 const projectMoreOpen = ref(false);
 const projectRenameInputEl = ref<HTMLInputElement | null>(null);
 const projectMoreMenuEl = ref<HTMLElement | null>(null);
+const projectMoreTriggerEl = ref<HTMLElement | null>(null);
 const projectTitleRowEl = ref<HTMLElement | null>(null);
 const listMoreOpenId = ref<string | null>(null);
+const listMoreMenuEl = ref<HTMLElement | null>(null);
+const listMoreMenuStyle = ref<Record<string, string>>({});
+const projectMoreMenuStyle = ref<Record<string, string>>({});
 const listRenamingId = ref<string | null>(null);
 const listRenameDraft = ref("");
 const listRenameInputEl = ref<HTMLInputElement | null>(null);
 const masterListEl = ref<HTMLElement | null>(null);
+
+const listMoreProject = computed(
+  () => document.value?.projects.find((p) => p.id === listMoreOpenId.value) ?? null,
+);
+
+function positionMorePopover(
+  anchor: HTMLElement,
+  styleRef: typeof listMoreMenuStyle,
+) {
+  const rect = anchor.getBoundingClientRect();
+  const menuWidth = Math.min(160, window.innerWidth * 0.7);
+  let left = rect.right - menuWidth;
+  if (left < 8) left = 8;
+  if (left + menuWidth > window.innerWidth - 8) {
+    left = Math.max(8, window.innerWidth - menuWidth - 8);
+  }
+  styleRef.value = {
+    position: "fixed",
+    top: `${Math.round(rect.bottom + 4)}px`,
+    left: `${Math.round(left)}px`,
+    zIndex: "1200",
+  };
+}
 
 function setListRenameInputEl(el: unknown) {
   listRenameInputEl.value = el instanceof HTMLInputElement ? el : null;
@@ -389,7 +416,26 @@ async function commitProjectInlineRename() {
 function toggleListMore(projectId: string, event: Event) {
   event.stopPropagation();
   projectMoreOpen.value = false;
-  listMoreOpenId.value = listMoreOpenId.value === projectId ? null : projectId;
+  if (listMoreOpenId.value === projectId) {
+    listMoreOpenId.value = null;
+    return;
+  }
+  const anchor =
+    event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+  if (anchor) positionMorePopover(anchor, listMoreMenuStyle);
+  listMoreOpenId.value = projectId;
+}
+
+function toggleProjectDetailMore() {
+  listMoreOpenId.value = null;
+  if (projectMoreOpen.value) {
+    projectMoreOpen.value = false;
+    return;
+  }
+  if (projectMoreTriggerEl.value) {
+    positionMorePopover(projectMoreTriggerEl.value, projectMoreMenuStyle);
+  }
+  projectMoreOpen.value = true;
 }
 
 function startListRename(project: UserProject, event?: Event) {
@@ -440,12 +486,10 @@ async function commitListRename(projectId: string) {
 function onProjectDetailPointerDown(event: PointerEvent) {
   const target = event.target as Node | null;
   if (!target) return;
-  if (
-    projectMoreOpen.value &&
-    projectMoreMenuEl.value &&
-    !projectMoreMenuEl.value.contains(target)
-  ) {
-    projectMoreOpen.value = false;
+  if (projectMoreOpen.value) {
+    const inMenu = projectMoreMenuEl.value?.contains(target);
+    const inTrigger = projectMoreTriggerEl.value?.contains(target);
+    if (!inMenu && !inTrigger) projectMoreOpen.value = false;
   }
   if (
     renamingProject.value &&
@@ -455,10 +499,11 @@ function onProjectDetailPointerDown(event: PointerEvent) {
     cancelProjectInlineRename();
   }
   if (listMoreOpenId.value) {
-    const openMenu = masterListEl.value?.querySelector(
+    const trigger = masterListEl.value?.querySelector(
       `[data-list-more-id="${listMoreOpenId.value}"]`,
     );
-    if (!openMenu?.contains(target)) {
+    const inMenu = listMoreMenuEl.value?.contains(target);
+    if (!inMenu && !trigger?.contains(target)) {
       listMoreOpenId.value = null;
     }
   }
@@ -807,28 +852,6 @@ onUnmounted(() => {
                 >
                   ···
                 </button>
-                <div
-                  v-if="listMoreOpenId === project.id"
-                  class="more-popover fluent-surface"
-                  role="menu"
-                >
-                  <button
-                    type="button"
-                    class="more-item"
-                    role="menuitem"
-                    @click="startListRename(project, $event)"
-                  >
-                    {{ t("projects.rename") }}
-                  </button>
-                  <button
-                    type="button"
-                    class="more-item more-item--danger"
-                    role="menuitem"
-                    @click="deleteProject(project)"
-                  >
-                    {{ t("common.delete") }}
-                  </button>
-                </div>
               </div>
             </div>
             <span class="fluent-page-meta">{{
@@ -876,41 +899,18 @@ onUnmounted(() => {
           >
             {{ selected.name }}
           </h2>
-          <div ref="projectMoreMenuEl" class="more-menu">
+          <div class="more-menu">
             <button
+              ref="projectMoreTriggerEl"
               type="button"
               class="fluent-control more-trigger"
               :aria-expanded="projectMoreOpen"
               aria-haspopup="menu"
               :title="t('common.more')"
-              @click="
-                listMoreOpenId = null;
-                projectMoreOpen = !projectMoreOpen;
-              "
+              @click="toggleProjectDetailMore"
             >
               ···
             </button>
-            <div v-if="projectMoreOpen" class="more-popover fluent-surface" role="menu">
-              <button
-                type="button"
-                class="more-item"
-                role="menuitem"
-                @click="startProjectInlineRename"
-              >
-                {{ t("projects.rename") }}
-              </button>
-              <button
-                type="button"
-                class="more-item more-item--danger"
-                role="menuitem"
-                @click="
-                  projectMoreOpen = false;
-                  deleteSelected();
-                "
-              >
-                {{ t("common.delete") }}
-              </button>
-            </div>
           </div>
         </div>
         <p class="fluent-page-meta">
@@ -1141,6 +1141,65 @@ onUnmounted(() => {
         <p class="fluent-page-meta">{{ t("projects.emptyStart") }}</p>
       </div>
     </div>
+
+    <!-- Portaled out of .fluent-surface { overflow: hidden } cards / scrollers. -->
+    <Teleport to="body">
+      <div
+        v-if="listMoreProject"
+        ref="listMoreMenuEl"
+        class="more-popover more-popover--portal fluent-surface"
+        role="menu"
+        :style="listMoreMenuStyle"
+        @click.stop
+      >
+        <button
+          type="button"
+          class="more-item"
+          role="menuitem"
+          @click="startListRename(listMoreProject, $event)"
+        >
+          {{ t("projects.rename") }}
+        </button>
+        <button
+          type="button"
+          class="more-item more-item--danger"
+          role="menuitem"
+          @click="deleteProject(listMoreProject)"
+        >
+          {{ t("common.delete") }}
+        </button>
+      </div>
+    </Teleport>
+    <Teleport to="body">
+      <div
+        v-if="projectMoreOpen && selected"
+        ref="projectMoreMenuEl"
+        class="more-popover more-popover--portal fluent-surface"
+        role="menu"
+        :style="projectMoreMenuStyle"
+        @click.stop
+      >
+        <button
+          type="button"
+          class="more-item"
+          role="menuitem"
+          @click="startProjectInlineRename"
+        >
+          {{ t("projects.rename") }}
+        </button>
+        <button
+          type="button"
+          class="more-item more-item--danger"
+          role="menuitem"
+          @click="
+            projectMoreOpen = false;
+            deleteSelected();
+          "
+        >
+          {{ t("common.delete") }}
+        </button>
+      </div>
+    </Teleport>
   </section>
 </template>
 
@@ -1308,7 +1367,6 @@ onUnmounted(() => {
 }
 
 .more-menu {
-  position: relative;
   margin-inline-start: auto;
   flex-shrink: 0;
 }
@@ -1320,15 +1378,16 @@ onUnmounted(() => {
 }
 
 .more-popover {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 4px);
-  z-index: 5;
   min-width: 9rem;
   padding: var(--fluent-space-xs);
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.more-popover--portal {
+  /* position/top/left/z-index set via Teleport fixed inline style */
+  box-shadow: var(--fluent-shadow-flyout, 0 8px 24px rgba(0, 0, 0, 0.18));
 }
 
 .more-item {

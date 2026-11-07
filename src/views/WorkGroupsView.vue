@@ -180,12 +180,39 @@ const renameDraft = ref("");
 const moreMenuOpen = ref(false);
 const renameInputEl = ref<HTMLInputElement | null>(null);
 const moreMenuEl = ref<HTMLElement | null>(null);
+const moreTriggerEl = ref<HTMLElement | null>(null);
 const detailTitleRowEl = ref<HTMLElement | null>(null);
 const listMoreOpenId = ref<string | null>(null);
+const listMoreMenuEl = ref<HTMLElement | null>(null);
+const listMoreMenuStyle = ref<Record<string, string>>({});
+const moreMenuStyle = ref<Record<string, string>>({});
 const listRenamingId = ref<string | null>(null);
 const listRenameDraft = ref("");
 const listRenameInputEl = ref<HTMLInputElement | null>(null);
 const masterListEl = ref<HTMLElement | null>(null);
+
+const listMoreGroup = computed(
+  () => document.value?.workGroups.find((g) => g.id === listMoreOpenId.value) ?? null,
+);
+
+function positionMorePopover(
+  anchor: HTMLElement,
+  styleRef: typeof listMoreMenuStyle,
+) {
+  const rect = anchor.getBoundingClientRect();
+  const menuWidth = Math.min(160, window.innerWidth * 0.7);
+  let left = rect.right - menuWidth;
+  if (left < 8) left = 8;
+  if (left + menuWidth > window.innerWidth - 8) {
+    left = Math.max(8, window.innerWidth - menuWidth - 8);
+  }
+  styleRef.value = {
+    position: "fixed",
+    top: `${Math.round(rect.bottom + 4)}px`,
+    left: `${Math.round(left)}px`,
+    zIndex: "1200",
+  };
+}
 
 function setListRenameInputEl(el: unknown) {
   listRenameInputEl.value = el instanceof HTMLInputElement ? el : null;
@@ -232,7 +259,24 @@ async function commitInlineRename() {
 function toggleListMore(groupId: string, event: Event) {
   event.stopPropagation();
   moreMenuOpen.value = false;
-  listMoreOpenId.value = listMoreOpenId.value === groupId ? null : groupId;
+  if (listMoreOpenId.value === groupId) {
+    listMoreOpenId.value = null;
+    return;
+  }
+  const anchor =
+    event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+  if (anchor) positionMorePopover(anchor, listMoreMenuStyle);
+  listMoreOpenId.value = groupId;
+}
+
+function toggleDetailMore() {
+  listMoreOpenId.value = null;
+  if (moreMenuOpen.value) {
+    moreMenuOpen.value = false;
+    return;
+  }
+  if (moreTriggerEl.value) positionMorePopover(moreTriggerEl.value, moreMenuStyle);
+  moreMenuOpen.value = true;
 }
 
 function startListRename(group: WorkGroup, event?: Event) {
@@ -277,17 +321,20 @@ async function commitListRename(groupId: string) {
 function onDetailPointerDown(event: PointerEvent) {
   const target = event.target as Node | null;
   if (!target) return;
-  if (moreMenuOpen.value && moreMenuEl.value && !moreMenuEl.value.contains(target)) {
-    moreMenuOpen.value = false;
+  if (moreMenuOpen.value) {
+    const inMenu = moreMenuEl.value?.contains(target);
+    const inTrigger = moreTriggerEl.value?.contains(target);
+    if (!inMenu && !inTrigger) moreMenuOpen.value = false;
   }
   if (renaming.value && detailTitleRowEl.value && !detailTitleRowEl.value.contains(target)) {
     cancelInlineRename();
   }
   if (listMoreOpenId.value) {
-    const openMenu = masterListEl.value?.querySelector(
+    const trigger = masterListEl.value?.querySelector(
       `[data-list-more-id="${listMoreOpenId.value}"]`,
     );
-    if (!openMenu?.contains(target)) {
+    const inMenu = listMoreMenuEl.value?.contains(target);
+    if (!inMenu && !trigger?.contains(target)) {
       listMoreOpenId.value = null;
     }
   }
@@ -439,30 +486,6 @@ onUnmounted(() => {
                 >
                   ···
                 </button>
-                <div
-                  v-if="listMoreOpenId === group.id"
-                  class="more-popover fluent-surface"
-                  role="menu"
-                >
-                  <button
-                    v-if="!group.isDefault"
-                    type="button"
-                    class="more-item"
-                    role="menuitem"
-                    @click="startListRename(group, $event)"
-                  >
-                    {{ t("workGroups.rename") }}
-                  </button>
-                  <button
-                    v-if="!group.isDefault"
-                    type="button"
-                    class="more-item more-item--danger"
-                    role="menuitem"
-                    @click="deleteGroup(group)"
-                  >
-                    {{ t("workGroups.delete") }}
-                  </button>
-                </div>
               </div>
             </div>
             <span class="fluent-page-meta">{{
@@ -504,43 +527,18 @@ onUnmounted(() => {
           >
             {{ workGroupDisplayName(active, t("workGroups.defaultName")) }}
           </h2>
-          <div ref="moreMenuEl" class="more-menu">
+          <div class="more-menu">
             <button
+              ref="moreTriggerEl"
               type="button"
               class="fluent-control more-trigger"
               :aria-expanded="moreMenuOpen"
               aria-haspopup="menu"
               :title="t('common.more')"
-              @click="
-                listMoreOpenId = null;
-                moreMenuOpen = !moreMenuOpen;
-              "
+              @click="toggleDetailMore"
             >
               ···
             </button>
-            <div v-if="moreMenuOpen" class="more-popover fluent-surface" role="menu">
-              <button
-                v-if="!active.isDefault"
-                type="button"
-                class="more-item"
-                role="menuitem"
-                @click="startInlineRename"
-              >
-                {{ t("workGroups.rename") }}
-              </button>
-              <button
-                v-if="!active.isDefault"
-                type="button"
-                class="more-item more-item--danger"
-                role="menuitem"
-                @click="
-                  moreMenuOpen = false;
-                  deleteActiveGroup();
-                "
-              >
-                {{ t("workGroups.delete") }}
-              </button>
-            </div>
           </div>
         </div>
         <p class="fluent-page-meta">
@@ -636,6 +634,69 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- Portaled out of .fluent-surface { overflow: hidden } cards / scrollers. -->
+    <Teleport to="body">
+      <div
+        v-if="listMoreGroup"
+        ref="listMoreMenuEl"
+        class="more-popover more-popover--portal fluent-surface"
+        role="menu"
+        :style="listMoreMenuStyle"
+        @click.stop
+      >
+        <button
+          v-if="!listMoreGroup.isDefault"
+          type="button"
+          class="more-item"
+          role="menuitem"
+          @click="startListRename(listMoreGroup, $event)"
+        >
+          {{ t("workGroups.rename") }}
+        </button>
+        <button
+          v-if="!listMoreGroup.isDefault"
+          type="button"
+          class="more-item more-item--danger"
+          role="menuitem"
+          @click="deleteGroup(listMoreGroup)"
+        >
+          {{ t("workGroups.delete") }}
+        </button>
+      </div>
+    </Teleport>
+    <Teleport to="body">
+      <div
+        v-if="moreMenuOpen && active"
+        ref="moreMenuEl"
+        class="more-popover more-popover--portal fluent-surface"
+        role="menu"
+        :style="moreMenuStyle"
+        @click.stop
+      >
+        <button
+          v-if="!active.isDefault"
+          type="button"
+          class="more-item"
+          role="menuitem"
+          @click="startInlineRename"
+        >
+          {{ t("workGroups.rename") }}
+        </button>
+        <button
+          v-if="!active.isDefault"
+          type="button"
+          class="more-item more-item--danger"
+          role="menuitem"
+          @click="
+            moreMenuOpen = false;
+            deleteActiveGroup();
+          "
+        >
+          {{ t("workGroups.delete") }}
+        </button>
+      </div>
+    </Teleport>
   </section>
 </template>
 
@@ -667,7 +728,6 @@ onUnmounted(() => {
 }
 
 .more-menu {
-  position: relative;
   margin-inline-start: auto;
   flex-shrink: 0;
 }
@@ -679,15 +739,16 @@ onUnmounted(() => {
 }
 
 .more-popover {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 4px);
-  z-index: 5;
   min-width: 9rem;
   padding: var(--fluent-space-xs);
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.more-popover--portal {
+  /* position/top/left/z-index set via Teleport fixed inline style */
+  box-shadow: var(--fluent-shadow-flyout, 0 8px 24px rgba(0, 0, 0, 0.18));
 }
 
 .more-item {
