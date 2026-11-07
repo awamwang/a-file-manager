@@ -1,11 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Project-mode — WG super-set: session on bound Work Group; assets on Project.
+//!
+//! C1 (AIA-207): thin APPDATA index (`projects-index.json`) holds Projects Root +
+//! `activeProject` only. Legacy `projects.json` remains until C7 deprecates it.
 
+pub(crate) mod index;
 pub(crate) mod migrate;
 mod ops;
 pub(crate) mod store;
 pub(crate) mod types;
 
+use index::{load_from_path as load_index_from_path, save_to_path as save_index_to_path, ProjectsIndex};
 use ops::{
     activate_project, add_task, add_workspace_link, bind_work_group, create_project, delete_project,
     delete_task, move_task, open_all_links, promote_work_group_to_project,
@@ -22,6 +27,46 @@ fn config_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
     app.path()
         .app_config_dir()
         .map_err(|err| format!("Failed to resolve app config dir: {err}"))
+}
+
+fn configured_projects_root(app: &AppHandle) -> String {
+    crate::settings::read_string_setting(app, index::PROJECTS_ROOT_SETTING_KEY)
+}
+
+fn load_index(app: &AppHandle) -> Result<ProjectsIndex, String> {
+    let dir = config_dir(app)?;
+    let configured = configured_projects_root(app);
+    load_index_from_path(&dir, &configured)
+}
+
+/// Sync thin-index `projectsRoot` after Settings changes `core.projectsRoot`.
+pub fn sync_index_root_from_settings(app: &AppHandle) -> Result<ProjectsIndex, String> {
+    load_index(app)
+}
+
+/// Thin index: Projects Root + activeProject (ADR 0004 / 0007).
+#[tauri::command]
+pub fn projects_index_get(app: AppHandle) -> Result<ProjectsIndex, String> {
+    load_index(&app)
+}
+
+/// Set or clear the thin-index active Project by ASCII slug (path = Root/slug).
+#[tauri::command]
+pub fn projects_index_set_active(
+    app: AppHandle,
+    slug: Option<String>,
+) -> Result<ProjectsIndex, String> {
+    let dir = config_dir(&app)?;
+    let current = load_index(&app)?;
+    let next = index::set_active_project(&current, slug.as_deref())?;
+    save_index_to_path(&dir, &next)?;
+    Ok(next)
+}
+
+/// Resolve effective Projects Root from settings (empty → default), ensure directory, sync index.
+#[tauri::command]
+pub fn projects_root_ensure(app: AppHandle) -> Result<ProjectsIndex, String> {
+    load_index(&app)
 }
 
 fn with_document<F>(app: &AppHandle, f: F) -> Result<UserProjects, String>

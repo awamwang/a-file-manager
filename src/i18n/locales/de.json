@@ -312,6 +312,10 @@
           "description": "Standard-OS-Pfad im Explorer (leer = USERPROFILE)",
           "title": "Standardort"
         },
+        "projectsRoot": {
+          "title": "Projects-Stammverzeichnis",
+          "description": "Ordner für Project Workspaces (leer = %APPDATA%\\com.a-file-manager.app\\projects\\)"
+        },
         "startupPage": {
           "title": "Startseite",
           "description": "Erste Seite nach dem Start",

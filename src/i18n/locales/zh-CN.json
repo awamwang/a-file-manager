@@ -234,6 +234,10 @@
           "title": "默认位置",
           "description": "资源管理器默认打开的操作系统路径（空 = USERPROFILE）"
         },
+        "projectsRoot": {
+          "title": "项目根目录",
+          "description": "存放 Project Workspace 的文件夹（空 = %APPDATA%\\com.a-file-manager.app\\projects\\）"
+        },
         "startupPage": {
           "title": "启动页",
           "description": "启动后首先打开的页面",
