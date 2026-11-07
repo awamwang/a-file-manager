@@ -27,7 +27,20 @@ assert.ok(view.includes("navigatorFilterQuery"));
 assert.ok(view.includes("navigator.filterEmpty"));
 assert.ok(view.includes("row-location"));
 assert.equal(en.navigator.filterToggle, "Search folder");
-assert.equal(en.navigator.filterPlaceholder, "Search this folder…");
+assert.ok(
+  en.navigator.filterPlaceholder.includes("type:") &&
+    en.navigator.filterPlaceholder.includes("size:") &&
+    en.navigator.filterPlaceholder.includes("date:"),
+  "AIA-234: placeholder must advertise type/size/date filters",
+);
+
+const searchRs = readFileSync(join(root, "src-tauri/src/navigator/search.rs"), "utf8");
+assert.ok(searchRs.includes("parse_search_query"), "AIA-234: query parser");
+assert.ok(searchRs.includes("size_bounds") || searchRs.includes("SizeBound"), "AIA-234: size filter");
+assert.ok(searchRs.includes("date_bounds") || searchRs.includes("DateBound"), "AIA-234: date filter");
+assert.ok(searchRs.includes("extensions"), "AIA-234: type/ext filter");
+assert.ok(searchRs.includes("type_filter_matches_extension"), "AIA-234: type unit test");
+assert.ok(searchRs.includes("size_filter_gt"), "AIA-234: size unit test");
 
 // Filter input must live under navigator chrome gate (not global for all routes).
 const chromeStart = shell.indexOf('v-if="isNavigatorRoute"');

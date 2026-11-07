@@ -311,7 +311,7 @@
     "nItems": "{count} items",
     "movedInto": "Moved {count} item(s) into {name}",
     "copiedInto": "Copied {count} item(s) into {name}",
-    "filterPlaceholder": "Search this folder…",
+    "filterPlaceholder": "Search this folder… (name, type:, size:, date:)",
     "filterToggle": "Search folder",
     "filterClear": "Clear search",
     "filterEmpty": "No items match this search.",

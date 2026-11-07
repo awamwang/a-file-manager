@@ -311,7 +311,7 @@
     "nItems": "{count} 项",
     "movedInto": "已将 {count} 项移入 {name}",
     "copiedInto": "已将 {count} 项复制到 {name}",
-    "filterPlaceholder": "搜索当前文件夹…",
+    "filterPlaceholder": "搜索当前文件夹…（名称、type:、size:、date:）",
     "filterToggle": "搜索文件夹",
     "filterClear": "清除搜索",
     "filterEmpty": "没有匹配的项目。",

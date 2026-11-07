@@ -391,7 +391,7 @@
     "nItems": "{count} 項目",
     "movedInto": "{count} 項目を {name} へ移動しました",
     "copiedInto": "{count} 項目を {name} へコピーしました",
-    "filterPlaceholder": "このフォルダーを検索…",
+    "filterPlaceholder": "このフォルダーを検索…（名前 / type: / size: / date:）",
     "filterToggle": "フォルダーを検索",
     "filterClear": "検索をクリア",
     "filterEmpty": "一致する項目がありません。",

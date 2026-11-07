@@ -391,7 +391,7 @@
     "nItems": "{count} Elemente",
     "movedInto": "{count} Element(e) nach {name} verschoben",
     "copiedInto": "{count} Element(e) nach {name} kopiert",
-    "filterPlaceholder": "Diesen Ordner durchsuchen…",
+    "filterPlaceholder": "Diesen Ordner durchsuchen… (Name, type:, size:, date:)",
     "filterToggle": "Ordner durchsuchen",
     "filterClear": "Suche löschen",
     "filterEmpty": "Keine Treffer für diese Suche.",

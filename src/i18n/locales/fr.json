@@ -391,7 +391,7 @@
     "nItems": "{count} éléments",
     "movedInto": "{count} élément(s) déplacé(s) vers {name}",
     "copiedInto": "{count} élément(s) copié(s) vers {name}",
-    "filterPlaceholder": "Rechercher dans ce dossier…",
+    "filterPlaceholder": "Rechercher dans ce dossier… (nom, type:, size:, date:)",
     "filterToggle": "Rechercher dans le dossier",
     "filterClear": "Effacer la recherche",
     "filterEmpty": "Aucun élément ne correspond.",
