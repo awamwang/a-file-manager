@@ -191,7 +191,7 @@ pub fn save_bound_members_from_open_state(
     Ok(next)
 }
 
-#[allow(dead_code)] // legacy projects.json path (C7); kept for sigma / cleanup
+#[allow(dead_code)] // legacy projects.json path (C7); kept for legacy_migrate / tests
 pub fn rename_project(
     document: &UserProjects,
     project_id: &str,

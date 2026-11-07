@@ -21,7 +21,6 @@ mod settings;
 mod shell_menu;
 mod system_tray;
 mod terminal;
-pub mod sigma_import;
 mod snap_chrome;
 mod win_process;
 mod work_groups;

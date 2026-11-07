@@ -2,15 +2,17 @@
 //! Project-mode — WG super-set: session on bound Work Group; assets on Project.
 //!
 //! C1 (AIA-207): thin APPDATA index (`projects-index.json`) holds Projects Root +
-//! `activeProject` only. Legacy `projects.json` remains until C7 deprecates it.
+//! `activeProject` only. C7 removed `projects.json` UI authority.
 //! C2 (AIA-208): Core Workspace light create under Projects Root (ADR 0008).
 //! C3 (AIA-209): list / activate / bind WG on disk Workspaces.
 //! C4 (AIA-210): `members/` junctions; open real target paths.
 //! C5 (AIA-211): CONTEXT.md + board.json four-column board.
 //! C6 (AIA-212): delete / rename / Promote WG→Workspace.
+//! AIA-202: one-shot migrate leftover APPDATA `projects.json` → Workspace layout.
 
 pub(crate) mod board;
 pub(crate) mod index;
+pub(crate) mod legacy_migrate;
 pub(crate) mod lifecycle;
 pub(crate) mod members;
 pub(crate) mod migrate;
@@ -51,6 +53,8 @@ fn configured_projects_root(app: &AppHandle) -> String {
 fn load_index(app: &AppHandle) -> Result<ProjectsIndex, String> {
     let dir = config_dir(app)?;
     let configured = configured_projects_root(app);
+    // AIA-202: one-shot AFM legacy projects.json → Workspace (no Sigma read).
+    legacy_migrate::maybe_migrate_legacy_projects(&dir, &configured)?;
     load_index_from_path(&dir, &configured)
 }
 
@@ -375,7 +379,7 @@ fn persist_silent_switch(
 }
 
 // --- Legacy projects.json IPC (no longer registered in lib.rs; AIA-213 / C7) ---
-// Disk helpers below remain for sigma_import / cleanup. Do not re-expose as UI authority.
+// Disk helpers remain for AIA-202 legacy_migrate / tests. Do not re-expose as UI authority.
 
 #[allow(dead_code)]
 #[tauri::command]
