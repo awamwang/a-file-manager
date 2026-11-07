@@ -22,13 +22,15 @@ assert.deepEqual(
     "navigator",
     "work-groups",
     "projects",
-    "extensions",
+    "ai",
     "discovery",
     "providers",
+    "extensions",
     "settings",
   ],
-  "expected IA order with Discovery/Providers above Settings and no top-level health",
+  "expected IA order: AI after Projects; Discovery/Providers; Extensions before Settings; no top-level health",
 );
+assert.ok(router.includes('path: "/ai"'), "AI Add-on route required (AIA-214 / A1)");
 assert.ok(!ids.includes("health"), "health must not be top-level sidenav");
 
 assert.ok(router.includes('path: "/health", redirect: "/settings/health"'));

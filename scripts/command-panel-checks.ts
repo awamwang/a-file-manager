@@ -65,6 +65,7 @@ const ids = new Set(commands.map((c) => c.id));
 assert.ok(ids.has("nav.go-up"));
 assert.ok(ids.has("view.settings"));
 assert.ok(ids.has("view.projects"));
+assert.ok(ids.has("view.ai"));
 assert.ok(ids.has("view.work-groups"));
 assert.ok(ids.has("action.refresh-health"));
 assert.equal(commands.find((c) => c.id === "view.settings")?.title, "Open Settings");

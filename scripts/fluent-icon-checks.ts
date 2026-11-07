@@ -31,6 +31,7 @@ for (const nav of [
   "providers",
   "work-groups",
   "projects",
+  "ai",
   "extensions",
   "settings",
   "health",

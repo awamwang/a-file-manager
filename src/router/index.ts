@@ -32,6 +32,11 @@ const router = createRouter({
       component: () => import("../views/ProjectsView.vue"),
     },
     {
+      path: "/ai",
+      name: "ai",
+      component: () => import("../views/AiView.vue"),
+    },
+    {
       path: "/extensions",
       name: "extensions",
       component: () => import("../views/ExtensionsView.vue"),

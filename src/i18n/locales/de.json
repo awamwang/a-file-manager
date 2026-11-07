@@ -86,6 +86,7 @@
     "openExtensions": "Erweiterungen öffnen",
     "openHealth": "Einstellungen · Health öffnen",
     "openNavigator": "Explorer öffnen",
+    "openAi": "AI öffnen",
     "openProjects": "Projekte öffnen",
     "openProviders": "Anbieter öffnen",
     "openSettings": "Einstellungen öffnen",
@@ -94,6 +95,32 @@
     "placeholder": "Befehl eingeben…",
     "refreshHealth": "Health-Status aktualisieren",
     "results": "Befehlsergebnisse"
+  },
+  "ai": {
+    "title": "AI",
+    "meta": "AI-Add-on — Agent Targets, gemeinsame MCP/Skills und Modell-Provider",
+    "usageHint": "Diese Oberfläche nimmt künftige AI-Funktionen auf. Die Abschnitte unten sind Platzhalter.",
+    "shellStatus": "AI-Add-on-Shell v{version} · Schicht {layer}",
+    "sectionPlaceholder": "Später",
+    "sectionReady": "Bereit",
+    "sections": {
+      "agents": {
+        "title": "Agent Targets",
+        "body": "Agent Targets entdecken, aktivieren und anpassen (Skills-/MCP-Pfade). Kommt in einem späteren Slice."
+      },
+      "mcp": {
+        "title": "Öffentliches MCP",
+        "body": "Gemeinsamer MCP-Katalog in der APPDATA-AI-Konfiguration; Merge-Deploy. Derzeit Platzhalter."
+      },
+      "skills": {
+        "title": "Öffentliche Skills",
+        "body": "AFM-eigene Skill-Bibliothek (SKILL.md erforderlich) und Junction-Deploy. Derzeit Platzhalter."
+      },
+      "providers": {
+        "title": "AI-Provider",
+        "body": "Mainstream-Presets plus Compatible (Base-URL / API-Key). Getrennt von Dateisystem-Anbietern. Derzeit Platzhalter."
+      }
+    }
   },
   "common": {
     "create": "Erstellen",
@@ -203,6 +230,7 @@
     "title": "Health"
   },
   "nav": {
+    "ai": "AI",
     "discovery": "Suche",
     "extensions": "Erweiterungen",
     "health": "Health",

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+mod ai;
 mod archive;
 mod autostart;
 mod discovery;
@@ -193,6 +194,7 @@ pub fn run() {
             work_groups::work_groups_silent_switch,
             work_groups::work_groups_save_open_state,
             work_groups::work_groups_save_members_from_open_state,
+            ai::ai_addon_status,
             projects::projects_index_get,
             projects::projects_index_set_active,
             projects::projects_root_ensure,

@@ -109,6 +109,7 @@
     "providers": "提供程序",
     "workGroups": "工作组",
     "projects": "项目",
+    "ai": "AI",
     "extensions": "扩展",
     "settings": "设置",
     "health": "健康"
@@ -125,6 +126,7 @@
     "openProviders": "打开提供程序",
     "openWorkGroups": "打开工作组",
     "openProjects": "打开项目",
+    "openAi": "打开 AI",
     "openExtensions": "打开扩展",
     "openSettings": "打开设置",
     "openHealth": "打开设置 · 健康",
@@ -134,6 +136,32 @@
     "results": "命令结果",
     "empty": "无匹配命令",
     "hint": "↑↓ 移动 · Enter 执行 · Esc 关闭 · Ctrl+Shift+P"
+  },
+  "ai": {
+    "title": "AI",
+    "meta": "AI 附加层 — Agent Target、公共 MCP / Skills 与模型 Providers",
+    "usageHint": "此页承载后续 AI 能力入口。下列分区目前为占位，待对应切片落地。",
+    "shellStatus": "AI Add-on 壳 v{version} · 层 {layer}",
+    "sectionPlaceholder": "稍后",
+    "sectionReady": "就绪",
+    "sections": {
+      "agents": {
+        "title": "Agent Target",
+        "body": "发现 / 启用 / 自定义 Agent Target（Skills 与 MCP 路径）。后续切片提供。"
+      },
+      "mcp": {
+        "title": "公共 MCP",
+        "body": "公共 MCP 目录存 APPDATA AI 配置，合并部署到目标。当前占位。"
+      },
+      "skills": {
+        "title": "公共 Skills",
+        "body": "AFM 自持 Skill 库（需 SKILL.md）与 Junction 部署。当前占位。"
+      },
+      "providers": {
+        "title": "AI Providers",
+        "body": "主流预设 + Compatible（Base URL / API Key）。与文件系统「提供程序」不同。当前占位。"
+      }
+    }
   },
   "navigator": {
     "title": "资源管理器",

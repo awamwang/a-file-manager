@@ -10,11 +10,15 @@ export type SideNavItem = {
   later?: boolean;
 };
 
-/** Primary pillars first; Extensions sits second-to-last before Settings; Health is Settings-only. */
+/**
+ * Primary pillars first; AI Add-on after Projects (Core Workspace).
+ * Discovery/Providers (FS) then Extensions; Health is Settings-only.
+ */
 export const SIDE_NAV_ITEMS: SideNavItem[] = [
   { id: "navigator", labelKey: "nav.navigator", to: "/navigator" },
   { id: "work-groups", labelKey: "nav.workGroups", to: "/work-groups" },
   { id: "projects", labelKey: "nav.projects", to: "/projects" },
+  { id: "ai", labelKey: "nav.ai", to: "/ai" },
   { id: "discovery", labelKey: "nav.discovery", to: "/discovery" },
   { id: "providers", labelKey: "nav.providers", to: "/providers" },
   { id: "extensions", labelKey: "nav.extensions", to: "/extensions" },

@@ -86,6 +86,7 @@
     "openExtensions": "拡張機能を開く",
     "openHealth": "設定 · ヘルスを開く",
     "openNavigator": "エクスプローラーを開く",
+    "openAi": "AI を開く",
     "openProjects": "プロジェクトを開く",
     "openProviders": "プロバイダーを開く",
     "openSettings": "設定を開く",
@@ -94,6 +95,32 @@
     "placeholder": "コマンドを入力…",
     "refreshHealth": "ヘルス状態を更新",
     "results": "コマンド結果"
+  },
+  "ai": {
+    "title": "AI",
+    "meta": "AI アドオン — Agent Target、共有 MCP / Skills、モデル Providers",
+    "usageHint": "このシェルは今後の AI 機能の入口です。下記セクションはプレースホルダーです。",
+    "shellStatus": "AI Add-on シェル v{version} · レイヤー {layer}",
+    "sectionPlaceholder": "後日",
+    "sectionReady": "準備完了",
+    "sections": {
+      "agents": {
+        "title": "Agent Target",
+        "body": "Agent Target の検出・有効化・カスタム（Skills / MCP パス）。後続スライスで実装。"
+      },
+      "mcp": {
+        "title": "共有 MCP",
+        "body": "APPDATA AI 設定の共有 MCP カタログとマージ配備。現在はプレースホルダー。"
+      },
+      "skills": {
+        "title": "共有 Skills",
+        "body": "AFM 所有の Skill ライブラリ（SKILL.md 必須）と Junction 配備。現在はプレースホルダー。"
+      },
+      "providers": {
+        "title": "AI Providers",
+        "body": "主流プリセット + Compatible（Base URL / API Key）。ファイルシステム Providers とは別。現在はプレースホルダー。"
+      }
+    }
   },
   "common": {
     "create": "作成",
@@ -203,6 +230,7 @@
     "title": "ヘルス"
   },
   "nav": {
+    "ai": "AI",
     "discovery": "検索",
     "extensions": "拡張機能",
     "health": "ヘルス",

@@ -276,6 +276,7 @@ export const NAV_ICON_BY_ID: Record<string, FluentGlyphId> = {
   providers: "cloud",
   "work-groups": "viewAll",
   projects: "board",
+  ai: "flash",
   extensions: "puzzle",
   settings: "settings",
   health: "heartPulse",

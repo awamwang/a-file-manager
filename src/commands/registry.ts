@@ -68,6 +68,13 @@ export function buildAppCommands(deps: CommandPanelDeps): AppCommand[] {
       run: () => go("/projects"),
     },
     {
+      id: "view.ai",
+      title: t("commands.openAi"),
+      group: "View",
+      keywords: ["ai", "mcp", "skills", "agent", "llm", "人工智能", "智能"],
+      run: () => go("/ai"),
+    },
+    {
       id: "view.extensions",
       title: t("commands.openExtensions"),
       group: "View",

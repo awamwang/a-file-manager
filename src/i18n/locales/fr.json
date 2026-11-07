@@ -86,6 +86,7 @@
     "openExtensions": "Ouvrir les Extensions",
     "openHealth": "Ouvrir Paramètres · Santé",
     "openNavigator": "Ouvrir l’Explorateur",
+    "openAi": "Ouvrir l’IA",
     "openProjects": "Ouvrir les Projets",
     "openProviders": "Ouvrir les Fournisseurs",
     "openSettings": "Ouvrir les Paramètres",
@@ -94,6 +95,32 @@
     "placeholder": "Saisir une commande…",
     "refreshHealth": "Actualiser l’état de santé",
     "results": "Résultats des commandes"
+  },
+  "ai": {
+    "title": "IA",
+    "meta": "Module IA — cibles Agent, MCP / Skills publics et fournisseurs de modèles",
+    "usageHint": "Cette coque accueille les capacités IA à venir. Les sections ci-dessous sont des espaces réservés.",
+    "shellStatus": "Coque module IA v{version} · couche {layer}",
+    "sectionPlaceholder": "Plus tard",
+    "sectionReady": "Prêt",
+    "sections": {
+      "agents": {
+        "title": "Cibles Agent",
+        "body": "Découvrir, activer et personnaliser les cibles Agent (chemins Skills / MCP). À venir dans une tranche ultérieure."
+      },
+      "mcp": {
+        "title": "MCP public",
+        "body": "Catalogue MCP partagé dans la config IA APPDATA ; déploiement par fusion. Espace réservé pour l’instant."
+      },
+      "skills": {
+        "title": "Skills publics",
+        "body": "Bibliothèque de skills AFM (SKILL.md requis) et déploiement par Junction. Espace réservé pour l’instant."
+      },
+      "providers": {
+        "title": "Fournisseurs IA",
+        "body": "Préréglages courants + Compatible (URL de base / clé API). Distinct des fournisseurs de fichiers. Espace réservé pour l’instant."
+      }
+    }
   },
   "common": {
     "create": "Créer",
@@ -203,6 +230,7 @@
     "title": "Santé"
   },
   "nav": {
+    "ai": "IA",
     "discovery": "Recherche",
     "extensions": "Extensions",
     "health": "Santé",

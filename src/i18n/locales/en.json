@@ -109,6 +109,7 @@
     "providers": "Providers",
     "workGroups": "Work Groups",
     "projects": "Projects",
+    "ai": "AI",
     "extensions": "Extensions",
     "settings": "Settings",
     "health": "Health"
@@ -125,6 +126,7 @@
     "openProviders": "Open Providers",
     "openWorkGroups": "Open Work Groups",
     "openProjects": "Open Projects",
+    "openAi": "Open AI",
     "openExtensions": "Open Extensions",
     "openSettings": "Open Settings",
     "openHealth": "Open Settings · Health",
@@ -134,6 +136,32 @@
     "results": "Command results",
     "empty": "No matching commands",
     "hint": "↑↓ to move · Enter to run · Esc to close · Ctrl+Shift+P"
+  },
+  "ai": {
+    "title": "AI",
+    "meta": "AI Add-on — Agent targets, public MCP & Skills, and model providers",
+    "usageHint": "This shell hosts upcoming AI capabilities. Sections below are placeholders until their slices land.",
+    "shellStatus": "AI Add-on shell v{version} · layer {layer}",
+    "sectionPlaceholder": "Later",
+    "sectionReady": "Ready",
+    "sections": {
+      "agents": {
+        "title": "Agent Targets",
+        "body": "Discover, enable, and customize Agent Targets (skills/MCP paths). Coming in a later slice."
+      },
+      "mcp": {
+        "title": "Public MCP",
+        "body": "Shared MCP catalog in APPDATA AI config; merge-deploy into Agent targets. Placeholder for now."
+      },
+      "skills": {
+        "title": "Public Skills",
+        "body": "AFM-owned skill library (SKILL.md required) and Junction deploy. Placeholder for now."
+      },
+      "providers": {
+        "title": "AI Providers",
+        "body": "Mainstream presets plus Compatible (Base URL / API Key). Separate from file-system Providers. Placeholder for now."
+      }
+    }
   },
   "navigator": {
     "title": "Explorer",
