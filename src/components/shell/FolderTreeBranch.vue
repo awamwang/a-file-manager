@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import FluentIcon from "../icons/FluentIcon.vue";
@@ -13,6 +13,13 @@ import {
   type TreeHighlightMode,
 } from "../../state/folderTree";
 import { showHiddenItems } from "../../state/showHidden";
+import { createDropHoverScheduler } from "../../state/dropHover";
+import {
+  acceptFolderDragOver,
+  commitFolderDrop,
+  noticeKeyForDropMode,
+} from "../../state/fileDropSurface";
+import { toastError, toastSuccess } from "../../state/toast";
 
 const props = withDefaults(
   defineProps<{
@@ -31,6 +38,9 @@ const loading = ref(false);
 const children = ref<FolderTreeChild[] | null>(null);
 /** Manual collapse while still under this path — cleared on navigation. */
 const userCollapsed = ref(false);
+/** AIA-242: file-drag highlight on this folder row. */
+const dropOver = ref(false);
+const hoverExpand = createDropHoverScheduler();
 
 const highlight = computed(() =>
   treeRowHighlight(currentPath.value, props.path, props.highlightMode),
@@ -53,6 +63,7 @@ async function loadChildren() {
 
 async function expandAndLoad() {
   expanded.value = true;
+  userCollapsed.value = false;
   if (children.value === null) {
     await loadChildren();
   }
@@ -72,6 +83,46 @@ function open() {
   void navigateTo(props.path);
 }
 
+function onTreeDragOver(event: DragEvent) {
+  const mode = acceptFolderDragOver(event, props.path, { rejectIfSelected: true });
+  if (mode == null) {
+    dropOver.value = false;
+    hoverExpand.clear();
+    return;
+  }
+  dropOver.value = true;
+  if (!expanded.value) {
+    hoverExpand.schedule(props.path, () => {
+      void expandAndLoad();
+    });
+  } else {
+    hoverExpand.clear();
+  }
+}
+
+function onTreeDragLeave(event: DragEvent) {
+  const related = event.relatedTarget as Node | null;
+  const root = event.currentTarget as HTMLElement | null;
+  if (root && related && root.contains(related)) return;
+  dropOver.value = false;
+  hoverExpand.clear();
+}
+
+async function onTreeDrop(event: DragEvent) {
+  dropOver.value = false;
+  hoverExpand.clear();
+  const result = await commitFolderDrop(event, props.path);
+  if (!result.ok) {
+    if (result.error && result.error !== "empty") {
+      toastError(result.error === "failed" ? t("contextMenu.opFailed") : result.error);
+    }
+    return;
+  }
+  if (result.mode && result.count != null) {
+    toastSuccess(t(noticeKeyForDropMode(result.mode), { count: result.count, name: props.label }));
+  }
+}
+
 watch(
   () => currentPath.value,
   async (path, prev) => {
@@ -82,6 +133,10 @@ watch(
   },
   { immediate: true },
 );
+
+onUnmounted(() => {
+  hoverExpand.clear();
+});
 </script>
 
 <template>
@@ -93,8 +148,17 @@ watch(
       'tree-branch--root': depth === 0,
     }"
     :data-depth="depth"
+    data-drop-target="folder-tree"
+    :data-entry-path="path"
   >
-    <div class="tree-row" :style="{ paddingLeft: `${depth * 12}px` }">
+    <div
+      class="tree-row"
+      :class="{ 'tree-row--drop': dropOver }"
+      :style="{ paddingLeft: `${depth * 12}px` }"
+      @dragover="onTreeDragOver"
+      @dragleave="onTreeDragLeave"
+      @drop="onTreeDrop"
+    >
       <button
         type="button"
         class="tree-twist"
@@ -111,6 +175,7 @@ watch(
           'tree-label--selected': highlight === 'selected',
           'tree-label--current': highlight === 'current',
           'tree-label--nested': depth > 0,
+          'tree-label--drop': dropOver,
         }"
         :title="path"
         :aria-current="highlight === 'selected' || highlight === 'current' ? 'page' : undefined"
@@ -229,6 +294,12 @@ watch(
 
 .tree-label--current:hover {
   background: var(--fluent-color-fill-control-hover);
+}
+
+.tree-row--drop .tree-label,
+.tree-label--drop {
+  background: var(--fluent-color-fill-selected);
+  outline: 1px solid var(--fluent-color-stroke-accent-soft);
 }
 
 .tree-note {

@@ -14,6 +14,12 @@ import PromptDialogHost from "./PromptDialogHost.vue";
 import FluentIcon from "../icons/FluentIcon.vue";
 import FolderTree from "./FolderTree.vue";
 import { toastError, toastInfo, toastSuccess } from "../../state/toast";
+import { createDropHoverScheduler } from "../../state/dropHover";
+import {
+  acceptFolderDragOver,
+  commitFolderDrop,
+  noticeKeyForDropMode,
+} from "../../state/fileDropSurface";
 import { SIDE_NAV_ITEMS, isSideNavActive, sideNavIcon } from "../../shell/sideNav";
 import { buildAppCommands } from "../../commands/registry";
 import { toggleCommandPanel } from "../../state/commandPanel";
@@ -1001,8 +1007,12 @@ function onSidenavSplitterKey(event: KeyboardEvent) {
 
 const tabDragFrom = ref<number | null>(null);
 const tabDragOver = ref<number | null>(null);
+/** AIA-242: HTML5 file-drag highlight on a tab (separate from pointer reorder). */
+const tabFileDropOver = ref<number | null>(null);
 /** Suppress click / +new-tab after a real drag (capture-loss can retarget click onto +). */
 const tabDragMoved = ref(false);
+/** AIA-242: dwell then activate the hovered tab while file-dragging. */
+const tabHoverActivate = createDropHoverScheduler();
 
 /** Pointer-based reorder — HTML5 DnD is unreliable in WebView2 chrome areas. */
 const TAB_DRAG_THRESHOLD_PX = 6;
@@ -1014,6 +1024,68 @@ let tabPointerStartY = 0;
 let tabPointerFromId: string | null = null;
 let tabReorderBusy = false;
 let tabClickSuppressTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearTabFileDropHover() {
+  tabFileDropOver.value = null;
+  tabHoverActivate.clear();
+}
+
+function tabAcceptsFileDrop(path: string | null | undefined): boolean {
+  if (!path || !path.trim()) return false;
+  if (isGuidePath(path) || isRecyclePath(path)) return false;
+  return true;
+}
+
+function onTabFileDragOver(event: DragEvent, groupIndex: number) {
+  // Pointer tab-reorder owns the gesture — don't fight it.
+  if (tabPointerId != null) return;
+  const tab = stripTabs.value.find((item) => item.groupIndex === groupIndex);
+  if (!tab || !tabAcceptsFileDrop(tab.path)) return;
+  const mode = acceptFolderDragOver(event, tab.path);
+  if (mode == null) {
+    clearTabFileDropHover();
+    return;
+  }
+  tabFileDropOver.value = groupIndex;
+  if (liveOpenState.value.currentTabGroupIndex !== groupIndex) {
+    tabHoverActivate.schedule(`tab:${groupIndex}`, () => {
+      void switchNavigatorTab(groupIndex);
+    });
+  } else {
+    tabHoverActivate.clear();
+  }
+}
+
+function onTabFileDragLeave(event: DragEvent, groupIndex: number) {
+  const related = event.relatedTarget as Node | null;
+  const root = event.currentTarget as HTMLElement | null;
+  if (root && related && root.contains(related)) return;
+  if (tabFileDropOver.value === groupIndex) {
+    clearTabFileDropHover();
+  }
+}
+
+async function onTabFileDrop(event: DragEvent, groupIndex: number) {
+  clearTabFileDropHover();
+  const tab = stripTabs.value.find((item) => item.groupIndex === groupIndex);
+  if (!tab || !tabAcceptsFileDrop(tab.path)) return;
+  const result = await commitFolderDrop(event, tab.path);
+  if (!result.ok) {
+    if (result.error && result.error !== "empty") {
+      toastError(result.error === "failed" ? t("contextMenu.opFailed") : result.error);
+    }
+    return;
+  }
+  if (result.mode && result.count != null) {
+    const name = tab.name || tabLabel(tab.path);
+    toastSuccess(t(noticeKeyForDropMode(result.mode), { count: result.count, name }));
+  }
+  if (liveOpenState.value.currentTabGroupIndex !== groupIndex) {
+    await switchNavigatorTab(groupIndex);
+  } else {
+    refreshActiveListing();
+  }
+}
 
 function clearTabPointerListeners() {
   window.removeEventListener("pointermove", onTabPointerMove);
@@ -1208,6 +1280,7 @@ onUnmounted(() => {
   document.removeEventListener("pointerdown", onDocumentPointerDown, true);
   document.removeEventListener("visibilitychange", onVisibilityFlush);
   onSidenavResizeEnd();
+  clearTabFileDropHover();
   void flushOpenStatePersist();
   unregisterShellShortcuts();
   for (const unlisten of unlisteners) {
@@ -1348,15 +1421,21 @@ onUnmounted(() => {
               'tab--active': liveOpenState.currentTabGroupIndex === tab.groupIndex,
               'tab--pinned': isTabPinned(tab.id),
               'tab--drag-over': tabDragOver === tab.groupIndex,
+              'tab--file-drop': tabFileDropOver === tab.groupIndex,
               'tab--dragging': tabDragFrom === tab.groupIndex && tabDragMoved,
             }"
             role="tab"
             :data-tab-group-index="tab.groupIndex"
+            data-drop-target="tab"
+            :data-entry-path="tab.path"
             :aria-selected="liveOpenState.currentTabGroupIndex === tab.groupIndex"
             :title="tab.path"
             @click="onTabClick(tab.groupIndex)"
             @dblclick.stop="onToggleTabPin(tab.id)"
             @pointerdown="onTabPointerDown($event, tab.groupIndex)"
+            @dragover="onTabFileDragOver($event, tab.groupIndex)"
+            @dragleave="onTabFileDragLeave($event, tab.groupIndex)"
+            @drop="onTabFileDrop($event, tab.groupIndex)"
           >
             <button
               type="button"
@@ -2434,6 +2513,12 @@ onUnmounted(() => {
 .tab--drag-over {
   outline: 2px solid var(--fluent-color-stroke-accent-soft, var(--fluent-color-fill-accent));
   outline-offset: -2px;
+}
+
+.tab--file-drop {
+  outline: 2px solid var(--fluent-color-stroke-accent-soft, var(--fluent-color-fill-accent));
+  outline-offset: -2px;
+  background: var(--fluent-color-fill-selected);
 }
 
 .tab--dragging {

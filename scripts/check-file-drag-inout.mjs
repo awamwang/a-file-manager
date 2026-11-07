@@ -25,12 +25,31 @@ assert.ok(dropPaths.includes("setOutboundPathPayload"), "outbound uri-list compa
 assert.ok(dropMode.includes('"link"'), "dropMode includes link");
 assert.ok(dropMode.includes("alt"), "dropMode honors Alt for link");
 
-assert.ok(nav.includes("pathsFromDataTransfer"), "Navigator uses drop path helper");
+assert.ok(
+  nav.includes("pathsFromDataTransfer") || nav.includes("fileDropSurface"),
+  "Navigator uses drop path helper (direct or shared surface)",
+);
 assert.ok(nav.includes("onListDrop"), "list background accepts drops");
-assert.ok(nav.includes("dataTransferLooksExternal"), "external vs in-app detection");
+assert.ok(
+  nav.includes("dataTransferLooksExternal") || nav.includes("previewDropMode"),
+  "external vs in-app detection (direct or shared preview)",
+);
 assert.ok(nav.includes("armNativeFileDragOut"), "keeps OLE drag-out");
-assert.ok(nav.includes("linkedInto"), "link drop notice");
+assert.ok(
+  nav.includes("linkedInto") || nav.includes("noticeKeyForDropMode"),
+  "link drop notice",
+);
 assert.ok(nav.includes("secondaryListRoot"), "dual pane present");
+assert.ok(surfaceHasSharedHelpers(), "AIA-242 shared drop surface present");
+
+function surfaceHasSharedHelpers() {
+  const surface = read("src/state/fileDropSurface.ts");
+  return (
+    surface.includes("commitFolderDrop") &&
+    surface.includes("acceptFolderDragOver") &&
+    surface.includes("pathsFromDataTransfer")
+  );
+}
 assert.ok(
   /secondaryListRoot[\s\S]*@dragstart="onDragStart\(\$event, entry\)"/.test(nav) ||
     (nav.includes("secondaryEntries") &&

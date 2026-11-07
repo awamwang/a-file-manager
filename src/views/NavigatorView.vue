@@ -44,7 +44,6 @@ import {
   refreshClipboardFromSystem,
   renameEntry,
   setClipboard,
-  transferEntries,
 } from "../state/fileClipboard";
 import {
   recordCopyUndo,
@@ -120,12 +119,14 @@ import {
 } from "../state/navigatorFilter";
 import { toastError, toastInfo, toastSuccess } from "../state/toast";
 import { armNativeFileDragOut } from "../state/fileDragOut";
+import { setOutboundPathPayload } from "../state/dropPaths";
 import {
-  dataTransferLooksExternal,
-  pathsFromDataTransfer,
-  setOutboundPathPayload,
-} from "../state/dropPaths";
-import { dropTransferMode } from "../state/dropMode";
+  acceptFolderDragOver,
+  commitFolderDrop,
+  noticeKeyForDropMode,
+  previewDropMode,
+  previewSourcePaths,
+} from "../state/fileDropSurface";
 import {
   dismissPreviewBridge,
   invokePreviewBridge,
@@ -1261,35 +1262,10 @@ function onDragStart(event: DragEvent, entry: NavigatorEntry) {
   armNativeFileDragOut(paths);
 }
 
-function dropModeForEvent(
-  event: DragEvent,
-  destPath: string,
-  sourcePaths: string[],
-): "copy" | "move" | "link" {
-  const external = dataTransferLooksExternal(event.dataTransfer);
-  if (external && sourcePaths.length === 0) {
-    // Paths often unavailable until drop — modifiers still apply.
-    if (event.altKey) return "link";
-    if (event.shiftKey) return "move";
-    return "copy";
-  }
-  return dropTransferMode(sourcePaths, destPath, {
-    ctrl: event.ctrlKey,
-    shift: event.shiftKey,
-    alt: event.altKey,
-  });
-}
-
 function onDragOver(event: DragEvent, entry: NavigatorEntry) {
   if (entry.kind !== "dir") return;
-  if (isSelected(entry.path)) return;
-  event.preventDefault();
-  event.stopPropagation();
-  const previewSources = dataTransferLooksExternal(event.dataTransfer)
-    ? []
-    : selectionPaths();
-  const mode = dropModeForEvent(event, entry.path, previewSources);
-  if (event.dataTransfer) event.dataTransfer.dropEffect = mode;
+  const mode = acceptFolderDragOver(event, entry.path, { rejectIfSelected: true });
+  if (mode == null) return;
   dragOverPath.value = entry.path;
 }
 
@@ -1303,10 +1279,7 @@ function onListDragOver(event: DragEvent, destPath: string | null | undefined) {
   if (!destPath || isGuidePath(destPath) || isRecyclePath(destPath)) return;
   // Row handlers stopPropagation when targeting a folder; background accepts drops.
   event.preventDefault();
-  const previewSources = dataTransferLooksExternal(event.dataTransfer)
-    ? []
-    : selectionPaths();
-  const mode = dropModeForEvent(event, destPath, previewSources);
+  const mode = previewDropMode(event, destPath, previewSourcePaths(event));
   if (event.dataTransfer) event.dataTransfer.dropEffect = mode;
   if (!dragOverPath.value) dragOverPath.value = destPath;
 }
@@ -1324,32 +1297,19 @@ async function transferDroppedPaths(
   destPath: string,
   destLabel: string,
 ) {
-  event.preventDefault();
-  event.stopPropagation();
   dragOverPath.value = null;
-  const paths = pathsFromDataTransfer(event.dataTransfer).filter((p) => p !== destPath);
-  if (!paths.length) return;
-  try {
-    const mode = dropModeForEvent(event, destPath, paths);
-    const result = await transferEntries(paths, destPath, mode);
-    if (!result.ok) {
-      onNotice(result.error ?? t("contextMenu.opFailed"));
-      return;
+  const result = await commitFolderDrop(event, destPath);
+  if (!result.ok) {
+    if (result.error && result.error !== "empty") {
+      onNotice(result.error === "failed" ? t("contextMenu.opFailed") : result.error, "error");
     }
-    if (mode === "copy") recordCopyUndo(result.paths);
-    else if (mode === "move") recordMoveUndo(paths, result.paths);
-    const noticeKey =
-      mode === "copy"
-        ? "navigator.copiedInto"
-        : mode === "move"
-          ? "navigator.movedInto"
-          : "navigator.linkedInto";
-    onNotice(t(noticeKey, { count: result.paths.length, name: destLabel }));
-    clearSelection();
-    await refreshListing();
-  } catch (err) {
-    onNotice(err instanceof Error ? err.message : String(err));
+    return;
   }
+  if (result.mode && result.count != null) {
+    onNotice(t(noticeKeyForDropMode(result.mode), { count: result.count, name: destLabel }));
+  }
+  // Dual-pane secondary listing is outside refreshActiveListing — keep prior behavior.
+  await refreshListing();
 }
 
 async function onDrop(event: DragEvent, entry: NavigatorEntry) {
