@@ -149,9 +149,9 @@
     "sectionPlaceholder": "Later",
     "sectionReady": "Ready",
     "sections": {
-      "agents": {
-        "title": "Agent Targets",
-        "body": "Discover, enable, and customize unified Agent Targets (global/project Skills dirs and MCP paths)."
+      "providers": {
+        "title": "AI Providers",
+        "body": "Mainstream presets plus Compatible (Base URL / API Key). Stored in APPDATA AI config — separate from file-system Providers. No billing panel."
       },
       "mcp": {
         "title": "Public MCP",
@@ -161,9 +161,13 @@
         "title": "Public Skills",
         "body": "AFM-owned skill library under APPDATA. Import requires a root SKILL.md. Junction deploy is a later slice."
       },
-      "providers": {
-        "title": "AI Providers",
-        "body": "Mainstream presets plus Compatible (Base URL / API Key). Stored in APPDATA AI config — separate from file-system Providers. No billing panel."
+      "agents": {
+        "title": "Agent Targets",
+        "body": "Discover, enable, and customize unified Agent Targets (global/project Skills dirs and MCP paths)."
+      },
+      "harness": {
+        "title": "Harness / Superpower",
+        "body": "Explicit Project-scoped init that writes AGENTS.md (and optional SDD) into a Workspace. Not part of Core create."
       }
     },
     "agents": {

@@ -26,6 +26,7 @@ const { t } = useI18n();
 const status = ref<SkillsLibraryStatus | null>(null);
 const error = ref<string | null>(null);
 const loading = ref(false);
+const selectedName = ref<string | null>(null);
 const sourcePath = ref("");
 const importName = ref("");
 const rootDraft = ref("");
@@ -59,11 +60,24 @@ async function refresh() {
   try {
     status.value = await invoke<SkillsLibraryStatus>("ai_skills_library_get");
     rootDraft.value = status.value.root;
+    if (
+      selectedName.value &&
+      !status.value.skills.some((skill) => skill.name === selectedName.value)
+    ) {
+      selectedName.value = null;
+    }
+    if (!selectedName.value && status.value.skills.length) {
+      selectedName.value = status.value.skills[0]?.name ?? null;
+    }
   } catch (err) {
     error.value = mapError(err);
   } finally {
     loading.value = false;
   }
+}
+
+function selectSkill(name: string) {
+  selectedName.value = name;
 }
 
 async function saveRoot() {
@@ -114,6 +128,9 @@ async function removeSkill(name: string) {
   error.value = null;
   try {
     status.value = await invoke<SkillsLibraryStatus>("ai_skills_remove", { name });
+    if (selectedName.value === name) {
+      selectedName.value = status.value.skills[0]?.name ?? null;
+    }
     toastSuccess(t("ai.skills.noticeRemoved"));
   } catch (err) {
     error.value = mapError(err);
@@ -263,20 +280,45 @@ onMounted(() => {
       <p class="skills-summary">
         {{ t("ai.skills.summary", { count: status.skills.length }) }}
       </p>
-      <ul v-if="status.skills.length" class="skills-list">
-        <li v-for="skill in status.skills" :key="skill.name" class="skills-list-item">
+      <ul
+        v-if="status.skills.length"
+        class="skills-list"
+        role="listbox"
+        :aria-label="t('ai.sections.skills.title')"
+      >
+        <li
+          v-for="skill in status.skills"
+          :key="skill.name"
+          class="skills-list-item"
+          :class="{ 'skills-list-item--active': skill.name === selectedName }"
+          role="option"
+          :aria-selected="skill.name === selectedName"
+          @click="selectSkill(skill.name)"
+        >
           <div class="skills-list-main">
             <strong>{{ skill.name }}</strong>
             <span class="skills-list-meta">{{ skill.path }}</span>
           </div>
           <div class="skills-row">
-            <button type="button" class="fluent-control" @click="deploySkill(skill.name)">
+            <button
+              type="button"
+              class="fluent-control"
+              @click.stop="deploySkill(skill.name)"
+            >
               {{ t("ai.skills.deploy") }}
             </button>
-            <button type="button" class="fluent-control" @click="undeploySkill(skill.name)">
+            <button
+              type="button"
+              class="fluent-control"
+              @click.stop="undeploySkill(skill.name)"
+            >
               {{ t("ai.skills.undeploy") }}
             </button>
-            <button type="button" class="fluent-control" @click="removeSkill(skill.name)">
+            <button
+              type="button"
+              class="fluent-control"
+              @click.stop="removeSkill(skill.name)"
+            >
               {{ t("common.remove") }}
             </button>
           </div>
@@ -349,8 +391,20 @@ onMounted(() => {
   align-items: center;
   gap: var(--fluent-space-sm);
   padding: var(--fluent-space-sm) var(--fluent-space-md);
-  border-radius: var(--fluent-radius-medium);
-  background: var(--fluent-color-subtle-background);
+  border-radius: var(--fluent-radius-md);
+  background: var(--fluent-color-fill-subtle);
+  color: var(--fluent-color-text-primary);
+  cursor: pointer;
+}
+
+.skills-list-item:hover {
+  background: var(--fluent-color-fill-control-hover);
+}
+
+.skills-list-item--active {
+  background: var(--fluent-color-fill-selected);
+  font-weight: var(--fluent-font-weight-semibold);
+  box-shadow: inset 3px 0 0 var(--fluent-color-stroke-accent-soft);
 }
 
 .skills-list-main {

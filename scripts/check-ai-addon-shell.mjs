@@ -69,20 +69,43 @@ assert.ok(deploy.includes("mklink"), "A4 Junction deploy via mklink /J");
 assert.ok(deploy.includes("search_project_skills"), "project skill search");
 
 assert.ok(index.includes("AI_MENU_SECTIONS"), "src/ai public export");
+assert.ok(sections.includes('id: "providers"'));
+assert.ok(sections.includes('id: "mcp"'));
+assert.ok(sections.includes('id: "skills"'));
 assert.ok(sections.includes('id: "agents"'));
+assert.ok(sections.includes('id: "harness"'));
+assert.ok(
+  rustAi.includes('"providers"') &&
+    rustAi.includes('"mcp"') &&
+    rustAi.includes('"skills"') &&
+    rustAi.includes('"agents"') &&
+    rustAi.includes('"harness"'),
+  "Rust AI section ids include Providers/MCP/Skills/Agents/Harness",
+);
+// AIA-263: left nav + Fluent selected UI (not purple-on-white / outline-only)
+assert.ok(view.includes('role="tablist"'), "AI settings left nav tablist");
+assert.ok(view.includes("ai-nav-item--active"), "section nav selected class");
+assert.ok(view.includes("fluent-color-fill-selected"), "Fluent selected fill on nav");
+assert.ok(view.includes("data-ai-nav"), "nav items expose section ids");
 assert.ok(view.includes("AgentTargetsPanel"));
 assert.ok(view.includes("SkillsLibraryPanel"));
 assert.ok(panel.includes("ai_agent_targets_list"));
 assert.ok(panel.includes("mcpUsagePrompt"));
+assert.ok(panel.includes("agents-list-item--active"), "agent row selected class");
+assert.ok(panel.includes("fluent-color-fill-selected"), "agent selected uses Fluent fill");
 assert.ok(skillsPanel.includes("ai_skills_import"));
 assert.ok(skillsPanel.includes("ai_skills_deploy"));
 assert.ok(skillsPanel.includes("ai_skills_search_project"));
+assert.ok(skillsPanel.includes("skills-list-item--active"), "skill row selected class");
+assert.ok(skillsPanel.includes("fluent-color-fill-selected"), "skill selected uses Fluent fill");
 const mcpRs = read("src-tauri/src/ai/mcp.rs");
 assert.ok(mcpRs.includes("afm__"), "managed MCP key prefix");
 assert.ok(mcpRs.includes("mcpServers"), "mcpServers merge target");
 assert.ok(view.includes("McpCatalogPanel"));
 const mcpPanel = read("src/ai/McpCatalogPanel.vue");
 assert.ok(mcpPanel.includes("ai_mcp_deploy"));
+assert.ok(mcpPanel.includes("mcp-list-item--active"), "mcp row selected class");
+assert.ok(mcpPanel.includes("fluent-color-fill-selected"), "mcp selected uses Fluent fill");
 assert.ok(view.includes("HarnessInitPanel"));
 const harness = read("src-tauri/src/ai/harness.rs");
 assert.ok(harness.includes("AGENTS.md"), "writes AGENTS.md");
@@ -99,6 +122,11 @@ assert.ok(providersRs.includes("No billing"), "documents no billing panel");
 const providersPanel = read("src/ai/ProvidersPanel.vue");
 assert.ok(providersPanel.includes("ai_providers_list"));
 assert.ok(providersPanel.includes("ai_providers_upsert_compatible"));
+assert.ok(providersPanel.includes("row--active"), "provider row selected class");
+assert.ok(
+  providersPanel.includes("fluent-color-fill-selected"),
+  "provider selected uses Fluent fill",
+);
 const openEditor = read("src-tauri/src/ai/open_editor.rs");
 assert.ok(openEditor.includes("CONTEXT.md"), "Qoder opens CONTEXT.md");
 assert.ok(openEditor.includes("ide_open_path"), "reuses ide_launch");
@@ -108,6 +136,12 @@ assert.ok(projectsView.includes("openInEditor"));
 assert.ok(router.includes('path: "/ai"'));
 assert.ok(sideNav.includes('id: "ai"'));
 assert.ok(registry.includes('id: "view.ai"'));
+const enLocale = read("src/i18n/locales/en.json");
+assert.ok(enLocale.includes('"harness"'), "en locale has harness section");
+assert.ok(
+  !view.includes("#7c3aed") && !view.includes("purple"),
+  "AI settings must not use purple-on-white accents",
+);
 
 const projectsMod = read("src-tauri/src/projects/mod.rs");
 assert.ok(
@@ -129,5 +163,5 @@ if (cargo.stderr) process.stderr.write(cargo.stderr);
 assert.equal(cargo.status, 0, "cargo test ai:: failed");
 
 console.log(
-  "AI Add-on checks OK (A1–A8: shell · agents · skills · junction · MCP · harness · providers · open editor).",
+  "AI Add-on checks OK (A1–A8 + AIA-263: shell · left-nav sections · selected Fluent UI · agents · skills · junction · MCP · harness · providers · open editor).",
 );

@@ -149,9 +149,9 @@
     "sectionPlaceholder": "稍后",
     "sectionReady": "就绪",
     "sections": {
-      "agents": {
-        "title": "Agent Target",
-        "body": "发现 / 启用 / 自定义统一 Agent Target（全局与项目相对的 Skills 目录、MCP 路径）。"
+      "providers": {
+        "title": "AI Providers",
+        "body": "主流完整预设 + Compatible（Base URL / API Key）。存于 APPDATA AI 配置，与文件系统 Providers 分开。无计费面板。"
       },
       "mcp": {
         "title": "公共 MCP",
@@ -161,9 +161,13 @@
         "title": "公共 Skills",
         "body": "AFM 自持 Skill 库（APPDATA）。入库要求根目录有 SKILL.md。Junction 部署为后续切片。"
       },
-      "providers": {
-        "title": "AI Providers",
-        "body": "主流完整预设 + Compatible（Base URL / API Key）。存于 APPDATA AI 配置，与文件系统 Providers 分开。无计费面板。"
+      "agents": {
+        "title": "Agent Target",
+        "body": "发现 / 启用 / 自定义统一 Agent Target（全局与项目相对的 Skills 目录、MCP 路径）。"
+      },
+      "harness": {
+        "title": "Harness / Superpower",
+        "body": "显式、按 Project 作用域初始化：写入 AGENTS.md（可选 SDD）到 Workspace。不属于 Core 创建流程。"
       }
     },
     "agents": {

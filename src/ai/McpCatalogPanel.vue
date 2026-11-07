@@ -161,12 +161,14 @@ onMounted(() => {
     </div>
 
     <div class="mcp-layout">
-      <ul class="mcp-list">
+      <ul class="mcp-list" role="listbox" :aria-label="t('ai.sections.mcp.title')">
         <li
           v-for="entry in document?.mcpCatalog ?? []"
           :key="entry.id"
           class="mcp-list-item"
           :class="{ 'mcp-list-item--active': entry.id === selectedId }"
+          role="option"
+          :aria-selected="entry.id === selectedId"
           @click="selectEntry(entry)"
         >
           <strong>{{ entry.displayName }}</strong>
@@ -260,12 +262,18 @@ onMounted(() => {
   flex-direction: column;
   gap: 2px;
   padding: var(--fluent-space-sm) var(--fluent-space-md);
-  border-radius: var(--fluent-radius-medium);
-  background: var(--fluent-color-subtle-background);
+  border-radius: var(--fluent-radius-md);
+  background: var(--fluent-color-fill-subtle);
+  color: var(--fluent-color-text-primary);
   cursor: pointer;
 }
+.mcp-list-item:hover {
+  background: var(--fluent-color-fill-control-hover);
+}
 .mcp-list-item--active {
-  outline: 1px solid var(--fluent-color-accent);
+  background: var(--fluent-color-fill-selected);
+  font-weight: var(--fluent-font-weight-semibold);
+  box-shadow: inset 3px 0 0 var(--fluent-color-stroke-accent-soft);
 }
 .mcp-detail {
   padding: var(--fluent-space-md) var(--fluent-space-lg);

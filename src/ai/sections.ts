@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
- * AI main-menu section model (AIA-214 / A1).
+ * AI main-menu section model (AIA-214 / A1 · AIA-263).
  * Order matches Rust `AI_MENU_SECTION_IDS` — keep in sync.
  */
 import type { AiMenuSectionDef } from "./types";
 
 export const AI_MENU_SECTIONS: readonly AiMenuSectionDef[] = [
   {
-    id: "agents",
-    titleKey: "ai.sections.agents.title",
-    bodyKey: "ai.sections.agents.body",
-    icon: "viewAll",
+    id: "providers",
+    titleKey: "ai.sections.providers.title",
+    bodyKey: "ai.sections.providers.body",
+    icon: "cloud",
   },
   {
     id: "mcp",
@@ -25,10 +25,16 @@ export const AI_MENU_SECTIONS: readonly AiMenuSectionDef[] = [
     icon: "link",
   },
   {
-    id: "providers",
-    titleKey: "ai.sections.providers.title",
-    bodyKey: "ai.sections.providers.body",
-    icon: "cloud",
+    id: "agents",
+    titleKey: "ai.sections.agents.title",
+    bodyKey: "ai.sections.agents.body",
+    icon: "viewAll",
+  },
+  {
+    id: "harness",
+    titleKey: "ai.sections.harness.title",
+    bodyKey: "ai.sections.harness.body",
+    icon: "flash",
   },
 ] as const;
 

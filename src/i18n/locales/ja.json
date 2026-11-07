@@ -108,9 +108,9 @@
     "sectionPlaceholder": "後日",
     "sectionReady": "準備完了",
     "sections": {
-      "agents": {
-        "title": "Agent Target",
-        "body": "統一 Agent Target の検出・有効化・カスタム（グローバル/プロジェクト相対の Skills と MCP パス）。"
+      "providers": {
+        "title": "AI Providers",
+        "body": "Mainstream presets plus Compatible (Base URL / API Key). Stored in APPDATA AI config — separate from file-system Providers. No billing panel."
       },
       "mcp": {
         "title": "共有 MCP",
@@ -120,9 +120,13 @@
         "title": "共有 Skills",
         "body": "AFM 所有の Skill ライブラリ（APPDATA）。取り込みにはルートの SKILL.md が必要。Junction 配備は後続。"
       },
-      "providers": {
-        "title": "AI Providers",
-        "body": "Mainstream presets plus Compatible (Base URL / API Key). Stored in APPDATA AI config — separate from file-system Providers. No billing panel."
+      "agents": {
+        "title": "Agent Target",
+        "body": "統一 Agent Target の検出・有効化・カスタム（グローバル/プロジェクト相対の Skills と MCP パス）。"
+      },
+      "harness": {
+        "title": "Harness / Superpower",
+        "body": "Project 単位で AGENTS.md（任意で SDD）を Workspace に書き込む明示的な初期化。Core 作成には含めません。"
       }
     },
     "agents": {

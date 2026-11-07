@@ -108,9 +108,9 @@
     "sectionPlaceholder": "Plus tard",
     "sectionReady": "Prêt",
     "sections": {
-      "agents": {
-        "title": "Cibles Agent",
-        "body": "Découvrir, activer et personnaliser des cibles Agent unifiées (répertoires Skills et chemins MCP globaux / relatifs au projet)."
+      "providers": {
+        "title": "Fournisseurs IA",
+        "body": "Mainstream presets plus Compatible (Base URL / API Key). Stored in APPDATA AI config — separate from file-system Providers. No billing panel."
       },
       "mcp": {
         "title": "MCP public",
@@ -120,9 +120,13 @@
         "title": "Skills publics",
         "body": "Bibliothèque de skills AFM sous APPDATA. L’import exige SKILL.md à la racine. Le déploiement Junction vient plus tard."
       },
-      "providers": {
-        "title": "Fournisseurs IA",
-        "body": "Mainstream presets plus Compatible (Base URL / API Key). Stored in APPDATA AI config — separate from file-system Providers. No billing panel."
+      "agents": {
+        "title": "Cibles Agent",
+        "body": "Découvrir, activer et personnaliser des cibles Agent unifiées (répertoires Skills et chemins MCP globaux / relatifs au projet)."
+      },
+      "harness": {
+        "title": "Harness / Superpower",
+        "body": "Initialisation explicite au scope Project : écrit AGENTS.md (SDD optionnel) dans un Workspace. Hors création Core."
       }
     },
     "agents": {

@@ -32,9 +32,11 @@ use tauri::AppHandle;
 use tauri::Manager;
 
 /// Stable section ids for the AI main menu shell (UI + future IPC).
-pub const AI_MENU_SECTION_IDS: &[&str] = &["agents", "mcp", "skills", "providers"];
+/// Order: Providers → MCP → Skills → Agents → Harness (AIA-263 left nav).
+pub const AI_MENU_SECTION_IDS: &[&str] =
+    &["providers", "mcp", "skills", "agents", "harness"];
 
-pub const AI_ADDON_SHELL_VERSION: u32 = 6;
+pub const AI_ADDON_SHELL_VERSION: u32 = 7;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -60,7 +62,7 @@ fn config_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
 }
 
 fn section_ready(id: &str) -> bool {
-    matches!(id, "agents" | "skills" | "mcp" | "providers")
+    matches!(id, "providers" | "mcp" | "skills" | "agents" | "harness")
 }
 
 /// Shell probe for the AI main menu.
@@ -394,9 +396,17 @@ mod tests {
         let status = ai_addon_status();
         assert_eq!(status.layer, "ai-addon");
         assert_eq!(status.shell_version, AI_ADDON_SHELL_VERSION);
-        for id in ["agents", "skills", "mcp", "providers"] {
+        assert_eq!(
+            status
+                .sections
+                .iter()
+                .map(|s| s.id.as_str())
+                .collect::<Vec<_>>(),
+            AI_MENU_SECTION_IDS.to_vec()
+        );
+        for id in AI_MENU_SECTION_IDS {
             assert!(
-                status.sections.iter().find(|s| s.id == id).unwrap().ready,
+                status.sections.iter().find(|s| s.id == *id).unwrap().ready,
                 "{id} should be ready"
             );
         }

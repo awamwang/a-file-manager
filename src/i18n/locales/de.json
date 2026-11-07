@@ -108,9 +108,9 @@
     "sectionPlaceholder": "Später",
     "sectionReady": "Bereit",
     "sections": {
-      "agents": {
-        "title": "Agent Targets",
-        "body": "Einheitliche Agent Targets entdecken, aktivieren und anpassen (globale/projektrelative Skills- und MCP-Pfade)."
+      "providers": {
+        "title": "AI-Provider",
+        "body": "Mainstream presets plus Compatible (Base URL / API Key). Stored in APPDATA AI config — separate from file-system Providers. No billing panel."
       },
       "mcp": {
         "title": "Öffentliches MCP",
@@ -120,9 +120,13 @@
         "title": "Öffentliche Skills",
         "body": "AFM-eigene Skill-Bibliothek unter APPDATA. Import erfordert SKILL.md im Wurzelordner. Junction-Deploy folgt später."
       },
-      "providers": {
-        "title": "AI-Provider",
-        "body": "Mainstream presets plus Compatible (Base URL / API Key). Stored in APPDATA AI config — separate from file-system Providers. No billing panel."
+      "agents": {
+        "title": "Agent Targets",
+        "body": "Einheitliche Agent Targets entdecken, aktivieren und anpassen (globale/projektrelative Skills- und MCP-Pfade)."
+      },
+      "harness": {
+        "title": "Harness / Superpower",
+        "body": "Explizite Project-bezogene Initialisierung: schreibt AGENTS.md (optional SDD) in einen Workspace. Nicht Teil der Core-Erstellung."
       }
     },
     "agents": {

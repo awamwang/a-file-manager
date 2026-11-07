@@ -169,13 +169,14 @@ onMounted(() => {
       </button>
     </div>
 
-    <ul class="list" role="list">
+    <ul class="list" role="listbox" :aria-label="t('ai.sections.providers.title')">
       <li
         v-for="row in providers"
         :key="row.id"
         class="row"
-        :class="{ active: selectedId === row.id }"
-        role="listitem"
+        :class="{ 'row--active': selectedId === row.id }"
+        role="option"
+        :aria-selected="selectedId === row.id"
         @click="select(row)"
       >
         <div class="row-main">
@@ -273,12 +274,19 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: var(--fluent-space-sm);
-  padding: 0.45rem 0.6rem;
-  border-radius: 6px;
+  padding: var(--fluent-space-sm) var(--fluent-space-md);
+  border-radius: var(--fluent-radius-md);
+  background: var(--fluent-color-fill-subtle);
+  color: var(--fluent-color-text-primary);
   cursor: pointer;
 }
-.row.active {
-  background: var(--fluent-subtle-fill, rgba(0, 0, 0, 0.06));
+.row:hover {
+  background: var(--fluent-color-fill-control-hover);
+}
+.row--active {
+  background: var(--fluent-color-fill-selected);
+  font-weight: var(--fluent-font-weight-semibold);
+  box-shadow: inset 3px 0 0 var(--fluent-color-stroke-accent-soft);
 }
 .row-main {
   display: flex;

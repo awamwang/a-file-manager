@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-/** AI Add-on front-end types (AIA-214 / A1 · AIA-215 / A2). Core FM must not import these for Workspace ops. */
+/** AI Add-on front-end types (AIA-214 / A1 · AIA-215 / A2 · AIA-263). Core FM must not import these for Workspace ops. */
 
-export type AiMenuSectionId = "agents" | "mcp" | "skills" | "providers";
+export type AiMenuSectionId = "providers" | "mcp" | "skills" | "agents" | "harness";
 
 export type AiMenuSectionStatus = {
   id: AiMenuSectionId | string;
@@ -19,7 +19,7 @@ export type AiMenuSectionDef = {
   titleKey: string;
   bodyKey: string;
   /** Glyph for the section tile (Fluent catalog id). */
-  icon: "viewAll" | "puzzle" | "link" | "cloud";
+  icon: "cloud" | "puzzle" | "link" | "viewAll" | "flash";
 };
 
 /** Agent Target registry row (ADR 0006). */

@@ -413,13 +413,20 @@ onMounted(() => {
   align-items: center;
   gap: var(--fluent-space-sm);
   padding: var(--fluent-space-sm) var(--fluent-space-md);
-  border-radius: var(--fluent-radius-medium);
-  background: var(--fluent-color-subtle-background);
+  border-radius: var(--fluent-radius-md);
+  background: var(--fluent-color-fill-subtle);
+  color: var(--fluent-color-text-primary);
   cursor: pointer;
 }
 
+.agents-list-item:hover {
+  background: var(--fluent-color-fill-control-hover);
+}
+
 .agents-list-item--active {
-  outline: 1px solid var(--fluent-color-accent);
+  background: var(--fluent-color-fill-selected);
+  font-weight: var(--fluent-font-weight-semibold);
+  box-shadow: inset 3px 0 0 var(--fluent-color-stroke-accent-soft);
 }
 
 .agents-list-main {
