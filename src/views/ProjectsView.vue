@@ -682,6 +682,28 @@ async function openAllLinks() {
   }
 }
 
+/**
+ * AIA-253 — open the Project Workspace folder on disk (OS Explorer).
+ * Prefer `open_path_default` over plugin-opener for arbitrary FS paths (ACL).
+ */
+async function openWorkspaceFolder() {
+  if (!selected.value?.path) return;
+  error.value = null;
+  try {
+    const result = await invoke<{ success: boolean; error: string | null }>(
+      "open_path_default",
+      { path: selected.value.path },
+    );
+    if (!result.success) {
+      error.value = result.error || t("projects.openWorkspaceFailed");
+      return;
+    }
+    toastSuccess(t("projects.noticeOpenedWorkspace"));
+  } catch (err) {
+    error.value = mapProjectError(err);
+  }
+}
+
 /** AIA-221 / A8 — Cursor opens Workspace dir; Qoder opens CONTEXT.md. */
 async function openInEditor(ideId: "cursor" | "qoder") {
   if (!selected.value?.path) return;
@@ -898,6 +920,14 @@ onUnmounted(() => {
         <div class="actions">
           <button class="fluent-control fluent-control--accent" type="button" @click="openAllLinks">
             {{ t("projects.openAllLinks") }}
+          </button>
+          <button
+            class="fluent-control"
+            type="button"
+            :title="selected.path || t('projects.openWorkspaceFolderHint')"
+            @click="openWorkspaceFolder"
+          >
+            {{ t("projects.openWorkspaceFolder") }}
           </button>
           <button
             v-if="aiAddonEnabled"
