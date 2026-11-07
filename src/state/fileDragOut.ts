@@ -4,9 +4,10 @@
  * Keeps HTML5 in-app drops intact; starts OS drag when the cursor leaves (or nears the
  * edge of) the window so Explorer receives real paths with copy|move|link.
  *
- * AIA-261/264: outbound must not raise AFM over the drop target — host distinguishes
- * click vs drag (`MA_NOACTIVATE` + SM_CXDRAG poll + press-time prior FG), and the
- * patched `DoDragDrop` path restores that prior FG (no setFocus here).
+ * AIA-261/264/266: outbound must not raise AFM over the drop target — host
+ * distinguishes click vs drag (`MA_NOACTIVATE` + SM_CXDRAG poll + press-time prior
+ * FG); Navigator defers tabindex focus while background until mouse-up; patched
+ * `DoDragDrop` restores that prior FG. No setFocus / SetForegroundWindow here.
  */
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import { resolveResource } from "@tauri-apps/api/path";
@@ -37,7 +38,7 @@ function isOutsideOrNearEdge(clientX: number, clientY: number): boolean {
 
 /**
  * Start Windows-native OLE file drag (patched drag offers COPY|MOVE|LINK).
- * Does not call window focus APIs — see AIA-261/264.
+ * Does not call window focus APIs — see AIA-261/264/266.
  */
 export async function startNativeFileDragOut(paths: string[]): Promise<void> {
   const cleaned = paths.map((p) => p.trim()).filter(Boolean);

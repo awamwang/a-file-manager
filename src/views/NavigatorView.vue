@@ -554,6 +554,11 @@ watch(
 /** AIA-238: debounce overlapping window + Tauri focus events. */
 let lastFocusListingRefreshAt = 0;
 let unlistenWindowFocus: (() => void) | null = null;
+/**
+ * AIA-266: OS focus cache. Background press must not focus tabindex rows
+ * (WebView raise) — selection/activate wait for mouse-up or dragstart.
+ */
+let afmWindowFocused = true;
 
 function refreshListingOnFocus() {
   const now = Date.now();
@@ -566,6 +571,7 @@ function refreshListingOnFocus() {
 }
 
 function onWindowFocus() {
+  afmWindowFocused = true;
   void refreshPreviewSetting();
   void loadNavigatorViewMode();
   void refreshClipboardFromSystem();
@@ -580,7 +586,16 @@ onMounted(() => {
   window.addEventListener("focus", onWindowFocus);
   // Tauri: returning from Explorer often skips DOM focus; listen to OS focus.
   void getCurrentWindow()
+    .isFocused()
+    .then((focused) => {
+      afmWindowFocused = focused;
+    })
+    .catch(() => {
+      afmWindowFocused = document.hasFocus();
+    });
+  void getCurrentWindow()
     .onFocusChanged(({ payload: focused }) => {
+      afmWindowFocused = focused;
       if (focused) onWindowFocus();
     })
     .then((unlisten) => {
@@ -821,11 +836,24 @@ function onListKeyDown(event: KeyboardEvent) {
   void nextTick(() => focusEntryRow(moved.path));
 }
 
+/**
+ * AIA-266 / Explorer: while AFM is background, mousedown must not focus the
+ * tabindex row (that raises WebView). Stay in the drag gesture until mouse-up;
+ * `@click` then selects + focuses. Foreground keeps default focus-on-press.
+ */
+function onRowMouseDown(event: MouseEvent, _entry: NavigatorEntry) {
+  if (event.button !== 0) return;
+  if (!afmWindowFocused || !document.hasFocus()) {
+    event.preventDefault();
+  }
+}
+
 function onRowClick(event: MouseEvent, entry: NavigatorEntry) {
   // Clicking away from a pending name-rename (or another row) cancels the delay.
   if (pendingNameRenamePath && pendingNameRenamePath !== entry.path) {
     clearPendingNameRename();
   }
+  // Mouse-up without a completed drag — finalize selection (click path).
   if (event.shiftKey) {
     clearPendingNameRename();
     selectRange(orderedPaths.value, selectionAnchor.value, entry.path);
@@ -1250,6 +1278,7 @@ function hitTestRows(x: number, y: number, w: number, h: number): string[] {
 
 /* —— Drag in (AFM + Explorer/external) · drag out (OLE / CF_HDROP + link) —— */
 function onDragStart(event: DragEvent, entry: NavigatorEntry) {
+  // Drag past threshold: select for payload only — never focusEntryRow / raise.
   if (!isSelected(entry.path)) {
     selectOnly(entry.path);
   }
@@ -1468,6 +1497,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
             :data-entry-path="entry.path"
             :aria-selected="isSelected(entry.path)"
             :title="entryHoverTitle(entry)"
+            @mousedown="onRowMouseDown($event, entry)"
             @click="onRowClick($event, entry)"
             @dblclick="onActivate(entry)"
             @keydown.enter.prevent="onActivate(entry)"
@@ -1537,6 +1567,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         :data-entry-path="entry.path"
         :aria-selected="isSelected(entry.path)"
         :title="entryHoverTitle(entry)"
+        @mousedown="onRowMouseDown($event, entry)"
         @click="onRowClick($event, entry)"
         @dblclick="onActivate(entry)"
         @keydown.enter.prevent="onActivate(entry)"
@@ -1655,6 +1686,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           :data-entry-path="entry.path"
           :aria-selected="isSelected(entry.path)"
           :title="entryHoverTitle(entry)"
+          @mousedown="onRowMouseDown($event, entry)"
           @click="onRowClick($event, entry)"
           @dblclick="onActivateSecondary(entry)"
           @keydown.enter.prevent="onActivateSecondary(entry)"

@@ -29,7 +29,7 @@ assert.ok(
   patchSrc.includes("DROPEFFECT_COPY") && patchSrc.includes("DROPEFFECT_MOVE"),
   "patch must offer COPY|MOVE|LINK",
 );
-// AIA-261/264: outbound OLE must not steal / keep focus over the drop target.
+// AIA-261/264/266: outbound OLE must not steal / keep focus over the drop target.
 assert.ok(
   patchSrc.includes("GetForegroundWindow") && patchSrc.includes("SetForegroundWindow"),
   "patch must read/restore foreground around DoDragDrop",
@@ -52,13 +52,21 @@ assert.ok(
 );
 
 const dragFocus = join(root, "src-tauri/src/drag_focus.rs");
-assert.ok(existsSync(dragFocus), "AIA-261/264 drag_focus.rs host subclass must exist");
+assert.ok(existsSync(dragFocus), "AIA-261/264/266 drag_focus.rs host subclass must exist");
 const dragFocusSrc = readFileSync(dragFocus, "utf8");
 assert.ok(dragFocusSrc.includes("WM_MOUSEACTIVATE"), "drag_focus must handle WM_MOUSEACTIVATE");
 assert.ok(dragFocusSrc.includes("MA_NOACTIVATE"), "drag_focus must return MA_NOACTIVATE");
 assert.ok(dragFocusSrc.includes("SM_CXDRAG") && dragFocusSrc.includes("SM_CYDRAG"), "drag_focus must use system drag threshold");
 assert.ok(dragFocusSrc.includes("WM_ACTIVATE"), "drag_focus must undo WebView raise while button down");
 assert.ok(dragFocusSrc.includes("note_drag_gesture"), "drag_focus must mark drag past threshold");
+assert.ok(
+  dragFocusSrc.includes("WM_LBUTTONDOWN"),
+  "drag_focus must arm deferred activate on PARENTNOTIFY LBUTTONDOWN (AIA-266)",
+);
+assert.ok(
+  dragFocusSrc.includes("finish_press_maybe_activate"),
+  "drag_focus must share mouse-up activate path for PARENTNOTIFY + timer fallback (AIA-266)",
+);
 assert.ok(
   lib.includes("drag_focus::install_for_main_window"),
   "lib.rs must install drag_focus subclass on main window",
@@ -84,7 +92,15 @@ assert.ok(dragOut.includes("resolveResource"), "must resolve drag preview icon")
 assert.ok(nav.includes("armNativeFileDragOut"), "NavigatorView must arm native drag-out");
 assert.ok(nav.includes("setOutboundPathPayload"), "NavigatorView must keep HTML5 payload");
 assert.ok(nav.includes('effectAllowed = "all"'), "dragstart should allow copy+move+link");
+assert.ok(
+  nav.includes("onRowMouseDown") && nav.includes("afmWindowFocused"),
+  "Navigator must defer row focus while background until mouse-up (AIA-266)",
+);
+assert.ok(
+  nav.includes("event.preventDefault()") || nav.includes("preventDefault()"),
+  "background row mousedown must preventDefault to block tabindex focus raise",
+);
 
 console.log(
-  "File drag-out checks OK (AIA-240 COPY|MOVE|LINK + AIA-261/264 drag vs click focus).",
+  "File drag-out checks OK (AIA-240 COPY|MOVE|LINK + AIA-261/264/266 Explorer press→drag).",
 );

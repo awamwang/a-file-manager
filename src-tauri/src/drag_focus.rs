@@ -1,16 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! AIA-261/264: outbound drag must not raise AFM over the drop target.
+//! AIA-261/264/266: outbound drag must not raise AFM over the drop target.
 //!
 //! Explorer parity for "drag from a background window onto the foreground one":
 //! 1. `WM_MOUSEACTIVATE` → `MA_NOACTIVATE` when another top-level window is already
 //!    foreground (mousedown must not cover the drop target).
-//! 2. Remember that prior FG + press point; while the button is still down (or a
+//! 2. Also arm on `WM_PARENTNOTIFY`/`LBUTTONDOWN` if activate was missed.
+//! 3. Remember that prior FG + press point; while the button is still down (or a
 //!    drag gesture / OLE is active), undo any WebView/Chromium raise via
 //!    `WM_ACTIVATE` + a short poll timer (`SM_CXDRAG` / `SM_CYDRAG`).
-//! 3. Plain click (mouse-up without drag/OLE) still activates via `WM_PARENTNOTIFY`.
+//! 4. Plain click (mouse-up without drag/OLE) still activates via `WM_PARENTNOTIFY`
+//!    or the poll-timer fallback when WebView swallows parent notify.
 //!
-//! Complements the patched `drag` crate, which prefers press-time prior FG when
-//! Hybrid leave/blur → `DoDragDrop` runs after the press already raised AFM.
+//! Complements Navigator row `mousedown` (AIA-266: `preventDefault` while
+//! background so tabindex focus cannot raise) and the patched `drag` crate,
+//! which prefers press-time prior FG when Hybrid leave/blur → `DoDragDrop`
+//! runs after the press already raised AFM.
 
 #![cfg(windows)]
 
@@ -20,8 +24,8 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
 use windows::Win32::UI::Shell::{DefSubclassProc, SetWindowSubclass};
 use windows::Win32::UI::WindowsAndMessaging::{
     GetCursorPos, GetForegroundWindow, GetSystemMetrics, IsChild, KillTimer, SetForegroundWindow,
-    SetTimer, MA_NOACTIVATE, SM_CXDRAG, SM_CYDRAG, WA_INACTIVE, WM_ACTIVATE, WM_LBUTTONUP,
-    WM_MOUSEACTIVATE, WM_PARENTNOTIFY, WM_TIMER,
+    SetTimer, MA_NOACTIVATE, SM_CXDRAG, SM_CYDRAG, WA_INACTIVE, WM_ACTIVATE, WM_LBUTTONDOWN,
+    WM_LBUTTONUP, WM_MOUSEACTIVATE, WM_PARENTNOTIFY, WM_TIMER,
 };
 
 const SUBCLASS_ID: usize = 0xA_F1_26_01; // AFM + AIA-261
@@ -84,6 +88,34 @@ fn disarm_poll_timer(hwnd: HWND) {
     let _ = unsafe { KillTimer(Some(hwnd), POLL_TIMER_ID) };
 }
 
+/// Capture prior FG for a background press (MOUSEACTIVATE or PARENTNOTIFY down).
+fn note_background_press(hwnd: HWND) {
+    let fg = unsafe { GetForegroundWindow() };
+    if hwnd_is_ours(hwnd, fg) {
+        return;
+    }
+    if drag::should_suppress_foreground_raise() {
+        // Already armed for this press — do not reset origin mid-gesture.
+        return;
+    }
+    let mut pt = windows::Win32::Foundation::POINT { x: 0, y: 0 };
+    let _ = unsafe { GetCursorPos(&mut pt) };
+    drag::note_deferred_activate(hwnd_to_isize(fg), pt.x, pt.y);
+    arm_poll_timer(hwnd);
+}
+
+/// Mouse-up without drag/OLE: activate like a normal focus click.
+fn finish_press_maybe_activate(hwnd: HWND) {
+    disarm_poll_timer(hwnd);
+    let should_activate = drag::take_pending_activate()
+        && !drag::ole_drag_in_progress()
+        && !drag::drag_gesture_active();
+    drag::clear_press_state();
+    if should_activate {
+        let _ = unsafe { SetForegroundWindow(hwnd) };
+    }
+}
+
 unsafe extern "system" fn subclass_proc(
     hwnd: HWND,
     msg: u32,
@@ -98,10 +130,7 @@ unsafe extern "system" fn subclass_proc(
             if !hwnd_is_ours(hwnd, fg) {
                 // Defer activation: keep the drop-target (or other) window in front
                 // while the user may be starting an outbound file drag.
-                let mut pt = windows::Win32::Foundation::POINT { x: 0, y: 0 };
-                let _ = unsafe { GetCursorPos(&mut pt) };
-                drag::note_deferred_activate(hwnd_to_isize(fg), pt.x, pt.y);
-                arm_poll_timer(hwnd);
+                note_background_press(hwnd);
                 return LRESULT(MA_NOACTIVATE as isize);
             }
         }
@@ -109,7 +138,9 @@ unsafe extern "system" fn subclass_proc(
             let active = (wparam.0 as u32) & 0xffff;
             if active != WA_INACTIVE
                 && drag::should_suppress_foreground_raise()
-                && (left_button_down() || drag::drag_gesture_active() || drag::ole_drag_in_progress())
+                && (left_button_down()
+                    || drag::drag_gesture_active()
+                    || drag::ole_drag_in_progress())
             {
                 // WebView/Chromium often raises us on the same press — put prior FG back.
                 restore_press_prior_if_we_raised(hwnd);
@@ -126,23 +157,20 @@ unsafe extern "system" fn subclass_proc(
                         drag::note_drag_gesture();
                     }
                     restore_press_prior_if_we_raised(hwnd);
+                } else {
+                    // WebView2 sometimes swallows WM_PARENTNOTIFY LBUTTONUP.
+                    finish_press_maybe_activate(hwnd);
                 }
-                // Mouse-up is handled in WM_PARENTNOTIFY; keep timer until then / OLE clear.
                 return LRESULT(0);
             }
         }
         WM_PARENTNOTIFY => {
             let child_msg = (wparam.0 as u32) & 0xffff;
-            if child_msg == WM_LBUTTONUP {
-                disarm_poll_timer(hwnd);
-                let should_activate = drag::take_pending_activate()
-                    && !drag::ole_drag_in_progress()
-                    && !drag::drag_gesture_active();
-                drag::clear_press_state();
-                if should_activate {
-                    // Plain click (no drag / OLE outbound): activate like a normal focus click.
-                    let _ = unsafe { SetForegroundWindow(hwnd) };
-                }
+            if child_msg == WM_LBUTTONDOWN {
+                // Belt-and-suspenders when MOUSEACTIVATE did not arm the press.
+                note_background_press(hwnd);
+            } else if child_msg == WM_LBUTTONUP {
+                finish_press_maybe_activate(hwnd);
             }
         }
         _ => {}
@@ -160,7 +188,7 @@ pub fn install_for_main_window<R: Runtime>(app: &AppHandle<R>) {
     };
     let ok = unsafe { SetWindowSubclass(hwnd, Some(subclass_proc), SUBCLASS_ID, 0) };
     if !ok.as_bool() {
-        eprintln!("AIA-264: SetWindowSubclass for drag focus failed");
+        eprintln!("AIA-266: SetWindowSubclass for drag focus failed");
     }
 }
 
