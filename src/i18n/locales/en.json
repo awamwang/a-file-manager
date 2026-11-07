@@ -805,6 +805,8 @@
     "openInTerminal": "Open in terminal",
     "systemMenu": "System menu",
     "systemMenuError": "Could not open the system context menu.",
+    "systemMenuLoading": "Loading system menu…",
+    "systemMenuEmpty": "No system menu items",
     "reveal": "Reveal in File Explorer",
     "copy": "Copy",
     "cut": "Cut",

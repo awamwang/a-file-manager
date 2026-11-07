@@ -805,6 +805,8 @@
     "openInTerminal": "Ouvrir dans le terminal",
     "systemMenu": "Menu système",
     "systemMenuError": "Impossible d'ouvrir le menu contextuel système.",
+    "systemMenuLoading": "Chargement du menu système…",
+    "systemMenuEmpty": "Aucun élément de menu système",
     "reveal": "Afficher dans l’Explorateur",
     "copy": "Copier",
     "cut": "Couper",

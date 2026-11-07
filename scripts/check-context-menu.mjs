@@ -33,7 +33,15 @@ assert.ok(menu.includes("copyPath"));
 assert.ok(menu.includes("revealItemInDir"));
 assert.ok(menu.includes("newNavigatorTab"));
 assert.ok(menu.includes("canOpenInNewTab"));
-assert.ok(menu.includes("shell_show_context_menu"));
+assert.ok(menu.includes("shell_get_context_menu"), "AIA-239: enumerate shell items");
+assert.ok(
+  menu.includes("shell_invoke_context_menu_item"),
+  "AIA-239: invoke shell verbs from AFM submenu",
+);
+assert.ok(
+  !menu.includes("shell_show_context_menu"),
+  "AIA-239: must not open independent native TrackPopupMenu from UI",
+);
 assert.ok(menu.includes("open_in_terminal"));
 assert.ok(menu.includes("terminal_list_apps"));
 assert.ok(menu.includes("open_native_open_with_dialog"));
@@ -57,22 +65,32 @@ assert.ok(menu.includes("preloadLaunchersIfNeeded"), "launcher submenu should pr
 assert.ok(menu.includes('data-ctx-id') || menu.includes("data-ctx-id"), "rows need ctx ids");
 assert.ok(
   !model.includes('id: "systemMenuShow"'),
-  "AIA-224: systemMenu must be a leaf (no nested systemMenuShow hop)",
+  "AIA-224: systemMenu must not nest systemMenuShow hop",
 );
 assert.ok(
-  /id:\s*"systemMenu"[\s\S]*?shellCascade:\s*true,\s*\}/.test(model),
-  "AIA-229: systemMenu shellCascade leaf (no children array)",
+  /id:\s*"systemMenu"[\s\S]*?shellEmbed:\s*true,\s*\}/.test(model),
+  "AIA-239: systemMenu shellEmbed (lazy AFM submenu)",
+);
+assert.ok(
+  !model.includes("shellCascade"),
+  "AIA-239: shellCascade native popup path removed",
 );
 assert.ok(
   !/id:\s*"systemMenu"[\s\S]*?children:\s*\[[\s\S]*?id:\s*"systemMenuShow"/.test(model),
   "AIA-224: systemMenu must not nest systemMenuShow",
 );
 assert.ok(
-  menu.includes("openShellCascadeFromAnchor"),
-  "AIA-229: shell cascade must open from hover/focus anchor",
+  menu.includes("ensureShellEmbedLoaded"),
+  "AIA-239: shell items lazy-load into AFM submenu",
 );
-assert.ok(menu.includes("onItemFocus"), "AIA-229: keyboard focus expands cascades");
-assert.ok(menu.includes("onItemKeydown"), "AIA-229: ArrowRight expands cascades");
+assert.ok(
+  !menu.includes("openShellCascadeFromAnchor"),
+  "AIA-239: must not open native cascade from hover/focus",
+);
+assert.ok(menu.includes("onItemFocus"), "keyboard focus expands nested/shell submenu");
+assert.ok(menu.includes("onItemKeydown"), "ArrowRight expands nested/shell submenu");
+assert.equal(en.contextMenu.systemMenuLoading, "Loading system menu…");
+assert.equal(zh.contextMenu.systemMenuLoading, "正在加载系统菜单…");
 assert.ok(menu.includes("toggleFavorite"));
 assert.ok(menu.includes("setClipboard"));
 assert.ok(menu.includes("pasteClipboard"));
@@ -197,6 +215,15 @@ if (folderCtxCheck.stdout) process.stdout.write(folderCtxCheck.stdout);
 if (folderCtxCheck.stderr) process.stderr.write(folderCtxCheck.stderr);
 assert.equal(folderCtxCheck.status, 0, "folder context menu checks failed (AIA-183)");
 
+const shellEmbedCheck = spawnSync(
+  process.execPath,
+  ["--experimental-strip-types", join(root, "scripts/shell-menu-embed-checks.ts")],
+  { cwd: root, encoding: "utf8" },
+);
+if (shellEmbedCheck.stdout) process.stdout.write(shellEmbedCheck.stdout);
+if (shellEmbedCheck.stderr) process.stderr.write(shellEmbedCheck.stderr);
+assert.equal(shellEmbedCheck.status, 0, "shell menu embed checks failed (AIA-239)");
+
 console.log(
-  "Context menu checks OK (Open in new tab is real for directories; Copy path Day-1 set).",
+  "Context menu checks OK (Open in new tab is real for folders; Copy path Day-1 set).",
 );

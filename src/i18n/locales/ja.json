@@ -804,6 +804,8 @@
     "openInNewTab": "新しいタブで開く",
     "systemMenu": "システムメニュー",
     "systemMenuError": "システムコンテキストメニューを開けませんでした。",
+    "systemMenuLoading": "システムメニューを読み込み中…",
+    "systemMenuEmpty": "システムメニュー項目がありません",
     "reveal": "エクスプローラーで表示",
     "copy": "コピー",
     "cut": "切り取り",

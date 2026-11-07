@@ -38,10 +38,10 @@ export type ContextMenuItemDef = {
   /** Nested submenu (Sigma-style). */
   children?: ContextMenuItemDef[];
   /**
-   * AIA-229: opens the Windows shell menu as a hover/focus cascade
-   * (no nested systemMenuShow hop — see AIA-224).
+   * AIA-239: lazy-load Windows shell verbs into AFM's own submenu
+   * (no independent TrackPopupMenu; no nested systemMenuShow hop — AIA-224).
    */
-  shellCascade?: boolean;
+  shellEmbed?: boolean;
   /** Payload for IDE open. */
   ideId?: string;
   /** Payload for terminal open. */
@@ -212,12 +212,12 @@ export function buildContextMenuItems(
       icon: "star",
     },
     {
-      // AIA-224/229: no nested systemMenuShow hop; cascade opens on hover/focus (Sigma-like).
+      // AIA-224/239: no nested systemMenuShow hop; shell verbs render inside AFM submenu.
       id: "systemMenu",
       labelKey: "contextMenu.systemMenu",
       enabled: true,
       icon: "viewAll",
-      shellCascade: true,
+      shellEmbed: true,
     },
     // Clipboard / rename / copy-path live in the Windows-style top toolbar.
     { id: "newFolder", labelKey: "contextMenu.newFolder", enabled: true, separatorBefore: true, icon: "folder" },

@@ -805,6 +805,8 @@
     "openInTerminal": "Im Terminal öffnen",
     "systemMenu": "Systemmenü",
     "systemMenuError": "Systemkontextmenü konnte nicht geöffnet werden.",
+    "systemMenuLoading": "Systemmenü wird geladen…",
+    "systemMenuEmpty": "Keine Systemmenüeinträge",
     "reveal": "Im Explorer anzeigen",
     "copy": "Kopieren",
     "cut": "Ausschneiden",

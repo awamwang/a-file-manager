@@ -805,6 +805,8 @@
     "openInTerminal": "在终端打开",
     "systemMenu": "系统右键菜单",
     "systemMenuError": "无法打开系统右键菜单。",
+    "systemMenuLoading": "正在加载系统菜单…",
+    "systemMenuEmpty": "无系统菜单项",
     "reveal": "在资源管理器中显示",
     "copy": "复制",
     "cut": "剪切",
