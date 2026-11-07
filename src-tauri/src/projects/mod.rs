@@ -6,7 +6,9 @@
 //! C2 (AIA-208): Core Workspace light create under Projects Root (ADR 0008).
 //! C3 (AIA-209): list / activate / bind WG on disk Workspaces.
 //! C4 (AIA-210): `members/` junctions; open real target paths.
+//! C5 (AIA-211): CONTEXT.md + board.json four-column board.
 
+pub(crate) mod board;
 pub(crate) mod index;
 pub(crate) mod members;
 pub(crate) mod migrate;
@@ -27,6 +29,7 @@ use ops::{
 use store::{load_from_path, save_to_path};
 use tauri::{AppHandle, Manager};
 use types::{ActivateProjectResult, OpenAllLinksResult, ProjectTask, TaskPatch, UserProjects};
+use board::{BoardTask, BoardTaskPatch, WorkspaceBoard};
 use members::WorkspaceMember;
 use workspace::{
     ActivateWorkspaceResult, CreateWorkspaceResult, WorkspaceListItem, WorkspaceListResult,
@@ -201,6 +204,92 @@ pub fn projects_workspace_member_remove(
 #[tauri::command]
 pub fn projects_resolve_open_path(path: String) -> Result<String, String> {
     members::resolve_open_path(&path)
+}
+
+/// Read Workspace `CONTEXT.md`.
+#[tauri::command]
+pub fn projects_workspace_context_get(app: AppHandle, slug: String) -> Result<String, String> {
+    let index = load_index(&app)?;
+    let root = std::path::PathBuf::from(&index.projects_root);
+    board::read_context_for_slug(&root, &slug)
+}
+
+/// Write Workspace `CONTEXT.md` (full replace).
+#[tauri::command]
+pub fn projects_workspace_context_set(
+    app: AppHandle,
+    slug: String,
+    content: String,
+) -> Result<(), String> {
+    let index = load_index(&app)?;
+    let root = std::path::PathBuf::from(&index.projects_root);
+    board::write_context_for_slug(&root, &slug, &content)
+}
+
+/// Read Workspace `board.json` (four columns: backlog/doing/review/done).
+#[tauri::command]
+pub fn projects_workspace_board_get(
+    app: AppHandle,
+    slug: String,
+) -> Result<WorkspaceBoard, String> {
+    let index = load_index(&app)?;
+    let root = std::path::PathBuf::from(&index.projects_root);
+    board::read_board_for_slug(&root, &slug)
+}
+
+#[tauri::command]
+pub fn projects_workspace_board_add_task(
+    app: AppHandle,
+    slug: String,
+    title: String,
+    status_id: Option<String>,
+) -> Result<(WorkspaceBoard, BoardTask), String> {
+    let index = load_index(&app)?;
+    let root = std::path::PathBuf::from(&index.projects_root);
+    let item = workspace::load_workspace(&root, &slug)?;
+    let dir = std::path::Path::new(&item.path);
+    let board = board::read_board(dir)?;
+    let (next, task) = board::add_task(&board, &title, status_id.as_deref())?;
+    board::write_board(dir, &next)?;
+    Ok((next, task))
+}
+
+#[tauri::command]
+pub fn projects_workspace_board_update_task(
+    app: AppHandle,
+    slug: String,
+    task_id: String,
+    patch: BoardTaskPatch,
+) -> Result<WorkspaceBoard, String> {
+    let index = load_index(&app)?;
+    let root = std::path::PathBuf::from(&index.projects_root);
+    board::mutate_board_for_slug(&root, &slug, |b| board::update_task(b, &task_id, patch))
+}
+
+#[tauri::command]
+pub fn projects_workspace_board_move_task(
+    app: AppHandle,
+    slug: String,
+    task_id: String,
+    status_id: String,
+    sort_key: i64,
+) -> Result<WorkspaceBoard, String> {
+    let index = load_index(&app)?;
+    let root = std::path::PathBuf::from(&index.projects_root);
+    board::mutate_board_for_slug(&root, &slug, |b| {
+        board::move_task(b, &task_id, &status_id, sort_key)
+    })
+}
+
+#[tauri::command]
+pub fn projects_workspace_board_delete_task(
+    app: AppHandle,
+    slug: String,
+    task_id: String,
+) -> Result<WorkspaceBoard, String> {
+    let index = load_index(&app)?;
+    let root = std::path::PathBuf::from(&index.projects_root);
+    board::mutate_board_for_slug(&root, &slug, |b| board::delete_task(b, &task_id))
 }
 
 fn with_document<F>(app: &AppHandle, f: F) -> Result<UserProjects, String>

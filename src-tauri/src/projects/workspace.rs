@@ -3,12 +3,12 @@
 //! Light create writes only: `project.json`, `CONTEXT.md`, `members/`, `board.json`.
 //! Does **not** write `AGENTS.md` / `skills/` (AI Harness init — A6).
 
+use super::board::WorkspaceBoard;
 use super::index::{
     ensure_projects_root_dir, normalize_path_string, set_active_project as set_index_active,
     validate_slug, workspace_path_for_slug, ProjectsIndex,
 };
 use super::ops::{now_millis, validate_bindable_work_group};
-use super::types::TASK_STATUSES;
 use crate::work_groups::sync::silent_switch_work_group;
 use crate::work_groups::types::{SilentSwitchResult, UserWorkGroups, WorkGroupOpenState};
 use serde::{Deserialize, Serialize};
@@ -39,26 +39,6 @@ pub struct WorkspaceProjectMeta {
     pub bound_work_group_id: Option<String>,
     pub created_at: u64,
     pub updated_at: u64,
-}
-
-/// Minimal empty board written at Core create; task shape refined in C5.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct WorkspaceBoard {
-    pub schema_version: u32,
-    /// Fixed four columns (backlog / doing / review / done).
-    pub columns: Vec<String>,
-    pub tasks: Vec<serde_json::Value>,
-}
-
-impl WorkspaceBoard {
-    pub fn empty() -> Self {
-        Self {
-            schema_version: WORKSPACE_BOARD_SCHEMA_VERSION,
-            columns: TASK_STATUSES.iter().map(|s| (*s).to_string()).collect(),
-            tasks: Vec::new(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -451,7 +431,7 @@ mod tests {
 
         assert!(dir.join("members").is_dir());
 
-        let board: WorkspaceBoard =
+        let board: crate::projects::board::WorkspaceBoard =
             serde_json::from_str(&fs::read_to_string(dir.join("board.json")).unwrap()).unwrap();
         assert_eq!(board.columns, vec!["backlog", "doing", "review", "done"]);
         assert!(board.tasks.is_empty());
