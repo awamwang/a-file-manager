@@ -5,8 +5,10 @@
 //! `activeProject` only. Legacy `projects.json` remains until C7 deprecates it.
 //! C2 (AIA-208): Core Workspace light create under Projects Root (ADR 0008).
 //! C3 (AIA-209): list / activate / bind WG on disk Workspaces.
+//! C4 (AIA-210): `members/` junctions; open real target paths.
 
 pub(crate) mod index;
+pub(crate) mod members;
 pub(crate) mod migrate;
 mod ops;
 pub(crate) mod store;
@@ -25,6 +27,7 @@ use ops::{
 use store::{load_from_path, save_to_path};
 use tauri::{AppHandle, Manager};
 use types::{ActivateProjectResult, OpenAllLinksResult, ProjectTask, TaskPatch, UserProjects};
+use members::WorkspaceMember;
 use workspace::{
     ActivateWorkspaceResult, CreateWorkspaceResult, WorkspaceListItem, WorkspaceListResult,
 };
@@ -156,6 +159,48 @@ pub fn projects_workspace_activate(
         result.silent_switch = Some(persist_silent_switch(&dir, switch)?);
     }
     Ok(result)
+}
+
+/// Create a directory junction under Workspace `members/` → `target_path`.
+#[tauri::command]
+pub fn projects_workspace_member_add(
+    app: AppHandle,
+    slug: String,
+    target_path: String,
+    link_name: Option<String>,
+) -> Result<WorkspaceMember, String> {
+    let index = load_index(&app)?;
+    let root = std::path::PathBuf::from(&index.projects_root);
+    members::add_member_for_slug(&root, &slug, &target_path, link_name.as_deref())
+}
+
+/// List `members/` junctions; `openPath` is always the real target.
+#[tauri::command]
+pub fn projects_workspace_member_list(
+    app: AppHandle,
+    slug: String,
+) -> Result<Vec<WorkspaceMember>, String> {
+    let index = load_index(&app)?;
+    let root = std::path::PathBuf::from(&index.projects_root);
+    members::list_members_for_slug(&root, &slug)
+}
+
+/// Remove a member junction only (never deletes the real folder).
+#[tauri::command]
+pub fn projects_workspace_member_remove(
+    app: AppHandle,
+    slug: String,
+    name: String,
+) -> Result<(), String> {
+    let index = load_index(&app)?;
+    let root = std::path::PathBuf::from(&index.projects_root);
+    members::remove_member_for_slug(&root, &slug, &name)
+}
+
+/// Resolve junction/symlink to the real path for Navigator / tab open (C4).
+#[tauri::command]
+pub fn projects_resolve_open_path(path: String) -> Result<String, String> {
+    members::resolve_open_path(&path)
 }
 
 fn with_document<F>(app: &AppHandle, f: F) -> Result<UserProjects, String>

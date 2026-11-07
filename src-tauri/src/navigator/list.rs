@@ -45,7 +45,11 @@ pub(crate) fn entry_is_hidden(metadata: &fs::Metadata) -> bool {
 pub fn list_directory(path: &str, show_hidden: bool) -> Result<NavigatorListing, String> {
     assert_os_path(path)?;
 
-    let root = PathBuf::from(path.trim());
+    let requested = PathBuf::from(path.trim());
+    // C4: if the path itself is a Workspace member junction (or any dir reparse),
+    // navigate/list under the real target so tabs never stay on the junction path.
+    let root = crate::projects::members::resolve_reparse_to_target(&requested)
+        .unwrap_or(requested.clone());
     if !root.exists() {
         return Err(format!("Path does not exist: {path}"));
     }
@@ -77,9 +81,18 @@ pub fn list_directory(path: &str, show_hidden: bool) -> Result<NavigatorListing,
         let name = entry.file_name().to_string_lossy().to_string();
         let modified_ms = metadata.modified().ok().and_then(system_time_ms);
 
+        // Directory junctions/symlinks: expose the real target as `path` so
+        // Navigator tabs open the original folder (AIA-210 / C4).
+        let open_path = if is_dir {
+            crate::projects::members::resolve_reparse_to_target(&entry_path)
+                .unwrap_or(entry_path.clone())
+        } else {
+            entry_path.clone()
+        };
+
         entries.push(NavigatorEntry {
             name,
-            path: display_path(&entry_path),
+            path: display_path(&open_path),
             kind,
             size,
             modified_ms,
@@ -193,6 +206,54 @@ mod tests {
             assert!(got.is_none(), "{p} should have no FS parent, got {got:?}");
         }
         assert_eq!(parent_path(r"D:\Projects").unwrap().as_deref(), Some(r"D:\"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn directory_junction_entry_exposes_real_target_path() {
+        use std::process::Command;
+
+        let dir = std::env::temp_dir().join(format!(
+            "a-file-manager-nav-junc-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        let real = dir.join("real");
+        let members = dir.join("members");
+        fs::create_dir_all(&real).unwrap();
+        fs::create_dir_all(&members).unwrap();
+        fs::write(real.join("marker.txt"), "x").unwrap();
+        let link = members.join("alias");
+        let real_s = fs::canonicalize(&real)
+            .unwrap()
+            .to_string_lossy()
+            .trim_start_matches(r"\\?\")
+            .to_string();
+        let status = Command::new("cmd")
+            .args([
+                "/C",
+                "mklink",
+                "/J",
+                &link.to_string_lossy(),
+                &real_s,
+            ])
+            .status()
+            .unwrap();
+        assert!(status.success());
+
+        let listing = list_directory(&members.to_string_lossy(), true).unwrap();
+        assert_eq!(listing.entries.len(), 1);
+        assert_eq!(listing.entries[0].name, "alias");
+        let open = PathBuf::from(&listing.entries[0].path);
+        let open_canon = fs::canonicalize(&open).unwrap();
+        let real_canon = fs::canonicalize(&real).unwrap();
+        assert_eq!(open_canon, real_canon);
+
+        let via_junction = list_directory(&link.to_string_lossy(), true).unwrap();
+        let via_canon = fs::canonicalize(PathBuf::from(&via_junction.path)).unwrap();
+        assert_eq!(via_canon, real_canon);
+
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[cfg(windows)]
