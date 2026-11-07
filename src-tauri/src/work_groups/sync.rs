@@ -230,6 +230,20 @@ pub fn create_work_group_in_list(
     (next, created)
 }
 
+/// Create a Work Group and silent-switch so it becomes the active selection
+/// (AIA-247: user can keep editing / rename immediately after create).
+pub fn create_and_activate_work_group(
+    document: &UserWorkGroups,
+    name: Option<String>,
+    live_open_state: Option<&WorkGroupOpenState>,
+) -> Result<(SilentSwitchResult, WorkGroup), String> {
+    let (groups, created) = create_work_group_in_list(&document.work_groups, name);
+    let mut next = document.clone();
+    next.work_groups = groups;
+    let switch = silent_switch_work_group(&next, &created.id, live_open_state)?;
+    Ok((switch, created))
+}
+
 pub fn save_runtime_open_state_to_hard(
     work_group: &WorkGroup,
     live_open_state: Option<&WorkGroupOpenState>,
@@ -429,5 +443,36 @@ mod tests {
         assert_eq!(list.len(), 2);
         assert_eq!(created.name, "Focus");
         assert!(!created.is_default);
+    }
+
+    #[test]
+    fn create_and_activate_selects_new_group() {
+        let previous = create_default_work_group(Some(open_state(&["D:/prev"])));
+        let target_open = open_state(&["D:/keep"]);
+        let document = UserWorkGroups {
+            work_groups: vec![previous.clone()],
+            active_work_group_id: previous.id.clone(),
+        };
+        let live = open_state(&["D:/live"]);
+        let (switch, created) =
+            create_and_activate_work_group(&document, Some("Focus".into()), Some(&live)).unwrap();
+        assert_eq!(created.name, "Focus");
+        assert_eq!(switch.document.active_work_group_id, created.id);
+        assert!(!switch.require_save_prompt);
+        let flushed = switch
+            .document
+            .work_groups
+            .iter()
+            .find(|g| g.id == previous.id)
+            .unwrap();
+        assert_eq!(
+            flushed.open_state.as_ref().unwrap().tab_groups[0][0].path,
+            "D:/live"
+        );
+        // New group has no saved open state / members → empty restore strip.
+        let restored = switch.open_state_to_restore.expect("restore payload");
+        assert!(restored.tab_groups.is_empty());
+        assert!(switch.relative_member_paths_to_open.is_empty());
+        let _ = target_open;
     }
 }

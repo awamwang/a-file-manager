@@ -93,10 +93,28 @@ async function refresh() {
 }
 
 async function createGroup() {
-  document.value = await invoke<UserWorkGroups>("work_groups_create", {
+  error.value = null;
+  const result = await invoke<SilentSwitchResult>("work_groups_create", {
     name: newName.value.trim() || null,
+    liveOpenState: snapshotLeavingOpenState(),
   });
   newName.value = "";
+  if (result.requireSavePrompt) {
+    const msg = t("workGroups.errorSavePrompt");
+    error.value = msg;
+    toastError(msg);
+    return;
+  }
+  document.value = result.document;
+  if (result.notice) {
+    toastInfo(
+      t("workGroups.softSync", { paths: result.notice.openedMemberPaths.join(", ") }),
+    );
+  }
+  await restoreWorkGroupOpenState(
+    result.document.activeWorkGroupId,
+    result.openStateToRestore,
+  );
 }
 
 async function silentSwitch(targetId: string) {

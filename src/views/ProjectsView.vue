@@ -315,8 +315,11 @@ async function createProject() {
       slug: null,
       workGroupId: null,
     });
+    const slug = created.project.slug;
     newName.value = "";
-    await refresh(created.project.slug);
+    // Refresh list then select/activate so rename & detail edit target the new project (AIA-247).
+    await refresh(slug);
+    await selectProject(slug);
   } catch (err) {
     error.value = mapProjectError(err);
   }

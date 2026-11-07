@@ -8,7 +8,7 @@ pub(crate) mod types;
 
 use store::{load_from_path, save_to_path};
 use sync::{
-    add_member_to_hard_config, create_work_group_in_list, delete_work_group_in_list,
+    add_member_to_hard_config, create_and_activate_work_group, delete_work_group_in_list,
     remove_member_from_hard_config, rename_work_group_in_list,
     save_members_from_open_state_to_hard, save_runtime_open_state_to_hard,
     silent_switch_work_group,
@@ -34,13 +34,25 @@ pub fn work_groups_get(app: AppHandle) -> Result<UserWorkGroups, String> {
 pub fn work_groups_create(
     app: AppHandle,
     name: Option<String>,
-) -> Result<UserWorkGroups, String> {
+    live_open_state: Option<WorkGroupOpenState>,
+) -> Result<SilentSwitchResult, String> {
     let dir = config_dir(&app)?;
-    let mut document = load_from_path(&dir)?;
-    let (groups, _created) = create_work_group_in_list(&document.work_groups, name);
-    document.work_groups = groups;
-    save_to_path(&dir, &document)?;
-    Ok(document)
+    let document = load_from_path(&dir)?;
+    let (mut result, _created) =
+        create_and_activate_work_group(&document, name, live_open_state.as_ref())?;
+    // Persist flushed leaving group + new active id; stamp restored open state onto target.
+    if let Some(restored) = result.open_state_to_restore.clone() {
+        if let Some(group) = result
+            .document
+            .work_groups
+            .iter_mut()
+            .find(|group| group.id == result.document.active_work_group_id)
+        {
+            group.open_state = Some(restored);
+        }
+    }
+    save_to_path(&dir, &result.document)?;
+    Ok(result)
 }
 
 #[tauri::command]
