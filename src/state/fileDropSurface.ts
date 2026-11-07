@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
- * Shared folder-drop apply path for list / tree / tabs (AIA-240 + AIA-242).
+ * Shared folder-drop apply path for list / tree / tabs / places (AIA-240 + AIA-242 + AIA-250).
  * Keeps volume + modifier rules and undo/refresh side effects in one place.
  */
 

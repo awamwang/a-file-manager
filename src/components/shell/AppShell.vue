@@ -150,6 +150,10 @@ const healthError = ref<string | null>(null);
 const isMaximized = ref(false);
 const maxHover = ref(false);
 const placesMenuOpen = ref(false);
+/** AIA-250: HTML5 file-drag highlight on a places/favorites folder row. */
+const placesFileDropOver = ref<string | null>(null);
+/** AIA-250: dwell then open the places popover while file-dragging. */
+const placesHoverOpen = createDropHoverScheduler();
 const workGroupMenuOpen = ref(false);
 const viewModeMenuOpen = ref(false);
 const crumbMenuIndex = ref<number | null>(null);
@@ -175,11 +179,89 @@ const showingGuide = computed(() => isGuidePath(currentPath.value));
 function togglePlacesMenu() {
   workGroupMenuOpen.value = false;
   viewModeMenuOpen.value = false;
-  placesMenuOpen.value = !placesMenuOpen.value;
+  if (placesMenuOpen.value) {
+    closePlacesMenu();
+  } else {
+    placesMenuOpen.value = true;
+  }
+}
+
+function clearPlacesFileDropHover() {
+  placesFileDropOver.value = null;
+  placesHoverOpen.clear();
 }
 
 function closePlacesMenu() {
   placesMenuOpen.value = false;
+  clearPlacesFileDropHover();
+}
+
+/** Folder destinations only — files / guide / recycle match tab reject rules. */
+function placesAcceptsFileDrop(path: string | null | undefined, isDir: boolean): boolean {
+  if (!isDir) return false;
+  if (!path || !path.trim()) return false;
+  if (isGuidePath(path) || isRecyclePath(path)) return false;
+  return true;
+}
+
+function onPlacesMenuDragOver(event: DragEvent) {
+  // Keep the gesture alive and open the popover after Explorer-like dwell.
+  event.preventDefault();
+  if (event.dataTransfer && !placesMenuOpen.value) {
+    event.dataTransfer.dropEffect = "copy";
+  }
+  if (!placesMenuOpen.value) {
+    placesHoverOpen.schedule("places-menu", () => {
+      workGroupMenuOpen.value = false;
+      viewModeMenuOpen.value = false;
+      placesMenuOpen.value = true;
+    });
+  }
+}
+
+function onPlacesMenuDragLeave(event: DragEvent) {
+  const related = event.relatedTarget as Node | null;
+  const root = event.currentTarget as HTMLElement | null;
+  if (root && related && root.contains(related)) return;
+  if (!placesMenuOpen.value) {
+    placesHoverOpen.clear();
+  }
+}
+
+function onPlacesItemDragOver(event: DragEvent, path: string, isDir: boolean) {
+  if (!placesAcceptsFileDrop(path, isDir)) return;
+  const mode = acceptFolderDragOver(event, path);
+  if (mode == null) {
+    placesFileDropOver.value = null;
+    return;
+  }
+  placesFileDropOver.value = path;
+}
+
+function onPlacesItemDragLeave(event: DragEvent, path: string) {
+  const related = event.relatedTarget as Node | null;
+  const root = event.currentTarget as HTMLElement | null;
+  if (root && related && root.contains(related)) return;
+  if (placesFileDropOver.value === path) {
+    placesFileDropOver.value = null;
+  }
+}
+
+async function onPlacesItemDrop(event: DragEvent, path: string, isDir: boolean, label: string) {
+  placesFileDropOver.value = null;
+  placesHoverOpen.clear();
+  if (!placesAcceptsFileDrop(path, isDir)) return;
+  const result = await commitFolderDrop(event, path);
+  if (!result.ok) {
+    if (result.error && result.error !== "empty") {
+      toastError(result.error === "failed" ? t("contextMenu.opFailed") : result.error);
+    }
+    return;
+  }
+  if (result.mode && result.count != null) {
+    toastSuccess(t(noticeKeyForDropMode(result.mode), { count: result.count, name: label }));
+  }
+  closePlacesMenu();
 }
 
 function toggleWorkGroupMenu() {
@@ -1281,6 +1363,7 @@ onUnmounted(() => {
   document.removeEventListener("visibilitychange", onVisibilityFlush);
   onSidenavResizeEnd();
   clearTabFileDropHover();
+  clearPlacesFileDropHover();
   void flushOpenStatePersist();
   unregisterShellShortcuts();
   for (const unlisten of unlisteners) {
@@ -1626,7 +1709,13 @@ onUnmounted(() => {
             <FluentIcon name="home" size="sm" />
           </button>
 
-          <div id="navigator-places-menu" class="places-menu">
+          <div
+            id="navigator-places-menu"
+            class="places-menu"
+            data-drop-target="places"
+            @dragover="onPlacesMenuDragOver"
+            @dragleave="onPlacesMenuDragLeave"
+          >
             <button
               type="button"
               class="fluent-control nav-icon-btn places-trigger"
@@ -1652,9 +1741,15 @@ onUnmounted(() => {
                 :key="'qa-' + item.path"
                 type="button"
                 class="fluent-list-row places-item"
+                :class="{ 'places-item--file-drop': placesFileDropOver === item.path }"
                 role="menuitem"
+                data-drop-target="places-item"
+                :data-entry-path="item.path"
                 :title="`${item.path} · ${t('quickAccess.openCount', { count: item.openCount })}`"
                 @click="openPlacesPath(item.path)"
+                @dragover="onPlacesItemDragOver($event, item.path, item.isDir)"
+                @dragleave="onPlacesItemDragLeave($event, item.path)"
+                @drop="onPlacesItemDrop($event, item.path, item.isDir, quickAccessLabel(item.path))"
               >
                 <FluentIcon :name="item.isDir ? 'folder' : 'document'" size="sm" />
                 <span>{{ quickAccessLabel(item.path) }}</span>
@@ -1667,9 +1762,15 @@ onUnmounted(() => {
                 :key="'fav-' + fav.path"
                 type="button"
                 class="fluent-list-row places-item"
+                :class="{ 'places-item--file-drop': placesFileDropOver === fav.path }"
                 role="menuitem"
+                data-drop-target="places-item"
+                :data-entry-path="fav.path"
                 :title="fav.path"
                 @click="openPlacesPath(fav.path)"
+                @dragover="onPlacesItemDragOver($event, fav.path, fav.isDir)"
+                @dragleave="onPlacesItemDragLeave($event, fav.path)"
+                @drop="onPlacesItemDrop($event, fav.path, fav.isDir, favoriteLabel(fav.path))"
               >
                 <FluentIcon :name="fav.isDir ? 'folder' : 'document'" size="sm" />
                 <span>{{ favoriteLabel(fav.path) }}</span>
@@ -2225,6 +2326,12 @@ onUnmounted(() => {
 .places-item--active {
   background: var(--fluent-color-fill-selected);
   font-weight: var(--fluent-font-weight-semibold);
+}
+
+.places-item--file-drop {
+  outline: 2px solid var(--fluent-color-stroke-accent-soft, var(--fluent-color-fill-accent));
+  outline-offset: -2px;
+  background: var(--fluent-color-fill-selected);
 }
 
 .places-sep {
