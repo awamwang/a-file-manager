@@ -78,6 +78,11 @@ let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let bootstrapPromise: Promise<void> | null = null;
 /** Single-flight `work_groups_get` so Shell chrome + OpenState bootstrap share one IPC. */
 let workGroupsHydrate: Promise<UserWorkGroupsDoc> | null = null;
+/**
+ * AIA-225: bump on every navigateTo so rapid tab-group switches drop stale
+ * `navigator_list` results instead of painting the wrong folder.
+ */
+let browseEpoch = 0;
 
 function schedulePersist(immediate = false) {
   if (!activeWorkGroupId.value) return;
@@ -193,6 +198,25 @@ function normalizeBrowseKey(path: string): string {
   return path.trim().replace(/\//g, "\\").replace(/\\+$/, "").toLowerCase();
 }
 
+/**
+ * AIA-225: paint tab-group content chrome immediately; fill the listing off the
+ * critical path (same tabs-first pattern as bootstrapNavigatorOpenState).
+ * Open-state persist stays debounced so disk IPC does not contend with list.
+ */
+function revealPathNonBlocking(path: string): void {
+  const trimmed = path.trim();
+  if (!trimmed) return;
+  currentPath.value = trimmed;
+  listLoading.value = true;
+  listError.value = null;
+  if (isGuidePath(trimmed)) {
+    // Guide has no async list — apply fully via navigateTo without blocking callers.
+    void navigateTo(GUIDE_PATH, { syncOpenState: false, recordHistory: false });
+    return;
+  }
+  void navigateTo(trimmed, { syncOpenState: false, recordHistory: false });
+}
+
 export async function navigateTo(
   path: string,
   options?: { syncOpenState?: boolean; recordHistory?: boolean },
@@ -203,8 +227,10 @@ export async function navigateTo(
   const recordHistory = options?.recordHistory ?? syncOpenState;
   const previous = currentPath.value;
   const pathChanged = normalizeBrowseKey(previous) !== normalizeBrowseKey(trimmed);
+  const epoch = ++browseEpoch;
 
   if (isGuidePath(trimmed)) {
+    if (epoch !== browseEpoch) return;
     listing.value = null;
     listError.value = null;
     listLoading.value = false;
@@ -231,6 +257,7 @@ export async function navigateTo(
     listError.value = null;
     try {
       listing.value = await loadRecycleListing();
+      if (epoch !== browseEpoch) return;
       currentPath.value = RECYCLE_PATH;
       if (pathChanged) clearNavigatorFilter();
       if (recordHistory) {
@@ -247,12 +274,15 @@ export async function navigateTo(
         schedulePersist(false);
       }
     } catch (err) {
+      if (epoch !== browseEpoch) return;
       listing.value = null;
       listError.value = err instanceof Error ? err.message : String(err);
       currentPath.value = RECYCLE_PATH;
       if (pathChanged) clearNavigatorFilter();
     } finally {
-      listLoading.value = false;
+      if (epoch === browseEpoch) {
+        listLoading.value = false;
+      }
     }
     return;
   }
@@ -264,6 +294,7 @@ export async function navigateTo(
       path: trimmed,
       showHidden: showHiddenItems.value,
     });
+    if (epoch !== browseEpoch) return;
     listing.value = result;
     currentPath.value = result.path;
     if (normalizeBrowseKey(previous) !== normalizeBrowseKey(result.path)) {
@@ -279,6 +310,7 @@ export async function navigateTo(
       schedulePersist(false);
     }
   } catch (err) {
+    if (epoch !== browseEpoch) return;
     listing.value = null;
     listError.value = err instanceof Error ? err.message : String(err);
     currentPath.value = trimmed;
@@ -291,16 +323,18 @@ export async function navigateTo(
       schedulePersist(false);
     }
   } finally {
-    listLoading.value = false;
+    if (epoch === browseEpoch) {
+      listLoading.value = false;
+    }
   }
 }
 
 export async function openPathsAsNavigatorTabs(paths: string[]): Promise<void> {
   const next = openStateFromPaths(paths);
-  applyLiveOpenState(next, { persist: true, immediatePersist: true });
+  applyLiveOpenState(next, { persist: true, immediatePersist: false });
   const active = activeStripTab(liveOpenState.value);
   if (active?.path) {
-    await navigateTo(active.path, { syncOpenState: false });
+    revealPathNonBlocking(active.path);
   }
 }
 
@@ -332,8 +366,8 @@ export async function newNavigatorTab(path?: string): Promise<void> {
       pane.type = "guide";
     }
   }
-  schedulePersist(true);
-  await navigateTo(target, { syncOpenState: false });
+  schedulePersist(false);
+  revealPathNonBlocking(target);
 }
 
 export async function closeNavigatorTab(groupIndex: number): Promise<void> {
@@ -341,21 +375,23 @@ export async function closeNavigatorTab(groupIndex: number): Promise<void> {
   forgetPinnedTabs(closing.map((tab) => tab.id));
   const next = openStateAfterCloseGroup(liveOpenState.value, groupIndex);
   liveOpenState.value = next;
-  schedulePersist(true);
+  // Closing often activates another group — keep strip responsive (AIA-225).
+  schedulePersist(false);
   const active = activeStripTab(next);
   if (active?.path) {
-    await navigateTo(active.path, { syncOpenState: false });
+    revealPathNonBlocking(active.path);
   } else {
-    await loadDefaultPath();
+    void loadDefaultPath();
   }
 }
 
 export async function switchNavigatorTab(groupIndex: number): Promise<void> {
+  // AIA-225: strip + path paint first; listing + OpenState disk write are deferred.
   liveOpenState.value = openStateAfterSwitchGroup(liveOpenState.value, groupIndex);
-  schedulePersist(true);
+  schedulePersist(false);
   const active = activeStripTab(liveOpenState.value);
   if (active?.path) {
-    await navigateTo(active.path, { syncOpenState: false });
+    revealPathNonBlocking(active.path);
   }
 }
 
@@ -380,7 +416,8 @@ export async function reorderNavigatorTabs(
   // Reorder must never change group count (guards against insert/duplication bugs).
   if (next.tabGroups.length !== before) return;
   liveOpenState.value = next;
-  schedulePersist(true);
+  // Reorder does not change active listing; debounce disk write (AIA-225).
+  schedulePersist(false);
 }
 
 /** Cycle page groups (Sigma Ctrl+Tab / Ctrl+Shift+Tab → switchToAdjacentTabGroup). */
@@ -388,11 +425,12 @@ export async function switchNavigatorTabAdjacent(
   direction: SwitchAdjacentDirection,
 ): Promise<void> {
   if (liveOpenState.value.tabGroups.length < 2) return;
+  // AIA-225: same non-blocking reveal as click-to-switch.
   liveOpenState.value = openStateAfterSwitchAdjacent(liveOpenState.value, direction);
-  schedulePersist(true);
+  schedulePersist(false);
   const active = activeStripTab(liveOpenState.value);
   if (active?.path) {
-    await navigateTo(active.path, { syncOpenState: false });
+    revealPathNonBlocking(active.path);
   }
 }
 
@@ -405,10 +443,10 @@ export async function openOrFocusNavigatorTab(path: string): Promise<void> {
   if (!trimmed) return;
   const result = openStateOpenOrFocusPath(liveOpenState.value, trimmed);
   liveOpenState.value = result.state;
-  schedulePersist(true);
+  schedulePersist(false);
   const active = activeStripTab(liveOpenState.value);
   if (active?.path) {
-    await navigateTo(active.path, { syncOpenState: false });
+    revealPathNonBlocking(active.path);
   }
 }
 
@@ -424,12 +462,12 @@ export async function openMembersIntoOpenState(
     memberPaths,
   );
   liveOpenState.value = state;
-  schedulePersist(true);
+  schedulePersist(false);
   const active = activeStripTab(liveOpenState.value);
   if (active?.path) {
-    await navigateTo(active.path, { syncOpenState: false });
+    revealPathNonBlocking(active.path);
   } else if (opened[0]) {
-    await navigateTo(opened[0], { syncOpenState: false });
+    revealPathNonBlocking(opened[0]);
   }
   return opened;
 }
@@ -445,12 +483,14 @@ export async function restoreWorkGroupOpenState(
     new Set(pinnedTabIds.value),
   );
   activeWorkGroupId.value = workGroupId;
+  // Strip restores synchronously; directory listing must not block WG switch UI.
   applyLiveOpenState(merged);
   const active = activeStripTab(liveOpenState.value);
   if (active?.path) {
-    await navigateTo(active.path, { syncOpenState: false });
+    revealPathNonBlocking(active.path);
   } else if (!liveOpenState.value.tabGroups.length) {
     listing.value = null;
+    listLoading.value = false;
     currentPath.value = "";
   }
 }

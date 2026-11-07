@@ -49,6 +49,7 @@ for (const token of [
   "switchNavigatorTabAdjacent",
   "openOrFocusNavigatorTab",
   "openMembersIntoOpenState",
+  "revealPathNonBlocking",
 ]) {
   if (!browse.includes(token)) {
     console.error(`navigatorBrowse missing ${token}`);
@@ -56,10 +57,44 @@ for (const token of [
   }
 }
 
-// Directory open entries must open-or-focus (new tab), not replace via navigateTo.
-if (!/openEntry[\s\S]*?openOrFocusNavigatorTab/.test(browse)) {
-  console.error("openEntry must openOrFocusNavigatorTab for directories");
-  process.exit(1);
+// AIA-225: tab-group switch must not await navigator_list.
+{
+  const switchStart = browse.indexOf("export async function switchNavigatorTab");
+  const switchAdjStart = browse.indexOf(
+    "export async function switchNavigatorTabAdjacent",
+  );
+  if (switchStart < 0 || switchAdjStart < 0) {
+    console.error("missing switchNavigatorTab helpers");
+    process.exit(1);
+  }
+  const switchBody = browse.slice(switchStart, switchAdjStart);
+  if (/await\s+navigateTo\(/.test(switchBody)) {
+    console.error("switchNavigatorTab must not await navigateTo (AIA-225)");
+    process.exit(1);
+  }
+  if (!switchBody.includes("revealPathNonBlocking")) {
+    console.error("switchNavigatorTab must use revealPathNonBlocking (AIA-225)");
+    process.exit(1);
+  }
+}
+
+// AIA-150: in-list directory activate stays in the current tab via navigateTo.
+// Shell places / Discovery / Home still use openOrFocusNavigatorTab (new-or-focus).
+{
+  const openStart = browse.indexOf("export async function openEntry");
+  if (openStart < 0) {
+    console.error("missing openEntry");
+    process.exit(1);
+  }
+  const openBody = browse.slice(openStart, openStart + 800);
+  if (!/kind === "dir"[\s\S]*?navigateTo\(/.test(openBody)) {
+    console.error("openEntry directories must navigateTo in the current tab (AIA-150)");
+    process.exit(1);
+  }
+  if (/kind === "dir"[\s\S]*?openOrFocusNavigatorTab\(/.test(openBody)) {
+    console.error("openEntry directories must not openOrFocusNavigatorTab (AIA-150)");
+    process.exit(1);
+  }
 }
 
 const discovery = readFileSync(join(root, "src/views/DiscoveryView.vue"), "utf8");
