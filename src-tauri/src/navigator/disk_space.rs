@@ -70,7 +70,7 @@ mod tests {
 
     #[test]
     fn volume_root_drive_and_unc() {
-        assert_eq!(volume_root(r"C:\Users\a").as_deref(), Some(r"C:\"));
+        assert_eq!(volume_root(r"C:\Temp\afm-fixture\a").as_deref(), Some(r"C:\"));
         assert_eq!(
             volume_root(r"\\server\share\folder").as_deref(),
             Some(r"\\server\share\")

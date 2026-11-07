@@ -5,8 +5,8 @@ import { BUILTIN_SHORTCUTS, resolveDispatchMap } from "../src/shortcuts/registry
 import { chordKey } from "../src/shortcuts/chord.ts";
 
 assert.equal(
-  expandEnvPath("%USERPROFILE%\\Docs", { USERPROFILE: "C:\\Users\\me" }),
-  "C:\\Users\\me\\Docs",
+  expandEnvPath("%USERPROFILE%\\Docs", { USERPROFILE: "C:\\Temp\\afm-fixture\\home" }),
+  "C:\\Temp\\afm-fixture\\home\\Docs",
 );
 assert.equal(expandEnvPath("C:\\Temp", {}), "C:\\Temp");
 assert.equal(expandEnvPath("%MISSING%\\x", {}), "%MISSING%\\x");

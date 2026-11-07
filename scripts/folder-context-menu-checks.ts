@@ -15,10 +15,10 @@ assert.equal(drive.kind, "dir");
 assert.equal(drive.name, "C:");
 assert.equal(drive.path, "C:\\");
 
-const nested = dirEntryFromPath("C:\\Users\\Docs");
+const nested = dirEntryFromPath("C:\\Temp\\afm-fixture\\Docs");
 assert.equal(nested.kind, "dir");
 assert.equal(nested.name, "Docs");
-assert.equal(nested.path, "C:\\Users\\Docs");
+assert.equal(nested.path, "C:\\Temp\\afm-fixture\\Docs");
 
 const slashy = dirEntryFromPath("D:/Work");
 assert.equal(slashy.kind, "dir");

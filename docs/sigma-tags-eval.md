@@ -1,7 +1,7 @@
 # Sigma tags capability — evaluation (AIA-59)
 
 > Status: **eval only** · 2026-11-04  
-> Sources: local `G:\Projects\Tools\sigma-file-manager` (user-stats, tag-selector, dashboard tagged views, list column)
+> Sources: local sibling checkout `<项目根>/../sigma-file-manager` (user-stats, tag-selector, dashboard tagged views, list column)
 
 ## What Sigma tags are
 

@@ -31,9 +31,9 @@ setSelection(["p1", "p3"], "p1");
 assert.deepEqual(selectedPaths.value, ["p1", "p3"]);
 
 const entries = [
-  { name: "b.txt", path: "C:\\b.txt", kind: "file" as const, size: 20 },
-  { name: "a-dir", path: "C:\\a-dir", kind: "dir" as const, size: 0 },
-  { name: "a.txt", path: "C:\\a.txt", kind: "file" as const, size: 10 },
+  { name: "b.txt", path: "C:\\Temp\\afm-fixture\\b.txt", kind: "file" as const, size: 20 },
+  { name: "a-dir", path: "C:\\Temp\\afm-fixture\\a-dir", kind: "dir" as const, size: 0 },
+  { name: "a.txt", path: "C:\\Temp\\afm-fixture\\a.txt", kind: "file" as const, size: 10 },
 ];
 sortColumn.value = "name";
 sortDirection.value = "asc";

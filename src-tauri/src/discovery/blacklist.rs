@@ -57,7 +57,7 @@ mod tests {
         assert_eq!(list, vec![r"C:\Windows".to_string()]);
         assert!(path_is_blacklisted(r"C:\Windows\System32\cmd.exe", &list));
         assert!(path_is_blacklisted(r"C:/Windows", &list));
-        assert!(!path_is_blacklisted(r"C:\Users\demo", &list));
+        assert!(!path_is_blacklisted(r"C:\Temp\afm-fixture\demo", &list));
     }
 
     #[test]

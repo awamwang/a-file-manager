@@ -4,7 +4,7 @@ import { planMultiRename } from "../src/state/multiRename.ts";
 import { buildContextMenuItems } from "../src/components/navigator/contextMenuModel.ts";
 
 const plan = planMultiRename(
-  ["C:\\a\\photo.jpg", "C:\\a\\shot.png", "C:\\a\\note"],
+  ["C:\\Temp\\afm-fixture\\a\\photo.jpg", "C:\\Temp\\afm-fixture\\a\\shot.png", "C:\\Temp\\afm-fixture\\a\\note"],
   "Vacation.jpg",
 );
 assert.deepEqual(
@@ -12,7 +12,7 @@ assert.deepEqual(
   ["Vacation.jpg", "Vacation (2).jpg", "Vacation (3).jpg"],
 );
 
-const keepExt = planMultiRename(["D:\\x\\a.txt", "D:\\x\\b.md"], "Report");
+const keepExt = planMultiRename(["D:\\Temp\\afm-fixture\\x\\a.txt", "D:\\Temp\\afm-fixture\\x\\b.md"], "Report");
 assert.deepEqual(
   keepExt.map((item) => item.newName),
   ["Report.txt", "Report (2).md"],
