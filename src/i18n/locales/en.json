@@ -155,7 +155,7 @@
       },
       "skills": {
         "title": "Public Skills",
-        "body": "AFM-owned skill library (SKILL.md required) and Junction deploy. Placeholder for now."
+        "body": "AFM-owned skill library under APPDATA. Import requires a root SKILL.md. Junction deploy is a later slice."
       },
       "providers": {
         "title": "AI Providers",
@@ -192,6 +192,30 @@
       "errorUnknown": "Unknown Agent Target",
       "errorBuiltinRemove": "Built-in Agent Targets cannot be removed",
       "errorIdConflict": "That id conflicts with a built-in Agent Target"
+    },
+    "skills": {
+      "libraryRoot": "Library root",
+      "libraryRootHint": "Default is %APPDATA%\\com.a-file-manager.app\\.agents\\skills. Leave blank / reset for default.",
+      "saveRoot": "Save root",
+      "resetRoot": "Use default",
+      "importTitle": "Import skill",
+      "importHint": "Source folder must contain SKILL.md at its root.",
+      "fieldSource": "Source folder path",
+      "fieldName": "Library name (optional)",
+      "fieldNameHint": "Defaults to the folder name",
+      "import": "Import into library",
+      "summary": "{count} skills in library",
+      "empty": "No skills imported yet.",
+      "noticeRootSaved": "Skills library root saved",
+      "noticeRootReset": "Skills library root reset to default",
+      "noticeImported": "Skill imported",
+      "noticeRemoved": "Skill removed from library",
+      "errorSourceInvalid": "Source path must be an existing folder",
+      "errorManifestMissing": "SKILL.md is required at the skill folder root",
+      "errorNameInvalid": "Invalid skill name",
+      "errorExists": "A skill with that name already exists in the library",
+      "errorUnknown": "Unknown skill in library",
+      "errorRootInvalid": "Skills library root must be a directory"
     }
   },
   "navigator": {

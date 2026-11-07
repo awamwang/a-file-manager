@@ -155,7 +155,7 @@
       },
       "skills": {
         "title": "公共 Skills",
-        "body": "AFM 自持 Skill 库（需 SKILL.md）与 Junction 部署。当前占位。"
+        "body": "AFM 自持 Skill 库（APPDATA）。入库要求根目录有 SKILL.md。Junction 部署为后续切片。"
       },
       "providers": {
         "title": "AI Providers",
@@ -192,6 +192,30 @@
       "errorUnknown": "未知 Agent Target",
       "errorBuiltinRemove": "不能删除内置 Agent Target",
       "errorIdConflict": "该 id 与内置 Agent Target 冲突"
+    },
+    "skills": {
+      "libraryRoot": "库根目录",
+      "libraryRootHint": "默认 %APPDATA%\\com.a-file-manager.app\\.agents\\skills。留空/重置即用默认。",
+      "saveRoot": "保存根路径",
+      "resetRoot": "使用默认",
+      "importTitle": "入库",
+      "importHint": "源文件夹根目录必须有 SKILL.md。",
+      "fieldSource": "源文件夹路径",
+      "fieldName": "库内名称（可选）",
+      "fieldNameHint": "默认使用文件夹名",
+      "import": "导入到库",
+      "summary": "库中 {count} 个 skill",
+      "empty": "尚未导入 skill。",
+      "noticeRootSaved": "Skill 库根路径已保存",
+      "noticeRootReset": "Skill 库根路径已恢复默认",
+      "noticeImported": "Skill 已入库",
+      "noticeRemoved": "已从库中移除 skill",
+      "errorSourceInvalid": "源路径必须是已存在的文件夹",
+      "errorManifestMissing": "技能文件夹根目录必须有 SKILL.md",
+      "errorNameInvalid": "无效的 skill 名称",
+      "errorExists": "库中已存在同名 skill",
+      "errorUnknown": "库中未知 skill",
+      "errorRootInvalid": "Skill 库根必须是目录"
     }
   },
   "navigator": {

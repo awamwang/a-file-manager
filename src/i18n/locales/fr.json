@@ -114,7 +114,7 @@
       },
       "skills": {
         "title": "Skills publics",
-        "body": "Bibliothèque de skills AFM (SKILL.md requis) et déploiement par Junction. Espace réservé pour l’instant."
+        "body": "Bibliothèque de skills AFM sous APPDATA. L’import exige SKILL.md à la racine. Le déploiement Junction vient plus tard."
       },
       "providers": {
         "title": "Fournisseurs IA",
@@ -151,6 +151,30 @@
       "errorUnknown": "Cible Agent inconnue",
       "errorBuiltinRemove": "Les cibles Agent intégrées ne peuvent pas être supprimées",
       "errorIdConflict": "Cet id entre en conflit avec une cible Agent intégrée"
+    },
+    "skills": {
+      "libraryRoot": "Racine de la bibliothèque",
+      "libraryRootHint": "Par défaut %APPDATA%\\com.a-file-manager.app\\.agents\\skills. Vide / réinitialiser = défaut.",
+      "saveRoot": "Enregistrer la racine",
+      "resetRoot": "Utiliser le défaut",
+      "importTitle": "Importer un skill",
+      "importHint": "Le dossier source doit contenir SKILL.md à la racine.",
+      "fieldSource": "Chemin du dossier source",
+      "fieldName": "Nom dans la bibliothèque (facultatif)",
+      "fieldNameHint": "Par défaut : nom du dossier",
+      "import": "Importer dans la bibliothèque",
+      "summary": "{count} skills dans la bibliothèque",
+      "empty": "Aucun skill importé pour l’instant.",
+      "noticeRootSaved": "Racine de la bibliothèque de skills enregistrée",
+      "noticeRootReset": "Racine de la bibliothèque rétablie par défaut",
+      "noticeImported": "Skill importé",
+      "noticeRemoved": "Skill retiré de la bibliothèque",
+      "errorSourceInvalid": "La source doit être un dossier existant",
+      "errorManifestMissing": "SKILL.md est requis à la racine du skill",
+      "errorNameInvalid": "Nom de skill invalide",
+      "errorExists": "Un skill portant ce nom existe déjà",
+      "errorUnknown": "Skill inconnu dans la bibliothèque",
+      "errorRootInvalid": "La racine de la bibliothèque doit être un répertoire"
     }
   },
   "common": {

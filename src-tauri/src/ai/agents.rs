@@ -59,6 +59,9 @@ pub struct AgentTargetPatch {
 pub struct AiConfigDocument {
     pub schema_version: u32,
     pub agent_targets: Vec<AgentTarget>,
+    /// Empty → default `<config_dir>\.agents\skills` (ADR 0005 / A3).
+    #[serde(default)]
+    pub skills_library_root: String,
 }
 
 impl AiConfigDocument {
@@ -66,6 +69,7 @@ impl AiConfigDocument {
         Self {
             schema_version: AI_CONFIG_SCHEMA_VERSION,
             agent_targets: Vec::new(),
+            skills_library_root: String::new(),
         }
     }
 }

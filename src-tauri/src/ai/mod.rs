@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! AI Add-on layer (AIA-214 / A1 · AIA-215 / A2).
+//! AI Add-on layer (AIA-214 / A1 · AIA-215 / A2 · AIA-216 / A3).
 //!
 //! **Boundary (ADR 0007):** Workspace / Projects Root / WG / Navigator ∈ Core FM.
 //! This module owns the AI Add-on surface: main menu shell, Agent Target registry,
-//! and later public Skills/MCP, Providers, Harness/SDD init (A3+). Core must not grow those.
+//! public Skill library, and later MCP deploy / Providers / Harness (A4+).
 //!
 //! - A1: shell status + section ids
 //! - A2: Agent Target registry (discover / enable / custom + MCP usage prompt placeholder)
-//! - Not yet: Skill library (A3), Skill deploy (A4), MCP catalog/merge (A5), Providers (A7)
+//! - A3: public Skill library + import (SKILL.md required)
+//! - Not yet: Skill Junction deploy (A4), MCP catalog/merge (A5), Providers (A7)
 
 mod agents;
+mod skills;
 
 pub use agents::{AgentTargetPatch, AiConfigDocument};
 
@@ -20,13 +22,13 @@ use tauri::Manager;
 /// Stable section ids for the AI main menu shell (UI + future IPC).
 pub const AI_MENU_SECTION_IDS: &[&str] = &["agents", "mcp", "skills", "providers"];
 
-pub const AI_ADDON_SHELL_VERSION: u32 = 2;
+pub const AI_ADDON_SHELL_VERSION: u32 = 3;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct AiMenuSectionStatus {
     pub id: String,
-    /// False until the slice that owns this section lands (A3–A7). Agents ready since A2.
+    /// Agents ready since A2; Skills ready since A3.
     pub ready: bool,
 }
 
@@ -46,7 +48,7 @@ fn config_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
 }
 
 fn section_ready(id: &str) -> bool {
-    id == "agents"
+    matches!(id, "agents" | "skills")
 }
 
 /// Shell probe for the AI main menu.
@@ -148,22 +150,65 @@ pub fn ai_agent_targets_remove(
     Ok(next)
 }
 
+/// Public Skill library status (root + imported skills with SKILL.md).
+#[tauri::command]
+pub fn ai_skills_library_get(app: AppHandle) -> Result<skills::SkillsLibraryStatus, String> {
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    skills::library_status(&dir, &doc)
+}
+
+/// Set or clear skills library root override (empty / null → default under APPDATA).
+#[tauri::command]
+pub fn ai_skills_library_set_root(
+    app: AppHandle,
+    root: Option<String>,
+) -> Result<skills::SkillsLibraryStatus, String> {
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    let (next, status) = skills::set_library_root(&dir, &doc, root)?;
+    skills::save_ai_config(&dir, &next)?;
+    Ok(status)
+}
+
+/// Import a folder into the public Skill library. Root must contain `SKILL.md`.
+#[tauri::command]
+pub fn ai_skills_import(
+    app: AppHandle,
+    source_path: String,
+    name: Option<String>,
+) -> Result<(skills::SkillsLibraryStatus, skills::LibrarySkill), String> {
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    skills::import_skill(&dir, &doc, &source_path, name)
+}
+
+#[tauri::command]
+pub fn ai_skills_remove(app: AppHandle, name: String) -> Result<skills::SkillsLibraryStatus, String> {
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    skills::remove_skill(&dir, &doc, &name)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn shell_marks_agents_ready_only() {
+    fn shell_marks_agents_and_skills_ready() {
         let status = ai_addon_status();
         assert_eq!(status.layer, "ai-addon");
         assert_eq!(status.shell_version, AI_ADDON_SHELL_VERSION);
-        let agents = status.sections.iter().find(|s| s.id == "agents").unwrap();
-        assert!(agents.ready);
+        for id in ["agents", "skills"] {
+            assert!(
+                status.sections.iter().find(|s| s.id == id).unwrap().ready,
+                "{id} should be ready"
+            );
+        }
         assert!(status
             .sections
             .iter()
-            .filter(|s| s.id != "agents")
+            .filter(|s| s.id != "agents" && s.id != "skills")
             .all(|s| !s.ready));
     }
-
 }

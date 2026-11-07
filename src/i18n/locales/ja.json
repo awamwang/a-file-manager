@@ -114,7 +114,7 @@
       },
       "skills": {
         "title": "共有 Skills",
-        "body": "AFM 所有の Skill ライブラリ（SKILL.md 必須）と Junction 配備。現在はプレースホルダー。"
+        "body": "AFM 所有の Skill ライブラリ（APPDATA）。取り込みにはルートの SKILL.md が必要。Junction 配備は後続。"
       },
       "providers": {
         "title": "AI Providers",
@@ -151,6 +151,30 @@
       "errorUnknown": "不明な Agent Target",
       "errorBuiltinRemove": "組み込み Agent Target は削除できません",
       "errorIdConflict": "その id は組み込み Agent Target と衝突します"
+    },
+    "skills": {
+      "libraryRoot": "ライブラリ根",
+      "libraryRootHint": "既定は %APPDATA%\\com.a-file-manager.app\\.agents\\skills。空/リセットで既定。",
+      "saveRoot": "根を保存",
+      "resetRoot": "既定を使う",
+      "importTitle": "取り込み",
+      "importHint": "ソースフォルダーのルートに SKILL.md が必要です。",
+      "fieldSource": "ソースフォルダー",
+      "fieldName": "ライブラリ名（任意）",
+      "fieldNameHint": "省略時はフォルダー名",
+      "import": "ライブラリへ取り込む",
+      "summary": "ライブラリ内 {count} 件",
+      "empty": "まだ skill がありません。",
+      "noticeRootSaved": "Skill ライブラリ根を保存しました",
+      "noticeRootReset": "Skill ライブラリ根を既定に戻しました",
+      "noticeImported": "Skill を取り込みました",
+      "noticeRemoved": "ライブラリから Skill を削除しました",
+      "errorSourceInvalid": "ソースは既存フォルダーである必要があります",
+      "errorManifestMissing": "ルートに SKILL.md が必要です",
+      "errorNameInvalid": "無効な skill 名です",
+      "errorExists": "同名の skill が既にあります",
+      "errorUnknown": "不明な skill です",
+      "errorRootInvalid": "ライブラリ根はディレクトリである必要があります"
     }
   },
   "common": {

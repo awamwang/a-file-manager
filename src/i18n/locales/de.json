@@ -114,7 +114,7 @@
       },
       "skills": {
         "title": "Öffentliche Skills",
-        "body": "AFM-eigene Skill-Bibliothek (SKILL.md erforderlich) und Junction-Deploy. Derzeit Platzhalter."
+        "body": "AFM-eigene Skill-Bibliothek unter APPDATA. Import erfordert SKILL.md im Wurzelordner. Junction-Deploy folgt später."
       },
       "providers": {
         "title": "AI-Provider",
@@ -151,6 +151,30 @@
       "errorUnknown": "Unbekanntes Agent Target",
       "errorBuiltinRemove": "Integrierte Agent Targets können nicht entfernt werden",
       "errorIdConflict": "Diese Id kollidiert mit einem integrierten Agent Target"
+    },
+    "skills": {
+      "libraryRoot": "Bibliotheksstamm",
+      "libraryRootHint": "Standard: %APPDATA%\\com.a-file-manager.app\\.agents\\skills. Leer / zurücksetzen = Standard.",
+      "saveRoot": "Stamm speichern",
+      "resetRoot": "Standard nutzen",
+      "importTitle": "Skill importieren",
+      "importHint": "Quellordner muss SKILL.md im Stamm enthalten.",
+      "fieldSource": "Quellordnerpfad",
+      "fieldName": "Bibliotheksname (optional)",
+      "fieldNameHint": "Standard: Ordnername",
+      "import": "In Bibliothek importieren",
+      "summary": "{count} Skills in der Bibliothek",
+      "empty": "Noch keine Skills importiert.",
+      "noticeRootSaved": "Skills-Bibliotheksstamm gespeichert",
+      "noticeRootReset": "Skills-Bibliotheksstamm auf Standard zurückgesetzt",
+      "noticeImported": "Skill importiert",
+      "noticeRemoved": "Skill aus Bibliothek entfernt",
+      "errorSourceInvalid": "Quelle muss ein vorhandener Ordner sein",
+      "errorManifestMissing": "SKILL.md ist im Skill-Stamm erforderlich",
+      "errorNameInvalid": "Ungültiger Skill-Name",
+      "errorExists": "Ein Skill mit diesem Namen existiert bereits",
+      "errorUnknown": "Unbekannter Skill in der Bibliothek",
+      "errorRootInvalid": "Skills-Bibliotheksstamm muss ein Verzeichnis sein"
     }
   },
   "common": {
