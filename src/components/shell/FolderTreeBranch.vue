@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import FluentIcon from "../icons/FluentIcon.vue";
@@ -8,6 +8,7 @@ import { currentPath, navigateTo, type NavigatorListing } from "../../state/navi
 import {
   directoryChildren,
   treeRowHighlight,
+  treeShouldAutoExpand,
   type FolderTreeChild,
   type TreeHighlightMode,
 } from "../../state/folderTree";
@@ -18,7 +19,7 @@ const props = withDefaults(
     path: string;
     label: string;
     depth?: number;
-    /** AIA-230: entry roots have no selected semantics. */
+    /** Legacy AIA-230 entry roots; Explorer tree uses `tree`. */
     highlightMode?: TreeHighlightMode;
   }>(),
   { depth: 0, highlightMode: "tree" },
@@ -28,6 +29,8 @@ const { t } = useI18n();
 const expanded = ref(false);
 const loading = ref(false);
 const children = ref<FolderTreeChild[] | null>(null);
+/** Manual collapse while still under this path — cleared on navigation. */
+const userCollapsed = ref(false);
 
 const highlight = computed(() =>
   treeRowHighlight(currentPath.value, props.path, props.highlightMode),
@@ -48,16 +51,37 @@ async function loadChildren() {
   }
 }
 
-async function toggle() {
-  expanded.value = !expanded.value;
-  if (expanded.value && children.value === null) {
+async function expandAndLoad() {
+  expanded.value = true;
+  if (children.value === null) {
     await loadChildren();
   }
+}
+
+async function toggle() {
+  if (expanded.value) {
+    expanded.value = false;
+    userCollapsed.value = true;
+    return;
+  }
+  userCollapsed.value = false;
+  await expandAndLoad();
 }
 
 function open() {
   void navigateTo(props.path);
 }
+
+watch(
+  () => currentPath.value,
+  async (path, prev) => {
+    if (path !== prev) userCollapsed.value = false;
+    if (treeShouldAutoExpand(path, props.path) && !userCollapsed.value) {
+      await expandAndLoad();
+    }
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
@@ -89,7 +113,7 @@ function open() {
           'tree-label--nested': depth > 0,
         }"
         :title="path"
-        :aria-current="highlight === 'current' ? 'page' : undefined"
+        :aria-current="highlight === 'selected' || highlight === 'current' ? 'page' : undefined"
         @click="open"
       >
         <FluentIcon name="folder" size="sm" class="tree-label-icon" />
@@ -189,17 +213,14 @@ function open() {
   padding-left: 2px;
 }
 
-/* Hierarchy selection (drives / expanded dirs) — selected semantics. */
+/* Explorer current folder — selected semantics. */
 .tree-label--selected {
   background: var(--fluent-color-fill-selected);
   font-weight: var(--fluent-font-weight-semibold);
   color: var(--fluent-color-text-primary);
 }
 
-/*
- * AIA-230 entry points (常用文件夹 / favorites roots):
- * ephemeral current-path cue only — never fill-selected, clears when path leaves.
- */
+/* Legacy AIA-230 entry soft cue (unused by AIA-236 tree roots). */
 .tree-label--current {
   font-weight: var(--fluent-font-weight-semibold);
   color: var(--fluent-color-text-primary);

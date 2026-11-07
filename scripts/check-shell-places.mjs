@@ -19,7 +19,11 @@ assert.ok(state.includes("navigator_shell_places"));
 assert.ok(guide.includes("shellPlaces.onedrive"));
 assert.ok(guide.includes("shellPlaces.libraries"));
 assert.ok(guide.includes("shellPlaces.network"));
-assert.ok(tree.includes("shellPlaces.onedrive"));
+// AIA-236: sidebar is This PC + drive expand tree — shell places stay on Guide / places menu.
+assert.ok(!tree.includes("shellPlaces.onedrive"));
+assert.ok(!tree.includes("shellPlaces.libraries"));
+assert.ok(!tree.includes("shellPlaces.network"));
+assert.ok(tree.includes("drivesList"));
 assert.equal(en.shellPlaces.onedrive, "OneDrive");
 
 const rust = spawnSync(

@@ -40,9 +40,21 @@ export function treePathExact(current: string, node: string): boolean {
 }
 
 /**
- * AIA-230: how a sidebar row should highlight.
- * - `tree`: hierarchy selection (node or descendant) → selected semantics
- * - `entry`: favorite / 常用文件夹 roots → exact current only, never selected
+ * AIA-236: expand a node when `current` is a strict descendant (ancestors +
+ * siblings along the path). The active folder itself need not be expanded.
+ */
+export function treeShouldAutoExpand(current: string, node: string): boolean {
+  const here = normalizeTreePath(current);
+  const root = normalizeTreePath(node);
+  if (!here || !root) return false;
+  if (here === root) return false;
+  return here.startsWith(`${root}\\`);
+}
+
+/**
+ * How a sidebar row should highlight.
+ * - `tree` (AIA-236 Explorer): exact current folder → selected
+ * - `entry` (AIA-230 legacy): exact current only as soft current cue
  */
 export type TreeHighlightMode = "tree" | "entry";
 
@@ -56,5 +68,15 @@ export function treeRowHighlight(
   if (mode === "entry") {
     return treePathExact(current, node) ? "current" : "none";
   }
-  return treePathActive(current, node) ? "selected" : "none";
+  return treePathExact(current, node) ? "selected" : "none";
+}
+
+/** True for real OS / UNC paths that belong under This PC drive roots. */
+export function isOsHierarchyPath(path: string | null | undefined): boolean {
+  if (!path) return false;
+  const trimmed = path.trim();
+  if (!trimmed) return false;
+  if (/^[a-zA-Z]:[\\/]/.test(trimmed) || /^[a-zA-Z]:$/.test(trimmed)) return true;
+  if (trimmed.startsWith("\\\\")) return true;
+  return false;
 }

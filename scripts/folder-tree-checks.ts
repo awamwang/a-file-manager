@@ -2,9 +2,11 @@
 import assert from "node:assert/strict";
 import {
   directoryChildren,
+  isOsHierarchyPath,
   treePathActive,
   treePathExact,
   treeRowHighlight,
+  treeShouldAutoExpand,
 } from "../src/state/folderTree.ts";
 
 assert.deepEqual(
@@ -22,10 +24,19 @@ assert.equal(treePathActive("C:\\Temp\\afm-fixture", "D:\\Temp\\afm-fixture"), f
 assert.equal(treePathActive("C:\\Temp\\afm-fixture2", "C:\\Temp\\afm-fixture"), false);
 assert.equal(treePathActive("C:\\Temp\\afm-fixture\\work\\file.txt", "C:\\"), true);
 
-// AIA-230: entry roots never sticky-select on descendant / partial hover match.
 assert.equal(treePathExact("C:\\Users\\me\\Documents\\work", "C:\\Users\\me\\Documents"), false);
 assert.equal(treePathExact("C:\\Users\\me\\Documents", "C:\\Users\\me\\Documents"), true);
 assert.equal(treePathExact("C:\\Users\\me\\Documents", "C:\\Users\\me\\documents"), true);
+
+// AIA-236: Explorer selection is exact; ancestors expand but are not selected.
+assert.equal(
+  treeRowHighlight("C:\\Users\\me\\Documents\\a", "C:\\Users\\me\\Documents", "tree"),
+  "none",
+);
+assert.equal(
+  treeRowHighlight("C:\\Users\\me\\Documents", "C:\\Users\\me\\Documents", "tree"),
+  "selected",
+);
 assert.equal(
   treeRowHighlight("C:\\Users\\me\\Documents\\a", "C:\\Users\\me\\Documents", "entry"),
   "none",
@@ -34,15 +45,17 @@ assert.equal(
   treeRowHighlight("C:\\Users\\me\\Documents", "C:\\Users\\me\\Documents", "entry"),
   "current",
 );
-assert.equal(
-  treeRowHighlight("C:\\Users\\me\\Documents\\a", "C:\\Users\\me\\Documents", "tree"),
-  "selected",
-);
-assert.equal(
-  treeRowHighlight("C:\\Users\\me\\Documents", "C:\\Users\\me\\Documents", "tree"),
-  "selected",
-);
+
+assert.equal(treeShouldAutoExpand("C:\\Users\\me\\Documents", "C:\\Users"), true);
+assert.equal(treeShouldAutoExpand("C:\\Users\\me\\Documents", "C:\\Users\\me\\Documents"), false);
+assert.equal(treeShouldAutoExpand("C:\\Users\\me\\Documents", "D:\\"), false);
+assert.equal(treeShouldAutoExpand("C:\\Temp\\work", "C:\\"), true);
+
+assert.equal(isOsHierarchyPath("C:\\Users"), true);
+assert.equal(isOsHierarchyPath("D:"), true);
+assert.equal(isOsHierarchyPath("\\\\server\\share"), true);
+assert.equal(isOsHierarchyPath("afm://guide"), false);
+assert.equal(isOsHierarchyPath("afm://recycle"), false);
+assert.equal(isOsHierarchyPath(""), false);
 
 console.log("folder-tree checks OK.");
-
-await import("./folder-tree-section-checks.ts");
