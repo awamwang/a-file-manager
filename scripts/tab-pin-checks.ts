@@ -23,11 +23,11 @@ function state(groups: WorkGroupOpenStateTab[][], current = 0): WorkGroupOpenSta
 
 const pinned = new Set(["p1", "p2"]);
 const live = state(
-  [[tab("p1", "C:\\pin-a")], [tab("u1", "C:\\old")], [tab("p2", "C:\\pin-b")], [tab("u2", "C:\\old-2")]],
+  [[tab("p1", "C:\\Temp\\afm-fixture\\pin-a")], [tab("u1", "C:\\Temp\\afm-fixture\\old")], [tab("p2", "C:\\Temp\\afm-fixture\\pin-b")], [tab("u2", "C:\\Temp\\afm-fixture\\old-2")]],
   2,
 );
 const restored = state(
-  [[tab("t1", "D:\\one")], [tab("t2", "D:\\two")], [tab("t3", "D:\\three")]],
+  [[tab("t1", "D:\\Temp\\afm-fixture\\one")], [tab("t2", "D:\\Temp\\afm-fixture\\two")], [tab("t3", "D:\\Temp\\afm-fixture\\three")]],
   1,
 );
 
@@ -49,7 +49,7 @@ assert.equal(untouched.tabGroups.length, 3);
 assert.equal(untouched.currentTabGroupIndex, 1);
 
 const duplicated = mergePinnedIntoOpenState(
-  state([[tab("p1", "C:\\pin-a")], [tab("t1", "D:\\one")]], 0),
+  state([[tab("p1", "C:\\Temp\\afm-fixture\\pin-a")], [tab("t1", "D:\\Temp\\afm-fixture\\one")]], 0),
   live,
   pinned,
 );

@@ -46,6 +46,10 @@ git push origin v0.1.0
 
 You can also trigger **Actions → Release → Run workflow** manually (`workflow_dispatch`); that path uses `v__VERSION__` from `tauri.conf.json`.
 
+## License
+
+[GPL-3.0-or-later](./LICENSE). Personal / private use is fine. Redistribution or commercial use must follow the GPL (including providing corresponding source).
+
 ## Identity
 
 | | |

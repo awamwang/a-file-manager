@@ -3,19 +3,19 @@ import assert from "node:assert/strict";
 import { dropTransferMode } from "../src/state/dropMode.ts";
 
 assert.equal(
-  dropTransferMode(["C:\\a\\file.txt"], "C:\\b", {}),
+  dropTransferMode(["C:\\Temp\\afm-fixture\\a\\file.txt"], "C:\\Temp\\afm-fixture\\b", {}),
   "move",
 );
 assert.equal(
-  dropTransferMode(["C:\\a\\file.txt"], "D:\\b", {}),
+  dropTransferMode(["C:\\Temp\\afm-fixture\\a\\file.txt"], "D:\\Temp\\afm-fixture\\b", {}),
   "copy",
 );
 assert.equal(
-  dropTransferMode(["C:\\a\\file.txt"], "C:\\b", { ctrl: true }),
+  dropTransferMode(["C:\\Temp\\afm-fixture\\a\\file.txt"], "C:\\Temp\\afm-fixture\\b", { ctrl: true }),
   "copy",
 );
 assert.equal(
-  dropTransferMode(["D:\\a\\file.txt"], "C:\\b", { shift: true }),
+  dropTransferMode(["D:\\Temp\\afm-fixture\\a\\file.txt"], "C:\\Temp\\afm-fixture\\b", { shift: true }),
   "move",
 );
 assert.equal(

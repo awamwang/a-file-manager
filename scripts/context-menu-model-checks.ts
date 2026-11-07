@@ -6,8 +6,8 @@ import {
   canOpenInNewTab,
 } from "../src/components/navigator/contextMenuModel.ts";
 
-const dir = { name: "Docs", path: "C:/Docs", kind: "dir" as const, size: 0 };
-const file = { name: "a.txt", path: "C:/Docs/a.txt", kind: "file" as const, size: 12 };
+const dir = { name: "Docs", path: "C:/Temp/afm-fixture/Docs", kind: "dir" as const, size: 0 };
+const file = { name: "a.txt", path: "C:/Temp/afm-fixture/Docs/a.txt", kind: "file" as const, size: 12 };
 
 assert.equal(canOpenInNewTab(dir), true);
 assert.equal(canOpenInNewTab(file), false);
@@ -104,7 +104,7 @@ assert.equal(emptyToolbar.find((item) => item.id === "paste")?.enabled, true);
 assert.ok(fileItems.find((item) => item.id === "compressZip")?.enabled);
 assert.equal(fileItems.find((item) => item.id === "extractZip")?.enabled, false);
 
-const zip = { name: "pack.zip", path: "C:/Docs/pack.zip", kind: "file" as const, size: 100 };
+const zip = { name: "pack.zip", path: "C:/Temp/afm-fixture/Docs/pack.zip", kind: "file" as const, size: 100 };
 const zipItems = buildContextMenuItems(zip);
 assert.equal(zipItems.find((item) => item.id === "extractZip")?.enabled, true);
 

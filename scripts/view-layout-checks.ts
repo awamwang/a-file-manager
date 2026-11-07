@@ -34,10 +34,10 @@ assert.equal(
 
 // Mirror groupEntriesByType without importing the Vue-adjacent module graph.
 const raw = [
-  { name: "a.txt", path: "C:\\a.txt", kind: "file" },
-  { name: "b.txt", path: "C:\\b.txt", kind: "file" },
-  { name: "Docs", path: "C:\\Docs", kind: "dir" },
-  { name: "c.png", path: "C:\\c.png", kind: "file" },
+  { name: "a.txt", path: "C:\\Temp\\afm-fixture\\a.txt", kind: "file" },
+  { name: "b.txt", path: "C:\\Temp\\afm-fixture\\b.txt", kind: "file" },
+  { name: "Docs", path: "C:\\Temp\\afm-fixture\\Docs", kind: "dir" },
+  { name: "c.png", path: "C:\\Temp\\afm-fixture\\c.png", kind: "file" },
 ];
 const buckets = new Map<string, typeof raw>();
 for (const entry of raw) {

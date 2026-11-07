@@ -22,8 +22,8 @@ import {
   type WorkGroupOpenState,
 } from "../src/state/openStateModel.ts";
 
-assert.equal(displayNameFromPath("G:/Projects/Stock/vibe-astock"), "vibe-astock");
-assert.equal(displayNameFromPath("C:\\Users\\Administrator\\"), "Administrator");
+assert.equal(displayNameFromPath("G:/Projects/A/demo-app"), "demo-app");
+assert.equal(displayNameFromPath("C:\\Temp\\afm-fixture\\home\\"), "home");
 assert.equal(normalizePathKey("  G:\\Projects\\A\\  "), normalizePathKey("g:/projects/a"));
 
 const empty = createEmptyOpenState();
@@ -31,31 +31,31 @@ assert.deepEqual(empty.tabGroups, []);
 assert.equal(stripTabsFromOpenState(empty).length, 0);
 
 let state = openStateFromPaths([
-  "G:/Projects/Stock/vibe-astock-public",
-  "G:/Projects/Stock/vibe-astock",
-  "G:/Projects/Stock/tdx/tdx-mcp",
+  "G:/Projects/A/demo-app-public",
+  "G:/Projects/A/demo-app",
+  "G:/Projects/A/tools/cli-tool",
 ]);
 assert.equal(state.tabGroups.length, 3);
 assert.equal(state.currentTabGroupIndex, 0);
-assert.equal(activeStripTab(state)?.path, "G:/Projects/Stock/vibe-astock-public");
+assert.equal(activeStripTab(state)?.path, "G:/Projects/A/demo-app-public");
 
 state = openStateAfterSwitchGroup(state, 2);
 assert.equal(state.currentTabGroupIndex, 2);
-assert.equal(activeStripTab(state)?.name, "tdx-mcp");
+assert.equal(activeStripTab(state)?.name, "cli-tool");
 
-state = openStateAfterNavigate(state, "G:/Projects/Stock/tdx/tdx-mcp/src");
-assert.equal(activeStripTab(state)?.path, "G:/Projects/Stock/tdx/tdx-mcp/src");
+state = openStateAfterNavigate(state, "G:/Projects/A/tools/cli-tool/src");
+assert.equal(activeStripTab(state)?.path, "G:/Projects/A/tools/cli-tool/src");
 assert.equal(activeStripTab(state)?.name, "src");
-assert.equal(state.tabGroups[0][0].path, "G:/Projects/Stock/vibe-astock-public");
+assert.equal(state.tabGroups[0][0].path, "G:/Projects/A/demo-app-public");
 
-state = openStateWithNewTab(state, "G:/Projects/Tools");
+state = openStateWithNewTab(state, "G:/Projects/Workspace");
 assert.equal(state.tabGroups.length, 4);
 assert.equal(state.currentTabGroupIndex, 3);
-assert.equal(activeStripTab(state)?.name, "Tools");
+assert.equal(activeStripTab(state)?.name, "Workspace");
 
 state = openStateAfterCloseGroup(state, 1);
 assert.equal(state.tabGroups.length, 3);
-assert.ok(state.tabGroups.every((g) => g[0].path !== "G:/Projects/Stock/vibe-astock"));
+assert.ok(state.tabGroups.every((g) => g[0].path !== "G:/Projects/A/demo-app"));
 
 // Closing the active group selects a neighbor
 state = openStateAfterSwitchGroup(state, 1);
@@ -66,16 +66,16 @@ assert.ok(closedActive.currentTabGroupIndex < closedActive.tabGroups.length);
 // Sigma-shaped restore (one pane per group + currentTabGroupIndex)
 const sigmaLike: WorkGroupOpenState = {
   tabGroups: [
-    [{ id: "a", name: "awam-skills", path: "G:/Projects/19AI/awam-skills", type: "directory" }],
-    [{ id: "b", name: "Tools", path: "G:/Projects/Tools", type: "directory" }],
-    [{ id: "c", name: "skills", path: "G:/Projects/19AI/skills", type: "directory" }],
+    [{ id: "a", name: "skills-kit", path: "G:/Projects/Org/skills-kit", type: "directory" }],
+    [{ id: "b", name: "Workspace", path: "G:/Projects/Workspace", type: "directory" }],
+    [{ id: "c", name: "skills", path: "G:/Projects/Org/skills", type: "directory" }],
   ],
   currentTabGroupIndex: 2,
   currentTabIndex: 0,
 };
 const restored = normalizeRestoredOpenState(sigmaLike);
 assert.equal(stripTabsFromOpenState(restored).length, 3);
-assert.equal(activeStripTab(restored)?.path, "G:/Projects/19AI/skills");
+assert.equal(activeStripTab(restored)?.path, "G:/Projects/Org/skills");
 
 // AIA-77: adjacent page-group cycle (wrap) + openOrFocus select
 let cycle = openStateFromPaths([
@@ -115,10 +115,10 @@ assert.equal(guarded.tabGroups.length, 3);
 const same = openStateAfterReorderGroups(reorder, 1, 1);
 assert.equal(same.tabGroups.length, 3);
 
-assert.equal(findTabGroupIndexByPath(restored, "G:\\Projects\\Tools"), 1);
+assert.equal(findTabGroupIndexByPath(restored, "G:\\Projects\\Workspace"), 1);
 assert.equal(findTabGroupIndexByPath(restored, "G:/missing"), -1);
 
-const focusHit = openStateOpenOrFocusPath(restored, "G:/Projects/Tools");
+const focusHit = openStateOpenOrFocusPath(restored, "G:/Projects/Workspace");
 assert.equal(focusHit.focusedExisting, true);
 assert.equal(focusHit.groupIndex, 1);
 assert.equal(focusHit.state.currentTabGroupIndex, 1);
