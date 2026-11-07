@@ -67,6 +67,11 @@ assert.equal(
   "navigator.previewPane",
 );
 assert.equal(
+  winners.get(chordKey({ alt: true, shift: true, key: "p" }))?.id,
+  "navigator.detailsPane",
+  "AIA-235: Alt+Shift+P toggles details pane",
+);
+assert.equal(
   winners.get(chordKey({ ctrl: true, key: "z" }))?.id,
   "navigator.undo",
 );

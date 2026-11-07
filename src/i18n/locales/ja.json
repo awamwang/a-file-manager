@@ -783,6 +783,7 @@
       "navigatorPreviewBridge": "選択をプレビュー（Peek / QuickLook / 組み込み）",
       "navigatorProperties": "プロパティ",
       "navigatorPreviewPane": "プレビューウィンドウを切り替え",
+      "navigatorDetailsPane": "詳細ペインを切り替え",
       "focusAddress": "アドレスバーにフォーカス",
       "focusCycle": "フォーカスを循環（F6）",
       "focusCycleReverse": "フォーカスを逆循環（Shift+F6）",
@@ -864,6 +865,21 @@
     "label": "最近のアクセス",
     "empty": "最近開いたフォルダーがここに表示されます",
     "openCount": "{count} 回開きました"
+  },
+  "detailsPane": {
+    "title": "詳細",
+    "empty": "項目を選択すると詳細が表示されます",
+    "name": "名前",
+    "kind": "種類",
+    "path": "パス",
+    "size": "サイズ",
+    "modified": "更新日時",
+    "kindFolder": "フォルダー",
+    "kindFile": "ファイル",
+    "unknown": "不明",
+    "selected": "選択",
+    "selectedCount": "{count} 件",
+    "multiHint": "1 件選択で詳細を表示、または Alt+Enter でプロパティを開きます。"
   },
   "properties": {
     "title": "プロパティ",

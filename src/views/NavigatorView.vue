@@ -137,6 +137,7 @@ import {
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import NavigatorContextMenu from "../components/navigator/NavigatorContextMenu.vue";
 import PreviewPane from "../components/navigator/PreviewPane.vue";
+import DetailsPane from "../components/navigator/DetailsPane.vue";
 import PropertiesPanel from "../components/navigator/PropertiesPanel.vue";
 import { entryKindIcon } from "../components/icons/glyphs";
 
@@ -152,6 +153,8 @@ const propertiesPath = ref<string | null>(null);
 const previewPaneSetting = ref(false);
 /** Session override for Alt+P. Null follows experimental.previewPane. */
 const previewPaneSession = ref<boolean | null>(null);
+/** AIA-235: Alt+Shift+P details pane (separate from Alt+Enter properties). */
+const detailsPaneOpen = ref(false);
 
 const previewPaneEnabled = computed(() => {
   const base = previewPaneSession.value ?? previewPaneSetting.value;
@@ -236,6 +239,14 @@ function openProperties(path: string) {
 function shortcutTogglePreviewPane() {
   const currently = previewPaneSession.value ?? previewPaneSetting.value;
   previewPaneSession.value = !currently;
+}
+
+function shortcutToggleDetailsPane() {
+  detailsPaneOpen.value = !detailsPaneOpen.value;
+}
+
+function closeDetailsPane() {
+  detailsPaneOpen.value = false;
 }
 
 function closeProperties() {
@@ -1073,6 +1084,9 @@ function registerNavFileShortcuts() {
   registerShortcutHandler("navigator.previewPane", () => {
     shortcutTogglePreviewPane();
   });
+  registerShortcutHandler("navigator.detailsPane", () => {
+    shortcutToggleDetailsPane();
+  });
   registerShortcutHandler("navigator.closeTab", () => {
     if (!liveOpenState.value.tabGroups.length) return;
     void closeNavigatorTab(liveOpenState.value.currentTabGroupIndex);
@@ -1104,6 +1118,7 @@ function unregisterNavFileShortcuts() {
     "navigator.previewBridge",
     "navigator.properties",
     "navigator.previewPane",
+    "navigator.detailsPane",
     "navigator.closeTab",
     "navigator.jumpTab1",
     "navigator.jumpTab2",
@@ -1284,7 +1299,13 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
 <template>
   <!-- AIA-78: no in-page title / Kernel status meta — path via shell address bar + pane-path; counts in shell statusbar. -->
   <section class="fluent-page fluent-page--navigator">
-    <div class="navigator-body" :class="{ 'navigator-body--preview': previewPaneEnabled }">
+    <div
+      class="navigator-body"
+      :class="{
+        'navigator-body--preview': previewPaneEnabled,
+        'navigator-body--details': detailsPaneOpen,
+      }"
+    >
     <div class="panes" :class="{ 'panes--dual': dualPaneEnabled }">
     <div
       class="pane"
@@ -1632,6 +1653,12 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
     </div>
     </div>
     <PreviewPane :enabled="previewPaneEnabled" :path="previewPath" />
+    <DetailsPane
+      :enabled="detailsPaneOpen"
+      :paths="selectedPaths"
+      :entries="visibleEntries"
+      @close="closeDetailsPane"
+    />
     </div>
 
     <NavigatorContextMenu

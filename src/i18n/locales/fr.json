@@ -783,6 +783,7 @@
       "navigatorPreviewBridge": "Aperçu de la sélection (Peek / QuickLook / intégré)",
       "navigatorProperties": "Propriétés",
       "navigatorPreviewPane": "Afficher ou masquer le volet d’aperçu",
+      "navigatorDetailsPane": "Afficher ou masquer le volet Détails",
       "focusAddress": "Focus sur la barre d’adresse",
       "focusCycle": "Parcourir le focus (F6)",
       "focusCycleReverse": "Parcourir le focus en arrière (Maj+F6)",
@@ -864,6 +865,21 @@
     "label": "Visites récentes",
     "empty": "Les dossiers visités récemment apparaissent ici",
     "openCount": "Ouvert {count} fois"
+  },
+  "detailsPane": {
+    "title": "Détails",
+    "empty": "Sélectionnez un élément pour voir les détails",
+    "name": "Nom",
+    "kind": "Type",
+    "path": "Chemin",
+    "size": "Taille",
+    "modified": "Modifié",
+    "kindFolder": "Dossier",
+    "kindFile": "Fichier",
+    "unknown": "Inconnu",
+    "selected": "Sélection",
+    "selectedCount": "{count} éléments",
+    "multiHint": "Sélectionnez un élément pour les détails complets, ou ouvrez Propriétés (Alt+Entrée)."
   },
   "properties": {
     "title": "Propriétés",

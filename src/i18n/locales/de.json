@@ -783,6 +783,7 @@
       "navigatorPreviewBridge": "Auswahl vorschauen (Peek / QuickLook / eingebaut)",
       "navigatorProperties": "Eigenschaften",
       "navigatorPreviewPane": "Vorschaufenster umschalten",
+      "navigatorDetailsPane": "Detailbereich umschalten",
       "focusAddress": "Adressleiste fokussieren",
       "focusCycle": "Fokus wechseln (F6)",
       "focusCycleReverse": "Fokus rückwärts wechseln (Shift+F6)",
@@ -864,6 +865,21 @@
     "label": "Zuletzt besucht",
     "empty": "Kürzlich besuchte Ordner erscheinen hier",
     "openCount": "{count}-mal geöffnet"
+  },
+  "detailsPane": {
+    "title": "Details",
+    "empty": "Element auswählen, um Details zu sehen",
+    "name": "Name",
+    "kind": "Typ",
+    "path": "Pfad",
+    "size": "Größe",
+    "modified": "Geändert",
+    "kindFolder": "Ordner",
+    "kindFile": "Datei",
+    "unknown": "Unbekannt",
+    "selected": "Ausgewählt",
+    "selectedCount": "{count} Elemente",
+    "multiHint": "Ein Element für volle Details wählen oder Eigenschaften (Alt+Enter) öffnen."
   },
   "properties": {
     "title": "Eigenschaften",

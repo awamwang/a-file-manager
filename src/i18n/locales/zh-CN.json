@@ -785,6 +785,7 @@
       "navigatorPreviewBridge": "预览选中项（Peek / QuickLook / 内置）",
       "navigatorProperties": "属性",
       "navigatorPreviewPane": "切换预览窗格",
+      "navigatorDetailsPane": "切换详细信息窗格",
       "focusAddress": "聚焦地址栏",
       "focusCycle": "循环焦点（F6）",
       "focusCycleReverse": "反向循环焦点（Shift+F6）",
@@ -864,6 +865,21 @@
     "label": "近期访问",
     "empty": "最近访问过的文件夹会出现在这里",
     "openCount": "已打开 {count} 次"
+  },
+  "detailsPane": {
+    "title": "详细信息",
+    "empty": "选择一项以查看详细信息",
+    "name": "名称",
+    "kind": "类型",
+    "path": "路径",
+    "size": "大小",
+    "modified": "修改时间",
+    "kindFolder": "文件夹",
+    "kindFile": "文件",
+    "unknown": "未知",
+    "selected": "已选",
+    "selectedCount": "{count} 项",
+    "multiHint": "选中单项可查看完整详细信息，或按 Alt+Enter 打开属性。"
   },
   "properties": {
     "title": "属性",

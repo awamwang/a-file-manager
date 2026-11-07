@@ -190,6 +190,13 @@ export const BUILTIN_SHORTCUTS: ShortcutDefinition[] = [
     scope: "navigator",
   },
   {
+    /** AIA-235: Details pane (not Properties Alt+Enter). */
+    id: "navigator.detailsPane",
+    labelKey: "shortcuts.items.navigatorDetailsPane",
+    chord: { alt: true, shift: true, key: "p" },
+    scope: "navigator",
+  },
+  {
     id: "chrome.focusAddress",
     labelKey: "shortcuts.items.focusAddress",
     chord: { ctrl: true, key: "l" },

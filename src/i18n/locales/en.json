@@ -785,6 +785,7 @@
       "navigatorPreviewBridge": "Preview selection (Peek / QuickLook / built-in)",
       "navigatorProperties": "Properties",
       "navigatorPreviewPane": "Toggle preview pane",
+      "navigatorDetailsPane": "Toggle details pane",
       "focusAddress": "Focus address bar",
       "focusCycle": "Cycle focus (F6)",
       "focusCycleReverse": "Cycle focus backward (Shift+F6)",
@@ -864,6 +865,21 @@
     "label": "Recent visits",
     "empty": "Folders you visited recently appear here",
     "openCount": "Opened {count} times"
+  },
+  "detailsPane": {
+    "title": "Details",
+    "empty": "Select an item to see details",
+    "name": "Name",
+    "kind": "Type",
+    "path": "Path",
+    "size": "Size",
+    "modified": "Modified",
+    "kindFolder": "Folder",
+    "kindFile": "File",
+    "unknown": "Unknown",
+    "selected": "Selected",
+    "selectedCount": "{count} items",
+    "multiHint": "Select one item for full details, or open Properties (Alt+Enter)."
   },
   "properties": {
     "title": "Properties",
