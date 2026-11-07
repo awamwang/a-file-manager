@@ -2,13 +2,23 @@
 import assert from "node:assert/strict";
 import {
   clampOpenStateIndices,
+  collapsePinnedIds,
   createEmptyOpenState,
+  ensureUniqueTabIds,
   mergePinnedIntoOpenState,
+  normalizeRestoredOpenState,
   openStateWithoutPinned,
   safeOpenStateIndex,
   type WorkGroupOpenState,
   type WorkGroupOpenStateTab,
 } from "../src/state/openStateModel.ts";
+import {
+  ensureSinglePinnedTab,
+  isTabPinned,
+  pickSinglePinnedId,
+  pinnedTabIds,
+  togglePinnedTab,
+} from "../src/state/tabPins.ts";
 import { workGroupDisplayName } from "../src/state/workGroupName.ts";
 
 function tab(id: string, path: string): WorkGroupOpenStateTab {
@@ -23,27 +33,104 @@ function state(groups: WorkGroupOpenStateTab[][], current = 0): WorkGroupOpenSta
   };
 }
 
-const pinned = new Set(["p1", "p2"]);
+// AIA-260: pin toggle is exclusive — pinning B replaces A.
+pinnedTabIds.value = [];
+togglePinnedTab("a");
+assert.deepEqual(pinnedTabIds.value, ["a"]);
+togglePinnedTab("b");
+assert.deepEqual(pinnedTabIds.value, ["b"]);
+assert.equal(isTabPinned("a"), false);
+assert.equal(isTabPinned("b"), true);
+togglePinnedTab("b");
+assert.deepEqual(pinnedTabIds.value, []);
+
+assert.equal(pickSinglePinnedId(["p1", "p2"], "p2"), "p2");
+assert.equal(pickSinglePinnedId(["p1", "p2"], "missing"), "p1");
+assert.equal(pickSinglePinnedId([], "p1"), null);
+
+pinnedTabIds.value = ["p1", "p2", "p3"];
+ensureSinglePinnedTab("p2");
+assert.deepEqual(pinnedTabIds.value, ["p2"]);
+pinnedTabIds.value = ["p1", "p2"];
+ensureSinglePinnedTab();
+assert.deepEqual(pinnedTabIds.value, ["p1"]);
+pinnedTabIds.value = [];
+
+assert.deepEqual([...collapsePinnedIds(new Set(["p1", "p2"]), "p2")], ["p2"]);
+assert.deepEqual([...collapsePinnedIds(new Set(["p1", "p2"]))], ["p1"]);
+assert.equal(collapsePinnedIds(new Set(["p1"])).size, 1);
+
+// Shared / empty ids: pinning one must not light every strip entry.
+const collided = ensureUniqueTabIds(
+  state(
+    [
+      [tab("dup", "C:\\Temp\\afm-fixture\\Downloads")],
+      [tab("dup", "C:\\Temp\\afm-fixture\\Administrator")],
+      [tab("dup", "C:\\Temp\\afm-fixture\\awam-skills")],
+      [tab("ok", "C:\\Temp\\afm-fixture\\OpenMontage")],
+    ],
+    0,
+  ),
+);
+const collidedIds = collided.tabGroups.map((group) => group[0]?.id);
+assert.equal(new Set(collidedIds).size, 4);
+assert.equal(collidedIds[0], "dup");
+assert.notEqual(collidedIds[1], "dup");
+assert.notEqual(collidedIds[2], "dup");
+
+const emptyIds = normalizeRestoredOpenState(
+  state([[tab("", "C:\\a")], [tab("", "C:\\b")], [tab("keep", "C:\\c")]], 0),
+);
+const emptyNormalized = emptyIds.tabGroups.map((group) => group[0]?.id);
+assert.ok(emptyNormalized.every((id) => Boolean(id)));
+assert.equal(new Set(emptyNormalized).size, 3);
+
+assert.equal(isTabPinned(""), false);
+togglePinnedTab("");
+assert.deepEqual(pinnedTabIds.value, []);
+
 const live = state(
-  [[tab("p1", "C:\\Temp\\afm-fixture\\pin-a")], [tab("u1", "C:\\Temp\\afm-fixture\\old")], [tab("p2", "C:\\Temp\\afm-fixture\\pin-b")], [tab("u2", "C:\\Temp\\afm-fixture\\old-2")]],
+  [
+    [tab("p1", "C:\\Temp\\afm-fixture\\pin-a")],
+    [tab("u1", "C:\\Temp\\afm-fixture\\old")],
+    [tab("p2", "C:\\Temp\\afm-fixture\\pin-b")],
+    [tab("u2", "C:\\Temp\\afm-fixture\\old-2")],
+  ],
   2,
 );
 const restored = state(
-  [[tab("t1", "D:\\Temp\\afm-fixture\\one")], [tab("t2", "D:\\Temp\\afm-fixture\\two")], [tab("t3", "D:\\Temp\\afm-fixture\\three")]],
+  [
+    [tab("t1", "D:\\Temp\\afm-fixture\\one")],
+    [tab("t2", "D:\\Temp\\afm-fixture\\two")],
+    [tab("t3", "D:\\Temp\\afm-fixture\\three")],
+  ],
   1,
 );
 
-const merged = mergePinnedIntoOpenState(restored, live, pinned);
+// Multi-pin input collapses to the active pin (p2) before merge/strip.
+const multiPinned = new Set(["p1", "p2"]);
+const merged = mergePinnedIntoOpenState(restored, live, multiPinned);
 assert.deepEqual(
   merged.tabGroups.map((group) => group[0]?.id),
-  ["p1", "t1", "p2", "t2", "t3"],
+  ["t1", "t2", "p2", "t3"],
 );
 assert.equal(merged.currentTabGroupIndex, 2);
+assert.equal(
+  merged.tabGroups.filter((group) => group[0]?.id === "p1" || group[0]?.id === "p2").length,
+  1,
+);
 
-const saved = openStateWithoutPinned(live, pinned);
+const saved = openStateWithoutPinned(live, multiPinned);
 assert.deepEqual(
   saved.tabGroups.map((group) => group[0]?.id),
-  ["u1", "u2"],
+  ["p1", "u1", "u2"],
+);
+
+const singlePinned = new Set(["p1"]);
+const mergedSingle = mergePinnedIntoOpenState(restored, live, singlePinned);
+assert.deepEqual(
+  mergedSingle.tabGroups.map((group) => group[0]?.id),
+  ["p1", "t1", "t2", "t3"],
 );
 
 const untouched = mergePinnedIntoOpenState(restored, live, new Set());
@@ -53,11 +140,11 @@ assert.equal(untouched.currentTabGroupIndex, 1);
 const duplicated = mergePinnedIntoOpenState(
   state([[tab("p1", "C:\\Temp\\afm-fixture\\pin-a")], [tab("t1", "D:\\Temp\\afm-fixture\\one")]], 0),
   live,
-  pinned,
+  singlePinned,
 );
 assert.equal(duplicated.tabGroups.filter((group) => group[0]?.id === "p1").length, 1);
 
-assert.deepEqual(openStateWithoutPinned(createEmptyOpenState(), pinned).tabGroups, []);
+assert.deepEqual(openStateWithoutPinned(createEmptyOpenState(), singlePinned).tabGroups, []);
 
 // AIA-228: pinning the active (or earlier) tab must not emit a negative index —
 // Rust deserializes currentTabGroupIndex as usize and rejects -1, blocking WG switch.

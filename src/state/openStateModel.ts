@@ -352,16 +352,37 @@ function groupIsPinned(
   return group.some((tab) => pinnedIds.has(tab.id));
 }
 
+function activeTabId(state: WorkGroupOpenState): string | null {
+  const group = state.tabGroups[safeOpenStateIndex(state.currentTabGroupIndex)];
+  if (!group?.length) return null;
+  return group[safeOpenStateIndex(state.currentTabIndex)]?.id ?? group[0]?.id ?? null;
+}
+
+/**
+ * AIA-260: session strip allows at most one pinned tab.
+ * Prefer `preferredId` when it is in the set; otherwise keep the first id.
+ */
+export function collapsePinnedIds(
+  pinnedIds: ReadonlySet<string>,
+  preferredId?: string | null,
+): Set<string> {
+  if (pinnedIds.size <= 1) return new Set(pinnedIds);
+  if (preferredId && pinnedIds.has(preferredId)) return new Set([preferredId]);
+  for (const id of pinnedIds) return new Set([id]);
+  return new Set();
+}
+
 /** Drop pinned groups before a Work Group save so pins are not owned by that group. */
 export function openStateWithoutPinned(
   state: WorkGroupOpenState,
   pinnedIds: ReadonlySet<string>,
 ): WorkGroupOpenState {
-  if (pinnedIds.size === 0) return clampOpenStateIndices(state);
+  const single = collapsePinnedIds(pinnedIds, activeTabId(state));
+  if (single.size === 0) return clampOpenStateIndices(state);
   const tabGroups: WorkGroupOpenStateTab[][] = [];
   let removedThroughActive = 0;
   state.tabGroups.forEach((group, index) => {
-    if (!groupIsPinned(group, pinnedIds)) {
+    if (!groupIsPinned(group, single)) {
       tabGroups.push(group.map((tab) => ({ ...tab })));
       return;
     }
@@ -378,19 +399,20 @@ export function openStateWithoutPinned(
 }
 
 /**
- * Keep pinned groups at their previous strip indexes and fill the other
- * slots, in order, with the restored Work Group Open State.
+ * Keep the (single) pinned group at its previous strip index and fill the
+ * other slots, in order, with the restored Work Group Open State.
  */
 export function mergePinnedIntoOpenState(
   restored: WorkGroupOpenState,
   live: WorkGroupOpenState,
   pinnedIds: ReadonlySet<string>,
 ): WorkGroupOpenState {
-  if (pinnedIds.size === 0) return clampOpenStateIndices(restored);
-  const base = openStateWithoutPinned(restored, pinnedIds);
+  const single = collapsePinnedIds(pinnedIds, activeTabId(live));
+  if (single.size === 0) return clampOpenStateIndices(restored);
+  const base = openStateWithoutPinned(restored, single);
   const pins = live.tabGroups
     .map((group, index) => ({ group, index }))
-    .filter(({ group }) => groupIsPinned(group, pinnedIds));
+    .filter(({ group }) => groupIsPinned(group, single));
   const tabGroups: WorkGroupOpenStateTab[][] = [];
   const restoredIndexAt: number[] = [];
   let restoredCursor = 0;
@@ -408,7 +430,7 @@ export function mergePinnedIntoOpenState(
     }
   }
   const liveActive = live.tabGroups[live.currentTabGroupIndex];
-  const activeIsPinned = liveActive ? groupIsPinned(liveActive, pinnedIds) : false;
+  const activeIsPinned = liveActive ? groupIsPinned(liveActive, single) : false;
   let currentTabGroupIndex = restoredIndexAt[base.currentTabGroupIndex] ?? 0;
   let currentTabIndex = base.currentTabIndex;
   if (activeIsPinned && liveActive) {
@@ -429,20 +451,44 @@ export function mergePinnedIntoOpenState(
   });
 }
 
+/**
+ * AIA-260: empty / duplicate tab ids make one session pin light multiple strip
+ * entries (`isTabPinned(tab.id)`). Keep first occurrence; reissue the rest.
+ */
+export function ensureUniqueTabIds(state: WorkGroupOpenState): WorkGroupOpenState {
+  const seen = new Set<string>();
+  return {
+    ...state,
+    tabGroups: state.tabGroups.map((group) =>
+      group.map((tab) => {
+        const raw = typeof tab.id === "string" ? tab.id.trim() : "";
+        let id = raw;
+        if (!id || seen.has(id)) {
+          id = nextTabId();
+        }
+        seen.add(id);
+        return { ...tab, id };
+      }),
+    ),
+  };
+}
+
 export function normalizeRestoredOpenState(
   state: WorkGroupOpenState | null | undefined,
 ): WorkGroupOpenState {
   if (!state) return createEmptyOpenState();
-  return clampOpenStateIndices({
-    tabGroups: (state.tabGroups ?? []).map((group) =>
-      (group ?? []).map((tab) => ({
-        id: tab.id || nextTabId(),
-        name: tab.name || displayNameFromPath(tab.path ?? ""),
-        path: tab.path ?? "",
-        type: tab.type || "directory",
-      })),
-    ),
-    currentTabGroupIndex: state.currentTabGroupIndex ?? 0,
-    currentTabIndex: state.currentTabIndex ?? 0,
-  });
+  return clampOpenStateIndices(
+    ensureUniqueTabIds({
+      tabGroups: (state.tabGroups ?? []).map((group) =>
+        (group ?? []).map((tab) => ({
+          id: tab.id || nextTabId(),
+          name: tab.name || displayNameFromPath(tab.path ?? ""),
+          path: tab.path ?? "",
+          type: tab.type || "directory",
+        })),
+      ),
+      currentTabGroupIndex: state.currentTabGroupIndex ?? 0,
+      currentTabIndex: state.currentTabIndex ?? 0,
+    }),
+  );
 }

@@ -5,14 +5,19 @@ use super::types::{
     SilentSwitchResult, UserWorkGroups, WorkGroup, WorkGroupOpenState, WorkGroupOpenStateTab,
     WorkGroupSoftSyncNotice, DEFAULT_WORK_GROUP_ID,
 };
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+/// Monotonic suffix so same-millisecond batch creates (member soft-sync) never collide.
+static ID_SEQ: AtomicU64 = AtomicU64::new(1);
 
 fn next_id(prefix: &str) -> String {
     let millis = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis())
         .unwrap_or(0);
-    format!("{prefix}-{millis}")
+    let seq = ID_SEQ.fetch_add(1, Ordering::Relaxed);
+    format!("{prefix}-{millis}-{seq}")
 }
 
 fn display_name(path: &str) -> String {
@@ -368,6 +373,28 @@ mod tests {
             current_tab_group_index: 0,
             current_tab_index: 0,
         }
+    }
+
+    #[test]
+    fn ensure_member_tabs_assign_unique_ids() {
+        let (next, opened) = ensure_member_tabs_in_open_state(
+            None,
+            &[
+                "D:/a".to_string(),
+                "D:/b".to_string(),
+                "D:/c".to_string(),
+            ],
+        );
+        assert_eq!(opened.len(), 3);
+        let ids: Vec<String> = next
+            .tab_groups
+            .iter()
+            .map(|group| group[0].id.clone())
+            .collect();
+        let mut deduped = ids.clone();
+        deduped.sort();
+        deduped.dedup();
+        assert_eq!(deduped.len(), ids.len(), "duplicate tab ids: {ids:?}");
     }
 
     #[test]

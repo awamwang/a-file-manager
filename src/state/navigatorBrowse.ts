@@ -31,7 +31,7 @@ import { hydrateSettings } from "./settingsHydrate";
 import { recordPathVisit } from "./visitStats";
 import { clearNavigatorFilter } from "./navigatorFilter";
 import { showHiddenItems } from "./showHidden";
-import { forgetPinnedTabs, pinnedTabIds } from "./tabPins";
+import { forgetPinnedTabs, pinnedIdSet } from "./tabPins";
 import { clearSelection } from "./navigatorSelection";
 
 export type NavigatorEntry = {
@@ -524,10 +524,11 @@ export async function restoreWorkGroupOpenState(
 ): Promise<void> {
   const reveal = options?.reveal !== false;
   const previousPath = currentPath.value;
+  const preferredPin = activeStripTab(liveOpenState.value)?.id ?? null;
   const merged = mergePinnedIntoOpenState(
     normalizeRestoredOpenState(state),
     liveOpenState.value,
-    new Set(pinnedTabIds.value),
+    pinnedIdSet(preferredPin),
   );
   activeWorkGroupId.value = workGroupId;
   // Strip restores synchronously; directory listing must not block WG switch UI.
@@ -714,5 +715,6 @@ export function snapshotLiveOpenState(): WorkGroupOpenState {
 
 /** Same snapshot without pinned tabs, so a switch does not store them on the leaving group. */
 export function snapshotLeavingOpenState(): WorkGroupOpenState {
-  return openStateWithoutPinned(snapshotLiveOpenState(), new Set(pinnedTabIds.value));
+  const preferredPin = activeStripTab(liveOpenState.value)?.id ?? null;
+  return openStateWithoutPinned(snapshotLiveOpenState(), pinnedIdSet(preferredPin));
 }

@@ -48,6 +48,29 @@ if (
   console.error("routine OpenState persist must strip pins via snapshotLeavingOpenState");
   process.exit(1);
 }
+const pins = readFileSync(join(root, "src/state/tabPins.ts"), "utf8");
+if (
+  !pins.includes("pickSinglePinnedId") ||
+  !pins.includes("ensureSinglePinnedTab") ||
+  !pins.includes("pinnedIdSet") ||
+  !/pinnedTabIds\.value\s*=\s*isTabPinned\(id\)\s*\?\s*\[\]\s*:\s*\[id\]/.test(pins)
+) {
+  console.error("tabPins must enforce single-pin toggle (AIA-260)");
+  process.exit(1);
+}
+if (!model.includes("collapsePinnedIds") || !browse.includes("pinnedIdSet(")) {
+  console.error("OpenState pin merge/persist must collapse to a single pin id");
+  process.exit(1);
+}
+if (!model.includes("ensureUniqueTabIds") || !model.includes("ensureUniqueTabIds({")) {
+  console.error("normalizeRestoredOpenState must uniquify empty/duplicate tab ids (AIA-260)");
+  process.exit(1);
+}
+const rustSync = readFileSync(join(root, "src-tauri/src/work_groups/sync.rs"), "utf8");
+if (!rustSync.includes("ID_SEQ") || !rustSync.includes("ensure_member_tabs_assign_unique_ids")) {
+  console.error("Rust tab id minting must be unique within a millisecond batch");
+  process.exit(1);
+}
 if (!zh.includes("默认工作组")) {
   console.error("default work group label must be 默认工作组");
   process.exit(1);
