@@ -42,6 +42,7 @@ import {
   navigateTo,
   openOrFocusNavigatorTab,
   newNavigatorTab,
+  refreshActiveListing,
   reorderNavigatorTabs,
   stripTabs,
   switchNavigatorTab,
@@ -805,6 +806,14 @@ function onAddressBlur() {
   }, 120);
 }
 
+function onRefreshListing() {
+  if (!isNavigatorRoute.value) return;
+  refreshActiveListing();
+  if (dualPaneEnabled.value && secondaryPath.value.trim()) {
+    void navigateSecondary(secondaryPath.value);
+  }
+}
+
 async function onGoUp() {
   if (route.path !== "/navigator") {
     await router.push("/navigator");
@@ -1515,6 +1524,16 @@ onUnmounted(() => {
             @click="onGoUp"
           >
             <FluentIcon name="up" size="sm" />
+          </button>
+          <button
+            type="button"
+            class="fluent-control nav-icon-btn"
+            :disabled="!currentPath"
+            :title="t('chrome.refreshTitle')"
+            :aria-label="t('chrome.refresh')"
+            @click="onRefreshListing"
+          >
+            <FluentIcon name="refresh" size="sm" />
           </button>
 
           <button

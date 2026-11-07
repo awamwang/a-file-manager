@@ -40,7 +40,8 @@ export type FluentGlyphId =
   | "cut"
   | "paste"
   | "rename"
-  | "link";
+  | "link"
+  | "refresh";
 
 export type FluentGlyph = {
   /** Segoe Fluent Icons / MDL2 private-use codepoint */
@@ -274,6 +275,13 @@ export const FLUENT_GLYPHS: Record<FluentGlyphId, FluentGlyph> = {
     codepoint: "\uE71B",
     paths: [
       "M6.2 7.1a2.4 2.4 0 0 1 0-3.4l1.5-1.5a2.4 2.4 0 0 1 3.4 3.4L9.8 6.9l-.9-.9 1.3-1.3a1.2 1.2 0 0 0-1.7-1.7L7.1 4.5a1.2 1.2 0 0 0 0 1.7l.6.6-.9.9-.6-.6zm3.6 1.8a2.4 2.4 0 0 1 0 3.4l-1.5 1.5a2.4 2.4 0 0 1-3.4-3.4L6.2 9.1l.9.9-1.3 1.3a1.2 1.2 0 0 0 1.7 1.7l1.5-1.5a1.2 1.2 0 0 0 0-1.7l-.6-.6.9-.9.6.6zM6.8 9.8l2.4-2.4.9.9-2.4 2.4-.9-.9z",
+    ],
+  },
+  /** Segoe Refresh — circular arrow (F5 / toolbar). */
+  refresh: {
+    codepoint: "\uE72C",
+    paths: [
+      "M8 2.5A5.5 5.5 0 0 0 3.2 5.4l1.1.7A4.2 4.2 0 0 1 8 3.8c2.3 0 4.2 1.9 4.2 4.2S10.3 12.2 8 12.2A4.2 4.2 0 0 1 3.8 8H2.5a5.5 5.5 0 1 0 6.8-5.3V1.4L12 4.1 9.3 6.8V5.2A4 4 0 0 0 8 5z",
     ],
   },
 };

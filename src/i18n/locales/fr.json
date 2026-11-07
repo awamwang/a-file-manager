@@ -47,6 +47,8 @@
     "toolbar": "Barre d’outils principale",
     "up": "Haut",
     "upTitle": "Remonter d’un niveau",
+    "refresh": "Actualiser",
+    "refreshTitle": "Actualiser le dossier (F5)",
     "view": "Affichage",
     "dualPane": "Double volet",
     "showHidden": "Afficher les éléments masqués",

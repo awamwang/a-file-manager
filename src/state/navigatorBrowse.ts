@@ -217,14 +217,34 @@ function revealPathNonBlocking(path: string): void {
   void navigateTo(trimmed, { syncOpenState: false, recordHistory: false });
 }
 
+/**
+ * AIA-238: re-list the active tab folder without blocking UI, history, or visit stats.
+ * Used by F5, toolbar Refresh, and window-focus sync after external Explorer changes.
+ */
+export function refreshActiveListing(): void {
+  const path = currentPath.value.trim();
+  if (!path) return;
+  void navigateTo(path, {
+    syncOpenState: false,
+    recordHistory: false,
+    recordVisit: false,
+  });
+}
+
 export async function navigateTo(
   path: string,
-  options?: { syncOpenState?: boolean; recordHistory?: boolean },
+  options?: {
+    syncOpenState?: boolean;
+    recordHistory?: boolean;
+    /** Default true. Focus/F5 refresh passes false so revisit stats stay clean (AIA-238). */
+    recordVisit?: boolean;
+  },
 ): Promise<void> {
   const trimmed = path.trim();
   const syncOpenState = options?.syncOpenState !== false;
   // Tab switch / bootstrap pass syncOpenState:false — don't pollute back stack.
   const recordHistory = options?.recordHistory ?? syncOpenState;
+  const recordVisit = options?.recordVisit !== false;
   const previous = currentPath.value;
   const pathChanged = normalizeBrowseKey(previous) !== normalizeBrowseKey(trimmed);
   const epoch = ++browseEpoch;
@@ -301,7 +321,9 @@ export async function navigateTo(
       clearNavigatorFilter();
     }
     // AIA-74: count directory landings (tab enter + folder nav share this path).
-    void recordPathVisit(result.path, true);
+    if (recordVisit) {
+      void recordPathVisit(result.path, true);
+    }
     if (recordHistory) {
       recordNavHistory(previous, result.path);
     }

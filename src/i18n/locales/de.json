@@ -47,6 +47,8 @@
     "toolbar": "Hauptsymbolleiste",
     "up": "Nach oben",
     "upTitle": "Eine Ebene nach oben",
+    "refresh": "Aktualisieren",
+    "refreshTitle": "Ordner aktualisieren (F5)",
     "view": "Ansicht",
     "dualPane": "Doppelansicht",
     "showHidden": "Ausgeblendete Elemente anzeigen",

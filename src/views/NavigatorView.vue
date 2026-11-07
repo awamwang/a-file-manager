@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   bootstrapNavigatorOpenState,
   closeNavigatorTab,
@@ -12,6 +13,7 @@ import {
   liveOpenState,
   navigateTo,
   openEntry,
+  refreshActiveListing,
   switchNavigatorTab,
   type NavigatorEntry,
 } from "../state/navigatorBrowse";
@@ -533,10 +535,25 @@ watch(
   { immediate: true },
 );
 
+/** AIA-238: debounce overlapping window + Tauri focus events. */
+let lastFocusListingRefreshAt = 0;
+let unlistenWindowFocus: (() => void) | null = null;
+
+function refreshListingOnFocus() {
+  const now = Date.now();
+  if (now - lastFocusListingRefreshAt < 400) return;
+  lastFocusListingRefreshAt = now;
+  refreshActiveListing();
+  if (dualPaneEnabled.value && secondaryPath.value.trim()) {
+    void navigateSecondary(secondaryPath.value);
+  }
+}
+
 function onWindowFocus() {
   void refreshPreviewSetting();
   void loadNavigatorViewMode();
   void refreshClipboardFromSystem();
+  refreshListingOnFocus();
 }
 
 onMounted(() => {
@@ -545,6 +562,17 @@ onMounted(() => {
   window.addEventListener("mousemove", onMarqueeMove);
   window.addEventListener("mouseup", onMarqueeEnd);
   window.addEventListener("focus", onWindowFocus);
+  // Tauri: returning from Explorer often skips DOM focus; listen to OS focus.
+  void getCurrentWindow()
+    .onFocusChanged(({ payload: focused }) => {
+      if (focused) onWindowFocus();
+    })
+    .then((unlisten) => {
+      unlistenWindowFocus = unlisten;
+    })
+    .catch(() => {
+      /* non-Tauri / permission — DOM focus still covers browser/dev */
+    });
   void (async () => {
     await refreshPreviewSetting();
     await loadNavigatorViewMode();
@@ -570,6 +598,10 @@ onUnmounted(() => {
   window.removeEventListener("mousemove", onMarqueeMove);
   window.removeEventListener("mouseup", onMarqueeEnd);
   window.removeEventListener("focus", onWindowFocus);
+  if (unlistenWindowFocus) {
+    unlistenWindowFocus();
+    unlistenWindowFocus = null;
+  }
 });
 
 watch(currentPath, () => {
@@ -836,8 +868,14 @@ function onNotice(message: string, kind: "success" | "error" = "success") {
 }
 
 async function refreshListing() {
-  if (currentPath.value) {
-    await navigateTo(currentPath.value, { syncOpenState: false });
+  if (!currentPath.value) return;
+  await navigateTo(currentPath.value, {
+    syncOpenState: false,
+    recordHistory: false,
+    recordVisit: false,
+  });
+  if (dualPaneEnabled.value && secondaryPath.value.trim()) {
+    await navigateSecondary(secondaryPath.value);
   }
 }
 
@@ -1058,7 +1096,11 @@ function registerNavFileShortcuts() {
     void shortcutNewFile();
   });
   registerShortcutHandler("navigator.refresh", () => {
-    void refreshListing();
+    // AIA-238: F5 must not await list IPC (same non-blocking pattern as AIA-225).
+    refreshActiveListing();
+    if (dualPaneEnabled.value && secondaryPath.value.trim()) {
+      void navigateSecondary(secondaryPath.value);
+    }
   });
   registerShortcutHandler("navigator.delete", () => {
     void shortcutDelete(false);

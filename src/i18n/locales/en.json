@@ -45,6 +45,8 @@
     "forward": "Forward",
     "up": "Up",
     "upTitle": "Go up",
+    "refresh": "Refresh",
+    "refreshTitle": "Refresh folder (F5)",
     "view": "View",
     "dualPane": "Dual pane",
     "showHidden": "Show hidden items",

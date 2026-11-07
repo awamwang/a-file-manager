@@ -45,6 +45,8 @@
     "forward": "前进",
     "up": "向上",
     "upTitle": "返回上级",
+    "refresh": "刷新",
+    "refreshTitle": "刷新文件夹 (F5)",
     "view": "视图",
     "dualPane": "双栏",
     "showHidden": "显示隐藏的项目",

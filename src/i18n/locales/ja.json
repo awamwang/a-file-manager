@@ -47,6 +47,8 @@
     "toolbar": "メインツールバー",
     "up": "上へ",
     "upTitle": "一つ上のフォルダーへ",
+    "refresh": "更新",
+    "refreshTitle": "フォルダーを更新 (F5)",
     "view": "表示",
     "dualPane": "デュアルペイン",
     "showHidden": "隠し項目を表示",
