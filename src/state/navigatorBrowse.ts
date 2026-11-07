@@ -32,6 +32,7 @@ import { recordPathVisit } from "./visitStats";
 import { clearNavigatorFilter } from "./navigatorFilter";
 import { showHiddenItems } from "./showHidden";
 import { forgetPinnedTabs, pinnedTabIds } from "./tabPins";
+import { clearSelection } from "./navigatorSelection";
 
 export type NavigatorEntry = {
   name: string;
@@ -98,6 +99,14 @@ function schedulePersist(immediate = false) {
     run();
   } else {
     persistTimer = setTimeout(run, 280);
+  }
+}
+
+/** Drop a pending debounced persist (silent switch owns the leaving-group write). */
+export function cancelOpenStatePersist(): void {
+  if (persistTimer) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
   }
 }
 
@@ -203,13 +212,19 @@ function normalizeBrowseKey(path: string): string {
  * AIA-225: paint tab-group content chrome immediately; fill the listing off the
  * critical path (same tabs-first pattern as bootstrapNavigatorOpenState).
  * Open-state persist stays debounced so disk IPC does not contend with list.
+ * AIA-259: drop stale entries when the target path changes so the prior WG/tab
+ * folder does not keep painting under the new strip.
  */
 function revealPathNonBlocking(path: string): void {
   const trimmed = path.trim();
   if (!trimmed) return;
+  const priorKey = normalizeBrowseKey(listing.value?.path ?? currentPath.value);
   currentPath.value = trimmed;
   listLoading.value = true;
   listError.value = null;
+  if (priorKey !== normalizeBrowseKey(trimmed)) {
+    listing.value = null;
+  }
   if (isGuidePath(trimmed)) {
     // Guide has no async list — apply fully via navigateTo without blocking callers.
     void navigateTo(GUIDE_PATH, { syncOpenState: false, recordHistory: false });
@@ -499,7 +514,16 @@ export async function openMembersIntoOpenState(
 export async function restoreWorkGroupOpenState(
   workGroupId: string,
   state: WorkGroupOpenState | null | undefined,
+  options?: {
+    /**
+     * When false, only sync strip/ids (used to reconcile after an optimistic
+     * paint when soft-sync did not change the active path). Default true.
+     */
+    reveal?: boolean;
+  },
 ): Promise<void> {
+  const reveal = options?.reveal !== false;
+  const previousPath = currentPath.value;
   const merged = mergePinnedIntoOpenState(
     normalizeRestoredOpenState(state),
     liveOpenState.value,
@@ -508,8 +532,15 @@ export async function restoreWorkGroupOpenState(
   activeWorkGroupId.value = workGroupId;
   // Strip restores synchronously; directory listing must not block WG switch UI.
   applyLiveOpenState(merged);
+  clearSelection();
   const active = activeStripTab(liveOpenState.value);
   if (active?.path) {
+    if (
+      !reveal &&
+      normalizeBrowseKey(active.path) === normalizeBrowseKey(previousPath)
+    ) {
+      return;
+    }
     revealPathNonBlocking(active.path);
   } else if (!liveOpenState.value.tabGroups.length) {
     listing.value = null;

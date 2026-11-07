@@ -20,6 +20,7 @@ import {
   noticeKeyForDropMode,
 } from "../../state/fileDropSurface";
 import { toastError, toastSuccess } from "../../state/toast";
+import { scheduleAfterPaint } from "../../state/scheduleIdle";
 
 const props = withDefaults(
   defineProps<{
@@ -123,13 +124,25 @@ async function onTreeDrop(event: DragEvent) {
   }
 }
 
+/** Cancel stale deferred expands when the path changes again quickly (AIA-259). */
+let expandPaintToken = 0;
+
 watch(
   () => currentPath.value,
-  async (path, prev) => {
+  (path, prev) => {
     if (path !== prev) userCollapsed.value = false;
-    if (treeShouldAutoExpand(path, props.path) && !userCollapsed.value) {
-      await expandAndLoad();
+    if (!(treeShouldAutoExpand(path, props.path) && !userCollapsed.value)) {
+      return;
     }
+    // Let the content-pane navigator_list win the first paint slot.
+    const token = ++expandPaintToken;
+    scheduleAfterPaint(() => {
+      if (token !== expandPaintToken) return;
+      if (!treeShouldAutoExpand(currentPath.value, props.path) || userCollapsed.value) {
+        return;
+      }
+      void expandAndLoad();
+    });
   },
   { immediate: true },
 );

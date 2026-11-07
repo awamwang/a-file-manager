@@ -136,6 +136,7 @@ import {
 } from "../../state/sidenavWidth";
 import { isTabPinned, togglePinnedTab } from "../../state/tabPins";
 import { workGroupDisplayName } from "../../state/workGroupName";
+import { scheduleAfterPaint } from "../../state/scheduleIdle";
 
 const { t, locale } = useI18n();
 
@@ -847,7 +848,10 @@ async function refreshFreeDisk(path: string) {
 watch(
   currentPath,
   (path) => {
-    void refreshFreeDisk(path);
+    // AIA-259: free-disk status is non-critical; defer past content first paint.
+    scheduleAfterPaint(() => {
+      void refreshFreeDisk(path);
+    });
   },
   { immediate: true },
 );

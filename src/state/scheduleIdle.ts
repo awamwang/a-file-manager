@@ -20,3 +20,17 @@ export function scheduleIdle(fn: () => void, timeoutMs = 4000): void {
   }
   setTimeout(fn, Math.min(2000, timeoutMs));
 }
+
+/**
+ * Run `fn` after the browser has painted (double rAF), or on the next macrotask.
+ * AIA-259: keep side-tree / status IPC off the WG/tab content first-paint path.
+ */
+export function scheduleAfterPaint(fn: () => void): void {
+  if (typeof requestAnimationFrame === "function") {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(fn);
+    });
+    return;
+  }
+  setTimeout(fn, 0);
+}

@@ -5,6 +5,7 @@ import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import {
   activeWorkGroupId,
+  cancelOpenStatePersist,
   hydrateWorkGroups,
   openMembersIntoOpenState,
   rememberHydratedWorkGroups,
@@ -46,32 +47,79 @@ export async function loadWorkGroupsChrome(options?: {
   }
 }
 
+async function rollbackOptimisticSwitch(
+  priorDoc: UserWorkGroupsDoc,
+  leavingFallback: ReturnType<typeof snapshotLeavingOpenState>,
+): Promise<void> {
+  workGroupsDoc.value = priorDoc;
+  activeWorkGroupId.value = priorDoc.activeWorkGroupId;
+  const prior = priorDoc.workGroups.find(
+    (group) => group.id === priorDoc.activeWorkGroupId,
+  );
+  await restoreWorkGroupOpenState(
+    priorDoc.activeWorkGroupId,
+    prior?.openState ?? leavingFallback,
+  );
+}
+
+/**
+ * Silent WG switch. AIA-259: paint strip/path from the local WG cache first,
+ * then await disk load+save; reconcile soft-sync tabs without a second list when
+ * the active path is unchanged.
+ */
 export async function silentSwitchWorkGroup(
   targetId: string,
 ): Promise<SilentSwitchResult | null> {
-  if (!targetId || targetId === workGroupsDoc.value?.activeWorkGroupId) {
+  const priorDoc = workGroupsDoc.value;
+  if (!targetId || targetId === priorDoc?.activeWorkGroupId) {
     return null;
   }
   workGroupChromeBusy.value = true;
   workGroupChromeError.value = null;
+  // Silent switch owns the leaving-group disk write — drop debounced persist.
+  cancelOpenStatePersist();
+  const leaving = snapshotLeavingOpenState();
+  const cachedTarget = priorDoc?.workGroups.find((group) => group.id === targetId);
+  let paintedOptimistic = false;
+  if (priorDoc && cachedTarget) {
+    workGroupsDoc.value = {
+      ...priorDoc,
+      activeWorkGroupId: targetId,
+    };
+    activeWorkGroupId.value = targetId;
+    await restoreWorkGroupOpenState(targetId, cachedTarget.openState);
+    paintedOptimistic = true;
+  }
   try {
     const result = await invoke<SilentSwitchResult>("work_groups_silent_switch", {
       targetWorkGroupId: targetId,
-      liveOpenState: snapshotLeavingOpenState(),
+      liveOpenState: leaving,
     });
     if (result.requireSavePrompt) {
+      if (paintedOptimistic && priorDoc) {
+        await rollbackOptimisticSwitch(priorDoc, leaving);
+      }
       workGroupChromeError.value = "REQUIRE_SAVE_PROMPT";
       return result;
     }
     rememberHydratedWorkGroups(result.document);
     workGroupsDoc.value = result.document;
     workGroupSoftNotice.value = result.notice;
+    // reveal:false skips a duplicate navigator_list when optimistic path matches.
     await restoreWorkGroupOpenState(
       result.document.activeWorkGroupId,
       result.openStateToRestore,
+      { reveal: !paintedOptimistic },
     );
     return result;
   } catch (err) {
+    if (paintedOptimistic && priorDoc) {
+      try {
+        await rollbackOptimisticSwitch(priorDoc, leaving);
+      } catch {
+        /* keep switch error */
+      }
+    }
     workGroupChromeError.value = err instanceof Error ? err.message : String(err);
     return null;
   } finally {

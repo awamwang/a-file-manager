@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useRouter } from "vue-router";
 import {
   activeWorkGroupId,
+  cancelOpenStatePersist,
   liveOpenState,
   openMembersIntoOpenState,
   openOrFocusNavigatorTab,
@@ -119,26 +120,63 @@ async function createGroup() {
 
 async function silentSwitch(targetId: string) {
   error.value = null;
-  const result = await invoke<SilentSwitchResult>("work_groups_silent_switch", {
-    targetWorkGroupId: targetId,
-    liveOpenState: snapshotLeavingOpenState(),
-  });
-  if (result.requireSavePrompt) {
-    const msg = t("workGroups.errorSavePrompt");
-    error.value = msg;
-    toastError(msg);
-    return;
+  const priorDoc = document.value;
+  if (!targetId || targetId === priorDoc?.activeWorkGroupId) return;
+  // AIA-259: paint strip from local cache before awaiting silent-switch disk IPC.
+  cancelOpenStatePersist();
+  const leaving = snapshotLeavingOpenState();
+  const cachedTarget = priorDoc?.workGroups.find((g) => g.id === targetId);
+  let paintedOptimistic = false;
+  if (priorDoc && cachedTarget) {
+    document.value = { ...priorDoc, activeWorkGroupId: targetId };
+    activeWorkGroupId.value = targetId;
+    await restoreWorkGroupOpenState(targetId, cachedTarget.openState);
+    paintedOptimistic = true;
   }
-  document.value = result.document;
-  if (result.notice) {
-    toastInfo(
-      t("workGroups.softSync", { paths: result.notice.openedMemberPaths.join(", ") }),
+  try {
+    const result = await invoke<SilentSwitchResult>("work_groups_silent_switch", {
+      targetWorkGroupId: targetId,
+      liveOpenState: leaving,
+    });
+    if (result.requireSavePrompt) {
+      if (paintedOptimistic && priorDoc) {
+        document.value = priorDoc;
+        activeWorkGroupId.value = priorDoc.activeWorkGroupId;
+        const prior = priorDoc.workGroups.find((g) => g.id === priorDoc.activeWorkGroupId);
+        await restoreWorkGroupOpenState(
+          priorDoc.activeWorkGroupId,
+          prior?.openState ?? leaving,
+        );
+      }
+      const msg = t("workGroups.errorSavePrompt");
+      error.value = msg;
+      toastError(msg);
+      return;
+    }
+    document.value = result.document;
+    if (result.notice) {
+      toastInfo(
+        t("workGroups.softSync", { paths: result.notice.openedMemberPaths.join(", ") }),
+      );
+    }
+    await restoreWorkGroupOpenState(
+      result.document.activeWorkGroupId,
+      result.openStateToRestore,
+      { reveal: !paintedOptimistic },
     );
+  } catch (err) {
+    if (paintedOptimistic && priorDoc) {
+      document.value = priorDoc;
+      activeWorkGroupId.value = priorDoc.activeWorkGroupId;
+      const prior = priorDoc.workGroups.find((g) => g.id === priorDoc.activeWorkGroupId);
+      await restoreWorkGroupOpenState(
+        priorDoc.activeWorkGroupId,
+        prior?.openState ?? leaving,
+      );
+    }
+    error.value = err instanceof Error ? err.message : String(err);
+    toastError(error.value);
   }
-  await restoreWorkGroupOpenState(
-    result.document.activeWorkGroupId,
-    result.openStateToRestore,
-  );
 }
 
 async function addMember() {
