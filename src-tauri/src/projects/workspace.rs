@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Core Project Workspace light create (AIA-208 / C2 · ADR 0008).
-//! Writes only: `project.json`, `CONTEXT.md`, `members/`, `board.json`.
+//! Core Project Workspace disk ops (C2 create · C3 list/bind).
+//! Light create writes only: `project.json`, `CONTEXT.md`, `members/`, `board.json`.
 //! Does **not** write `AGENTS.md` / `skills/` (AI Harness init — A6).
 
 use super::index::{
-    ensure_projects_root_dir, normalize_path_string, validate_slug, workspace_path_for_slug,
+    ensure_projects_root_dir, normalize_path_string, set_active_project as set_index_active,
+    validate_slug, workspace_path_for_slug, ProjectsIndex,
 };
-use super::ops::now_millis;
+use super::ops::{now_millis, validate_bindable_work_group};
 use super::types::TASK_STATUSES;
+use crate::work_groups::sync::silent_switch_work_group;
+use crate::work_groups::types::{SilentSwitchResult, UserWorkGroups, WorkGroupOpenState};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
@@ -22,6 +25,7 @@ pub const WORKSPACE_BOARD_SCHEMA_VERSION: u32 = 1;
 
 pub const ERR_PROJECT_WORKSPACE_EXISTS: &str = "PROJECT_WORKSPACE_EXISTS";
 pub const ERR_PROJECT_DISPLAY_NAME_EMPTY: &str = "PROJECT_DISPLAY_NAME_EMPTY";
+pub const ERR_PROJECT_WORKSPACE_NOT_FOUND: &str = "PROJECT_WORKSPACE_NOT_FOUND";
 
 /// `project.json` — Core create metadata (ADR 0007 / 0008).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -63,6 +67,31 @@ pub struct CreateWorkspaceResult {
     pub project: WorkspaceProjectMeta,
     /// Absolute Workspace directory path.
     pub path: String,
+}
+
+/// One scanned Workspace under Projects Root (C3).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceListItem {
+    pub project: WorkspaceProjectMeta,
+    pub path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceListResult {
+    pub projects_root: String,
+    pub workspaces: Vec<WorkspaceListItem>,
+    pub active_slug: Option<String>,
+}
+
+/// Activate a disk Workspace (C3): thin-index activeProject + optional WG silent-switch.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ActivateWorkspaceResult {
+    pub workspace: WorkspaceListItem,
+    pub index: ProjectsIndex,
+    pub silent_switch: Option<SilentSwitchResult>,
 }
 
 /// Derive an ASCII slug candidate from a display name.
@@ -180,15 +209,20 @@ pub fn create_workspace_at(
     })
 }
 
-fn write_light_workspace_files(
-    workspace_dir: &Path,
-    project: &WorkspaceProjectMeta,
-) -> Result<(), String> {
+fn write_project_meta(workspace_dir: &Path, project: &WorkspaceProjectMeta) -> Result<(), String> {
     let project_path = workspace_dir.join(WORKSPACE_PROJECT_FILE);
     let project_text = serde_json::to_string_pretty(project)
         .map_err(|err| format!("Failed to serialize project.json: {err}"))?;
     fs::write(&project_path, format!("{project_text}\n"))
         .map_err(|err| format!("Failed to write project.json: {err}"))?;
+    Ok(())
+}
+
+fn write_light_workspace_files(
+    workspace_dir: &Path,
+    project: &WorkspaceProjectMeta,
+) -> Result<(), String> {
+    write_project_meta(workspace_dir, project)?;
 
     let context_path = workspace_dir.join(WORKSPACE_CONTEXT_FILE);
     fs::write(&context_path, "")
@@ -210,6 +244,131 @@ fn write_light_workspace_files(
     debug_assert!(!workspace_dir.join("skills").exists());
 
     Ok(())
+}
+
+/// Load `project.json` from a Workspace directory.
+pub fn load_project_meta(workspace_dir: &Path) -> Result<WorkspaceProjectMeta, String> {
+    let path = workspace_dir.join(WORKSPACE_PROJECT_FILE);
+    if !path.is_file() {
+        return Err(ERR_PROJECT_WORKSPACE_NOT_FOUND.to_string());
+    }
+    let text = fs::read_to_string(&path)
+        .map_err(|err| format!("Failed to read project.json: {err}"))?;
+    serde_json::from_str(&text).map_err(|err| format!("Failed to parse project.json: {err}"))
+}
+
+/// Resolve Workspace dir for slug under Root and load meta.
+pub fn load_workspace(
+    projects_root: &Path,
+    slug: &str,
+) -> Result<WorkspaceListItem, String> {
+    let slug = validate_slug(slug)?;
+    let dir = workspace_path_for_slug(projects_root, slug)?;
+    if !dir.is_dir() {
+        return Err(ERR_PROJECT_WORKSPACE_NOT_FOUND.to_string());
+    }
+    let mut project = load_project_meta(&dir)?;
+    // Directory name is the authority for slug on disk.
+    project.slug = slug.to_string();
+    Ok(WorkspaceListItem {
+        project,
+        path: normalize_path_string(&dir),
+    })
+}
+
+/// Scan Projects Root for directories containing `project.json` (C3).
+pub fn list_workspaces(projects_root: &Path) -> Result<Vec<WorkspaceListItem>, String> {
+    ensure_projects_root_dir(projects_root)?;
+    if !projects_root.is_dir() {
+        return Ok(Vec::new());
+    }
+
+    let mut items = Vec::new();
+    let entries = fs::read_dir(projects_root)
+        .map_err(|err| format!("Failed to scan Projects Root: {err}"))?;
+    for entry in entries {
+        let entry = entry.map_err(|err| format!("Failed to read Projects Root entry: {err}"))?;
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if validate_slug(name).is_err() {
+            continue;
+        }
+        if !path.join(WORKSPACE_PROJECT_FILE).is_file() {
+            continue;
+        }
+        match load_project_meta(&path) {
+            Ok(mut project) => {
+                project.slug = name.to_string();
+                items.push(WorkspaceListItem {
+                    project,
+                    path: normalize_path_string(&path),
+                });
+            }
+            Err(_) => continue,
+        }
+    }
+
+    items.sort_by(|a, b| {
+        a.project
+            .display_name
+            .to_ascii_lowercase()
+            .cmp(&b.project.display_name.to_ascii_lowercase())
+            .then_with(|| a.project.slug.cmp(&b.project.slug))
+    });
+    Ok(items)
+}
+
+/// Bind or unbind a non-default Work Group on a Workspace `project.json` (C3).
+pub fn bind_workspace_work_group(
+    projects_root: &Path,
+    work_groups: &UserWorkGroups,
+    slug: &str,
+    work_group_id: Option<String>,
+) -> Result<WorkspaceListItem, String> {
+    if let Some(ref id) = work_group_id {
+        validate_bindable_work_group(work_groups, id)?;
+    }
+    let mut item = load_workspace(projects_root, slug)?;
+    item.project.bound_work_group_id = work_group_id;
+    item.project.updated_at = now_millis();
+    write_project_meta(Path::new(&item.path), &item.project)?;
+    Ok(item)
+}
+
+/// Set thin-index active Project and optionally silent-switch the bound WG (C3).
+/// Caller persists `index` and `silent_switch.document` to disk.
+pub fn activate_workspace(
+    projects_root: &Path,
+    index: &ProjectsIndex,
+    work_groups: &UserWorkGroups,
+    slug: &str,
+    live_open_state: Option<&WorkGroupOpenState>,
+) -> Result<ActivateWorkspaceResult, String> {
+    let item = load_workspace(projects_root, slug)?;
+    let index_next = set_index_active(index, Some(&item.project.slug))?;
+
+    let silent_switch = match item.project.bound_work_group_id.as_deref() {
+        None => None,
+        Some(wg_id) => {
+            validate_bindable_work_group(work_groups, wg_id)?;
+            Some(silent_switch_work_group(
+                work_groups,
+                wg_id,
+                live_open_state,
+            )?)
+        }
+    };
+
+    Ok(ActivateWorkspaceResult {
+        workspace: item,
+        index: index_next,
+        silent_switch,
+    })
 }
 
 #[cfg(test)]
@@ -347,6 +506,144 @@ mod tests {
         )
         .unwrap();
         assert_eq!(meta.bound_work_group_id.as_deref(), Some("work-group-abc"));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn list_scans_root_skips_non_workspace_dirs() {
+        let root = temp_root("list");
+        create_workspace_at(&root, "Beta", None, Some("beta"), None).unwrap();
+        create_workspace_at(&root, "Alpha", None, Some("alpha"), None).unwrap();
+        fs::create_dir_all(root.join("not-a-project")).unwrap();
+        fs::write(root.join("loose.txt"), "x").unwrap();
+        // Invalid slug dir with project.json is skipped by validate_slug.
+        fs::create_dir_all(root.join("Bad Slug")).unwrap();
+
+        let listed = list_workspaces(&root).unwrap();
+        assert_eq!(listed.len(), 2);
+        assert_eq!(listed[0].project.slug, "alpha");
+        assert_eq!(listed[1].project.slug, "beta");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn bind_rejects_default_work_group() {
+        use crate::work_groups::sync::default_document;
+        use crate::work_groups::types::DEFAULT_WORK_GROUP_ID;
+        use super::super::types::ERR_DEFAULT_WORK_GROUP_FORBIDDEN;
+
+        let root = temp_root("bind-default");
+        create_workspace_at(&root, "P", None, Some("p1"), None).unwrap();
+        let wgs = default_document();
+        let err = bind_workspace_work_group(
+            &root,
+            &wgs,
+            "p1",
+            Some(DEFAULT_WORK_GROUP_ID.to_string()),
+        )
+        .unwrap_err();
+        assert_eq!(err, ERR_DEFAULT_WORK_GROUP_FORBIDDEN);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn bind_and_unbind_round_trip() {
+        use crate::work_groups::sync::default_document;
+        use crate::work_groups::types::WorkGroup;
+
+        let root = temp_root("bind-ok");
+        create_workspace_at(&root, "P", None, Some("p1"), None).unwrap();
+
+        let mut wgs = default_document();
+        wgs.work_groups.push(WorkGroup {
+            id: "work-group-x".into(),
+            name: "X".into(),
+            is_default: false,
+            member_paths: vec![r"C:\tmp".into()],
+            open_state: None,
+        });
+
+        let bound =
+            bind_workspace_work_group(&root, &wgs, "p1", Some("work-group-x".into())).unwrap();
+        assert_eq!(
+            bound.project.bound_work_group_id.as_deref(),
+            Some("work-group-x")
+        );
+        let reloaded = load_workspace(&root, "p1").unwrap();
+        assert_eq!(
+            reloaded.project.bound_work_group_id.as_deref(),
+            Some("work-group-x")
+        );
+
+        let unbound = bind_workspace_work_group(&root, &wgs, "p1", None).unwrap();
+        assert!(unbound.project.bound_work_group_id.is_none());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn load_missing_workspace_errors() {
+        let root = temp_root("missing");
+        let err = load_workspace(&root, "nope").unwrap_err();
+        assert_eq!(err, ERR_PROJECT_WORKSPACE_NOT_FOUND);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn activate_unbound_sets_index_without_switch() {
+        use crate::work_groups::sync::default_document;
+
+        let root = temp_root("act-unbound");
+        create_workspace_at(&root, "Solo", None, Some("solo"), None).unwrap();
+        let index = ProjectsIndex::empty(normalize_path_string(&root));
+        let wgs = default_document();
+        let result = activate_workspace(&root, &index, &wgs, "solo", None).unwrap();
+        assert_eq!(
+            result.index.active_project.as_ref().map(|a| a.slug.as_str()),
+            Some("solo")
+        );
+        assert!(result.silent_switch.is_none());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn activate_bound_silent_switches_wg() {
+        use crate::work_groups::sync::default_document;
+        use crate::work_groups::types::{WorkGroup, WorkGroupOpenState, WorkGroupOpenStateTab};
+
+        let root = temp_root("act-bound");
+        create_workspace_at(
+            &root,
+            "Bound",
+            None,
+            Some("bound"),
+            Some("work-group-target".into()),
+        )
+        .unwrap();
+
+        let mut wgs = default_document();
+        let open = WorkGroupOpenState {
+            tab_groups: vec![vec![WorkGroupOpenStateTab {
+                id: "tab-1".into(),
+                name: "tmp".into(),
+                path: r"C:\tmp".into(),
+                tab_type: "directory".into(),
+            }]],
+            current_tab_group_index: 0,
+            current_tab_index: 0,
+        };
+        wgs.work_groups.push(WorkGroup {
+            id: "work-group-target".into(),
+            name: "Target".into(),
+            is_default: false,
+            member_paths: vec![r"C:\tmp".into()],
+            open_state: Some(open.clone()),
+        });
+
+        let index = ProjectsIndex::empty(normalize_path_string(&root));
+        let result = activate_workspace(&root, &index, &wgs, "bound", None).unwrap();
+        let switch = result.silent_switch.expect("switch");
+        assert_eq!(switch.document.active_work_group_id, "work-group-target");
+        assert!(switch.open_state_to_restore.is_some());
         let _ = fs::remove_dir_all(&root);
     }
 }

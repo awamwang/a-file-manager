@@ -4,6 +4,7 @@
 //! C1 (AIA-207): thin APPDATA index (`projects-index.json`) holds Projects Root +
 //! `activeProject` only. Legacy `projects.json` remains until C7 deprecates it.
 //! C2 (AIA-208): Core Workspace light create under Projects Root (ADR 0008).
+//! C3 (AIA-209): list / activate / bind WG on disk Workspaces.
 
 pub(crate) mod index;
 pub(crate) mod migrate;
@@ -12,19 +13,21 @@ pub(crate) mod store;
 pub(crate) mod types;
 pub(crate) mod workspace;
 
+use crate::work_groups::store as wg_store;
+use crate::work_groups::types::{UserWorkGroups, WorkGroupOpenState};
 use index::{load_from_path as load_index_from_path, save_to_path as save_index_to_path, ProjectsIndex};
 use ops::{
     activate_project, add_task, add_workspace_link, bind_work_group, create_project, delete_project,
-    delete_task, move_task, open_all_links, promote_work_group_to_project,
-    remove_workspace_link, rename_project, save_bound_members_from_open_state, set_active_project,
-    set_context_notes, update_task, validate_bindable_work_group,
+    delete_task, move_task, open_all_links, promote_work_group_to_project, remove_workspace_link,
+    rename_project, save_bound_members_from_open_state, set_active_project, set_context_notes,
+    update_task, validate_bindable_work_group,
 };
 use store::{load_from_path, save_to_path};
 use tauri::{AppHandle, Manager};
 use types::{ActivateProjectResult, OpenAllLinksResult, ProjectTask, TaskPatch, UserProjects};
-use workspace::CreateWorkspaceResult;
-use crate::work_groups::store as wg_store;
-use crate::work_groups::types::{UserWorkGroups, WorkGroupOpenState};
+use workspace::{
+    ActivateWorkspaceResult, CreateWorkspaceResult, WorkspaceListItem, WorkspaceListResult,
+};
 
 fn config_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
     app.path()
@@ -101,6 +104,58 @@ pub fn projects_workspace_create(
         slug.as_deref(),
         bound,
     )
+}
+
+/// Scan Projects Root for Workspaces (`project.json` dirs).
+#[tauri::command]
+pub fn projects_workspace_list(app: AppHandle) -> Result<WorkspaceListResult, String> {
+    let index = load_index(&app)?;
+    let root = std::path::PathBuf::from(&index.projects_root);
+    let workspaces = workspace::list_workspaces(&root)?;
+    Ok(WorkspaceListResult {
+        projects_root: index.projects_root,
+        active_slug: index.active_project.map(|a| a.slug),
+        workspaces,
+    })
+}
+
+/// Bind or clear a non-default Work Group on a Workspace (writes `project.json`).
+#[tauri::command]
+pub fn projects_workspace_bind_work_group(
+    app: AppHandle,
+    slug: String,
+    work_group_id: Option<String>,
+) -> Result<WorkspaceListItem, String> {
+    let dir = config_dir(&app)?;
+    let index = load_index(&app)?;
+    let root = std::path::PathBuf::from(&index.projects_root);
+    let wgs = wg_store::load_from_path(&dir)?;
+    workspace::bind_workspace_work_group(&root, &wgs, &slug, work_group_id)
+}
+
+/// Activate Workspace: thin-index activeProject + silent-switch bound WG (if any).
+#[tauri::command]
+pub fn projects_workspace_activate(
+    app: AppHandle,
+    slug: String,
+    live_open_state: Option<WorkGroupOpenState>,
+) -> Result<ActivateWorkspaceResult, String> {
+    let dir = config_dir(&app)?;
+    let index = load_index(&app)?;
+    let root = std::path::PathBuf::from(&index.projects_root);
+    let wgs = wg_store::load_from_path(&dir)?;
+    let mut result = workspace::activate_workspace(
+        &root,
+        &index,
+        &wgs,
+        &slug,
+        live_open_state.as_ref(),
+    )?;
+    save_index_to_path(&dir, &result.index)?;
+    if let Some(switch) = result.silent_switch.take() {
+        result.silent_switch = Some(persist_silent_switch(&dir, switch)?);
+    }
+    Ok(result)
 }
 
 fn with_document<F>(app: &AppHandle, f: F) -> Result<UserProjects, String>
