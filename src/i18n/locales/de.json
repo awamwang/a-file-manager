@@ -669,9 +669,9 @@
       "preview": {
         "externalProvider": {
           "title": "Vorschau-Bridge-Anbieter",
-          "description": "Leertaste sendet die aktuelle Auswahl an PowerToys Peek (CLI) und/oder QuickLook (Named Pipe), sonst die eingebaute Leiste. Das ist eine AFM-Bridge — kein Zero-Adapter für jedes QL-Tool.",
+          "description": "Leertaste bevorzugt klassisches QuickLook (Named Pipe), sonst Peek (CLI), sonst die eingebaute Leiste. Fehlendes QL schlägt nicht hart fehl. Das ist eine AFM-Bridge — kein Zero-Adapter für jedes QL-Tool.",
           "options": {
-            "auto": "Auto (Peek → QuickLook → eingebaut)",
+            "auto": "Auto (QuickLook → Peek → eingebaut)",
             "peek": "PowerToys Peek",
             "quicklook": "QuickLook-Pipe",
             "builtin": "Eingebaute Vorschauleiste",

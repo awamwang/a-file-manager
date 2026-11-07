@@ -669,9 +669,9 @@
       "preview": {
         "externalProvider": {
           "title": "プレビューブリッジ提供元",
-          "description": "Space で現在の選択を PowerToys Peek（CLI）および/または QuickLook（名前付きパイプ）へ送り、なければ組み込みペインを開きます。AFM 側ブリッジであり、すべての QL 系ツールのゼロアダプターではありません。",
+          "description": "Space は利用可能ならクラシック QuickLook（名前付きパイプ）を優先し、だめなら PowerToys Peek（CLI）、さらにだめなら組み込みペイン。QL 欠落は硬失敗しません。AFM 側ブリッジであり、すべての QL 系ツールのゼロアダプターではありません。",
           "options": {
-            "auto": "自動（Peek → QuickLook → 組み込み）",
+            "auto": "自動（QuickLook → Peek → 組み込み）",
             "peek": "PowerToys Peek",
             "quicklook": "QuickLook パイプ",
             "builtin": "組み込みプレビューペイン",

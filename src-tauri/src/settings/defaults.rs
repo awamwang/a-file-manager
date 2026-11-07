@@ -350,7 +350,7 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             "preview.externalProvider",
             SettingsTier::Experimental,
             "Preview bridge provider",
-            "Space opens an external preview via Peek CLI / QuickLook pipe when available, else the built-in pane. Not zero-adapter for every QL tool.",
+            "Space prefers QuickLook (Named Pipe) when available, else Peek CLI, else the built-in pane. Missing QL does not hard-fail. Not zero-adapter for every QL tool.",
             SettingValueKind::Enum,
             Some(vec![
                 "auto".to_string(),

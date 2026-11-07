@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
- * AIA Preview Bridge (frontend): Space → selectedPaths → Peek CLI / QL pipe /
- * built-in preview pane. One AFM bridge + thin protocol backends — not
- * zero-adapter for every Quick Look–class tool.
+ * AIA Preview Bridge (frontend): Space → selectedPaths → QuickLook pipe /
+ * Peek CLI / built-in preview pane (`auto` prefers QL; AIA-254). One AFM
+ * bridge + thin protocol backends — not zero-adapter for every QL-class tool.
  *
  * AIA-174: while a Space-opened session is active, selection changes call
  * `preview_bridge_switch` (QL Switch / Peek PID replace / builtin no-op).

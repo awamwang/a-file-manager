@@ -669,9 +669,9 @@
       "preview": {
         "externalProvider": {
           "title": "Fournisseur du pont d’aperçu",
-          "description": "Espace envoie la sélection à PowerToys Peek (CLI) et/ou QuickLook (Named Pipe), sinon le volet intégré. Pont côté AFM — pas zéro adaptateur pour tous les outils QL.",
+          "description": "Espace préfère QuickLook classique (Named Pipe) si disponible, puis Peek (CLI), sinon le volet intégré. QL manquant ne bloque pas. Pont côté AFM — pas zéro adaptateur pour tous les outils QL.",
           "options": {
-            "auto": "Auto (Peek → QuickLook → intégré)",
+            "auto": "Auto (QuickLook → Peek → intégré)",
             "peek": "PowerToys Peek",
             "quicklook": "Pipe QuickLook",
             "builtin": "Volet d’aperçu intégré",

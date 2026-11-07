@@ -568,9 +568,9 @@
       "preview": {
         "externalProvider": {
           "title": "Preview bridge provider",
-          "description": "Space pushes the current selection to PowerToys Peek (CLI) and/or QuickLook (Named Pipe), else the built-in pane. This is an AFM bridge — not zero-adapter for every QL tool.",
+          "description": "Space prefers classic QuickLook (Named Pipe) when available, then PowerToys Peek (CLI), else the built-in pane. Missing QL falls back silently. This is an AFM bridge — not zero-adapter for every QL tool.",
           "options": {
-            "auto": "Auto (Peek → QuickLook → built-in)",
+            "auto": "Auto (QuickLook → Peek → built-in)",
             "peek": "PowerToys Peek",
             "quicklook": "QuickLook pipe",
             "builtin": "Built-in preview pane",

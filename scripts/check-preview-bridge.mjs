@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// AIA-168 / AIA-174 / AIA-244: Preview Bridge — Space → Peek/QL/builtin +
-// selection follow, and × dismiss stays closed until explicit re-open.
+// AIA-168 / AIA-174 / AIA-244 / AIA-254: Preview Bridge — Space →
+// QuickLook → Peek → builtin (+ selection follow); × dismiss sticky.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -33,6 +33,14 @@ assert.ok(bridgeRs.includes("QuickLook.App.PipeMessages.Switch|"));
 assert.ok(bridgeRs.includes("fallback_builtin"));
 assert.ok(bridgeRs.includes("session_active"));
 assert.ok(bridgeRs.includes("dismiss_clears_builtin_session_and_stays_inactive"));
+assert.ok(bridgeRs.includes("pick_auto_backend"));
+assert.ok(bridgeRs.includes("auto_prefers_quicklook_before_peek"));
+assert.ok(bridgeRs.includes("auto_falls_back_to_peek_when_quicklook_missing"));
+assert.ok(
+  bridgeRs.includes("QuickLook pipe first") ||
+    bridgeRs.includes("try classic QuickLook Named Pipe first"),
+  "auto must document QL-before-Peek (AIA-254)",
+);
 assert.ok(
   bridgeRs.includes("not a claim") ||
     bridgeRs.includes("not zero-adapter") ||
@@ -82,14 +90,27 @@ assert.ok(pane.includes("common.dismiss"));
 assert.ok(pane.includes('name="close"'));
 
 const en = JSON.parse(read("src/i18n/locales/en.json"));
-assert.equal(
-  en.settings.fields.preview.externalProvider.options.auto.includes("Peek"),
-  true,
+const autoLabel = en.settings.fields.preview.externalProvider.options.auto;
+assert.equal(autoLabel.includes("Peek"), true);
+assert.ok(
+  autoLabel.includes("QuickLook → Peek"),
+  `auto option must prefer QuickLook before Peek, got: ${autoLabel}`,
+);
+assert.ok(
+  en.settings.fields.preview.externalProvider.description.includes("prefers classic QuickLook") ||
+    en.settings.fields.preview.externalProvider.description.includes("Missing QL"),
+  "en description should explain QL-first / silent fallback",
 );
 assert.ok(en.shortcuts.items.navigatorPreviewBridge);
 assert.ok(en.previewBridge.fallbackBuiltin);
 assert.ok(en.common.dismiss);
 
+const zh = JSON.parse(read("src/i18n/locales/zh-CN.json"));
+assert.ok(
+  zh.settings.fields.preview.externalProvider.options.auto.includes("QuickLook → Peek"),
+  "zh-CN auto label must prefer QuickLook before Peek",
+);
+
 console.log(
-  "Preview Bridge checks OK (Peek/QL/builtin + selection follow + AIA-244 × dismiss sticky).",
+  "Preview Bridge checks OK (QL→Peek→builtin + selection follow + AIA-244 × dismiss sticky).",
 );

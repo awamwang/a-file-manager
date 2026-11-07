@@ -568,9 +568,9 @@
       "preview": {
         "externalProvider": {
           "title": "预览桥接提供方",
-          "description": "空格将当前选中推送到 PowerToys Peek（CLI）和/或 QuickLook（命名管道），否则使用内置预览栏。这是 AFM 侧桥接，并非对所有 QL 类工具零适配。",
+          "description": "空格优先使用经典 QuickLook（命名管道）；不可用时回退 PowerToys Peek（CLI），再否则内置预览栏。缺少 QL 不会硬失败。这是 AFM 侧桥接，并非对所有 QL 类工具零适配。",
           "options": {
-            "auto": "自动（Peek → QuickLook → 内置）",
+            "auto": "自动（QuickLook → Peek → 内置）",
             "peek": "PowerToys Peek",
             "quicklook": "QuickLook 管道",
             "builtin": "内置预览栏",

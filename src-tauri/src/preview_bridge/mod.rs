@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! AIA Preview Bridge — push selected local paths to Peek CLI / QuickLook pipe,
+//! AIA Preview Bridge — push selected local paths to QuickLook pipe / Peek CLI,
 //! or signal the frontend to open the experimental built-in preview pane.
 //!
 //! This is an AFM-side bridge (one feature surface + thin protocol backends),
 //! not a claim that every Quick Look–class tool works with zero adapter.
 //!
+//! `auto` (AIA-254): try classic QuickLook Named Pipe first (resident → fast),
+//! then PowerToys Peek spawn, then built-in. Missing QL must not hard-fail.
+//!
 //! Selection follow (AIA-174): while a Space-opened session is active, AFM can
 //! push path updates — QuickLook `Switch|path`, Peek replace-by-PID (CLI has no
-//! single-instance update), built-in pane via frontend computed path.
+//! single-instance / follow-file API; dual spawn opens a second window), built-in
+//! pane via frontend computed path.
 //!
 //! AIA-244: dismissing via the preview pane × (or an explicit dismiss) clears the
 //! session so selection changes alone must not re-open until Space / preview again.
@@ -316,6 +320,19 @@ fn try_quicklook_toggle(paths: &[String]) -> Result<(), String> {
     invoke_quicklook_toggle(paths)
 }
 
+/// Ordered outcome for `preview.externalProvider = auto`.
+/// QuickLook wins when its pipe accepts Toggle; else Peek; else built-in.
+/// Callers treat a failed QL probe as `quicklook_ok = false` (silent fallback).
+fn pick_auto_backend(quicklook_ok: bool, peek_ok: bool) -> &'static str {
+    if quicklook_ok {
+        "quicklook"
+    } else if peek_ok {
+        "peek"
+    } else {
+        "builtin"
+    }
+}
+
 fn close_peek_session_if_alive() -> bool {
     let pid = SESSION
         .lock()
@@ -406,21 +423,36 @@ pub fn invoke_bridge(app: &AppHandle, paths: &[String]) -> PreviewBridgeResult {
                 result_builtin(Some(err), true)
             }
         },
-        // auto (default): Peek CLI → QuickLook pipe → built-in pane
+        // auto (default): QuickLook pipe → Peek CLI → built-in pane (AIA-254).
+        // QL failure is silent here — do not surface pipe-missing as a hard error.
         _ => {
-            if let Ok(pid) = try_peek(&local) {
-                set_session("peek", Some(pid));
-                return result_ok("peek", true);
+            let ql_ok = try_quicklook_toggle(&local).is_ok();
+            let peek_pid = if ql_ok {
+                None
+            } else {
+                try_peek(&local).ok()
+            };
+            match pick_auto_backend(ql_ok, peek_pid.is_some()) {
+                "quicklook" => {
+                    set_session("quicklook", None);
+                    result_ok("quicklook", true)
+                }
+                "peek" => {
+                    let pid = peek_pid.expect("peek_ok implies Some(pid)");
+                    set_session("peek", Some(pid));
+                    result_ok("peek", true)
+                }
+                _ => {
+                    set_session("builtin", None);
+                    result_builtin(
+                        Some(
+                            "No QuickLook/Peek bridge available; using built-in preview"
+                                .into(),
+                        ),
+                        true,
+                    )
+                }
             }
-            if try_quicklook_toggle(&local).is_ok() {
-                set_session("quicklook", None);
-                return result_ok("quicklook", true);
-            }
-            set_session("builtin", None);
-            result_builtin(
-                Some("No Peek/QuickLook bridge available; using built-in preview".into()),
-                true,
-            )
         }
     }
 }
@@ -579,5 +611,22 @@ mod tests {
         let again = dismiss_bridge();
         assert!(!again.session_active);
         assert!(!session_is_active());
+    }
+
+    #[test]
+    fn auto_prefers_quicklook_before_peek() {
+        assert_eq!(pick_auto_backend(true, true), "quicklook");
+        assert_eq!(pick_auto_backend(true, false), "quicklook");
+    }
+
+    #[test]
+    fn auto_falls_back_to_peek_when_quicklook_missing() {
+        // Missing / unreachable QL must not hard-fail — Peek is next.
+        assert_eq!(pick_auto_backend(false, true), "peek");
+    }
+
+    #[test]
+    fn auto_falls_back_to_builtin_when_both_external_missing() {
+        assert_eq!(pick_auto_backend(false, false), "builtin");
     }
 }
