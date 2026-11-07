@@ -238,7 +238,7 @@
       "errorDeployProject": "Project Workspace path must be an existing directory"
     },
     "mcp": {
-      "mergeHint": "Catalog is APPDATA-only. Deploy merges afm__<id> into enabled Agent MCP JSON files.",
+      "mergeHint": "Catalog is APPDATA-only. Deploy merges afm__<id> into enabled Agent MCP JSON files. Dogfood seeds (e.g. knowledge-system) appear automatically; existing ids are never overwritten.",
       "add": "New entry",
       "empty": "No MCP entries yet.",
       "fieldName": "Display name",
@@ -247,16 +247,20 @@
       "save": "Save to catalog",
       "deploy": "Merge deploy",
       "undeploy": "Remove managed keys",
+      "import": "Import mcp.json",
+      "importPathHint": "Path to Cursor/VS Code mcp.json (mcpServers map)",
       "projectWorkspaceHint": "Optional Project Workspace for project-relative MCP paths",
       "noticeSaved": "MCP catalog entry saved",
       "noticeRemoved": "MCP catalog entry removed",
       "noticeDeployed": "Merged into {count} file(s) · {skipped} skipped",
       "noticeUndeployed": "Removed managed keys from {count} file(s)",
+      "noticeImported": "Imported {added} · skipped {skipped} (already present)",
       "errorIdEmpty": "MCP id / name cannot be empty",
       "errorIdInvalid": "MCP id must be lowercase ASCII",
       "errorUnknown": "Unknown MCP catalog entry",
       "errorDeployNoEnabled": "Enable at least one Agent Target before MCP deploy",
-      "errorTargetInvalid": "MCP target path / JSON shape invalid"
+      "errorTargetInvalid": "MCP target path / JSON shape invalid",
+      "errorImportInvalid": "MCP import file missing or invalid (need mcpServers object)"
     },
     "harness": {
       "title": "Initialize Harness / Superpower",

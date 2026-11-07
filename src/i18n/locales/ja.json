@@ -206,16 +206,20 @@
       "save": "カタログに保存",
       "deploy": "マージ配備",
       "undeploy": "管理キーを削除",
+      "import": "mcp.json をインポート",
+      "importPathHint": "Cursor/VS Code の mcp.json パス（mcpServers）",
       "projectWorkspaceHint": "任意の Project Workspace（プロジェクト相対 MCP）",
       "noticeSaved": "MCP カタログを保存しました",
       "noticeRemoved": "MCP カタログ項目を削除しました",
       "noticeDeployed": "{count} ファイルへマージ · {skipped} スキップ",
       "noticeUndeployed": "{count} ファイルから管理キーを削除",
+      "noticeImported": "{added} 件インポート · {skipped} 件スキップ（既存）",
       "errorIdEmpty": "MCP id / 名は空にできません",
       "errorIdInvalid": "MCP id は小文字 ASCII",
       "errorUnknown": "不明な MCP 項目",
       "errorDeployNoEnabled": "MCP 配備前に Agent Target を有効化してください",
-      "errorTargetInvalid": "MCP 対象パス / JSON が無効"
+      "errorTargetInvalid": "MCP 対象パス / JSON が無効",
+      "errorImportInvalid": "MCP インポートファイルが無い、または無効（mcpServers オブジェクトが必要）"
     },
     "harness": {
       "title": "Initialize Harness / Superpower",

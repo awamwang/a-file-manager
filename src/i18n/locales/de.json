@@ -206,16 +206,20 @@
       "save": "In Katalog speichern",
       "deploy": "Merge-Deploy",
       "undeploy": "Verwaltete Schlüssel entfernen",
+      "import": "mcp.json importieren",
+      "importPathHint": "Pfad zur Cursor/VS Code mcp.json (mcpServers)",
       "projectWorkspaceHint": "Optionaler Project Workspace für projektrelative MCP-Pfade",
       "noticeSaved": "MCP-Katalogeintrag gespeichert",
       "noticeRemoved": "MCP-Katalogeintrag entfernt",
       "noticeDeployed": "In {count} Datei(en) gemergt · {skipped} übersprungen",
       "noticeUndeployed": "Verwaltete Schlüssel aus {count} Datei(en) entfernt",
+      "noticeImported": "{added} importiert · {skipped} übersprungen (bereits vorhanden)",
       "errorIdEmpty": "MCP-Id/Name darf nicht leer sein",
       "errorIdInvalid": "MCP-Id muss Kleinbuchstaben-ASCII sein",
       "errorUnknown": "Unbekannter MCP-Katalogeintrag",
       "errorDeployNoEnabled": "Vor MCP-Deploy mindestens ein Agent Target aktivieren",
-      "errorTargetInvalid": "MCP-Zielpfad / JSON ungültig"
+      "errorTargetInvalid": "MCP-Zielpfad / JSON ungültig",
+      "errorImportInvalid": "MCP-Importdatei fehlt oder ungültig (mcpServers-Objekt nötig)"
     },
     "harness": {
       "title": "Initialize Harness / Superpower",

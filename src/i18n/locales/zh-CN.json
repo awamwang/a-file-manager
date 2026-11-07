@@ -238,7 +238,7 @@
       "errorDeployProject": "Project Workspace 路径必须是已存在的目录"
     },
     "mcp": {
-      "mergeHint": "目录仅在 APPDATA。部署把 afm__<id> 合并进已启用 Agent 的 MCP JSON。",
+      "mergeHint": "目录仅在 APPDATA。部署把 afm__<id> 合并进已启用 Agent 的 MCP JSON。Dogfood 种子（如 knowledge-system）会自动出现；已有 id 不会被覆盖。",
       "add": "新建条目",
       "empty": "尚无 MCP 条目。",
       "fieldName": "显示名称",
@@ -247,16 +247,20 @@
       "save": "保存到目录",
       "deploy": "合并部署",
       "undeploy": "移除托管键",
+      "import": "导入 mcp.json",
+      "importPathHint": "Cursor/VS Code mcp.json 路径（mcpServers 映射）",
       "projectWorkspaceHint": "可选 Project Workspace（项目相对 MCP 路径）",
       "noticeSaved": "MCP 目录条目已保存",
       "noticeRemoved": "MCP 目录条目已删除",
       "noticeDeployed": "已合并到 {count} 个文件 · 跳过 {skipped}",
       "noticeUndeployed": "已从 {count} 个文件移除托管键",
+      "noticeImported": "已导入 {added} · 跳过 {skipped}（已存在）",
       "errorIdEmpty": "MCP id / 名称不能为空",
       "errorIdInvalid": "MCP id 须为小写 ASCII",
       "errorUnknown": "未知 MCP 目录条目",
       "errorDeployNoEnabled": "部署 MCP 前请至少启用一个 Agent Target",
-      "errorTargetInvalid": "MCP 目标路径或 JSON 形状无效"
+      "errorTargetInvalid": "MCP 目标路径或 JSON 形状无效",
+      "errorImportInvalid": "MCP 导入文件缺失或无效（需要 mcpServers 对象）"
     },
     "harness": {
       "title": "初始化 Harness / Superpower",

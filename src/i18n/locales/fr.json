@@ -206,16 +206,20 @@
       "save": "Enregistrer dans le catalogue",
       "deploy": "Déployer (fusion)",
       "undeploy": "Retirer les clés gérées",
+      "import": "Importer mcp.json",
+      "importPathHint": "Chemin vers mcp.json Cursor/VS Code (mcpServers)",
       "projectWorkspaceHint": "Project Workspace optionnel pour les chemins MCP relatifs au projet",
       "noticeSaved": "Entrée catalogue MCP enregistrée",
       "noticeRemoved": "Entrée catalogue MCP supprimée",
       "noticeDeployed": "Fusionné dans {count} fichier(s) · {skipped} ignoré(s)",
       "noticeUndeployed": "Clés gérées retirées de {count} fichier(s)",
+      "noticeImported": "{added} importé(s) · {skipped} ignoré(s) (déjà présents)",
       "errorIdEmpty": "L’id / nom MCP ne peut pas être vide",
       "errorIdInvalid": "L’id MCP doit être en ASCII minuscule",
       "errorUnknown": "Entrée catalogue MCP inconnue",
       "errorDeployNoEnabled": "Activez au moins une cible Agent avant le déploiement MCP",
-      "errorTargetInvalid": "Chemin / JSON MCP cible invalide"
+      "errorTargetInvalid": "Chemin / JSON MCP cible invalide",
+      "errorImportInvalid": "Fichier d’import MCP manquant ou invalide (objet mcpServers requis)"
     },
     "harness": {
       "title": "Initialize Harness / Superpower",

@@ -14,6 +14,7 @@ const error = ref<string | null>(null);
 const loading = ref(false);
 const selectedId = ref<string | null>(null);
 const projectWorkspace = ref("");
+const importPath = ref("");
 const draftName = ref("");
 const draftId = ref("");
 const draftJson = ref('{\n  "command": "npx",\n  "args": ["-y", "example"]\n}');
@@ -25,6 +26,7 @@ const ERROR_KEYS: Record<string, string> = {
   AI_MCP_UNKNOWN: "ai.mcp.errorUnknown",
   AI_MCP_DEPLOY_NO_ENABLED: "ai.mcp.errorDeployNoEnabled",
   AI_MCP_TARGET_INVALID: "ai.mcp.errorTargetInvalid",
+  AI_MCP_IMPORT_INVALID: "ai.mcp.errorImportInvalid",
 };
 
 function mapError(err: unknown): string {
@@ -119,6 +121,33 @@ async function undeploySelected() {
   }
 }
 
+async function importMcpJson() {
+  const path = importPath.value.trim();
+  if (!path) {
+    error.value = t("ai.mcp.errorImportInvalid");
+    return;
+  }
+  error.value = null;
+  lastNote.value = null;
+  try {
+    const [next, report] = await invoke<[AiConfigDocument, { added: string[]; skipped: string[] }]>(
+      "ai_mcp_catalog_import",
+      { path },
+    );
+    document.value = next;
+    if (!selectedId.value && next.mcpCatalog?.length) {
+      selectedId.value = next.mcpCatalog[0]?.id ?? null;
+    }
+    lastNote.value = t("ai.mcp.noticeImported", {
+      added: report.added.length,
+      skipped: report.skipped.length,
+    });
+    toastSuccess(lastNote.value);
+  } catch (err) {
+    error.value = mapError(err);
+  }
+}
+
 function selectEntry(entry: McpCatalogEntry) {
   selectedId.value = entry.id;
   draftId.value = entry.id;
@@ -158,6 +187,18 @@ onMounted(() => {
         type="text"
         :placeholder="t('ai.mcp.projectWorkspaceHint')"
       />
+    </div>
+
+    <div class="mcp-toolbar">
+      <input
+        v-model="importPath"
+        class="fluent-control mcp-grow"
+        type="text"
+        :placeholder="t('ai.mcp.importPathHint')"
+      />
+      <button type="button" class="fluent-control" @click="importMcpJson">
+        {{ t("ai.mcp.import") }}
+      </button>
     </div>
 
     <div class="mcp-layout">

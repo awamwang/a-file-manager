@@ -28,6 +28,7 @@ pub use open_editor::OpenEditorReport;
 pub use providers::AiProviderPatch;
 
 use serde::Serialize;
+use std::path::Path;
 use tauri::AppHandle;
 use tauri::Manager;
 
@@ -273,6 +274,20 @@ pub fn ai_mcp_catalog_remove(app: AppHandle, id: String) -> Result<AiConfigDocum
     let next = mcp::remove_entry(&doc, &id)?;
     agents::save_to_path(&dir, &next)?;
     Ok(next)
+}
+
+/// One-shot import of Cursor/VS Code-style `{ "mcpServers": … }` into the public catalog.
+/// Existing ids are skipped (idempotent; does not wipe user edits).
+#[tauri::command]
+pub fn ai_mcp_catalog_import(
+    app: AppHandle,
+    path: String,
+) -> Result<(AiConfigDocument, mcp::McpImportReport), String> {
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    let (next, report) = mcp::import_from_mcp_json_path(&doc, Path::new(&path))?;
+    agents::save_to_path(&dir, &next)?;
+    Ok((next, report))
 }
 
 /// Merge-deploy one catalog entry into enabled Agent MCP configs (managed `afm__*` keys only).

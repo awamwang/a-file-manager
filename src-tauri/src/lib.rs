@@ -225,6 +225,7 @@ pub fn run() {
                     ai::ai_mcp_catalog_list,
                     ai::ai_mcp_catalog_upsert,
                     ai::ai_mcp_catalog_remove,
+                    ai::ai_mcp_catalog_import,
                     ai::ai_mcp_deploy,
                     ai::ai_mcp_undeploy,
                     ai::ai_harness_init,

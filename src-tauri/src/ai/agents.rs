@@ -312,7 +312,9 @@ pub fn load_from_path(config_dir: &Path) -> Result<AiConfigDocument, String> {
         serde_json::from_str(&text)
             .map_err(|err| format!("Failed to parse AI config JSON: {err}"))?
     };
-    let synced = crate::ai::providers::sync_presets(&sync_builtins_and_discover(&document));
+    let synced = crate::ai::mcp::sync_seed_catalog(&crate::ai::providers::sync_presets(
+        &sync_builtins_and_discover(&document),
+    ));
     if synced != document {
         save_to_path(config_dir, &synced)?;
     }
