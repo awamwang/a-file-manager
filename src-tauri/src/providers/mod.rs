@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! ProviderRegistry — awam extension layer (ADR 0001 + 0003).
-//! Day-1: rclone (CLI, no mount) + knowledge. No `awam://local` Kernel browse.
+//! Day-1 builtin: rclone (CLI, no mount) + knowledge + stubs. No `awam://local`.
 //!
 //! AIA-76: depth-1 listing cache + `provider_preload` (warm on app start).
+//! AIA-226: prefer live awam-file gateway discovery (`/api/backends`); fall back to
+//! builtin Day-1 registry when the gateway is offline.
 
 mod cache;
 mod factory;
+mod gateway;
 mod knowledge;
 mod provider;
 mod rclone;
@@ -38,24 +41,134 @@ pub struct PreloadReport {
     pub errors: Vec<String>,
 }
 
+fn builtin_backends() -> Result<Vec<BackendInfo>, String> {
+    let mut backends = REGISTRY.backends()?;
+    for backend in &mut backends {
+        if backend.source.is_none() {
+            backend.source = Some("builtin".to_string());
+        }
+    }
+    Ok(backends)
+}
+
+fn local_rejected_listing(uri: &str) -> DirListing {
+    DirListing {
+        uri: uri.to_string(),
+        backend: "local".to_string(),
+        entries: Vec::new(),
+        error: Some(
+            "awam://local is not an AFM extension backend; use Navigator for OS paths (ADR 0001/0003)"
+                .to_string(),
+        ),
+    }
+}
+
+/// Prefer gateway discovery; keep Day-1 builtins when gateway is down.
+fn discover_backends() -> Result<Vec<BackendInfo>, String> {
+    match gateway::fetch_backends() {
+        Ok(backends) => Ok(backends),
+        Err(_) => builtin_backends(),
+    }
+}
+
+fn list_dispatch(uri_str: &str) -> Result<DirListing, String> {
+    let parsed = parse_awam_uri(uri_str)?;
+    if parsed.backend == "local" {
+        return Ok(local_rejected_listing(&parsed.to_string_uri()));
+    }
+    if gateway::is_online() {
+        match gateway::list(uri_str) {
+            Ok(listing) => Ok(listing),
+            Err(err) => {
+                // Mid-flight outage: degrade to builtin for known Day-1 ids / root.
+                if parsed.backend == "root"
+                    || REGISTRY.contains(&parsed.backend)
+                {
+                    REGISTRY.list(uri_str)
+                } else {
+                    Err(err)
+                }
+            }
+        }
+    } else {
+        REGISTRY.list(uri_str)
+    }
+}
+
+fn stat_dispatch(uri_str: &str) -> Result<StatResult, String> {
+    let parsed = parse_awam_uri(uri_str)?;
+    if parsed.backend == "local" {
+        return Ok(StatResult {
+            entry: None,
+            error: Some(
+                "awam://local is not an AFM extension backend; use Navigator for OS paths (ADR 0001/0003)"
+                    .to_string(),
+            ),
+        });
+    }
+    if gateway::is_online() {
+        match gateway::stat(uri_str) {
+            Ok(result) => Ok(result),
+            Err(_) if parsed.backend == "root" || REGISTRY.contains(&parsed.backend) => {
+                REGISTRY.stat(uri_str)
+            }
+            Err(err) => Err(err),
+        }
+    } else {
+        REGISTRY.stat(uri_str)
+    }
+}
+
+fn resolve_dispatch(uri_str: &str) -> Result<ResolveResult, String> {
+    let parsed = parse_awam_uri(uri_str)?;
+    if parsed.backend == "local" {
+        return Ok(ResolveResult {
+            uri: parsed.to_string_uri(),
+            local_path: None,
+            action: None,
+            action_args: Default::default(),
+            error: Some(
+                "awam://local is not an AFM extension backend; use Navigator for OS paths (ADR 0001/0003)"
+                    .to_string(),
+            ),
+        });
+    }
+    if gateway::is_online() {
+        match gateway::resolve(uri_str) {
+            Ok(result) => Ok(result),
+            Err(_) if parsed.backend == "root" || REGISTRY.contains(&parsed.backend) => {
+                REGISTRY.resolve(uri_str)
+            }
+            Err(err) => Err(err),
+        }
+    } else {
+        REGISTRY.resolve(uri_str)
+    }
+}
+
+#[tauri::command]
+pub fn provider_gateway_status() -> gateway::GatewayStatus {
+    gateway::status()
+}
+
 #[tauri::command]
 pub fn provider_backends() -> Result<Vec<BackendInfo>, String> {
-    REGISTRY.backends()
+    discover_backends()
 }
 
 #[tauri::command]
 pub fn provider_list(uri: String) -> Result<DirListing, String> {
-    list_with_cache(&REGISTRY, &LISTING_CACHE, &uri)
+    list_with_cache(&LISTING_CACHE, &uri)
 }
 
 #[tauri::command]
 pub fn provider_stat(uri: String) -> Result<StatResult, String> {
-    REGISTRY.stat(&uri)
+    stat_dispatch(&uri)
 }
 
 #[tauri::command]
 pub fn provider_resolve(uri: String) -> Result<ResolveResult, String> {
-    REGISTRY.resolve(&uri)
+    resolve_dispatch(&uri)
 }
 
 /// Preload depth-1 listings: `awam://root` + each non-interface-only backend root.
@@ -65,7 +178,7 @@ pub fn provider_resolve(uri: String) -> Result<ResolveResult, String> {
 pub fn provider_preload(app: AppHandle) -> Result<PreloadReport, String> {
     let include_knowledge =
         crate::settings::read_bool_setting_or(&app, "power.providerPreloadKnowledge", true);
-    preload_depth1(&REGISTRY, &LISTING_CACHE, include_knowledge)
+    preload_depth1(&LISTING_CACHE, include_knowledge)
 }
 
 /// Invalidate depth-1 cache. Omit `uri` (or pass empty) to clear all.
@@ -88,10 +201,20 @@ pub fn provider_cache_invalidate(uri: Option<String>) -> Result<usize, String> {
 }
 
 fn list_with_cache(
-    registry: &ProviderRegistry,
     cache_lock: &Mutex<ListingCache>,
     uri_str: &str,
 ) -> Result<DirListing, String> {
+    list_with_cache_using(cache_lock, uri_str, list_dispatch)
+}
+
+fn list_with_cache_using<F>(
+    cache_lock: &Mutex<ListingCache>,
+    uri_str: &str,
+    fetch: F,
+) -> Result<DirListing, String>
+where
+    F: Fn(&str) -> Result<DirListing, String>,
+{
     let parsed = parse_awam_uri(uri_str)?;
     let key = depth1_cache_key(&parsed);
     if let Some(ref key) = key {
@@ -102,7 +225,7 @@ fn list_with_cache(
         }
     }
 
-    let listing = registry.list(uri_str)?;
+    let listing = fetch(uri_str)?;
 
     if let Some(key) = key {
         if let Ok(mut cache) = cache_lock.lock() {
@@ -113,16 +236,28 @@ fn list_with_cache(
 }
 
 fn preload_depth1(
-    registry: &ProviderRegistry,
     cache_lock: &Mutex<ListingCache>,
     include_knowledge: bool,
 ) -> Result<PreloadReport, String> {
+    preload_depth1_using(cache_lock, include_knowledge, discover_backends, list_dispatch)
+}
+
+fn preload_depth1_using<BF, LF>(
+    cache_lock: &Mutex<ListingCache>,
+    include_knowledge: bool,
+    backends_fn: BF,
+    list_fn: LF,
+) -> Result<PreloadReport, String>
+where
+    BF: FnOnce() -> Result<Vec<BackendInfo>, String>,
+    LF: Fn(&str) -> Result<DirListing, String>,
+{
     let mut uris = Vec::new();
     let mut skipped = Vec::new();
     let mut errors = Vec::new();
 
     // Always warm the root roster first.
-    match list_with_cache(registry, cache_lock, "awam://root") {
+    match list_with_cache_using(cache_lock, "awam://root", &list_fn) {
         Ok(listing) => {
             uris.push(listing.uri);
             if let Some(err) = listing.error {
@@ -132,7 +267,7 @@ fn preload_depth1(
         Err(err) => errors.push(format!("awam://root: {err}")),
     }
 
-    let backends = registry.backends()?;
+    let backends = backends_fn()?;
     for backend in backends {
         let target = format!("awam://{}", backend.id);
         if backend.interface_only {
@@ -151,7 +286,7 @@ fn preload_depth1(
             skipped.push(format!("{target} (no list capability)"));
             continue;
         }
-        match list_with_cache(registry, cache_lock, &target) {
+        match list_with_cache_using(cache_lock, &target, &list_fn) {
             Ok(listing) => {
                 uris.push(listing.uri.clone());
                 if let Some(err) = listing.error {
@@ -211,6 +346,7 @@ mod tests {
                 capabilities: vec!["list".to_string()],
                 detail: None,
                 interface_only: false,
+                source: Some("builtin".to_string()),
             }
         }
         fn list(&self, uri: &AwamUri) -> DirListing {
@@ -262,6 +398,7 @@ mod tests {
                 capabilities: vec!["list".to_string()],
                 detail: Some("stub".to_string()),
                 interface_only: true,
+                source: Some("builtin".to_string()),
             }
         }
         fn list(&self, uri: &AwamUri) -> DirListing {
@@ -285,14 +422,15 @@ mod tests {
             }))
             .unwrap();
         let cache = Mutex::new(ListingCache::new());
+        let fetch = |uri: &str| registry.list(uri);
 
-        let first = list_with_cache(&registry, &cache, "awam://rclone").unwrap();
-        let second = list_with_cache(&registry, &cache, "awam://rclone").unwrap();
+        let first = list_with_cache_using(&cache, "awam://rclone", fetch).unwrap();
+        let second = list_with_cache_using(&cache, "awam://rclone", fetch).unwrap();
         assert_eq!(first, second);
         assert_eq!(hits.load(Ordering::SeqCst), 1);
 
-        let _ = list_with_cache(&registry, &cache, "awam://rclone/remote").unwrap();
-        let _ = list_with_cache(&registry, &cache, "awam://rclone/remote").unwrap();
+        let _ = list_with_cache_using(&cache, "awam://rclone/remote", fetch).unwrap();
+        let _ = list_with_cache_using(&cache, "awam://rclone/remote", fetch).unwrap();
         assert_eq!(hits.load(Ordering::SeqCst), 3);
     }
 
@@ -310,8 +448,10 @@ mod tests {
             .register(Arc::new(StubOnly { id: "downloads" }))
             .unwrap();
         let cache = Mutex::new(ListingCache::new());
+        let list_fn = |uri: &str| registry.list(uri);
+        let backends_fn = || registry.backends();
 
-        let report = preload_depth1(&registry, &cache, true).unwrap();
+        let report = preload_depth1_using(&cache, true, backends_fn, list_fn).unwrap();
         assert!(report.uris.iter().any(|u| u == "awam://root"));
         assert!(report.uris.iter().any(|u| u.contains("knowledge")));
         assert!(report
@@ -323,7 +463,7 @@ mod tests {
         assert_eq!(hits.load(Ordering::SeqCst), 1);
 
         // Second list hits cache
-        let _ = list_with_cache(&registry, &cache, "awam://knowledge").unwrap();
+        let _ = list_with_cache_using(&cache, "awam://knowledge", list_fn).unwrap();
         assert_eq!(hits.load(Ordering::SeqCst), 1);
     }
 
@@ -338,8 +478,10 @@ mod tests {
             }))
             .unwrap();
         let cache = Mutex::new(ListingCache::new());
+        let list_fn = |uri: &str| registry.list(uri);
+        let backends_fn = || registry.backends();
 
-        let report = preload_depth1(&registry, &cache, false).unwrap();
+        let report = preload_depth1_using(&cache, false, backends_fn, list_fn).unwrap();
         assert!(report.uris.iter().any(|u| u == "awam://root"));
         assert!(!report.uris.iter().any(|u| u.contains("knowledge")));
         assert!(report
@@ -347,5 +489,15 @@ mod tests {
             .iter()
             .any(|s| s.contains("knowledge") && s.contains("preload disabled")));
         assert_eq!(hits.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn local_uri_stays_rejected_when_dispatching() {
+        let listing = list_dispatch("awam://local/G:/temp").unwrap();
+        assert!(listing
+            .error
+            .as_ref()
+            .unwrap()
+            .contains("Navigator"));
     }
 }

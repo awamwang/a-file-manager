@@ -184,6 +184,7 @@ impl Provider for RcloneProvider {
                     format!("{} remote(s)", remotes.len())
                 }),
                 interface_only: false,
+                source: Some("builtin".to_string()),
             },
             Err(err) => BackendInfo {
                 id: "rclone".to_string(),
@@ -196,6 +197,7 @@ impl Provider for RcloneProvider {
                     .collect(),
                 detail: Some(err),
                 interface_only: false,
+                source: Some("builtin".to_string()),
             },
         }
     }

@@ -43,7 +43,6 @@ impl ProviderRegistry {
         Ok(map.remove(&id).is_some())
     }
 
-    #[allow(dead_code)]
     pub fn contains(&self, backend_id: &str) -> bool {
         let id = backend_id.to_ascii_lowercase();
         self.providers
@@ -191,6 +190,7 @@ mod tests {
                 capabilities: vec!["list".to_string()],
                 detail: None,
                 interface_only: false,
+                source: Some("builtin".to_string()),
             }
         }
         fn list(&self, uri: &AwamUri) -> DirListing {

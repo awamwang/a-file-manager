@@ -37,6 +37,9 @@ pub struct BackendInfo {
     /// True when Day-1 ships only a reserved slot (ADR 0003 interface-only).
     #[serde(default)]
     pub interface_only: bool,
+    /// `"gateway"` when discovered from awam-file HTTP; `"builtin"` for in-process Day-1.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

@@ -55,6 +55,7 @@ once_cell = "1"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 walkdir = "2"
 tauri-plugin-drag = "2"
+ureq = { version = "3.5.1", features = ["json"] }
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]

@@ -17,6 +17,14 @@ type BackendInfo = {
   capabilities: string[];
   detail?: string | null;
   interfaceOnly?: boolean;
+  source?: string | null;
+};
+
+type GatewayStatus = {
+  online: boolean;
+  baseUrl: string;
+  detail?: string | null;
+  backendCount?: number | null;
 };
 
 type ProviderEntry = {
@@ -36,15 +44,20 @@ type DirListing = {
 };
 
 const backends = ref<BackendInfo[]>([]);
+const gateway = ref<GatewayStatus | null>(null);
 const uri = ref("awam://root");
 const listing = ref<DirListing | null>(null);
 const loading = ref(false);
 const error = ref<string | null>(null);
 
 async function loadBackends() {
-  // Restore interface-only stubs (downloads / prowlarr) on the Providers surface
-  // after AIA-112 temporarily hid them (0e0a884).
-  backends.value = await invoke<BackendInfo[]>("provider_backends");
+  // AIA-226: prefer live awam-file gateway discovery; Day-1 builtins when offline.
+  const [status, list] = await Promise.all([
+    invoke<GatewayStatus>("provider_gateway_status"),
+    invoke<BackendInfo[]>("provider_backends"),
+  ]);
+  gateway.value = status;
+  backends.value = list;
 }
 
 async function listUri(target?: string) {
@@ -88,6 +101,24 @@ onMounted(() => {
       <p class="fluent-page-meta">{{ t("providers.meta") }}</p>
     </header>
 
+    <p
+      v-if="gateway && gateway.online"
+      class="fluent-banner fluent-banner--info"
+    >
+      {{
+        t("providers.gatewayOnline", {
+          count: gateway.backendCount ?? backends.length,
+          url: gateway.baseUrl,
+        })
+      }}
+    </p>
+    <p
+      v-else-if="gateway && !gateway.online"
+      class="fluent-banner fluent-banner--info"
+    >
+      {{ t("providers.gatewayOffline") }}
+    </p>
+
     <p v-if="!backends.length" class="fluent-banner fluent-banner--info">
       {{ t("providers.emptyBackends") }}
     </p>
@@ -122,6 +153,14 @@ onMounted(() => {
               ? t("providers.statusOk")
               : t("providers.statusDown")
         }}</span>
+        <span
+          v-if="backend.source === 'gateway'"
+          class="fluent-chip status-chip fluent-chip--ok"
+        >{{ t("providers.sourceGateway") }}</span>
+        <span
+          v-else-if="backend.source === 'builtin'"
+          class="fluent-chip status-chip fluent-chip--stub"
+        >{{ t("providers.sourceBuiltin") }}</span>
         <span class="detail">{{ backend.detail || backend.description }}</span>
       </button>
     </div>

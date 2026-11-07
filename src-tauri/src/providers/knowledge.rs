@@ -204,6 +204,7 @@ impl Provider for KnowledgeProvider {
                 ))
             },
             interface_only: false,
+            source: Some("builtin".to_string()),
         }
     }
 

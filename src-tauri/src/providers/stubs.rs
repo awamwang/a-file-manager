@@ -61,6 +61,7 @@ impl Provider for InterfaceOnlyProvider {
                 .collect(),
             detail: Some("Interface-only stub (ADR 0003); not implemented in Day-1".to_string()),
             interface_only: true,
+            source: Some("builtin".to_string()),
         }
     }
 
