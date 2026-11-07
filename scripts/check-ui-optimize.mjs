@@ -16,7 +16,8 @@ assert.ok(!/Rust schema|health_get|vNext host|awam extension layer/i.test(en.hea
 assert.ok(en.providers.emptyBackends.length > 8);
 assert.ok(providers.includes("providers.emptyBackends"));
 assert.ok(
-  view.includes("min-width: min(12rem, 40%)") || view.includes("flex: 1 1 12rem"),
+  view.includes("min-width: 15rem") || view.includes("flex: 1 1 15rem"),
+  "dual pane narrow-window floor (AIA-252)",
 );
 
 console.log("ui-optimize: ok");

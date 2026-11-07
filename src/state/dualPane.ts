@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-/** Dual-pane Navigator state (AIA-68). */
+/** Dual-pane Navigator state (AIA-68 + AIA-252 min-width clamp). */
 
 import { computed, ref, shallowRef } from "vue";
 import { invoke } from "@tauri-apps/api/core";
@@ -9,6 +9,16 @@ import { clearNavigatorFilter } from "./navigatorFilter";
 import { showHiddenItems } from "./showHidden";
 
 export type PaneId = "primary" | "secondary";
+
+export {
+  DEFAULT_WINDOW_MIN_HEIGHT_PX,
+  DEFAULT_WINDOW_MIN_WIDTH_PX,
+  DUAL_PANE_GAP_PX,
+  DUAL_PANE_MIN_PANE_PX,
+  DUAL_PANE_WINDOW_MIN_WIDTH_PX,
+  dualPaneFitsInnerWidth,
+  windowMinWidthForDualPane,
+} from "./dualPaneLayout";
 
 export const dualPaneEnabled = ref(false);
 export const activePane = ref<PaneId>("primary");

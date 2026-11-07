@@ -1754,12 +1754,17 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
 
 .panes--dual {
   gap: var(--fluent-space-sm);
+  /* AIA-252: if host is still narrower than 2×floor, scroll instead of crush. */
+  overflow-x: auto;
 }
 
 .panes--dual .pane {
-  /* Narrow-window guard: keep each pane usable (UI audit leftover). */
-  min-width: min(12rem, 40%);
-  flex: 1 1 12rem;
+  /*
+   * AIA-252 hard floor (= DUAL_PANE_MIN_PANE_PX / 15rem).
+   * Do not min() with a % — that let panes shrink below usable width.
+   */
+  min-width: 15rem;
+  flex: 1 1 15rem;
 }
 
 .pane {

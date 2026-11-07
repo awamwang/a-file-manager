@@ -5,6 +5,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import CommandPanel from "../command/CommandPanel.vue";
 import ToastHost from "./ToastHost.vue";
@@ -76,7 +77,14 @@ import {
 import { isRecyclePath, RECYCLE_PATH } from "../../state/recyclePath";
 import { selectedPaths } from "../../state/navigatorSelection";
 import { formatBytes, selectionByteSize } from "../../state/formatBytes";
-import { dualPaneEnabled, navigateSecondary, secondaryPath, toggleDualPane } from "../../state/dualPane";
+import {
+  DEFAULT_WINDOW_MIN_HEIGHT_PX,
+  dualPaneEnabled,
+  navigateSecondary,
+  secondaryPath,
+  toggleDualPane,
+  windowMinWidthForDualPane,
+} from "../../state/dualPane";
 import {
   loadNavigatorViewMode,
   NAVIGATOR_VIEW_MODES,
@@ -789,6 +797,35 @@ watch(workGroupChromeError, (err) => {
   if (!err || err === "REQUIRE_SAVE_PROMPT") return;
   toastError(err);
 });
+
+/** AIA-252: raise/restore OS window min-width when dual pane toggles. */
+async function applyDualPaneWindowMinWidth(enabled: boolean): Promise<void> {
+  try {
+    const win = getCurrentWindow();
+    const minW = windowMinWidthForDualPane(enabled);
+    await win.setMinSize(new LogicalSize(minW, DEFAULT_WINDOW_MIN_HEIGHT_PX));
+    if (!enabled) return;
+    const factor = await win.scaleFactor();
+    const physical = await win.innerSize();
+    const logicalW = physical.width / factor;
+    const logicalH = physical.height / factor;
+    if (logicalW < minW) {
+      await win.setSize(
+        new LogicalSize(minW, Math.max(logicalH, DEFAULT_WINDOW_MIN_HEIGHT_PX)),
+      );
+    }
+  } catch (err) {
+    console.error("dual-pane window min size failed", err);
+  }
+}
+
+watch(
+  dualPaneEnabled,
+  (enabled) => {
+    void applyDualPaneWindowMinWidth(enabled);
+  },
+  { immediate: true },
+);
 
 const freeDiskText = ref("");
 
