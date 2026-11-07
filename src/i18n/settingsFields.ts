@@ -5,6 +5,7 @@ export const SCHEMA_SETTING_KEYS = [
   "core.language",
   "core.theme",
   "core.defaultLocation",
+  "core.projectsRoot",
   "core.startupPage",
   "core.showHidden",
   "core.listDensity",

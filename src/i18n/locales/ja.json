@@ -312,6 +312,10 @@
           "description": "エクスプローラーで開く既定の OS パス（空 = USERPROFILE）",
           "title": "既定の場所"
         },
+        "projectsRoot": {
+          "title": "プロジェクトのルート",
+          "description": "Project Workspace を置くフォルダー（空 = %APPDATA%\\com.a-file-manager.app\\projects\\）"
+        },
         "startupPage": {
           "title": "起動ページ",
           "description": "起動直後に開くページ",

@@ -285,6 +285,7 @@ export const SETTINGS_ICON_BY_KEY: Record<string, FluentGlyphId> = {
   "core.language": "globe",
   "core.theme": "color",
   "core.defaultLocation": "home",
+  "core.projectsRoot": "board",
   "core.startupPage": "flash",
   "core.showHidden": "eye",
   "core.listDensity": "density",

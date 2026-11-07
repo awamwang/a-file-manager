@@ -79,9 +79,14 @@ pub fn settings_set(
 ) -> Result<SettingsDocument, String> {
     let dir = config_dir(&app)?;
     let sync_blacklist = patch.contains_key("core.discoveryBlacklist");
+    let sync_projects_root = patch.contains_key("core.projectsRoot");
     let document = set_values_at_path(&dir, patch)?;
     if sync_blacklist {
         crate::discovery::sync_blacklist_from_settings(&app);
+    }
+    if sync_projects_root {
+        // Keep thin projects-index.json Root in sync with the setting (AIA-207 / C1).
+        let _ = crate::projects::sync_index_root_from_settings(&app);
     }
     Ok(document)
 }
