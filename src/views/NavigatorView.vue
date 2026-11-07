@@ -560,25 +560,24 @@ watch(
   { immediate: true },
 );
 
-/** AIA-238: debounce overlapping window + Tauri focus events. */
-let lastFocusListingRefreshAt = 0;
+/**
+ * AIA-238 / AIA-269: debounce overlapping DOM focus + Tauri onFocusChanged.
+ * Returning from Explorer often fires both; keep work to clipboard + re-list only
+ * (view-mode / preview settings do not change on focus).
+ */
+let lastFocusRefreshAt = 0;
 let unlistenWindowFocus: (() => void) | null = null;
+const FOCUS_REFRESH_DEBOUNCE_MS = 400;
 
-function refreshListingOnFocus() {
+function onWindowFocus() {
   const now = Date.now();
-  if (now - lastFocusListingRefreshAt < 400) return;
-  lastFocusListingRefreshAt = now;
+  if (now - lastFocusRefreshAt < FOCUS_REFRESH_DEBOUNCE_MS) return;
+  lastFocusRefreshAt = now;
+  void refreshClipboardFromSystem();
   refreshActiveListing();
   if (dualPaneEnabled.value && secondaryPath.value.trim()) {
     void navigateSecondary(secondaryPath.value);
   }
-}
-
-function onWindowFocus() {
-  void refreshPreviewSetting();
-  void loadNavigatorViewMode();
-  void refreshClipboardFromSystem();
-  refreshListingOnFocus();
 }
 
 onMounted(() => {
@@ -645,17 +644,22 @@ function formatSize(entry: NavigatorEntry): string {
   return `${(entry.size / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
+/** AIA-269: reuse one formatter — toLocaleString-per-row was costly on large details lists. */
+let modifiedDateFormatter: Intl.DateTimeFormat | null = null;
 function formatModified(entry: NavigatorEntry): string {
   const ms = entry.modifiedMs;
   if (ms == null || !Number.isFinite(ms)) return "—";
   try {
-    return new Date(ms).toLocaleString(undefined, {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    if (!modifiedDateFormatter) {
+      modifiedDateFormatter = new Intl.DateTimeFormat(undefined, {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+    return modifiedDateFormatter.format(ms);
   } catch {
     return "—";
   }

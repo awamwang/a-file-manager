@@ -52,7 +52,21 @@ assert.ok(
   "F5 shortcut must stay wired",
 );
 assert.ok(nav.includes("onFocusChanged"), "Tauri window focus must re-list");
-assert.ok(nav.includes("refreshListingOnFocus"), "focus refresh helper required");
+assert.ok(
+  nav.includes("onWindowFocus") && nav.includes("FOCUS_REFRESH_DEBOUNCE_MS"),
+  "focus refresh must debounce DOM + Tauri focus (AIA-238/269)",
+);
+{
+  const focusStart = nav.indexOf("function onWindowFocus");
+  assert.ok(focusStart >= 0);
+  const focusEnd = nav.indexOf("\nonMounted", focusStart);
+  const focusBody = nav.slice(focusStart, focusEnd > focusStart ? focusEnd : focusStart + 500);
+  assert.ok(focusBody.includes("refreshActiveListing()"), "focus path must re-list");
+  assert.ok(
+    !focusBody.includes("loadNavigatorViewMode"),
+    "focus must not reload view-mode settings (AIA-269)",
+  );
+}
 assert.ok(
   /navigator\.refresh[\s\S]*?refreshActiveListing\(/.test(nav),
   "F5 handler must call refreshActiveListing without awaiting list",
