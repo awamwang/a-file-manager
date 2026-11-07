@@ -72,9 +72,6 @@ export const activeWorkGroupId = ref("");
 
 export const stripTabs = computed(() => stripTabsFromOpenState(liveOpenState.value));
 
-/** @deprecated Prefer `stripTabs` — kept for callers that only need paths. */
-export const navigatorTabs = computed(() => stripTabs.value.map((tab) => tab.path));
-
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let bootstrapPromise: Promise<void> | null = null;
 /** Single-flight `work_groups_get` so Shell chrome + OpenState bootstrap share one IPC. */

@@ -132,7 +132,7 @@ export function armNativeFileDragOut(paths: string[]): void {
   };
 }
 
-export function disarmNativeFileDragOut(): void {
+function disarmNativeFileDragOut(): void {
   if (activeCleanup) {
     activeCleanup();
   }

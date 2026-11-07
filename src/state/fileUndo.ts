@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /** Single-step undo for Explorer-like file ops (Ctrl+Z). */
 
-import { computed, ref } from "vue";
+import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import {
   deleteEntries,
@@ -21,13 +21,7 @@ export type { UndoRecord };
 
 const stack = ref<UndoRecord[]>([]);
 
-export const canUndo = computed(() => stack.value.length > 0);
-
-export function clearUndoStack(): void {
-  stack.value = [];
-}
-
-export function pushUndo(record: UndoRecord): void {
+function pushUndo(record: UndoRecord): void {
   stack.value = pushRecord(stack.value, record);
 }
 
@@ -98,9 +92,4 @@ export function recordCreateUndo(path: string): void {
 export function recordDeleteUndo(originalPaths: string[]): void {
   if (!originalPaths.length) return;
   pushUndo({ kind: "delete", originalPaths: [...originalPaths] });
-}
-
-/** Test helper — peek stack without applying. */
-export function peekUndoStack(): readonly UndoRecord[] {
-  return stack.value;
 }

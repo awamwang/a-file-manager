@@ -7,10 +7,6 @@ import { eventMatchesChord } from "../shortcuts/chord.ts";
 /** Shared open state for the Command Panel overlay. */
 export const commandPanelOpen = ref(false);
 
-export function openCommandPanel(): void {
-  commandPanelOpen.value = true;
-}
-
 export function closeCommandPanel(): void {
   commandPanelOpen.value = false;
 }
