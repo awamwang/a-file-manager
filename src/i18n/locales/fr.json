@@ -110,7 +110,7 @@
       },
       "mcp": {
         "title": "MCP public",
-        "body": "Catalogue MCP partagé dans la config IA APPDATA ; déploiement par fusion. Espace réservé pour l’instant."
+        "body": "Catalogue MCP partagé dans la config IA APPDATA. Le déploiement par fusion n’écrit que les clés afm__* — jamais d’écrasement de fichier entier."
       },
       "skills": {
         "title": "Skills publics",
@@ -187,6 +187,27 @@
       "errorDeployNoEnabled": "Activez au moins une cible Agent avant de déployer",
       "errorDeployConflict": "La cible de déploiement existe déjà et n’est pas cette junction de skill",
       "errorDeployProject": "Le chemin Project Workspace doit être un répertoire existant"
+    },
+    "mcp": {
+      "mergeHint": "Catalogue APPDATA uniquement. Le déploiement fusionne afm__<id> dans les JSON MCP des Agents activés.",
+      "add": "Nouvelle entrée",
+      "empty": "Aucune entrée MCP pour l’instant.",
+      "fieldName": "Nom affiché",
+      "fieldId": "Id",
+      "fieldJson": "Objet JSON serveur",
+      "save": "Enregistrer dans le catalogue",
+      "deploy": "Déployer (fusion)",
+      "undeploy": "Retirer les clés gérées",
+      "projectWorkspaceHint": "Project Workspace optionnel pour les chemins MCP relatifs au projet",
+      "noticeSaved": "Entrée catalogue MCP enregistrée",
+      "noticeRemoved": "Entrée catalogue MCP supprimée",
+      "noticeDeployed": "Fusionné dans {count} fichier(s) · {skipped} ignoré(s)",
+      "noticeUndeployed": "Clés gérées retirées de {count} fichier(s)",
+      "errorIdEmpty": "L’id / nom MCP ne peut pas être vide",
+      "errorIdInvalid": "L’id MCP doit être en ASCII minuscule",
+      "errorUnknown": "Entrée catalogue MCP inconnue",
+      "errorDeployNoEnabled": "Activez au moins une cible Agent avant le déploiement MCP",
+      "errorTargetInvalid": "Chemin / JSON MCP cible invalide"
     }
   },
   "common": {

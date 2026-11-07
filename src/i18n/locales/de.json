@@ -110,7 +110,7 @@
       },
       "mcp": {
         "title": "Öffentliches MCP",
-        "body": "Gemeinsamer MCP-Katalog in der APPDATA-AI-Konfiguration; Merge-Deploy. Derzeit Platzhalter."
+        "body": "Gemeinsamer MCP-Katalog in APPDATA-AI-Konfiguration. Merge-Deploy schreibt nur afm__*-Schlüssel — kein Ganzdatei-Overwrite."
       },
       "skills": {
         "title": "Öffentliche Skills",
@@ -187,6 +187,27 @@
       "errorDeployNoEnabled": "Vor dem Deploy mindestens ein Agent Target aktivieren",
       "errorDeployConflict": "Deploy-Ziel existiert bereits und ist nicht diese Skill-Junction",
       "errorDeployProject": "Project-Workspace-Pfad muss ein vorhandenes Verzeichnis sein"
+    },
+    "mcp": {
+      "mergeHint": "Katalog nur in APPDATA. Deploy mergt afm__<id> in aktivierte Agent-MCP-JSON-Dateien.",
+      "add": "Neuer Eintrag",
+      "empty": "Noch keine MCP-Einträge.",
+      "fieldName": "Anzeigename",
+      "fieldId": "Id",
+      "fieldJson": "Server-JSON-Objekt",
+      "save": "In Katalog speichern",
+      "deploy": "Merge-Deploy",
+      "undeploy": "Verwaltete Schlüssel entfernen",
+      "projectWorkspaceHint": "Optionaler Project Workspace für projektrelative MCP-Pfade",
+      "noticeSaved": "MCP-Katalogeintrag gespeichert",
+      "noticeRemoved": "MCP-Katalogeintrag entfernt",
+      "noticeDeployed": "In {count} Datei(en) gemergt · {skipped} übersprungen",
+      "noticeUndeployed": "Verwaltete Schlüssel aus {count} Datei(en) entfernt",
+      "errorIdEmpty": "MCP-Id/Name darf nicht leer sein",
+      "errorIdInvalid": "MCP-Id muss Kleinbuchstaben-ASCII sein",
+      "errorUnknown": "Unbekannter MCP-Katalogeintrag",
+      "errorDeployNoEnabled": "Vor MCP-Deploy mindestens ein Agent Target aktivieren",
+      "errorTargetInvalid": "MCP-Zielpfad / JSON ungültig"
     }
   },
   "common": {

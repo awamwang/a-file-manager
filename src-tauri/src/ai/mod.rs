@@ -9,10 +9,12 @@
 //! - A2: Agent Target registry (discover / enable / custom + MCP usage prompt placeholder)
 //! - A3: public Skill library + import (SKILL.md required)
 //! - A4: Skill Junction deploy to enabled Agent Targets
-//! - Not yet: MCP catalog/merge (A5), Providers (A7)
+//! - A5: public MCP catalog + merge deploy (no whole-file overwrite)
+//! - Not yet: Providers (A7), Harness (A6)
 
 mod agents;
 mod deploy;
+mod mcp;
 mod skills;
 
 pub use agents::{AgentTargetPatch, AiConfigDocument};
@@ -24,7 +26,7 @@ use tauri::Manager;
 /// Stable section ids for the AI main menu shell (UI + future IPC).
 pub const AI_MENU_SECTION_IDS: &[&str] = &["agents", "mcp", "skills", "providers"];
 
-pub const AI_ADDON_SHELL_VERSION: u32 = 4;
+pub const AI_ADDON_SHELL_VERSION: u32 = 5;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -50,7 +52,7 @@ fn config_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
 }
 
 fn section_ready(id: &str) -> bool {
-    matches!(id, "agents" | "skills")
+    matches!(id, "agents" | "skills" | "mcp")
 }
 
 /// Shell probe for the AI main menu.
@@ -234,16 +236,68 @@ pub fn ai_skills_search_project(
     deploy::search_project_skills(&workspace_path)
 }
 
+#[tauri::command]
+pub fn ai_mcp_catalog_list(app: AppHandle) -> Result<AiConfigDocument, String> {
+    let dir = config_dir(&app)?;
+    agents::load_from_path(&dir)
+}
+
+#[tauri::command]
+pub fn ai_mcp_catalog_upsert(
+    app: AppHandle,
+    id: Option<String>,
+    display_name: String,
+    server_json: String,
+) -> Result<AiConfigDocument, String> {
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    let next = mcp::upsert_entry(&doc, id, display_name, server_json)?;
+    agents::save_to_path(&dir, &next)?;
+    Ok(next)
+}
+
+#[tauri::command]
+pub fn ai_mcp_catalog_remove(app: AppHandle, id: String) -> Result<AiConfigDocument, String> {
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    let next = mcp::remove_entry(&doc, &id)?;
+    agents::save_to_path(&dir, &next)?;
+    Ok(next)
+}
+
+/// Merge-deploy one catalog entry into enabled Agent MCP configs (managed `afm__*` keys only).
+#[tauri::command]
+pub fn ai_mcp_deploy(
+    app: AppHandle,
+    entry_id: String,
+    project_workspace: Option<String>,
+) -> Result<mcp::McpMergeReport, String> {
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    mcp::deploy_entry(&doc, &entry_id, project_workspace.as_deref())
+}
+
+#[tauri::command]
+pub fn ai_mcp_undeploy(
+    app: AppHandle,
+    entry_id: String,
+    project_workspace: Option<String>,
+) -> Result<mcp::McpMergeReport, String> {
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    mcp::undeploy_entry(&doc, &entry_id, project_workspace.as_deref())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn shell_marks_agents_and_skills_ready() {
+    fn shell_marks_agents_skills_mcp_ready() {
         let status = ai_addon_status();
         assert_eq!(status.layer, "ai-addon");
         assert_eq!(status.shell_version, AI_ADDON_SHELL_VERSION);
-        for id in ["agents", "skills"] {
+        for id in ["agents", "skills", "mcp"] {
             assert!(
                 status.sections.iter().find(|s| s.id == id).unwrap().ready,
                 "{id} should be ready"
@@ -252,7 +306,7 @@ mod tests {
         assert!(status
             .sections
             .iter()
-            .filter(|s| s.id != "agents" && s.id != "skills")
+            .filter(|s| !matches!(s.id.as_str(), "agents" | "skills" | "mcp"))
             .all(|s| !s.ready));
     }
 }

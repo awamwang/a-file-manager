@@ -62,6 +62,21 @@ pub struct AiConfigDocument {
     /// Empty → default `<config_dir>\.agents\skills` (ADR 0005 / A3).
     #[serde(default)]
     pub skills_library_root: String,
+    /// Public MCP catalog (ADR 0006 / A5) — APPDATA only, not per-Workspace.
+    #[serde(default)]
+    pub mcp_catalog: Vec<McpCatalogEntry>,
+}
+
+/// One public MCP server entry (stored in APPDATA AI config).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct McpCatalogEntry {
+    pub id: String,
+    pub display_name: String,
+    /// Opaque JSON object text for the server config (command/args/url/env…).
+    pub server_json: String,
+    pub created_at: u64,
+    pub updated_at: u64,
 }
 
 impl AiConfigDocument {
@@ -70,6 +85,7 @@ impl AiConfigDocument {
             schema_version: AI_CONFIG_SCHEMA_VERSION,
             agent_targets: Vec::new(),
             skills_library_root: String::new(),
+            mcp_catalog: Vec::new(),
         }
     }
 }

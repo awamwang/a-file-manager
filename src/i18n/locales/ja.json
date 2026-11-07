@@ -110,7 +110,7 @@
       },
       "mcp": {
         "title": "共有 MCP",
-        "body": "APPDATA AI 設定の共有 MCP カタログとマージ配備。現在はプレースホルダー。"
+        "body": "APPDATA AI 設定の共有 MCP カタログ。マージ配備は afm__* キーのみ（ファイル全体の上書き禁止）。"
       },
       "skills": {
         "title": "共有 Skills",
@@ -187,6 +187,27 @@
       "errorDeployNoEnabled": "配備前に Agent Target を1つ以上有効化してください",
       "errorDeployConflict": "配備先が既に存在し、この skill の Junction ではありません",
       "errorDeployProject": "Project Workspace は既存ディレクトリである必要があります"
+    },
+    "mcp": {
+      "mergeHint": "カタログは APPDATA のみ。有効な Agent の MCP JSON に afm__<id> をマージします。",
+      "add": "新規",
+      "empty": "MCP エントリはまだありません。",
+      "fieldName": "表示名",
+      "fieldId": "Id",
+      "fieldJson": "Server JSON オブジェクト",
+      "save": "カタログに保存",
+      "deploy": "マージ配備",
+      "undeploy": "管理キーを削除",
+      "projectWorkspaceHint": "任意の Project Workspace（プロジェクト相対 MCP）",
+      "noticeSaved": "MCP カタログを保存しました",
+      "noticeRemoved": "MCP カタログ項目を削除しました",
+      "noticeDeployed": "{count} ファイルへマージ · {skipped} スキップ",
+      "noticeUndeployed": "{count} ファイルから管理キーを削除",
+      "errorIdEmpty": "MCP id / 名は空にできません",
+      "errorIdInvalid": "MCP id は小文字 ASCII",
+      "errorUnknown": "不明な MCP 項目",
+      "errorDeployNoEnabled": "MCP 配備前に Agent Target を有効化してください",
+      "errorTargetInvalid": "MCP 対象パス / JSON が無効"
     }
   },
   "common": {

@@ -14,4 +14,5 @@ export type {
   AiMenuSectionDef,
   AiMenuSectionId,
   AiMenuSectionStatus,
+  McpCatalogEntry,
 } from "./types";

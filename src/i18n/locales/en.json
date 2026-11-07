@@ -151,7 +151,7 @@
       },
       "mcp": {
         "title": "Public MCP",
-        "body": "Shared MCP catalog in APPDATA AI config; merge-deploy into Agent targets. Placeholder for now."
+        "body": "Shared MCP catalog in APPDATA AI config. Merge-deploy writes only afm__* keys — never whole-file overwrite."
       },
       "skills": {
         "title": "Public Skills",
@@ -228,6 +228,27 @@
       "errorDeployNoEnabled": "Enable at least one Agent Target before deploying",
       "errorDeployConflict": "Deploy target already exists and is not this skill junction",
       "errorDeployProject": "Project Workspace path must be an existing directory"
+    },
+    "mcp": {
+      "mergeHint": "Catalog is APPDATA-only. Deploy merges afm__<id> into enabled Agent MCP JSON files.",
+      "add": "New entry",
+      "empty": "No MCP entries yet.",
+      "fieldName": "Display name",
+      "fieldId": "Id",
+      "fieldJson": "Server JSON object",
+      "save": "Save to catalog",
+      "deploy": "Merge deploy",
+      "undeploy": "Remove managed keys",
+      "projectWorkspaceHint": "Optional Project Workspace for project-relative MCP paths",
+      "noticeSaved": "MCP catalog entry saved",
+      "noticeRemoved": "MCP catalog entry removed",
+      "noticeDeployed": "Merged into {count} file(s) · {skipped} skipped",
+      "noticeUndeployed": "Removed managed keys from {count} file(s)",
+      "errorIdEmpty": "MCP id / name cannot be empty",
+      "errorIdInvalid": "MCP id must be lowercase ASCII",
+      "errorUnknown": "Unknown MCP catalog entry",
+      "errorDeployNoEnabled": "Enable at least one Agent Target before MCP deploy",
+      "errorTargetInvalid": "MCP target path / JSON shape invalid"
     }
   },
   "navigator": {

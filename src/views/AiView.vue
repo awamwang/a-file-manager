@@ -10,6 +10,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { AI_MENU_SECTIONS, type AiAddonStatus } from "../ai";
 import AgentTargetsPanel from "../ai/AgentTargetsPanel.vue";
 import SkillsLibraryPanel from "../ai/SkillsLibraryPanel.vue";
+import McpCatalogPanel from "../ai/McpCatalogPanel.vue";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 
 const { t } = useI18n();
@@ -91,6 +92,7 @@ onMounted(() => {
 
         <AgentTargetsPanel v-if="section.id === 'agents'" />
         <SkillsLibraryPanel v-else-if="section.id === 'skills'" />
+        <McpCatalogPanel v-else-if="section.id === 'mcp'" />
       </article>
     </div>
   </section>

@@ -39,9 +39,19 @@ export type AgentTarget = {
   updatedAt: number;
 };
 
+export type McpCatalogEntry = {
+  id: string;
+  displayName: string;
+  serverJson: string;
+  createdAt: number;
+  updatedAt: number;
+};
+
 export type AiConfigDocument = {
   schemaVersion: number;
   agentTargets: AgentTarget[];
+  skillsLibraryRoot?: string;
+  mcpCatalog?: McpCatalogEntry[];
 };
 
 export type AgentTargetPatch = {

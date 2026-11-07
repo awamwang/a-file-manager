@@ -37,6 +37,10 @@ assert.ok(lib.includes("ai::ai_skills_library_set_root"), "skills root IPC");
 assert.ok(lib.includes("ai::ai_skills_deploy"), "skills deploy IPC");
 assert.ok(lib.includes("ai::ai_skills_undeploy"), "skills undeploy IPC");
 assert.ok(lib.includes("ai::ai_skills_search_project"), "skills project search IPC");
+assert.ok(lib.includes("ai::ai_mcp_catalog_list"), "mcp catalog list IPC");
+assert.ok(lib.includes("ai::ai_mcp_catalog_upsert"), "mcp catalog upsert IPC");
+assert.ok(lib.includes("ai::ai_mcp_deploy"), "mcp merge deploy IPC");
+assert.ok(lib.includes("ai::ai_mcp_undeploy"), "mcp undeploy IPC");
 
 assert.ok(
   rustAi.includes("AI Add-on") && rustAi.includes("ADR 0007"),
@@ -66,6 +70,12 @@ assert.ok(panel.includes("mcpUsagePrompt"));
 assert.ok(skillsPanel.includes("ai_skills_import"));
 assert.ok(skillsPanel.includes("ai_skills_deploy"));
 assert.ok(skillsPanel.includes("ai_skills_search_project"));
+const mcpRs = read("src-tauri/src/ai/mcp.rs");
+assert.ok(mcpRs.includes("afm__"), "managed MCP key prefix");
+assert.ok(mcpRs.includes("mcpServers"), "mcpServers merge target");
+assert.ok(view.includes("McpCatalogPanel"));
+const mcpPanel = read("src/ai/McpCatalogPanel.vue");
+assert.ok(mcpPanel.includes("ai_mcp_deploy"));
 assert.ok(router.includes('path: "/ai"'));
 assert.ok(sideNav.includes('id: "ai"'));
 assert.ok(registry.includes('id: "view.ai"'));
@@ -85,4 +95,4 @@ if (cargo.stdout) process.stdout.write(cargo.stdout);
 if (cargo.stderr) process.stderr.write(cargo.stderr);
 assert.equal(cargo.status, 0, "cargo test ai:: failed");
 
-console.log("AI Add-on checks OK (A1–A4: shell · agents · skills library · junction deploy).");
+console.log("AI Add-on checks OK (A1–A5: shell · agents · skills · junction · MCP merge).");
