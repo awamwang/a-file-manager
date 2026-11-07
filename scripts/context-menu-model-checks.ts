@@ -42,6 +42,27 @@ const addFavorite = dirItems.find((item) => item.id === "toggleFavorite");
 assert.ok(addFavorite);
 assert.equal(addFavorite.labelKey, "contextMenu.addFavorite");
 assert.equal(addFavorite.enabled, true);
+// AIA-248: Add to Work Group submenu (folders only; includes Default WG for members).
+const addWgEmpty = dirItems.find((item) => item.id === "addToWorkGroup");
+assert.ok(addWgEmpty);
+assert.equal(addWgEmpty.enabled, false);
+assert.ok(addWgEmpty.children?.some((c) => c.id === "addToWorkGroup:empty"));
+const addWg = buildContextMenuItems(dir, {
+  workGroups: [
+    { id: "default-work-group", name: "Default" },
+    { id: "wg-focus", name: "Focus" },
+  ],
+}).find((item) => item.id === "addToWorkGroup");
+assert.ok(addWg?.enabled);
+assert.ok(addWg?.children?.some((c) => c.id === "addToWorkGroup:default-work-group"));
+assert.ok(addWg?.children?.some((c) => c.id === "addToWorkGroup:wg-focus" && c.rawLabel === "Focus"));
+assert.equal(
+  buildContextMenuItems(file, {
+    workGroups: [{ id: "wg-focus", name: "Focus" }],
+  }).find((item) => item.id === "addToWorkGroup"),
+  undefined,
+  "files must not get Add to Work Group",
+);
 // Clipboard / rename / copy-path moved to Windows-style top toolbar.
 assert.equal(dirItems.find((item) => item.id === "copy"), undefined);
 assert.equal(dirItems.find((item) => item.id === "cut"), undefined);

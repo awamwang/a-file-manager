@@ -151,18 +151,32 @@ assert.equal(en.contextMenu.openInTerminal, "Open in terminal");
 assert.equal(en.contextMenu.openWith, "Open with…");
 assert.equal(en.contextMenu.addFavorite, "Add to favorites");
 assert.equal(en.contextMenu.removeFavorite, "Remove from favorites");
+assert.equal(en.contextMenu.addToWorkGroup, "Add to Work Group");
+assert.equal(en.contextMenu.addToWorkGroupEmpty, "No Work Groups");
+assert.ok(en.contextMenu.addedToWorkGroup.includes("{count}"));
 assert.equal(en.contextMenu.systemMenu, "System menu");
 assert.equal(en.favorites.label, "Favorites");
 assert.equal(zh.contextMenu.openInNewTab, "在新标签页打开");
 assert.equal(zh.contextMenu.openInTerminal, "在终端打开");
 assert.equal(zh.contextMenu.openWith, "打开方式…");
 assert.equal(zh.contextMenu.addFavorite, "添加到收藏");
+assert.equal(zh.contextMenu.addToWorkGroup, "添加到工作组");
+assert.ok(zh.contextMenu.addedToWorkGroup.includes("{name}"));
 assert.equal(zh.contextMenu.systemMenu, "系统右键菜单");
 assert.equal(zh.contextMenu.copy, "复制");
 assert.equal(zh.favorites.label, "收藏");
 assert.ok(
   menu.includes("newNavigatorTab"),
   "Open in new tab handler must remain (under Open with)",
+);
+assert.ok(model.includes("addToWorkGroup"), "model must expose Add to Work Group");
+assert.ok(model.includes("buildAddToWorkGroupItems") || model.includes("addToWorkGroup:"), "WG submenu children");
+assert.ok(menu.includes("runAddToWorkGroup"), "context menu must wire Add to Work Group");
+assert.ok(menu.includes("work_groups_add_member"), "must call work_groups_add_member");
+assert.ok(menu.includes("folderPathsForWorkGroup"), "multi-select folders for WG add");
+assert.ok(
+  menu.includes("refreshWorkGroupsForMenu") || menu.includes("hydrateWorkGroups"),
+  "menu must load Work Groups for submenu",
 );
 
 assert.ok(

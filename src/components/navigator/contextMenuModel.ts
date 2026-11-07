@@ -12,6 +12,7 @@ export type ContextMenuActionId =
   | "openWithIde"
   | "openInTerminal"
   | "toggleFavorite"
+  | "addToWorkGroup"
   | "systemMenu"
   | "reveal"
   | "copy"
@@ -67,6 +68,12 @@ export type ContextMenuBuildOptions = {
   }>;
   /** ShellNew-backed new-file templates. */
   newFileTemplates?: Array<{ extension: string; label: string; defaultName: string }>;
+  /**
+   * Work Groups for “Add to Work Group” (folder selection only).
+   * `name` should already be the display label (default WG localized by caller).
+   * Default WG is included: members are allowed; Project bind remains forbidden elsewhere.
+   */
+  workGroups?: Array<{ id: string; name: string }>;
 };
 
 /** Day-1 visibility rules for a single selected Navigator entry. */
@@ -211,6 +218,7 @@ export function buildContextMenuItems(
       enabled: true,
       icon: "star",
     },
+    ...buildAddToWorkGroupItems(isDir, options.workGroups),
     {
       // AIA-224/239: no nested systemMenuShow hop; shell verbs render inside AFM submenu.
       id: "systemMenu",
@@ -287,6 +295,39 @@ export function buildContextToolbarItems(
       labelKey: "contextMenu.copyPath",
       enabled: entryMode,
       icon: "link",
+    },
+  ];
+}
+
+/** Folder-only submenu: each Work Group by display name (AIA-248). */
+function buildAddToWorkGroupItems(
+  isDir: boolean,
+  workGroups: ContextMenuBuildOptions["workGroups"],
+): ContextMenuItemDef[] {
+  if (!isDir) return [];
+  const children: ContextMenuItemDef[] = (workGroups ?? []).map((group) => ({
+    id: `addToWorkGroup:${group.id}`,
+    labelKey: "contextMenu.addToWorkGroup",
+    enabled: true,
+    rawLabel: group.name,
+    icon: "folder",
+  }));
+  return [
+    {
+      id: "addToWorkGroup",
+      labelKey: "contextMenu.addToWorkGroup",
+      enabled: children.length > 0,
+      icon: "folder",
+      children: children.length
+        ? children
+        : [
+            {
+              id: "addToWorkGroup:empty",
+              labelKey: "contextMenu.addToWorkGroupEmpty",
+              enabled: false,
+              icon: "folder",
+            },
+          ],
     },
   ];
 }

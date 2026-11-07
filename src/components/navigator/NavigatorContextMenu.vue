@@ -4,8 +4,21 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import type { NavigatorEntry } from "../../state/navigatorBrowse";
-import { currentPath, navigateTo, newNavigatorTab, openEntry } from "../../state/navigatorBrowse";
+import type { NavigatorEntry, UserWorkGroupsDoc } from "../../state/navigatorBrowse";
+import {
+  activeWorkGroupId,
+  currentPath,
+  hydrateWorkGroups,
+  listing,
+  navigateTo,
+  newNavigatorTab,
+  openEntry,
+  rememberHydratedWorkGroups,
+  restoreWorkGroupOpenState,
+  snapshotLiveOpenState,
+} from "../../state/navigatorBrowse";
+import { workGroupDisplayName } from "../../state/workGroupName";
+import type { WorkGroupOpenState } from "../../state/openStateModel";
 import {
   clipboardMode,
   clipboardPaths,
@@ -36,7 +49,7 @@ import {
   loadNewFileTemplates,
   newFileTemplates,
 } from "../../state/newFileTemplates";
-import { selectedPaths } from "../../state/navigatorSelection";
+import { selectedEntries, selectedPaths } from "../../state/navigatorSelection";
 import {
   isFavoritePath,
   toggleFavorite,
@@ -113,6 +126,14 @@ const terminals = ref<
   Array<{ id: string; name: string; available: boolean; supportsElevation: boolean }>
 >([]);
 let launchersWarm = false;
+/** Cached WG list for “Add to Work Group” submenu (refreshed when menu opens). */
+const workGroupsForMenu = ref<Array<{ id: string; name: string; isDefault: boolean }>>([]);
+
+type SoftNotice = {
+  kind: string;
+  workGroupId: string;
+  openedMemberPaths: string[];
+};
 
 type IdeAppInfo = {
   id: string;
@@ -311,6 +332,13 @@ async function ensureShellEmbedLoaded(path: string) {
   }
 }
 
+const workGroupMenuOptions = computed(() =>
+  workGroupsForMenu.value.map((group) => ({
+    id: group.id,
+    name: workGroupDisplayName(group, t("workGroups.defaultName")),
+  })),
+);
+
 const items = computed(() =>
   buildContextMenuItems(props.entry, {
     isFavorite: isFavoritePath(props.entry?.path),
@@ -320,6 +348,7 @@ const items = computed(() =>
     ideApps: ideApps.value,
     terminals: terminals.value,
     newFileTemplates: newFileTemplates.value,
+    workGroups: workGroupMenuOptions.value,
   }).map((item) => {
     const base = {
       ...item,
@@ -356,12 +385,26 @@ const openSubmenuChildren = computed(
   () => items.value.find((item) => item.id === openSubmenuId.value)?.children ?? [],
 );
 
+async function refreshWorkGroupsForMenu() {
+  try {
+    const doc = await hydrateWorkGroups({ force: true });
+    workGroupsForMenu.value = doc.workGroups.map((group) => ({
+      id: group.id,
+      name: group.name,
+      isDefault: group.isDefault,
+    }));
+  } catch {
+    workGroupsForMenu.value = [];
+  }
+}
+
 watch(
   () => props.open,
   (isOpen) => {
     if (isOpen) {
       void refreshClipboardFromSystem();
       void loadNewFileTemplates();
+      void refreshWorkGroupsForMenu();
       clearSubmenuCloseTimer();
       resetShellEmbed();
       openSubmenuId.value = null;
@@ -510,6 +553,60 @@ function pathsForClipboard(entry: NavigatorEntry): string[] {
     return [...selectedPaths.value];
   }
   return [entry.path];
+}
+
+/** Selected folders for “Add to Work Group” (files in a multi-select are skipped). */
+function folderPathsForWorkGroup(entry: NavigatorEntry): string[] {
+  if (entry.kind !== "dir") return [];
+  if (selectedPaths.value.includes(entry.path) && selectedPaths.value.length > 1) {
+    const dirs = selectedEntries(listing.value?.entries)
+      .filter((row) => row.kind === "dir")
+      .map((row) => row.path);
+    return dirs.length ? dirs : [entry.path];
+  }
+  return [entry.path];
+}
+
+async function runAddToWorkGroup(workGroupId: string, entry: NavigatorEntry) {
+  const paths = folderPathsForWorkGroup(entry);
+  if (!paths.length) return;
+  try {
+    let doc = await hydrateWorkGroups({ force: true });
+    let target = doc.workGroups.find((group) => group.id === workGroupId);
+    if (!target) {
+      emit("notice", t("contextMenu.opFailed"));
+      return;
+    }
+    const displayName = workGroupDisplayName(target, t("workGroups.defaultName"));
+    let liveForTarget: WorkGroupOpenState | null =
+      workGroupId === activeWorkGroupId.value
+        ? snapshotLiveOpenState()
+        : target.openState;
+    let lastOpen: WorkGroupOpenState | null = null;
+    for (const memberPath of paths) {
+      const [nextDoc, nextOpen] = await invoke<
+        [UserWorkGroupsDoc, WorkGroupOpenState, SoftNotice | null]
+      >("work_groups_add_member", {
+        workGroupId,
+        memberPath,
+        liveOpenState: liveForTarget,
+      });
+      doc = nextDoc;
+      rememberHydratedWorkGroups(nextDoc);
+      liveForTarget = nextOpen;
+      lastOpen = nextOpen;
+      target = nextDoc.workGroups.find((group) => group.id === workGroupId) ?? target;
+    }
+    if (workGroupId === activeWorkGroupId.value && lastOpen) {
+      await restoreWorkGroupOpenState(workGroupId, lastOpen);
+    }
+    emit(
+      "notice",
+      t("contextMenu.addedToWorkGroup", { count: paths.length, name: displayName }),
+    );
+  } catch (err) {
+    emit("notice", err instanceof Error ? err.message : String(err));
+  }
 }
 
 async function runDelete(entry: NavigatorEntry) {
@@ -790,6 +887,13 @@ async function run(id: string) {
       if (entry) await runDelete(entry);
       break;
     default:
+      if (id.startsWith("addToWorkGroup:") && entry) {
+        const workGroupId = id.slice("addToWorkGroup:".length);
+        if (workGroupId && workGroupId !== "empty") {
+          await runAddToWorkGroup(workGroupId, entry);
+        }
+        break;
+      }
       if (id.startsWith("newFileTemplate:")) {
         const ext = id.slice("newFileTemplate:".length);
         const tpl = newFileTemplates.value.find((item) => item.extension === ext);
