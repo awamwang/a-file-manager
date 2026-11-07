@@ -892,7 +892,8 @@
     "unknown": "Unknown",
     "selected": "Selected",
     "selectedCount": "{count} items",
-    "multiHint": "Select one item for full details, or open Properties (Alt+Enter)."
+    "multiHint": "Select one item for full details, or open Properties (Alt+Enter).",
+    "resize": "Resize details pane"
   },
   "properties": {
     "title": "Properties",
@@ -919,7 +920,8 @@
     "title": "Preview",
     "empty": "Select a single file to preview",
     "unsupported": "Preview not available for this type",
-    "truncated": "Content truncated"
+    "truncated": "Content truncated",
+    "resize": "Resize preview pane"
   },
   "previewBridge": {
     "noPath": "Select a local file to preview",

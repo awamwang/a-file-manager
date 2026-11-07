@@ -892,7 +892,8 @@
     "unknown": "不明",
     "selected": "選択",
     "selectedCount": "{count} 件",
-    "multiHint": "1 件選択で詳細を表示、または Alt+Enter でプロパティを開きます。"
+    "multiHint": "1 件選択で詳細を表示、または Alt+Enter でプロパティを開きます。",
+    "resize": "詳細ペインの幅を変更"
   },
   "properties": {
     "title": "プロパティ",
@@ -919,7 +920,8 @@
     "title": "プレビュー",
     "empty": "単一ファイルを選択してプレビュー",
     "unsupported": "この種類はプレビューできません",
-    "truncated": "内容は切り詰められています"
+    "truncated": "内容は切り詰められています",
+    "resize": "プレビューペインの幅を変更"
   },
   "previewBridge": {
     "noPath": "プレビューするローカルファイルを選択してください",

@@ -892,7 +892,8 @@
     "unknown": "Unbekannt",
     "selected": "Ausgewählt",
     "selectedCount": "{count} Elemente",
-    "multiHint": "Ein Element für volle Details wählen oder Eigenschaften (Alt+Enter) öffnen."
+    "multiHint": "Ein Element für volle Details wählen oder Eigenschaften (Alt+Enter) öffnen.",
+    "resize": "Detailbereich in der Breite anpassen"
   },
   "properties": {
     "title": "Eigenschaften",
@@ -919,7 +920,8 @@
     "title": "Vorschau",
     "empty": "Eine einzelne Datei zur Vorschau auswählen",
     "unsupported": "Keine Vorschau für diesen Typ",
-    "truncated": "Inhalt gekürzt"
+    "truncated": "Inhalt gekürzt",
+    "resize": "Vorschaufenster in der Breite anpassen"
   },
   "previewBridge": {
     "noPath": "Lokale Datei zur Vorschau auswählen",

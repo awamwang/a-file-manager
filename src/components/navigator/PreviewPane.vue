@@ -1,9 +1,17 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import FluentIcon from "../icons/FluentIcon.vue";
+import {
+  SIDE_PANE_MAX_WIDTH,
+  SIDE_PANE_MIN_WIDTH,
+  applyPreviewPaneWidth,
+  loadPreviewPaneWidth,
+  previewPaneWidth,
+  setPreviewPaneWidth,
+} from "../../state/sidePaneWidth";
 
 export type PreviewPayload = {
   kind: "image" | "text" | "unsupported" | string;
@@ -25,6 +33,62 @@ const { t } = useI18n();
 const loading = ref(false);
 const payload = ref<PreviewPayload | null>(null);
 let seq = 0;
+
+const resizing = ref(false);
+let resizeStartX = 0;
+let resizeStartWidth = previewPaneWidth.value;
+
+onMounted(() => {
+  loadPreviewPaneWidth();
+});
+
+function onResizeStart(event: PointerEvent) {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  resizing.value = true;
+  resizeStartX = event.clientX;
+  resizeStartWidth = previewPaneWidth.value;
+  const target = event.currentTarget;
+  if (target instanceof HTMLElement) {
+    target.setPointerCapture(event.pointerId);
+  }
+  window.addEventListener("pointermove", onResizeMove);
+  window.addEventListener("pointerup", onResizeEnd);
+  window.addEventListener("pointercancel", onResizeEnd);
+}
+
+function onResizeMove(event: PointerEvent) {
+  if (!resizing.value) return;
+  // Left-edge splitter on a right pane: drag left widens.
+  const delta = resizeStartX - event.clientX;
+  applyPreviewPaneWidth(resizeStartWidth + delta, window.innerWidth);
+}
+
+function onResizeEnd() {
+  if (!resizing.value) return;
+  resizing.value = false;
+  window.removeEventListener("pointermove", onResizeMove);
+  window.removeEventListener("pointerup", onResizeEnd);
+  window.removeEventListener("pointercancel", onResizeEnd);
+  setPreviewPaneWidth(previewPaneWidth.value, window.innerWidth);
+}
+
+function onSplitterKey(event: KeyboardEvent) {
+  const step = event.shiftKey ? 32 : 8;
+  if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    setPreviewPaneWidth(previewPaneWidth.value + step, window.innerWidth);
+  } else if (event.key === "ArrowRight") {
+    event.preventDefault();
+    setPreviewPaneWidth(previewPaneWidth.value - step, window.innerWidth);
+  } else if (event.key === "Home") {
+    event.preventDefault();
+    setPreviewPaneWidth(SIDE_PANE_MIN_WIDTH, window.innerWidth);
+  } else if (event.key === "End") {
+    event.preventDefault();
+    setPreviewPaneWidth(SIDE_PANE_MAX_WIDTH, window.innerWidth);
+  }
+}
 
 async function load(path: string | null) {
   const my = ++seq;
@@ -67,7 +131,25 @@ watch(
 </script>
 
 <template>
-  <aside v-if="enabled" class="preview fluent-surface" :aria-label="t('preview.title')">
+  <aside
+    v-if="enabled"
+    class="preview fluent-surface"
+    :style="{ width: `${previewPaneWidth}px` }"
+    :aria-label="t('preview.title')"
+  >
+    <div
+      class="side-pane-splitter"
+      :class="{ 'side-pane-splitter--active': resizing }"
+      role="separator"
+      aria-orientation="vertical"
+      tabindex="0"
+      :aria-label="t('preview.resize')"
+      :aria-valuenow="previewPaneWidth"
+      :aria-valuemin="SIDE_PANE_MIN_WIDTH"
+      :aria-valuemax="SIDE_PANE_MAX_WIDTH"
+      @pointerdown="onResizeStart"
+      @keydown="onSplitterKey"
+    />
     <header class="preview-head">
       <div class="preview-head-text">
         <h2>{{ t("preview.title") }}</h2>
@@ -104,15 +186,47 @@ watch(
 
 <style scoped>
 .preview {
+  position: relative;
   display: flex;
   flex-direction: column;
-  width: min(22rem, 38%);
-  min-width: 14rem;
-  max-width: 28rem;
+  flex: 0 0 auto;
+  /* AIA-256 / AIA-252: hard floor (= SIDE_PANE_MIN_WIDTH / 15rem). */
+  min-width: 15rem;
   min-height: 0;
   border-left: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   border-radius: 0;
   overflow: hidden;
+}
+
+.side-pane-splitter {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  width: 5px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+
+.side-pane-splitter::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -2px;
+  right: -2px;
+}
+
+.side-pane-splitter:hover,
+.side-pane-splitter:focus-visible,
+.side-pane-splitter--active {
+  background: color-mix(in srgb, var(--fluent-color-fill-accent) 18%, transparent);
 }
 
 .preview-head {

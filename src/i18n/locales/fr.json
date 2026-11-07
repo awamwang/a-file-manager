@@ -892,7 +892,8 @@
     "unknown": "Inconnu",
     "selected": "Sélection",
     "selectedCount": "{count} éléments",
-    "multiHint": "Sélectionnez un élément pour les détails complets, ou ouvrez Propriétés (Alt+Entrée)."
+    "multiHint": "Sélectionnez un élément pour les détails complets, ou ouvrez Propriétés (Alt+Entrée).",
+    "resize": "Redimensionner le volet de détails"
   },
   "properties": {
     "title": "Propriétés",
@@ -919,7 +920,8 @@
     "title": "Aperçu",
     "empty": "Sélectionnez un seul fichier pour l’aperçu",
     "unsupported": "Aperçu indisponible pour ce type",
-    "truncated": "Contenu tronqué"
+    "truncated": "Contenu tronqué",
+    "resize": "Redimensionner le volet d’aperçu"
   },
   "previewBridge": {
     "noPath": "Sélectionnez un fichier local pour l’aperçu",

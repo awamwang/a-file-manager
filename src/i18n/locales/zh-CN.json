@@ -892,7 +892,8 @@
     "unknown": "未知",
     "selected": "已选",
     "selectedCount": "{count} 项",
-    "multiHint": "选中单项可查看完整详细信息，或按 Alt+Enter 打开属性。"
+    "multiHint": "选中单项可查看完整详细信息，或按 Alt+Enter 打开属性。",
+    "resize": "调整详细信息窗格宽度"
   },
   "properties": {
     "title": "属性",
@@ -919,7 +920,8 @@
     "title": "预览",
     "empty": "选中单个文件以预览",
     "unsupported": "暂不支持此类型预览",
-    "truncated": "内容已截断"
+    "truncated": "内容已截断",
+    "resize": "调整预览窗格宽度"
   },
   "previewBridge": {
     "noPath": "请选择本地文件以预览",
