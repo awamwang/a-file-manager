@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Build Windows NSIS installer and publish a GitHub Release on version tags.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish-tauri:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build and publish
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Prefer the pushed tag; for workflow_dispatch fall back to v__VERSION__.
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || 'v__VERSION__' }}
+          releaseName: "A File Manager ${{ github.ref_type == 'tag' && github.ref_name || 'v__VERSION__' }}"
+          releaseBody: |
+            Windows installer for this release.
+
+            Download the `.exe` (NSIS) asset below, then install and run **A File Manager**.
+          releaseDraft: false
+          prerelease: false
+          args: --bundles nsis
