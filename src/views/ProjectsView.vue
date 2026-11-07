@@ -677,6 +677,36 @@ async function openAllLinks() {
   }
 }
 
+/** AIA-221 / A8 — Cursor opens Workspace dir; Qoder opens CONTEXT.md. */
+async function openInEditor(ideId: "cursor" | "qoder") {
+  if (!selected.value?.path) return;
+  error.value = null;
+  try {
+    const report = await invoke<{
+      ideId: string;
+      openedPath: string;
+      mode: string;
+      success: boolean;
+      error: string | null;
+    }>("ai_project_open_editor", {
+      workspacePath: selected.value.path,
+      ideId,
+    });
+    if (!report.success) {
+      error.value = report.error || t("projects.openEditorFailed");
+      return;
+    }
+    toastSuccess(
+      t("projects.noticeOpenedEditor", {
+        ide: ideId === "qoder" ? "Qoder" : "Cursor",
+        mode: report.mode,
+      }),
+    );
+  } catch (err) {
+    error.value = mapProjectError(err);
+  }
+}
+
 async function openLink(path: string) {
   // Sigma openOrFocusTabGroup: select existing page group or append one.
   await openOrFocusNavigatorTab(path);
@@ -863,6 +893,22 @@ onUnmounted(() => {
         <div class="actions">
           <button class="fluent-control fluent-control--accent" type="button" @click="openAllLinks">
             {{ t("projects.openAllLinks") }}
+          </button>
+          <button
+            class="fluent-control"
+            type="button"
+            :title="t('projects.openInCursorHint')"
+            @click="openInEditor('cursor')"
+          >
+            {{ t("projects.openInCursor") }}
+          </button>
+          <button
+            class="fluent-control"
+            type="button"
+            :title="t('projects.openInQoderHint')"
+            @click="openInEditor('qoder')"
+          >
+            {{ t("projects.openInQoder") }}
           </button>
         </div>
 

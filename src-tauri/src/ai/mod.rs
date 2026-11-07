@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! AI Add-on layer (AIA-214…AIA-219 / A1–A6).
+//! AI Add-on layer (AIA-214…AIA-221 / A1–A8).
 //!
 //! **Boundary (ADR 0007):** Workspace / Projects Root / WG / Navigator ∈ Core FM.
 //! This module owns the AI Add-on surface: main menu shell, Agent Target registry,
@@ -12,16 +12,19 @@
 //! - A5: public MCP catalog + merge deploy (no whole-file overwrite)
 //! - A6: explicit Harness / SDD init (ADR 0008)
 //! - A7: AI Providers MVP (presets + Compatible)
+//! - A8: open Project Workspace in IDE (Cursor dir / Qoder CONTEXT.md)
 
 mod agents;
 mod deploy;
 mod harness;
 mod mcp;
+mod open_editor;
 mod providers;
 mod skills;
 
 pub use agents::{AgentTargetPatch, AiConfigDocument};
 pub use harness::HarnessInitReport;
+pub use open_editor::OpenEditorReport;
 pub use providers::AiProviderPatch;
 
 use serde::Serialize;
@@ -370,6 +373,16 @@ pub fn ai_providers_remove(app: AppHandle, id: String) -> Result<AiConfigDocumen
     let next = providers::remove_compatible(&doc, &id)?;
     agents::save_to_path(&dir, &next)?;
     Ok(next)
+}
+
+/// Open a Project Workspace in Cursor (dir) / Qoder (`CONTEXT.md`) etc. (A8).
+#[tauri::command]
+pub fn ai_project_open_editor(
+    app: AppHandle,
+    workspace_path: String,
+    ide_id: Option<String>,
+) -> Result<OpenEditorReport, String> {
+    open_editor::open_project_in_editor(&app, &workspace_path, ide_id.as_deref())
 }
 
 #[cfg(test)]

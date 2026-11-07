@@ -446,7 +446,13 @@
     "rename": "Umbenennen",
     "renamePrompt": "Projektname",
     "renamed": "Projekt umbenannt",
-    "renameHint": "Doppelklick zum Umbenennen"
+    "renameHint": "Doppelklick zum Umbenennen",
+    "openInCursor": "Open in Cursor",
+    "openInCursorHint": "Opens this Project Workspace directory in Cursor",
+    "openInQoder": "Open in Qoder",
+    "openInQoderHint": "Opens CONTEXT.md from this Workspace in Qoder",
+    "noticeOpenedEditor": "Opened in {ide} ({mode})",
+    "openEditorFailed": "Could not open editor"
   },
   "providers": {
     "emptyBackends": "Noch keine Anbieter verfügbar. Lokales Browsen bleibt im Explorer.",

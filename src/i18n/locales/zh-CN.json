@@ -699,7 +699,13 @@
     "rename": "重命名",
     "renamePrompt": "项目名称",
     "renamed": "项目已重命名",
-    "renameHint": "双击可改名"
+    "renameHint": "双击可改名",
+    "openInCursor": "在 Cursor 中打开",
+    "openInCursorHint": "在 Cursor 中打开本 Project Workspace 目录",
+    "openInQoder": "在 Qoder 中打开",
+    "openInQoderHint": "在 Qoder 中打开本 Workspace 的 CONTEXT.md",
+    "noticeOpenedEditor": "已在 {ide} 打开（{mode}）",
+    "openEditorFailed": "无法打开编辑器"
   },
   "extensions": {
     "title": "扩展",

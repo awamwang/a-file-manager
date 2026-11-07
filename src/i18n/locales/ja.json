@@ -446,7 +446,13 @@
     "rename": "名前の変更",
     "renamePrompt": "プロジェクト名",
     "renamed": "プロジェクト名を変更しました",
-    "renameHint": "ダブルクリックで名前変更"
+    "renameHint": "ダブルクリックで名前変更",
+    "openInCursor": "Open in Cursor",
+    "openInCursorHint": "Opens this Project Workspace directory in Cursor",
+    "openInQoder": "Open in Qoder",
+    "openInQoderHint": "Opens CONTEXT.md from this Workspace in Qoder",
+    "noticeOpenedEditor": "Opened in {ide} ({mode})",
+    "openEditorFailed": "Could not open editor"
   },
   "providers": {
     "emptyBackends": "利用可能なプロバイダーはまだありません。ローカル閲覧はエクスプローラーへ。",

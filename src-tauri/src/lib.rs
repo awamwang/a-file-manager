@@ -219,6 +219,7 @@ pub fn run() {
             ai::ai_providers_update,
             ai::ai_providers_upsert_compatible,
             ai::ai_providers_remove,
+            ai::ai_project_open_editor,
             projects::projects_index_get,
             projects::projects_index_set_active,
             projects::projects_root_ensure,

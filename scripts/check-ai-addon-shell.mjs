@@ -44,6 +44,7 @@ assert.ok(lib.includes("ai::ai_mcp_undeploy"), "mcp undeploy IPC");
 assert.ok(lib.includes("ai::ai_harness_init"), "harness init IPC");
 assert.ok(lib.includes("ai::ai_providers_list"), "providers list IPC");
 assert.ok(lib.includes("ai::ai_providers_upsert_compatible"), "providers compatible IPC");
+assert.ok(lib.includes("ai::ai_project_open_editor"), "project open editor IPC");
 
 assert.ok(
   rustAi.includes("AI Add-on") && rustAi.includes("ADR 0007"),
@@ -51,6 +52,7 @@ assert.ok(
 );
 assert.ok(rustAi.includes("mod harness"), "harness module");
 assert.ok(rustAi.includes("mod providers"), "providers module");
+assert.ok(rustAi.includes("mod open_editor"), "open_editor module");
 assert.ok(rustAi.includes('"agents"'), "agents section id");
 assert.ok(agents.includes("ai-config.json"), "APPDATA AI config file");
 assert.ok(agents.includes("mcp_usage_prompt"), "MCP usage prompt field");
@@ -97,6 +99,12 @@ assert.ok(providersRs.includes("No billing"), "documents no billing panel");
 const providersPanel = read("src/ai/ProvidersPanel.vue");
 assert.ok(providersPanel.includes("ai_providers_list"));
 assert.ok(providersPanel.includes("ai_providers_upsert_compatible"));
+const openEditor = read("src-tauri/src/ai/open_editor.rs");
+assert.ok(openEditor.includes("CONTEXT.md"), "Qoder opens CONTEXT.md");
+assert.ok(openEditor.includes("ide_open_path"), "reuses ide_launch");
+const projectsView = read("src/views/ProjectsView.vue");
+assert.ok(projectsView.includes("ai_project_open_editor"));
+assert.ok(projectsView.includes("openInEditor"));
 assert.ok(router.includes('path: "/ai"'));
 assert.ok(sideNav.includes('id: "ai"'));
 assert.ok(registry.includes('id: "view.ai"'));
@@ -106,7 +114,8 @@ assert.ok(
   !projectsMod.includes("ai_agent_targets") &&
     !projectsMod.includes("ai_skills_") &&
     !projectsMod.includes("ai_harness_") &&
-    !projectsMod.includes("ai_providers_"),
+    !projectsMod.includes("ai_providers_") &&
+    !projectsMod.includes("ai_project_open_editor"),
   "Core projects must not host AI Add-on IPC",
 );
 
@@ -120,5 +129,5 @@ if (cargo.stderr) process.stderr.write(cargo.stderr);
 assert.equal(cargo.status, 0, "cargo test ai:: failed");
 
 console.log(
-  "AI Add-on checks OK (A1–A7: shell · agents · skills · junction · MCP · harness · providers).",
+  "AI Add-on checks OK (A1–A8: shell · agents · skills · junction · MCP · harness · providers · open editor).",
 );

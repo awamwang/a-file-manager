@@ -699,7 +699,13 @@
     "rename": "Rename",
     "renamePrompt": "Project name",
     "renamed": "Project renamed",
-    "renameHint": "Double-click to rename"
+    "renameHint": "Double-click to rename",
+    "openInCursor": "Open in Cursor",
+    "openInCursorHint": "Opens this Project Workspace directory in Cursor",
+    "openInQoder": "Open in Qoder",
+    "openInQoderHint": "Opens CONTEXT.md from this Workspace in Qoder",
+    "noticeOpenedEditor": "Opened in {ide} ({mode})",
+    "openEditorFailed": "Could not open editor"
   },
   "extensions": {
     "title": "Extensions",
