@@ -336,7 +336,7 @@ async function promoteToProject() {
   if (!active.value || active.value.isDefault) return;
   error.value = null;
   try {
-    await invoke("projects_promote_from_work_group", {
+    await invoke("projects_workspace_promote_from_work_group", {
       workGroupId: active.value.id,
     });
     toastSuccess(t("workGroups.promoteDone", { name: active.value.name }));

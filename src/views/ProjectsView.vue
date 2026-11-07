@@ -1,5 +1,9 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
+/**
+ * AIA-213 / C7 — Projects UI talks only to Workspace disk APIs (C1–C6).
+ * Legacy projects.json is no longer the authority.
+ */
 import { computed, nextTick, onMounted, onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
@@ -27,6 +31,7 @@ const STATUS_ICONS: Record<string, FluentGlyphId> = {
   done: "check",
 };
 
+/** Member junction surfaced as a path card (openPath = real target). */
 type WorkspaceLink = {
   id: string;
   path: string;
@@ -41,13 +46,12 @@ type ProjectTask = {
   body: string;
   statusId: string;
   sortKey: number;
-  workspaceLinkId: string | null;
-  outcomeUrl: string | null;
   createdAt: number;
   updatedAt: number;
   completedAt: number | null;
 };
 
+/** View-model for one disk Workspace (id === slug). */
 type UserProject = {
   id: string;
   name: string;
@@ -58,10 +62,10 @@ type UserProject = {
   contextNotes: string;
   createdAt: number;
   updatedAt: number;
+  path: string;
 };
 
 type UserProjects = {
-  schemaVersion: number;
   projects: UserProject[];
   activeProjectId: string | null;
 };
@@ -73,21 +77,47 @@ type WorkGroupOption = {
   memberPaths?: string[];
 };
 
-type ActivateResult = {
-  projects: UserProjects;
-  silentSwitch: SilentSwitchResult | null;
+type WorkspaceListResult = {
+  projectsRoot: string;
+  workspaces: Array<{
+    path: string;
+    project: {
+      slug: string;
+      displayName: string;
+      description: string;
+      boundWorkGroupId?: string | null;
+      createdAt: number;
+      updatedAt: number;
+    };
+  }>;
+  activeSlug: string | null;
 };
 
-type OpenAllResult = {
-  projectId: string;
-  paths: string[];
-  workGroupMutated: boolean;
+type WorkspaceMember = {
+  name: string;
+  junctionPath: string;
+  targetPath: string;
+  openPath: string;
+};
+
+type WorkspaceBoard = {
+  schemaVersion: number;
+  columns: string[];
+  tasks: ProjectTask[];
+};
+
+type ActivateWorkspaceResult = {
+  workspace: { path: string; project: WorkspaceListResult["workspaces"][0]["project"] };
+  index: { activeProject?: { slug: string } | null };
+  silentSwitch: SilentSwitchResult | null;
 };
 
 const PROJECT_ERROR_KEYS: Record<string, string> = {
   PROJECT_DEFAULT_WORK_GROUP_FORBIDDEN: "projects.errorDefaultWorkGroup",
   PROJECT_UNKNOWN_WORK_GROUP: "projects.errorUnknownWorkGroup",
   PROJECT_UNBOUND: "projects.errorUnbound",
+  PROJECT_WORKSPACE_NOT_FOUND: "projects.errorUnknownWorkGroup",
+  PROJECT_SLUG_CONFLICT: "projects.errorUnknownWorkGroup",
   PROJECT_SILENT_SWITCH_SAVE_PROMPT: "workGroups.errorSavePrompt",
 };
 
@@ -152,25 +182,85 @@ function tasksForStatus(statusId: string): ProjectTask[] {
     .sort((a, b) => a.sortKey - b.sortKey);
 }
 
-async function refresh() {
+function mapListItem(
+  item: WorkspaceListResult["workspaces"][0],
+  extras?: Partial<Pick<UserProject, "workspaceLinks" | "tasks" | "contextNotes">>,
+): UserProject {
+  const p = item.project;
+  return {
+    id: p.slug,
+    name: p.displayName,
+    description: p.description,
+    workGroupId: p.boundWorkGroupId ?? null,
+    workspaceLinks: extras?.workspaceLinks ?? [],
+    tasks: extras?.tasks ?? [],
+    contextNotes: extras?.contextNotes ?? "",
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
+    path: item.path,
+  };
+}
+
+function membersToLinks(members: WorkspaceMember[]): WorkspaceLink[] {
+  return members.map((m) => ({
+    id: m.name,
+    path: m.openPath,
+    label: m.name,
+    kind: "folder",
+    addedAt: 0,
+  }));
+}
+
+async function loadProjectDetails(slug: string): Promise<{
+  workspaceLinks: WorkspaceLink[];
+  tasks: ProjectTask[];
+  contextNotes: string;
+}> {
+  const [members, board, contextNotes] = await Promise.all([
+    invoke<WorkspaceMember[]>("projects_workspace_member_list", { slug }),
+    invoke<WorkspaceBoard>("projects_workspace_board_get", { slug }),
+    invoke<string>("projects_workspace_context_get", { slug }),
+  ]);
+  return {
+    workspaceLinks: membersToLinks(members),
+    tasks: board.tasks ?? [],
+    contextNotes,
+  };
+}
+
+async function patchSelectedDetails(slug: string) {
+  if (!document.value) return;
+  const details = await loadProjectDetails(slug);
+  const idx = document.value.projects.findIndex((p) => p.id === slug);
+  if (idx < 0) return;
+  document.value.projects[idx] = {
+    ...document.value.projects[idx],
+    ...details,
+  };
+}
+
+async function refresh(preferSlug?: string | null) {
   loading.value = true;
   error.value = null;
   try {
-    const [projectsDoc, wgDoc] = await Promise.all([
-      invoke<UserProjects>("projects_get"),
+    const [list, wgDoc] = await Promise.all([
+      invoke<WorkspaceListResult>("projects_workspace_list"),
       invoke<{ workGroups: WorkGroupOption[] }>("work_groups_get"),
     ]);
-    document.value = projectsDoc;
     workGroups.value = wgDoc.workGroups;
-    if (
-      selectedId.value &&
-      !document.value.projects.some((p) => p.id === selectedId.value)
-    ) {
-      selectedId.value = document.value.activeProjectId;
+    const projects = list.workspaces.map((w) => mapListItem(w));
+    document.value = {
+      projects,
+      activeProjectId: list.activeSlug,
+    };
+    const prefer = preferSlug ?? selectedId.value;
+    if (prefer && projects.some((p) => p.id === prefer)) {
+      selectedId.value = prefer;
+    } else {
+      selectedId.value = list.activeSlug ?? projects[0]?.id ?? null;
     }
-    if (!selectedId.value) {
-      selectedId.value =
-        document.value.activeProjectId ?? document.value.projects[0]?.id ?? null;
+    if (selectedId.value) {
+      await patchSelectedDetails(selectedId.value);
     }
     syncBindDraft();
     syncContextDraft();
@@ -193,13 +283,16 @@ async function selectProject(id: string) {
   error.value = null;
   selectedId.value = id;
   syncBindDraft();
-  syncContextDraft();
   try {
-    const result = await invoke<ActivateResult>("projects_activate", {
-      projectId: id,
+    const result = await invoke<ActivateWorkspaceResult>("projects_workspace_activate", {
+      slug: id,
       liveOpenState: snapshotLeavingOpenState(),
     });
-    document.value = result.projects;
+    if (document.value) {
+      document.value.activeProjectId = result.index.activeProject?.slug ?? id;
+    }
+    await patchSelectedDetails(id);
+    syncContextDraft();
     const soft = await applyProjectSilentSwitch(result.silentSwitch);
     if (soft?.openedMemberPaths?.length) {
       toastInfo(
@@ -214,18 +307,14 @@ async function selectProject(id: string) {
 async function createProject() {
   error.value = null;
   try {
-    document.value = await invoke<UserProjects>("projects_create", {
-      name: newName.value.trim() || null,
+    const created = await invoke<{ project: { slug: string } }>("projects_workspace_create", {
+      displayName: newName.value.trim() || "Project",
       description: null,
+      slug: null,
       workGroupId: null,
     });
     newName.value = "";
-    selectedId.value =
-      document.value.activeProjectId ??
-      document.value.projects[document.value.projects.length - 1]?.id ??
-      null;
-    syncBindDraft();
-    syncContextDraft();
+    await refresh(created.project.slug);
   } catch (err) {
     error.value = mapProjectError(err);
   }
@@ -280,11 +369,13 @@ async function commitProjectInlineRename() {
   if (!next || next === selected.value.name) return;
   error.value = null;
   try {
-    document.value = await invoke<UserProjects>("projects_rename", {
-      projectId: selected.value.id,
-      name: next,
+    await invoke("projects_workspace_rename", {
+      slug: selected.value.id,
+      displayName: next,
+      newSlug: null,
     });
     toastSuccess(t("projects.renamed"));
+    await refresh(selected.value.id);
   } catch (err) {
     error.value = mapProjectError(err);
   }
@@ -329,11 +420,13 @@ async function commitListRename(projectId: string) {
   if (!project || !next || next === project.name) return;
   error.value = null;
   try {
-    document.value = await invoke<UserProjects>("projects_rename", {
-      projectId,
-      name: next,
+    await invoke("projects_workspace_rename", {
+      slug: projectId,
+      displayName: next,
+      newSlug: null,
     });
     toastSuccess(t("projects.renamed"));
+    await refresh(projectId);
   } catch (err) {
     error.value = mapProjectError(err);
   }
@@ -378,10 +471,11 @@ async function bindSelectedWorkGroup() {
   if (!selected.value) return;
   error.value = null;
   try {
-    document.value = await invoke<UserProjects>("projects_bind_work_group", {
-      projectId: selected.value.id,
+    await invoke("projects_workspace_bind_work_group", {
+      slug: selected.value.id,
       workGroupId: bindWorkGroupId.value.trim() || null,
     });
+    await refresh(selected.value.id);
     syncBindDraft();
     toastSuccess(
       bindWorkGroupId.value
@@ -400,12 +494,13 @@ async function saveMembersFromTabs() {
   }
   error.value = null;
   try {
-    await invoke("projects_save_members_from_open_state", {
-      projectId: selected.value.id,
+    // Session members still live on the bound Work Group (not projects.json).
+    await invoke("work_groups_save_members_from_open_state", {
+      workGroupId: selected.value.workGroupId,
       liveOpenState: snapshotLiveOpenState(),
     });
     toastSuccess(t("projects.noticeMembersSaved"));
-    await refresh();
+    await refresh(selected.value.id);
   } catch (err) {
     error.value = mapProjectError(err);
   }
@@ -448,12 +543,17 @@ async function deleteProject(project: UserProject) {
   if (!confirmed.confirmed) return;
   listMoreOpenId.value = null;
   projectMoreOpen.value = false;
-  document.value = await invoke<UserProjects>("projects_delete", {
-    projectId: project.id,
-  });
-  selectedId.value = document.value.activeProjectId;
-  syncBindDraft();
-  syncContextDraft();
+  error.value = null;
+  try {
+    const result = await invoke<{ deletedSlug: string; index: { activeProject?: { slug: string } | null } }>(
+      "projects_workspace_delete",
+      { slug: project.id },
+    );
+    selectedId.value = result.index.activeProject?.slug ?? null;
+    await refresh(selectedId.value);
+  } catch (err) {
+    error.value = mapProjectError(err);
+  }
 }
 
 async function deleteSelected() {
@@ -463,79 +563,118 @@ async function deleteSelected() {
 
 async function addLink() {
   if (!selected.value || !linkPath.value.trim()) return;
-  document.value = await invoke<UserProjects>("projects_add_workspace_link", {
-    projectId: selected.value.id,
-    path: linkPath.value.trim(),
-    label: null,
-  });
-  linkPath.value = "";
+  error.value = null;
+  try {
+    await invoke("projects_workspace_member_add", {
+      slug: selected.value.id,
+      targetPath: linkPath.value.trim(),
+      linkName: null,
+    });
+    linkPath.value = "";
+    await patchSelectedDetails(selected.value.id);
+  } catch (err) {
+    error.value = mapProjectError(err);
+  }
 }
 
 async function removeLink(linkId: string) {
   if (!selected.value) return;
-  document.value = await invoke<UserProjects>("projects_remove_workspace_link", {
-    projectId: selected.value.id,
-    linkId,
-  });
+  error.value = null;
+  try {
+    await invoke("projects_workspace_member_remove", {
+      slug: selected.value.id,
+      name: linkId,
+    });
+    await patchSelectedDetails(selected.value.id);
+  } catch (err) {
+    error.value = mapProjectError(err);
+  }
 }
 
 async function saveContext() {
   if (!selected.value) return;
-  document.value = await invoke<UserProjects>("projects_set_context_notes", {
-    projectId: selected.value.id,
-    contextNotes: contextDraft.value,
-  });
-  toastSuccess(t("projects.noticeContextSaved"));
+  error.value = null;
+  try {
+    await invoke("projects_workspace_context_set", {
+      slug: selected.value.id,
+      content: contextDraft.value,
+    });
+    selected.value.contextNotes = contextDraft.value;
+    toastSuccess(t("projects.noticeContextSaved"));
+  } catch (err) {
+    error.value = mapProjectError(err);
+  }
 }
 
 async function addTask() {
   if (!selected.value || !taskTitle.value.trim()) return;
-  const [doc] = await invoke<[UserProjects, ProjectTask]>("projects_add_task", {
-    projectId: selected.value.id,
-    title: taskTitle.value.trim(),
-    statusId: "backlog",
-  });
-  document.value = doc;
-  taskTitle.value = "";
+  error.value = null;
+  try {
+    const [board] = await invoke<[WorkspaceBoard, ProjectTask]>(
+      "projects_workspace_board_add_task",
+      {
+        slug: selected.value.id,
+        title: taskTitle.value.trim(),
+        statusId: "backlog",
+      },
+    );
+    selected.value.tasks = board.tasks;
+    taskTitle.value = "";
+  } catch (err) {
+    error.value = mapProjectError(err);
+  }
 }
 
 async function moveTask(task: ProjectTask, statusId: string) {
   if (!selected.value) return;
   const peers = tasksForStatus(statusId);
   const sortKey = peers.length ? peers[peers.length - 1].sortKey + 1 : 0;
-  document.value = await invoke<UserProjects>("projects_move_task", {
-    projectId: selected.value.id,
-    taskId: task.id,
-    statusId,
-    sortKey,
-  });
+  error.value = null;
+  try {
+    const board = await invoke<WorkspaceBoard>("projects_workspace_board_move_task", {
+      slug: selected.value.id,
+      taskId: task.id,
+      statusId,
+      sortKey,
+    });
+    selected.value.tasks = board.tasks;
+  } catch (err) {
+    error.value = mapProjectError(err);
+  }
 }
 
 async function deleteTask(taskId: string) {
   if (!selected.value) return;
-  document.value = await invoke<UserProjects>("projects_delete_task", {
-    projectId: selected.value.id,
-    taskId,
-  });
+  error.value = null;
+  try {
+    const board = await invoke<WorkspaceBoard>("projects_workspace_board_delete_task", {
+      slug: selected.value.id,
+      taskId,
+    });
+    selected.value.tasks = board.tasks;
+  } catch (err) {
+    error.value = mapProjectError(err);
+  }
 }
 
 async function openAllLinks() {
   if (!selected.value) return;
   error.value = null;
-  const result = await invoke<OpenAllResult>("projects_open_all_links", {
-    projectId: selected.value.id,
-  });
-  if (result.workGroupMutated) {
-    error.value = t("projects.errorWorkGroupMutation");
-    return;
+  try {
+    const members = await invoke<WorkspaceMember[]>("projects_workspace_member_list", {
+      slug: selected.value.id,
+    });
+    const paths = members.map((m) => m.openPath);
+    if (!paths.length) {
+      toastInfo(t("projects.noticeNoLinks"));
+      return;
+    }
+    await openPathsAsNavigatorTabs(paths);
+    toastSuccess(t("projects.noticeOpened", { count: paths.length }));
+    await router.push("/navigator");
+  } catch (err) {
+    error.value = mapProjectError(err);
   }
-  if (!result.paths.length) {
-    toastInfo(t("projects.noticeNoLinks"));
-    return;
-  }
-  await openPathsAsNavigatorTabs(result.paths);
-  toastSuccess(t("projects.noticeOpened", { count: result.paths.length }));
-  await router.push("/navigator");
 }
 
 async function openLink(path: string) {

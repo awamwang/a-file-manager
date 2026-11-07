@@ -71,7 +71,8 @@ pub struct OpenAllLinksResult {
     pub work_group_mutated: bool,
 }
 
-/// Activate Project = set active + optional silent-switch of bound WG into the shell strip.
+/// Legacy activate result against projects.json (C7: superseded by Workspace activate).
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ActivateProjectResult {

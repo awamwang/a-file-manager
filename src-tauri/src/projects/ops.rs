@@ -191,6 +191,7 @@ pub fn save_bound_members_from_open_state(
     Ok(next)
 }
 
+#[allow(dead_code)] // legacy projects.json path (C7); kept for sigma / cleanup
 pub fn rename_project(
     document: &UserProjects,
     project_id: &str,
@@ -211,6 +212,7 @@ pub fn rename_project(
     Ok(next)
 }
 
+#[allow(dead_code)] // legacy projects.json path (C7)
 pub fn delete_project(document: &UserProjects, project_id: &str) -> Result<UserProjects, String> {
     if !document.projects.iter().any(|p| p.id == project_id) {
         return Err(format!("Unknown Project: {project_id}"));
@@ -270,6 +272,7 @@ pub fn add_workspace_link(
     Ok(next)
 }
 
+#[allow(dead_code)] // legacy projects.json path (C7)
 pub fn remove_workspace_link(
     document: &UserProjects,
     project_id: &str,
@@ -292,6 +295,7 @@ pub fn remove_workspace_link(
     Ok(next)
 }
 
+#[allow(dead_code)] // legacy projects.json path (C7)
 pub fn set_context_notes(
     document: &UserProjects,
     project_id: &str,
@@ -426,6 +430,7 @@ pub fn move_task(
     )
 }
 
+#[allow(dead_code)] // legacy projects.json path (C7)
 pub fn delete_task(
     document: &UserProjects,
     project_id: &str,

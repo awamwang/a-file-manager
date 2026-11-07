@@ -344,6 +344,7 @@ pub fn projects_workspace_promote_from_work_group(
     lifecycle::promote_work_group_to_workspace(&root, &wgs, &work_group_id)
 }
 
+#[allow(dead_code)]
 fn with_document<F>(app: &AppHandle, f: F) -> Result<UserProjects, String>
 where
     F: FnOnce(&UserProjects) -> Result<UserProjects, String>,
@@ -373,12 +374,17 @@ fn persist_silent_switch(
     Ok(switch)
 }
 
+// --- Legacy projects.json IPC (no longer registered in lib.rs; AIA-213 / C7) ---
+// Disk helpers below remain for sigma_import / cleanup. Do not re-expose as UI authority.
+
+#[allow(dead_code)]
 #[tauri::command]
 pub fn projects_get(app: AppHandle) -> Result<UserProjects, String> {
     let dir = config_dir(&app)?;
     load_from_path(&dir)
 }
 
+#[allow(dead_code)]
 #[tauri::command]
 pub fn projects_create(
     app: AppHandle,
@@ -397,6 +403,7 @@ pub fn projects_create(
     Ok(next)
 }
 
+#[allow(dead_code)]
 #[tauri::command]
 pub fn projects_rename(
     app: AppHandle,
@@ -407,11 +414,13 @@ pub fn projects_rename(
     with_document(&app, |document| rename_project(document, &project_id, name, description))
 }
 
+#[allow(dead_code)]
 #[tauri::command]
 pub fn projects_delete(app: AppHandle, project_id: String) -> Result<UserProjects, String> {
     with_document(&app, |document| delete_project(document, &project_id))
 }
 
+#[allow(dead_code)]
 #[tauri::command]
 pub fn projects_set_active(
     app: AppHandle,
@@ -420,7 +429,8 @@ pub fn projects_set_active(
     with_document(&app, |document| set_active_project(document, project_id))
 }
 
-/// Session-authoritative activate: set active Project and silent-switch bound WG into the strip.
+/// Legacy session activate against projects.json (superseded by projects_workspace_activate).
+#[allow(dead_code)]
 #[tauri::command]
 pub fn projects_activate(
     app: AppHandle,
@@ -443,6 +453,7 @@ pub fn projects_activate(
     })
 }
 
+#[allow(dead_code)]
 #[tauri::command]
 pub fn projects_bind_work_group(
     app: AppHandle,
@@ -457,6 +468,7 @@ pub fn projects_bind_work_group(
     Ok(next)
 }
 
+#[allow(dead_code)]
 #[tauri::command]
 pub fn projects_promote_from_work_group(
     app: AppHandle,
@@ -470,6 +482,7 @@ pub fn projects_promote_from_work_group(
     Ok(next)
 }
 
+#[allow(dead_code)]
 #[tauri::command]
 pub fn projects_save_members_from_open_state(
     app: AppHandle,
@@ -485,6 +498,7 @@ pub fn projects_save_members_from_open_state(
     Ok(next)
 }
 
+#[allow(dead_code)]
 #[tauri::command]
 pub fn projects_add_workspace_link(
     app: AppHandle,
@@ -497,6 +511,7 @@ pub fn projects_add_workspace_link(
     })
 }
 
+#[allow(dead_code)]
 #[tauri::command]
 pub fn projects_remove_workspace_link(
     app: AppHandle,
@@ -508,6 +523,7 @@ pub fn projects_remove_workspace_link(
     })
 }
 
+#[allow(dead_code)]
 #[tauri::command]
 pub fn projects_set_context_notes(
     app: AppHandle,
@@ -519,6 +535,7 @@ pub fn projects_set_context_notes(
     })
 }
 
+#[allow(dead_code)]
 #[tauri::command]
 pub fn projects_add_task(
     app: AppHandle,
@@ -533,6 +550,7 @@ pub fn projects_add_task(
     Ok((next, task))
 }
 
+#[allow(dead_code)]
 #[tauri::command]
 pub fn projects_update_task(
     app: AppHandle,
@@ -543,6 +561,7 @@ pub fn projects_update_task(
     with_document(&app, |document| update_task(document, &project_id, &task_id, patch))
 }
 
+#[allow(dead_code)]
 #[tauri::command]
 pub fn projects_move_task(
     app: AppHandle,
@@ -556,6 +575,7 @@ pub fn projects_move_task(
     })
 }
 
+#[allow(dead_code)]
 #[tauri::command]
 pub fn projects_delete_task(
     app: AppHandle,
@@ -565,6 +585,7 @@ pub fn projects_delete_task(
     with_document(&app, |document| delete_task(document, &project_id, &task_id))
 }
 
+#[allow(dead_code)]
 #[tauri::command]
 pub fn projects_open_all_links(
     app: AppHandle,
