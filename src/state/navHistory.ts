@@ -157,7 +157,7 @@ export function buildNavigatorBreadcrumbs(
       {
         label: leaf || path,
         path: path.trim(),
-        kind: "folder",
+        kind: "path",
       },
     ];
   }

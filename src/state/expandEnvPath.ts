@@ -1,11 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /** Expand Windows-style %VAR% segments in address-bar paths. */
 
+function readProcessEnv(): Record<string, string | undefined> {
+  const g = globalThis as {
+    process?: { env?: Record<string, string | undefined> };
+  };
+  return g.process?.env ?? {};
+}
+
 export function expandEnvPath(
   input: string,
-  env: Record<string, string | undefined> = typeof process !== "undefined"
-    ? (process.env as Record<string, string | undefined>)
-    : {},
+  env: Record<string, string | undefined> = readProcessEnv(),
 ): string {
   return input.replace(/%([^%]+)%/g, (match, name: string) => {
     const key = name.trim();
