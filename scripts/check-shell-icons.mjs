@@ -14,7 +14,15 @@ const state = readFileSync(join(root, "src/state/shellIcons.ts"), "utf8");
 assert.ok(cargo.includes("file_icon_provider"));
 assert.ok(lib.includes("shell_icons::shell_icon_get"));
 assert.ok(rust.includes("get_file_icon"));
-assert.ok(rust.includes("image_thumbnail_data_url"));
+assert.ok(
+  rust.includes("IShellItemImageFactory") && rust.includes("SIIGBF_THUMBNAILONLY"),
+  "AIA-143 must reuse Shell IShellItemImageFactory thumbnails",
+);
+assert.ok(rust.includes("SIIGBF_INCACHEONLY"), "prefer Explorer thumbnail cache first");
+assert.ok(
+  !rust.includes("image_thumbnail_data_url") && !rust.includes("load_from_memory"),
+  "must not self-decode images into thumbnails",
+);
 assert.ok(state.includes("shell_icon_get_many"));
 assert.ok(view.includes("requestShellIcons"));
 assert.ok(view.includes("shell-icon"));
@@ -25,4 +33,4 @@ assert.ok(
   "must not request icons for the entire filtered listing",
 );
 
-console.log("Shell icons checks OK (AIA-65/182).");
+console.log("Shell icons checks OK (AIA-65/182/143 system thumbnails).");
