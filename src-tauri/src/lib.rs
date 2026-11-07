@@ -213,6 +213,7 @@ pub fn run() {
             ai::ai_mcp_catalog_remove,
             ai::ai_mcp_deploy,
             ai::ai_mcp_undeploy,
+            ai::ai_harness_init,
             projects::projects_index_get,
             projects::projects_index_set_active,
             projects::projects_root_ensure,

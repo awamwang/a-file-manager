@@ -249,6 +249,18 @@
       "errorUnknown": "未知 MCP 目录条目",
       "errorDeployNoEnabled": "部署 MCP 前请至少启用一个 Agent Target",
       "errorTargetInvalid": "MCP 目标路径或 JSON 形状无效"
+    },
+    "harness": {
+      "title": "初始化 Harness / Superpower",
+      "hint": "显式 AI 动作（ADR 0008）。在已有 Project Workspace 写入 AGENTS.md 与 skills/。不属于 Core 创建。",
+      "fieldWorkspace": "Project Workspace 路径",
+      "fieldWorkspaceHint": "已有 project.json 的 Workspace 绝对路径",
+      "includeSdd": "同时初始化 SDD 树",
+      "includeSddHint": "可选；默认关闭。创建 docs/superpowers/{specs,plans}/ 与 .superpowers/sdd/progress.md",
+      "reinforceContext": "在 CONTEXT.md 追加 harness 说明",
+      "init": "初始化 Harness",
+      "noticeDone": "Harness 完成 · 写入 {written} · 跳过 {skipped}",
+      "errorWorkspace": "Workspace 路径须为含 project.json 的已有 Project 目录"
     }
   },
   "navigator": {

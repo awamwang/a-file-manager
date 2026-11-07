@@ -1,23 +1,26 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! AI Add-on layer (AIA-214 / A1 · AIA-215 / A2 · AIA-216 / A3).
+//! AI Add-on layer (AIA-214…AIA-219 / A1–A6).
 //!
 //! **Boundary (ADR 0007):** Workspace / Projects Root / WG / Navigator ∈ Core FM.
 //! This module owns the AI Add-on surface: main menu shell, Agent Target registry,
-//! public Skill library, and later MCP deploy / Providers / Harness (A4+).
+//! public Skill/MCP libraries, and explicit Harness/SDD init.
 //!
 //! - A1: shell status + section ids
 //! - A2: Agent Target registry (discover / enable / custom + MCP usage prompt placeholder)
 //! - A3: public Skill library + import (SKILL.md required)
 //! - A4: Skill Junction deploy to enabled Agent Targets
 //! - A5: public MCP catalog + merge deploy (no whole-file overwrite)
-//! - Not yet: Providers (A7), Harness (A6)
+//! - A6: explicit Harness / SDD init (ADR 0008)
+//! - Not yet: Providers (A7)
 
 mod agents;
 mod deploy;
+mod harness;
 mod mcp;
 mod skills;
 
 pub use agents::{AgentTargetPatch, AiConfigDocument};
+pub use harness::HarnessInitReport;
 
 use serde::Serialize;
 use tauri::AppHandle;
@@ -286,6 +289,21 @@ pub fn ai_mcp_undeploy(
     let dir = config_dir(&app)?;
     let doc = agents::load_from_path(&dir)?;
     mcp::undeploy_entry(&doc, &entry_id, project_workspace.as_deref())
+}
+
+/// Explicit Harness / Superpower init on a Project Workspace (ADR 0008).
+/// `include_sdd` defaults to false. Does not run from Core Project create.
+#[tauri::command]
+pub fn ai_harness_init(
+    workspace_path: String,
+    include_sdd: Option<bool>,
+    reinforce_context: Option<bool>,
+) -> Result<HarnessInitReport, String> {
+    harness::init_harness(
+        &workspace_path,
+        include_sdd.unwrap_or(false),
+        reinforce_context.unwrap_or(true),
+    )
 }
 
 #[cfg(test)]

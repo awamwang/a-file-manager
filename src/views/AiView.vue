@@ -11,6 +11,7 @@ import { AI_MENU_SECTIONS, type AiAddonStatus } from "../ai";
 import AgentTargetsPanel from "../ai/AgentTargetsPanel.vue";
 import SkillsLibraryPanel from "../ai/SkillsLibraryPanel.vue";
 import McpCatalogPanel from "../ai/McpCatalogPanel.vue";
+import HarnessInitPanel from "../ai/HarnessInitPanel.vue";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 
 const { t } = useI18n();
@@ -95,6 +96,10 @@ onMounted(() => {
         <McpCatalogPanel v-else-if="section.id === 'mcp'" />
       </article>
     </div>
+
+    <article class="fluent-surface ai-section harness-block" data-ai-section="harness">
+      <HarnessInitPanel />
+    </article>
   </section>
 </template>
 
@@ -109,6 +114,12 @@ onMounted(() => {
   gap: var(--fluent-space-md);
   margin-top: var(--fluent-space-lg);
   max-width: 56rem;
+}
+
+.harness-block {
+  margin-top: var(--fluent-space-md);
+  max-width: 56rem;
+  padding: var(--fluent-space-md) var(--fluent-space-lg);
 }
 
 .ai-section {

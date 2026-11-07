@@ -208,6 +208,18 @@
       "errorUnknown": "Entrée catalogue MCP inconnue",
       "errorDeployNoEnabled": "Activez au moins une cible Agent avant le déploiement MCP",
       "errorTargetInvalid": "Chemin / JSON MCP cible invalide"
+    },
+    "harness": {
+      "title": "Initialize Harness / Superpower",
+      "hint": "Explicit AI action (ADR 0008). Writes AGENTS.md and skills/ on an existing Project Workspace. Never part of Core create.",
+      "fieldWorkspace": "Project Workspace path",
+      "fieldWorkspaceHint": "Absolute path to a Workspace that already has project.json",
+      "includeSdd": "Also initialize SDD tree",
+      "includeSddHint": "Optional; default off. Creates docs/superpowers/{specs,plans}/ and .superpowers/sdd/progress.md",
+      "reinforceContext": "Append harness note to CONTEXT.md",
+      "init": "Initialize Harness",
+      "noticeDone": "Harness init · wrote {written} · skipped {skipped}",
+      "errorWorkspace": "Workspace path must be an existing Project directory with project.json"
     }
   },
   "common": {
