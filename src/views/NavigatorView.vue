@@ -127,6 +127,7 @@ import {
 } from "../state/dropPaths";
 import { dropTransferMode } from "../state/dropMode";
 import {
+  dismissPreviewBridge,
   invokePreviewBridge,
   previewBridgeForcePane,
   previewBridgeSessionActive,
@@ -241,6 +242,20 @@ function openProperties(path: string) {
 function shortcutTogglePreviewPane() {
   const currently = previewPaneSession.value ?? previewPaneSetting.value;
   previewPaneSession.value = !currently;
+}
+
+/**
+ * AIA-244: × on PreviewPane. Hide the pane and end any Space bridge session so
+ * selection changes alone do not force it open again.
+ */
+function closePreviewPane() {
+  previewPaneSession.value = false;
+  if (followTimer) {
+    clearTimeout(followTimer);
+    followTimer = null;
+  }
+  followSeq += 1;
+  void dismissPreviewBridge();
 }
 
 function shortcutToggleDetailsPane() {
@@ -1694,7 +1709,11 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
       </div>
     </div>
     </div>
-    <PreviewPane :enabled="previewPaneEnabled" :path="previewPath" />
+    <PreviewPane
+      :enabled="previewPaneEnabled"
+      :path="previewPath"
+      @close="closePreviewPane"
+    />
     <DetailsPane
       :enabled="detailsPaneOpen"
       :paths="selectedPaths"

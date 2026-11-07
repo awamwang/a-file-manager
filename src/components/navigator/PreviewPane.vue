@@ -3,6 +3,7 @@
 import { ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
+import FluentIcon from "../icons/FluentIcon.vue";
 
 export type PreviewPayload = {
   kind: "image" | "text" | "unsupported" | string;
@@ -17,6 +18,8 @@ const props = defineProps<{
   path: string | null;
   enabled: boolean;
 }>();
+
+const emit = defineEmits<{ close: [] }>();
 
 const { t } = useI18n();
 const loading = ref(false);
@@ -66,8 +69,18 @@ watch(
 <template>
   <aside v-if="enabled" class="preview fluent-surface" :aria-label="t('preview.title')">
     <header class="preview-head">
-      <h2>{{ t("preview.title") }}</h2>
-      <p v-if="path" class="preview-path" :title="path">{{ path }}</p>
+      <div class="preview-head-text">
+        <h2>{{ t("preview.title") }}</h2>
+        <p v-if="path" class="preview-path" :title="path">{{ path }}</p>
+      </div>
+      <button
+        type="button"
+        class="fluent-control preview-close"
+        :aria-label="t('common.dismiss')"
+        @click="emit('close')"
+      >
+        <FluentIcon name="close" size="sm" />
+      </button>
     </header>
     <p v-if="!path" class="fluent-banner">{{ t("preview.empty") }}</p>
     <p v-else-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
@@ -103,8 +116,17 @@ watch(
 }
 
 .preview-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--fluent-space-sm);
   padding: var(--fluent-space-sm) var(--fluent-space-md);
   border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+}
+
+.preview-head-text {
+  min-width: 0;
+  flex: 1;
 }
 
 .preview-head h2 {
@@ -114,6 +136,11 @@ watch(
   color: var(--fluent-color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.preview-close {
+  flex-shrink: 0;
+  padding: var(--fluent-space-xs);
 }
 
 .preview-path {

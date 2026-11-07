@@ -6,6 +6,9 @@
  *
  * AIA-174: while a Space-opened session is active, selection changes call
  * `preview_bridge_switch` (QL Switch / Peek PID replace / builtin no-op).
+ *
+ * AIA-244: pane × (dismiss) clears the session sticky — selection alone must
+ * not re-open until Space / preview command opens again.
  */
 
 import { invoke } from "@tauri-apps/api/core";
@@ -25,13 +28,22 @@ export const previewBridgeForcePane = ref(false);
 /** True after Space opened Peek/QL/builtin until session ends. */
 export const previewBridgeSessionActive = ref(false);
 
-function applySession(result: PreviewBridgeResult): void {
+/**
+ * Bumped on dismiss so in-flight invoke/switch results cannot resurrect the
+ * session after the user closed the pane with ×.
+ */
+let sessionEpoch = 0;
+
+function applySession(result: PreviewBridgeResult, epoch: number): void {
+  if (epoch !== sessionEpoch) return;
   const active = result.sessionActive === true;
   previewBridgeSessionActive.value = active;
   if (result.fallbackBuiltin && active) {
     previewBridgeForcePane.value = true;
   } else if (!active && result.backend === "builtin") {
-    // Space dismissed a bridge-forced built-in session.
+    // Space / dismiss ended a bridge-forced built-in session.
+    previewBridgeForcePane.value = false;
+  } else if (!active) {
     previewBridgeForcePane.value = false;
   }
 }
@@ -48,10 +60,11 @@ export async function invokePreviewBridge(
       sessionActive: false,
     };
   }
+  const epoch = sessionEpoch;
   const result = await invoke<PreviewBridgeResult>("preview_bridge_invoke", {
     paths,
   });
-  applySession(result);
+  applySession(result, epoch);
   return result;
 }
 
@@ -77,9 +90,44 @@ export async function switchPreviewBridge(
       sessionActive: previewBridgeSessionActive.value,
     };
   }
+  const epoch = sessionEpoch;
   const result = await invoke<PreviewBridgeResult>("preview_bridge_switch", {
     paths,
   });
-  applySession(result);
+  applySession(result, epoch);
   return result;
+}
+
+/**
+ * AIA-244: user closed preview with ×. Clear local sticky flags immediately,
+ * invalidate in-flight switch/invoke, then ask Rust to drop the Space session.
+ */
+export async function dismissPreviewBridge(): Promise<PreviewBridgeResult> {
+  sessionEpoch += 1;
+  const epoch = sessionEpoch;
+  previewBridgeSessionActive.value = false;
+  previewBridgeForcePane.value = false;
+  try {
+    const result = await invoke<PreviewBridgeResult>("preview_bridge_dismiss");
+    applySession(
+      {
+        ...result,
+        sessionActive: false,
+        fallbackBuiltin: false,
+      },
+      epoch,
+    );
+    return {
+      ...result,
+      sessionActive: false,
+      fallbackBuiltin: false,
+    };
+  } catch {
+    return {
+      success: true,
+      backend: "none",
+      fallbackBuiltin: false,
+      sessionActive: false,
+    };
+  }
 }

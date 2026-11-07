@@ -8,6 +8,9 @@
 //! Selection follow (AIA-174): while a Space-opened session is active, AFM can
 //! push path updates — QuickLook `Switch|path`, Peek replace-by-PID (CLI has no
 //! single-instance update), built-in pane via frontend computed path.
+//!
+//! AIA-244: dismissing via the preview pane × (or an explicit dismiss) clears the
+//! session so selection changes alone must not re-open until Space / preview again.
 
 use serde::Serialize;
 use std::fs::OpenOptions;
@@ -479,6 +482,36 @@ pub fn switch_bridge(app: &AppHandle, paths: &[String]) -> PreviewBridgeResult {
     }
 }
 
+/// AIA-244: user dismissed preview (pane ×). End the Space session and tear down
+/// Peek/QL if AFM still owns them. Selection follow must not resurrect after this.
+pub fn dismiss_bridge() -> PreviewBridgeResult {
+    let backend = SESSION
+        .lock()
+        .ok()
+        .and_then(|g| g.as_ref().map(|s| s.backend.clone()));
+    match backend.as_deref() {
+        Some("peek") => {
+            let _ = close_peek_session_if_alive();
+            clear_session();
+            result_ok("peek", false)
+        }
+        Some("quicklook") => {
+            // Best-effort close: Toggle on empty/no path is unreliable; clearing the
+            // session is what stops selection follow from calling Switch again.
+            clear_session();
+            result_ok("quicklook", false)
+        }
+        Some("builtin") => {
+            clear_session();
+            result_ok("builtin", false)
+        }
+        _ => {
+            clear_session();
+            result_ok("none", false)
+        }
+    }
+}
+
 #[tauri::command]
 pub fn preview_bridge_invoke(app: AppHandle, paths: Vec<String>) -> PreviewBridgeResult {
     invoke_bridge(&app, &paths)
@@ -487,6 +520,11 @@ pub fn preview_bridge_invoke(app: AppHandle, paths: Vec<String>) -> PreviewBridg
 #[tauri::command]
 pub fn preview_bridge_switch(app: AppHandle, paths: Vec<String>) -> PreviewBridgeResult {
     switch_bridge(&app, &paths)
+}
+
+#[tauri::command]
+pub fn preview_bridge_dismiss() -> PreviewBridgeResult {
+    dismiss_bridge()
 }
 
 #[cfg(test)]
@@ -525,5 +563,21 @@ mod tests {
         assert!(QL_TOGGLE_PREFIX.contains("Toggle|"));
         assert!(QL_SWITCH_PREFIX.contains("Switch|"));
         assert_ne!(QL_TOGGLE_PREFIX, QL_SWITCH_PREFIX);
+    }
+
+    #[test]
+    fn dismiss_clears_builtin_session_and_stays_inactive() {
+        set_session("builtin", None);
+        assert!(session_is_active());
+        let closed = dismiss_bridge();
+        assert_eq!(closed.backend, "builtin");
+        assert!(!closed.session_active);
+        assert!(!closed.fallback_builtin);
+        assert!(!session_is_active());
+        // Selection follow with no session must not resurrect.
+        assert!(!session_is_active());
+        let again = dismiss_bridge();
+        assert!(!again.session_active);
+        assert!(!session_is_active());
     }
 }

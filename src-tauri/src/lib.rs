@@ -276,6 +276,7 @@ pub fn run() {
                     preview::preview_load,
                     preview_bridge::preview_bridge_invoke,
                     preview_bridge::preview_bridge_switch,
+                    preview_bridge::preview_bridge_dismiss,
                     archive::archive_compress_zip,
                     archive::archive_extract_zip,
                 ]
@@ -390,6 +391,7 @@ pub fn run() {
                     preview::preview_load,
                     preview_bridge::preview_bridge_invoke,
                     preview_bridge::preview_bridge_switch,
+                    preview_bridge::preview_bridge_dismiss,
                     archive::archive_compress_zip,
                     archive::archive_extract_zip,
                 ]
