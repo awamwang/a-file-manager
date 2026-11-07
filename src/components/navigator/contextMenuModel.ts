@@ -37,6 +37,11 @@ export type ContextMenuItemDef = {
   icon?: FluentGlyphId;
   /** Nested submenu (Sigma-style). */
   children?: ContextMenuItemDef[];
+  /**
+   * AIA-229: opens the Windows shell menu as a hover/focus cascade
+   * (no nested systemMenuShow hop — see AIA-224).
+   */
+  shellCascade?: boolean;
   /** Payload for IDE open. */
   ideId?: string;
   /** Payload for terminal open. */
@@ -207,11 +212,12 @@ export function buildContextMenuItems(
       icon: "star",
     },
     {
-      // AIA-224: leaf item — click invokes Windows IContextMenu directly (no nested hop).
+      // AIA-224/229: no nested systemMenuShow hop; cascade opens on hover/focus (Sigma-like).
       id: "systemMenu",
       labelKey: "contextMenu.systemMenu",
       enabled: true,
       icon: "viewAll",
+      shellCascade: true,
     },
     // Clipboard / rename / copy-path live in the Windows-style top toolbar.
     { id: "newFolder", labelKey: "contextMenu.newFolder", enabled: true, separatorBefore: true, icon: "folder" },

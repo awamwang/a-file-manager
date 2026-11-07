@@ -60,10 +60,19 @@ assert.ok(
   "AIA-224: systemMenu must be a leaf (no nested systemMenuShow hop)",
 );
 assert.ok(
-  /id:\s*"systemMenu"[\s\S]*?icon:\s*"viewAll",\s*\}/.test(model) ||
-    !/id:\s*"systemMenu"[\s\S]*?children:\s*\[/.test(model),
-  "AIA-224: systemMenu must not declare children",
+  /id:\s*"systemMenu"[\s\S]*?shellCascade:\s*true,\s*\}/.test(model),
+  "AIA-229: systemMenu shellCascade leaf (no children array)",
 );
+assert.ok(
+  !/id:\s*"systemMenu"[\s\S]*?children:\s*\[[\s\S]*?id:\s*"systemMenuShow"/.test(model),
+  "AIA-224: systemMenu must not nest systemMenuShow",
+);
+assert.ok(
+  menu.includes("openShellCascadeFromAnchor"),
+  "AIA-229: shell cascade must open from hover/focus anchor",
+);
+assert.ok(menu.includes("onItemFocus"), "AIA-229: keyboard focus expands cascades");
+assert.ok(menu.includes("onItemKeydown"), "AIA-229: ArrowRight expands cascades");
 assert.ok(menu.includes("toggleFavorite"));
 assert.ok(menu.includes("setClipboard"));
 assert.ok(menu.includes("pasteClipboard"));

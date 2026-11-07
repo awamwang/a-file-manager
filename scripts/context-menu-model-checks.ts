@@ -25,6 +25,8 @@ const systemMenu = dirItems.find((item) => item.id === "systemMenu");
 assert.ok(systemMenu);
 assert.equal(systemMenu.enabled, true);
 assert.equal(systemMenu.stub, undefined);
+// AIA-229: hover/focus cascade flag; still no nested systemMenuShow hop (AIA-224).
+assert.equal(systemMenu.shellCascade, true);
 const openInTerminal = dirItems.find((item) => item.id === "openInTerminal");
 assert.ok(openInTerminal);
 assert.equal(openInTerminal.enabled, true);

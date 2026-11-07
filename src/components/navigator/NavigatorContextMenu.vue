@@ -81,6 +81,9 @@ const submenuPos = ref({ left: 0, top: 0 });
 const openSubmenuId = ref<string | null>(null);
 const submenuAnchor = ref<HTMLElement | null>(null);
 let submenuCloseTimer: ReturnType<typeof setTimeout> | null = null;
+/** AIA-229: dwell before opening the Windows shell cascade (avoids drive-by hover). */
+let shellCascadeTimer: ReturnType<typeof setTimeout> | null = null;
+let shellCascadeOpening = false;
 const ideApps = ref<Array<{ id: string; name: string; available: boolean }>>([]);
 const terminals = ref<
   Array<{ id: string; name: string; available: boolean; supportsElevation: boolean }>
@@ -218,6 +221,7 @@ watch(
       void refreshClipboardFromSystem();
       void loadNewFileTemplates();
       clearSubmenuCloseTimer();
+      clearShellCascadeTimer();
       openSubmenuId.value = null;
       submenuAnchor.value = null;
       hideToolbarTip();
@@ -225,6 +229,7 @@ watch(
       preloadLaunchersIfNeeded();
     } else {
       clearSubmenuCloseTimer();
+      clearShellCascadeTimer();
       openSubmenuId.value = null;
       submenuAnchor.value = null;
       hideToolbarTip();
@@ -556,20 +561,9 @@ async function run(id: string) {
       }
       break;
     case "systemMenu":
-      // AIA-224: top-level click → Windows shell menu (no nested submenu hop).
+      // AIA-229: click keeps working; hover/focus prefer openShellCascadeFromAnchor.
       if (!entry) break;
-      try {
-        const result = await invoke<ShellMenuResult>("shell_show_context_menu", {
-          path: entry.path,
-          x: Math.round(props.x),
-          y: Math.round(props.y),
-        });
-        if (!result.success && result.error) {
-          emit("notice", result.error);
-        }
-      } catch (err) {
-        emit("notice", err instanceof Error ? err.message : String(err));
-      }
+      await openShellCascadeAt(Math.round(props.x), Math.round(props.y));
       break;
     case "reveal":
       if (!entry) break;
@@ -709,6 +703,13 @@ function clearSubmenuCloseTimer() {
   }
 }
 
+function clearShellCascadeTimer() {
+  if (shellCascadeTimer != null) {
+    clearTimeout(shellCascadeTimer);
+    shellCascadeTimer = null;
+  }
+}
+
 function scheduleSubmenuClose() {
   clearSubmenuCloseTimer();
   submenuCloseTimer = setTimeout(() => {
@@ -720,6 +721,7 @@ function scheduleSubmenuClose() {
 
 function openSubmenuFor(itemId: string, anchor: HTMLElement) {
   clearSubmenuCloseTimer();
+  clearShellCascadeTimer();
   if (itemId === "openWith" || itemId === "openInTerminal") {
     preloadLaunchersIfNeeded();
   }
@@ -734,6 +736,45 @@ function findItemById(itemId: string) {
   return items.value.find((item) => item.id === itemId) ?? null;
 }
 
+async function openShellCascadeAt(x: number, y: number) {
+  const entry = props.entry;
+  if (!entry || shellCascadeOpening) return;
+  shellCascadeOpening = true;
+  clearShellCascadeTimer();
+  // Close the Vue menu first so TrackPopupMenu is not covered.
+  emit("close");
+  try {
+    const result = await invoke<ShellMenuResult>("shell_show_context_menu", {
+      path: entry.path,
+      x,
+      y,
+    });
+    if (!result.success && result.error) {
+      emit("notice", result.error);
+    }
+  } catch (err) {
+    emit("notice", err instanceof Error ? err.message : String(err));
+  } finally {
+    shellCascadeOpening = false;
+  }
+}
+
+function openShellCascadeFromAnchor(anchor: HTMLElement, immediate = false) {
+  clearShellCascadeTimer();
+  scheduleSubmenuClose();
+  const fire = () => {
+    shellCascadeTimer = null;
+    const rect = anchor.getBoundingClientRect();
+    // Cascade to the right of the row (Sigma submenu placement).
+    void openShellCascadeAt(Math.round(rect.right - 4), Math.round(rect.top));
+  };
+  if (immediate) {
+    fire();
+    return;
+  }
+  shellCascadeTimer = setTimeout(fire, 220);
+}
+
 /** Sigma-style: which parent row is under the pointer → expand its submenu. */
 function syncSubmenuFromClientPoint(clientX: number, clientY: number) {
   if (!props.open || !root.value) return;
@@ -742,12 +783,14 @@ function syncSubmenuFromClientPoint(clientX: number, clientY: number) {
   // Still inside the open flyout — keep it.
   if (submenuRoot.value?.contains(hit)) {
     clearSubmenuCloseTimer();
+    clearShellCascadeTimer();
     return;
   }
   const btn = hit.closest<HTMLElement>("[data-ctx-id]");
   if (!btn || !root.value.contains(btn)) {
     // Pointer left the parent menu (and not over flyout) — delay-close.
     if (openSubmenuId.value) scheduleSubmenuClose();
+    clearShellCascadeTimer();
     return;
   }
   const itemId = btn.dataset.ctxId;
@@ -758,10 +801,18 @@ function syncSubmenuFromClientPoint(clientX: number, clientY: number) {
     openSubmenuFor(item.id, btn);
     return;
   }
+  if (item.shellCascade) {
+    openShellCascadeFromAnchor(btn);
+    return;
+  }
   scheduleSubmenuClose();
+  clearShellCascadeTimer();
 }
 
-function onItemClick(item: { id: string; children?: unknown[] }, event: MouseEvent) {
+function onItemClick(
+  item: { id: string; children?: unknown[]; shellCascade?: boolean },
+  event: MouseEvent,
+) {
   if (item.children?.length) {
     // Hover owns expand; click keeps the flyout open (do not toggle shut).
     if (event.currentTarget instanceof HTMLElement) {
@@ -769,16 +820,60 @@ function onItemClick(item: { id: string; children?: unknown[] }, event: MouseEve
     }
     return;
   }
+  if (item.shellCascade && event.currentTarget instanceof HTMLElement) {
+    openShellCascadeFromAnchor(event.currentTarget, true);
+    return;
+  }
   void run(item.id);
 }
 
-function onItemEnter(item: { id: string; children?: unknown[] }, event: MouseEvent) {
-  if (!item.children?.length) {
-    scheduleSubmenuClose();
+function onItemEnter(
+  item: { id: string; children?: unknown[]; shellCascade?: boolean },
+  event: MouseEvent,
+) {
+  if (item.children?.length) {
+    if (event.currentTarget instanceof HTMLElement) {
+      openSubmenuFor(item.id, event.currentTarget);
+    }
     return;
   }
-  if (event.currentTarget instanceof HTMLElement) {
+  if (item.shellCascade && event.currentTarget instanceof HTMLElement) {
+    openShellCascadeFromAnchor(event.currentTarget);
+    return;
+  }
+  scheduleSubmenuClose();
+  clearShellCascadeTimer();
+}
+
+/** AIA-229: keyboard focus expands nested / shell cascade like hover. */
+function onItemFocus(
+  item: { id: string; children?: unknown[]; shellCascade?: boolean },
+  event: FocusEvent,
+) {
+  if (!(event.currentTarget instanceof HTMLElement)) return;
+  if (item.children?.length) {
     openSubmenuFor(item.id, event.currentTarget);
+    return;
+  }
+  if (item.shellCascade) {
+    openShellCascadeFromAnchor(event.currentTarget);
+  }
+}
+
+function onItemKeydown(
+  item: { id: string; children?: unknown[]; shellCascade?: boolean },
+  event: KeyboardEvent,
+) {
+  if (event.key !== "ArrowRight") return;
+  if (!(event.currentTarget instanceof HTMLElement)) return;
+  if (item.children?.length) {
+    event.preventDefault();
+    openSubmenuFor(item.id, event.currentTarget);
+    return;
+  }
+  if (item.shellCascade) {
+    event.preventDefault();
+    openShellCascadeFromAnchor(event.currentTarget, true);
   }
 }
 
@@ -827,6 +922,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   clearSubmenuCloseTimer();
+  clearShellCascadeTimer();
   window.removeEventListener("mousedown", onDocPointer, true);
   window.removeEventListener("keydown", onKey, true);
 });
@@ -872,7 +968,7 @@ onUnmounted(() => {
           class="ctx-item"
           role="menuitem"
           :data-ctx-id="item.id"
-          :aria-haspopup="item.children?.length ? 'menu' : undefined"
+          :aria-haspopup="item.children?.length || item.shellCascade ? 'menu' : undefined"
           :aria-expanded="item.children?.length ? openSubmenuId === item.id : undefined"
           :disabled="!item.enabled"
           :class="{
@@ -881,12 +977,18 @@ onUnmounted(() => {
           }"
           @click="onItemClick(item, $event)"
           @mouseenter="onItemEnter(item, $event)"
+          @focus="onItemFocus(item, $event)"
+          @keydown="onItemKeydown(item, $event)"
         >
           <span class="ctx-leading">
             <FluentIcon v-if="item.icon" :name="item.icon" size="sm" class="ctx-icon" />
             <span>{{ item.label }}</span>
           </span>
-          <span v-if="item.children?.length" class="ctx-chevron" aria-hidden="true">›</span>
+          <span
+            v-if="item.children?.length || item.shellCascade"
+            class="ctx-chevron"
+            aria-hidden="true"
+          >›</span>
           <span v-else-if="item.stub" class="later">{{ t("chrome.later") }}</span>
         </button>
       </div>
