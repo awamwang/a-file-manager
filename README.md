@@ -6,13 +6,14 @@ Greenfield product checkout. Bootstrap archive (read-only): sibling folder `a-fi
 
 ## Download
 
-Installers are published on [GitHub Releases](https://github.com/awamwang/a-file-manager/releases).
+Windows NSIS installers (`.exe`) are attached to each GitHub Release created from a `v*` tag.
 
-| Version | Notes |
+| Get | Link |
 |---|---|
-| [v0.1.0](https://github.com/awamwang/a-file-manager/releases/tag/v0.1.0) | First tagged Windows NSIS build |
+| **Latest** (recommended) | [releases/latest](https://github.com/awamwang/a-file-manager/releases/latest) |
+| **All versions** | [Releases](https://github.com/awamwang/a-file-manager/releases) |
 
-Grab the `.exe` asset from the release page, then install and run.
+On a release page, download the `*-setup.exe` asset, then install and run **A File Manager**. Older tags stay available on the Releases list after newer ones ship.
 
 ## Run
 
@@ -34,17 +35,18 @@ Version sources (keep in sync): `package.json`, `src-tauri/tauri.conf.json`, `sr
 
 Pushing a `v*` tag (for example `v0.1.0`) runs [`.github/workflows/release.yml`](.github/workflows/release.yml):
 
-1. Builds the Windows NSIS installer on `windows-latest`
-2. Creates / updates the matching GitHub Release
-3. Uploads the installer as a release asset
+1. Generates release notes (GitHub auto notes, with `git log` fallback since the previous tag)
+2. Builds the Windows NSIS installer on `windows-latest`
+3. Creates / updates the matching GitHub Release
+4. Uploads the installer as a release asset on that tag
 
 ```bash
-# after bumping version fields and committing
+# after bumping version fields and committing to the default branch
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-You can also trigger **Actions → Release → Run workflow** manually (`workflow_dispatch`); that path uses `v__VERSION__` from `tauri.conf.json`.
+You can also trigger **Actions → Release → Run workflow** manually (`workflow_dispatch`); that path uses `v` + `package.json` version as the release tag name.
 
 ## Identity
 

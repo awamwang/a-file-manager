@@ -17,6 +17,73 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Needed so local fallback changelog can walk prior tags/commits.
+          fetch-depth: 0
+
+      - name: Resolve release tag
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            VER="$(node -p "require('./package.json').version")"
+            TAG="v${VER}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Resolved release tag: ${TAG}"
+
+      - name: Generate release notes
+        id: notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.meta.outputs.tag }}"
+          if git rev-parse "refs/tags/${TAG}" >/dev/null 2>&1; then
+            PREV="$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)"
+          else
+            PREV="$(git describe --tags --abbrev=0 HEAD 2>/dev/null || true)"
+          fi
+
+          BODY=""
+          GEN_ARGS=(-f tag_name="${TAG}" -f target_commitish="${GITHUB_SHA}")
+          if [ -n "${PREV}" ]; then
+            GEN_ARGS+=(-f previous_tag_name="${PREV}")
+          fi
+          if BODY=$(gh api "repos/${{ github.repository }}/releases/generate-notes" \
+              "${GEN_ARGS[@]}" --jq .body 2>/dev/null); then
+            :
+          else
+            if [ -n "${PREV}" ]; then
+              RANGE="${PREV}..${GITHUB_SHA}"
+              HEADING="## Changes since ${PREV}"
+            else
+              RANGE="${GITHUB_SHA}"
+              HEADING="## Changes"
+            fi
+            {
+              echo "${HEADING}"
+              echo
+              git log --pretty=format:'- %s (%h)' "${RANGE}"
+              echo
+            } > /tmp/afm-notes.md
+            BODY="$(cat /tmp/afm-notes.md)"
+          fi
+
+          {
+            echo "body<<EOF"
+            printf '%s\n\n' "${BODY}"
+            echo "### Install"
+            echo
+            echo "Download the Windows NSIS \`.exe\` asset below, then install and run **A File Manager**."
+            echo
+            echo "All builds: https://github.com/${{ github.repository }}/releases"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -40,13 +107,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # Prefer the pushed tag; for workflow_dispatch fall back to v__VERSION__.
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || 'v__VERSION__' }}
-          releaseName: "A File Manager ${{ github.ref_type == 'tag' && github.ref_name || 'v__VERSION__' }}"
-          releaseBody: |
-            Windows installer for this release.
-
-            Download the `.exe` (NSIS) asset below, then install and run **A File Manager**.
+          tagName: ${{ steps.meta.outputs.tag }}
+          releaseName: "A File Manager ${{ steps.meta.outputs.tag }}"
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: false
           prerelease: false
           args: --bundles nsis
