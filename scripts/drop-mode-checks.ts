@@ -26,5 +26,13 @@ assert.equal(
   dropTransferMode(["\\\\server\\share\\a.txt"], "\\\\other\\share", {}),
   "copy",
 );
+assert.equal(
+  dropTransferMode(["C:\\Temp\\a\\file.txt"], "C:\\Temp\\b", { alt: true }),
+  "link",
+);
+assert.equal(
+  dropTransferMode(["C:\\Temp\\a\\file.txt"], "D:\\Temp\\b", { alt: true, ctrl: true }),
+  "link",
+);
 
-console.log("drop-mode checks OK.");
+console.log("drop-mode checks OK (incl. Alt=link).");

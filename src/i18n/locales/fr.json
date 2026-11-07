@@ -394,6 +394,7 @@
     "nItems": "{count} éléments",
     "movedInto": "{count} élément(s) déplacé(s) vers {name}",
     "copiedInto": "{count} élément(s) copié(s) vers {name}",
+    "linkedInto": "{count} raccourci(s) créé(s) dans {name}",
     "filterPlaceholder": "Rechercher dans ce dossier… (nom, type:, size:, date:)",
     "filterToggle": "Rechercher dans le dossier",
     "filterClear": "Effacer la recherche",

@@ -1247,7 +1247,7 @@ function hitTestRows(x: number, y: number, w: number, h: number): string[] {
   return hits;
 }
 
-/* —— Drag in (AFM + Explorer/external) · drag out (OLE / CF_HDROP) —— */
+/* —— Drag in (AFM + Explorer/external) · drag out (OLE / CF_HDROP + link) —— */
 function onDragStart(event: DragEvent, entry: NavigatorEntry) {
   if (!isSelected(entry.path)) {
     selectOnly(entry.path);
@@ -1255,22 +1255,28 @@ function onDragStart(event: DragEvent, entry: NavigatorEntry) {
   const paths = selectionPaths();
   if (event.dataTransfer) {
     setOutboundPathPayload(event.dataTransfer, paths);
-    // copyMove: modifiers and volume pick copy vs move; OLE drag-out stays copy.
-    event.dataTransfer.effectAllowed = "copyMove";
+    // all: copy / move / link (Alt); Hybrid OLE offers the same mask.
+    event.dataTransfer.effectAllowed = "all";
   }
   armNativeFileDragOut(paths);
 }
 
-function dropModeForEvent(event: DragEvent, destPath: string, sourcePaths: string[]): "copy" | "move" {
+function dropModeForEvent(
+  event: DragEvent,
+  destPath: string,
+  sourcePaths: string[],
+): "copy" | "move" | "link" {
   const external = dataTransferLooksExternal(event.dataTransfer);
   if (external && sourcePaths.length === 0) {
-    // Paths often unavailable until drop — default copy into AFM from outside.
+    // Paths often unavailable until drop — modifiers still apply.
+    if (event.altKey) return "link";
     if (event.shiftKey) return "move";
     return "copy";
   }
   return dropTransferMode(sourcePaths, destPath, {
     ctrl: event.ctrlKey,
     shift: event.shiftKey,
+    alt: event.altKey,
   });
 }
 
@@ -1331,8 +1337,13 @@ async function transferDroppedPaths(
       return;
     }
     if (mode === "copy") recordCopyUndo(result.paths);
-    else recordMoveUndo(paths, result.paths);
-    const noticeKey = mode === "copy" ? "navigator.copiedInto" : "navigator.movedInto";
+    else if (mode === "move") recordMoveUndo(paths, result.paths);
+    const noticeKey =
+      mode === "copy"
+        ? "navigator.copiedInto"
+        : mode === "move"
+          ? "navigator.movedInto"
+          : "navigator.linkedInto";
     onNotice(t(noticeKey, { count: result.paths.length, name: destLabel }));
     clearSelection();
     await refreshListing();
@@ -1674,14 +1685,24 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
             'row--icon': isIconView,
             'row--tile': isTilesView,
             'row--content': isContentView,
+            'row--selected': isSelected(entry.path),
+            'row--drop': dragOverPath === entry.path,
           }"
           :style="isDetailsView ? detailsGridStyle : undefined"
           role="listitem"
           tabindex="0"
+          draggable="true"
           :data-entry-path="entry.path"
+          :aria-selected="isSelected(entry.path)"
           :title="entryHoverTitle(entry)"
+          @click="onRowClick($event, entry)"
           @dblclick="onActivateSecondary(entry)"
           @keydown.enter.prevent="onActivateSecondary(entry)"
+          @contextmenu="onContextMenu($event, entry)"
+          @dragstart="onDragStart($event, entry)"
+          @dragover="onDragOver($event, entry)"
+          @dragleave="onDragLeave(entry)"
+          @drop="onDrop($event, entry)"
         >
           <span class="kind" :data-kind="entry.kind">
             <img

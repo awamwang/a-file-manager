@@ -57,6 +57,10 @@ walkdir = "2"
 tauri-plugin-drag = "2"
 ureq = { version = "3.5.1", features = ["json"] }
 
+# AIA-240: local drag patch offers COPY|MOVE|LINK on Windows DoDragDrop.
+[patch.crates-io]
+drag = { path = "patches/drag" }
+
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]
 codegen-units = 1

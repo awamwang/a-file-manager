@@ -314,6 +314,7 @@
     "nItems": "{count} items",
     "movedInto": "Moved {count} item(s) into {name}",
     "copiedInto": "Copied {count} item(s) into {name}",
+    "linkedInto": "Created {count} shortcut(s) in {name}",
     "filterPlaceholder": "Search this folder… (name, type:, size:, date:)",
     "filterToggle": "Search folder",
     "filterClear": "Clear search",

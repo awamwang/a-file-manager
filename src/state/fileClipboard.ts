@@ -74,12 +74,20 @@ export async function pasteClipboard(destDir: string): Promise<FileOpsResult> {
 export async function transferEntries(
   sources: string[],
   destDir: string,
-  mode: "copy" | "move",
+  mode: "copy" | "move" | "link",
 ): Promise<FileOpsResult> {
-  const command = mode === "copy" ? "file_ops_copy" : "file_ops_move";
+  const command =
+    mode === "copy"
+      ? "file_ops_copy"
+      : mode === "move"
+        ? "file_ops_move"
+        : "file_ops_create_shortcuts";
   const transferred: string[] = [];
   for (const source of sources) {
-    const name = baseName(source);
+    const name =
+      mode === "link"
+        ? `${baseName(source)} - Shortcut.lnk`
+        : baseName(source);
     const destFile = `${destDir.replace(/[\\/]+$/, "")}\\${name}`;
     let conflict = "keep";
     if (!samePath(source, destFile)) {

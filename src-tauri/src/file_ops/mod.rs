@@ -5,6 +5,7 @@
 pub(crate) mod clipboard;
 pub(crate) mod new_templates;
 pub(crate) mod recycle;
+pub(crate) mod shortcut;
 
 use crate::navigator::path_guard::assert_os_path;
 use serde::{Deserialize, Serialize};

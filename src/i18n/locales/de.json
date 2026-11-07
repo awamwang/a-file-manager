@@ -394,6 +394,7 @@
     "nItems": "{count} Elemente",
     "movedInto": "{count} Element(e) nach {name} verschoben",
     "copiedInto": "{count} Element(e) nach {name} kopiert",
+    "linkedInto": "{count} Verknüpfung(en) in {name} erstellt",
     "filterPlaceholder": "Diesen Ordner durchsuchen… (Name, type:, size:, date:)",
     "filterToggle": "Ordner durchsuchen",
     "filterClear": "Suche löschen",

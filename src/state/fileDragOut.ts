@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
- * Native file drag-out (Windows OLE / CF_HDROP via tauri-plugin-drag).
- * Keeps HTML5 in-app drops intact; starts OS drag when the cursor leaves the window
- * so external apps (players, Explorer, editors) receive real file paths.
+ * Native file drag-out (Windows OLE / CF_HDROP via tauri-plugin-drag + patched drag crate).
+ * Keeps HTML5 in-app drops intact; starts OS drag when the cursor leaves (or nears the
+ * edge of) the window so Explorer receives real paths with copy|move|link.
  */
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import { resolveResource } from "@tauri-apps/api/path";
@@ -12,6 +12,9 @@ let outboundBusy = false;
 let cachedDragIconPath: string | null = null;
 let activeCleanup: (() => void) | null = null;
 
+/** Edge margin so OLE arms before Explorer sees HTML5-only / no-drop. */
+const EDGE_MARGIN_PX = 8;
+
 async function dragIconPath(): Promise<string> {
   if (!cachedDragIconPath) {
     cachedDragIconPath = await resolveResource("icons/32x32.png");
@@ -19,16 +22,16 @@ async function dragIconPath(): Promise<string> {
   return cachedDragIconPath;
 }
 
-function isOutsideViewport(clientX: number, clientY: number): boolean {
+function isOutsideOrNearEdge(clientX: number, clientY: number): boolean {
   return (
-    clientX <= 0 ||
-    clientY <= 0 ||
-    clientX >= window.innerWidth ||
-    clientY >= window.innerHeight
+    clientX <= EDGE_MARGIN_PX ||
+    clientY <= EDGE_MARGIN_PX ||
+    clientX >= window.innerWidth - EDGE_MARGIN_PX ||
+    clientY >= window.innerHeight - EDGE_MARGIN_PX
   );
 }
 
-/** Start Windows-native OLE file drag so drop targets outside AFM get CF_HDROP paths. */
+/** Start Windows-native OLE file drag (patched drag offers COPY|MOVE|LINK). */
 export async function startNativeFileDragOut(paths: string[]): Promise<void> {
   const cleaned = paths.map((p) => p.trim()).filter(Boolean);
   if (outboundBusy || cleaned.length === 0) return;
@@ -38,7 +41,7 @@ export async function startNativeFileDragOut(paths: string[]): Promise<void> {
     await startDrag({
       item: cleaned,
       icon,
-      // Copy: players / external apps should not move files out of the listing.
+      // Mode retained for plugin API; Windows patch always offers copy|move|link.
       mode: "copy",
     });
   } catch (err) {
@@ -49,8 +52,8 @@ export async function startNativeFileDragOut(paths: string[]): Promise<void> {
 }
 
 /**
- * While an HTML5 drag is active, watch for leave-window / blur and switch to
- * native OLE drag-out (Sigma-style hybrid).
+ * While an HTML5 drag is active, watch for leave-window / near-edge / blur and
+ * switch to native OLE drag-out (Hybrid 出站).
  */
 export function armNativeFileDragOut(paths: string[]): void {
   disarmNativeFileDragOut();
@@ -66,7 +69,13 @@ export function armNativeFileDragOut(paths: string[]): void {
   };
 
   const onDrag = (event: DragEvent) => {
-    if (isOutsideViewport(event.clientX, event.clientY)) {
+    if (isOutsideOrNearEdge(event.clientX, event.clientY)) {
+      tryOutbound();
+    }
+  };
+
+  const onDragLeave = (event: DragEvent) => {
+    if (!event.relatedTarget) {
       tryOutbound();
     }
   };
@@ -84,6 +93,7 @@ export function armNativeFileDragOut(paths: string[]): void {
   };
 
   document.addEventListener("drag", onDrag);
+  document.addEventListener("dragleave", onDragLeave);
   document.addEventListener("dragend", onDragEnd);
   window.addEventListener("blur", onBlur);
   document.addEventListener("visibilitychange", onVisibility);
@@ -102,6 +112,7 @@ export function armNativeFileDragOut(paths: string[]): void {
 
   activeCleanup = () => {
     document.removeEventListener("drag", onDrag);
+    document.removeEventListener("dragleave", onDragLeave);
     document.removeEventListener("dragend", onDragEnd);
     window.removeEventListener("blur", onBlur);
     document.removeEventListener("visibilitychange", onVisibility);

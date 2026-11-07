@@ -314,6 +314,7 @@
     "nItems": "{count} 项",
     "movedInto": "已将 {count} 项移入 {name}",
     "copiedInto": "已将 {count} 项复制到 {name}",
+    "linkedInto": "已在 {name} 创建 {count} 个快捷方式",
     "filterPlaceholder": "搜索当前文件夹…（名称、type:、size:、date:）",
     "filterToggle": "搜索文件夹",
     "filterClear": "清除搜索",

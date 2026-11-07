@@ -394,6 +394,7 @@
     "nItems": "{count} 項目",
     "movedInto": "{count} 項目を {name} へ移動しました",
     "copiedInto": "{count} 項目を {name} へコピーしました",
+    "linkedInto": "{name} にショートカットを {count} 件作成しました",
     "filterPlaceholder": "このフォルダーを検索…（名前 / type: / size: / date:）",
     "filterToggle": "フォルダーを検索",
     "filterClear": "検索をクリア",

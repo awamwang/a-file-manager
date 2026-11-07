@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-/** Explorer drop rules: same volume moves, another volume copies. */
+/** Explorer drop rules: same volume moves, another volume copies; Alt = link. */
 
-export type DropMode = "copy" | "move";
+export type DropMode = "copy" | "move" | "link";
 
 /** Drive letter, or `unc:server` for a UNC path. Empty when unknown. */
 export function volumeKey(path: string): string {
@@ -18,8 +18,9 @@ export function volumeKey(path: string): string {
 export function dropTransferMode(
   sources: string[],
   dest: string,
-  modifiers: { ctrl?: boolean; shift?: boolean } = {},
+  modifiers: { ctrl?: boolean; shift?: boolean; alt?: boolean } = {},
 ): DropMode {
+  if (modifiers.alt) return "link";
   if (modifiers.ctrl) return "copy";
   if (modifiers.shift) return "move";
   const destVolume = volumeKey(dest);
