@@ -76,6 +76,10 @@ import {
   estimateIconColumns,
   moveSelectionByArrow,
 } from "../state/navigatorKeyboardNav";
+import {
+  estimatePlaceholderCount,
+  iconSlotCssSize,
+} from "../state/listPlaceholders";
 import { sortedEntries, sortColumn, sortDirection, toggleSort } from "../state/navigatorSort";
 import {
   isContentView,
@@ -274,6 +278,11 @@ function closeProperties() {
 
 const listRoot = ref<HTMLElement | null>(null);
 const secondaryListRoot = ref<HTMLElement | null>(null);
+/** AIA-267: measure list surface so loading placeholders match the viewport. */
+const listViewport = ref({ w: 0, h: 0 });
+const secondaryViewport = ref({ w: 0, h: 0 });
+let listSizeObserver: ResizeObserver | null = null;
+let secondarySizeObserver: ResizeObserver | null = null;
 const marquee = ref<{ x: number; y: number; w: number; h: number } | null>(null);
 let marqueeOrigin: { x: number; y: number } | null = null;
 let marqueeActive = false;
@@ -625,6 +634,10 @@ onMounted(() => {
 onUnmounted(() => {
   clearPendingNameRename();
   disconnectIconObservers();
+  listSizeObserver?.disconnect();
+  listSizeObserver = null;
+  secondarySizeObserver?.disconnect();
+  secondarySizeObserver = null;
   unregisterNavFileShortcuts();
   window.removeEventListener("mousemove", onMarqueeMove);
   window.removeEventListener("mouseup", onMarqueeEnd);
@@ -743,6 +756,75 @@ function onColumnResizeEnd() {
 }
 
 const iconPixelSize = computed(() => VIEW_ICON_SIZE[navigatorViewMode.value]);
+
+/** Reserve shell-icon / FluentIcon slot at the active view size (AIA-267). */
+const listIconStyle = computed(() => ({
+  "--nav-icon-size": iconSlotCssSize(navigatorViewMode.value),
+}));
+
+const showListPlaceholders = computed(
+  () => listLoading.value && visibleEntries.value.length === 0,
+);
+const showSecondaryPlaceholders = computed(
+  () => secondaryLoading.value && secondaryEntries.value.length === 0,
+);
+const placeholderCount = computed(() =>
+  estimatePlaceholderCount(
+    navigatorViewMode.value,
+    listViewport.value.w,
+    listViewport.value.h,
+  ),
+);
+const secondaryPlaceholderCount = computed(() =>
+  estimatePlaceholderCount(
+    navigatorViewMode.value,
+    secondaryViewport.value.w,
+    secondaryViewport.value.h,
+  ),
+);
+const placeholderIndices = computed(() =>
+  Array.from({ length: placeholderCount.value }, (_, i) => i),
+);
+const secondaryPlaceholderIndices = computed(() =>
+  Array.from({ length: secondaryPlaceholderCount.value }, (_, i) => i),
+);
+
+function syncListViewport(
+  el: HTMLElement | null,
+  target: typeof listViewport,
+): void {
+  if (!el) {
+    target.value = { w: 0, h: 0 };
+    return;
+  }
+  target.value = { w: el.clientWidth, h: el.clientHeight };
+}
+
+function bindListSizeObserver(
+  el: HTMLElement | null,
+  previous: ResizeObserver | null,
+  target: typeof listViewport,
+): ResizeObserver | null {
+  previous?.disconnect();
+  syncListViewport(el, target);
+  if (!el || typeof ResizeObserver === "undefined") return null;
+  const observer = new ResizeObserver(() => syncListViewport(el, target));
+  observer.observe(el);
+  return observer;
+}
+
+watch([listRoot, secondaryListRoot], () => {
+  listSizeObserver = bindListSizeObserver(
+    listRoot.value,
+    listSizeObserver,
+    listViewport,
+  );
+  secondarySizeObserver = bindListSizeObserver(
+    secondaryListRoot.value,
+    secondarySizeObserver,
+    secondaryViewport,
+  );
+});
 
 function shellIcon(path: string): string | null {
   return iconUrlFor(path, iconPixelSize.value);
@@ -1375,8 +1457,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
     />
     <template v-else>
     <p class="pane-path" :title="currentPath">{{ currentPath || t("navigator.noPath") }}</p>
-    <p v-if="listLoading" class="fluent-banner">{{ t("navigator.loading") }}</p>
-    <p v-else-if="listError" class="fluent-banner fluent-banner--error">{{ listError }}</p>
+    <p v-if="listError && !listLoading" class="fluent-banner fluent-banner--error">{{ listError }}</p>
     <p v-else-if="folderSearchActive && primarySearchLoading" class="fluent-banner">
       {{ t("navigator.filterSearching") }}
     </p>
@@ -1386,7 +1467,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
     >
       {{ t("navigator.filterEmpty") }}
     </p>
-    <p v-else-if="listing && listing.entries.length === 0" class="fluent-banner">
+    <p v-else-if="listing && listing.entries.length === 0 && !listLoading" class="fluent-banner">
       {{ t("navigator.empty") }}
     </p>
     <p
@@ -1397,7 +1478,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
     </p>
 
     <div
-      v-if="listing"
+      v-if="listing || listLoading"
       ref="listRoot"
       class="fluent-surface list"
       :class="{
@@ -1413,9 +1494,12 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         'list--grouped': navigatorGroupByType,
         'list--drop': dragOverPath === currentPath,
       }"
+      :style="listIconStyle"
       role="list"
       tabindex="-1"
       data-focus-default
+      :aria-busy="listLoading ? 'true' : undefined"
+      :aria-label="listLoading ? t('navigator.loading') : undefined"
       @keydown="onListKeyDown"
       @wheel="onListWheel"
       @contextmenu="onListContextMenu"
@@ -1469,7 +1553,30 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         </button>
       </div>
 
-      <template v-if="groupedVisibleEntries">
+      <template v-if="showListPlaceholders">
+        <div
+          v-for="index in placeholderIndices"
+          :key="`ph-${index}`"
+          class="fluent-list-row fluent-list-row--density row row--placeholder"
+          :class="{
+            'row--icon': isIconView,
+            'row--tile': isTilesView,
+            'row--content': isContentView,
+          }"
+          :style="isDetailsView ? detailsGridStyle : undefined"
+          aria-hidden="true"
+        >
+          <span class="kind kind--placeholder" />
+          <span class="name-block">
+            <span class="name name--placeholder" />
+            <span v-if="isTilesView || isContentView" class="row-meta row-meta--placeholder" />
+          </span>
+          <span v-if="isDetailsView" class="type type--placeholder" />
+          <span v-if="isDetailsView" class="size size--placeholder" />
+          <span v-if="isDetailsView" class="modified modified--placeholder" />
+        </div>
+      </template>
+      <template v-else-if="groupedVisibleEntries">
         <div
           v-for="group in groupedVisibleEntries"
           :key="group.key"
@@ -1644,10 +1751,14 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
       <p class="pane-path" :title="secondaryPath">
         {{ secondaryPath || t("navigator.noPath") }}
       </p>
-      <p v-if="secondaryLoading" class="fluent-banner">{{ t("navigator.loading") }}</p>
-      <p v-else-if="secondaryError" class="fluent-banner fluent-banner--error">{{ secondaryError }}</p>
+      <p
+        v-if="secondaryError && !secondaryLoading"
+        class="fluent-banner fluent-banner--error"
+      >
+        {{ secondaryError }}
+      </p>
       <div
-        v-else-if="secondaryListing"
+        v-if="secondaryListing || secondaryLoading"
         ref="secondaryListRoot"
         class="fluent-surface list"
         :class="{
@@ -1662,12 +1773,39 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           'list--content': isContentView,
           'list--drop': dragOverPath === secondaryPath,
         }"
+        :style="listIconStyle"
         role="list"
+        :aria-busy="secondaryLoading ? 'true' : undefined"
+        :aria-label="secondaryLoading ? t('navigator.loading') : undefined"
         @wheel="onListWheel"
         @dragover="onListDragOver($event, secondaryPath)"
         @dragleave="onListDragLeave($event, secondaryPath)"
         @drop="onListDrop($event, secondaryPath)"
       >
+        <template v-if="showSecondaryPlaceholders">
+          <div
+            v-for="index in secondaryPlaceholderIndices"
+            :key="`sph-${index}`"
+            class="fluent-list-row fluent-list-row--density row row--placeholder"
+            :class="{
+              'row--icon': isIconView,
+              'row--tile': isTilesView,
+              'row--content': isContentView,
+            }"
+            :style="isDetailsView ? detailsGridStyle : undefined"
+            aria-hidden="true"
+          >
+            <span class="kind kind--placeholder" />
+            <span class="name-block">
+              <span class="name name--placeholder" />
+              <span v-if="isTilesView || isContentView" class="row-meta row-meta--placeholder" />
+            </span>
+            <span v-if="isDetailsView" class="type type--placeholder" />
+            <span v-if="isDetailsView" class="size size--placeholder" />
+            <span v-if="isDetailsView" class="modified modified--placeholder" />
+          </div>
+        </template>
+        <template v-else>
         <div
           v-for="entry in secondaryEntries"
           :key="entry.path"
@@ -1719,6 +1857,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           <span v-if="isDetailsView" class="size">{{ formatSize(entry) }}</span>
           <span v-if="isDetailsView" class="modified">{{ formatModified(entry) }}</span>
         </div>
+        </template>
       </div>
     </div>
     </div>
@@ -1948,8 +2087,8 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
 }
 
 .list--icons .shell-icon {
-  width: auto;
-  height: auto;
+  width: var(--nav-icon-size, 16px);
+  height: var(--nav-icon-size, 16px);
   max-width: 100%;
 }
 
@@ -2084,6 +2223,9 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: var(--nav-icon-size, 16px);
+  height: var(--nav-icon-size, 16px);
+  flex-shrink: 0;
   color: var(--fluent-color-text-secondary);
 }
 
@@ -2091,11 +2233,63 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   color: var(--fluent-color-fill-accent);
 }
 
+/* Keep FluentIcon fallback at view size until shell icons arrive (AIA-267). */
+.kind :deep(.fluent-icon) {
+  width: var(--nav-icon-size, 16px);
+  height: var(--nav-icon-size, 16px);
+  font-size: var(--nav-icon-size, 16px);
+}
+
 .shell-icon {
-  width: 16px;
-  height: 16px;
+  width: var(--nav-icon-size, 16px);
+  height: var(--nav-icon-size, 16px);
   object-fit: contain;
   flex-shrink: 0;
+}
+
+.row--placeholder {
+  pointer-events: none;
+}
+
+.kind--placeholder,
+.name--placeholder,
+.row-meta--placeholder,
+.type--placeholder,
+.size--placeholder,
+.modified--placeholder {
+  display: block;
+  border-radius: var(--fluent-radius-sm);
+  background: color-mix(in srgb, var(--fluent-color-text-secondary) 16%, transparent);
+}
+
+.kind--placeholder {
+  width: var(--nav-icon-size, 16px);
+  height: var(--nav-icon-size, 16px);
+}
+
+.name--placeholder {
+  width: min(12rem, 70%);
+  height: 0.85rem;
+  margin-block: 0.2rem;
+}
+
+.list--icons .name--placeholder {
+  width: 80%;
+  margin-inline: auto;
+}
+
+.row-meta--placeholder {
+  width: min(9rem, 55%);
+  height: 0.7rem;
+  margin-top: 0.25rem;
+}
+
+.type--placeholder,
+.size--placeholder,
+.modified--placeholder {
+  width: 70%;
+  height: 0.75rem;
+  margin-block: 0.35rem;
 }
 
 .name-block {
