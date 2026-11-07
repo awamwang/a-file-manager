@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-/** AI Add-on front-end types (AIA-214 / A1). Core FM must not import these for Workspace ops. */
+/** AI Add-on front-end types (AIA-214 / A1 · AIA-215 / A2). Core FM must not import these for Workspace ops. */
 
 export type AiMenuSectionId = "agents" | "mcp" | "skills" | "providers";
 
@@ -20,4 +20,36 @@ export type AiMenuSectionDef = {
   bodyKey: string;
   /** Glyph for the section tile (Fluent catalog id). */
   icon: "viewAll" | "puzzle" | "link" | "cloud";
+};
+
+/** Agent Target registry row (ADR 0006). */
+export type AgentTarget = {
+  id: string;
+  displayName: string;
+  kind: "builtin" | "custom" | string;
+  enabled: boolean;
+  discovered: boolean;
+  globalSkillsDir: string;
+  projectSkillsDir: string;
+  globalMcpPath: string;
+  projectMcpPath: string;
+  /** Placeholder only — never injected (A2). */
+  mcpUsagePrompt: string;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type AiConfigDocument = {
+  schemaVersion: number;
+  agentTargets: AgentTarget[];
+};
+
+export type AgentTargetPatch = {
+  displayName?: string | null;
+  enabled?: boolean | null;
+  globalSkillsDir?: string | null;
+  projectSkillsDir?: string | null;
+  globalMcpPath?: string | null;
+  projectMcpPath?: string | null;
+  mcpUsagePrompt?: string | null;
 };

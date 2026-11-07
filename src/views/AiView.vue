@@ -1,14 +1,14 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
 /**
- * AIA-214 / A1 — AI Add-on main menu shell.
- * Hosts placeholder partitions for Agent Target / MCP / Skills / AI Providers.
- * Does not implement A2+ registries or deploy.
+ * AIA-214 / A1 + AIA-215 / A2 — AI Add-on main menu.
+ * Agents section hosts the Agent Target registry; other sections stay placeholders.
  */
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { AI_MENU_SECTIONS, type AiAddonStatus } from "../ai";
+import AgentTargetsPanel from "../ai/AgentTargetsPanel.vue";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 
 const { t } = useI18n();
@@ -87,6 +87,8 @@ onMounted(() => {
             }}
           </span>
         </div>
+
+        <AgentTargetsPanel v-if="section.id === 'agents'" />
       </article>
     </div>
   </section>
@@ -102,7 +104,7 @@ onMounted(() => {
   flex-direction: column;
   gap: var(--fluent-space-md);
   margin-top: var(--fluent-space-lg);
-  max-width: 42rem;
+  max-width: 56rem;
 }
 
 .ai-section {

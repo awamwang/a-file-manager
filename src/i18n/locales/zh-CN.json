@@ -140,14 +140,14 @@
   "ai": {
     "title": "AI",
     "meta": "AI 附加层 — Agent Target、公共 MCP / Skills 与模型 Providers",
-    "usageHint": "此页承载后续 AI 能力入口。下列分区目前为占位，待对应切片落地。",
+    "usageHint": "在此管理 Agent Target。公共 MCP、Skills 与 AI Providers 将在后续切片落地。",
     "shellStatus": "AI Add-on 壳 v{version} · 层 {layer}",
     "sectionPlaceholder": "稍后",
     "sectionReady": "就绪",
     "sections": {
       "agents": {
         "title": "Agent Target",
-        "body": "发现 / 启用 / 自定义 Agent Target（Skills 与 MCP 路径）。后续切片提供。"
+        "body": "发现 / 启用 / 自定义统一 Agent Target（全局与项目相对的 Skills 目录、MCP 路径）。"
       },
       "mcp": {
         "title": "公共 MCP",
@@ -161,6 +161,37 @@
         "title": "AI Providers",
         "body": "主流预设 + Compatible（Base URL / API Key）。与文件系统「提供程序」不同。当前占位。"
       }
+    },
+    "agents": {
+      "summary": "共 {total} 个 · 已发现 {discovered} · 已启用 {enabled}",
+      "discover": "刷新发现",
+      "addCustom": "添加自定义目标",
+      "enable": "启用",
+      "disable": "禁用",
+      "save": "保存",
+      "kindBuiltin": "内置",
+      "kindCustom": "自定义",
+      "badgeDiscovered": "磁盘已找到",
+      "fieldName": "显示名称",
+      "fieldId": "Id（可选）",
+      "fieldIdHint": "小写 ascii-id — 留空则由名称生成",
+      "fieldGlobalSkills": "全局 Skills 目录",
+      "fieldProjectSkills": "项目相对 Skills 目录",
+      "fieldGlobalMcp": "全局 MCP 配置路径",
+      "fieldProjectMcp": "项目相对 MCP 配置路径",
+      "fieldMcpPrompt": "MCP 使用提示词（占位）",
+      "fieldMcpPromptHint": "仅存储 — 尚未注入到 Agent",
+      "mcpPromptNote": "占位字段（ADR 0006）。写入 APPDATA AI 配置；不参与实际注入。",
+      "noticeDiscovered": "已刷新 Agent 发现",
+      "noticeSaved": "Agent Target 已保存",
+      "noticeCustomAdded": "已添加自定义 Agent Target",
+      "noticeRemoved": "已删除自定义 Agent Target",
+      "errorIdEmpty": "Agent id 不能为空",
+      "errorIdInvalid": "Agent id 须为小写 ASCII（字母、数字、连字符）",
+      "errorNameEmpty": "显示名称不能为空",
+      "errorUnknown": "未知 Agent Target",
+      "errorBuiltinRemove": "不能删除内置 Agent Target",
+      "errorIdConflict": "该 id 与内置 Agent Target 冲突"
     }
   },
   "navigator": {

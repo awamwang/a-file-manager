@@ -99,14 +99,14 @@
   "ai": {
     "title": "IA",
     "meta": "Module IA — cibles Agent, MCP / Skills publics et fournisseurs de modèles",
-    "usageHint": "Cette coque accueille les capacités IA à venir. Les sections ci-dessous sont des espaces réservés.",
+    "usageHint": "Gérez les cibles Agent ici. MCP public, Skills et fournisseurs IA arriveront dans des tranches ultérieures.",
     "shellStatus": "Coque module IA v{version} · couche {layer}",
     "sectionPlaceholder": "Plus tard",
     "sectionReady": "Prêt",
     "sections": {
       "agents": {
         "title": "Cibles Agent",
-        "body": "Découvrir, activer et personnaliser les cibles Agent (chemins Skills / MCP). À venir dans une tranche ultérieure."
+        "body": "Découvrir, activer et personnaliser des cibles Agent unifiées (répertoires Skills et chemins MCP globaux / relatifs au projet)."
       },
       "mcp": {
         "title": "MCP public",
@@ -120,6 +120,37 @@
         "title": "Fournisseurs IA",
         "body": "Préréglages courants + Compatible (URL de base / clé API). Distinct des fournisseurs de fichiers. Espace réservé pour l’instant."
       }
+    },
+    "agents": {
+      "summary": "{total} cibles · {discovered} détectées · {enabled} activées",
+      "discover": "Actualiser la détection",
+      "addCustom": "Ajouter une cible perso",
+      "enable": "Activer",
+      "disable": "Désactiver",
+      "save": "Enregistrer",
+      "kindBuiltin": "Intégré",
+      "kindCustom": "Personnalisé",
+      "badgeDiscovered": "trouvé sur le disque",
+      "fieldName": "Nom affiché",
+      "fieldId": "Id (facultatif)",
+      "fieldIdHint": "ascii-id — laisser vide pour dériver du nom",
+      "fieldGlobalSkills": "Répertoire Skills global",
+      "fieldProjectSkills": "Répertoire Skills relatif au projet",
+      "fieldGlobalMcp": "Chemin de config MCP global",
+      "fieldProjectMcp": "Chemin de config MCP relatif au projet",
+      "fieldMcpPrompt": "Invite d’usage MCP (espace réservé)",
+      "fieldMcpPromptHint": "Stocké seulement — pas encore injecté",
+      "mcpPromptNote": "Champ réservé (ADR 0006). Enregistré dans la config IA APPDATA ; non utilisé pour l’injection.",
+      "noticeDiscovered": "Détection des agents actualisée",
+      "noticeSaved": "Cible Agent enregistrée",
+      "noticeCustomAdded": "Cible Agent personnalisée ajoutée",
+      "noticeRemoved": "Cible Agent personnalisée supprimée",
+      "errorIdEmpty": "L’id Agent ne peut pas être vide",
+      "errorIdInvalid": "L’id Agent doit être en ASCII minuscule (lettres, chiffres, tiret)",
+      "errorNameEmpty": "Le nom affiché ne peut pas être vide",
+      "errorUnknown": "Cible Agent inconnue",
+      "errorBuiltinRemove": "Les cibles Agent intégrées ne peuvent pas être supprimées",
+      "errorIdConflict": "Cet id entre en conflit avec une cible Agent intégrée"
     }
   },
   "common": {

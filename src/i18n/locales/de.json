@@ -99,14 +99,14 @@
   "ai": {
     "title": "AI",
     "meta": "AI-Add-on — Agent Targets, gemeinsame MCP/Skills und Modell-Provider",
-    "usageHint": "Diese Oberfläche nimmt künftige AI-Funktionen auf. Die Abschnitte unten sind Platzhalter.",
+    "usageHint": "Agent Targets hier verwalten. Öffentliches MCP, Skills und AI-Provider folgen in späteren Slices.",
     "shellStatus": "AI-Add-on-Shell v{version} · Schicht {layer}",
     "sectionPlaceholder": "Später",
     "sectionReady": "Bereit",
     "sections": {
       "agents": {
         "title": "Agent Targets",
-        "body": "Agent Targets entdecken, aktivieren und anpassen (Skills-/MCP-Pfade). Kommt in einem späteren Slice."
+        "body": "Einheitliche Agent Targets entdecken, aktivieren und anpassen (globale/projektrelative Skills- und MCP-Pfade)."
       },
       "mcp": {
         "title": "Öffentliches MCP",
@@ -120,6 +120,37 @@
         "title": "AI-Provider",
         "body": "Mainstream-Presets plus Compatible (Base-URL / API-Key). Getrennt von Dateisystem-Anbietern. Derzeit Platzhalter."
       }
+    },
+    "agents": {
+      "summary": "{total} Ziele · {discovered} gefunden · {enabled} aktiv",
+      "discover": "Erkennung aktualisieren",
+      "addCustom": "Eigenes Ziel hinzufügen",
+      "enable": "Aktivieren",
+      "disable": "Deaktivieren",
+      "save": "Speichern",
+      "kindBuiltin": "Integriert",
+      "kindCustom": "Benutzerdefiniert",
+      "badgeDiscovered": "auf Datenträger gefunden",
+      "fieldName": "Anzeigename",
+      "fieldId": "Id (optional)",
+      "fieldIdHint": "ascii-id — leer lassen zum Ableiten vom Namen",
+      "fieldGlobalSkills": "Globales Skills-Verzeichnis",
+      "fieldProjectSkills": "Projektrelatives Skills-Verzeichnis",
+      "fieldGlobalMcp": "Globaler MCP-Konfigurationspfad",
+      "fieldProjectMcp": "Projektrelativer MCP-Konfigurationspfad",
+      "fieldMcpPrompt": "MCP-Nutzungshinweis (Platzhalter)",
+      "fieldMcpPromptHint": "Nur gespeichert — noch nicht injiziert",
+      "mcpPromptNote": "Platzhalterfeld (ADR 0006). In APPDATA-AI-Konfiguration gespeichert; nicht zur Injektion genutzt.",
+      "noticeDiscovered": "Agent-Erkennung aktualisiert",
+      "noticeSaved": "Agent Target gespeichert",
+      "noticeCustomAdded": "Benutzerdefiniertes Agent Target hinzugefügt",
+      "noticeRemoved": "Benutzerdefiniertes Agent Target entfernt",
+      "errorIdEmpty": "Agent-Id darf nicht leer sein",
+      "errorIdInvalid": "Agent-Id muss Kleinbuchstaben-ASCII sein (Buchstaben, Ziffern, Bindestrich)",
+      "errorNameEmpty": "Anzeigename darf nicht leer sein",
+      "errorUnknown": "Unbekanntes Agent Target",
+      "errorBuiltinRemove": "Integrierte Agent Targets können nicht entfernt werden",
+      "errorIdConflict": "Diese Id kollidiert mit einem integrierten Agent Target"
     }
   },
   "common": {

@@ -99,14 +99,14 @@
   "ai": {
     "title": "AI",
     "meta": "AI アドオン — Agent Target、共有 MCP / Skills、モデル Providers",
-    "usageHint": "このシェルは今後の AI 機能の入口です。下記セクションはプレースホルダーです。",
+    "usageHint": "ここで Agent Target を管理します。共有 MCP / Skills / AI Providers は後続スライスです。",
     "shellStatus": "AI Add-on シェル v{version} · レイヤー {layer}",
     "sectionPlaceholder": "後日",
     "sectionReady": "準備完了",
     "sections": {
       "agents": {
         "title": "Agent Target",
-        "body": "Agent Target の検出・有効化・カスタム（Skills / MCP パス）。後続スライスで実装。"
+        "body": "統一 Agent Target の検出・有効化・カスタム（グローバル/プロジェクト相対の Skills と MCP パス）。"
       },
       "mcp": {
         "title": "共有 MCP",
@@ -120,6 +120,37 @@
         "title": "AI Providers",
         "body": "主流プリセット + Compatible（Base URL / API Key）。ファイルシステム Providers とは別。現在はプレースホルダー。"
       }
+    },
+    "agents": {
+      "summary": "{total} 件 · 検出 {discovered} · 有効 {enabled}",
+      "discover": "検出を更新",
+      "addCustom": "カスタムを追加",
+      "enable": "有効化",
+      "disable": "無効化",
+      "save": "保存",
+      "kindBuiltin": "組み込み",
+      "kindCustom": "カスタム",
+      "badgeDiscovered": "ディスク上で検出",
+      "fieldName": "表示名",
+      "fieldId": "Id（任意）",
+      "fieldIdHint": "ascii-id — 空なら名前から生成",
+      "fieldGlobalSkills": "グローバル Skills ディレクトリ",
+      "fieldProjectSkills": "プロジェクト相対 Skills ディレクトリ",
+      "fieldGlobalMcp": "グローバル MCP 設定パス",
+      "fieldProjectMcp": "プロジェクト相対 MCP 設定パス",
+      "fieldMcpPrompt": "MCP 使用プロンプト（プレースホルダー）",
+      "fieldMcpPromptHint": "保存のみ — まだ注入しません",
+      "mcpPromptNote": "プレースホルダー（ADR 0006）。APPDATA AI 設定に保存；注入には使いません。",
+      "noticeDiscovered": "Agent 検出を更新しました",
+      "noticeSaved": "Agent Target を保存しました",
+      "noticeCustomAdded": "カスタム Agent Target を追加しました",
+      "noticeRemoved": "カスタム Agent Target を削除しました",
+      "errorIdEmpty": "Agent id は空にできません",
+      "errorIdInvalid": "Agent id は小文字 ASCII（英数字・ハイフン）である必要があります",
+      "errorNameEmpty": "表示名は空にできません",
+      "errorUnknown": "不明な Agent Target",
+      "errorBuiltinRemove": "組み込み Agent Target は削除できません",
+      "errorIdConflict": "その id は組み込み Agent Target と衝突します"
     }
   },
   "common": {

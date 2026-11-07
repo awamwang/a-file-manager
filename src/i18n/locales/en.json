@@ -140,14 +140,14 @@
   "ai": {
     "title": "AI",
     "meta": "AI Add-on — Agent targets, public MCP & Skills, and model providers",
-    "usageHint": "This shell hosts upcoming AI capabilities. Sections below are placeholders until their slices land.",
+    "usageHint": "Manage Agent Targets here. Public MCP, Skills, and AI Providers land in later slices.",
     "shellStatus": "AI Add-on shell v{version} · layer {layer}",
     "sectionPlaceholder": "Later",
     "sectionReady": "Ready",
     "sections": {
       "agents": {
         "title": "Agent Targets",
-        "body": "Discover, enable, and customize Agent Targets (skills/MCP paths). Coming in a later slice."
+        "body": "Discover, enable, and customize unified Agent Targets (global/project Skills dirs and MCP paths)."
       },
       "mcp": {
         "title": "Public MCP",
@@ -161,6 +161,37 @@
         "title": "AI Providers",
         "body": "Mainstream presets plus Compatible (Base URL / API Key). Separate from file-system Providers. Placeholder for now."
       }
+    },
+    "agents": {
+      "summary": "{total} targets · {discovered} discovered · {enabled} enabled",
+      "discover": "Refresh discovery",
+      "addCustom": "Add custom target",
+      "enable": "Enable",
+      "disable": "Disable",
+      "save": "Save",
+      "kindBuiltin": "Built-in",
+      "kindCustom": "Custom",
+      "badgeDiscovered": "found on disk",
+      "fieldName": "Display name",
+      "fieldId": "Id (optional)",
+      "fieldIdHint": "ascii-id — leave blank to derive from name",
+      "fieldGlobalSkills": "Global Skills directory",
+      "fieldProjectSkills": "Project-relative Skills directory",
+      "fieldGlobalMcp": "Global MCP config path",
+      "fieldProjectMcp": "Project-relative MCP config path",
+      "fieldMcpPrompt": "MCP usage prompt (placeholder)",
+      "fieldMcpPromptHint": "Stored only — not injected into agents yet",
+      "mcpPromptNote": "Placeholder field (ADR 0006). Saved to APPDATA AI config; not used for injection.",
+      "noticeDiscovered": "Agent discovery refreshed",
+      "noticeSaved": "Agent Target saved",
+      "noticeCustomAdded": "Custom Agent Target added",
+      "noticeRemoved": "Custom Agent Target removed",
+      "errorIdEmpty": "Agent id cannot be empty",
+      "errorIdInvalid": "Agent id must be lowercase ASCII (letters, digits, hyphen)",
+      "errorNameEmpty": "Display name cannot be empty",
+      "errorUnknown": "Unknown Agent Target",
+      "errorBuiltinRemove": "Built-in Agent Targets cannot be removed",
+      "errorIdConflict": "That id conflicts with a built-in Agent Target"
     }
   },
   "navigator": {
