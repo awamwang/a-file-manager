@@ -5,7 +5,12 @@ import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import FluentIcon from "../icons/FluentIcon.vue";
 import { currentPath, navigateTo, type NavigatorListing } from "../../state/navigatorBrowse";
-import { directoryChildren, treePathActive, type FolderTreeChild } from "../../state/folderTree";
+import {
+  directoryChildren,
+  treeRowHighlight,
+  type FolderTreeChild,
+  type TreeHighlightMode,
+} from "../../state/folderTree";
 import { showHiddenItems } from "../../state/showHidden";
 
 const props = withDefaults(
@@ -13,8 +18,10 @@ const props = withDefaults(
     path: string;
     label: string;
     depth?: number;
+    /** AIA-230: entry roots have no selected semantics. */
+    highlightMode?: TreeHighlightMode;
   }>(),
-  { depth: 0 },
+  { depth: 0, highlightMode: "tree" },
 );
 
 const { t } = useI18n();
@@ -22,7 +29,9 @@ const expanded = ref(false);
 const loading = ref(false);
 const children = ref<FolderTreeChild[] | null>(null);
 
-const active = computed(() => treePathActive(currentPath.value, props.path));
+const highlight = computed(() =>
+  treeRowHighlight(currentPath.value, props.path, props.highlightMode),
+);
 
 async function loadChildren() {
   loading.value = true;
@@ -52,7 +61,7 @@ function open() {
 </script>
 
 <template>
-  <div class="tree-branch">
+  <div class="tree-branch" :class="{ 'tree-branch--entry': highlightMode === 'entry' }">
     <div class="tree-row" :style="{ paddingLeft: `${depth * 12}px` }">
       <button
         type="button"
@@ -66,15 +75,19 @@ function open() {
       <button
         type="button"
         class="tree-label"
-        :class="{ 'tree-label--active': active }"
+        :class="{
+          'tree-label--selected': highlight === 'selected',
+          'tree-label--current': highlight === 'current',
+        }"
         :title="path"
+        :aria-current="highlight === 'current' ? 'page' : undefined"
         @click="open"
       >
         <FluentIcon name="folder" size="sm" />
         <span>{{ label }}</span>
       </button>
     </div>
-    <div v-if="expanded">
+    <div v-if="expanded" class="tree-children">
       <p v-if="loading" class="tree-note">{{ t("common.loading") }}</p>
       <p v-else-if="children && !children.length" class="tree-note">{{ t("common.empty") }}</p>
       <FolderTreeBranch
@@ -83,6 +96,7 @@ function open() {
         :path="child.path"
         :label="child.name"
         :depth="depth + 1"
+        highlight-mode="tree"
       />
     </div>
   </div>
@@ -143,9 +157,24 @@ function open() {
   white-space: nowrap;
 }
 
-.tree-label--active {
+/* Hierarchy selection (drives / expanded dirs) — selected semantics. */
+.tree-label--selected {
   background: var(--fluent-color-fill-selected);
   font-weight: var(--fluent-font-weight-semibold);
+}
+
+/*
+ * AIA-230 entry points (常用文件夹 / favorites roots):
+ * ephemeral current-path cue only — never fill-selected, clears when path leaves.
+ */
+.tree-label--current {
+  font-weight: var(--fluent-font-weight-semibold);
+  color: var(--fluent-color-text-primary);
+  box-shadow: inset 2px 0 0 var(--fluent-color-stroke-accent-soft);
+}
+
+.tree-label--current:hover {
+  background: var(--fluent-color-fill-control-hover);
 }
 
 .tree-note {

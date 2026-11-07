@@ -30,11 +30,23 @@ for (const needle of ["guide.sections.folders", "guide.title", "GUIDE_PATH", "Fo
     process.exit(1);
   }
 }
-for (const needle of ["navigator_list", "directoryChildren", "navigateTo"]) {
+for (const needle of ["navigator_list", "directoryChildren", "navigateTo", "treeRowHighlight"]) {
   if (!branch.includes(needle)) {
     console.error(`FolderTreeBranch missing ${needle}`);
     process.exit(1);
   }
+}
+if (!tree.includes('highlight-mode="entry"')) {
+  console.error("AIA-230: 常用文件夹 roots must use entry highlight (no sticky selected)");
+  process.exit(1);
+}
+if (branch.includes("tree-label--active") && !branch.includes("tree-label--current")) {
+  console.error("AIA-230: entry current highlight must replace sticky --active selected");
+  process.exit(1);
+}
+if (!branch.includes("tree-label--current") || !branch.includes("tree-label--selected")) {
+  console.error("AIA-230: need selected vs current highlight classes");
+  process.exit(1);
 }
 
 const result = spawnSync(

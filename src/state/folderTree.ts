@@ -30,3 +30,31 @@ export function treePathActive(current: string, node: string): boolean {
   if (here === root) return true;
   return here.startsWith(`${root}\\`);
 }
+
+/** Exact path match only (AIA-230 entry points — no sticky selected / descendant glow). */
+export function treePathExact(current: string, node: string): boolean {
+  const here = normalizeTreePath(current);
+  const root = normalizeTreePath(node);
+  if (!here || !root) return false;
+  return here === root;
+}
+
+/**
+ * AIA-230: how a sidebar row should highlight.
+ * - `tree`: hierarchy selection (node or descendant) → selected semantics
+ * - `entry`: favorite / 常用文件夹 roots → exact current only, never selected
+ */
+export type TreeHighlightMode = "tree" | "entry";
+
+export type TreeHighlight = "none" | "selected" | "current";
+
+export function treeRowHighlight(
+  current: string,
+  node: string,
+  mode: TreeHighlightMode,
+): TreeHighlight {
+  if (mode === "entry") {
+    return treePathExact(current, node) ? "current" : "none";
+  }
+  return treePathActive(current, node) ? "selected" : "none";
+}

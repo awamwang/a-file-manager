@@ -53,6 +53,7 @@ function openRecycleBin() {
       :key="item.path"
       :path="item.path"
       :label="folderLabel(item.id)"
+      highlight-mode="entry"
     />
     <p v-if="userFolders && !folderRows.length" class="folder-tree-empty">
       {{ t("guide.emptyFolders") }}

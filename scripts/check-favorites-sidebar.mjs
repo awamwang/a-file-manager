@@ -18,4 +18,19 @@ assert.ok(!shell.includes("fav-os-hook"), "OS verb must leave the shell sidenav"
 assert.ok(settings.includes("setFavoritesOsHookEnabled"), "OS verb belongs in Settings");
 assert.ok(!view.includes("favorites-chip"), "chips moved out of list chrome");
 
-console.log("Favorites places/settings checks OK (AIA-66/79).");
+// AIA-230: favorites / places entries are navigation entry points — no path-matched selected.
+const favHeading = shell.indexOf('places-heading--fav">{{ t("favorites.label") }}');
+assert.ok(favHeading >= 0, "favorites heading in places menu");
+const favBlockEnd = shell.indexOf('places-heading--fav">{{ t("recycleBin.section") }}', favHeading);
+assert.ok(favBlockEnd > favHeading, "recycle section follows favorites");
+const favBlock = shell.slice(favHeading, favBlockEnd);
+assert.ok(
+  !favBlock.includes("places-item--active"),
+  "AIA-230: favorites must not use sticky places-item--active",
+);
+assert.ok(
+  !/places-item[\s\S]*?:class=\{[^}]*currentPath/.test(favBlock),
+  "AIA-230: favorites must not bind selection to currentPath",
+);
+
+console.log("Favorites places/settings checks OK (AIA-66/79/230).");
