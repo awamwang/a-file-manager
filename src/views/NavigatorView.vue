@@ -563,11 +563,6 @@ watch(
 /** AIA-238: debounce overlapping window + Tauri focus events. */
 let lastFocusListingRefreshAt = 0;
 let unlistenWindowFocus: (() => void) | null = null;
-/**
- * AIA-266: OS focus cache. Background press must not focus tabindex rows
- * (WebView raise) — selection/activate wait for mouse-up or dragstart.
- */
-let afmWindowFocused = true;
 
 function refreshListingOnFocus() {
   const now = Date.now();
@@ -580,7 +575,6 @@ function refreshListingOnFocus() {
 }
 
 function onWindowFocus() {
-  afmWindowFocused = true;
   void refreshPreviewSetting();
   void loadNavigatorViewMode();
   void refreshClipboardFromSystem();
@@ -595,16 +589,7 @@ onMounted(() => {
   window.addEventListener("focus", onWindowFocus);
   // Tauri: returning from Explorer often skips DOM focus; listen to OS focus.
   void getCurrentWindow()
-    .isFocused()
-    .then((focused) => {
-      afmWindowFocused = focused;
-    })
-    .catch(() => {
-      afmWindowFocused = document.hasFocus();
-    });
-  void getCurrentWindow()
     .onFocusChanged(({ payload: focused }) => {
-      afmWindowFocused = focused;
       if (focused) onWindowFocus();
     })
     .then((unlisten) => {
@@ -919,15 +904,14 @@ function onListKeyDown(event: KeyboardEvent) {
 }
 
 /**
- * AIA-266 / Explorer: while AFM is background, mousedown must not focus the
- * tabindex row (that raises WebView). Stay in the drag gesture until mouse-up;
- * `@click` then selects + focuses. Foreground keeps default focus-on-press.
+ * AIA-268 / Explorer: never focus-on-press. WebView2 often keeps
+ * `document.hasFocus()` true while OS FG is Explorer, so the AIA-266
+ * background-only gate still allowed tabindex focus → host raise.
+ * Selection/focus finalize on `@click` (mouse-up); dragstart selectOnly only.
  */
 function onRowMouseDown(event: MouseEvent, _entry: NavigatorEntry) {
   if (event.button !== 0) return;
-  if (!afmWindowFocused || !document.hasFocus()) {
-    event.preventDefault();
-  }
+  event.preventDefault();
 }
 
 function onRowClick(event: MouseEvent, entry: NavigatorEntry) {
@@ -1599,7 +1583,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
             }"
             :style="isDetailsView ? detailsGridStyle : undefined"
             role="listitem"
-            tabindex="0"
+            tabindex="-1"
             draggable="true"
             :data-entry-path="entry.path"
             :aria-selected="isSelected(entry.path)"
@@ -1669,7 +1653,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         }"
         :style="isDetailsView ? detailsGridStyle : undefined"
         role="listitem"
-        tabindex="0"
+        tabindex="-1"
         draggable="true"
         :data-entry-path="entry.path"
         :aria-selected="isSelected(entry.path)"
@@ -1819,7 +1803,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           }"
           :style="isDetailsView ? detailsGridStyle : undefined"
           role="listitem"
-          tabindex="0"
+          tabindex="-1"
           draggable="true"
           :data-entry-path="entry.path"
           :aria-selected="isSelected(entry.path)"

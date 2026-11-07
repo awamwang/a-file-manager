@@ -24,7 +24,8 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
 use windows::Win32::UI::Shell::{DefSubclassProc, SetWindowSubclass};
 use windows::Win32::UI::WindowsAndMessaging::{
     GetCursorPos, GetForegroundWindow, GetSystemMetrics, IsChild, KillTimer, SetForegroundWindow,
-    SetTimer, MA_NOACTIVATE, SM_CXDRAG, SM_CYDRAG, WA_INACTIVE, WM_ACTIVATE, WM_LBUTTONDOWN,
+    SetTimer, SetWindowPos, HWND_TOP, MA_NOACTIVATE, SM_CXDRAG, SM_CYDRAG, SWP_NOACTIVATE,
+    SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, WA_INACTIVE, WM_ACTIVATE, WM_LBUTTONDOWN,
     WM_LBUTTONUP, WM_MOUSEACTIVATE, WM_PARENTNOTIFY, WM_TIMER,
 };
 
@@ -75,6 +76,19 @@ fn restore_press_prior_if_we_raised(our_root: HWND) {
         return;
     }
     let fg = unsafe { GetForegroundWindow() };
+    // AIA-268: WebView may bump z-order without a stable FG steal — always
+    // re-stack the press-time prior window, and re-foreground when we own FG.
+    let _ = unsafe {
+        SetWindowPos(
+            prev,
+            Some(HWND_TOP),
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW | SWP_NOACTIVATE,
+        )
+    };
     if hwnd_is_ours(our_root, fg) {
         let _ = unsafe { SetForegroundWindow(prev) };
     }

@@ -93,14 +93,22 @@ assert.ok(nav.includes("armNativeFileDragOut"), "NavigatorView must arm native d
 assert.ok(nav.includes("setOutboundPathPayload"), "NavigatorView must keep HTML5 payload");
 assert.ok(nav.includes('effectAllowed = "all"'), "dragstart should allow copy+move+link");
 assert.ok(
-  nav.includes("onRowMouseDown") && nav.includes("afmWindowFocused"),
-  "Navigator must defer row focus while background until mouse-up (AIA-266)",
+  nav.includes("onRowMouseDown") && nav.includes("preventDefault()"),
+  "Navigator must always preventDefault on row mousedown (AIA-268 Explorer no focus-on-press)",
 );
 assert.ok(
-  nav.includes("event.preventDefault()") || nav.includes("preventDefault()"),
-  "background row mousedown must preventDefault to block tabindex focus raise",
+  !nav.includes("afmWindowFocused"),
+  "must not gate press focus on fragile DOM/OS focus cache (AIA-268)",
+);
+assert.ok(
+  nav.includes('tabindex="-1"') && !nav.includes('tabindex="0"'),
+  "rows must be tabindex=-1 so Chromium does not focus-on-press (AIA-268)",
+);
+assert.ok(
+  dragFocusSrc.includes("SetWindowPos") && dragFocusSrc.includes("HWND_TOP"),
+  "drag_focus must restore prior z-order, not only SetForegroundWindow (AIA-268)",
 );
 
 console.log(
-  "File drag-out checks OK (AIA-240 COPY|MOVE|LINK + AIA-261/264/266 Explorer press→drag).",
+  "File drag-out checks OK (AIA-240 COPY|MOVE|LINK + AIA-261/264/266/268 Explorer press→drag).",
 );
