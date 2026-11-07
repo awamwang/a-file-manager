@@ -61,7 +61,15 @@ function open() {
 </script>
 
 <template>
-  <div class="tree-branch" :class="{ 'tree-branch--entry': highlightMode === 'entry' }">
+  <div
+    class="tree-branch"
+    :class="{
+      'tree-branch--entry': highlightMode === 'entry',
+      'tree-branch--nested': depth > 0,
+      'tree-branch--root': depth === 0,
+    }"
+    :data-depth="depth"
+  >
     <div class="tree-row" :style="{ paddingLeft: `${depth * 12}px` }">
       <button
         type="button"
@@ -78,16 +86,17 @@ function open() {
         :class="{
           'tree-label--selected': highlight === 'selected',
           'tree-label--current': highlight === 'current',
+          'tree-label--nested': depth > 0,
         }"
         :title="path"
         :aria-current="highlight === 'current' ? 'page' : undefined"
         @click="open"
       >
-        <FluentIcon name="folder" size="sm" />
+        <FluentIcon name="folder" size="sm" class="tree-label-icon" />
         <span>{{ label }}</span>
       </button>
     </div>
-    <div v-if="expanded" class="tree-children">
+    <div v-if="expanded" class="tree-children" :style="{ marginLeft: `${12 + depth * 12}px` }">
       <p v-if="loading" class="tree-note">{{ t("common.loading") }}</p>
       <p v-else-if="children && !children.length" class="tree-note">{{ t("common.empty") }}</p>
       <FolderTreeBranch
@@ -103,6 +112,15 @@ function open() {
 </template>
 
 <style scoped>
+.tree-branch--root > .tree-row .tree-label {
+  font-size: var(--fluent-font-size-body);
+}
+
+.tree-branch--nested > .tree-row .tree-label {
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+}
+
 .tree-row {
   display: flex;
   align-items: center;
@@ -157,10 +175,25 @@ function open() {
   white-space: nowrap;
 }
 
+.tree-label-icon {
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.tree-label--nested .tree-label-icon {
+  opacity: 0.7;
+}
+
+.tree-children {
+  border-left: 1px solid var(--fluent-color-stroke-divider);
+  padding-left: 2px;
+}
+
 /* Hierarchy selection (drives / expanded dirs) — selected semantics. */
 .tree-label--selected {
   background: var(--fluent-color-fill-selected);
   font-weight: var(--fluent-font-weight-semibold);
+  color: var(--fluent-color-text-primary);
 }
 
 /*
@@ -179,7 +212,7 @@ function open() {
 
 .tree-note {
   margin: 0;
-  padding: 0 0 0 1.75rem;
+  padding: 0 0 0 0.5rem;
   color: var(--fluent-color-text-secondary);
   font-size: var(--fluent-font-size-caption);
 }

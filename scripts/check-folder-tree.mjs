@@ -24,11 +24,25 @@ if (!shell.includes("SIDE_NAV_ITEMS")) {
   console.error("product sidenav items must remain");
   process.exit(1);
 }
-for (const needle of ["guide.sections.folders", "guide.title", "GUIDE_PATH", "FolderTreeBranch"]) {
+for (const needle of [
+  "guide.sections.folders",
+  "guide.title",
+  "GUIDE_PATH",
+  "FolderTreeBranch",
+  "toggleFolderTreeSection",
+  "loadFolderTreeSectionCollapse",
+  "folder-tree-section",
+  "folder-tree-heading--toggle",
+  "folder-tree-section-body",
+]) {
   if (!tree.includes(needle)) {
     console.error(`FolderTree missing ${needle}`);
     process.exit(1);
   }
+}
+if (!branch.includes("tree-branch--nested") || !branch.includes("tree-children")) {
+  console.error("AIA-231: nested hierarchy visual markers required");
+  process.exit(1);
 }
 for (const needle of ["navigator_list", "directoryChildren", "navigateTo", "treeRowHighlight"]) {
   if (!branch.includes(needle)) {

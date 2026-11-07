@@ -44,3 +44,5 @@ assert.equal(
 );
 
 console.log("folder-tree checks OK.");
+
+await import("./folder-tree-section-checks.ts");
