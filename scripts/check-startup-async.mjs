@@ -12,6 +12,7 @@ const hydrate = read("src/state/settingsHydrate.ts");
 const idle = read("src/state/scheduleIdle.ts");
 const browse = read("src/state/navigatorBrowse.ts");
 const wgChrome = read("src/state/workGroupChrome.ts");
+const main = read("src/main.ts");
 const app = read("src/App.vue");
 const shell = read("src/components/shell/AppShell.vue");
 const menu = read("src/components/navigator/NavigatorContextMenu.vue");
@@ -20,6 +21,7 @@ const providerCache = read("src/state/providerCache.ts");
 const closeBehavior = read("src/state/closeBehavior.ts");
 const viewMode = read("src/state/navigatorViewMode.ts");
 const uiChrome = read("src/state/uiChrome.ts");
+const i18nIndex = read("src/i18n/index.ts");
 
 // --- settings hydrate bus ---
 assert.ok(hydrate.includes("export function hydrateSettings"), "settingsHydrate must export hydrateSettings");
@@ -31,6 +33,37 @@ assert.ok(viewMode.includes("hydrateSettings"), "navigatorViewMode must share hy
 assert.ok(uiChrome.includes("hydrateSettings"), "uiChrome must share hydrate");
 assert.ok(closeBehavior.includes("rememberSettingsDocument"), "closeBehavior must remember after set");
 assert.ok(viewMode.includes("rememberSettingsDocument"), "viewMode must remember after set");
+
+// --- AIA-265: locale/chrome before first paint (no English→zh-CN flash) ---
+{
+  const mountIdx = main.indexOf('.mount("#app")');
+  assert.ok(mountIdx >= 0, "main.ts must mount #app");
+  const beforeMount = main.slice(0, mountIdx);
+  assert.ok(
+    beforeMount.includes("hydrateSettings"),
+    "main.ts must hydrateSettings before mount",
+  );
+  assert.ok(
+    beforeMount.includes("applyAppLocaleFromValues"),
+    "main.ts must apply locale before mount",
+  );
+  assert.ok(
+    beforeMount.includes("applyUiChromeFromValues"),
+    "main.ts must apply ui chrome before mount",
+  );
+  assert.ok(
+    /async function bootstrap/.test(main),
+    "main.ts must use async bootstrap so hydrate awaits before mount",
+  );
+  assert.ok(
+    !app.includes("applyAppLocaleFromValues"),
+    "App.vue must not re-apply locale onMounted (would race first paint)",
+  );
+  assert.ok(
+    /locale:\s*["']en["']/.test(i18nIndex),
+    "vue-i18n still defaults to en; bootstrap must override before paint",
+  );
+}
 
 // --- WG hydrate bus ---
 assert.ok(browse.includes("export function hydrateWorkGroups"), "browse must export hydrateWorkGroups");

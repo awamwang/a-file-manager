@@ -3,30 +3,29 @@
 import { onMounted } from "vue";
 import { useRouter } from "vue-router";
 import AppShell from "./components/shell/AppShell.vue";
-import { applyAppLocaleFromValues } from "./i18n/index";
 import { preloadProviderCache } from "./state/providerCache";
 import { scheduleIdle } from "./state/scheduleIdle";
-import { hydrateSettings } from "./state/settingsHydrate";
+import {
+  getCachedSettingsValues,
+  hydrateSettings,
+} from "./state/settingsHydrate";
 import {
   STARTUP_PAGE_SETTING_KEY,
   startupRouteFor,
 } from "./state/startupPage";
-import { applyUiChromeFromValues } from "./state/uiChrome";
 
 const router = useRouter();
 
 onMounted(() => {
   void (async () => {
-    let values: Record<string, unknown> = {};
+    // Locale/chrome already applied in main.ts bootstrap (AIA-265).
+    // Reuse the single-flight hydrate for startup-page routing only.
+    let values: Record<string, unknown> = getCachedSettingsValues() ?? {};
     try {
-      // AIA-181: single-flight settings hydrate (shared with close/viewMode/etc.).
       const doc = await hydrateSettings();
       values = doc.values ?? {};
-      applyUiChromeFromValues(values);
-      applyAppLocaleFromValues(values);
     } catch {
-      applyUiChromeFromValues({});
-      applyAppLocaleFromValues({});
+      // Keep cached/empty values; locale already fell back in bootstrap.
     }
     // AIA-101: honor startup page once on cold launch (after `/` → /navigator redirect).
     const target = startupRouteFor(values[STARTUP_PAGE_SETTING_KEY]);
