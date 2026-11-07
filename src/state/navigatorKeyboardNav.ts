@@ -10,6 +10,7 @@ export type ArrowSelectionState = {
 
 /** Min column widths mirroring `.list--icons-*` CSS minmax values (px @ 16px rem). */
 const ICON_COL_MIN_PX: Record<string, number> = {
+  iconsExtraLarge: 288, // 18rem
   iconsLarge: 120, // 7.5rem
   iconsMedium: 96, // 6rem
   iconsSmall: 80, // 5rem

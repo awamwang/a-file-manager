@@ -199,6 +199,7 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             "Windows-style icons, list, details, tiles, or content",
             SettingValueKind::Enum,
             Some(vec![
+                "iconsExtraLarge".to_string(),
                 "iconsLarge".to_string(),
                 "iconsMedium".to_string(),
                 "iconsSmall".to_string(),

@@ -62,15 +62,19 @@ byType.sort((a, b) => a.key.localeCompare(b.key));
 assert.equal(byType[0]?.name, "Folder");
 assert.equal(byType[1]?.name, "a.png");
 
-// AIA-232: Ctrl+wheel icon ladder.
-assert.deepEqual([...ICON_VIEW_ZOOM_ORDER], ["iconsSmall", "iconsMedium", "iconsLarge"]);
+// AIA-232/233: Ctrl+wheel icon ladder includes Extra large.
+assert.deepEqual(
+  [...ICON_VIEW_ZOOM_ORDER],
+  ["iconsSmall", "iconsMedium", "iconsLarge", "iconsExtraLarge"],
+);
 assert.equal(nudgeIconViewMode("iconsSmall", 1), "iconsMedium");
 assert.equal(nudgeIconViewMode("iconsMedium", 1), "iconsLarge");
-assert.equal(nudgeIconViewMode("iconsLarge", 1), "iconsLarge");
-assert.equal(nudgeIconViewMode("iconsLarge", -1), "iconsMedium");
+assert.equal(nudgeIconViewMode("iconsLarge", 1), "iconsExtraLarge");
+assert.equal(nudgeIconViewMode("iconsExtraLarge", 1), "iconsExtraLarge");
+assert.equal(nudgeIconViewMode("iconsExtraLarge", -1), "iconsLarge");
 assert.equal(nudgeIconViewMode("iconsSmall", -1), "iconsSmall");
 assert.equal(nudgeIconViewMode("details", 1), "iconsMedium");
 assert.equal(nudgeIconViewMode("details", -1), "iconsSmall");
 assert.equal(nudgeIconViewMode("list", 1), "iconsMedium");
 
-console.log("view-layout checks OK (AIA-191/232).");
+console.log("view-layout checks OK (AIA-191/232/233).");

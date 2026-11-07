@@ -10,6 +10,7 @@ import {
 } from "./iconViewZoom";
 
 export type NavigatorViewMode =
+  | "iconsExtraLarge"
   | "iconsLarge"
   | "iconsMedium"
   | "iconsSmall"
@@ -19,6 +20,7 @@ export type NavigatorViewMode =
   | "content";
 
 export const NAVIGATOR_VIEW_MODES: readonly NavigatorViewMode[] = [
+  "iconsExtraLarge",
   "iconsLarge",
   "iconsMedium",
   "iconsSmall",
@@ -32,6 +34,7 @@ export { ICON_VIEW_ZOOM_ORDER };
 
 /** Shell icon / thumbnail edge length for each view. */
 export const VIEW_ICON_SIZE: Record<NavigatorViewMode, number> = {
+  iconsExtraLarge: 256,
   iconsLarge: 96,
   iconsMedium: 64,
   iconsSmall: 48,
@@ -126,6 +129,8 @@ export async function setNavigatorGroupByType(enabled: boolean): Promise<void> {
 
 export function viewModeLabelKey(mode: NavigatorViewMode): string {
   switch (mode) {
+    case "iconsExtraLarge":
+      return "chrome.viewIconsExtraLarge";
     case "iconsLarge":
       return "chrome.viewIconsLarge";
     case "iconsMedium":

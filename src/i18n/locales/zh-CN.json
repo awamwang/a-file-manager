@@ -99,7 +99,8 @@
     "viewTiles": "平铺",
     "viewContent": "内容",
     "viewGroupByType": "按类型分组",
-    "viewIconsLarge": "超大图标",
+    "viewIconsExtraLarge": "超大图标",
+    "viewIconsLarge": "大图标",
     "viewIconsMedium": "中等图标",
     "viewIconsSmall": "小图标"
   },
@@ -471,7 +472,8 @@
           "title": "资源管理器视图",
           "description": "图标、列表、详细信息、平铺或内容",
           "options": {
-            "iconsLarge": "超大图标",
+            "iconsExtraLarge": "超大图标",
+            "iconsLarge": "大图标",
             "iconsMedium": "中等图标",
             "iconsSmall": "小图标",
             "list": "列表",

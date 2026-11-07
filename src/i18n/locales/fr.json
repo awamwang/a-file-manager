@@ -69,7 +69,8 @@
     "viewTiles": "Tuiles",
     "viewContent": "Contenu",
     "viewGroupByType": "Grouper par type",
-    "viewIconsLarge": "Très grandes icônes",
+    "viewIconsExtraLarge": "Très grandes icônes",
+    "viewIconsLarge": "Grandes icônes",
     "viewIconsMedium": "Icônes moyennes",
     "viewIconsSmall": "Petites icônes"
   },
@@ -582,7 +583,8 @@
           "title": "Vue de l’Explorateur",
           "description": "Icônes, liste, détails, tuiles ou contenu",
           "options": {
-            "iconsLarge": "Très grandes icônes",
+            "iconsExtraLarge": "Très grandes icônes",
+            "iconsLarge": "Grandes icônes",
             "iconsMedium": "Icônes moyennes",
             "iconsSmall": "Petites icônes",
             "list": "Liste",

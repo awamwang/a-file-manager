@@ -15,10 +15,13 @@ const en = JSON.parse(readFileSync(join(root, "src/i18n/locales/en.json"), "utf8
 assert.ok(mode.includes('"tiles"'));
 assert.ok(mode.includes('"content"'));
 assert.ok(mode.includes("navigatorGroupByType"));
+assert.ok(mode.includes('"iconsExtraLarge"'), "AIA-233: Extra large mode");
+assert.ok(mode.includes("iconsExtraLarge: 256") || mode.includes("iconsExtraLarge:256"));
 assert.ok(view.includes("col-type"));
 assert.ok(view.includes("onColumnResizeStart"));
 assert.ok(view.includes("list--tiles"));
 assert.ok(view.includes("list--content"));
+assert.ok(view.includes("list--icons-extra-large"), "AIA-233 CSS class");
 assert.ok(view.includes("groupedVisibleEntries"));
 assert.ok(view.includes("onListWheel"), "AIA-232: Ctrl+wheel must be wired on the file list");
 assert.ok(view.includes("nudgeIconViewMode"), "AIA-232: wheel uses icon zoom ladder");
@@ -26,9 +29,12 @@ assert.ok(mode.includes("ICON_VIEW_ZOOM_ORDER"));
 assert.ok(mode.includes("nudgeIconViewMode"));
 assert.ok(shell.includes("viewGroupByType"));
 assert.ok(defaults.includes("tiles"));
+assert.ok(defaults.includes("iconsExtraLarge"));
 assert.ok(defaults.includes("core.navigatorGroupByType"));
 assert.equal(en.navigator.colType, "Type");
 assert.equal(en.chrome.viewTiles, "Tiles");
+assert.equal(en.chrome.viewIconsExtraLarge, "Extra large icons");
+assert.equal(en.chrome.viewIconsLarge, "Large icons");
 
 const result = spawnSync(
   process.execPath,

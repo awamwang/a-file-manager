@@ -47,6 +47,7 @@ export const SCHEMA_ENUM_OPTIONS: Record<string, readonly string[]> = {
   "core.startupPage": ["navigator", "projects", "discovery"],
   "core.closeBehavior": ["ask", "tray", "quit"],
   "core.navigatorViewMode": [
+    "iconsExtraLarge",
     "iconsLarge",
     "iconsMedium",
     "iconsSmall",

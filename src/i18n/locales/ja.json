@@ -69,7 +69,8 @@
     "viewTiles": "タイル",
     "viewContent": "コンテンツ",
     "viewGroupByType": "種類でグループ化",
-    "viewIconsLarge": "特大アイコン",
+    "viewIconsExtraLarge": "特大アイコン",
+    "viewIconsLarge": "大アイコン",
     "viewIconsMedium": "中アイコン",
     "viewIconsSmall": "小アイコン"
   },
@@ -582,7 +583,8 @@
           "title": "エクスプローラー表示",
           "description": "アイコン、一覧、詳細、タイル、コンテンツ",
           "options": {
-            "iconsLarge": "特大アイコン",
+            "iconsExtraLarge": "特大アイコン",
+            "iconsLarge": "大アイコン",
             "iconsMedium": "中アイコン",
             "iconsSmall": "小アイコン",
             "list": "一覧",

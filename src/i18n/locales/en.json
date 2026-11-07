@@ -99,7 +99,8 @@
     "viewTiles": "Tiles",
     "viewContent": "Content",
     "viewGroupByType": "Group by type",
-    "viewIconsLarge": "Extra large icons",
+    "viewIconsExtraLarge": "Extra large icons",
+    "viewIconsLarge": "Large icons",
     "viewIconsMedium": "Medium icons",
     "viewIconsSmall": "Small icons"
   },
@@ -471,7 +472,8 @@
           "title": "Explorer view",
           "description": "Windows-style icons, list, details, tiles, or content",
           "options": {
-            "iconsLarge": "Extra large icons",
+            "iconsExtraLarge": "Extra large icons",
+            "iconsLarge": "Large icons",
             "iconsMedium": "Medium icons",
             "iconsSmall": "Small icons",
             "list": "List",

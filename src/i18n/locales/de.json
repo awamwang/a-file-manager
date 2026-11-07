@@ -69,7 +69,8 @@
     "viewTiles": "Kacheln",
     "viewContent": "Inhalt",
     "viewGroupByType": "Nach Typ gruppieren",
-    "viewIconsLarge": "Sehr große Symbole",
+    "viewIconsExtraLarge": "Sehr große Symbole",
+    "viewIconsLarge": "Große Symbole",
     "viewIconsMedium": "Mittlere Symbole",
     "viewIconsSmall": "Kleine Symbole"
   },
@@ -582,7 +583,8 @@
           "title": "Explorer-Ansicht",
           "description": "Symbole, Liste, Details, Kacheln oder Inhalt",
           "options": {
-            "iconsLarge": "Sehr große Symbole",
+            "iconsExtraLarge": "Sehr große Symbole",
+            "iconsLarge": "Große Symbole",
             "iconsMedium": "Mittlere Symbole",
             "iconsSmall": "Kleine Symbole",
             "list": "Liste",

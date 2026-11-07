@@ -7,14 +7,12 @@ export type IconViewZoomMode =
   | "iconsMedium"
   | "iconsSmall";
 
-/**
- * AIA-232 ladder (small → large). AIA-233 prepends Extra large at the top end.
- * Index 0 = smallest icons.
- */
+/** AIA-232/233: Small → Medium → Large → Extra large. Index 0 = smallest. */
 export const ICON_VIEW_ZOOM_ORDER: readonly IconViewZoomMode[] = [
   "iconsSmall",
   "iconsMedium",
   "iconsLarge",
+  "iconsExtraLarge",
 ] as const;
 
 /**

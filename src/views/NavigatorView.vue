@@ -1326,6 +1326,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         'list--details': isDetailsView,
         'list--list': isListView,
         'list--icons': isIconView,
+        'list--icons-extra-large': navigatorViewMode === 'iconsExtraLarge',
         'list--icons-large': navigatorViewMode === 'iconsLarge',
         'list--icons-medium': navigatorViewMode === 'iconsMedium',
         'list--icons-small': navigatorViewMode === 'iconsSmall',
@@ -1573,6 +1574,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           'list--details': isDetailsView,
           'list--list': isListView,
           'list--icons': isIconView,
+          'list--icons-extra-large': navigatorViewMode === 'iconsExtraLarge',
           'list--icons-large': navigatorViewMode === 'iconsLarge',
           'list--icons-medium': navigatorViewMode === 'iconsMedium',
           'list--icons-small': navigatorViewMode === 'iconsSmall',
@@ -1784,6 +1786,10 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   align-content: start;
   gap: var(--fluent-space-sm);
   padding: var(--fluent-space-sm);
+}
+
+.list--icons-extra-large {
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
 }
 
 .list--icons-large {
