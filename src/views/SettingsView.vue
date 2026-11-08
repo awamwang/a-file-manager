@@ -1,10 +1,18 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, defineAsyncComponent, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
 import { applyUiChromeFromValues } from "../state/uiChrome";
-import { rememberSettingsDocument } from "../state/settingsHydrate";
+import {
+  getCachedSettingsDocument,
+  getCachedSettingsSchema,
+  hydrateSettingsSchema,
+  rememberSettingsDocument,
+  type SettingsDocument,
+  type SettingsSchemaManifest,
+} from "../state/settingsHydrate";
+import { scheduleAfterPaint } from "../state/scheduleIdle";
 import { applyAppLocaleFromValues } from "../i18n/index";
 import {
   settingEnumOptionPath,
@@ -12,7 +20,6 @@ import {
 } from "../i18n/settingsFields";
 import { useI18n } from "vue-i18n";
 import FluentIcon from "../components/icons/FluentIcon.vue";
-import HealthView from "./HealthView.vue";
 import { settingsIconForKey, type FluentGlyphId } from "../components/icons/glyphs";
 import {
   findShortcutConflicts,
@@ -24,6 +31,9 @@ import {
   loadFavoritesOsHookStatus,
   setFavoritesOsHookEnabled,
 } from "../state/favorites";
+
+/** AIA-276: Health stays off the default Settings chunk until that section opens. */
+const HealthView = defineAsyncComponent(() => import("./HealthView.vue"));
 
 const { t, te, locale } = useI18n();
 const route = useRoute();
@@ -59,26 +69,7 @@ type IdeAppInfo = {
 
 const OPEN_TOOL_IDS = ["vscode", "cursor", "trae", "qoder"] as const;
 
-type SettingDefinition = {
-  key: string;
-  tier: SettingsTier;
-  title: string;
-  description: string;
-  valueKind: "boolean" | "string" | "number" | "stringArray" | "enum";
-  enumValues?: string[];
-  default: unknown;
-};
-
-type SettingsSchemaManifest = {
-  version: number;
-  tiers: SettingsTier[];
-  definitions: SettingDefinition[];
-};
-
-type SettingsDocument = {
-  version: number;
-  values: Record<string, unknown>;
-};
+type SettingDefinition = SettingsSchemaManifest["definitions"][number];
 
 const TIER_ICONS: Record<SettingsTier, FluentGlyphId> = {
   core: "settings",
@@ -248,6 +239,7 @@ function selectSection(section: SettingsSection) {
     if (route.path !== "/settings/favorites") {
       void router.push("/settings/favorites");
     }
+    void loadFavoritesOsHookStatus().catch(() => undefined);
     return;
   }
   if (section === "openTools") {
@@ -270,25 +262,43 @@ watch(
   { immediate: true },
 );
 
+/** AIA-276: paint from hydrate cache immediately; reconcile IPC off the first frame. */
+function paintSettingsFromCache(): boolean {
+  const cachedSchema = getCachedSettingsSchema();
+  const cachedDoc = getCachedSettingsDocument();
+  if (cachedSchema) schema.value = cachedSchema;
+  if (cachedDoc) {
+    document.value = cachedDoc;
+    loading.value = false;
+    return true;
+  }
+  return false;
+}
+
 async function loadAll() {
-  loading.value = true;
   error.value = null;
+  const hadCache = paintSettingsFromCache();
+  if (!hadCache) loading.value = true;
   try {
     const [manifest, doc] = await Promise.all([
-      invoke<SettingsSchemaManifest>("settings_schema_get"),
-      invoke<SettingsDocument>("settings_get"),
+      hydrateSettingsSchema(),
+      invoke<SettingsDocument>("settings_get").then((fresh) => {
+        rememberSettingsDocument(fresh);
+        return fresh;
+      }),
     ]);
     schema.value = manifest;
     document.value = doc;
-    rememberSettingsDocument(doc);
     applyUiChromeFromValues(doc.values);
     applyAppLocaleFromValues(doc.values);
-    // Keep OS login item aligned with persisted preference (best-effort).
-    try {
-      await applyLaunchAtStartupPreference(Boolean(doc.values["core.launchAtStartup"]));
-    } catch (syncErr) {
-      console.warn("autostart sync on load failed", syncErr);
-    }
+    // Autostart registry write is non-critical for Settings paint — defer past first frame.
+    scheduleAfterPaint(() => {
+      void applyLaunchAtStartupPreference(
+        Boolean(doc.values["core.launchAtStartup"]),
+      ).catch((syncErr) => {
+        console.warn("autostart sync on load failed", syncErr);
+      });
+    });
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
@@ -371,7 +381,12 @@ onMounted(() => {
       void refreshIdeApps();
     }
   });
-  void loadFavoritesOsHookStatus().catch(() => undefined);
+  // Favorites OS-hook status is only needed on that section — defer / gate (AIA-276).
+  if (activeSection.value === "favorites") {
+    scheduleAfterPaint(() => {
+      void loadFavoritesOsHookStatus().catch(() => undefined);
+    });
+  }
 });
 </script>
 

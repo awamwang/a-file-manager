@@ -27,6 +27,10 @@ const i18nIndex = read("src/i18n/index.ts");
 assert.ok(hydrate.includes("export function hydrateSettings"), "settingsHydrate must export hydrateSettings");
 assert.ok(hydrate.includes("rememberSettingsDocument"), "settingsHydrate must export remember");
 assert.ok(hydrate.includes("settings_get"), "hydrate must call settings_get once");
+assert.ok(
+  hydrate.includes("export function hydrateSettingsSchema"),
+  "AIA-276: settingsHydrate must export schema single-flight",
+);
 assert.ok(app.includes("hydrateSettings"), "App.vue must use hydrateSettings");
 assert.ok(closeBehavior.includes("hydrateSettings"), "closeBehavior must share hydrate");
 assert.ok(viewMode.includes("hydrateSettings"), "navigatorViewMode must share hydrate");

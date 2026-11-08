@@ -7,9 +7,11 @@ import { useRouter } from "vue-router";
 import {
   activeWorkGroupId,
   cancelOpenStatePersist,
+  hydrateWorkGroups,
   liveOpenState,
   openMembersIntoOpenState,
   openOrFocusNavigatorTab,
+  rememberHydratedWorkGroups,
   restoreWorkGroupOpenState,
   snapshotLeavingOpenState,
   snapshotLiveOpenState,
@@ -17,6 +19,7 @@ import {
 import { displayNameFromPath } from "../state/openStateModel";
 import type { WorkGroupOpenState } from "../state/openStateModel";
 import { workGroupDisplayName } from "../state/workGroupName";
+import { workGroupsDoc } from "../state/workGroupChrome";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import { openConfirmDialog } from "../state/confirmDialog";
 import { toastError, toastInfo, toastSuccess } from "../state/toast";
@@ -73,18 +76,30 @@ async function openPathInNavigator(path: string) {
   await router.push("/navigator");
 }
 
+/** AIA-276: paint from chrome hydrate cache, then reconcile. */
+function paintWorkGroupsFromCache(): boolean {
+  const cached = workGroupsDoc.value;
+  if (!cached) return false;
+  document.value = cached as UserWorkGroups;
+  activeWorkGroupId.value = cached.activeWorkGroupId;
+  loading.value = false;
+  return true;
+}
+
 async function refresh() {
-  loading.value = true;
   error.value = null;
+  const hadCache = paintWorkGroupsFromCache();
+  if (!hadCache) loading.value = true;
   try {
-    document.value = await invoke<UserWorkGroups>("work_groups_get");
-    activeWorkGroupId.value = document.value.activeWorkGroupId;
-    const current = document.value.workGroups.find(
-      (g) => g.id === document.value!.activeWorkGroupId,
-    );
+    const doc = await hydrateWorkGroups({ force: true });
+    rememberHydratedWorkGroups(doc);
+    workGroupsDoc.value = doc;
+    document.value = doc as UserWorkGroups;
+    activeWorkGroupId.value = doc.activeWorkGroupId;
+    const current = doc.workGroups.find((g) => g.id === doc.activeWorkGroupId);
     // Prefer live Navigator strip; seed from disk only when strip is empty.
     if (!liveOpenState.value.tabGroups.length && current?.openState) {
-      await restoreWorkGroupOpenState(document.value.activeWorkGroupId, current.openState);
+      await restoreWorkGroupOpenState(doc.activeWorkGroupId, current.openState);
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);

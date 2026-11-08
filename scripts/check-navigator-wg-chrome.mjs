@@ -70,7 +70,8 @@ if (en.chrome.workGroupMenu !== "Work Group") {
 // AIA-147: Work Groups chip leads the navigator toolbar and is visually distinct.
 {
   const chromeStart = shell.indexOf('class="navigator-chrome"');
-  const chromeEnd = shell.indexOf('class="tabstrip"');
+  // Toolbar chrome follows the tab strip; end at content main (AIA-276 host wrapper).
+  const chromeEnd = shell.indexOf('class="content"');
   if (chromeStart < 0 || chromeEnd <= chromeStart) {
     console.error("cannot locate navigator-chrome block");
     process.exit(1);

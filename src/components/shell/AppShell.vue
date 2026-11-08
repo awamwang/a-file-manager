@@ -1563,7 +1563,8 @@ onUnmounted(() => {
           <span class="sidenav-label">{{ t(item.labelKey) }}</span>
           <span v-if="item.later" class="later-badge">{{ t("chrome.later") }}</span>
         </button>
-        <FolderTree v-if="isNavigatorRoute" :key="showHiddenItems ? 'show-hidden' : 'hide-hidden'" />
+        <!-- AIA-276: v-show keeps FolderTree warm when leaving Explorer (remount was costly). -->
+        <FolderTree v-show="isNavigatorRoute" :key="showHiddenItems ? 'show-hidden' : 'hide-hidden'" />
       </nav>
       <div
         class="sidenav-splitter"
@@ -1580,7 +1581,8 @@ onUnmounted(() => {
       />
 
       <div class="workspace">
-      <template v-if="isNavigatorRoute">
+      <!-- AIA-276: keep Explorer chrome warm; display:none when off Navigator. -->
+      <div v-show="isNavigatorRoute" class="navigator-chrome-host">
         <div
           class="tabstrip"
           role="tablist"
@@ -2129,7 +2131,7 @@ onUnmounted(() => {
           </div>
         </Teleport>
 
-        </template>
+        </div>
 
         <main
           class="content"
@@ -2859,6 +2861,11 @@ onUnmounted(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* AIA-276: wrapper for v-show chrome; contents keeps flex children as before. */
+.navigator-chrome-host {
+  display: contents;
 }
 
 .sidenav {

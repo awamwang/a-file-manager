@@ -43,8 +43,11 @@ assert.ok(searchRs.includes("type_filter_matches_extension"), "AIA-234: type uni
 assert.ok(searchRs.includes("size_filter_gt"), "AIA-234: size unit test");
 
 // Filter input must live under navigator chrome gate (not global for all routes).
-const chromeStart = shell.indexOf('v-if="isNavigatorRoute"');
-assert.ok(chromeStart >= 0);
+const chromeStart = Math.max(
+  shell.indexOf('v-show="isNavigatorRoute"'),
+  shell.indexOf('v-if="isNavigatorRoute"'),
+);
+assert.ok(chromeStart >= 0, "navigator chrome must be gated");
 const filterIdx = shell.indexOf("navigator-filter-bar");
 assert.ok(filterIdx > chromeStart, "filter bar must be inside navigator route template");
 

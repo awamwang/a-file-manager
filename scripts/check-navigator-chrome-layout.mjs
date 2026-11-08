@@ -13,8 +13,11 @@ if (!shell.includes("isNavigatorRoute")) {
   console.error("AppShell missing isNavigatorRoute gate");
   process.exit(1);
 }
-if (!shell.includes('v-if="isNavigatorRoute"') && !shell.includes("v-if=\"isNavigatorRoute\"")) {
-  console.error("AppShell must gate navigator chrome with v-if=isNavigatorRoute");
+if (
+  !shell.includes('v-show="isNavigatorRoute"') &&
+  !shell.includes('v-if="isNavigatorRoute"')
+) {
+  console.error("AppShell must gate navigator chrome with v-show/v-if=isNavigatorRoute");
   process.exit(1);
 }
 // AIA-91: chrome lives in right workspace, not above full-window body.

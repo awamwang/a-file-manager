@@ -17,8 +17,11 @@ if (!(sidenav >= 0 && treeUse > sidenav && treeUse < navEnd)) {
   console.error("Folder tree must stay inside the product sidenav");
   process.exit(1);
 }
-if (!shell.includes('v-if="isNavigatorRoute"')) {
-  console.error("folder tree must be navigator-only");
+if (
+  !shell.includes('v-show="isNavigatorRoute"') &&
+  !shell.includes('v-if="isNavigatorRoute"')
+) {
+  console.error("folder tree must be navigator-only (v-show/v-if)");
   process.exit(1);
 }
 if (!shell.includes("SIDE_NAV_ITEMS")) {

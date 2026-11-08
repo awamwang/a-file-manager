@@ -47,6 +47,11 @@ onMounted(() => {
 
 <template>
   <AppShell>
-    <RouterView />
+    <!-- AIA-276: keep Explorer warm across Settings/WG/etc. switches; other views remount. -->
+    <RouterView v-slot="{ Component }">
+      <KeepAlive :include="['NavigatorView']">
+        <component :is="Component" />
+      </KeepAlive>
+    </RouterView>
   </AppShell>
 </template>

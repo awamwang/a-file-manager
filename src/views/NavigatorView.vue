@@ -149,6 +149,9 @@ import DetailsPane from "../components/navigator/DetailsPane.vue";
 import PropertiesPanel from "../components/navigator/PropertiesPanel.vue";
 import { entryKindIcon } from "../components/icons/glyphs";
 
+/** KeepAlive include name in App.vue (AIA-276). */
+defineOptions({ name: "NavigatorView" });
+
 const { t } = useI18n();
 
 const menuOpen = ref(false);

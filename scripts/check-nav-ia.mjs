@@ -13,8 +13,8 @@ const settings = readFileSync(join(root, "src/views/SettingsView.vue"), "utf8");
 
 assert.ok(shell.includes("SIDE_NAV_ITEMS"), "AppShell must consume SIDE_NAV_ITEMS");
 
-const navBlock = sideNav.match(/export const SIDE_NAV_ITEMS: SideNavItem\[] = \[([\s\S]*?)\];/);
-assert.ok(navBlock, "SIDE_NAV_ITEMS block missing");
+const navBlock = sideNav.match(/const SIDE_NAV_ALL: SideNavItem\[] = \[([\s\S]*?)\];/);
+assert.ok(navBlock, "SIDE_NAV_ALL block missing");
 const ids = [...navBlock[1].matchAll(/id:\s*"([^"]+)"/g)].map((m) => m[1]);
 assert.deepEqual(
   ids,
@@ -29,6 +29,10 @@ assert.deepEqual(
     "settings",
   ],
   "expected IA order: AI after Projects; Discovery/Providers; Extensions before Settings; no top-level health",
+);
+assert.ok(
+  sideNav.includes("export const SIDE_NAV_ITEMS"),
+  "SIDE_NAV_ITEMS must remain the exported list",
 );
 assert.ok(router.includes('path: "/ai"'), "AI Add-on route required (AIA-214 / A1)");
 assert.ok(!ids.includes("health"), "health must not be top-level sidenav");

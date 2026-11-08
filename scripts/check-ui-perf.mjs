@@ -22,3 +22,5 @@ assert.ok(!focusBody.includes("loadNavigatorViewMode"), "must not hydrate view-m
 assert.ok(!focusBody.includes("refreshPreviewSetting"), "must not hydrate preview on focus");
 
 console.log("UI perf cheap-win checks OK (AIA-269).");
+
+// AIA-276 coverage lives in check-settings-switch.mjs (KeepAlive + Settings cache).
