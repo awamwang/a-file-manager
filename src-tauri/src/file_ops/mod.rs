@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Kernel file operations: copy / move / rename / mkdir / recycle-delete (AIA-62).
 //! Recycle Bin is the default delete. Permanent delete is a separate confirmed command.
+//! AIA-275: disk-safe move/copy via `safe_io` (staging + verify before source delete).
 
 pub(crate) mod clipboard;
 pub(crate) mod new_templates;
 pub(crate) mod recycle;
+pub(crate) mod safe_io;
 pub(crate) mod shortcut;
 
 use crate::navigator::path_guard::assert_os_path;
@@ -101,30 +103,6 @@ pub fn unique_dest_path(parent: &Path, file_name: &str) -> PathBuf {
     }
 }
 
-fn copy_entry(src: &Path, dest: &Path) -> Result<(), String> {
-    if src.is_dir() {
-        copy_dir_recursive(src, dest)
-    } else {
-        if let Some(parent) = dest.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|err| format!("Failed to create parent directory: {err}"))?;
-        }
-        fs::copy(src, dest).map_err(|err| format!("Failed to copy file: {err}"))?;
-        Ok(())
-    }
-}
-
-fn copy_dir_recursive(src: &Path, dest: &Path) -> Result<(), String> {
-    fs::create_dir_all(dest).map_err(|err| format!("Failed to create directory: {err}"))?;
-    for item in fs::read_dir(src).map_err(|err| format!("Failed to read directory: {err}"))? {
-        let entry = item.map_err(|err| format!("Failed to read entry: {err}"))?;
-        let from = entry.path();
-        let to = dest.join(entry.file_name());
-        copy_entry(&from, &to)?;
-    }
-    Ok(())
-}
-
 fn is_descendant_or_same(ancestor: &Path, maybe_child: &Path) -> bool {
     let a = ancestor.components().collect::<Vec<_>>();
     let c = maybe_child.components().collect::<Vec<_>>();
@@ -165,32 +143,44 @@ pub fn parse_name_conflict(value: Option<&str>) -> NameConflict {
     }
 }
 
+#[derive(Debug, Clone)]
+struct DestPlan {
+    path: PathBuf,
+    /// True when an existing same-name entry must be swapped out only after staging verifies.
+    replace: bool,
+}
+
 /// `Ok(None)` means the existing name was skipped.
+/// Does **not** delete an existing destination — replace is deferred to safe_io.
 fn place_dest(
     parent: &Path,
     file_name: &str,
     source: &Path,
     conflict: NameConflict,
-) -> Result<Option<PathBuf>, String> {
+) -> Result<Option<DestPlan>, String> {
     let exact = parent.join(file_name);
     if exact == source {
-        return Ok(Some(exact));
+        return Ok(Some(DestPlan {
+            path: exact,
+            replace: false,
+        }));
     }
     if !exact.exists() {
-        return Ok(Some(exact));
+        return Ok(Some(DestPlan {
+            path: exact,
+            replace: false,
+        }));
     }
     match conflict {
-        NameConflict::KeepBoth => Ok(Some(unique_dest_path(parent, file_name))),
+        NameConflict::KeepBoth => Ok(Some(DestPlan {
+            path: unique_dest_path(parent, file_name),
+            replace: false,
+        })),
         NameConflict::Skip => Ok(None),
-        NameConflict::Replace => {
-            if exact.is_dir() {
-                fs::remove_dir_all(&exact)
-                    .map_err(|err| format!("Failed to replace folder: {err}"))?;
-            } else {
-                fs::remove_file(&exact).map_err(|err| format!("Failed to replace file: {err}"))?;
-            }
-            Ok(Some(exact))
-        }
+        NameConflict::Replace => Ok(Some(DestPlan {
+            path: exact,
+            replace: true,
+        })),
     }
 }
 
@@ -214,11 +204,11 @@ pub fn copy_paths(
             .ok_or_else(|| format!("Invalid source path: {source}"))?
             .to_string_lossy()
             .into_owned();
-        let Some(target) = place_dest(&dest, &name, &src, conflict)? else {
+        let Some(plan) = place_dest(&dest, &name, &src, conflict)? else {
             continue;
         };
-        copy_entry(&src, &target)?;
-        out.push(display_path(&target));
+        safe_io::safe_copy_entry(&src, &plan.path, plan.replace)?;
+        out.push(display_path(&plan.path));
     }
     Ok(out)
 }
@@ -232,6 +222,7 @@ pub fn move_paths(
     let mut out = Vec::new();
     for source in sources {
         let src = ensure_existing(source)?;
+        safe_io::refuse_volume_root(&src)?;
         if src.is_dir() && is_descendant_or_same(&src, &dest) {
             return Err(format!(
                 "Cannot move a folder into itself: {}",
@@ -248,24 +239,11 @@ pub fn move_paths(
             out.push(display_path(&src));
             continue;
         }
-        let Some(target) = place_dest(&dest, &name, &src, conflict)? else {
+        let Some(plan) = place_dest(&dest, &name, &src, conflict)? else {
             continue;
         };
-        match fs::rename(&src, &target) {
-            Ok(()) => out.push(display_path(&target)),
-            Err(_) => {
-                // Cross-volume fallback: copy then remove source (data already at dest).
-                copy_entry(&src, &target)?;
-                if src.is_dir() {
-                    fs::remove_dir_all(&src)
-                        .map_err(|err| format!("Moved copy ok but failed to remove source: {err}"))?;
-                } else {
-                    fs::remove_file(&src)
-                        .map_err(|err| format!("Moved copy ok but failed to remove source: {err}"))?;
-                }
-                out.push(display_path(&target));
-            }
-        }
+        safe_io::safe_move_entry(&src, &plan.path, plan.replace)?;
+        out.push(display_path(&plan.path));
     }
     Ok(out)
 }
@@ -310,28 +288,28 @@ pub fn delete_paths(paths: &[String]) -> Result<Vec<String>, String> {
     let mut deleted = Vec::new();
     for path in paths {
         let pb = ensure_existing(path)?;
+        safe_io::refuse_volume_root(&pb).map_err(|err| {
+            err.replace(
+                "destructive op on a volume root",
+                "move to Recycle Bin for a volume root",
+            )
+        })?;
         delete_to_recycle(&pb, path)?;
         deleted.push(display_path(&pb));
     }
     Ok(deleted)
 }
 
-fn refuse_root(path: &Path) -> Result<(), String> {
-    let parent = path.parent();
-    if parent.map(|item| item.as_os_str().is_empty()).unwrap_or(true) {
-        return Err(format!(
-            "Refusing to permanently delete a root: {}",
-            display_path(path)
-        ));
-    }
-    Ok(())
-}
-
 pub fn delete_permanent_paths(paths: &[String]) -> Result<Vec<String>, String> {
     let mut deleted = Vec::new();
     for path in paths {
         let pb = ensure_existing(path)?;
-        refuse_root(&pb)?;
+        safe_io::refuse_volume_root(&pb).map_err(|err| {
+            err.replace(
+                "destructive op on a volume root",
+                "permanently delete a volume root",
+            )
+        })?;
         if pb.is_dir() {
             fs::remove_dir_all(&pb).map_err(|err| format!("Failed to permanently delete: {err}"))?;
         } else {
