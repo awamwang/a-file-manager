@@ -235,6 +235,85 @@ pub fn create_work_group_in_list(
     (next, created)
 }
 
+/// Build a unique "Name (copy)" / "Name (copy N)" display name against `existing`.
+pub fn unique_copy_name(base: &str, existing: &[String]) -> String {
+    let trimmed = base.trim();
+    let stem = if trimmed.is_empty() { "Copy" } else { trimmed };
+    let first = format!("{stem} (copy)");
+    if !existing.iter().any(|name| name == &first) {
+        return first;
+    }
+    for n in 2u32.. {
+        let candidate = format!("{stem} (copy {n})");
+        if !existing.iter().any(|name| name == &candidate) {
+            return candidate;
+        }
+    }
+    // Unreachable in practice (u32 exhaust); keep compile happy.
+    format!("{stem} (copy {})", next_id("n"))
+}
+
+/// Deep-copy Open State with fresh tab ids so copies never share tab identity.
+pub fn clone_open_state_with_fresh_tab_ids(
+    open_state: &WorkGroupOpenState,
+) -> WorkGroupOpenState {
+    WorkGroupOpenState {
+        tab_groups: open_state
+            .tab_groups
+            .iter()
+            .map(|group| {
+                group
+                    .iter()
+                    .map(|tab| WorkGroupOpenStateTab {
+                        id: next_id("tab"),
+                        name: tab.name.clone(),
+                        path: tab.path.clone(),
+                        tab_type: tab.tab_type.clone(),
+                    })
+                    .collect()
+            })
+            .collect(),
+        current_tab_group_index: open_state.current_tab_group_index,
+        current_tab_index: open_state.current_tab_index,
+    }
+}
+
+/// Copy a Work Group (including default → non-default). New id, unique name,
+/// deep-copied members + openState with remapped tab ids. Does not change active.
+pub fn copy_work_group_in_list(
+    document: &UserWorkGroups,
+    work_group_id: &str,
+) -> Result<(UserWorkGroups, WorkGroup), String> {
+    let source = document
+        .work_groups
+        .iter()
+        .find(|group| group.id == work_group_id)
+        .ok_or_else(|| format!("Unknown Work Group: {work_group_id}"))?;
+
+    let existing_names: Vec<String> = document
+        .work_groups
+        .iter()
+        .map(|group| group.name.clone())
+        .collect();
+    let name = unique_copy_name(&source.name, &existing_names);
+    let open_state = source
+        .open_state
+        .as_ref()
+        .map(clone_open_state_with_fresh_tab_ids);
+
+    let created = WorkGroup {
+        id: next_id("work-group"),
+        name,
+        is_default: false,
+        member_paths: source.member_paths.clone(),
+        open_state,
+    };
+
+    let mut next = document.clone();
+    next.work_groups.push(created.clone());
+    Ok((next, created))
+}
+
 /// Create a Work Group and silent-switch so it becomes the active selection
 /// (AIA-247: user can keep editing / rename immediately after create).
 pub fn create_and_activate_work_group(
@@ -470,6 +549,61 @@ mod tests {
         assert_eq!(list.len(), 2);
         assert_eq!(created.name, "Focus");
         assert!(!created.is_default);
+    }
+
+    #[test]
+    fn copy_work_group_remaps_open_state_tab_ids() {
+        let source_open = open_state(&["D:/a", "D:/b"]);
+        let source_tab_ids: Vec<String> = source_open
+            .tab_groups
+            .iter()
+            .flat_map(|g| g.iter().map(|t| t.id.clone()))
+            .collect();
+        let source = WorkGroup {
+            id: "work-group-src".into(),
+            name: "Focus".into(),
+            is_default: false,
+            member_paths: vec!["D:/a".into(), "D:/b".into()],
+            open_state: Some(source_open),
+        };
+        let document = UserWorkGroups {
+            work_groups: vec![create_default_work_group(None), source.clone()],
+            active_work_group_id: DEFAULT_WORK_GROUP_ID.to_string(),
+        };
+        let (next, created) = copy_work_group_in_list(&document, &source.id).unwrap();
+        assert_eq!(created.name, "Focus (copy)");
+        assert!(!created.is_default);
+        assert_ne!(created.id, source.id);
+        assert_eq!(created.member_paths, source.member_paths);
+        assert_eq!(next.active_work_group_id, document.active_work_group_id);
+        let copied_open = created.open_state.as_ref().expect("open state");
+        let copied_ids: Vec<String> = copied_open
+            .tab_groups
+            .iter()
+            .flat_map(|g| g.iter().map(|t| t.id.clone()))
+            .collect();
+        assert_eq!(copied_ids.len(), source_tab_ids.len());
+        for id in &copied_ids {
+            assert!(!source_tab_ids.iter().any(|src| src == id));
+        }
+        // Second copy gets (copy 2).
+        let (next2, created2) = copy_work_group_in_list(&next, &source.id).unwrap();
+        assert_eq!(created2.name, "Focus (copy 2)");
+        assert_eq!(next2.work_groups.len(), 4);
+    }
+
+    #[test]
+    fn copy_default_work_group_becomes_non_default() {
+        let document = default_document();
+        let (next, created) =
+            copy_work_group_in_list(&document, DEFAULT_WORK_GROUP_ID).unwrap();
+        assert!(!created.is_default);
+        assert!(created.name.contains("(copy)"));
+        assert_eq!(next.work_groups.len(), 2);
+        assert!(next
+            .work_groups
+            .iter()
+            .any(|g| g.id == DEFAULT_WORK_GROUP_ID && g.is_default));
     }
 
     #[test]

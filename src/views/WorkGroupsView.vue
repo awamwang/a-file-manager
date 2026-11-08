@@ -386,6 +386,22 @@ function onDetailPointerDown(event: PointerEvent) {
   }
 }
 
+async function copyGroup(group: WorkGroup) {
+  listMoreOpenId.value = null;
+  moreMenuOpen.value = false;
+  error.value = null;
+  try {
+    const [nextDoc, created] = await invoke<[UserWorkGroups, WorkGroup]>("work_groups_copy", {
+      workGroupId: group.id,
+    });
+    document.value = nextDoc;
+    toastSuccess(t("workGroups.copied", { name: created.name }));
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err);
+    toastError(error.value);
+  }
+}
+
 async function deleteGroup(group: WorkGroup) {
   if (group.isDefault) return;
   const deletingId = group.id;
@@ -684,6 +700,14 @@ onUnmounted(() => {
         @click.stop
       >
         <button
+          type="button"
+          class="more-item"
+          role="menuitem"
+          @click="copyGroup(listMoreGroup)"
+        >
+          {{ t("workGroups.copy") }}
+        </button>
+        <button
           v-if="!listMoreGroup.isDefault"
           type="button"
           class="more-item"
@@ -712,6 +736,14 @@ onUnmounted(() => {
         :style="moreMenuStyle"
         @click.stop
       >
+        <button
+          type="button"
+          class="more-item"
+          role="menuitem"
+          @click="copyGroup(active)"
+        >
+          {{ t("workGroups.copy") }}
+        </button>
         <button
           v-if="!active.isDefault"
           type="button"

@@ -582,6 +582,31 @@ async function openBoundMembersIntoRuntime() {
   }
 }
 
+async function copyProject(project: UserProject) {
+  listMoreOpenId.value = null;
+  projectMoreOpen.value = false;
+  error.value = null;
+  try {
+    const result = await invoke<{
+      workspace: { project: { slug: string; displayName: string } };
+      copiedWorkGroup?: { id: string; name: string } | null;
+    }>("projects_workspace_copy", { slug: project.id });
+    const slug = result.workspace.project.slug;
+    toastSuccess(
+      result.copiedWorkGroup
+        ? t("projects.copiedWithWorkGroup", {
+            name: result.workspace.project.displayName,
+            workGroup: result.copiedWorkGroup.name,
+          })
+        : t("projects.copied", { name: result.workspace.project.displayName }),
+    );
+    await refresh(slug);
+    await selectProject(slug);
+  } catch (err) {
+    error.value = mapProjectError(err);
+  }
+}
+
 async function deleteProject(project: UserProject) {
   const confirmed = await openConfirmDialog({
     title: t("dialog.deleteTitle"),
@@ -1156,6 +1181,14 @@ onUnmounted(() => {
           type="button"
           class="more-item"
           role="menuitem"
+          @click="copyProject(listMoreProject)"
+        >
+          {{ t("projects.copy") }}
+        </button>
+        <button
+          type="button"
+          class="more-item"
+          role="menuitem"
           @click="startListRename(listMoreProject, $event)"
         >
           {{ t("projects.rename") }}
@@ -1179,6 +1212,14 @@ onUnmounted(() => {
         :style="projectMoreMenuStyle"
         @click.stop
       >
+        <button
+          type="button"
+          class="more-item"
+          role="menuitem"
+          @click="copyProject(selected)"
+        >
+          {{ t("projects.copy") }}
+        </button>
         <button
           type="button"
           class="more-item"

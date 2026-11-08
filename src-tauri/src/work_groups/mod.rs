@@ -8,8 +8,8 @@ pub(crate) mod types;
 
 use store::{load_from_path, save_to_path};
 use sync::{
-    add_member_to_hard_config, create_and_activate_work_group, delete_work_group_in_list,
-    remove_member_from_hard_config, rename_work_group_in_list,
+    add_member_to_hard_config, copy_work_group_in_list, create_and_activate_work_group,
+    delete_work_group_in_list, remove_member_from_hard_config, rename_work_group_in_list,
     save_members_from_open_state_to_hard, save_runtime_open_state_to_hard,
     silent_switch_work_group,
 };
@@ -112,6 +112,19 @@ pub fn work_groups_rename(
     document.work_groups = rename_work_group_in_list(&document.work_groups, &work_group_id, &name)?;
     save_to_path(&dir, &document)?;
     Ok(document)
+}
+
+/// Copy a Work Group (members + openState with fresh tab ids). Does not change active.
+#[tauri::command]
+pub fn work_groups_copy(
+    app: AppHandle,
+    work_group_id: String,
+) -> Result<(UserWorkGroups, WorkGroup), String> {
+    let dir = config_dir(&app)?;
+    let document = load_from_path(&dir)?;
+    let (next, created) = copy_work_group_in_list(&document, &work_group_id)?;
+    save_to_path(&dir, &next)?;
+    Ok((next, created))
 }
 
 #[tauri::command]

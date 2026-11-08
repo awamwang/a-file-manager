@@ -34,7 +34,9 @@ use store::{load_from_path, save_to_path};
 use tauri::{AppHandle, Manager};
 use types::{ActivateProjectResult, OpenAllLinksResult, ProjectTask, TaskPatch, UserProjects};
 use board::{BoardTask, BoardTaskPatch, WorkspaceBoard};
-use lifecycle::{DeleteWorkspaceResult, PromoteWorkspaceResult, RenameWorkspaceResult};
+use lifecycle::{
+    CopyWorkspaceResult, DeleteWorkspaceResult, PromoteWorkspaceResult, RenameWorkspaceResult,
+};
 use members::WorkspaceMember;
 use workspace::{
     ActivateWorkspaceResult, CreateWorkspaceResult, WorkspaceListItem, WorkspaceListResult,
@@ -346,6 +348,23 @@ pub fn projects_workspace_promote_from_work_group(
     let root = std::path::PathBuf::from(&index.projects_root);
     let wgs = wg_store::load_from_path(&dir)?;
     lifecycle::promote_work_group_to_workspace(&root, &wgs, &work_group_id)
+}
+
+/// Copy a Workspace (CONTEXT / board / members). Bound WG is copied with fresh openState tab ids.
+#[tauri::command]
+pub fn projects_workspace_copy(
+    app: AppHandle,
+    slug: String,
+) -> Result<CopyWorkspaceResult, String> {
+    let dir = config_dir(&app)?;
+    let index = load_index(&app)?;
+    let root = std::path::PathBuf::from(&index.projects_root);
+    let wgs = wg_store::load_from_path(&dir)?;
+    let (result, wgs_next) = lifecycle::copy_workspace(&root, &wgs, &slug)?;
+    if result.copied_work_group.is_some() {
+        wg_store::save_to_path(&dir, &wgs_next)?;
+    }
+    Ok(result)
 }
 
 #[allow(dead_code)]
