@@ -23,6 +23,12 @@ assert.ok(fields.includes('"core.launchAtStartupHidden"'));
 assert.ok(libRs.includes("autostart::autostart_set_enabled"));
 assert.ok(libRs.includes("AFM_AUTOSTART_CLI_FLAG") || libRs.includes("autostart::AFM_AUTOSTART_CLI_FLAG"));
 assert.ok(libRs.includes("launchAtStartupHidden"));
+assert.ok(
+  libRs.includes("StartupReveal::new(!hide_on_autostart)"),
+  "autostart-hidden must gate StartupReveal (AIA-272), not only hide_main_window",
+);
+assert.ok(tray.includes("afm_startup_should_reveal"), "tray module must expose reveal gate");
+assert.ok(tray.includes("StartupReveal"), "tray module must define StartupReveal");
 assert.ok(tray.includes("TrayIconBuilder"));
 assert.ok(tray.includes("include_bytes!"), "tray must embed AFM icon bytes");
 assert.ok(tray.includes("icons/128x128.png"), "tray must use regenerated Tauri icon PNG");

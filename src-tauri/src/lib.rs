@@ -123,12 +123,11 @@ pub fn run() {
                 }
             }
 
-            // Hide to tray only when launched via OS login autostart AND user opted in.
+            // AIA-272: window starts `visible: false`. Reveal after frontend paint unless
+            // OS login autostart + `core.launchAtStartupHidden` (stay in tray until restore).
             let hide_on_autostart =
                 from_autostart && settings::read_bool_setting(app.handle(), "core.launchAtStartupHidden");
-            if hide_on_autostart {
-                system_tray::hide_main_window(app.handle());
-            }
+            app.manage(system_tray::StartupReveal::new(!hide_on_autostart));
 
             discovery::sync_blacklist_from_settings(app.handle());
 
@@ -158,6 +157,7 @@ pub fn run() {
                 tauri::generate_handler![
                     health_get,
                     app_quit,
+                    system_tray::afm_startup_should_reveal,
                     autostart::autostart_status,
                     autostart::autostart_set_enabled,
                     navigator::navigator_list,
@@ -301,6 +301,7 @@ pub fn run() {
                 tauri::generate_handler![
                     health_get,
                     app_quit,
+                    system_tray::afm_startup_should_reveal,
                     autostart::autostart_status,
                     autostart::autostart_set_enabled,
                     navigator::navigator_list,

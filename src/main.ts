@@ -4,6 +4,7 @@ import { createApp } from "vue";
 import App from "./App.vue";
 import router from "./router";
 import { applyAppLocaleFromValues, i18n } from "./i18n";
+import { revealMainWindowAfterReady } from "./state/revealMainWindow";
 import { hydrateSettings } from "./state/settingsHydrate";
 import { applyUiChromeFromValues } from "./state/uiChrome";
 import "./styles/fluent-tokens.css";
@@ -40,6 +41,8 @@ async function bootstrap(): Promise<void> {
   applyAppLocaleFromValues(values);
 
   createApp(App).use(router).use(i18n).mount("#app");
+  // AIA-272: show after first paint (window starts visible:false; no black/maximize flash).
+  void revealMainWindowAfterReady();
 }
 
 void bootstrap();

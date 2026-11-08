@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! System tray for restore-after-autostart-hide (AIA-60).
 //! Single tray icon per process: replace-by-id on setup, destroy on exit (HMR-safe).
+//! AIA-272: startup reveal gate — main window starts hidden; frontend shows after paint
+//! unless launched autostart-hidden (tray restore only).
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
 use tauri::{
     image::Image,
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager,
+    AppHandle, Manager, State,
 };
 
 const TRAY_ID: &str = "main";
@@ -20,6 +23,26 @@ const APP_ICON_PNG: &[u8] = include_bytes!("../icons/128x128.png");
 /// Keeps the tray handle alive for the process lifetime (dropping it can remove the icon).
 /// Pinned to the default Wry runtime so managed state matches `AppHandle` at `run` time.
 pub struct TrayState(pub Mutex<Option<TrayIcon>>);
+
+/// One-shot gate: frontend may reveal the main window after first paint (AIA-272).
+/// `false` when OS login autostart + `core.launchAtStartupHidden` — stay in tray.
+pub struct StartupReveal {
+    should_reveal: AtomicBool,
+}
+
+impl StartupReveal {
+    pub fn new(should_reveal: bool) -> Self {
+        Self {
+            should_reveal: AtomicBool::new(should_reveal),
+        }
+    }
+}
+
+/// Consume the startup reveal token. Returns true once; subsequent calls are false.
+#[tauri::command]
+pub fn afm_startup_should_reveal(state: State<'_, StartupReveal>) -> bool {
+    state.should_reveal.swap(false, Ordering::SeqCst)
+}
 
 /// Load the bundled AFM app icon for tray + window (taskbar) use.
 pub fn load_app_icon(app: &AppHandle) -> Option<Image<'_>> {
@@ -134,6 +157,9 @@ pub fn focus_main_window(app: &AppHandle) {
     }
 }
 
+/// Hide main window (tray-only). Startup uses `visible: false` + reveal gate (AIA-272);
+/// close-to-tray currently calls `Window.hide` from the frontend.
+#[allow(dead_code)]
 pub fn hide_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.hide();

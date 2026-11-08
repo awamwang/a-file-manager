@@ -55,6 +55,14 @@ assert.ok(viewMode.includes("rememberSettingsDocument"), "viewMode must remember
     /async function bootstrap/.test(main),
     "main.ts must use async bootstrap so hydrate awaits before mount",
   );
+  {
+    const mountIdx = main.indexOf('.mount("#app")');
+    const afterMount = main.slice(mountIdx);
+    assert.ok(
+      afterMount.includes("revealMainWindowAfterReady"),
+      "main.ts must reveal window after mount (AIA-272 show-after-ready)",
+    );
+  }
   assert.ok(
     !app.includes("applyAppLocaleFromValues"),
     "App.vue must not re-apply locale onMounted (would race first paint)",

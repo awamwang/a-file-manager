@@ -37,6 +37,14 @@ if (mainWindow?.maximized !== true) {
   console.error("main window must start maximized (not exclusive fullscreen)");
   process.exit(1);
 }
+if (mainWindow?.visible !== false) {
+  console.error("main window must start visible:false (AIA-272: show after ready)");
+  process.exit(1);
+}
+if (mainWindow?.backgroundColor !== "#f3f3f3") {
+  console.error("main window must set Fluent fill-subtle backgroundColor (AIA-272)");
+  process.exit(1);
+}
 if (mainWindow?.fullscreen === true) {
   console.error("main window must not use exclusive fullscreen on launch");
   process.exit(1);
@@ -47,6 +55,7 @@ for (const perm of [
   "core:window:allow-maximize",
   "core:window:allow-toggle-maximize",
   "core:window:allow-close",
+  "core:window:allow-show",
   "core:window:allow-start-dragging",
   "core:window:allow-unminimize",
 ]) {
@@ -54,6 +63,29 @@ for (const perm of [
     console.error(`capabilities missing ${perm}`);
     process.exit(1);
   }
+}
+
+const mainTs = readFileSync(join(root, "src/main.ts"), "utf8");
+const reveal = readFileSync(join(root, "src/state/revealMainWindow.ts"), "utf8");
+if (!mainTs.includes("revealMainWindowAfterReady")) {
+  console.error("main.ts must call revealMainWindowAfterReady after mount (AIA-272)");
+  process.exit(1);
+}
+if (
+  !reveal.includes("afm_startup_should_reveal") ||
+  !reveal.includes(".show()") ||
+  !reveal.includes(".maximize()")
+) {
+  console.error("revealMainWindow must gate on afm_startup_should_reveal then maximize/show");
+  process.exit(1);
+}
+if (!libRs.includes("afm_startup_should_reveal") || !libRs.includes("StartupReveal")) {
+  console.error("lib.rs must register StartupReveal + afm_startup_should_reveal (AIA-272)");
+  process.exit(1);
+}
+if (!indexHtml.includes('style="background:#f3f3f3"')) {
+  console.error("index.html must set early #f3f3f3 background before CSS (AIA-272)");
+  process.exit(1);
 }
 
 for (const needle of [
