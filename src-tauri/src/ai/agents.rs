@@ -11,6 +11,8 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub const AI_CONFIG_FILE_NAME: &str = "ai-config.json";
+/// One-shot backup of unparseable non-empty `ai-config.json` (AIA-277).
+pub const AI_CONFIG_CORRUPT_BACKUP_NAME: &str = "ai-config.json.corrupt.bak";
 pub const AI_CONFIG_SCHEMA_VERSION: u32 = 1;
 
 pub const ERR_AGENT_ID_EMPTY: &str = "AI_AGENT_ID_EMPTY";
@@ -183,6 +185,85 @@ pub fn ai_config_path(config_dir: &Path) -> PathBuf {
     config_dir.join(AI_CONFIG_FILE_NAME)
 }
 
+pub fn ai_config_corrupt_backup_path(config_dir: &Path) -> PathBuf {
+    config_dir.join(AI_CONFIG_CORRUPT_BACKUP_NAME)
+}
+
+fn strip_bom(text: &str) -> &str {
+    text.strip_prefix('\u{feff}').unwrap_or(text)
+}
+
+/// Parse AI config text. Empty / whitespace / BOM-only → defaults (Ok).
+/// Non-empty invalid JSON → Err with serde message (caller may recover).
+pub fn parse_ai_config_text(text: &str) -> Result<AiConfigDocument, String> {
+    let trimmed = strip_bom(text).trim();
+    if trimmed.is_empty() {
+        return Ok(AiConfigDocument::empty());
+    }
+    serde_json::from_str(trimmed)
+        .map_err(|err| format!("Failed to parse AI config JSON: {err}"))
+}
+
+/// Backup corrupt file once (skip if backup already exists), then remove/replace via rewrite.
+fn backup_corrupt_once(config_dir: &Path, path: &Path) {
+    let backup = ai_config_corrupt_backup_path(config_dir);
+    if backup.exists() {
+        return;
+    }
+    if let Err(err) = fs::copy(path, &backup) {
+        eprintln!(
+            "AIA-277: could not backup corrupt {}: {err}",
+            path.display()
+        );
+    }
+}
+
+/// Atomic-ish write: temp file in same dir + rename (Windows: park existing then rename).
+fn write_text_atomic(path: &Path, text: &str) -> Result<(), String> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| "AI config path has no parent directory".to_string())?;
+    fs::create_dir_all(parent)
+        .map_err(|err| format!("Failed to create AI config directory: {err}"))?;
+
+    let file_name = path
+        .file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| AI_CONFIG_FILE_NAME.to_string());
+    let tmp = parent.join(format!(
+        ".{file_name}.{}.tmp",
+        std::process::id()
+    ));
+    fs::write(&tmp, text).map_err(|err| {
+        let _ = fs::remove_file(&tmp);
+        format!("Failed to write AI config staging file: {err}")
+    })?;
+
+    if path.exists() {
+        let parked = parent.join(format!(".{file_name}.{}.parked", std::process::id()));
+        if let Err(err) = fs::rename(path, &parked) {
+            let _ = fs::remove_file(&tmp);
+            return Err(format!("Failed to park existing AI config: {err}"));
+        }
+        match fs::rename(&tmp, path) {
+            Ok(()) => {
+                let _ = fs::remove_file(&parked);
+                Ok(())
+            }
+            Err(err) => {
+                let _ = fs::rename(&parked, path);
+                let _ = fs::remove_file(&tmp);
+                Err(format!("Failed to commit AI config write: {err}"))
+            }
+        }
+    } else {
+        fs::rename(&tmp, path).map_err(|err| {
+            let _ = fs::remove_file(&tmp);
+            format!("Failed to commit AI config write: {err}")
+        })
+    }
+}
+
 /// Expand `%USERPROFILE%` / `%APPDATA%` / `%LOCALAPPDATA%` (Windows-oriented).
 pub fn expand_agent_path(raw: &str) -> String {
     let trimmed = raw.trim();
@@ -304,31 +385,47 @@ pub fn sync_builtins_and_discover(document: &AiConfigDocument) -> AiConfigDocume
 
 pub fn load_from_path(config_dir: &Path) -> Result<AiConfigDocument, String> {
     let path = ai_config_path(config_dir);
+    let mut force_rewrite = false;
     let document = if !path.exists() {
         AiConfigDocument::empty()
     } else {
         let text = fs::read_to_string(&path)
             .map_err(|err| format!("Failed to read AI config: {err}"))?;
-        serde_json::from_str(&text)
-            .map_err(|err| format!("Failed to parse AI config JSON: {err}"))?
+        let stripped = strip_bom(&text);
+        // Empty / whitespace / BOM-only: silent recover (AIA-277 — not a user-facing failure).
+        if stripped.trim().is_empty() {
+            force_rewrite = true;
+            AiConfigDocument::empty()
+        } else {
+            match parse_ai_config_text(&text) {
+                Ok(doc) => doc,
+                Err(err) => {
+                    // Non-empty corrupt JSON: soft-recover to defaults; keep one backup.
+                    eprintln!(
+                        "AIA-277: recovering corrupt AI config at {}: {err}",
+                        path.display()
+                    );
+                    backup_corrupt_once(config_dir, &path);
+                    force_rewrite = true;
+                    AiConfigDocument::empty()
+                }
+            }
+        }
     };
     let synced = crate::ai::mcp::sync_seed_catalog(&crate::ai::providers::sync_presets(
         &sync_builtins_and_discover(&document),
     ));
-    if synced != document {
+    if force_rewrite || synced != document {
         save_to_path(config_dir, &synced)?;
     }
     Ok(synced)
 }
 
 pub fn save_to_path(config_dir: &Path, document: &AiConfigDocument) -> Result<(), String> {
-    fs::create_dir_all(config_dir)
-        .map_err(|err| format!("Failed to create AI config directory: {err}"))?;
     let path = ai_config_path(config_dir);
     let text = serde_json::to_string_pretty(document)
         .map_err(|err| format!("Failed to serialize AI config: {err}"))?;
-    fs::write(&path, text).map_err(|err| format!("Failed to write AI config: {err}"))?;
-    Ok(())
+    write_text_atomic(&path, &text)
 }
 
 pub fn set_enabled(
@@ -588,5 +685,79 @@ mod tests {
         let expanded = expand_agent_path(r"%USERPROFILE%\.cursor\skills");
         assert!(!expanded.contains("%USERPROFILE%"));
         assert!(expanded.to_ascii_lowercase().ends_with(r"\.cursor\skills"));
+    }
+
+    #[test]
+    fn parse_empty_whitespace_bom_yields_default() {
+        assert_eq!(parse_ai_config_text("").unwrap(), AiConfigDocument::empty());
+        assert_eq!(
+            parse_ai_config_text("   \n\t  ").unwrap(),
+            AiConfigDocument::empty()
+        );
+        assert_eq!(
+            parse_ai_config_text("\u{feff}").unwrap(),
+            AiConfigDocument::empty()
+        );
+        assert_eq!(
+            parse_ai_config_text("\u{feff}  \r\n").unwrap(),
+            AiConfigDocument::empty()
+        );
+    }
+
+    #[test]
+    fn parse_corrupt_json_errors() {
+        let err = parse_ai_config_text("{not-json").unwrap_err();
+        assert!(err.contains("Failed to parse AI config JSON"));
+    }
+
+    #[test]
+    fn load_empty_file_recovers_defaults_without_error() {
+        let dir = temp_dir("empty-file");
+        let path = ai_config_path(&dir);
+        fs::write(&path, "").unwrap();
+        let doc = load_from_path(&dir).expect("empty file must not hard-fail");
+        assert!(doc.agent_targets.len() >= BUILTIN_DEFS.len());
+        assert!(!doc.ai_providers.is_empty(), "presets should seed");
+        let rewritten = fs::read_to_string(&path).unwrap();
+        assert!(
+            rewritten.trim_start().starts_with('{'),
+            "empty file should be rewritten as valid JSON"
+        );
+        assert!(!ai_config_corrupt_backup_path(&dir).exists());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn load_whitespace_and_bom_file_recovers_defaults() {
+        let dir = temp_dir("bom-ws");
+        let path = ai_config_path(&dir);
+        fs::write(&path, "\u{feff} \n\t").unwrap();
+        let doc = load_from_path(&dir).expect("BOM/whitespace must not hard-fail");
+        assert!(doc.schema_version >= AI_CONFIG_SCHEMA_VERSION);
+        assert!(!ai_config_corrupt_backup_path(&dir).exists());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn load_corrupt_file_backs_up_once_and_rewrites_defaults() {
+        let dir = temp_dir("corrupt");
+        let path = ai_config_path(&dir);
+        let junk = "{not valid json!!!";
+        fs::write(&path, junk).unwrap();
+        let doc = load_from_path(&dir).expect("corrupt JSON must recover");
+        assert!(doc.agent_targets.len() >= BUILTIN_DEFS.len());
+
+        let backup = ai_config_corrupt_backup_path(&dir);
+        assert!(backup.is_file());
+        assert_eq!(fs::read_to_string(&backup).unwrap(), junk);
+
+        let rewritten = fs::read_to_string(&path).unwrap();
+        assert!(serde_json::from_str::<AiConfigDocument>(&rewritten).is_ok());
+
+        // Second load must not overwrite the first backup.
+        fs::write(&path, "%%%still-bad%%%").unwrap();
+        let _ = load_from_path(&dir).unwrap();
+        assert_eq!(fs::read_to_string(&backup).unwrap(), junk);
+        let _ = fs::remove_dir_all(&dir);
     }
 }

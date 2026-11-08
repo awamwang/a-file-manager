@@ -4,7 +4,7 @@
 //! Default root: `<config_dir>\.agents\skills` (APPDATA). Override via `ai-config.json`
 //! `skillsLibraryRoot`. Import requires root-level `SKILL.md`. No Junction deploy (A4).
 
-use super::agents::{ai_config_path, AiConfigDocument, AI_CONFIG_SCHEMA_VERSION};
+use super::agents::{AiConfigDocument, AI_CONFIG_SCHEMA_VERSION};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io;
@@ -247,13 +247,7 @@ fn remove_dir_all_robust(path: &Path) -> io::Result<()> {
 
 /// Save helper used by IPC after mutating ai-config root override.
 pub fn save_ai_config(config_dir: &Path, document: &AiConfigDocument) -> Result<(), String> {
-    fs::create_dir_all(config_dir)
-        .map_err(|err| format!("Failed to create AI config directory: {err}"))?;
-    let path = ai_config_path(config_dir);
-    let text = serde_json::to_string_pretty(document)
-        .map_err(|err| format!("Failed to serialize AI config: {err}"))?;
-    fs::write(&path, text).map_err(|err| format!("Failed to write AI config: {err}"))?;
-    Ok(())
+    super::agents::save_to_path(config_dir, document)
 }
 
 #[cfg(test)]
