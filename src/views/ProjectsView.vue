@@ -18,7 +18,7 @@ import {
   type SilentSwitchResult,
 } from "../state/navigatorBrowse";
 import { openConfirmDialog } from "../state/confirmDialog";
-import { toastInfo, toastSuccess } from "../state/toast";
+import { toastError, toastInfo, toastSuccess } from "../state/toast";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import type { FluentGlyphId } from "../components/icons/glyphs";
 import { AI_ADDON_ENABLED } from "../config/flavor";
@@ -336,6 +336,9 @@ const listMoreOpenId = ref<string | null>(null);
 const listMoreMenuEl = ref<HTMLElement | null>(null);
 const listMoreMenuStyle = ref<Record<string, string>>({});
 const projectMoreMenuStyle = ref<Record<string, string>>({});
+const pathMenuPath = ref<string | null>(null);
+const pathMenuEl = ref<HTMLElement | null>(null);
+const pathMenuStyle = ref<Record<string, string>>({});
 const listRenamingId = ref<string | null>(null);
 const listRenameDraft = ref("");
 const listRenameInputEl = ref<HTMLInputElement | null>(null);
@@ -490,6 +493,9 @@ function onProjectDetailPointerDown(event: PointerEvent) {
     const inMenu = projectMoreMenuEl.value?.contains(target);
     const inTrigger = projectMoreTriggerEl.value?.contains(target);
     if (!inMenu && !inTrigger) projectMoreOpen.value = false;
+  }
+  if (pathMenuPath.value && !pathMenuEl.value?.contains(target)) {
+    pathMenuPath.value = null;
   }
   if (
     renamingProject.value &&
@@ -664,6 +670,37 @@ async function removeLink(linkId: string) {
   } catch (err) {
     error.value = mapProjectError(err);
   }
+}
+
+async function copyLinkPath(path: string) {
+  pathMenuPath.value = null;
+  const text = path.trim();
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    toastSuccess(t("contextMenu.copiedPath"));
+  } catch {
+    toastError(t("contextMenu.opFailed"));
+  }
+}
+
+function openPathMenu(event: MouseEvent, path: string) {
+  event.preventDefault();
+  event.stopPropagation();
+  projectMoreOpen.value = false;
+  listMoreOpenId.value = null;
+  const text = path.trim();
+  if (!text) {
+    pathMenuPath.value = null;
+    return;
+  }
+  pathMenuPath.value = text;
+  pathMenuStyle.value = {
+    position: "fixed",
+    top: `${Math.round(event.clientY)}px`,
+    left: `${Math.round(event.clientX)}px`,
+    zIndex: "1200",
+  };
 }
 
 async function saveContext() {
@@ -955,6 +992,16 @@ onUnmounted(() => {
             {{ t("projects.openWorkspaceFolder") }}
           </button>
           <button
+            v-if="selected.path"
+            class="fluent-control"
+            type="button"
+            :title="t('contextMenu.copyPath')"
+            :aria-label="t('contextMenu.copyPath')"
+            @click="copyLinkPath(selected.path)"
+          >
+            {{ t("contextMenu.copyPath") }}
+          </button>
+          <button
             v-if="aiAddonEnabled"
             class="fluent-control"
             type="button"
@@ -1021,6 +1068,7 @@ onUnmounted(() => {
             v-for="link in selected.workspaceLinks"
             :key="link.id"
             class="fluent-surface path-card path-card--with-action"
+            @contextmenu="openPathMenu($event, link.path)"
           >
             <button
               type="button"
@@ -1036,15 +1084,26 @@ onUnmounted(() => {
                 <span class="fluent-page-meta path-card-path">{{ link.path }}</span>
               </span>
             </button>
-            <button
-              type="button"
-              class="fluent-control path-card-remove"
-              :title="t('common.remove')"
-              :aria-label="t('common.remove')"
-              @click.stop="removeLink(link.id)"
-            >
-              <FluentIcon name="close" size="sm" />
-            </button>
+            <div class="path-card-actions">
+              <button
+                type="button"
+                class="fluent-control path-card-copy"
+                :title="t('contextMenu.copyPath')"
+                :aria-label="t('contextMenu.copyPath')"
+                @click.stop="copyLinkPath(link.path)"
+              >
+                <FluentIcon name="copy" size="sm" />
+              </button>
+              <button
+                type="button"
+                class="fluent-control path-card-remove"
+                :title="t('common.remove')"
+                :aria-label="t('common.remove')"
+                @click.stop="removeLink(link.id)"
+              >
+                <FluentIcon name="close" size="sm" />
+              </button>
+            </div>
           </div>
         </div>
         <p v-else class="fluent-page-meta">{{ t("projects.noFolderLinks") }}</p>
@@ -1238,6 +1297,25 @@ onUnmounted(() => {
           "
         >
           {{ t("common.delete") }}
+        </button>
+      </div>
+    </Teleport>
+    <Teleport to="body">
+      <div
+        v-if="pathMenuPath"
+        ref="pathMenuEl"
+        class="more-popover more-popover--portal fluent-surface"
+        role="menu"
+        :style="pathMenuStyle"
+        @click.stop
+      >
+        <button
+          type="button"
+          class="more-item"
+          role="menuitem"
+          @click="copyLinkPath(pathMenuPath)"
+        >
+          {{ t("contextMenu.copyPath") }}
         </button>
       </div>
     </Teleport>

@@ -83,4 +83,19 @@ assert.ok(projects.includes('name="close"'));
 assert.ok(wg.includes("@click.stop=\"removeMember"));
 assert.ok(projects.includes("@click.stop=\"removeLink"));
 
+// AIA-274: paths are copyable (button + Teleport context menu).
+assert.ok(wg.includes("copyMemberPath"));
+assert.ok(wg.includes("openPathMenu"));
+assert.ok(wg.includes('name="copy"') || wg.includes("name='copy'"));
+assert.ok(wg.includes("contextMenu.copyPath"));
+assert.ok(wg.includes("pathMenuPath"));
+assert.ok(projects.includes("copyLinkPath"));
+assert.ok(projects.includes("openPathMenu"));
+assert.ok(projects.includes("contextMenu.copyPath"));
+assert.ok(projects.includes("pathMenuPath"));
+assert.ok(pathCards.includes("path-card-copy"));
+assert.ok(pathCards.includes("user-select: text"));
+assert.equal(en.contextMenu.copyPath, "Copy path");
+assert.ok(zh.contextMenu.copyPath.includes("路径") || zh.contextMenu.copyPath.includes("複製"));
+
 console.log("wg/project path cards + list ⋯ + scroll chrome OK.");

@@ -74,14 +74,28 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  user-select: text;
 }
 
+.path-card-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+}
+
+.path-card-copy,
 .path-card-remove {
   flex-shrink: 0;
   align-self: center;
   min-width: 2rem;
   padding-inline: var(--fluent-space-sm);
   color: var(--fluent-color-text-secondary);
+}
+
+.path-card-copy:hover,
+.path-card-copy:focus-visible {
+  color: var(--fluent-color-text-accent);
 }
 
 .path-card-remove:hover,

@@ -213,6 +213,37 @@ async function removeMember(path: string) {
   toastInfo(t("workGroups.memberRemoved"));
 }
 
+async function copyMemberPath(path: string) {
+  pathMenuPath.value = null;
+  const text = path.trim();
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    toastSuccess(t("contextMenu.copiedPath"));
+  } catch {
+    toastError(t("contextMenu.opFailed"));
+  }
+}
+
+function openPathMenu(event: MouseEvent, path: string) {
+  event.preventDefault();
+  event.stopPropagation();
+  moreMenuOpen.value = false;
+  listMoreOpenId.value = null;
+  const text = path.trim();
+  if (!text) {
+    pathMenuPath.value = null;
+    return;
+  }
+  pathMenuPath.value = text;
+  pathMenuStyle.value = {
+    position: "fixed",
+    top: `${Math.round(event.clientY)}px`,
+    left: `${Math.round(event.clientX)}px`,
+    zIndex: "1200",
+  };
+}
+
 const renaming = ref(false);
 const renameDraft = ref("");
 const moreMenuOpen = ref(false);
@@ -224,6 +255,9 @@ const listMoreOpenId = ref<string | null>(null);
 const listMoreMenuEl = ref<HTMLElement | null>(null);
 const listMoreMenuStyle = ref<Record<string, string>>({});
 const moreMenuStyle = ref<Record<string, string>>({});
+const pathMenuPath = ref<string | null>(null);
+const pathMenuEl = ref<HTMLElement | null>(null);
+const pathMenuStyle = ref<Record<string, string>>({});
 const listRenamingId = ref<string | null>(null);
 const listRenameDraft = ref("");
 const listRenameInputEl = ref<HTMLInputElement | null>(null);
@@ -297,6 +331,7 @@ async function commitInlineRename() {
 function toggleListMore(groupId: string, event: Event) {
   event.stopPropagation();
   moreMenuOpen.value = false;
+  pathMenuPath.value = null;
   if (listMoreOpenId.value === groupId) {
     listMoreOpenId.value = null;
     return;
@@ -309,6 +344,7 @@ function toggleListMore(groupId: string, event: Event) {
 
 function toggleDetailMore() {
   listMoreOpenId.value = null;
+  pathMenuPath.value = null;
   if (moreMenuOpen.value) {
     moreMenuOpen.value = false;
     return;
@@ -363,6 +399,9 @@ function onDetailPointerDown(event: PointerEvent) {
     const inMenu = moreMenuEl.value?.contains(target);
     const inTrigger = moreTriggerEl.value?.contains(target);
     if (!inMenu && !inTrigger) moreMenuOpen.value = false;
+  }
+  if (pathMenuPath.value && !pathMenuEl.value?.contains(target)) {
+    pathMenuPath.value = null;
   }
   if (renaming.value && detailTitleRowEl.value && !detailTitleRowEl.value.contains(target)) {
     cancelInlineRename();
@@ -605,6 +644,7 @@ onUnmounted(() => {
             v-for="path in active.memberPaths"
             :key="path"
             class="fluent-surface path-card path-card--with-action"
+            @contextmenu="openPathMenu($event, path)"
           >
             <button
               type="button"
@@ -620,15 +660,26 @@ onUnmounted(() => {
                 <span class="fluent-page-meta path-card-path">{{ path }}</span>
               </span>
             </button>
-            <button
-              type="button"
-              class="fluent-control path-card-remove"
-              :title="t('workGroups.removeMember')"
-              :aria-label="t('workGroups.removeMember')"
-              @click.stop="removeMember(path)"
-            >
-              <FluentIcon name="close" size="sm" />
-            </button>
+            <div class="path-card-actions">
+              <button
+                type="button"
+                class="fluent-control path-card-copy"
+                :title="t('contextMenu.copyPath')"
+                :aria-label="t('contextMenu.copyPath')"
+                @click.stop="copyMemberPath(path)"
+              >
+                <FluentIcon name="copy" size="sm" />
+              </button>
+              <button
+                type="button"
+                class="fluent-control path-card-remove"
+                :title="t('workGroups.removeMember')"
+                :aria-label="t('workGroups.removeMember')"
+                @click.stop="removeMember(path)"
+              >
+                <FluentIcon name="close" size="sm" />
+              </button>
+            </div>
           </div>
         </div>
         <p v-else class="fluent-page-meta">{{ t("workGroups.noHardMembers") }}</p>
@@ -646,22 +697,38 @@ onUnmounted(() => {
 
         <h3>{{ t("workGroups.runtimeOpenState") }}</h3>
         <div v-if="liveTabs.length" class="path-card-grid">
-          <button
+          <div
             v-for="tab in liveTabs"
             :key="tab.id"
-            type="button"
-            class="fluent-surface path-card"
-            :title="tab.path"
-            @click="openPathInNavigator(tab.path)"
+            class="fluent-surface path-card path-card--with-action"
+            @contextmenu="openPathMenu($event, tab.path)"
           >
-            <span class="fluent-icon-wash">
-              <FluentIcon name="folderOpen" size="md" />
-            </span>
-            <span class="path-card-body">
-              <span class="path-card-name">{{ tab.name || pathLabel(tab.path) }}</span>
-              <span class="fluent-page-meta path-card-path">{{ tab.path }}</span>
-            </span>
-          </button>
+            <button
+              type="button"
+              class="path-card-main"
+              :title="tab.path"
+              @click="openPathInNavigator(tab.path)"
+            >
+              <span class="fluent-icon-wash">
+                <FluentIcon name="folderOpen" size="md" />
+              </span>
+              <span class="path-card-body">
+                <span class="path-card-name">{{ tab.name || pathLabel(tab.path) }}</span>
+                <span class="fluent-page-meta path-card-path">{{ tab.path }}</span>
+              </span>
+            </button>
+            <div class="path-card-actions">
+              <button
+                type="button"
+                class="fluent-control path-card-copy"
+                :title="t('contextMenu.copyPath')"
+                :aria-label="t('contextMenu.copyPath')"
+                @click.stop="copyMemberPath(tab.path)"
+              >
+                <FluentIcon name="copy" size="sm" />
+              </button>
+            </div>
+          </div>
         </div>
         <p v-else class="fluent-page-meta">{{ t("workGroups.noOpenTabs") }}</p>
 
@@ -764,6 +831,25 @@ onUnmounted(() => {
           "
         >
           {{ t("workGroups.delete") }}
+        </button>
+      </div>
+    </Teleport>
+    <Teleport to="body">
+      <div
+        v-if="pathMenuPath"
+        ref="pathMenuEl"
+        class="more-popover more-popover--portal fluent-surface"
+        role="menu"
+        :style="pathMenuStyle"
+        @click.stop
+      >
+        <button
+          type="button"
+          class="more-item"
+          role="menuitem"
+          @click="copyMemberPath(pathMenuPath)"
+        >
+          {{ t("contextMenu.copyPath") }}
         </button>
       </div>
     </Teleport>

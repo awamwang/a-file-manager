@@ -353,6 +353,7 @@ function closeChromeMenus() {
   closeWorkGroupMenu();
   closeViewModeMenu();
   closeCrumbMenu();
+  closeTabContextMenu();
 }
 
 function pathKey(path: string): string {
@@ -632,7 +633,8 @@ function onGlobalKeydown(event: KeyboardEvent) {
     (placesMenuOpen.value ||
       workGroupMenuOpen.value ||
       viewModeMenuOpen.value ||
-      crumbMenuIndex.value !== null)
+      crumbMenuIndex.value !== null ||
+      tabContextPath.value !== null)
   ) {
     closeChromeMenus();
     event.preventDefault();
@@ -648,7 +650,8 @@ function onDocumentPointerDown(event: PointerEvent) {
     !placesMenuOpen.value &&
     !workGroupMenuOpen.value &&
     !viewModeMenuOpen.value &&
-    crumbMenuIndex.value === null
+    crumbMenuIndex.value === null &&
+    tabContextPath.value === null
   ) {
     return;
   }
@@ -659,6 +662,7 @@ function onDocumentPointerDown(event: PointerEvent) {
   const viewRoot = document.getElementById("navigator-view-mode-menu");
   const crumbBar = document.getElementById("navigator-crumb-menu");
   const crumbFlyout = document.getElementById("navigator-crumb-siblings");
+  const tabMenu = document.getElementById("navigator-tab-context-menu");
   if (placesMenuOpen.value && placesRoot && !placesRoot.contains(target)) {
     closePlacesMenu();
   }
@@ -667,6 +671,9 @@ function onDocumentPointerDown(event: PointerEvent) {
   }
   if (viewModeMenuOpen.value && viewRoot && !viewRoot.contains(target)) {
     closeViewModeMenu();
+  }
+  if (tabContextPath.value !== null && tabMenu && !tabMenu.contains(target)) {
+    closeTabContextMenu();
   }
   if (crumbMenuIndex.value !== null) {
     const inBar = crumbBar?.contains(target);
@@ -1330,6 +1337,50 @@ function onToggleTabPin(tabId: string) {
   togglePinnedTab(tabId);
 }
 
+const tabContextPath = ref<string | null>(null);
+const tabContextStyle = ref<Record<string, string>>({});
+
+function closeTabContextMenu() {
+  tabContextPath.value = null;
+  tabContextStyle.value = {};
+}
+
+function onTabContextMenu(event: MouseEvent, path: string) {
+  event.preventDefault();
+  event.stopPropagation();
+  closeChromeMenus();
+  const text = path.trim();
+  if (!text) return;
+  tabContextPath.value = text;
+  const menuWidth = Math.min(180, window.innerWidth * 0.7);
+  let left = event.clientX;
+  if (left + menuWidth > window.innerWidth - 8) {
+    left = Math.max(8, window.innerWidth - menuWidth - 8);
+  }
+  let top = event.clientY;
+  if (top + 48 > window.innerHeight - 8) {
+    top = Math.max(8, window.innerHeight - 56);
+  }
+  tabContextStyle.value = {
+    position: "fixed",
+    top: `${Math.round(top)}px`,
+    left: `${Math.round(left)}px`,
+    zIndex: "1200",
+  };
+}
+
+async function copyTabPath() {
+  const path = tabContextPath.value;
+  closeTabContextMenu();
+  if (!path) return;
+  try {
+    await navigator.clipboard.writeText(path);
+    toastSuccess(t("contextMenu.copiedPath"));
+  } catch {
+    toastError(t("contextMenu.opFailed"));
+  }
+}
+
 async function onCloseNavigatorTab(event: Event, groupIndex: number) {
   event.stopPropagation();
   event.preventDefault();
@@ -1556,6 +1607,7 @@ onUnmounted(() => {
             :title="tab.path"
             @click="onTabClick(tab.groupIndex)"
             @dblclick.stop="onToggleTabPin(tab.id)"
+            @contextmenu="onTabContextMenu($event, tab.path)"
             @pointerdown="onTabPointerDown($event, tab.groupIndex)"
             @dragover="onTabFileDragOver($event, tab.groupIndex)"
             @dragleave="onTabFileDragLeave($event, tab.groupIndex)"
@@ -2018,6 +2070,26 @@ onUnmounted(() => {
           </div>
         </form>
 
+        <Teleport to="body">
+          <div
+            v-if="tabContextPath"
+            id="navigator-tab-context-menu"
+            class="tab-context-menu fluent-surface"
+            role="menu"
+            :aria-label="t('contextMenu.copyPath')"
+            :style="tabContextStyle"
+            @click.stop
+          >
+            <button
+              type="button"
+              class="tab-context-item"
+              role="menuitem"
+              @click="copyTabPath"
+            >
+              {{ t("contextMenu.copyPath") }}
+            </button>
+          </div>
+        </Teleport>
         <Teleport to="body">
           <div
             v-if="crumbMenuIndex !== null"
@@ -2747,6 +2819,32 @@ onUnmounted(() => {
   min-width: var(--fluent-control-height-standard);
   justify-content: center;
   padding-inline: 0;
+}
+
+.tab-context-menu {
+  min-width: 9rem;
+  padding: var(--fluent-space-xs);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: var(--fluent-shadow-flyout, 0 8px 24px rgba(0, 0, 0, 0.18));
+}
+
+.tab-context-item {
+  border: 0;
+  border-radius: var(--fluent-radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  padding: var(--fluent-space-sm) var(--fluent-space-md);
+  cursor: pointer;
+}
+
+.tab-context-item:hover,
+.tab-context-item:focus-visible {
+  background: var(--fluent-color-fill-selected);
+  outline: none;
 }
 
 .body {

@@ -35,5 +35,8 @@ for (const [label, src] of [
 // Prior fix remains: breadcrumb siblings portal.
 assert.ok(shell.includes("<Teleport to=\"body\">") || shell.includes("<Teleport to='body'>"));
 assert.ok(shell.includes("positionCrumbMenu"));
+// AIA-274: tab path context menu portals to body.
+assert.ok(shell.includes("navigator-tab-context-menu"));
+assert.ok(shell.includes("onTabContextMenu"));
 
 console.log("popup layering (Teleport) checks OK.");
