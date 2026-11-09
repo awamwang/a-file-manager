@@ -29,6 +29,7 @@ const folderItems = buildContextMenuItems(nested);
 assert.ok(folderItems.find((item) => item.id === "openWith")?.enabled);
 assert.ok(folderItems.find((item) => item.id === "openInTerminal")?.enabled);
 assert.ok(folderItems.find((item) => item.id === "toggleFavorite")?.enabled);
+assert.ok(folderItems.find((item) => item.id === "addAsSkill")?.enabled);
 assert.ok(folderItems.find((item) => item.id === "properties")?.enabled);
 assert.ok(folderItems.find((item) => item.id === "newFolder")?.enabled);
 // Background must not fall back to New-only emptyArea list.

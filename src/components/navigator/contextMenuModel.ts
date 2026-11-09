@@ -13,6 +13,7 @@ export type ContextMenuActionId =
   | "openInTerminal"
   | "toggleFavorite"
   | "addToWorkGroup"
+  | "addAsSkill"
   | "systemMenu"
   | "reveal"
   | "copy"
@@ -233,6 +234,7 @@ export function buildContextMenuItems(
       icon: "star",
     },
     ...buildAddToWorkGroupItems(isDir, options.workGroups),
+    ...buildAddAsSkillItems(isDir),
     {
       // AIA-224/239: no nested systemMenuShow hop; shell verbs render inside AFM submenu.
       id: "systemMenu",
@@ -342,6 +344,19 @@ function buildAddToWorkGroupItems(
               icon: "folder",
             },
           ],
+    },
+  ];
+}
+
+/** Folder-only: import into AFM public Skill library (AI 板块全局 skill). */
+function buildAddAsSkillItems(isDir: boolean): ContextMenuItemDef[] {
+  if (!isDir) return [];
+  return [
+    {
+      id: "addAsSkill",
+      labelKey: "contextMenu.addAsSkill",
+      enabled: true,
+      icon: "puzzle",
     },
   ];
 }

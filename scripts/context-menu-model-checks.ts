@@ -63,6 +63,15 @@ assert.equal(
   undefined,
   "files must not get Add to Work Group",
 );
+const addAsSkill = dirItems.find((item) => item.id === "addAsSkill");
+assert.ok(addAsSkill);
+assert.equal(addAsSkill.labelKey, "contextMenu.addAsSkill");
+assert.equal(addAsSkill.enabled, true);
+assert.equal(
+  buildContextMenuItems(file).find((item) => item.id === "addAsSkill"),
+  undefined,
+  "files must not get Add as skill",
+);
 // Clipboard / rename / copy-path moved to Windows-style top toolbar.
 assert.equal(dirItems.find((item) => item.id === "copy"), undefined);
 assert.equal(dirItems.find((item) => item.id === "cut"), undefined);

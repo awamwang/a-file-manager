@@ -557,6 +557,45 @@ function folderPathsForWorkGroup(entry: NavigatorEntry): string[] {
   return [entry.path];
 }
 
+const SKILL_ERROR_KEYS: Record<string, string> = {
+  AI_SKILL_SOURCE_INVALID: "ai.skills.errorSourceInvalid",
+  AI_SKILL_MANIFEST_MISSING: "ai.skills.errorManifestMissing",
+  AI_SKILL_NAME_INVALID: "ai.skills.errorNameInvalid",
+  AI_SKILL_EXISTS: "ai.skills.errorExists",
+  AI_SKILL_UNKNOWN: "ai.skills.errorUnknown",
+  AI_SKILL_ROOT_INVALID: "ai.skills.errorRootInvalid",
+};
+
+function mapSkillError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  for (const [code, key] of Object.entries(SKILL_ERROR_KEYS)) {
+    if (raw.includes(code)) return t(key);
+  }
+  return raw;
+}
+
+/** 将文件夹导入 AI 板块公共 Skill 库（全局 skill）。 */
+async function runAddAsSkill(entry: NavigatorEntry) {
+  if (entry.kind !== "dir") return;
+  try {
+    const [, skill] = await invoke<
+      [{ root: string; skills: unknown[] }, { name: string; path: string }]
+    >("ai_skills_import", {
+      sourcePath: entry.path,
+      name: null,
+    });
+    emit("notice", t("contextMenu.addedAsSkill", { name: skill.name }));
+  } catch (err) {
+    const raw = err instanceof Error ? err.message : String(err);
+    // 已入库：友好提示，不当作失败噪音
+    if (raw.includes("AI_SKILL_EXISTS")) {
+      emit("notice", t("contextMenu.addAsSkillExists", { name: entry.name }));
+      return;
+    }
+    emit("notice", mapSkillError(err));
+  }
+}
+
 async function runAddToWorkGroup(workGroupId: string, entry: NavigatorEntry) {
   const paths = folderPathsForWorkGroup(entry);
   if (!paths.length) return;
@@ -811,6 +850,9 @@ async function run(id: string) {
       } catch (err) {
         emit("notice", err instanceof Error ? err.message : String(err));
       }
+      break;
+    case "addAsSkill":
+      if (entry) await runAddAsSkill(entry);
       break;
     case "systemMenu":
       // AIA-239: systemMenu is a submenu parent; leaf shell verbs use shell:* ids.
