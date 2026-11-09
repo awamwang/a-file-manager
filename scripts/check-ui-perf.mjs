@@ -23,4 +23,7 @@ assert.ok(!focusBody.includes("refreshPreviewSetting"), "must not hydrate previe
 
 console.log("UI perf cheap-win checks OK (AIA-269).");
 
-// AIA-276 coverage lives in check-settings-switch.mjs (KeepAlive + Settings cache).
+// AIA-278: thumbnail scroll queue — see check-shell-icons.mjs / check-shell-icon-queue.mjs.
+assert.ok(nav.includes("clearShellIconQueue"), "folder change cancels thumb queue");
+assert.ok(nav.includes("cancelShellIconRequests"), "out-of-view thumb cancel");
+assert.ok(nav.includes("ShellIconImg"), "per-row shell icon isolate");

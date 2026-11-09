@@ -10,6 +10,10 @@ const lib = readFileSync(join(root, "src-tauri/src/lib.rs"), "utf8");
 const cargo = readFileSync(join(root, "src-tauri/Cargo.toml"), "utf8");
 const view = readFileSync(join(root, "src/views/NavigatorView.vue"), "utf8");
 const state = readFileSync(join(root, "src/state/shellIcons.ts"), "utf8");
+const shellImg = readFileSync(
+  join(root, "src/components/navigator/ShellIconImg.vue"),
+  "utf8",
+);
 
 assert.ok(cargo.includes("file_icon_provider"));
 assert.ok(lib.includes("shell_icons::shell_icon_get"));
@@ -23,14 +27,23 @@ assert.ok(
   !rust.includes("image_thumbnail_data_url") && !rust.includes("load_from_memory"),
   "must not self-decode images into thumbnails",
 );
+assert.ok(rust.includes("spawn_blocking"), "AIA-278: Shell work off async runtime");
 assert.ok(state.includes("shell_icon_get_many"));
+assert.ok(state.includes("clearShellIconQueue"), "cancel queue on folder change");
+assert.ok(state.includes("cancelShellIconRequests"), "cancel out-of-view thumbs");
+assert.ok(state.includes("BATCH_THUMB"), "small thumbnail batches");
+assert.ok(state.includes("priority"), "viewport priority enqueue");
 assert.ok(view.includes("requestShellIcons"));
-assert.ok(view.includes("shell-icon"));
+assert.ok(view.includes("ShellIconImg"), "per-row icon isolate");
+assert.ok(view.includes("clearShellIconQueue"));
+assert.ok(view.includes("cancelShellIconRequests"));
 assert.ok(view.includes("IntersectionObserver"), "viewport-only icon/thumbnail load (AIA-182)");
 assert.ok(view.includes("bindIconObserver") || view.includes("refreshViewportIconObservers"));
 assert.ok(
   !/requestIconsFor\(visibleEntries\.value\.map/.test(view),
   "must not request icons for the entire filtered listing",
 );
+assert.ok(shellImg.includes("decoding=\"async\"") || shellImg.includes("decoding='async'"));
+assert.ok(shellImg.includes("iconUrlFor"));
 
-console.log("Shell icons checks OK (AIA-65/182/143 system thumbnails).");
+console.log("Shell icons checks OK (AIA-65/182/143/278 system thumbnails + scroll queue).");

@@ -26,7 +26,11 @@ import { isRecyclePath } from "../state/recyclePath";
 import { restoreRecyclePaths } from "../state/recycleBin";
 import NavigatorGuide from "../components/navigator/NavigatorGuide.vue";
 import { hydrateSettings } from "../state/settingsHydrate";
-import { iconUrlFor, requestShellIcons } from "../state/shellIcons";
+import {
+  cancelShellIconRequests,
+  clearShellIconQueue,
+  requestShellIcons,
+} from "../state/shellIcons";
 import {
   loadFavorites,
   loadFavoritesOsHookStatus,
@@ -142,12 +146,11 @@ import {
   registerShortcutHandler,
   unregisterShortcutHandler,
 } from "../shortcuts/index.ts";
-import FluentIcon from "../components/icons/FluentIcon.vue";
 import NavigatorContextMenu from "../components/navigator/NavigatorContextMenu.vue";
 import PreviewPane from "../components/navigator/PreviewPane.vue";
 import DetailsPane from "../components/navigator/DetailsPane.vue";
 import PropertiesPanel from "../components/navigator/PropertiesPanel.vue";
-import { entryKindIcon } from "../components/icons/glyphs";
+import ShellIconImg from "../components/navigator/ShellIconImg.vue";
 
 /** KeepAlive include name in App.vue (AIA-276). */
 defineOptions({ name: "NavigatorView" });
@@ -504,15 +507,16 @@ function entryLocation(path: string): string {
 
 const orderedPaths = computed(() => visibleEntries.value.map((e) => e.path));
 
-function requestIconsFor(paths: string[]) {
+function requestIconsFor(paths: string[], priority = false) {
   const size = VIEW_ICON_SIZE[navigatorViewMode.value];
   // Icon views: prefer system thumbnails for images; list/details use small shell icons.
-  requestShellIcons(paths, size, isIconView.value);
+  requestShellIcons(paths, size, isIconView.value, { priority });
 }
 
-/** Only request shell icons / thumbnails for rows in (or near) the scroll viewport (AIA-182). */
+/** Only request shell icons / thumbnails for rows in (or near) the scroll viewport (AIA-182 / AIA-278). */
 let primaryIconObserver: IntersectionObserver | null = null;
 let secondaryIconObserver: IntersectionObserver | null = null;
+let iconObserverRefreshTimer: ReturnType<typeof requestAnimationFrame> | null = null;
 
 function disconnectIconObservers() {
   primaryIconObserver?.disconnect();
@@ -529,16 +533,21 @@ function bindIconObserver(
   if (!root) return null;
   const observer = new IntersectionObserver(
     (entries) => {
-      const paths: string[] = [];
+      const enter: string[] = [];
+      const leave: string[] = [];
       for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
         const path = (entry.target as HTMLElement).dataset.entryPath;
-        if (path) paths.push(path);
+        if (!path) continue;
+        if (entry.isIntersecting) enter.push(path);
+        else leave.push(path);
       }
-      if (paths.length) requestIconsFor(paths);
+      const size = VIEW_ICON_SIZE[navigatorViewMode.value];
+      // Drop work that scrolled away so it cannot block the new viewport (AIA-278).
+      if (leave.length) cancelShellIconRequests(leave, size);
+      if (enter.length) requestIconsFor(enter, true);
     },
     // Prefetch a little past the fold so scroll feels warm without loading the whole listing.
-    { root, rootMargin: "120px 0px", threshold: 0 },
+    { root, rootMargin: "80px 0px", threshold: 0 },
   );
   for (const el of root.querySelectorAll<HTMLElement>("[data-entry-path]")) {
     observer.observe(el);
@@ -555,10 +564,18 @@ async function refreshViewportIconObservers() {
   );
 }
 
+function scheduleViewportIconObservers() {
+  if (iconObserverRefreshTimer != null) return;
+  iconObserverRefreshTimer = requestAnimationFrame(() => {
+    iconObserverRefreshTimer = null;
+    void refreshViewportIconObservers();
+  });
+}
+
 watch(
   [visibleEntries, secondaryEntries, navigatorViewMode, listRoot, secondaryListRoot],
   () => {
-    void refreshViewportIconObservers();
+    scheduleViewportIconObservers();
   },
   { immediate: true },
 );
@@ -621,6 +638,11 @@ onMounted(() => {
 onUnmounted(() => {
   clearPendingNameRename();
   disconnectIconObservers();
+  if (iconObserverRefreshTimer != null) {
+    cancelAnimationFrame(iconObserverRefreshTimer);
+    iconObserverRefreshTimer = null;
+  }
+  clearShellIconQueue();
   listSizeObserver?.disconnect();
   listSizeObserver = null;
   secondarySizeObserver?.disconnect();
@@ -636,7 +658,19 @@ onUnmounted(() => {
 });
 
 watch(currentPath, () => {
+  // AIA-278: abandon prior-folder thumb IPC before the new listing paints.
+  clearShellIconQueue();
   if (renamingPath.value) cancelInlineRename();
+});
+
+watch(secondaryPath, (next, prev) => {
+  if (next === prev) return;
+  clearShellIconQueue();
+});
+
+watch(navigatorViewMode, () => {
+  // Size-keyed cache; drop prior-size queue so scroll does not wait on stale work.
+  clearShellIconQueue();
 });
 
 function formatSize(entry: NavigatorEntry): string {
@@ -817,10 +851,6 @@ watch([listRoot, secondaryListRoot], () => {
     secondaryViewport,
   );
 });
-
-function shellIcon(path: string): string | null {
-  return iconUrlFor(path, iconPixelSize.value);
-}
 
 async function restoreSelection() {
   const paths = selectionPaths();
@@ -1606,15 +1636,11 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
             @drop="onDrop($event, entry)"
           >
             <span class="kind" :data-kind="entry.kind">
-              <img
-                v-if="shellIcon(entry.path)"
-                class="shell-icon"
-                :src="shellIcon(entry.path)!"
-                alt=""
-                :width="iconPixelSize"
-                :height="iconPixelSize"
+              <ShellIconImg
+                :path="entry.path"
+                :size="iconPixelSize"
+                :is-dir="entry.kind === 'dir'"
               />
-              <FluentIcon v-else :name="entryKindIcon(entry.kind === 'dir')" size="md" />
             </span>
             <textarea
               v-if="renamingPath === entry.path"
@@ -1679,15 +1705,11 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           class="kind"
           :data-kind="entry.kind"
         >
-          <img
-            v-if="shellIcon(entry.path)"
-            class="shell-icon"
-            :src="shellIcon(entry.path)!"
-            alt=""
-            :width="iconPixelSize"
-            :height="iconPixelSize"
+          <ShellIconImg
+            :path="entry.path"
+            :size="iconPixelSize"
+            :is-dir="entry.kind === 'dir'"
           />
-          <FluentIcon v-else :name="entryKindIcon(entry.kind === 'dir')" size="md" />
         </span>
         <textarea
           v-if="renamingPath === entry.path"
@@ -1826,15 +1848,11 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           @drop="onDrop($event, entry)"
         >
           <span class="kind" :data-kind="entry.kind">
-            <img
-              v-if="shellIcon(entry.path)"
-              class="shell-icon"
-              :src="shellIcon(entry.path)!"
-              alt=""
-              :width="iconPixelSize"
-              :height="iconPixelSize"
+            <ShellIconImg
+              :path="entry.path"
+              :size="iconPixelSize"
+              :is-dir="entry.kind === 'dir'"
             />
-            <FluentIcon v-else :name="entryKindIcon(entry.kind === 'dir')" size="md" />
           </span>
           <span class="name-block">
             <span class="name">{{ entry.name }}</span>

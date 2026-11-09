@@ -210,26 +210,42 @@ pub fn resolve_icon(path: &str, size: u16, prefer_thumbnail: bool) -> ShellIconR
 }
 
 #[tauri::command]
-pub fn shell_icon_get(path: String, size: Option<u16>, prefer_thumbnail: Option<bool>) -> ShellIconResult {
-    resolve_icon(
-        &path,
-        size.unwrap_or(20),
-        prefer_thumbnail.unwrap_or(true),
-    )
+pub async fn shell_icon_get(
+    path: String,
+    size: Option<u16>,
+    prefer_thumbnail: Option<bool>,
+) -> ShellIconResult {
+    let size = size.unwrap_or(20);
+    let prefer = prefer_thumbnail.unwrap_or(true);
+    // Shell thumbnail / icon work is COM + disk; keep it off the async runtime workers.
+    let fallback_path = path.clone();
+    tauri::async_runtime::spawn_blocking(move || resolve_icon(&path, size, prefer))
+        .await
+        .unwrap_or(ShellIconResult {
+            path: fallback_path,
+            data_url: None,
+            kind: "icon".into(),
+        })
 }
 
 #[tauri::command]
-pub fn shell_icon_get_many(
+pub async fn shell_icon_get_many(
     paths: Vec<String>,
     size: Option<u16>,
     prefer_thumbnail: Option<bool>,
 ) -> Vec<ShellIconResult> {
     let size = size.unwrap_or(20);
     let prefer = prefer_thumbnail.unwrap_or(true);
-    paths
-        .into_iter()
-        .map(|p| resolve_icon(&p, size, prefer))
-        .collect()
+    // AIA-278: small frontend batches + spawn_blocking so list IPC / UI stay responsive
+    // while Shell generates thumbnails.
+    tauri::async_runtime::spawn_blocking(move || {
+        paths
+            .into_iter()
+            .map(|p| resolve_icon(&p, size, prefer))
+            .collect()
+    })
+    .await
+    .unwrap_or_default()
 }
 
 #[cfg(test)]
