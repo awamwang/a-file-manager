@@ -5,8 +5,9 @@
 
 use super::board::WorkspaceBoard;
 use super::index::{
-    ensure_projects_root_dir, normalize_path_string, set_active_project as set_index_active,
-    validate_slug, workspace_path_for_slug, ProjectsIndex,
+    ensure_projects_root_dir, is_windows_invalid_folder_char, is_windows_reserved_folder_name,
+    normalize_path_string, set_active_project as set_index_active, validate_slug,
+    workspace_path_for_slug, ProjectsIndex, MAX_SLUG_LEN,
 };
 use super::ops::{now_millis, validate_bindable_work_group};
 use crate::work_groups::sync::silent_switch_work_group;
@@ -74,31 +75,43 @@ pub struct ActivateWorkspaceResult {
     pub silent_switch: Option<SilentSwitchResult>,
 }
 
-/// Derive an ASCII slug candidate from a display name.
+/// Derive an on-disk folder name from a display name (Unicode allowed).
+/// Sanitizes only Windows-invalid path characters; does not ASCII-slugify.
 pub fn slugify_display_name(name: &str) -> String {
     let mut out = String::new();
     for c in name.trim().chars() {
-        if c.is_ascii_alphanumeric() {
-            out.push(c.to_ascii_lowercase());
-        } else if matches!(c, ' ' | '_' | '-') {
-            if !out.is_empty() && !out.ends_with('-') {
-                out.push('-');
+        if is_windows_invalid_folder_char(c) {
+            if !out.is_empty() && !out.ends_with('_') {
+                out.push('_');
             }
+        } else {
+            out.push(c);
         }
     }
-    let trimmed = out.trim_matches('-').to_string();
-    let mut slug = if trimmed.is_empty() {
-        "project".to_string()
-    } else {
-        trimmed
-    };
-    if slug.len() > 64 {
-        slug.truncate(64);
-        slug = slug.trim_end_matches('-').to_string();
-        if slug.is_empty() {
+
+    while out.ends_with('.') || out.ends_with(' ') {
+        out.pop();
+    }
+
+    let mut slug = out;
+    if slug.is_empty() || slug == "." || slug == ".." {
+        slug = "project".to_string();
+    }
+
+    if slug.chars().count() > MAX_SLUG_LEN {
+        slug = slug.chars().take(MAX_SLUG_LEN).collect();
+        while slug.ends_with('.') || slug.ends_with(' ') {
+            slug.pop();
+        }
+        if slug.is_empty() || slug == "." || slug == ".." {
             slug = "project".to_string();
         }
     }
+
+    if is_windows_reserved_folder_name(&slug) {
+        slug.push('_');
+    }
+
     slug
 }
 
@@ -109,13 +122,12 @@ fn allocate_unique_slug(projects_root: &Path, preferred: &str) -> Result<String,
             base.clone()
         } else {
             let suffix = format!("-{n}");
-            let max_base = 64usize.saturating_sub(suffix.len());
-            let mut stem = base.clone();
-            if stem.len() > max_base {
-                stem.truncate(max_base);
-                stem = stem.trim_end_matches('-').to_string();
+            let max_base = MAX_SLUG_LEN.saturating_sub(suffix.chars().count());
+            let mut stem: String = base.chars().take(max_base).collect();
+            while stem.ends_with('.') || stem.ends_with(' ') {
+                stem.pop();
             }
-            if stem.is_empty() {
+            if stem.is_empty() || is_windows_reserved_folder_name(&stem) {
                 stem = "project".to_string();
             }
             format!("{stem}{suffix}")
@@ -135,8 +147,8 @@ fn allocate_unique_slug(projects_root: &Path, preferred: &str) -> Result<String,
 
 /// Create a Core Workspace under `projects_root` (ADR 0008 light create).
 ///
-/// When `exact_slug` is `true`, `slug_or_name` is treated as the slug and must be free.
-/// When `false`, `slug_or_name` is a display-name seed (slugified + unique suffix).
+/// When `slug_hint` is `Some`, it is the exact folder name/slug and must be free.
+/// When `None`, the folder name is derived from `display_name` (Windows-sanitized) with a unique suffix on collision.
 pub fn create_workspace_at(
     projects_root: &Path,
     display_name: &str,
@@ -384,11 +396,16 @@ mod tests {
     }
 
     #[test]
-    fn slugify_ascii_and_fallback() {
-        assert_eq!(slugify_display_name("My Demo App"), "my-demo-app");
-        assert_eq!(slugify_display_name("  Hello__World  "), "hello-world");
-        assert_eq!(slugify_display_name("中文项目"), "project");
-        assert_eq!(slugify_display_name("---"), "project");
+    fn slugify_preserves_display_name_with_windows_sanitize() {
+        assert_eq!(slugify_display_name("My Demo App"), "My Demo App");
+        assert_eq!(slugify_display_name("  Hello__World  "), "Hello__World");
+        assert_eq!(slugify_display_name("中文项目"), "中文项目");
+        assert_eq!(slugify_display_name("视频制作"), "视频制作");
+        assert_eq!(slugify_display_name("---"), "---");
+        assert_eq!(slugify_display_name("a<>b|c"), "a_b_c");
+        assert_eq!(slugify_display_name("foo. "), "foo");
+        assert_eq!(slugify_display_name("CON"), "CON_");
+        assert_eq!(slugify_display_name("<<<"), "project");
     }
 
     #[test]
@@ -403,13 +420,14 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(result.project.slug, "demo-app");
+        assert_eq!(result.project.slug, "Demo App");
         assert_eq!(result.project.display_name, "Demo App");
         assert_eq!(result.project.description, "notes");
         assert!(result.project.bound_work_group_id.is_none());
 
         let dir = PathBuf::from(&result.path);
         assert!(dir.is_dir());
+        assert_eq!(dir.file_name().and_then(|n| n.to_str()), Some("Demo App"));
 
         let entries = list_workspace_entries(&dir).unwrap();
         assert_eq!(
@@ -426,7 +444,7 @@ mod tests {
 
         let meta: WorkspaceProjectMeta =
             serde_json::from_str(&fs::read_to_string(dir.join("project.json")).unwrap()).unwrap();
-        assert_eq!(meta.slug, "demo-app");
+        assert_eq!(meta.slug, "Demo App");
         assert_eq!(meta.schema_version, WORKSPACE_PROJECT_SCHEMA_VERSION);
 
         let context = fs::read_to_string(dir.join("CONTEXT.md")).unwrap();
@@ -456,8 +474,18 @@ mod tests {
         let root = temp_root("suffix");
         let a = create_workspace_at(&root, "Demo", None, None, None).unwrap();
         let b = create_workspace_at(&root, "Demo", None, None, None).unwrap();
-        assert_eq!(a.project.slug, "demo");
-        assert_eq!(b.project.slug, "demo-1");
+        assert_eq!(a.project.slug, "Demo");
+        assert_eq!(b.project.slug, "Demo-1");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn chinese_display_name_becomes_folder_name() {
+        let root = temp_root("chinese");
+        let result = create_workspace_at(&root, "视频制作", None, None, None).unwrap();
+        assert_eq!(result.project.slug, "视频制作");
+        assert_eq!(result.project.display_name, "视频制作");
+        assert!(root.join("视频制作").is_dir());
         let _ = fs::remove_dir_all(&root);
     }
 
@@ -499,8 +527,14 @@ mod tests {
         create_workspace_at(&root, "Alpha", None, Some("alpha"), None).unwrap();
         fs::create_dir_all(root.join("not-a-project")).unwrap();
         fs::write(root.join("loose.txt"), "x").unwrap();
-        // Invalid slug dir with project.json is skipped by validate_slug.
-        fs::create_dir_all(root.join("Bad Slug")).unwrap();
+        // Oversized folder name with project.json is skipped by validate_slug.
+        let too_long = "a".repeat(MAX_SLUG_LEN + 1);
+        fs::create_dir_all(root.join(&too_long)).unwrap();
+        fs::write(
+            root.join(&too_long).join(WORKSPACE_PROJECT_FILE),
+            "{\n  \"schemaVersion\": 1,\n  \"slug\": \"x\",\n  \"displayName\": \"x\",\n  \"description\": \"\",\n  \"createdAt\": 1,\n  \"updatedAt\": 1\n}\n",
+        )
+        .unwrap();
 
         let listed = list_workspaces(&root).unwrap();
         assert_eq!(listed.len(), 2);

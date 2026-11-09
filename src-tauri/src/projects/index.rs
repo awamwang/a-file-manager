@@ -15,7 +15,45 @@ pub const ERR_PROJECT_SLUG_EMPTY: &str = "PROJECT_SLUG_EMPTY";
 pub const ERR_PROJECT_SLUG_INVALID: &str = "PROJECT_SLUG_INVALID";
 pub const ERR_PROJECT_SLUG_TOO_LONG: &str = "PROJECT_SLUG_TOO_LONG";
 
-const MAX_SLUG_LEN: usize = 64;
+/// Max folder-name length in Unicode scalar values (not UTF-8 bytes).
+pub const MAX_SLUG_LEN: usize = 64;
+
+const WINDOWS_INVALID_FOLDER_CHARS: &[char] = &['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
+
+/// True when `name` is a Windows reserved device name (CON/PRN/…), ignoring a trailing extension.
+pub fn is_windows_reserved_folder_name(name: &str) -> bool {
+    let stem = name.split('.').next().unwrap_or(name);
+    matches!(
+        stem.to_ascii_uppercase().as_str(),
+        "CON"
+            | "PRN"
+            | "AUX"
+            | "NUL"
+            | "COM1"
+            | "COM2"
+            | "COM3"
+            | "COM4"
+            | "COM5"
+            | "COM6"
+            | "COM7"
+            | "COM8"
+            | "COM9"
+            | "LPT1"
+            | "LPT2"
+            | "LPT3"
+            | "LPT4"
+            | "LPT5"
+            | "LPT6"
+            | "LPT7"
+            | "LPT8"
+            | "LPT9"
+    )
+}
+
+/// True when `c` cannot appear in a Windows file/folder name.
+pub fn is_windows_invalid_folder_char(c: char) -> bool {
+    c.is_control() || WINDOWS_INVALID_FOLDER_CHARS.contains(&c)
+}
 
 /// Pointer to the active Project Workspace (slug + absolute path).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -68,22 +106,27 @@ pub fn normalize_path_string(path: &Path) -> String {
     path.to_string_lossy().replace('/', "\\")
 }
 
-/// ASCII slug: alphanumeric, hyphen, underscore; 1..=64 chars; no leading/trailing hyphen.
+/// On-disk Workspace folder name (= project slug): display name with Windows path sanitization.
+/// Allows Unicode; rejects empty, `.` / `..`, control/invalid path chars, trailing `.`/space,
+/// reserved device names, and names longer than [`MAX_SLUG_LEN`] characters.
 pub fn validate_slug(slug: &str) -> Result<&str, String> {
     let s = slug.trim();
     if s.is_empty() {
         return Err(ERR_PROJECT_SLUG_EMPTY.to_string());
     }
-    if s.len() > MAX_SLUG_LEN {
-        return Err(ERR_PROJECT_SLUG_TOO_LONG.to_string());
-    }
-    if !s
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-    {
+    if s == "." || s == ".." {
         return Err(ERR_PROJECT_SLUG_INVALID.to_string());
     }
-    if s.starts_with('-') || s.ends_with('-') {
+    if s.chars().count() > MAX_SLUG_LEN {
+        return Err(ERR_PROJECT_SLUG_TOO_LONG.to_string());
+    }
+    if s.chars().any(is_windows_invalid_folder_char) {
+        return Err(ERR_PROJECT_SLUG_INVALID.to_string());
+    }
+    if s.ends_with('.') || s.ends_with(' ') {
+        return Err(ERR_PROJECT_SLUG_INVALID.to_string());
+    }
+    if is_windows_reserved_folder_name(s) {
         return Err(ERR_PROJECT_SLUG_INVALID.to_string());
     }
     Ok(s)
@@ -295,11 +338,15 @@ mod tests {
             ERR_PROJECT_SLUG_INVALID
         );
         assert_eq!(
-            validate_slug("has space").unwrap_err(),
+            validate_slug("has:colon").unwrap_err(),
             ERR_PROJECT_SLUG_INVALID
         );
         assert_eq!(
-            validate_slug("-leading").unwrap_err(),
+            validate_slug("CON").unwrap_err(),
+            ERR_PROJECT_SLUG_INVALID
+        );
+        assert_eq!(
+            validate_slug("foo.").unwrap_err(),
             ERR_PROJECT_SLUG_INVALID
         );
         assert_eq!(
@@ -307,6 +354,9 @@ mod tests {
             ERR_PROJECT_SLUG_TOO_LONG
         );
         assert_eq!(validate_slug("ok_Name-1").unwrap(), "ok_Name-1");
+        assert_eq!(validate_slug("has space").unwrap(), "has space");
+        assert_eq!(validate_slug("-leading").unwrap(), "-leading");
+        assert_eq!(validate_slug("视频制作").unwrap(), "视频制作");
     }
 
     #[test]
