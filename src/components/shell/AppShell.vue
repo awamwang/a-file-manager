@@ -24,6 +24,7 @@ import {
 import { SIDE_NAV_ITEMS, isSideNavActive, sideNavIcon } from "../../shell/sideNav";
 import { buildAppCommands } from "../../commands/registry";
 import { toggleCommandPanel } from "../../state/commandPanel";
+import { reloadWindow } from "../../state/uiReload";
 import { requestGlobalSearchFocus } from "../../state/globalSearch";
 import {
   dispatchShortcutEvent,
@@ -530,6 +531,7 @@ const panelCommands = computed(() => {
     router,
     ensureNavigatorThenGoUp,
     refreshHealth: loadHealth,
+    reloadWindow,
     t: (key) => t(key),
   });
 });
@@ -1468,6 +1470,22 @@ onUnmounted(() => {
   <div class="shell fluent-chrome">
     <header class="titlebar" data-tauri-frame-tb :aria-label="t('chrome.titleBar')">
       <div
+        class="titlebar-leading"
+        role="group"
+        :aria-label="t('chrome.reloadWindow')"
+      >
+        <button
+          type="button"
+          class="fluent-control titlebar-action"
+          data-testid="titlebar-reload-window"
+          :title="t('chrome.reloadWindowTitle')"
+          :aria-label="t('chrome.reloadWindow')"
+          @click="reloadWindow"
+        >
+          <FluentIcon name="refresh" size="sm" />
+        </button>
+      </div>
+      <div
         class="titlebar-drag"
         data-tauri-drag-region
         :title="t('chrome.titleBar')"
@@ -2238,6 +2256,15 @@ onUnmounted(() => {
   border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   background: var(--fluent-color-fill-control);
   user-select: none;
+}
+
+.titlebar-leading {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding-inline-start: var(--fluent-space-xs);
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
 .titlebar-drag {

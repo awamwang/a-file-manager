@@ -13,6 +13,7 @@ import {
   STARTUP_PAGE_SETTING_KEY,
   startupRouteFor,
 } from "./state/startupPage";
+import { shellRemountKey } from "./state/uiReload";
 
 const router = useRouter();
 
@@ -46,7 +47,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <AppShell>
+  <!-- AIA-281: soft Reload Window remounts shell + KeepAlive without wiping data. -->
+  <AppShell :key="shellRemountKey">
     <!-- AIA-276: keep Explorer warm across Settings/WG/etc. switches; other views remount. -->
     <RouterView v-slot="{ Component }">
       <KeepAlive :include="['NavigatorView']">

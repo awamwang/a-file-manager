@@ -38,6 +38,8 @@
     "path": "Pfad",
     "pathPlaceholder": "Nativer OS-Pfad (Kernel) — Enter zum Öffnen",
     "refreshHealth": "Health aktualisieren",
+    "reloadWindow": "Fenster neu laden",
+    "reloadWindowTitle": "Fenster neu laden — UI aktualisieren, Daten behalten",
     "restore": "Wiederherstellen",
     "resizeSideNav": "Navigationsbereich in der Breite anpassen",
     "sideNav": "Seitennavigation",
@@ -98,6 +100,7 @@
     "panelLabel": "Befehlspalette",
     "placeholder": "Befehl eingeben…",
     "refreshHealth": "Health-Status aktualisieren",
+    "reloadWindow": "Fenster neu laden",
     "results": "Befehlsergebnisse"
   },
   "ai": {

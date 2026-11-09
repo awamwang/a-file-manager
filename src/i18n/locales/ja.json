@@ -38,6 +38,8 @@
     "path": "パス",
     "pathPlaceholder": "ネイティブ OS パス（カーネル）— Enter で移動",
     "refreshHealth": "ヘルスを更新",
+    "reloadWindow": "ウィンドウの再読み込み",
+    "reloadWindowTitle": "ウィンドウの再読み込み — UI を更新しデータを保持",
     "restore": "元に戻す",
     "resizeSideNav": "ナビゲーション ペインの幅を変更",
     "sideNav": "サイドナビゲーション",
@@ -98,6 +100,7 @@
     "panelLabel": "コマンドパネル",
     "placeholder": "コマンドを入力…",
     "refreshHealth": "ヘルス状態を更新",
+    "reloadWindow": "ウィンドウの再読み込み",
     "results": "コマンド結果"
   },
   "ai": {

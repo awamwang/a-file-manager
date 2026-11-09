@@ -11,6 +11,8 @@ export type CommandPanelDeps = {
   /** Ensure Navigator route then go up one folder. */
   ensureNavigatorThenGoUp: () => Promise<void>;
   refreshHealth: () => void | Promise<void>;
+  /** Soft Reload Window (AIA-281) — remount UI, keep persisted data. */
+  reloadWindow: () => void | Promise<void>;
   /** Localize command titles (vue-i18n `t`). */
   t: TranslateFn;
 };
@@ -102,6 +104,21 @@ export function buildAppCommands(deps: CommandPanelDeps): AppCommand[] {
       group: "Actions",
       keywords: ["health", "reload", "status"],
       run: () => deps.refreshHealth(),
+    },
+    {
+      id: "action.reload-window",
+      title: t("commands.reloadWindow"),
+      group: "Actions",
+      keywords: [
+        "reload",
+        "window",
+        "refresh",
+        "vscode",
+        "重载",
+        "重新加载",
+        "刷新窗口",
+      ],
+      run: () => deps.reloadWindow(),
     },
   ];
 

@@ -51,6 +51,9 @@ const commands = buildAppCommands({
   refreshHealth: () => {
     runs.push("refresh-health");
   },
+  reloadWindow: () => {
+    runs.push("reload-window");
+  },
   t,
 });
 
@@ -68,7 +71,12 @@ assert.ok(ids.has("view.projects"));
 assert.ok(ids.has("view.ai"));
 assert.ok(ids.has("view.work-groups"));
 assert.ok(ids.has("action.refresh-health"));
+assert.ok(ids.has("action.reload-window"));
 assert.equal(commands.find((c) => c.id === "view.settings")?.title, "Open Settings");
+assert.equal(
+  commands.find((c) => c.id === "action.reload-window")?.title,
+  "Reload Window",
+);
 
 assert.equal(fuzzyScore("set", "Open Settings"), fuzzyScore("set", "Open Settings"));
 assert.ok(
@@ -101,6 +109,12 @@ assert.equal(
 
 await commands.find((c) => c.id === "action.refresh-health")!.run();
 assert.ok(runs.includes("refresh-health"));
+
+await commands.find((c) => c.id === "action.reload-window")!.run();
+assert.ok(runs.includes("reload-window"));
+
+const reloadHits = filterCommands(commands, "reload window");
+assert.ok(reloadHits.some((r) => r.command.id === "action.reload-window"));
 
 function keyEvent(partial: Partial<KeyboardEvent>): KeyboardEvent {
   return {

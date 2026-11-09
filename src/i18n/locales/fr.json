@@ -38,6 +38,8 @@
     "path": "Chemin",
     "pathPlaceholder": "Chemin OS natif (noyau) — Entrée pour y aller",
     "refreshHealth": "Actualiser la santé",
+    "reloadWindow": "Recharger la fenêtre",
+    "reloadWindowTitle": "Recharger la fenêtre — actualiser l’UI, conserver les données",
     "restore": "Restaurer",
     "resizeSideNav": "Redimensionner le volet de navigation",
     "sideNav": "Navigation latérale",
@@ -98,6 +100,7 @@
     "panelLabel": "Palette de commandes",
     "placeholder": "Saisir une commande…",
     "refreshHealth": "Actualiser l’état de santé",
+    "reloadWindow": "Recharger la fenêtre",
     "results": "Résultats des commandes"
   },
   "ai": {
