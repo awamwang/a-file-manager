@@ -11,7 +11,7 @@ use image::codecs::png::PngEncoder;
 use image::{ColorType, ImageEncoder};
 use once_cell::sync::Lazy;
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::ffi::c_void;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -27,8 +27,54 @@ use windows::Win32::UI::Shell::{
     SIIGBF_RESIZETOFIT, SIIGBF_THUMBNAILONLY,
 };
 
-static ICON_CACHE: Lazy<Mutex<HashMap<String, String>>> =
-    Lazy::new(|| Mutex::new(HashMap::new()));
+/// Bound process-side Shell results so extreme folders cannot retain every PNG data URL (AIA-279).
+const MAX_ICON_CACHE_ENTRIES: usize = 384;
+
+struct BoundedIconCache {
+    map: HashMap<String, String>,
+    order: VecDeque<String>,
+}
+
+impl BoundedIconCache {
+    fn new() -> Self {
+        Self {
+            map: HashMap::new(),
+            order: VecDeque::new(),
+        }
+    }
+
+    fn get(&self, key: &str) -> Option<&String> {
+        self.map.get(key)
+    }
+
+    fn insert(&mut self, key: String, value: String) {
+        if self.map.contains_key(&key) {
+            self.map.insert(key.clone(), value);
+            if let Some(pos) = self.order.iter().position(|k| k == &key) {
+                self.order.remove(pos);
+            }
+            self.order.push_back(key);
+            return;
+        }
+        while self.map.len() >= MAX_ICON_CACHE_ENTRIES {
+            if let Some(old) = self.order.pop_front() {
+                self.map.remove(&old);
+            } else {
+                break;
+            }
+        }
+        self.order.push_back(key.clone());
+        self.map.insert(key, value);
+    }
+
+    #[cfg(test)]
+    fn len(&self) -> usize {
+        self.map.len()
+    }
+}
+
+static ICON_CACHE: Lazy<Mutex<BoundedIconCache>> =
+    Lazy::new(|| Mutex::new(BoundedIconCache::new()));
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -253,6 +299,17 @@ mod tests {
     use super::*;
     use std::fs;
     use std::io::Write;
+
+    #[test]
+    fn bounded_icon_cache_evicts_oldest() {
+        let mut cache = BoundedIconCache::new();
+        for i in 0..(MAX_ICON_CACHE_ENTRIES + 10) {
+            cache.insert(format!("k{i}"), format!("v{i}"));
+        }
+        assert_eq!(cache.len(), MAX_ICON_CACHE_ENTRIES);
+        assert!(cache.get("k0").is_none(), "oldest entries must be evicted");
+        assert!(cache.get(&format!("k{}", MAX_ICON_CACHE_ENTRIES + 9)).is_some());
+    }
 
     #[test]
     fn encodes_temp_file_shell_icon() {

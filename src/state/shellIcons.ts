@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-/** Lazy shell icon / thumbnail data URLs (AIA-65 · AIA-278). Size-aware cache for icon views. */
+/** Lazy shell icon / thumbnail data URLs (AIA-65 · AIA-278 · AIA-279).
+ *  Size-aware cache with hard entry + byte budgets and LRU eviction. */
 
 import { reactive } from "vue";
 import { invoke } from "@tauri-apps/api/core";
@@ -17,8 +18,24 @@ export type RequestShellIconsOptions = {
   priority?: boolean;
 };
 
-/** `${size}|${path}` → data URL */
+/** Hard caps — extreme folders must not retain every decoded bitmap (AIA-279). */
+export const SHELL_ICON_MAX_ENTRIES = 512;
+/** Approximate UTF-16 / string weight of cached data URLs. */
+export const SHELL_ICON_MAX_BYTES = 48 * 1024 * 1024;
+
+/** `${size}|${path}` → data URL (or blob: URL). */
 export const iconByPath = reactive<Record<string, string>>({});
+
+type CacheMeta = {
+  bytes: number;
+  /** Left viewport / previous folder — prefer for eviction. */
+  soft: boolean;
+};
+
+/** Insertion order = LRU (oldest = first key). */
+const lruOrder = new Map<string, true>();
+const cacheMeta = new Map<string, CacheMeta>();
+let liveBytes = 0;
 
 const pending = new Set<string>();
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -36,6 +53,70 @@ const FLUSH_DELAY_MS = 40;
 
 function cacheKey(path: string, size: number): string {
   return `${size}|${path}`;
+}
+
+function estimateBytes(dataUrl: string): number {
+  return dataUrl.length;
+}
+
+function dropEntry(key: string): void {
+  const meta = cacheMeta.get(key);
+  if (meta) liveBytes = Math.max(0, liveBytes - meta.bytes);
+  cacheMeta.delete(key);
+  lruOrder.delete(key);
+  // Drop decoded / encoded bitmap payload (data URLs today; revoke blob: if introduced).
+  const url = iconByPath[key];
+  if (url && typeof URL !== "undefined" && url.startsWith("blob:")) {
+    try {
+      URL.revokeObjectURL(url);
+    } catch {
+      // ignore revoke races
+    }
+  }
+  delete iconByPath[key];
+}
+
+function touchKey(key: string): void {
+  if (!lruOrder.has(key)) return;
+  lruOrder.delete(key);
+  lruOrder.set(key, true);
+  const meta = cacheMeta.get(key);
+  if (meta) meta.soft = false;
+}
+
+function markSoftKey(key: string): void {
+  const meta = cacheMeta.get(key);
+  if (meta) meta.soft = true;
+}
+
+function pickVictim(): string | null {
+  for (const [key] of lruOrder) {
+    if (cacheMeta.get(key)?.soft) return key;
+  }
+  const first = lruOrder.keys().next();
+  return first.done ? null : first.value;
+}
+
+function trimToBudget(): void {
+  while (
+    lruOrder.size > SHELL_ICON_MAX_ENTRIES ||
+    liveBytes > SHELL_ICON_MAX_BYTES
+  ) {
+    const victim = pickVictim();
+    if (!victim) break;
+    dropEntry(victim);
+  }
+}
+
+function putCache(key: string, dataUrl: string): void {
+  if (cacheMeta.has(key)) dropEntry(key);
+  const bytes = estimateBytes(dataUrl);
+  // Keep data URLs (no sync atob on rAF). img decoding="async" stays off the paint path.
+  iconByPath[key] = dataUrl;
+  cacheMeta.set(key, { bytes, soft: false });
+  lruOrder.set(key, true);
+  liveBytes += bytes;
+  trimToBudget();
 }
 
 function queueIndex(key: string): number {
@@ -62,7 +143,7 @@ function scheduleApply(): void {
     applyTimer = null;
     const batch = pendingApplies.splice(0, pendingApplies.length);
     for (const { key, dataUrl } of batch) {
-      iconByPath[key] = dataUrl;
+      putCache(key, dataUrl);
     }
   });
 }
@@ -127,7 +208,7 @@ function scheduleFlush() {
   }, FLUSH_DELAY_MS);
 }
 
-/** Drop queued / in-flight work (folder change). Cache stays for back-navigation. */
+/** Drop queued / in-flight work (folder change). Cache stays soft for back-navigation. */
 export function clearShellIconQueue(): void {
   generation += 1;
   queue.length = 0;
@@ -141,6 +222,8 @@ export function clearShellIconQueue(): void {
     cancelAnimationFrame(applyTimer);
     applyTimer = null;
   }
+  // Prefer eviction of previous folder under budget pressure.
+  for (const key of cacheMeta.keys()) markSoftKey(key);
 }
 
 /** Remove paths that left the viewport so they cannot starve visible work. */
@@ -156,6 +239,18 @@ export function cancelShellIconRequests(paths: string[], size?: number): void {
     queue.splice(i, 1);
     pending.delete(cacheKey(item.path, item.size));
   }
+
+  for (const path of pathSet) {
+    if (size != null) {
+      markSoftKey(cacheKey(path, size));
+    } else {
+      for (const key of cacheMeta.keys()) {
+        if (key.endsWith(`|${path}`) || key.slice(key.indexOf("|") + 1) === path) {
+          markSoftKey(key);
+        }
+      }
+    }
+  }
 }
 
 export function requestShellIcon(
@@ -167,7 +262,10 @@ export function requestShellIcon(
   const keyPath = path.trim();
   if (!keyPath) return;
   const key = cacheKey(keyPath, size);
-  if (iconByPath[key]) return;
+  if (iconByPath[key]) {
+    touchKey(key);
+    return;
+  }
   const priority = options?.priority === true;
   if (pending.has(key)) {
     if (priority) enqueue({ path: keyPath, size, preferThumbnail }, true);
@@ -188,14 +286,46 @@ export function requestShellIcons(
 }
 
 export function iconUrlFor(path: string, size = 20): string | null {
-  return iconByPath[cacheKey(path, size)] || null;
+  const key = cacheKey(path, size);
+  const url = iconByPath[key] || null;
+  if (url) touchKey(key);
+  return url;
 }
 
-/** Test/debug helpers (queue pressure). */
+/** Test/debug helpers. */
 export function shellIconQueueSizeForTests(): number {
   return queue.length;
 }
 
 export function shellIconGenerationForTests(): number {
   return generation;
+}
+
+export function shellIconCacheStatsForTests(): {
+  entries: number;
+  bytes: number;
+  soft: number;
+} {
+  let soft = 0;
+  for (const meta of cacheMeta.values()) {
+    if (meta.soft) soft += 1;
+  }
+  return { entries: lruOrder.size, bytes: liveBytes, soft };
+}
+
+/** Inject a cache entry without IPC (unit tests / debug). */
+export function shellIconPutForTests(path: string, size: number, dataUrl: string): void {
+  putCache(cacheKey(path, size), dataUrl);
+}
+
+/** Mark soft without queue cancel (unit tests). */
+export function shellIconMarkSoftForTests(path: string, size: number): void {
+  markSoftKey(cacheKey(path, size));
+}
+
+/** Drop all cache entries (unit tests). */
+export function shellIconClearCacheForTests(): void {
+  const keys = [...lruOrder.keys()];
+  for (const key of keys) dropEntry(key);
+  liveBytes = 0;
 }

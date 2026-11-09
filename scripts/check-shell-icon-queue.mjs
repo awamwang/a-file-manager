@@ -20,6 +20,8 @@ assert.ok(/generation \+= 1/.test(state));
 assert.ok(/BATCH_THUMB = 8/.test(state));
 assert.ok(/options\?\.priority === true/.test(state));
 assert.ok(/requestAnimationFrame/.test(state), "coalesce reactive icon applies");
+assert.ok(/SHELL_ICON_MAX_ENTRIES/.test(state), "AIA-279: bounded cache");
+assert.ok(/trimToBudget/.test(state), "AIA-279: eviction under budget");
 
 // --- Contract: Navigator wires folder / scroll cancel ---
 assert.ok(/watch\(currentPath/.test(view) && view.includes("clearShellIconQueue()"));

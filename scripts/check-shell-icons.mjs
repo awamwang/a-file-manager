@@ -33,6 +33,10 @@ assert.ok(state.includes("clearShellIconQueue"), "cancel queue on folder change"
 assert.ok(state.includes("cancelShellIconRequests"), "cancel out-of-view thumbs");
 assert.ok(state.includes("BATCH_THUMB"), "small thumbnail batches");
 assert.ok(state.includes("priority"), "viewport priority enqueue");
+assert.ok(state.includes("SHELL_ICON_MAX_ENTRIES"), "AIA-279 entry budget");
+assert.ok(state.includes("SHELL_ICON_MAX_BYTES"), "AIA-279 byte budget");
+assert.ok(state.includes("trimToBudget"), "AIA-279 LRU trim");
+assert.ok(rust.includes("BoundedIconCache") || rust.includes("MAX_ICON_CACHE_ENTRIES"));
 assert.ok(view.includes("requestShellIcons"));
 assert.ok(view.includes("ShellIconImg"), "per-row icon isolate");
 assert.ok(view.includes("clearShellIconQueue"));
