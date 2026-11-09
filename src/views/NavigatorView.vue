@@ -941,14 +941,15 @@ function onListKeyDown(event: KeyboardEvent) {
 }
 
 /**
- * AIA-268 / Explorer: never focus-on-press. WebView2 often keeps
- * `document.hasFocus()` true while OS FG is Explorer, so the AIA-266
- * background-only gate still allowed tabindex focus → host raise.
- * Selection/focus finalize on `@click` (mouse-up); dragstart selectOnly only.
+ * AIA-280 / Explorer press→drag: do **not** preventDefault on mousedown.
+ * Chromium/WebView2 cancels HTML5 dragstart when mousedown default is
+ * prevented (AIA-268 unconditional preventDefault broke all row drags —
+ * primary, dual-pane secondary). Raise mitigation stays on tabindex=-1 +
+ * host `drag_focus` (MA_NOACTIVATE / z-order). Selection/focus finalize on
+ * `@click` (mouse-up); dragstart may selectOnly without focusEntryRow.
  */
 function onRowMouseDown(event: MouseEvent, _entry: NavigatorEntry) {
   if (event.button !== 0) return;
-  event.preventDefault();
 }
 
 function onRowClick(event: MouseEvent, entry: NavigatorEntry) {

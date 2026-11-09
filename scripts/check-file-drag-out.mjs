@@ -93,10 +93,6 @@ assert.ok(nav.includes("armNativeFileDragOut"), "NavigatorView must arm native d
 assert.ok(nav.includes("setOutboundPathPayload"), "NavigatorView must keep HTML5 payload");
 assert.ok(nav.includes('effectAllowed = "all"'), "dragstart should allow copy+move+link");
 assert.ok(
-  nav.includes("onRowMouseDown") && nav.includes("preventDefault()"),
-  "Navigator must always preventDefault on row mousedown (AIA-268 Explorer no focus-on-press)",
-);
-assert.ok(
   !nav.includes("afmWindowFocused"),
   "must not gate press focus on fragile DOM/OS focus cache (AIA-268)",
 );
@@ -109,6 +105,26 @@ assert.ok(
   "drag_focus must restore prior z-order, not only SetForegroundWindow (AIA-268)",
 );
 
+// AIA-280: mousedown preventDefault cancels Chromium HTML5 dragstart — must stay off.
+const rowMouseDown = nav.match(/function onRowMouseDown\([^)]*\)\s*\{[\s\S]*?\n\}/);
+assert.ok(rowMouseDown, "onRowMouseDown must exist (documents press≠drag contract)");
+assert.ok(
+  !rowMouseDown[0].includes("preventDefault"),
+  "AIA-280: onRowMouseDown must not preventDefault (blocks dragstart/threshold)",
+);
+assert.ok(
+  (nav.match(/draggable="true"/g) || []).length >= 3,
+  "primary + virtualized + dual-pane secondary rows must stay draggable",
+);
+assert.ok(
+  (nav.match(/@dragstart="onDragStart\(\$event, entry\)"/g) || []).length >= 3,
+  "all list surfaces must wire dragstart (primary/virtualized/dual-pane)",
+);
+assert.ok(
+  nav.includes("armNativeFileDragOut(paths)"),
+  "dragstart must arm Hybrid OLE outbound (threshold path)",
+);
+
 console.log(
-  "File drag-out checks OK (AIA-240 COPY|MOVE|LINK + AIA-261/264/266/268 Explorer press→drag).",
+  "File drag-out checks OK (AIA-240 COPY|MOVE|LINK + AIA-261/264/266/268/280 Explorer press→drag).",
 );

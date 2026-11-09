@@ -4,10 +4,11 @@
  * Keeps HTML5 in-app drops intact; starts OS drag when the cursor leaves (or nears the
  * edge of) the window so Explorer receives real paths with copy|move|link.
  *
- * AIA-261/264/266/268: outbound must not raise AFM over the drop target — host
+ * AIA-261/264/266/268/280: outbound must not raise AFM over the drop target — host
  * distinguishes click vs drag (`MA_NOACTIVATE` + SM_CXDRAG poll + press-time prior
- * FG + z-order restore); Navigator always prevents focus-on-press (Explorer);
- * patched `DoDragDrop` restores that prior FG. No setFocus / SetForegroundWindow here.
+ * FG + z-order restore); rows stay `tabindex=-1` (no mousedown preventDefault —
+ * that cancels HTML5 dragstart); patched `DoDragDrop` restores prior FG.
+ * No setFocus / SetForegroundWindow here.
  */
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import { resolveResource } from "@tauri-apps/api/path";
