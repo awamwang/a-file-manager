@@ -62,22 +62,11 @@ import {
   type ShellEmbedMenuChild,
 } from "./contextMenuModel";
 import {
-  flattenShellItems,
-  type ShellContextMenuItem,
+  invokeShellEmbedChild,
+  loadShellEmbedChildren,
+  shellEmbedLoadingPlaceholder,
 } from "./shellMenuEmbed";
 import { BUILTIN_SHORTCUTS, formatChordLabel } from "../../shortcuts/index.ts";
-
-
-type GetShellContextMenuResult = {
-  success: boolean;
-  items: ShellContextMenuItem[];
-  error: string | null;
-};
-
-type InvokeShellMenuResult = {
-  success: boolean;
-  error: string | null;
-};
 
 const props = defineProps<{
   entry: NavigatorEntry | null;
@@ -245,81 +234,18 @@ async function ensureShellEmbedLoaded(path: string) {
   shellEmbedPath.value = path;
   shellEmbedLoading.value = true;
   shellEmbedError.value = null;
-  shellEmbedChildren.value = [
-    {
-      id: "shell:loading",
-      labelKey: "contextMenu.systemMenuLoading",
-      rawLabel: t("contextMenu.systemMenuLoading"),
-      label: t("contextMenu.systemMenuLoading"),
-      enabled: false,
-      shellCommandId: 0,
-      shellVerb: null,
-    },
-  ];
-  try {
-    const result = await invoke<GetShellContextMenuResult>("shell_get_context_menu", {
-      path,
-    });
-    if (seq !== shellEmbedLoadSeq) return;
-    if (!result.success) {
-      shellEmbedError.value = result.error || t("contextMenu.systemMenuError");
-      shellEmbedChildren.value = [
-        {
-          id: "shell:error",
-          labelKey: "contextMenu.systemMenuError",
-          rawLabel: shellEmbedError.value,
-          label: shellEmbedError.value,
-          enabled: false,
-          shellCommandId: 0,
-          shellVerb: null,
-        },
-      ];
-      return;
-    }
-    const flat = flattenShellItems(result.items ?? []);
-    if (!flat.length) {
-      shellEmbedChildren.value = [
-        {
-          id: "shell:empty",
-          labelKey: "contextMenu.systemMenuEmpty",
-          rawLabel: t("contextMenu.systemMenuEmpty"),
-          label: t("contextMenu.systemMenuEmpty"),
-          enabled: false,
-          shellCommandId: 0,
-          shellVerb: null,
-        },
-      ];
-      return;
-    }
-    shellEmbedChildren.value = flat.map((row, index) => ({
-      id: `shell:${row.commandId}:${index}`,
-      labelKey: "contextMenu.systemMenu",
-      rawLabel: row.label,
-      label: row.label,
-      enabled: true,
-      shellCommandId: row.commandId,
-      shellVerb: row.verb,
-    }));
-  } catch (err) {
-    if (seq !== shellEmbedLoadSeq) return;
-    const message = err instanceof Error ? err.message : String(err);
-    shellEmbedError.value = message;
-    shellEmbedChildren.value = [
-      {
-        id: "shell:error",
-        labelKey: "contextMenu.systemMenuError",
-        rawLabel: message,
-        label: message,
-        enabled: false,
-        shellCommandId: 0,
-        shellVerb: null,
-      },
-    ];
-  } finally {
-    if (seq === shellEmbedLoadSeq) {
-      shellEmbedLoading.value = false;
-    }
-  }
+  shellEmbedChildren.value = shellEmbedLoadingPlaceholder(
+    t("contextMenu.systemMenuLoading"),
+  );
+  const { children, error } = await loadShellEmbedChildren(path, {
+    loading: t("contextMenu.systemMenuLoading"),
+    error: t("contextMenu.systemMenuError"),
+    empty: t("contextMenu.systemMenuEmpty"),
+  });
+  if (seq !== shellEmbedLoadSeq) return;
+  shellEmbedChildren.value = children;
+  shellEmbedError.value = error;
+  shellEmbedLoading.value = false;
 }
 
 const workGroupMenuOptions = computed(() =>
@@ -744,18 +670,8 @@ async function runExtractZip(entry: NavigatorEntry) {
 }
 
 async function runShellVerb(child: ShellEmbedMenuChild, path: string) {
-  try {
-    const result = await invoke<InvokeShellMenuResult>("shell_invoke_context_menu_item", {
-      path,
-      commandId: child.shellCommandId,
-      commandVerb: child.shellVerb,
-    });
-    if (!result.success && result.error) {
-      emit("notice", result.error);
-    }
-  } catch (err) {
-    emit("notice", err instanceof Error ? err.message : String(err));
-  }
+  const error = await invokeShellEmbedChild(path, child);
+  if (error) emit("notice", error);
 }
 
 async function run(id: string) {

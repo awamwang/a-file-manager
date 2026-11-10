@@ -33,13 +33,24 @@ assert.ok(menu.includes("copyPath"));
 assert.ok(menu.includes("revealItemInDir"));
 assert.ok(menu.includes("newNavigatorTab"));
 assert.ok(menu.includes("canOpenInNewTab"));
-assert.ok(menu.includes("shell_get_context_menu"), "AIA-239: enumerate shell items");
-assert.ok(
-  menu.includes("shell_invoke_context_menu_item"),
-  "AIA-239: invoke shell verbs from AFM submenu",
+const shellEmbed = readFileSync(
+  join(root, "src/components/navigator/shellMenuEmbed.ts"),
+  "utf8",
 );
 assert.ok(
-  !menu.includes("shell_show_context_menu"),
+  shellEmbed.includes("shell_get_context_menu"),
+  "AIA-239: shell adapter enumerates shell items",
+);
+assert.ok(
+  shellEmbed.includes("shell_invoke_context_menu_item"),
+  "AIA-239: shell adapter invokes verbs",
+);
+assert.ok(
+  menu.includes("loadShellEmbedChildren") && menu.includes("invokeShellEmbedChild"),
+  "AIA-239: host uses shell adapter (not inline IPC)",
+);
+assert.ok(
+  !menu.includes("shell_show_context_menu") && !shellEmbed.includes("shell_show_context_menu"),
   "AIA-239: must not open independent native TrackPopupMenu from UI",
 );
 assert.ok(menu.includes("open_in_terminal"));
