@@ -104,6 +104,14 @@ assert.ok(
   dragFocusSrc.includes("SetWindowPos") && dragFocusSrc.includes("HWND_TOP"),
   "drag_focus must restore prior z-order, not only SetForegroundWindow (AIA-268)",
 );
+assert.ok(
+  dragFocusSrc.includes("webview_subclass_proc") && dragFocusSrc.includes("Chrome_WidgetWin_"),
+  "FIL-43: drag_focus must subclass WebView2 child HWNDs for press-phase no-activate",
+);
+assert.ok(
+  dragFocusSrc.includes("EnumChildWindows"),
+  "FIL-43: drag_focus must EnumChildWindows to find WebView input HWNDs",
+);
 
 // AIA-280: mousedown preventDefault cancels Chromium HTML5 dragstart — must stay off.
 const rowMouseDown = nav.match(/function onRowMouseDown\([^)]*\)\s*\{[\s\S]*?\n\}/);
@@ -113,12 +121,12 @@ assert.ok(
   "AIA-280: onRowMouseDown must not preventDefault (blocks dragstart/threshold)",
 );
 assert.ok(
-  (nav.match(/draggable="true"/g) || []).length >= 3,
-  "primary + virtualized + dual-pane secondary rows must stay draggable",
+  (nav.match(/draggable="true"/g) || []).length >= 2,
+  "primary (virtualized) + dual-pane secondary rows must stay draggable",
 );
 assert.ok(
-  (nav.match(/@dragstart="onDragStart\(\$event, entry\)"/g) || []).length >= 3,
-  "all list surfaces must wire dragstart (primary/virtualized/dual-pane)",
+  (nav.match(/@dragstart="onDragStart\(\$event, (?:item\.)?entry\)"/g) || []).length >= 2,
+  "all list surfaces must wire dragstart (primary virtualized + dual-pane)",
 );
 assert.ok(
   nav.includes("armNativeFileDragOut(paths)"),

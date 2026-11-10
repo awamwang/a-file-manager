@@ -27,7 +27,8 @@ Windows-first Hybrid outbound (HTML5 in-window → OLE/`CF_HDROP` on leave) and 
 
 **FIL-42 (2026-11):** Shell `IDataObject` 出站在 `DoDragDrop` 前设置 `CFSTR_PREFERREDDROPEFFECT`（随 `options.mode`，默认 COPY）并 `IDataObjectAsyncCapability::SetAsyncMode(FALSE)`，保证媒体播放器在 Drop 期间同步 `GetData(CF_HDROP)`；仍无 PotPlayer 私有格式。效果掩码保持 COPY|MOVE|LINK。
 
-**If dogfood still fails (FIL-37 upgrade gate — ask TZ):**
-- **WebView child HWND subclass** — can catch secondary raises on the WebView2 input path; couples host/child lifetime and widens crash surface.
+**FIL-43 (2026-11):** Press-phase deepen — subclass in-process WebView2 child HWNDs (`Chrome_WidgetWin_*` / Intermediate D3D / RenderWidgetHost) in addition to the main window. Child `WM_MOUSEACTIVATE` → `MA_NOACTIVATE` + early `WM_LBUTTONDOWN` arm of prior FG so Chromium cannot raise the host before sticky restore. Delayed re-scan after setup (`WM_PARENTNOTIFY`/`WM_CREATE` + short find timer). Permanent `WS_EX_NOACTIVATE` on the main window remains forbidden. Rows stay `tabindex=-1` with empty `onRowMouseDown` (no focus/setFocus on press).
+
+**If dogfood still fails after FIL-43 (ask TZ):**
 - **`LockSetForegroundWindow`** — only works when already FG; can block other apps' foreground switches; use as a timed last resort only.
-- Prefer matrix dogfood (see Project store `docs/cross-app-dnd-target-matrix.md`) before either.
+- Prefer matrix dogfood (see Project store `docs/cross-app-dnd-target-matrix.md`) before locking FG.

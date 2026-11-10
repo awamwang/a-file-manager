@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-/** 跨应用拖动（Explorer 互通）Hybrid MVP 守卫：OLE 出站 + HTML5/路径入站 + focus 适配 + FIL-37/38/39。 */
+/** 跨应用拖动（Explorer 互通）Hybrid MVP 守卫：OLE 出站 + HTML5/路径入站 + focus 适配 + FIL-37/38/39/43。 */
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -35,6 +35,18 @@ assert.ok(focus.includes("MA_NOACTIVATE") || focus.includes("note_drag_gesture")
 assert.ok(focus.includes("afm://dnd/ole-promote"), "FIL-39 host emits OLE promote");
 assert.ok(focus.includes("WindowFromPoint"), "FIL-39 cursor not over root HWND");
 assert.ok(focus.includes("LockSetForegroundWindow"), "FIL-37 documents LockSetForegroundWindow tradeoff");
+assert.ok(
+  focus.includes("Chrome_WidgetWin_") && focus.includes("webview_subclass_proc"),
+  "FIL-43 subclasses WebView2 child HWNDs for press-phase MA_NOACTIVATE",
+);
+assert.ok(
+  focus.includes("EnumChildWindows") && focus.includes("same_process"),
+  "FIL-43 only subclasses same-process WebView children",
+);
+assert.ok(
+  !/WS_EX_NOACTIVATE\s*[,)]/.test(focus) && !focus.includes("GWL_EXSTYLE"),
+  "FIL-43 must not permanently set WS_EX_NOACTIVATE on main window",
+);
 assert.ok(existsSync(patchWin), "patched drag crate Windows OLE path");
 const patch = readFileSync(patchWin, "utf8");
 assert.ok(patch.includes("DoDragDrop"), "patched DoDragDrop");
@@ -77,6 +89,11 @@ assert.ok(
   "design doc records FIL-37 focus / upgrade gate",
 );
 
+assert.ok(
+  design.includes("FIL-43") || design.includes("WebView child HWND"),
+  "design doc records FIL-43 WebView child press-no-activate",
+);
+
 console.log(
-  "cross-app DnD Hybrid OK (Explorer OLE out + shell inbound + FIL-37/38/39/42 guards).",
+  "cross-app DnD Hybrid OK (Explorer OLE out + shell inbound + FIL-37/38/39/42/43 guards).",
 );

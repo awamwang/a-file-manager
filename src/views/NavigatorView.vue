@@ -1268,8 +1268,9 @@ function onListKeyDown(event: KeyboardEvent) {
  * Chromium/WebView2 cancels HTML5 dragstart when mousedown default is
  * prevented (AIA-268 unconditional preventDefault broke all row drags —
  * primary, dual-pane secondary). Raise mitigation stays on tabindex=-1 +
- * host `drag_focus` (MA_NOACTIVATE / z-order). Selection/focus finalize on
- * `@click` (mouse-up); dragstart may selectOnly without focusEntryRow.
+ * host `drag_focus` (MA_NOACTIVATE / WebView 子 HWND subclass / z-order，FIL-43)。
+ * 禁止在此 focus()/setFocus；选中与行焦点在 `@click`（mouse-up）完成；
+ * dragstart 可 selectOnly 且不调用 focusEntryRow。
  */
 function onRowMouseDown(event: MouseEvent, _entry: NavigatorEntry) {
   if (event.button !== 0) return;
