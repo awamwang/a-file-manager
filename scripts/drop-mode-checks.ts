@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import assert from "node:assert/strict";
-import { dropTransferMode } from "../src/state/dropMode.ts";
+import { dropTransferMode } from "../src/state/dnd/mode.ts";
 
 assert.equal(
   dropTransferMode(["C:\\Temp\\afm-fixture\\a\\file.txt"], "C:\\Temp\\afm-fixture\\b", {}),

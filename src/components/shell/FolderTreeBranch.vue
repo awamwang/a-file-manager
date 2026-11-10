@@ -13,12 +13,12 @@ import {
   type TreeHighlightMode,
 } from "../../state/folderTree";
 import { showHiddenItems } from "../../state/showHidden";
-import { createDropHoverScheduler } from "../../state/dropHover";
 import {
   acceptFolderDragOver,
   commitFolderDrop,
+  createDropHoverScheduler,
   noticeKeyForDropMode,
-} from "../../state/fileDropSurface";
+} from "../../state/dnd";
 import { toastError, toastSuccess } from "../../state/toast";
 import { scheduleAfterPaint } from "../../state/scheduleIdle";
 

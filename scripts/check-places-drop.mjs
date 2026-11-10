@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (rel) => readFileSync(join(root, rel), "utf8");
 
-const surface = read("src/state/fileDropSurface.ts");
+const surface = read("src/state/dnd/surface.ts");
 const shell = read("src/components/shell/AppShell.vue");
 const favCheck = read("scripts/check-favorites-sidebar.mjs");
 

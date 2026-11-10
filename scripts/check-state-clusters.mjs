@@ -24,6 +24,12 @@ const required = [
   "workGroup/name.ts",
   "workGroup/chrome.ts",
   "workGroup/index.ts",
+  "dnd/mode.ts",
+  "dnd/paths.ts",
+  "dnd/hover.ts",
+  "dnd/surface.ts",
+  "dnd/dragOut.ts",
+  "dnd/index.ts",
 ];
 
 for (const rel of required) {
@@ -41,6 +47,11 @@ const forbiddenFlat = [
   "navigatorGuide.ts",
   "workGroupName.ts",
   "workGroupChrome.ts",
+  "dropMode.ts",
+  "dropPaths.ts",
+  "dropHover.ts",
+  "fileDropSurface.ts",
+  "fileDragOut.ts",
 ];
 
 for (const rel of forbiddenFlat) {

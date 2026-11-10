@@ -9,8 +9,8 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (rel) => readFileSync(join(root, rel), "utf8");
 
-const hover = read("src/state/dropHover.ts");
-const surface = read("src/state/fileDropSurface.ts");
+const hover = read("src/state/dnd/hover.ts");
+const surface = read("src/state/dnd/surface.ts");
 const branch = read("src/components/shell/FolderTreeBranch.vue");
 const shell = read("src/components/shell/AppShell.vue");
 const nav = read("src/views/NavigatorView.vue");
@@ -43,7 +43,7 @@ assert.ok(shell.includes("tab--file-drop"), "tab drop visual");
 assert.ok(shell.includes("tabAcceptsFileDrop"), "reject guide/recycle tabs");
 assert.ok(shell.includes("isGuidePath") && shell.includes("isRecyclePath"), "guide/recycle helpers");
 
-assert.ok(nav.includes("fileDropSurface"), "list reuses shared surface");
+assert.ok(nav.includes("fileDropSurface") || nav.includes("state/dnd"), "list reuses shared dnd surface");
 assert.ok(nav.includes("commitFolderDrop"), "list drop via shared commit");
 assert.ok(nav.includes("acceptFolderDragOver"), "list dragover via shared accept");
 

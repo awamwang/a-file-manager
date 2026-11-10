@@ -27,7 +27,7 @@ assert.ok(!undo.includes("clearUndoStack"), "unused clearUndoStack removed");
 assert.ok(!undo.includes("peekUndoStack"), "unused peekUndoStack removed");
 assert.ok(undo.includes("undoLast") && undo.includes("recordCopyUndo"));
 
-const dragOut = read("src/state/fileDragOut.ts");
+const dragOut = read("src/state/dnd/dragOut.ts");
 assert.ok(
   !dragOut.includes("export function disarmNativeFileDragOut"),
   "disarmNativeFileDragOut stays private",

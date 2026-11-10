@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import assert from "node:assert/strict";
-import { createDropHoverScheduler, DROP_HOVER_MS } from "../src/state/dropHover.ts";
+import { createDropHoverScheduler, DROP_HOVER_MS } from "../src/state/dnd/hover.ts";
 
 assert.equal(DROP_HOVER_MS, 500);
 

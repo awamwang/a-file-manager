@@ -125,15 +125,15 @@ import {
   secondarySearch,
 } from "../state/navigatorFilter";
 import { toastError, toastInfo, toastSuccess } from "../state/toast";
-import { armNativeFileDragOut } from "../state/fileDragOut";
-import { setOutboundPathPayload } from "../state/dropPaths";
 import {
   acceptFolderDragOver,
+  armNativeFileDragOut,
   commitFolderDrop,
   noticeKeyForDropMode,
   previewDropMode,
   previewSourcePaths,
-} from "../state/fileDropSurface";
+  setOutboundPathPayload,
+} from "../state/dnd";
 import {
   dismissPreviewBridge,
   invokePreviewBridge,

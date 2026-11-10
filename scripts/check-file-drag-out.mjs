@@ -10,7 +10,7 @@ const cargo = readFileSync(join(root, "src-tauri/Cargo.toml"), "utf8");
 const lib = readFileSync(join(root, "src-tauri/src/lib.rs"), "utf8");
 const caps = readFileSync(join(root, "src-tauri/capabilities/default.json"), "utf8");
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
-const dragOut = readFileSync(join(root, "src/state/fileDragOut.ts"), "utf8");
+const dragOut = readFileSync(join(root, "src/state/dnd/dragOut.ts"), "utf8");
 const nav = readFileSync(join(root, "src/views/NavigatorView.vue"), "utf8");
 const patchWin = join(root, "src-tauri/patches/drag/src/platform_impl/windows/mod.rs");
 
@@ -79,7 +79,7 @@ assert.ok(
   "package.json must depend on @crabnebula/tauri-plugin-drag",
 );
 
-assert.ok(dragOut.includes("startDrag"), "fileDragOut must call startDrag");
+assert.ok(dragOut.includes("startDrag"), "dnd/dragOut must call startDrag");
 assert.ok(dragOut.includes("@crabnebula/tauri-plugin-drag"), "import CrabNebula drag plugin");
 assert.ok(dragOut.includes("armNativeFileDragOut"), "export armNativeFileDragOut");
 assert.ok(

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * Shared folder-drop apply path for list / tree / tabs / places (AIA-240 + AIA-242 + AIA-250).
  * Keeps volume + modifier rules and undo/refresh side effects in one place.
@@ -7,12 +7,12 @@
 import {
   dataTransferLooksExternal,
   pathsFromDataTransfer,
-} from "./dropPaths";
-import { dropTransferMode, type DropMode } from "./dropMode";
-import { transferEntries } from "./fileClipboard";
-import { recordCopyUndo, recordMoveUndo } from "./fileUndo";
-import { clearSelection, selectedPaths } from "./navigatorSelection";
-import { refreshActiveListing } from "./navigatorBrowse";
+} from "./paths";
+import { dropTransferMode, type DropMode } from "./mode";
+import { transferEntries } from "../fileClipboard";
+import { recordCopyUndo, recordMoveUndo } from "../fileUndo";
+import { clearSelection, selectedPaths } from "../navigatorSelection";
+import { refreshActiveListing } from "../navigatorBrowse";
 
 export type FolderDropCommit = {
   ok: boolean;

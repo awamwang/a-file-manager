@@ -15,12 +15,12 @@ import PromptDialogHost from "./PromptDialogHost.vue";
 import FluentIcon from "../icons/FluentIcon.vue";
 import FolderTree from "./FolderTree.vue";
 import { toastError, toastInfo, toastSuccess } from "../../state/toast";
-import { createDropHoverScheduler } from "../../state/dropHover";
 import {
   acceptFolderDragOver,
   commitFolderDrop,
+  createDropHoverScheduler,
   noticeKeyForDropMode,
-} from "../../state/fileDropSurface";
+} from "../../state/dnd";
 import { SIDE_NAV_ITEMS, isSideNavActive, sideNavIcon } from "../../shell/sideNav";
 import { buildAppCommands } from "../../commands/registry";
 import { toggleCommandPanel } from "../../state/commandPanel";
