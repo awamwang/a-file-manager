@@ -27,6 +27,19 @@ assert.equal(isProviderPath("C:\\Temp"), false);
 
 assert.equal(toProviderUri("awam://rclone/"), "awam://rclone");
 assert.equal(toProviderUri("awam://"), PROVIDER_ROOT);
+// browser Profile 段大小写与 %20 必须保留，否则 Unknown profile。
+assert.equal(
+  toProviderUri("awam://browser/edge/Profile%201"),
+  "awam://browser/edge/Profile%201",
+);
+assert.equal(
+  toProviderUri("awam://Browser/edge/Profile%201"),
+  "awam://browser/edge/Profile%201",
+);
+assert.notEqual(
+  toProviderUri("awam://browser/edge/Profile%201"),
+  "awam://browser/edge/profile%201",
+);
 assert.equal(providerParentPath(PROVIDER_ROOT), null);
 assert.equal(providerParentPath("awam://rclone"), PROVIDER_ROOT);
 assert.equal(providerParentPath("awam://rclone/a/b"), "awam://rclone/a");

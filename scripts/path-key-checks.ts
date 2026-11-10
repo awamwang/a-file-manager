@@ -28,4 +28,15 @@ assert.equal(normalizeTreePath("C:/Temp"), "c:\\temp");
 assert.equal(openStateNative("a:/b"), toNativeFsPath("a:/b"));
 assert.equal(openStateKey("a:/b"), normalizePathKey("a:/b"));
 
+assert.equal(
+  normalizePathKey("awam://Browser/edge/Profile%201"),
+  "awam://browser/edge/Profile%201",
+);
+assert.ok(
+  !pathsEqual(
+    "awam://browser/edge/Profile%201",
+    "awam://browser/edge/profile%201",
+  ),
+);
+
 console.log("path-key-checks: ok");

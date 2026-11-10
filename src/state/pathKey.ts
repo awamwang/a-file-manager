@@ -24,9 +24,29 @@ export function toNativeFsPath(path: string): string {
   return trimmed.replace(/\//g, "\\").replace(/\\+$/, "");
 }
 
-/** 相等比较键：原生路径 + 小写。 */
+/**
+ * 相等比较键：本地路径小写；`awam://` 仅折叠 scheme/backend，**保留 path 大小写**
+ *（browser `Profile 1` 等对大小写敏感）。
+ */
 export function normalizePathKey(path: string): string {
-  return toNativeFsPath(path).toLowerCase();
+  const native = toNativeFsPath(path);
+  const lower = native.toLowerCase();
+  if (!lower.startsWith("awam://")) {
+    return lower;
+  }
+  const body = native.slice("awam://".length).replace(/\/+$/, "");
+  if (!body) return "awam://root";
+  const slash = body.indexOf("/");
+  if (slash < 0) {
+    const backend = body.toLowerCase();
+    return !backend || backend === "root" ? "awam://root" : `awam://${backend}`;
+  }
+  const backend = body.slice(0, slash).toLowerCase() || "root";
+  const rest = body.slice(slash + 1).replace(/\/+$/, "");
+  if (!rest) {
+    return !backend || backend === "root" ? "awam://root" : `awam://${backend}`;
+  }
+  return `awam://${backend}/${rest}`;
 }
 
 /** browse / tree 等会话面共用的路径相等判断。 */

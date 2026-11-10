@@ -19,26 +19,44 @@ function isProviderPath(path: string): boolean {
   return path.trim().toLowerCase().startsWith("awam://");
 }
 
+/** Keep in sync with `provider/path.ts`：backend 小写，path 保留大小写与编码。 */
 function toProviderUri(path: string): string {
   const trimmed = path.trim();
-  if (!trimmed) return "";
-  const key = trimmed.replace(/\/+$/, "").toLowerCase();
-  if (!key || key === "awam:" || key === "awam://" || key === "awam://root") {
-    return PROVIDER_ROOT;
+  if (!trimmed || !isProviderPath(trimmed)) return trimmed;
+  const body = trimmed.slice("awam://".length).replace(/\/+$/, "");
+  if (!body) return PROVIDER_ROOT;
+  const slash = body.indexOf("/");
+  if (slash < 0) {
+    const backend = body.toLowerCase();
+    return !backend || backend === "root" ? PROVIDER_ROOT : `awam://${backend}`;
   }
-  return trimmed.replace(/\/+$/, "") || PROVIDER_ROOT;
+  const backend = body.slice(0, slash).toLowerCase() || "root";
+  const rest = body.slice(slash + 1).replace(/\/+$/, "");
+  if (!rest) {
+    return !backend || backend === "root" ? PROVIDER_ROOT : `awam://${backend}`;
+  }
+  return `awam://${backend}/${rest}`;
 }
 
 function providerParentPath(path: string): string | null {
   const uri = toProviderUri(path);
   if (!uri || !isProviderPath(uri)) return null;
-  if (uri.toLowerCase() === PROVIDER_ROOT) return null;
+  if (uri === PROVIDER_ROOT) return null;
   const rest = uri.slice("awam://".length);
   const slash = rest.lastIndexOf("/");
   if (slash < 0) return PROVIDER_ROOT;
   const parentRest = rest.slice(0, slash);
   if (!parentRest) return PROVIDER_ROOT;
-  return `awam://${parentRest}`;
+  return toProviderUri(`awam://${parentRest}`);
+}
+
+/** 面包屑标签：百分号解码，避免显示 `Profile%201`。 */
+function providerSegmentLabel(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
 }
 
 const backStack = ref<string[]>([]);
@@ -99,7 +117,11 @@ export function popForward(current: string): string | null {
 
 function normalizeKey(path: string): string {
   const trimmed = path.trim();
-  // URI 方案（afm:// / awam:// / http://…）保留 `/`，避免破坏权威路径。
+  // awam://：backend 小写，path 保留大小写（与 pathKey / provider/path 一致）。
+  if (isProviderPath(trimmed)) {
+    return toProviderUri(trimmed);
+  }
+  // 其他 URI 方案保留 `/`，仅折叠大小写用于历史去重。
   if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
     return trimmed.replace(/\/+$/, "").toLowerCase();
   }
@@ -182,7 +204,7 @@ export function buildProviderBreadcrumbs(
   const crumbs: BreadcrumbCrumb[] = [
     { label: providersLabel, path: PROVIDER_ROOT, kind: "path" },
   ];
-  if (uri.toLowerCase() === PROVIDER_ROOT) {
+  if (uri === PROVIDER_ROOT) {
     return crumbs;
   }
   const rest = uri.slice("awam://".length);
@@ -191,7 +213,11 @@ export function buildProviderBreadcrumbs(
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i]!;
     acc = i === 0 ? `awam://${part}` : `${acc}/${part}`;
-    crumbs.push({ label: part, path: acc, kind: "path" });
+    crumbs.push({
+      label: providerSegmentLabel(part),
+      path: toProviderUri(acc),
+      kind: "path",
+    });
   }
   return crumbs;
 }
