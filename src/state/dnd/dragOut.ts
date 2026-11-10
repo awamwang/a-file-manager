@@ -15,7 +15,7 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import { resolveResource } from "@tauri-apps/api/path";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { cursorPosition, getCurrentWindow } from "@tauri-apps/api/window";
 
 let outboundBusy = false;
 let cachedDragIconPath: string | null = null;
@@ -48,7 +48,7 @@ async function isCursorNearOrOutsideWindow(): Promise<boolean> {
   try {
     const win = getCurrentWindow();
     const [cursor, pos, size] = await Promise.all([
-      win.cursorPosition(),
+      cursorPosition(),
       win.outerPosition(),
       win.outerSize(),
     ]);
