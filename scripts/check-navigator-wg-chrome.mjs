@@ -40,16 +40,29 @@ if (chrome.includes("saveActiveOpenStateHard") || chrome.includes("work_groups_s
 }
 
 for (const needle of [
-  "work_groups_silent_switch",
   "work_groups_save_members_from_open_state",
-  "restoreWorkGroupOpenState",
   "openActiveMembersIntoOpenState",
   "openMembersIntoOpenState",
+  "silentSwitchWorkGroup",
 ]) {
   if (!chrome.includes(needle)) {
     console.error(`workGroupChrome missing ${needle}`);
     process.exit(1);
   }
+}
+
+const browse = readFileSync(join(root, "src/state/navigatorBrowse.ts"), "utf8");
+if (!browse.includes("work_groups_silent_switch")) {
+  console.error("navigatorBrowse must own work_groups_silent_switch (session)");
+  process.exit(1);
+}
+if (!browse.includes("restoreWorkGroupOpenState")) {
+  console.error("navigatorBrowse missing restoreWorkGroupOpenState");
+  process.exit(1);
+}
+if (chrome.includes('invoke<SilentSwitchResult>("work_groups_silent_switch"')) {
+  console.error("workGroupChrome must not own silent_switch invoke");
+  process.exit(1);
 }
 
 if (!wgView.includes("openMembersIntoRuntime") || !wgView.includes("openMembersIntoOpenState")) {

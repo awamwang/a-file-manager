@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-/** Navigator chrome Work Group switcher — silent switch (AIA-81/90); members save only. */
+/** Navigator chrome Work Group 展示层 — busy/error/notice；会话编排在 navigatorBrowse。 */
 
 import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import {
   activeWorkGroupId,
-  cancelOpenStatePersist,
   hydrateWorkGroups,
   openMembersIntoOpenState,
   rememberHydratedWorkGroups,
-  restoreWorkGroupOpenState,
-  snapshotLeavingOpenState,
+  silentSwitchWorkGroup as runSilentWorkGroupSwitch,
   snapshotLiveOpenState,
   type SilentSwitchResult,
   type SoftSyncNotice,
@@ -47,25 +45,8 @@ export async function loadWorkGroupsChrome(options?: {
   }
 }
 
-async function rollbackOptimisticSwitch(
-  priorDoc: UserWorkGroupsDoc,
-  leavingFallback: ReturnType<typeof snapshotLeavingOpenState>,
-): Promise<void> {
-  workGroupsDoc.value = priorDoc;
-  activeWorkGroupId.value = priorDoc.activeWorkGroupId;
-  const prior = priorDoc.workGroups.find(
-    (group) => group.id === priorDoc.activeWorkGroupId,
-  );
-  await restoreWorkGroupOpenState(
-    priorDoc.activeWorkGroupId,
-    prior?.openState ?? leavingFallback,
-  );
-}
-
 /**
- * Silent WG switch. AIA-259: paint strip/path from the local WG cache first,
- * then await disk load+save; reconcile soft-sync tabs without a second list when
- * the active path is unchanged.
+ * Chrome 包装：展示缓存 + busy/error/notice；strip/IPC 编排在会话模块。
  */
 export async function silentSwitchWorkGroup(
   targetId: string,
@@ -76,52 +57,28 @@ export async function silentSwitchWorkGroup(
   }
   workGroupChromeBusy.value = true;
   workGroupChromeError.value = null;
-  // Silent switch owns the leaving-group disk write — drop debounced persist.
-  cancelOpenStatePersist();
-  const leaving = snapshotLeavingOpenState();
   const cachedTarget = priorDoc?.workGroups.find((group) => group.id === targetId);
-  let paintedOptimistic = false;
   if (priorDoc && cachedTarget) {
     workGroupsDoc.value = {
       ...priorDoc,
       activeWorkGroupId: targetId,
     };
-    activeWorkGroupId.value = targetId;
-    await restoreWorkGroupOpenState(targetId, cachedTarget.openState);
-    paintedOptimistic = true;
   }
   try {
-    const result = await invoke<SilentSwitchResult>("work_groups_silent_switch", {
-      targetWorkGroupId: targetId,
-      liveOpenState: leaving,
-    });
-    if (result.requireSavePrompt) {
-      if (paintedOptimistic && priorDoc) {
-        await rollbackOptimisticSwitch(priorDoc, leaving);
+    const { result, error } = await runSilentWorkGroupSwitch(targetId, priorDoc);
+    if (error) {
+      workGroupChromeError.value = error;
+      if (priorDoc && error === "REQUIRE_SAVE_PROMPT") {
+        workGroupsDoc.value = priorDoc;
+      } else if (priorDoc && !result) {
+        workGroupsDoc.value = priorDoc;
       }
-      workGroupChromeError.value = "REQUIRE_SAVE_PROMPT";
-      return result;
     }
-    rememberHydratedWorkGroups(result.document);
-    workGroupsDoc.value = result.document;
-    workGroupSoftNotice.value = result.notice;
-    // reveal:false skips a duplicate navigator_list when optimistic path matches.
-    await restoreWorkGroupOpenState(
-      result.document.activeWorkGroupId,
-      result.openStateToRestore,
-      { reveal: !paintedOptimistic },
-    );
+    if (result && !result.requireSavePrompt) {
+      workGroupsDoc.value = result.document;
+      workGroupSoftNotice.value = result.notice;
+    }
     return result;
-  } catch (err) {
-    if (paintedOptimistic && priorDoc) {
-      try {
-        await rollbackOptimisticSwitch(priorDoc, leaving);
-      } catch {
-        /* keep switch error */
-      }
-    }
-    workGroupChromeError.value = err instanceof Error ? err.message : String(err);
-    return null;
   } finally {
     workGroupChromeBusy.value = false;
   }

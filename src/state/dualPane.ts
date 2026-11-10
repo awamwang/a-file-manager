@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-/** Dual-pane Navigator state (AIA-68 + AIA-252 min-width clamp). */
+/** Dual-pane 布局开关（AIA-68 + AIA-252）；副窗格 listing 编排在 navigatorBrowse。 */
 
-import { computed, ref, shallowRef } from "vue";
-import { invoke } from "@tauri-apps/api/core";
-import type { NavigatorListing } from "./navigatorBrowse";
-import { currentPath, navigateTo } from "./navigatorBrowse";
-import { clearNavigatorFilter } from "./navigatorFilter";
-import { showHiddenItems } from "./showHidden";
+import { computed, ref } from "vue";
+import {
+  currentPath,
+  navigateSecondary,
+  navigateTo,
+  secondaryPath,
+} from "./navigatorBrowse";
 
 export type PaneId = "primary" | "secondary";
 
@@ -20,12 +21,16 @@ export {
   windowMinWidthForDualPane,
 } from "./dualPaneLayout";
 
+export {
+  secondaryPath,
+  secondaryListing,
+  secondaryError,
+  secondaryLoading,
+  navigateSecondary,
+} from "./navigatorBrowse";
+
 export const dualPaneEnabled = ref(false);
 export const activePane = ref<PaneId>("primary");
-export const secondaryPath = ref("");
-export const secondaryListing = shallowRef<NavigatorListing | null>(null);
-export const secondaryError = ref<string | null>(null);
-export const secondaryLoading = ref(false);
 
 export const activePath = computed(() =>
   activePane.value === "secondary" ? secondaryPath.value : currentPath.value,
@@ -43,32 +48,6 @@ export function toggleDualPane(): void {
 
 export function setActivePane(pane: PaneId): void {
   activePane.value = pane;
-}
-
-function browseKey(path: string): string {
-  return path.trim().replace(/\//g, "\\").replace(/\\+$/, "").toLowerCase();
-}
-
-export async function navigateSecondary(path: string): Promise<void> {
-  const trimmed = path.trim();
-  const previous = secondaryPath.value;
-  secondaryLoading.value = true;
-  secondaryError.value = null;
-  try {
-    const result = await invoke<NavigatorListing>("navigator_list", {
-      path: trimmed,
-      showHidden: showHiddenItems.value,
-    });
-    secondaryListing.value = result;
-    secondaryPath.value = result.path;
-    if (browseKey(previous) !== browseKey(result.path)) clearNavigatorFilter();
-  } catch (err) {
-    secondaryListing.value = null;
-    secondaryError.value = err instanceof Error ? err.message : String(err);
-    secondaryPath.value = trimmed;
-  } finally {
-    secondaryLoading.value = false;
-  }
 }
 
 export async function navigateActivePane(path: string): Promise<void> {

@@ -66,6 +66,12 @@ export const listing = shallowRef<NavigatorListing | null>(null);
 export const listError = ref<string | null>(null);
 export const listLoading = ref(false);
 
+/** 副窗格路径与 listing（会话编排；布局开关仍在 dualPane）。 */
+export const secondaryPath = ref("");
+export const secondaryListing = shallowRef<NavigatorListing | null>(null);
+export const secondaryError = ref<string | null>(null);
+export const secondaryLoading = ref(false);
+
 /** Runtime Open State for the active Work Group (Navigator tab strip). */
 export const liveOpenState = ref<WorkGroupOpenState>(createEmptyOpenState());
 export const activeWorkGroupId = ref("");
@@ -242,6 +248,31 @@ export function refreshActiveListing(): void {
     recordHistory: false,
     recordVisit: false,
   });
+}
+
+/** 副窗格 listing 导航（不写主 Open State / 历史栈）。 */
+export async function navigateSecondary(path: string): Promise<void> {
+  const trimmed = path.trim();
+  const previous = secondaryPath.value;
+  secondaryLoading.value = true;
+  secondaryError.value = null;
+  try {
+    const result = await invoke<NavigatorListing>("navigator_list", {
+      path: trimmed,
+      showHidden: showHiddenItems.value,
+    });
+    secondaryListing.value = result;
+    secondaryPath.value = result.path;
+    if (normalizeBrowseKey(previous) !== normalizeBrowseKey(result.path)) {
+      clearNavigatorFilter();
+    }
+  } catch (err) {
+    secondaryListing.value = null;
+    secondaryError.value = err instanceof Error ? err.message : String(err);
+    secondaryPath.value = trimmed;
+  } finally {
+    secondaryLoading.value = false;
+  }
 }
 
 export async function navigateTo(
@@ -574,6 +605,72 @@ export async function applyProjectSilentSwitch(
     silentSwitch.openStateToRestore,
   );
   return silentSwitch.notice;
+}
+
+async function rollbackSilentSwitchStrip(
+  priorDoc: UserWorkGroupsDoc,
+  leavingFallback: WorkGroupOpenState,
+): Promise<void> {
+  const prior = priorDoc.workGroups.find(
+    (group) => group.id === priorDoc.activeWorkGroupId,
+  );
+  await restoreWorkGroupOpenState(
+    priorDoc.activeWorkGroupId,
+    prior?.openState ?? leavingFallback,
+  );
+}
+
+/**
+ * WG 静默切换会话编排（grill #1）：乐观 strip → IPC → 调和。
+ * chrome 只负责 busy/error/notice 与文档展示缓存。
+ */
+export async function silentSwitchWorkGroup(
+  targetId: string,
+  priorDoc: UserWorkGroupsDoc | null,
+): Promise<{ result: SilentSwitchResult | null; error: string | null }> {
+  if (!targetId || targetId === priorDoc?.activeWorkGroupId) {
+    return { result: null, error: null };
+  }
+  cancelOpenStatePersist();
+  const leaving = snapshotLeavingOpenState();
+  const cachedTarget = priorDoc?.workGroups.find((group) => group.id === targetId);
+  let paintedOptimistic = false;
+  if (priorDoc && cachedTarget) {
+    activeWorkGroupId.value = targetId;
+    await restoreWorkGroupOpenState(targetId, cachedTarget.openState);
+    paintedOptimistic = true;
+  }
+  try {
+    const result = await invoke<SilentSwitchResult>("work_groups_silent_switch", {
+      targetWorkGroupId: targetId,
+      liveOpenState: leaving,
+    });
+    if (result.requireSavePrompt) {
+      if (paintedOptimistic && priorDoc) {
+        await rollbackSilentSwitchStrip(priorDoc, leaving);
+      }
+      return { result, error: "REQUIRE_SAVE_PROMPT" };
+    }
+    rememberHydratedWorkGroups(result.document);
+    await restoreWorkGroupOpenState(
+      result.document.activeWorkGroupId,
+      result.openStateToRestore,
+      { reveal: !paintedOptimistic },
+    );
+    return { result, error: null };
+  } catch (err) {
+    if (paintedOptimistic && priorDoc) {
+      try {
+        await rollbackSilentSwitchStrip(priorDoc, leaving);
+      } catch {
+        /* keep switch error */
+      }
+    }
+    return {
+      result: null,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
 }
 
 export async function loadDefaultPath(): Promise<void> {

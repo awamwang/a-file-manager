@@ -83,13 +83,13 @@ if (modelCheck.stdout) process.stdout.write(modelCheck.stdout);
 if (modelCheck.stderr) process.stderr.write(modelCheck.stderr);
 assert.equal(modelCheck.status, 0, "open-state-checks must pass");
 
-// AIA-259: optimistic WG silent switch + deferred side work.
+// AIA-259: optimistic WG silent switch + deferred side work（编排在会话模块）。
 {
-  const switchStart = chrome.indexOf("export async function silentSwitchWorkGroup");
-  assert.ok(switchStart >= 0, "missing silentSwitchWorkGroup");
-  const switchBody = chrome.slice(
+  const switchStart = browse.indexOf("export async function silentSwitchWorkGroup");
+  assert.ok(switchStart >= 0, "session missing silentSwitchWorkGroup");
+  const switchBody = browse.slice(
     switchStart,
-    chrome.indexOf("\nexport ", switchStart + 1),
+    browse.indexOf("\nexport ", switchStart + 1),
   );
   assert.ok(
     switchBody.includes("cancelOpenStatePersist"),
@@ -101,9 +101,17 @@ assert.equal(modelCheck.status, 0, "open-state-checks must pass");
     "AIA-259: optimistic restore must run before awaiting silent_switch IPC",
   );
   assert.ok(
-    /reveal:\s*!paintedOptimistic/.test(switchBody) ||
-      /reveal:\s*!paintedOptimistic/.test(chrome),
+    /reveal:\s*!paintedOptimistic/.test(switchBody),
     "reconcile restore must skip duplicate list when optimistic paint succeeded",
+  );
+  assert.ok(
+    chrome.includes("runSilentWorkGroupSwitch") ||
+      chrome.includes("silentSwitchWorkGroup"),
+    "chrome must wrap session silent switch for busy/error",
+  );
+  assert.ok(
+    !chrome.includes('invoke<SilentSwitchResult>("work_groups_silent_switch"'),
+    "chrome must not own silent_switch invoke",
   );
 }
 
