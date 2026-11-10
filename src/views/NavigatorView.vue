@@ -89,10 +89,17 @@ import {
 } from "../state/listPlaceholders";
 import {
   computeListVirtualWindow,
+  computeVariableListVirtualWindow,
   estimateListColumns,
   resolveListRowHeightPx,
   type ListVirtualWindow,
 } from "../state/listVirtualWindow";
+import {
+  flattenEntryItems,
+  flattenGroupedItems,
+  virtItemHeightPx,
+  type ListVirtItem,
+} from "../state/listVirtItems";
 import { sortedEntries, sortColumn, sortDirection, toggleSort } from "../state/navigatorSort";
 import {
   isContentView,
@@ -108,7 +115,6 @@ import {
   VIEW_ICON_SIZE,
 } from "../state/navigatorViewMode";
 import { entryTypeLabel } from "../state/entryType";
-import { groupEntriesByType } from "../state/navigatorGrouping";
 import {
   DEFAULT_DETAILS_COLUMN_WIDTHS,
   detailsGridTemplate,
@@ -604,59 +610,95 @@ function isCompactListDensity(): boolean {
   }
 }
 
-function buildVirtualWindow(
-  total: number,
-  scrollTop: number,
-  viewport: { w: number; h: number },
-  grouped: boolean,
-): ListVirtualWindow {
+function listViewportHeightPx(viewport: { w: number; h: number }): number {
   const mode = navigatorViewMode.value as PlaceholderViewMode;
-  if (grouped) {
-    return {
-      active: false,
-      startIndex: 0,
-      endIndex: total,
-      offsetBeforePx: 0,
-      offsetAfterPx: 0,
-    };
-  }
-  let viewportHeight = viewport.h;
   if (mode === "details") {
-    viewportHeight = Math.max(0, viewportHeight - DETAILS_HEADER_HEIGHT_PX);
+    return Math.max(0, viewport.h - DETAILS_HEADER_HEIGHT_PX);
   }
-  return computeListVirtualWindow({
-    total,
-    scrollTop,
-    viewportHeight,
-    rowHeight: resolveListRowHeightPx(mode, isCompactListDensity()),
-    columns: estimateListColumns(mode, viewport.w),
-    mode,
-  });
+  return viewport.h;
 }
 
-const primaryVirtual = computed(() =>
-  buildVirtualWindow(
-    visibleEntries.value.length,
-    primaryScrollTop.value,
-    listViewport.value,
-    navigatorGroupByType.value,
-  ),
-);
+let lastListWindowProbeKey = "";
 
-const secondaryVirtual = computed(() =>
-  buildVirtualWindow(
-    secondaryEntries.value.length,
-    secondaryScrollTop.value,
-    secondaryViewport.value,
-    false,
-  ),
-);
+function probeListWindow(win: ListVirtualWindow, total: number, grouped: boolean): void {
+  try {
+    if (globalThis.localStorage?.getItem("afm.perfProbe") !== "1") return;
+    if (!win.active) return;
+    const mounted = win.endIndex - win.startIndex;
+    const key = `${grouped ? 1 : 0}:${total}:${mounted}:${win.startIndex}`;
+    if (key === lastListWindowProbeKey) return;
+    lastListWindowProbeKey = key;
+    console.info(
+      `[AFM_perf] list_window mounted=${mounted} total=${total} grouped=${grouped ? 1 : 0}`,
+    );
+  } catch {
+    // ignore
+  }
+}
 
-const primaryWindowedEntries = computed(() => {
-  const win = primaryVirtual.value;
-  if (!win.active) return visibleEntries.value;
-  return visibleEntries.value.slice(win.startIndex, win.endIndex);
+const primaryVirtItems = computed((): ListVirtItem[] => {
+  const entries = visibleEntries.value;
+  if (navigatorGroupByType.value) {
+    return flattenGroupedItems(entries, typeLabels.value);
+  }
+  return flattenEntryItems(entries);
 });
+
+const primaryVirtual = computed((): ListVirtualWindow => {
+  const items = primaryVirtItems.value;
+  const mode = navigatorViewMode.value as PlaceholderViewMode;
+  const viewportHeight = listViewportHeightPx(listViewport.value);
+  const rowHeight = resolveListRowHeightPx(mode, isCompactListDensity());
+  const grouped = navigatorGroupByType.value;
+  let win: ListVirtualWindow;
+  if (grouped) {
+    // 组头变高：按项高前缀和窗口化；图标/平铺在分组下用纵向流（见 list--virt-flat）。
+    const heights = items.map((item) => virtItemHeightPx(item, rowHeight));
+    win = computeVariableListVirtualWindow({
+      heights,
+      scrollTop: primaryScrollTop.value,
+      viewportHeight,
+    });
+  } else {
+    win = computeListVirtualWindow({
+      total: items.length,
+      scrollTop: primaryScrollTop.value,
+      viewportHeight,
+      rowHeight,
+      columns: estimateListColumns(mode, listViewport.value.w),
+      mode,
+    });
+  }
+  probeListWindow(win, items.length, grouped);
+  return win;
+});
+
+const secondaryVirtual = computed((): ListVirtualWindow => {
+  const total = secondaryEntries.value.length;
+  const mode = navigatorViewMode.value as PlaceholderViewMode;
+  return computeListVirtualWindow({
+    total,
+    scrollTop: secondaryScrollTop.value,
+    viewportHeight: listViewportHeightPx(secondaryViewport.value),
+    rowHeight: resolveListRowHeightPx(mode, isCompactListDensity()),
+    columns: estimateListColumns(mode, secondaryViewport.value.w),
+    mode,
+  });
+});
+
+const primaryWindowedItems = computed(() => {
+  const win = primaryVirtual.value;
+  const items = primaryVirtItems.value;
+  if (!win.active) return items;
+  return items.slice(win.startIndex, win.endIndex);
+});
+
+/** 图标观察仍只要条目路径。 */
+const primaryWindowedEntries = computed(() =>
+  primaryWindowedItems.value
+    .filter((item): item is Extract<ListVirtItem, { kind: "entry" }> => item.kind === "entry")
+    .map((item) => item.entry),
+);
 
 const secondaryWindowedEntries = computed(() => {
   const win = secondaryVirtual.value;
@@ -936,11 +978,6 @@ function formatEntryType(entry: NavigatorEntry): string {
   return entryTypeLabel(entry.kind, entry.name, typeLabels.value);
 }
 
-const groupedVisibleEntries = computed(() => {
-  if (!navigatorGroupByType.value) return null;
-  return groupEntriesByType(visibleEntries.value, typeLabels.value);
-});
-
 let columnResize: {
   column: DetailsColumnId;
   startX: number;
@@ -981,10 +1018,42 @@ function onColumnResizeEnd() {
 
 const iconPixelSize = computed(() => VIEW_ICON_SIZE[navigatorViewMode.value]);
 
-/** Reserve shell-icon / FluentIcon slot at the active view size (AIA-267). */
-const listIconStyle = computed(() => ({
+/**
+ * 图标/平铺为 CSS grid：用 padding 承担窗口化前后偏移。
+ * grid 内再插 virt-spacer 会挤乱行高，大目录缩略图会被压成细条。
+ */
+function gridVirtualPaddingStyle(win: ListVirtualWindow): Record<string, string> {
+  if (!win.active) return {};
+  if (!(isIconView.value || isTilesView.value)) return {};
+  // 分组纵向流（list--virt-flat）仍用 flex spacer，不走 padding。
+  if (navigatorGroupByType.value) return {};
+  return {
+    paddingTop: `calc(var(--fluent-space-sm, 8px) + ${win.offsetBeforePx}px)`,
+    paddingBottom: `calc(var(--fluent-space-sm, 8px) + ${win.offsetAfterPx}px)`,
+  };
+}
+
+function usesVirtSpacers(win: ListVirtualWindow): boolean {
+  if (!win.active) return false;
+  if ((isIconView.value || isTilesView.value) && !navigatorGroupByType.value) {
+    return false;
+  }
+  return true;
+}
+
+/** Reserve shell-icon slot at the active view size (AIA-267). */
+const primaryListStyle = computed(() => ({
   "--nav-icon-size": iconSlotCssSize(navigatorViewMode.value),
+  ...gridVirtualPaddingStyle(primaryVirtual.value),
 }));
+
+const secondaryListStyle = computed(() => ({
+  "--nav-icon-size": iconSlotCssSize(navigatorViewMode.value),
+  ...gridVirtualPaddingStyle(secondaryVirtual.value),
+}));
+
+const showPrimaryVirtSpacers = computed(() => usesVirtSpacers(primaryVirtual.value));
+const showSecondaryVirtSpacers = computed(() => usesVirtSpacers(secondaryVirtual.value));
 
 const showListPlaceholders = computed(
   () => listLoading.value && visibleEntries.value.length === 0,
@@ -1722,9 +1791,10 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         'list--tiles': isTilesView,
         'list--content': isContentView,
         'list--grouped': navigatorGroupByType,
+        'list--virt-flat': navigatorGroupByType && primaryVirtual.active,
         'list--drop': dragOverPath === currentPath,
       }"
-      :style="listIconStyle"
+      :style="primaryListStyle"
       role="list"
       tabindex="-1"
       data-focus-default
@@ -1807,160 +1877,89 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           <span v-if="isDetailsView" class="modified modified--placeholder" />
         </div>
       </template>
-      <template v-else-if="groupedVisibleEntries">
-        <div
-          v-for="group in groupedVisibleEntries"
-          :key="group.key"
-          class="list-group"
-        >
-          <div class="list-group-header" role="presentation">
-            {{ group.label }}
-            <span class="list-group-count">{{ group.entries.length }}</span>
-          </div>
-          <div
-            v-for="entry in group.entries"
-            :key="entry.path"
-            class="fluent-list-row fluent-list-row--density row"
-            :class="{
-              'row--icon': isIconView,
-              'row--tile': isTilesView,
-              'row--content': isContentView,
-              'row--selected': isSelected(entry.path),
-              'row--cut': isClipboardCutPath(entry.path),
-              'row--drop': dragOverPath === entry.path,
-            }"
-            :style="isDetailsView ? detailsGridStyle : undefined"
-            role="listitem"
-            tabindex="-1"
-            draggable="true"
-            :data-entry-path="entry.path"
-            :aria-selected="isSelected(entry.path)"
-            :title="entryHoverTitle(entry)"
-            @mousedown="onRowMouseDown($event, entry)"
-            @click="onRowClick($event, entry)"
-            @dblclick="onActivate(entry)"
-            @keydown.enter.prevent="onActivate(entry)"
-            @contextmenu="onContextMenu($event, entry)"
-            @dragstart="onDragStart($event, entry)"
-            @dragover="onDragOver($event, entry)"
-            @dragleave="onDragLeave(entry)"
-            @drop="onDrop($event, entry)"
-          >
-            <span class="kind" :data-kind="entry.kind">
-              <ShellIconImg
-                :path="entry.path"
-                :size="iconPixelSize"
-                :is-dir="entry.kind === 'dir'"
-              />
-            </span>
-            <textarea
-              v-if="renamingPath === entry.path"
-              :ref="setRenameInputEl"
-              v-model="renameDraft"
-              class="fluent-control inline-rename"
-              rows="1"
-              wrap="soft"
-              spellcheck="false"
-              :aria-label="t('contextMenu.rename')"
-              @mousedown.stop
-              @click.stop
-              @dblclick.stop
-              @input="onRenameDraftInput"
-              @keydown.enter.prevent.stop="commitInlineRename"
-              @keydown.escape.prevent.stop="cancelInlineRename"
-              @blur="onRenameBlur"
-            />
-            <span v-else class="name-block">
-              <span class="name" @click="onNameClick($event, entry)">{{ entry.name }}</span>
-              <span v-if="folderSearchActive" class="row-location">{{ entryLocation(entry.path) }}</span>
-              <span v-if="isTilesView || isContentView" class="row-meta">
-                {{ formatEntryType(entry) }}
-                <template v-if="entry.kind !== 'dir'"> · {{ formatSize(entry) }}</template>
-              </span>
-            </span>
-            <span v-if="isDetailsView" class="type">{{ formatEntryType(entry) }}</span>
-            <span v-if="isDetailsView" class="size">{{ formatSize(entry) }}</span>
-            <span v-if="isDetailsView" class="modified">{{ formatModified(entry) }}</span>
-          </div>
-        </div>
-      </template>
       <template v-else>
       <div
-        v-if="primaryVirtual.active && primaryVirtual.offsetBeforePx > 0"
+        v-if="showPrimaryVirtSpacers && primaryVirtual.offsetBeforePx > 0"
         class="virt-spacer"
         aria-hidden="true"
         :style="{ height: `${primaryVirtual.offsetBeforePx}px` }"
       />
-      <div
-        v-for="entry in primaryWindowedEntries"
-        :key="entry.path"
-        class="fluent-list-row fluent-list-row--density row"
-        :class="{
-          'row--icon': isIconView,
-          'row--tile': isTilesView,
-          'row--content': isContentView,
-          'row--selected': isSelected(entry.path),
-          'row--cut': isClipboardCutPath(entry.path),
-          'row--drop': dragOverPath === entry.path,
-        }"
-        :style="isDetailsView ? detailsGridStyle : undefined"
-        role="listitem"
-        tabindex="-1"
-        draggable="true"
-        :data-entry-path="entry.path"
-        :aria-selected="isSelected(entry.path)"
-        :title="entryHoverTitle(entry)"
-        @mousedown="onRowMouseDown($event, entry)"
-        @click="onRowClick($event, entry)"
-        @dblclick="onActivate(entry)"
-        @keydown.enter.prevent="onActivate(entry)"
-        @contextmenu="onContextMenu($event, entry)"
-        @dragstart="onDragStart($event, entry)"
-        @dragover="onDragOver($event, entry)"
-        @dragleave="onDragLeave(entry)"
-        @drop="onDrop($event, entry)"
-      >
-        <span
-          class="kind"
-          :data-kind="entry.kind"
+      <template v-for="item in primaryWindowedItems" :key="item.key">
+        <div
+          v-if="item.kind === 'header'"
+          class="list-group-header"
+          role="presentation"
         >
-          <ShellIconImg
-            :path="entry.path"
-            :size="iconPixelSize"
-            :is-dir="entry.kind === 'dir'"
-          />
-        </span>
-        <textarea
-          v-if="renamingPath === entry.path"
-          :ref="setRenameInputEl"
-          v-model="renameDraft"
-          class="fluent-control inline-rename"
-          rows="1"
-          wrap="soft"
-          spellcheck="false"
-          :aria-label="t('contextMenu.rename')"
-          @mousedown.stop
-          @click.stop
-          @dblclick.stop
-          @input="onRenameDraftInput"
-          @keydown.enter.prevent.stop="commitInlineRename"
-          @keydown.escape.prevent.stop="cancelInlineRename"
-          @blur="onRenameBlur"
-        />
-        <span v-else class="name-block">
-          <span class="name" @click="onNameClick($event, entry)">{{ entry.name }}</span>
-          <span v-if="folderSearchActive" class="row-location">{{ entryLocation(entry.path) }}</span>
-          <span v-if="isTilesView || isContentView" class="row-meta">
-            {{ formatEntryType(entry) }}
-            <template v-if="entry.kind !== 'dir'"> · {{ formatSize(entry) }}</template>
+          {{ item.label }}
+          <span class="list-group-count">{{ item.count }}</span>
+        </div>
+        <div
+          v-else
+          class="fluent-list-row fluent-list-row--density row"
+          :class="{
+            'row--icon': isIconView,
+            'row--tile': isTilesView,
+            'row--content': isContentView,
+            'row--selected': isSelected(item.entry.path),
+            'row--cut': isClipboardCutPath(item.entry.path),
+            'row--drop': dragOverPath === item.entry.path,
+          }"
+          :style="isDetailsView ? detailsGridStyle : undefined"
+          role="listitem"
+          tabindex="-1"
+          draggable="true"
+          :data-entry-path="item.entry.path"
+          :aria-selected="isSelected(item.entry.path)"
+          :title="entryHoverTitle(item.entry)"
+          @mousedown="onRowMouseDown($event, item.entry)"
+          @click="onRowClick($event, item.entry)"
+          @dblclick="onActivate(item.entry)"
+          @keydown.enter.prevent="onActivate(item.entry)"
+          @contextmenu="onContextMenu($event, item.entry)"
+          @dragstart="onDragStart($event, item.entry)"
+          @dragover="onDragOver($event, item.entry)"
+          @dragleave="onDragLeave(item.entry)"
+          @drop="onDrop($event, item.entry)"
+        >
+          <span class="kind" :data-kind="item.entry.kind">
+            <ShellIconImg
+              :path="item.entry.path"
+              :size="iconPixelSize"
+              :is-dir="item.entry.kind === 'dir'"
+            />
           </span>
-        </span>
-        <span v-if="isDetailsView" class="type">{{ formatEntryType(entry) }}</span>
-        <span v-if="isDetailsView" class="size">{{ formatSize(entry) }}</span>
-        <span v-if="isDetailsView" class="modified">{{ formatModified(entry) }}</span>
-      </div>
+          <textarea
+            v-if="renamingPath === item.entry.path"
+            :ref="setRenameInputEl"
+            v-model="renameDraft"
+            class="fluent-control inline-rename"
+            rows="1"
+            wrap="soft"
+            spellcheck="false"
+            :aria-label="t('contextMenu.rename')"
+            @mousedown.stop
+            @click.stop
+            @dblclick.stop
+            @input="onRenameDraftInput"
+            @keydown.enter.prevent.stop="commitInlineRename"
+            @keydown.escape.prevent.stop="cancelInlineRename"
+            @blur="onRenameBlur"
+          />
+          <span v-else class="name-block">
+            <span class="name" @click="onNameClick($event, item.entry)">{{ item.entry.name }}</span>
+            <span v-if="folderSearchActive" class="row-location">{{ entryLocation(item.entry.path) }}</span>
+            <span v-if="isTilesView || isContentView" class="row-meta">
+              {{ formatEntryType(item.entry) }}
+              <template v-if="item.entry.kind !== 'dir'"> · {{ formatSize(item.entry) }}</template>
+            </span>
+          </span>
+          <span v-if="isDetailsView" class="type">{{ formatEntryType(item.entry) }}</span>
+          <span v-if="isDetailsView" class="size">{{ formatSize(item.entry) }}</span>
+          <span v-if="isDetailsView" class="modified">{{ formatModified(item.entry) }}</span>
+        </div>
+      </template>
       <div
-        v-if="primaryVirtual.active && primaryVirtual.offsetAfterPx > 0"
+        v-if="showPrimaryVirtSpacers && primaryVirtual.offsetAfterPx > 0"
         class="virt-spacer"
         aria-hidden="true"
         :style="{ height: `${primaryVirtual.offsetAfterPx}px` }"
@@ -2012,7 +2011,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           'list--content': isContentView,
           'list--drop': dragOverPath === secondaryPath,
         }"
-        :style="listIconStyle"
+        :style="secondaryListStyle"
         role="list"
         :aria-busy="secondaryLoading ? 'true' : undefined"
         :aria-label="secondaryLoading ? t('navigator.loading') : undefined"
@@ -2047,7 +2046,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         </template>
         <template v-else>
         <div
-          v-if="secondaryVirtual.active && secondaryVirtual.offsetBeforePx > 0"
+          v-if="showSecondaryVirtSpacers && secondaryVirtual.offsetBeforePx > 0"
           class="virt-spacer"
           aria-hidden="true"
           :style="{ height: `${secondaryVirtual.offsetBeforePx}px` }"
@@ -2101,7 +2100,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           <span v-if="isDetailsView" class="modified">{{ formatModified(entry) }}</span>
         </div>
         <div
-          v-if="secondaryVirtual.active && secondaryVirtual.offsetAfterPx > 0"
+          v-if="showSecondaryVirtSpacers && secondaryVirtual.offsetAfterPx > 0"
           class="virt-spacer"
           aria-hidden="true"
           :style="{ height: `${secondaryVirtual.offsetAfterPx}px` }"
@@ -2258,20 +2257,13 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   flex-direction: column;
 }
 
-.list-group {
-  display: contents;
-}
-
-.list--tiles .list-group,
-.list--icons .list-group {
-  display: contents;
-}
-
-.list--list .list-group,
-.list--details .list-group,
-.list--content .list-group {
+/* 分组窗口化启用时强制纵向流，使变高 spacer 与滚动位置一致。 */
+.list--virt-flat.list--icons,
+.list--virt-flat.list--tiles {
   display: flex;
   flex-direction: column;
+  align-content: stretch;
+  grid-template-columns: none;
 }
 
 .list-group-header {
@@ -2284,6 +2276,8 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   color: var(--fluent-color-text-secondary);
   border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   grid-column: 1 / -1;
+  flex: 0 0 auto;
+  width: 100%;
 }
 
 .list-group-count {

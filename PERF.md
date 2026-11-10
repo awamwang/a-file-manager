@@ -7,11 +7,15 @@ Follows the performance-optimization skill: measure → identify → fix → ver
 | Backend `list_directory` on 5000 files | median **12.3ms** (debug) | kept as-is | Not the bottleneck |
 | Mount all 5000 list rows (plain DOM probe) | median **137–170ms** create+layout | identified | Full listing v-for was the user-facing cost |
 | Windowed Navigator list (`listVirtualWindow`, ≥80 entries) | 5000 rows **137ms** → ~40-row window **0.8ms** (DOM probe) | **kept** | ~170× less mount work; scroll spacers keep total height |
+| Group-by-type flattened virt items + variable-height window | grouped path used to mount all rows; now same ≥80 window | **kept** | `listVirtItems` + `computeVariableListVirtualWindow`; icons/tiles use `list--virt-flat` column flow while windowed |
+| `sortedEntries` identity cache + `list_sort` / `list_window` probes | re-sort every computed tick → cache hit | **kept** | `afm.perfProbe=1` logs `[AFM_perf] list_sort` / `list_window` |
+| Soft near-transparent icon slot → final image | Fluent glyph → shell/thumb morph | **kept** | `shell-icon-slot` until one-shot resolve; no shell→thumb two-phase paint |
+| Icon/tiles virtual offsets via padding (not grid spacers) | large dirs thumbs squashed to thin strips | **kept** | CSS grid + `virt-spacer` broke row height; paddingTop/Bottom instead |
 | Fix `guide/index.ts` dynamic import path | build failed → resolves | **kept** | Unblocks production `vite build` (correctness, not a micro-opt) |
 
 ## Budgets / guards
 
-- `npm run test:list-virtual` — window math + Navigator wiring
+- `npm run test:list-virtual` — window math（含变高/分组展平）+ sort 缓存 + Navigator wiring
 - Existing: `test:ui-perf`, `test:shell-icon-*`, `test:startup-async`, `test:list-placeholders`
 
 ## How to re-measure listing

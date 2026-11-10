@@ -53,5 +53,7 @@ assert.ok(
 );
 assert.ok(shellImg.includes("decoding=\"async\"") || shellImg.includes("decoding='async'"));
 assert.ok(shellImg.includes("iconUrlFor"));
+assert.ok(shellImg.includes("shell-icon-slot"), "soft near-transparent placeholder before final icon");
+assert.ok(!shellImg.includes("FluentIcon"), "must not show Fluent glyph then swap to shell/thumb");
 
 console.log("Shell icons checks OK (AIA-65/182/143/278 system thumbnails + scroll queue).");

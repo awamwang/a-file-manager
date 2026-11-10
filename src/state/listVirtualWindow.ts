@@ -113,6 +113,62 @@ export function computeListVirtualWindow(args: {
   };
 }
 
+/**
+ * 变高项窗口化（组头 + 行）。`heights[i]` 为第 i 项高度。
+ * 前后 spacer 用精确前缀和，避免分组场景退回全量 DOM。
+ */
+export function computeVariableListVirtualWindow(args: {
+  heights: readonly number[];
+  scrollTop: number;
+  viewportHeight: number;
+  overscanItems?: number;
+  minTotal?: number;
+}): ListVirtualWindow {
+  const total = args.heights.length;
+  const minTotal = args.minTotal ?? LIST_VIRTUALIZE_MIN_ENTRIES;
+  const overscan = args.overscanItems ?? LIST_VIRTUAL_OVERSCAN_ROWS;
+  const viewportHeight = Math.max(0, args.viewportHeight);
+  const scrollTop = Math.max(0, args.scrollTop);
+
+  if (total <= minTotal || viewportHeight <= 0) {
+    return {
+      active: false,
+      startIndex: 0,
+      endIndex: total,
+      offsetBeforePx: 0,
+      offsetAfterPx: 0,
+    };
+  }
+
+  const prefix = new Array<number>(total + 1);
+  prefix[0] = 0;
+  for (let i = 0; i < total; i += 1) {
+    prefix[i + 1] = prefix[i]! + Math.max(0, args.heights[i] ?? 0);
+  }
+  const totalHeight = prefix[total]!;
+
+  let startIndex = 0;
+  while (startIndex < total && prefix[startIndex + 1]! < scrollTop) {
+    startIndex += 1;
+  }
+  startIndex = Math.max(0, startIndex - overscan);
+
+  const viewEnd = scrollTop + viewportHeight;
+  let endIndex = startIndex;
+  while (endIndex < total && prefix[endIndex]! < viewEnd) {
+    endIndex += 1;
+  }
+  endIndex = Math.min(total, endIndex + overscan);
+
+  return {
+    active: true,
+    startIndex,
+    endIndex,
+    offsetBeforePx: prefix[startIndex]!,
+    offsetAfterPx: Math.max(0, totalHeight - prefix[endIndex]!),
+  };
+}
+
 /** 便于测试：标准密度 details 行高。 */
 export function standardDetailsRowHeight(): number {
   return LIST_ROW_HEIGHT_PX;

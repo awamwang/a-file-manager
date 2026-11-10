@@ -208,10 +208,22 @@ cargo test --manifest-path src-tauri/Cargo.toml --lib shell_icons::tests::bench_
 }
 ```
 
+## FE 渲染（分组窗口化，方案 A）
+
+- **改动**：`listVirtItems` 展平组头+行；分组时用 `computeVariableListVirtualWindow`；`sortedEntries` 按 listing 身份缓存；探针 `list_sort` / `list_window`（`afm.perfProbe=1`）。
+- **取舍**：分组且窗口化启用时，图标/平铺视图临时纵向流（`list--virt-flat`），以保证 spacer 与滚动一致。
+- **守卫**：`npm run test:list-virtual`。
+
+## 图标冷路径视觉（占位 → 最终图）
+
+- **策略**：未就绪时用浅色近透明 `shell-icon-slot`；IPC 一次返回缩略图或壳图标回退后短淡入。
+- **明确不做**：壳图标→缩略图两阶段绘制（避免图标跳变）。
+- **守卫**：`npm run test:shell-icons`。
+
 ## 下一阶段候选（按数据排序）
 
-1. **大目录 FE 渲染 / 主线程** — serde 已低于 list 量级；可感知卡顿更可能在 WebView 挂载（继续压虚拟窗口 / 占位）。
-2. **缩略图首批残留** — 实机首批仍可到 ~145ms（Shell 冷 COM）；可评估渐进「先壳图标后升级 thumb」。
-3. **侧栏树祖先列举** — 进深路径多次 `navigator_list`；非关键但争用 IO/IPC。
-4. **冷启动链（S1）** — 开 `startupMark` 后按里程碑拆 defer。
-5. **进一步 IPC** — 按视图延迟 `size`/`modifiedMs`（细节视图再取），收益需再测。
+1. **侧栏树祖先列举** — 进深路径多次 `navigator_list`；非关键但争用 IO/IPC。
+2. **冷启动链（S1）** — 开 `startupMark` 后按里程碑拆 defer。
+3. **进一步 IPC** — 按视图延迟 `size`/`modifiedMs`（细节视图再取），收益需再测。
+4. **分组图标多列窗口化** — 若需恢复分组下的多列网格，需网格感知的变高窗口（当前用纵向流）。
+5. **缩略图首批墙钟** — 实机首批仍可到 ~145ms（Shell 冷 COM）；视觉跳变已用占位消除，墙钟可另测。

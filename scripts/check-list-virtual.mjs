@@ -9,13 +9,28 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const view = readFileSync(join(root, "src/views/NavigatorView.vue"), "utf8");
 const state = readFileSync(join(root, "src/state/listVirtualWindow.ts"), "utf8");
+const virtItems = readFileSync(join(root, "src/state/listVirtItems.ts"), "utf8");
+const sortState = readFileSync(join(root, "src/state/navigatorSort.ts"), "utf8");
 
 assert.ok(state.includes("computeListVirtualWindow"));
+assert.ok(state.includes("computeVariableListVirtualWindow"));
 assert.ok(state.includes("LIST_VIRTUALIZE_MIN_ENTRIES"));
+assert.ok(virtItems.includes("flattenGroupedItems"));
+assert.ok(virtItems.includes("LIST_GROUP_HEADER_HEIGHT_PX"));
+assert.ok(sortState.includes("clearSortedEntriesCache"));
+assert.ok(sortState.includes("list_sort"));
 assert.ok(view.includes("listVirtualWindow") || view.includes("computeListVirtualWindow"));
-assert.ok(view.includes("primaryWindowedEntries") || view.includes("windowedEntries"));
+assert.ok(view.includes("computeVariableListVirtualWindow"));
+assert.ok(view.includes("primaryWindowedItems") || view.includes("primaryWindowedEntries"));
+assert.ok(view.includes("list--virt-flat"));
+assert.ok(view.includes("list_window"));
 assert.ok(view.includes("virt-spacer") || view.includes("offsetBeforePx"));
+assert.ok(
+  view.includes("gridVirtualPaddingStyle") || view.includes("paddingTop"),
+  "icon/tiles grid must use padding offsets (spacers squash thumbs in CSS grid)",
+);
 assert.ok(view.includes("@scroll"), "list surfaces must track scroll for the virtual window");
+assert.ok(!view.includes("groupedVisibleEntries"), "grouped path must use flattened virt items");
 
 const result = spawnSync(
   process.execPath,
