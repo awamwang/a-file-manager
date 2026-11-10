@@ -39,6 +39,8 @@ pub struct DeleteWorkspaceResult {
 pub struct PromoteWorkspaceResult {
     pub workspace: CreateWorkspaceResult,
     pub members: Vec<WorkspaceMember>,
+    /// Thin-index after marking the new Workspace active (no WG silent-switch).
+    pub index: ProjectsIndex,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -159,11 +161,13 @@ pub fn rename_workspace(
 }
 
 /// Promote a non-default WG → new Workspace bound to that WG; seed `members/` junctions
-/// from WG `memberPaths`. Does not delete or modify the WG itself.
+/// from WG `memberPaths`. Does not delete or modify the WG itself / OpenState.
+/// Marks the new Workspace as thin-index active (no WG silent-switch).
 pub fn promote_work_group_to_workspace(
     projects_root: &Path,
     work_groups: &UserWorkGroups,
     work_group_id: &str,
+    index: &ProjectsIndex,
 ) -> Result<PromoteWorkspaceResult, String> {
     validate_bindable_work_group(work_groups, work_group_id)?;
     let group = work_groups
@@ -198,9 +202,12 @@ pub fn promote_work_group_to_workspace(
         }
     }
 
+    let index_next = set_index_active(index, Some(&created.project.slug))?;
+
     Ok(PromoteWorkspaceResult {
         workspace: created,
         members,
+        index: index_next,
     })
 }
 
@@ -421,8 +428,9 @@ mod tests {
             open_state: None,
         });
 
+        let index = index_for(&root);
         let result =
-            promote_work_group_to_workspace(&root, &wgs, "work-group-promo").unwrap();
+            promote_work_group_to_workspace(&root, &wgs, "work-group-promo", &index).unwrap();
         assert_eq!(result.workspace.project.display_name, "Promo Group");
         assert_eq!(
             result.workspace.project.bound_work_group_id.as_deref(),
@@ -430,6 +438,10 @@ mod tests {
         );
         assert_eq!(result.members.len(), 2);
         assert!(Path::new(&result.workspace.path).join("members").is_dir());
+        assert_eq!(
+            result.index.active_project.as_ref().map(|a| a.slug.as_str()),
+            Some(result.workspace.project.slug.as_str())
+        );
         // WG still present / unchanged conceptually (we didn't mutate wgs).
         assert!(wgs.work_groups.iter().any(|g| g.id == "work-group-promo"));
         assert!(wgs
@@ -443,8 +455,14 @@ mod tests {
     fn promote_rejects_default_wg() {
         let root = temp_root("promote-default");
         let wgs = default_document();
-        let err =
-            promote_work_group_to_workspace(&root, &wgs, DEFAULT_WORK_GROUP_ID).unwrap_err();
+        let index = index_for(&root);
+        let err = promote_work_group_to_workspace(
+            &root,
+            &wgs,
+            DEFAULT_WORK_GROUP_ID,
+            &index,
+        )
+        .unwrap_err();
         assert_eq!(
             err,
             crate::projects::types::ERR_DEFAULT_WORK_GROUP_FORBIDDEN

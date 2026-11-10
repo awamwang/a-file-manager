@@ -169,17 +169,22 @@ pub fn projects_workspace_activate(
     Ok(result)
 }
 
-/// Create a directory junction under Workspace `members/` 鈫?`target_path`.
+/// Create a directory junction under Workspace `members/` → `target_path`.
+/// `mklink /J` is process-spawn heavy; run off the UI thread.
 #[tauri::command]
-pub fn projects_workspace_member_add(
+pub async fn projects_workspace_member_add(
     app: AppHandle,
     slug: String,
     target_path: String,
     link_name: Option<String>,
 ) -> Result<WorkspaceMember, String> {
-    let index = load_index(&app)?;
-    let root = std::path::PathBuf::from(&index.projects_root);
-    members::add_member_for_slug(&root, &slug, &target_path, link_name.as_deref())
+    tauri::async_runtime::spawn_blocking(move || {
+        let index = load_index(&app)?;
+        let root = std::path::PathBuf::from(&index.projects_root);
+        members::add_member_for_slug(&root, &slug, &target_path, link_name.as_deref())
+    })
+    .await
+    .map_err(|err| format!("member_add worker failed: {err}"))?
 }
 
 /// List `members/` junctions; `openPath` is always the real target.
@@ -333,17 +338,26 @@ pub fn projects_workspace_rename(
     Ok(result)
 }
 
-/// Promote non-default WG 鈫?Workspace: create + bind + seed members/ junctions from memberPaths.
+/// Promote non-default WG → Workspace: create + bind + seed members/ junctions.
+/// Runs off the UI thread (junction mklink can be slow). Does not touch WG OpenState
+/// or silent-switch the explorer active Work Group — only sets thin-index activeProject.
 #[tauri::command]
-pub fn projects_workspace_promote_from_work_group(
+pub async fn projects_workspace_promote_from_work_group(
     app: AppHandle,
     work_group_id: String,
 ) -> Result<PromoteWorkspaceResult, String> {
-    let dir = config_dir(&app)?;
-    let index = load_index(&app)?;
-    let root = std::path::PathBuf::from(&index.projects_root);
-    let wgs = wg_store::load_from_path(&dir)?;
-    lifecycle::promote_work_group_to_workspace(&root, &wgs, &work_group_id)
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = config_dir(&app)?;
+        let index = load_index(&app)?;
+        let root = std::path::PathBuf::from(&index.projects_root);
+        let wgs = wg_store::load_from_path(&dir)?;
+        let result =
+            lifecycle::promote_work_group_to_workspace(&root, &wgs, &work_group_id, &index)?;
+        save_index_to_path(&dir, &result.index)?;
+        Ok(result)
+    })
+    .await
+    .map_err(|err| format!("promote worker failed: {err}"))?
 }
 
 /// Copy a Workspace (CONTEXT / board / members). Bound WG is copied with fresh openState tab ids.

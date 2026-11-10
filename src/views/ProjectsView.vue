@@ -6,7 +6,7 @@
  */
 import { computed, nextTick, onMounted, onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
 import {
   applyProjectSilentSwitch,
@@ -148,6 +148,7 @@ const STATUSES = computed(() =>
 );
 
 const router = useRouter();
+const route = useRoute();
 const document = ref<UserProjects | null>(null);
 const workGroups = ref<WorkGroupOption[]>([]);
 const selectedId = ref<string | null>(null);
@@ -840,8 +841,23 @@ async function openLink(path: string) {
   await router.push("/navigator");
 }
 
+/** 聚焦项目详情但不 activate（避免 silent-switch / OpenState）。 */
+async function focusProjectWithoutActivate(slug: string | null) {
+  await refresh(slug);
+}
+
 onMounted(() => {
-  void refresh();
+  const focusSlug =
+    typeof route.query.slug === "string" && route.query.slug.trim()
+      ? route.query.slug.trim()
+      : null;
+  void (async () => {
+    await focusProjectWithoutActivate(focusSlug);
+    // 消费 query，避免后续刷新仍被 query 锁死；升级落地不走 selectProject。
+    if (focusSlug && route.query.slug) {
+      await router.replace({ name: "projects" });
+    }
+  })();
   window.addEventListener("pointerdown", onProjectDetailPointerDown, true);
 });
 

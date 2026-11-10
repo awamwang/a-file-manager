@@ -505,14 +505,28 @@ async function openMembersIntoRuntime() {
   }
 }
 
+type PromoteWorkspaceResult = {
+  workspace: { project: { slug: string }; path: string };
+  members: unknown[];
+  index: { activeProject?: { slug: string } | null };
+};
+
+const promoting = ref(false);
+
+/** 升级为项目：直达新项目详情；不改资源管理器当前工作组，也不触碰 OpenState。 */
 async function promoteToProject() {
-  if (!active.value || active.value.isDefault) return;
+  if (!active.value || active.value.isDefault || promoting.value) return;
   error.value = null;
+  promoting.value = true;
+  const groupName = active.value.name;
   try {
-    await invoke("projects_workspace_promote_from_work_group", {
-      workGroupId: active.value.id,
-    });
-    toastSuccess(t("workGroups.promoteDone", { name: active.value.name }));
+    const result = await invoke<PromoteWorkspaceResult>(
+      "projects_workspace_promote_from_work_group",
+      { workGroupId: active.value.id },
+    );
+    toastSuccess(t("workGroups.promoteDone", { name: groupName }));
+    const slug = result.workspace.project.slug;
+    await router.push({ name: "projects", query: { slug } });
   } catch (err) {
     const raw = err instanceof Error ? err.message : String(err);
     let msg = raw;
@@ -523,6 +537,8 @@ async function promoteToProject() {
     }
     error.value = msg;
     toastError(msg);
+  } finally {
+    promoting.value = false;
   }
 }
 
@@ -763,6 +779,7 @@ onUnmounted(() => {
             v-if="!active.isDefault"
             class="fluent-control"
             type="button"
+            :disabled="promoting"
             @click="promoteToProject"
           >
             {{ t("workGroups.promoteToProject") }}
