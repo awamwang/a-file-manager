@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! AIA-261/264/266: outbound drag must not raise AFM over the drop target.
+//! AIA-261/264/266 + FIL-37/39: outbound drag must not raise AFM over the drop target.
 //!
 //! Explorer parity for "drag from a background window onto the foreground one":
 //! 1. `WM_MOUSEACTIVATE` → `MA_NOACTIVATE` when another top-level window is already
@@ -10,28 +10,49 @@
 //!    `WM_ACTIVATE` + a short poll timer (`SM_CXDRAG` / `SM_CYDRAG`).
 //! 4. Plain click (mouse-up without drag/OLE) still activates via `WM_PARENTNOTIFY`
 //!    or the poll-timer fallback when WebView swallows parent notify.
+//! 5. FIL-39: once past drag threshold and cursor is not over our root HWND tree
+//!    (`WindowFromPoint`), emit `afm://dnd/ole-promote` so Hybrid can lift OLE
+//!    before the external target only sees HTML5.
 //!
-//! Complements Navigator row `mousedown` (AIA-266: `preventDefault` while
-//! background so tabindex focus cannot raise) and the patched `drag` crate,
+//! Complements Navigator row `mousedown` (AIA-266/280: no `preventDefault` —
+//! that cancels HTML5 dragstart) and the patched `drag` crate,
 //! which prefers press-time prior FG when Hybrid leave/blur → `DoDragDrop`
 //! runs after the press already raised AFM.
+//!
+//! ## FIL-37 升级闸（暂不启用）
+//! 若 dogfood 仍抬窗盖住目标，再评估：
+//! - **WebView 子 HWND subclass**：可拦截子进程路径上的二次抬窗，但增加宿主/子窗
+//!   生命周期耦合与崩溃面；需 TZ。
+//! - **`LockSetForegroundWindow`**：需已是 FG 才能锁，易误伤其它应用的前台切换；
+//!   仅作有时限的最后手段，需 TZ。当前路径以 `MA_NOACTIVATE` + prior FG sticky
+//!   `SetWindowPos`/`SetForegroundWindow` 为准。
 
 #![cfg(windows)]
 
-use tauri::{AppHandle, Manager, Runtime};
-use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::OnceLock;
+
+use tauri::{AppHandle, Emitter, Manager, Runtime};
+use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM};
 use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
 use windows::Win32::UI::Shell::{DefSubclassProc, SetWindowSubclass};
 use windows::Win32::UI::WindowsAndMessaging::{
     GetCursorPos, GetForegroundWindow, GetSystemMetrics, IsChild, KillTimer, SetForegroundWindow,
-    SetTimer, SetWindowPos, HWND_TOP, MA_NOACTIVATE, SM_CXDRAG, SM_CYDRAG, SWP_NOACTIVATE,
-    SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, WA_INACTIVE, WM_ACTIVATE, WM_LBUTTONDOWN,
-    WM_LBUTTONUP, WM_MOUSEACTIVATE, WM_PARENTNOTIFY, WM_TIMER,
+    SetTimer, SetWindowPos, WindowFromPoint, HWND_TOP, MA_NOACTIVATE, SM_CXDRAG, SM_CYDRAG,
+    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, WA_INACTIVE, WM_ACTIVATE,
+    WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEACTIVATE, WM_PARENTNOTIFY, WM_TIMER,
 };
 
 const SUBCLASS_ID: usize = 0xA_F1_26_01; // AFM + AIA-261
 const POLL_TIMER_ID: usize = 0xA_F1_26_04;
 const POLL_INTERVAL_MS: u32 = 16;
+
+/// Hybrid 前端监听：拖势已成立且光标不在 AFM 根 HWND 树上时请求提升 OLE。
+pub const OLE_PROMOTE_EVENT: &str = "afm://dnd/ole-promote";
+
+static PROMOTE_EMIT: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
+static POLL_ARMED: AtomicBool = AtomicBool::new(false);
+static PROMOTE_EMITTED: AtomicBool = AtomicBool::new(false);
 
 fn hwnd_is_ours(our_root: HWND, candidate: HWND) -> bool {
     if candidate.0.is_null() || our_root.0.is_null() {
@@ -57,13 +78,22 @@ fn left_button_down() -> bool {
 
 fn moved_past_drag_threshold() -> bool {
     let (ox, oy) = drag::press_origin();
-    let mut pt = windows::Win32::Foundation::POINT { x: 0, y: 0 };
+    let mut pt = POINT { x: 0, y: 0 };
     if unsafe { GetCursorPos(&mut pt) }.is_err() {
         return false;
     }
     let cx = unsafe { GetSystemMetrics(SM_CXDRAG) }.abs().max(1);
     let cy = unsafe { GetSystemMetrics(SM_CYDRAG) }.abs().max(1);
     (pt.x - ox).abs() >= cx || (pt.y - oy).abs() >= cy
+}
+
+fn cursor_over_our_tree(our_root: HWND) -> bool {
+    let mut pt = POINT { x: 0, y: 0 };
+    if unsafe { GetCursorPos(&mut pt) }.is_err() {
+        return true;
+    }
+    let hit = unsafe { WindowFromPoint(pt) };
+    hwnd_is_ours(our_root, hit)
 }
 
 fn restore_press_prior_if_we_raised(our_root: HWND) {
@@ -94,33 +124,57 @@ fn restore_press_prior_if_we_raised(our_root: HWND) {
     }
 }
 
+fn request_ole_promote_if_needed(our_root: HWND) {
+    if PROMOTE_EMITTED.load(Ordering::SeqCst) || drag::ole_drag_in_progress() {
+        return;
+    }
+    if !drag::drag_gesture_active() {
+        return;
+    }
+    if cursor_over_our_tree(our_root) {
+        return;
+    }
+    PROMOTE_EMITTED.store(true, Ordering::SeqCst);
+    if let Some(emit) = PROMOTE_EMIT.get() {
+        emit();
+    }
+}
+
 fn arm_poll_timer(hwnd: HWND) {
+    POLL_ARMED.store(true, Ordering::SeqCst);
     let _ = unsafe { SetTimer(Some(hwnd), POLL_TIMER_ID, POLL_INTERVAL_MS, None) };
 }
 
 fn disarm_poll_timer(hwnd: HWND) {
+    POLL_ARMED.store(false, Ordering::SeqCst);
     let _ = unsafe { KillTimer(Some(hwnd), POLL_TIMER_ID) };
 }
 
-/// Capture prior FG for a background press (MOUSEACTIVATE or PARENTNOTIFY down).
-fn note_background_press(hwnd: HWND) {
+/// 按下：后台则 MA_NOACTIVATE 推迟激活；前台也记录原点以便 Hybrid 提升时序。
+fn note_press(hwnd: HWND) {
     let fg = unsafe { GetForegroundWindow() };
-    if hwnd_is_ours(hwnd, fg) {
-        return;
-    }
+    let mut pt = POINT { x: 0, y: 0 };
+    let _ = unsafe { GetCursorPos(&mut pt) };
+
     if drag::should_suppress_foreground_raise() {
         // Already armed for this press — do not reset origin mid-gesture.
+        arm_poll_timer(hwnd);
         return;
     }
-    let mut pt = windows::Win32::Foundation::POINT { x: 0, y: 0 };
-    let _ = unsafe { GetCursorPos(&mut pt) };
-    drag::note_deferred_activate(hwnd_to_isize(fg), pt.x, pt.y);
+
+    if !hwnd_is_ours(hwnd, fg) {
+        drag::note_deferred_activate(hwnd_to_isize(fg), pt.x, pt.y);
+    } else {
+        drag::note_press_origin(pt.x, pt.y);
+    }
+    PROMOTE_EMITTED.store(false, Ordering::SeqCst);
     arm_poll_timer(hwnd);
 }
 
 /// Mouse-up without drag/OLE: activate like a normal focus click.
 fn finish_press_maybe_activate(hwnd: HWND) {
     disarm_poll_timer(hwnd);
+    PROMOTE_EMITTED.store(false, Ordering::SeqCst);
     let should_activate = drag::take_pending_activate()
         && !drag::ole_drag_in_progress()
         && !drag::drag_gesture_active();
@@ -144,7 +198,7 @@ unsafe extern "system" fn subclass_proc(
             if !hwnd_is_ours(hwnd, fg) {
                 // Defer activation: keep the drop-target (or other) window in front
                 // while the user may be starting an outbound file drag.
-                note_background_press(hwnd);
+                note_press(hwnd);
                 return LRESULT(MA_NOACTIVATE as isize);
             }
         }
@@ -162,7 +216,10 @@ unsafe extern "system" fn subclass_proc(
         }
         WM_TIMER => {
             if wparam.0 == POLL_TIMER_ID {
-                if !drag::should_suppress_foreground_raise() {
+                if !POLL_ARMED.load(Ordering::SeqCst)
+                    && !drag::should_suppress_foreground_raise()
+                    && !drag::drag_gesture_active()
+                {
                     disarm_poll_timer(hwnd);
                     return LRESULT(0);
                 }
@@ -170,7 +227,10 @@ unsafe extern "system" fn subclass_proc(
                     if !drag::drag_gesture_active() && moved_past_drag_threshold() {
                         drag::note_drag_gesture();
                     }
-                    restore_press_prior_if_we_raised(hwnd);
+                    if drag::should_suppress_foreground_raise() {
+                        restore_press_prior_if_we_raised(hwnd);
+                    }
+                    request_ole_promote_if_needed(hwnd);
                 } else {
                     // WebView2 sometimes swallows WM_PARENTNOTIFY LBUTTONUP.
                     finish_press_maybe_activate(hwnd);
@@ -182,7 +242,8 @@ unsafe extern "system" fn subclass_proc(
             let child_msg = (wparam.0 as u32) & 0xffff;
             if child_msg == WM_LBUTTONDOWN {
                 // Belt-and-suspenders when MOUSEACTIVATE did not arm the press.
-                note_background_press(hwnd);
+                // Also arms FG presses for FIL-39 Hybrid promote timing.
+                note_press(hwnd);
             } else if child_msg == WM_LBUTTONUP {
                 finish_press_maybe_activate(hwnd);
             }
@@ -200,6 +261,10 @@ pub fn install_for_main_window<R: Runtime>(app: &AppHandle<R>) {
     let Ok(hwnd) = window.hwnd() else {
         return;
     };
+    let win = window.clone();
+    let _ = PROMOTE_EMIT.set(Box::new(move || {
+        let _ = win.emit(OLE_PROMOTE_EVENT, ());
+    }));
     let ok = unsafe { SetWindowSubclass(hwnd, Some(subclass_proc), SUBCLASS_ID, 0) };
     if !ok.as_bool() {
         eprintln!("AIA-266: SetWindowSubclass for drag focus failed");
@@ -233,5 +298,10 @@ mod tests {
             Some(0x42)
         );
         drag::clear_press_state();
+    }
+
+    #[test]
+    fn ole_promote_event_name_stable() {
+        assert_eq!(super::OLE_PROMOTE_EVENT, "afm://dnd/ole-promote");
     }
 }

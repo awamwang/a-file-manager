@@ -20,8 +20,8 @@ use windows::{
         Foundation::*,
         Graphics::Gdi::{GetObjectW, BITMAP},
         System::Com::*,
-        System::Memory::*,
-        System::Ole::{DoDragDrop, OleInitialize},
+        System::DataExchange::RegisterClipboardFormatW,
+        System::Ole::{DoDragDrop, OleInitialize, ReleaseStgMedium},
         System::Ole::{
             IDropSource, IDropSource_Impl, CF_HDROP, DROPEFFECT, DROPEFFECT_COPY, DROPEFFECT_LINK,
             DROPEFFECT_MOVE,
@@ -30,11 +30,12 @@ use windows::{
         UI::{
             Shell::{
                 BHID_DataObject, CLSID_DragDropHelper, Common, IDragSourceHelper, IShellItemArray,
-                SHCreateDataObject, SHCreateShellItemArrayFromIDLists, DROPFILES, SHDRAGIMAGE,
+                SHCreateShellItemArrayFromIDLists, CFSTR_SHELLIDLIST, SHDRAGIMAGE,
             },
             WindowsAndMessaging::{
                 GetAncestor, GetCursorPos, GetForegroundWindow, IsChild, SetForegroundWindow,
-                GA_ROOT,
+                SetWindowPos, GA_ROOT, HWND_TOP, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
+                SWP_SHOWWINDOW,
             },
         },
     },
@@ -68,6 +69,12 @@ pub fn note_deferred_activate(prior_fg: isize, press_x: i32, press_y: i32) {
     PRESS_Y.store(press_y, Ordering::SeqCst);
     DRAG_GESTURE.store(false, Ordering::SeqCst);
     PENDING_BACKGROUND_ACTIVATE.store(true, Ordering::SeqCst);
+}
+
+/// 记录按下原点（前台窗也可用于拖势阈值），不推迟激活、不改 prior FG。
+pub fn note_press_origin(press_x: i32, press_y: i32) {
+    PRESS_X.store(press_x, Ordering::SeqCst);
+    PRESS_Y.store(press_y, Ordering::SeqCst);
 }
 
 /// Take-and-clear deferred activation; `false` once a drag gesture / OLE started.
@@ -139,11 +146,8 @@ fn init_ole() {
     });
 }
 
-#[implement(IDataObject)]
-struct DataObject {
-    files: Vec<PathBuf>,
-    inner_shell_obj: IDataObject,
-}
+// FIL-38: 手写 IDataObject（EnumFormatEtc=E_NOTIMPL、仅 CF_HDROP）已移除。
+// Files 出站只走 Shell `BHID_DataObject`（见 get_file_data_object）。
 
 #[implement(IDropSource)]
 struct DropSource {
@@ -187,16 +191,25 @@ fn root_hwnd(hwnd: HWND) -> HWND {
     }
 }
 
-/// AIA-261: if OLE / WebView re-activates us mid-drag, put the prior foreground back
-/// so the drop target under the cursor stays usable (Explorer parity).
+/// FIL-37: 恢复 prior 窗 Z-order（SWP_NOACTIVATE）并在我们持有 FG 时还回前台。
+/// 对齐 drag_focus：WebView 可能只抬 Z 不稳抢 FG，单靠 SetForegroundWindow 不够。
 fn restore_preserved_foreground(our_root: HWND, preserve_fg: Option<HWND>) {
     let Some(prev) = preserve_fg else {
         return;
     };
-    if prev.0 == 0 {
+    if prev.0 == 0 || hwnd_is_ours(our_root, prev) {
         return;
     }
     unsafe {
+        let _ = SetWindowPos(
+            prev,
+            HWND_TOP,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW | SWP_NOACTIVATE,
+        );
         let fg = GetForegroundWindow();
         if hwnd_is_ours(our_root, fg) {
             let _ = SetForegroundWindow(prev);
@@ -244,113 +257,6 @@ impl IDropSource_Impl for DummyDropSource {
     }
 }
 
-impl DataObject {
-    // This will be used for sharing text between applications
-    #[allow(dead_code)]
-    fn new(files: Vec<PathBuf>) -> Self {
-        unsafe {
-            Self {
-                files,
-                inner_shell_obj: SHCreateDataObject(None, None, None).unwrap(),
-            }
-        }
-    }
-
-    fn is_supported_format(pformatetc: *const FORMATETC) -> bool {
-        if let Some(format_etc) = unsafe { pformatetc.as_ref() } {
-            !(format_etc.tymed as i32 != TYMED_HGLOBAL.0
-                || format_etc.cfFormat != CF_HDROP.0
-                || format_etc.dwAspect != DVASPECT_CONTENT.0)
-        } else {
-            false
-        }
-    }
-
-    fn clone_drop_hglobal(&self) -> Result<HGLOBAL> {
-        let mut buffer = Vec::new();
-        for path in &self.files {
-            let wide_path: Vec<u16> = path.as_os_str().encode_wide().chain(once(0)).collect();
-            buffer.extend(wide_path);
-        }
-        buffer.push(0);
-        let size = std::mem::size_of::<DROPFILES>() + buffer.len() * 2;
-        let handle = get_hglobal(size, buffer)?;
-        Ok(handle)
-    }
-}
-
-#[allow(non_snake_case)]
-impl IDataObject_Impl for DataObject {
-    fn GetData(&self, pformatetc: *const FORMATETC) -> Result<STGMEDIUM> {
-        unsafe {
-            if Self::is_supported_format(pformatetc) {
-                Ok(STGMEDIUM {
-                    tymed: TYMED_HGLOBAL.0 as u32,
-                    u: STGMEDIUM_0 {
-                        hGlobal: self.clone_drop_hglobal()?,
-                    },
-                    pUnkForRelease: std::mem::ManuallyDrop::new(None),
-                })
-            } else {
-                self.inner_shell_obj.GetData(pformatetc)
-            }
-        }
-    }
-
-    fn GetDataHere(&self, _pformatetc: *const FORMATETC, _pmedium: *mut STGMEDIUM) -> Result<()> {
-        Err(Error::new(DV_E_FORMATETC, HSTRING::new()))
-    }
-
-    fn QueryGetData(&self, pformatetc: *const FORMATETC) -> HRESULT {
-        unsafe {
-            if Self::is_supported_format(pformatetc) {
-                S_OK
-            } else {
-                self.inner_shell_obj.QueryGetData(pformatetc)
-            }
-        }
-    }
-
-    fn GetCanonicalFormatEtc(
-        &self,
-        _pformatectin: *const FORMATETC,
-        pformatetcout: *mut FORMATETC,
-    ) -> HRESULT {
-        unsafe { (*pformatetcout).ptd = std::ptr::null_mut() };
-        E_NOTIMPL
-    }
-
-    fn SetData(
-        &self,
-        pformatetc: *const FORMATETC,
-        pmedium: *const STGMEDIUM,
-        frelease: BOOL,
-    ) -> Result<()> {
-        unsafe { self.inner_shell_obj.SetData(pformatetc, pmedium, frelease) }
-    }
-
-    fn EnumFormatEtc(&self, _dwdirection: u32) -> Result<IEnumFORMATETC> {
-        Err(Error::new(E_NOTIMPL, HSTRING::new()))
-    }
-
-    fn DAdvise(
-        &self,
-        _pformatetc: *const FORMATETC,
-        _advf: u32,
-        _padvsink: Option<&IAdviseSink>,
-    ) -> Result<u32> {
-        Err(Error::new(OLE_E_ADVISENOTSUPPORTED, HSTRING::new()))
-    }
-
-    fn DUnadvise(&self, _dwconnection: u32) -> Result<()> {
-        Err(Error::new(OLE_E_ADVISENOTSUPPORTED, HSTRING::new()))
-    }
-
-    fn EnumDAdvise(&self) -> Result<IEnumSTATDATA> {
-        Err(Error::new(OLE_E_ADVISENOTSUPPORTED, HSTRING::new()))
-    }
-}
-
 pub fn start_drag<W: HasWindowHandle, F: Fn(DragResult, CursorPosition) + Send + 'static>(
     handle: &W,
     item: DragItem,
@@ -384,6 +290,10 @@ pub fn start_drag<W: HasWindowHandle, F: Fn(DragResult, CursorPosition) + Send +
                 }
 
                 let data_object: IDataObject = get_file_data_object(&paths).unwrap();
+                debug_assert!(
+                    shell_file_formats_gettable(&data_object),
+                    "FIL-38: Shell IDataObject must expose GetData-able CF_HDROP + Shell IDList"
+                );
                 let drop_source: IDropSource = DropSource::new(our_root, preserve_fg).into();
 
                 unsafe {
@@ -401,9 +311,7 @@ pub fn start_drag<W: HasWindowHandle, F: Fn(DragResult, CursorPosition) + Send +
                     let _ = options.mode;
                     let effect = DROPEFFECT_COPY | DROPEFFECT_MOVE | DROPEFFECT_LINK;
 
-                    if let Some(prev) = preserve_fg {
-                        let _ = SetForegroundWindow(prev);
-                    }
+                    restore_preserved_foreground(our_root, preserve_fg);
 
                     // OLE consumes the gesture — never click-activate on the trailing mouse-up.
                     note_drag_gesture();
@@ -414,9 +322,7 @@ pub fn start_drag<W: HasWindowHandle, F: Fn(DragResult, CursorPosition) + Send +
                     clear_press_state();
 
                     // Keep drop-target foreground after a background-started OLE drag.
-                    if let Some(prev) = preserve_fg {
-                        let _ = SetForegroundWindow(prev);
-                    }
+                    restore_preserved_foreground(our_root, preserve_fg);
 
                     let mut pt = POINT { x: 0, y: 0 };
                     GetCursorPos(&mut pt)?;
@@ -510,28 +416,12 @@ fn get_drag_image(image: Image) -> Option<SHDRAGIMAGE> {
     })
 }
 
-fn get_hglobal(size: usize, buffer: Vec<u16>) -> Result<HGLOBAL> {
-    let handle = unsafe { GlobalAlloc(GMEM_FIXED, size).unwrap() };
-    let ptr = unsafe { GlobalLock(handle) };
-
-    let header = ptr as *mut DROPFILES;
-    unsafe {
-        (*header).pFiles = std::mem::size_of::<DROPFILES>() as u32;
-        (*header).fWide = BOOL(1);
-        std::ptr::copy(
-            buffer.as_ptr() as *const c_void,
-            ptr.add(std::mem::size_of::<DROPFILES>()),
-            buffer.len() * 2,
-        );
-        GlobalUnlock(handle)
-    }?;
-    Ok(handle)
-}
-
 pub fn create_instance<T: Interface + ComInterface>(clsid: &GUID) -> Result<T> {
     unsafe { CoCreateInstance(clsid, None, CLSCTX_ALL) }
 }
 
+/// Shell 文件数据对象：`SHCreateShellItemArrayFromIDLists` → `BHID_DataObject`。
+/// 出站 Files 唯一路径（FIL-38）；勿再引入手写 IDataObject。
 fn get_file_data_object(paths: &[PathBuf]) -> Option<IDataObject> {
     unsafe {
         let shell_item_array = get_shell_item_array(paths).unwrap();
@@ -556,9 +446,50 @@ fn get_file_item_id(path: &Path) -> *mut Common::ITEMIDLIST {
     }
 }
 
+fn shell_idlist_clipboard_format() -> u16 {
+    unsafe { RegisterClipboardFormatW(CFSTR_SHELLIDLIST) as u16 }
+}
+
+fn hglobal_format_etc(cf_format: u16) -> FORMATETC {
+    FORMATETC {
+        cfFormat: cf_format,
+        ptd: std::ptr::null_mut(),
+        dwAspect: DVASPECT_CONTENT.0,
+        lindex: -1,
+        tymed: TYMED_HGLOBAL.0 as u32,
+    }
+}
+
+/// FIL-38：确认 Shell IDataObject 对 CF_HDROP 与 Shell IDList 可 QueryGetData/GetData。
+fn data_object_format_gettable(obj: &IDataObject, cf_format: u16) -> bool {
+    let fmt = hglobal_format_etc(cf_format);
+    unsafe {
+        if obj.QueryGetData(&fmt) != S_OK {
+            return false;
+        }
+        match obj.GetData(&fmt) {
+            Ok(mut medium) => {
+                ReleaseStgMedium(&mut medium);
+                true
+            }
+            Err(_) => false,
+        }
+    }
+}
+
+fn shell_file_formats_gettable(obj: &IDataObject) -> bool {
+    let idlist = shell_idlist_clipboard_format();
+    if idlist == 0 {
+        return false;
+    }
+    data_object_format_gettable(obj, CF_HDROP.0)
+        && data_object_format_gettable(obj, idlist)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
     use std::sync::Mutex;
 
     static LOCK: Mutex<()> = Mutex::new(());
@@ -584,5 +515,44 @@ mod tests {
         assert_eq!(resolve_preserve_foreground(0x200, 0x100), Some(0x100));
         assert_eq!(resolve_preserve_foreground(0x200, 0x200), None);
         assert_eq!(resolve_preserve_foreground(0x200, 0), None);
+    }
+
+    #[test]
+    fn note_press_origin_does_not_defer_activate() {
+        let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        clear_press_state();
+        note_press_origin(3, 4);
+        assert_eq!(press_origin(), (3, 4));
+        assert_eq!(press_prior_foreground(), 0);
+        assert!(!PENDING_BACKGROUND_ACTIVATE.load(Ordering::SeqCst));
+        clear_press_state();
+    }
+
+    #[test]
+    fn shell_data_object_exposes_hdrop_and_shell_idlist() {
+        let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        init_ole();
+        unsafe {
+            #[allow(static_mut_refs)]
+            if let Err(e) = &OLE_RESULT {
+                panic!("OleInitialize failed: {e}");
+            }
+        }
+
+        let dir = std::env::temp_dir().join("afm-fil38-dnd-audit");
+        let _ = std::fs::create_dir_all(&dir);
+        let file = dir.join("sample.txt");
+        {
+            let mut f = std::fs::File::create(&file).expect("create temp file");
+            f.write_all(b"fil-38").expect("write temp file");
+        }
+        let path = dunce::canonicalize(&file).expect("canonicalize");
+        let obj = get_file_data_object(&[path]).expect("Shell IDataObject");
+        assert!(
+            shell_file_formats_gettable(&obj),
+            "CF_HDROP + CFSTR_SHELLIDLIST must be QueryGetData/GetData-able"
+        );
+        let _ = std::fs::remove_file(&file);
+        let _ = std::fs::remove_dir(&dir);
     }
 }

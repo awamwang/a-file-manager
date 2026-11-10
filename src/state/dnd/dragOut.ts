@@ -4,12 +4,15 @@
  * Keeps HTML5 in-app drops intact; starts OS drag when the cursor leaves (or nears the
  * edge of) the window so Explorer receives real paths with copy|move|link.
  *
- * AIA-261/264/266/268/280: outbound must not raise AFM over the drop target — host
- * distinguishes click vs drag (`MA_NOACTIVATE` + SM_CXDRAG poll + press-time prior
+ * AIA-261/264/266/268/280 + FIL-37/39: outbound must not raise AFM over the drop target —
+ * host distinguishes click vs drag (`MA_NOACTIVATE` + SM_CXDRAG poll + press-time prior
  * FG + z-order restore); rows stay `tabindex=-1` (no mousedown preventDefault —
  * that cancels HTML5 dragstart); patched `DoDragDrop` restores prior FG.
+ * FIL-39: promote OLE earlier (near-edge / leave-client / host `afm://dnd/ole-promote`
+ * when drag gesture + cursor not over root HWND) while keeping in-window HTML5 (ADR 0012).
  * No setFocus / SetForegroundWindow here.
  */
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import { resolveResource } from "@tauri-apps/api/path";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -18,8 +21,11 @@ let outboundBusy = false;
 let cachedDragIconPath: string | null = null;
 let activeCleanup: (() => void) | null = null;
 
-/** Edge margin so OLE arms before Explorer sees HTML5-only / no-drop. */
-const EDGE_MARGIN_PX = 8;
+/** 近边提前提升 OLE，使光标进入外部目标前已进入 DoDragDrop（FIL-39）。 */
+const EDGE_MARGIN_PX = 24;
+
+/** 宿主 Hybrid 提升事件（drag_focus：拖势 + 光标不在根 HWND 树）。 */
+const OLE_PROMOTE_EVENT = "afm://dnd/ole-promote";
 
 async function dragIconPath(): Promise<string> {
   if (!cachedDragIconPath) {
@@ -37,9 +43,30 @@ function isOutsideOrNearEdge(clientX: number, clientY: number): boolean {
   );
 }
 
+/** 用窗口外接矩形判断指针是否离开客户区附近（拖事件可能停更时的兜底）。 */
+async function isCursorNearOrOutsideWindow(): Promise<boolean> {
+  try {
+    const win = getCurrentWindow();
+    const [cursor, pos, size] = await Promise.all([
+      win.cursorPosition(),
+      win.outerPosition(),
+      win.outerSize(),
+    ]);
+    const m = EDGE_MARGIN_PX;
+    return (
+      cursor.x <= pos.x + m ||
+      cursor.y <= pos.y + m ||
+      cursor.x >= pos.x + size.width - m ||
+      cursor.y >= pos.y + size.height - m
+    );
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Start Windows-native OLE file drag (patched drag offers COPY|MOVE|LINK).
- * Does not call window focus APIs — see AIA-261/264/266.
+ * Does not call window focus APIs — see AIA-261/264/266 / FIL-37.
  */
 export async function startNativeFileDragOut(paths: string[]): Promise<void> {
   const cleaned = paths.map((p) => p.trim()).filter(Boolean);
@@ -61,8 +88,8 @@ export async function startNativeFileDragOut(paths: string[]): Promise<void> {
 }
 
 /**
- * While an HTML5 drag is active, watch for leave-window / near-edge / blur and
- * switch to native OLE drag-out (Hybrid 出站).
+ * While an HTML5 drag is active, watch for leave-window / near-edge / blur / host
+ * promote and switch to native OLE drag-out (Hybrid 出站；ADR 0012).
  */
 export function armNativeFileDragOut(paths: string[]): void {
   disarmNativeFileDragOut();
@@ -119,7 +146,31 @@ export function armNativeFileDragOut(paths: string[]): void {
       /* non-Tauri / permission — blur + drag listeners still cover common cases */
     });
 
+  let unlistenPromote: UnlistenFn | null = null;
+  void listen(OLE_PROMOTE_EVENT, () => {
+    tryOutbound();
+  })
+    .then((unlisten) => {
+      unlistenPromote = unlisten;
+    })
+    .catch(() => {
+      /* 事件权限缺失时仍靠近边 / leave / blur */
+    });
+
+  let pollStopped = false;
+  const poll = () => {
+    if (pollStopped || fired) return;
+    void isCursorNearOrOutsideWindow().then((outside) => {
+      if (outside) tryOutbound();
+      else if (!pollStopped && !fired) {
+        window.setTimeout(poll, 32);
+      }
+    });
+  };
+  window.setTimeout(poll, 32);
+
   activeCleanup = () => {
+    pollStopped = true;
     document.removeEventListener("drag", onDrag);
     document.removeEventListener("dragleave", onDragLeave);
     document.removeEventListener("dragend", onDragEnd);
@@ -128,6 +179,10 @@ export function armNativeFileDragOut(paths: string[]): void {
     if (unlistenFocus) {
       unlistenFocus();
       unlistenFocus = null;
+    }
+    if (unlistenPromote) {
+      unlistenPromote();
+      unlistenPromote = null;
     }
     activeCleanup = null;
   };

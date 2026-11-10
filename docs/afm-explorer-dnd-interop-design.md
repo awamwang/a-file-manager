@@ -21,4 +21,11 @@ Windows-first Hybrid outbound (HTML5 in-window → OLE/`CF_HDROP` on leave) and 
 
 **Manual check.** Place Explorer in front of partially visible AFM → press a file and drag onto Explorer without AFM jumping in front on press; mouse-up without drag still selects + activates; keyboard focus via `focusEntryRow` still works; outbound drag over other windows still works.
 
-**If dogfood still fails:** subclass WebView child HWND and/or carefully try `LockSetForegroundWindow` — ask TZ before either.
+**FIL-37 (2026-11):** OLE `DropSource` / drag start·end 与 `drag_focus` 对齐——`SetWindowPos(prior, HWND_TOP, SWP_NOACTIVATE)` + 仅当我们持有 FG 时 `SetForegroundWindow(prior)`；出站 JS 禁止 `setFocus`。纯 click 仍在 mouse-up 激活。
+
+**FIL-39 (2026-11):** Hybrid 仍窗内 HTML5（ADR 0012）；近边 24px + 离开客户区 / blur / 失焦，以及宿主在「拖势成立且 `WindowFromPoint` 不在根 HWND 树」时发 `afm://dnd/ole-promote`，提前进入 OLE。
+
+**If dogfood still fails (FIL-37 upgrade gate — ask TZ):**
+- **WebView child HWND subclass** — can catch secondary raises on the WebView2 input path; couples host/child lifetime and widens crash surface.
+- **`LockSetForegroundWindow`** — only works when already FG; can block other apps' foreground switches; use as a timed last resort only.
+- Prefer matrix dogfood (see Project store `docs/cross-app-dnd-target-matrix.md`) before either.

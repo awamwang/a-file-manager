@@ -16,6 +16,6 @@ pub use platform::start_drag;
 #[cfg(windows)]
 pub use platform::{
     clear_press_state, drag_gesture_active, note_deferred_activate, note_drag_gesture,
-    ole_drag_in_progress, press_origin, press_prior_foreground, resolve_preserve_foreground,
-    should_suppress_foreground_raise, take_pending_activate,
+    note_press_origin, ole_drag_in_progress, press_origin, press_prior_foreground,
+    resolve_preserve_foreground, should_suppress_foreground_raise, take_pending_activate,
 };
