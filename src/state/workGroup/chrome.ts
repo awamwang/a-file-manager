@@ -6,13 +6,15 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   activeWorkGroupId,
   hydrateWorkGroups,
-  openMembersIntoOpenState,
   rememberHydratedWorkGroups,
-  silentSwitchWorkGroup as runSilentWorkGroupSwitch,
   snapshotLiveOpenState,
+  type UserWorkGroupsDoc,
+} from "../openState";
+import {
+  openMembersIntoOpenState,
+  silentSwitchWorkGroup as runSilentWorkGroupSwitch,
   type SilentSwitchResult,
   type SoftSyncNotice,
-  type UserWorkGroupsDoc,
 } from "../navigatorBrowse";
 
 export type WorkGroupSummary = UserWorkGroupsDoc["workGroups"][number];

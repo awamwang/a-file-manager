@@ -26,7 +26,7 @@ import {
 import {
   openStateFromPaths,
   type WorkGroupOpenState,
-} from "../src/state/openStateModel.ts";
+} from "../src/state/openState/model.ts";
 import { GUIDE_PATH } from "../src/state/guide/index.ts";
 
 function stubListOk(): void {

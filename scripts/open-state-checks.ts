@@ -21,7 +21,7 @@ import {
   stripTabsFromOpenState,
   toNativeFsPath,
   type WorkGroupOpenState,
-} from "../src/state/openStateModel.ts";
+} from "../src/state/openState/model.ts";
 
 assert.equal(toNativeFsPath("G:/Projects/A/demo-app"), "G:\\Projects\\A\\demo-app");
 assert.equal(toNativeFsPath("afm://guide"), "afm://guide");

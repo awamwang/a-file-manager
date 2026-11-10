@@ -82,8 +82,12 @@ assert.ok(viewMode.includes("rememberSettingsDocument"), "viewMode must remember
 }
 
 // --- WG hydrate bus ---
-assert.ok(browse.includes("export function hydrateWorkGroups"), "browse must export hydrateWorkGroups");
-assert.ok(browse.includes("rememberHydratedWorkGroups"), "browse must export rememberHydratedWorkGroups");
+const session = read("src/state/openState/session.ts");
+assert.ok(session.includes("export function hydrateWorkGroups"), "openState/session must export hydrateWorkGroups");
+assert.ok(
+  session.includes("rememberHydratedWorkGroups") || browse.includes("rememberHydratedWorkGroups"),
+  "openState session must export rememberHydratedWorkGroups",
+);
 assert.ok(wgChrome.includes("hydrateWorkGroups"), "workGroupChrome must use hydrateWorkGroups");
 assert.ok(
   /loadWorkGroupsChrome\([\s\S]*?force:\s*true/.test(shell) ||

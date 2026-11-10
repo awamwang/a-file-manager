@@ -30,6 +30,9 @@ const required = [
   "dnd/surface.ts",
   "dnd/dragOut.ts",
   "dnd/index.ts",
+  "openState/model.ts",
+  "openState/session.ts",
+  "openState/index.ts",
 ];
 
 for (const rel of required) {
@@ -52,6 +55,7 @@ const forbiddenFlat = [
   "dropHover.ts",
   "fileDropSurface.ts",
   "fileDragOut.ts",
+  "openStateModel.ts",
 ];
 
 for (const rel of forbiddenFlat) {

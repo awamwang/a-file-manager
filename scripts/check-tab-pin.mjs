@@ -20,9 +20,9 @@ if (!shell.includes("tab--pinned") || !hasPinGlyph) {
   console.error("pinned tabs need tab--pinned chrome and a pin glyph when pinned");
   process.exit(1);
 }
-const model = readFileSync(join(root, "src/state/openStateModel.ts"), "utf8");
+const model = readFileSync(join(root, "src/state/openState/model.ts"), "utf8");
 if (!model.includes("safeOpenStateIndex")) {
-  console.error("openStateModel must sanitize indices (safeOpenStateIndex)");
+  console.error("openState/model must sanitize indices (safeOpenStateIndex)");
   process.exit(1);
 }
 if (
@@ -38,14 +38,15 @@ if (!shell.includes("border-left: 3px solid") || !shell.includes("tab-pin--on"))
   process.exit(1);
 }
 const browse = readFileSync(join(root, "src/state/navigatorBrowse.ts"), "utf8");
-const persistIdx = browse.indexOf("export async function persistOpenStateNow");
-const persistSlice = persistIdx >= 0 ? browse.slice(persistIdx, persistIdx + 500) : "";
+const session = readFileSync(join(root, "src/state/openState/session.ts"), "utf8");
+const persistIdx = session.indexOf("export async function persistOpenStateNow");
+const persistSlice = persistIdx >= 0 ? session.slice(persistIdx, persistIdx + 500) : "";
 if (
   !persistSlice.includes("work_groups_save_open_state") ||
   !persistSlice.includes("snapshotLeavingOpenState()") ||
   persistSlice.includes("snapshotLiveOpenState()")
 ) {
-  console.error("routine OpenState persist must strip pins via snapshotLeavingOpenState");
+  console.error("openState session persist must strip pins via snapshotLeavingOpenState");
   process.exit(1);
 }
 const pins = readFileSync(join(root, "src/state/tabPins.ts"), "utf8");

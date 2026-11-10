@@ -64,11 +64,11 @@ for (const name of [
   );
   if (name === "switchNavigatorTab" || name === "switchNavigatorTabAdjacent") {
     assert.ok(
-      /schedulePersist\(\s*false\s*\)/.test(body),
-      `${name} must debounce OpenState persist (not immediate)`,
+      /scheduleOpenStatePersist\(\s*false\s*\)/.test(body),
+      `${name} must debounce OpenState persist via scheduleOpenStatePersist`,
     );
     assert.ok(
-      !/schedulePersist\(\s*true\s*\)/.test(body),
+      !/scheduleOpenStatePersist\(\s*true\s*\)/.test(body),
       `${name} must not force immediate persist on switch`,
     );
   }

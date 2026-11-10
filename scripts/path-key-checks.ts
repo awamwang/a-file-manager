@@ -10,7 +10,7 @@ import { normalizeTreePath } from "../src/state/folderTree.ts";
 import {
   normalizePathKey as openStateKey,
   toNativeFsPath as openStateNative,
-} from "../src/state/openStateModel.ts";
+} from "../src/state/openState/model.ts";
 
 assert.equal(toNativeFsPath("G:/Projects/A/demo"), "G:\\Projects\\A\\demo");
 assert.equal(toNativeFsPath("afm://guide"), "afm://guide");

@@ -11,7 +11,7 @@ import {
   safeOpenStateIndex,
   type WorkGroupOpenState,
   type WorkGroupOpenStateTab,
-} from "../src/state/openStateModel.ts";
+} from "../src/state/openState/model.ts";
 import {
   ensureSinglePinnedTab,
   isTabPinned,

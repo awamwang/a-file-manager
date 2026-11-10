@@ -1,11 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { computed, ref, shallowRef } from "vue";
+import { ref, shallowRef } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import {
   activeStripTab,
-  createEmptyOpenState,
+  activeWorkGroupId,
+  applyLiveOpenState,
+  cancelOpenStatePersist,
+  flushOpenStatePersist,
+  hydrateWorkGroups,
+  liveOpenState,
+  mergePinnedIntoOpenState,
   normalizeRestoredOpenState,
   openStateAfterCloseGroup,
   openStateAfterNavigate,
@@ -16,12 +22,13 @@ import {
   openStateFromPaths,
   openStateOpenOrFocusPath,
   openStateWithNewTab,
-  stripTabsFromOpenState,
-  mergePinnedIntoOpenState,
-  openStateWithoutPinned,
+  rememberHydratedWorkGroups,
+  scheduleOpenStatePersist,
+  snapshotLeavingOpenState,
   type SwitchAdjacentDirection,
+  type UserWorkGroupsDoc,
   type WorkGroupOpenState,
-} from "./openStateModel";
+} from "./openState";
 import { navigableParentPath, recordNavHistory } from "./navHistory";
 import { GUIDE_PATH, isGuidePath } from "./guide";
 import { isRecyclePath, RECYCLE_PATH } from "./recycle";
@@ -34,6 +41,20 @@ import { showHiddenItems } from "./showHidden";
 import { forgetPinnedTabs, pinnedIdSet } from "./tabPins";
 import { clearSelection } from "./navigatorSelection";
 import { normalizePathKey } from "./pathKey";
+
+export {
+  activeWorkGroupId,
+  applyLiveOpenState,
+  cancelOpenStatePersist,
+  flushOpenStatePersist,
+  hydrateWorkGroups,
+  liveOpenState,
+  rememberHydratedWorkGroups,
+  snapshotLeavingOpenState,
+  snapshotLiveOpenState,
+  stripTabs,
+  type UserWorkGroupsDoc,
+} from "./openState";
 
 export type NavigatorEntry = {
   name: string;
@@ -51,17 +72,6 @@ export type NavigatorListing = {
   fileCount: number;
 };
 
-export type UserWorkGroupsDoc = {
-  workGroups: Array<{
-    id: string;
-    name: string;
-    isDefault: boolean;
-    memberPaths: string[];
-    openState: WorkGroupOpenState | null;
-  }>;
-  activeWorkGroupId: string;
-};
-
 export const currentPath = ref("");
 export const listing = shallowRef<NavigatorListing | null>(null);
 export const listError = ref<string | null>(null);
@@ -73,104 +83,12 @@ export const secondaryListing = shallowRef<NavigatorListing | null>(null);
 export const secondaryError = ref<string | null>(null);
 export const secondaryLoading = ref(false);
 
-/** Runtime Open State for the active Work Group (Navigator tab strip). */
-export const liveOpenState = ref<WorkGroupOpenState>(createEmptyOpenState());
-export const activeWorkGroupId = ref("");
-
-export const stripTabs = computed(() => stripTabsFromOpenState(liveOpenState.value));
-
-let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let bootstrapPromise: Promise<void> | null = null;
-/** Single-flight `work_groups_get` so Shell chrome + OpenState bootstrap share one IPC. */
-let workGroupsHydrate: Promise<UserWorkGroupsDoc> | null = null;
 /**
  * AIA-225: bump on every navigateTo so rapid tab-group switches drop stale
  * `navigator_list` results instead of painting the wrong folder.
  */
 let browseEpoch = 0;
-
-function schedulePersist(immediate = false) {
-  if (!activeWorkGroupId.value) return;
-  if (persistTimer) {
-    clearTimeout(persistTimer);
-    persistTimer = null;
-  }
-  const run = () => {
-    persistTimer = null;
-    void persistOpenStateNow();
-  };
-  if (immediate) {
-    run();
-  } else {
-    persistTimer = setTimeout(run, 280);
-  }
-}
-
-/** Drop a pending debounced persist (silent switch owns the leaving-group write). */
-export function cancelOpenStatePersist(): void {
-  if (persistTimer) {
-    clearTimeout(persistTimer);
-    persistTimer = null;
-  }
-}
-
-export async function persistOpenStateNow(): Promise<void> {
-  if (!activeWorkGroupId.value) return;
-  try {
-    // AIA-245: never persist session pins onto the active WG (same strip as silent switch).
-    await invoke<UserWorkGroupsDoc>("work_groups_save_open_state", {
-      workGroupId: activeWorkGroupId.value,
-      liveOpenState: snapshotLeavingOpenState(),
-    });
-  } catch {
-    // Persistence failures should not block browsing; WG UI can still save explicitly.
-  }
-}
-
-/** Flush debounced Open State to disk (close / tray / quit / hide). */
-export async function flushOpenStatePersist(): Promise<void> {
-  if (persistTimer) {
-    clearTimeout(persistTimer);
-    persistTimer = null;
-  }
-  await persistOpenStateNow();
-}
-
-export function applyLiveOpenState(
-  state: WorkGroupOpenState | null | undefined,
-  options?: { persist?: boolean; immediatePersist?: boolean },
-): void {
-  liveOpenState.value = normalizeRestoredOpenState(state);
-  if (options?.persist) {
-    schedulePersist(options.immediatePersist ?? true);
-  }
-}
-
-/**
- * Cold-start / concurrent `work_groups_get` bus (AIA-181 P0).
- * Pass `{ force: true }` when the menu needs a fresh disk read.
- */
-export function hydrateWorkGroups(options?: {
-  force?: boolean;
-}): Promise<UserWorkGroupsDoc> {
-  if (!options?.force && workGroupsHydrate) return workGroupsHydrate;
-  const run = (async () => {
-    const doc = await invoke<UserWorkGroupsDoc>("work_groups_get");
-    activeWorkGroupId.value = doc.activeWorkGroupId;
-    return doc;
-  })();
-  workGroupsHydrate = run.catch((err) => {
-    if (workGroupsHydrate === run) workGroupsHydrate = null;
-    throw err;
-  });
-  return workGroupsHydrate;
-}
-
-/** Keep hydrate cache aligned after silent switch / member save. */
-export function rememberHydratedWorkGroups(doc: UserWorkGroupsDoc): void {
-  activeWorkGroupId.value = doc.activeWorkGroupId;
-  workGroupsHydrate = Promise.resolve(doc);
-}
 
 /**
  * Restore tab strip immediately; directory listing fills asynchronously
@@ -312,7 +230,7 @@ export async function navigateTo(
         pane.name = "Guide";
         pane.type = "guide";
       }
-      schedulePersist(false);
+      scheduleOpenStatePersist(false);
     }
     return;
   }
@@ -336,7 +254,7 @@ export async function navigateTo(
           pane.name = "Recycle Bin";
           pane.type = "recycle";
         }
-        schedulePersist(false);
+        scheduleOpenStatePersist(false);
       }
     } catch (err) {
       if (epoch !== browseEpoch) return;
@@ -374,7 +292,7 @@ export async function navigateTo(
     }
     if (syncOpenState) {
       liveOpenState.value = openStateAfterNavigate(liveOpenState.value, result.path);
-      schedulePersist(false);
+      scheduleOpenStatePersist(false);
     }
   } catch (err) {
     if (epoch !== browseEpoch) return;
@@ -387,7 +305,7 @@ export async function navigateTo(
     }
     if (syncOpenState && trimmed) {
       liveOpenState.value = openStateAfterNavigate(liveOpenState.value, trimmed);
-      schedulePersist(false);
+      scheduleOpenStatePersist(false);
     }
   } finally {
     if (epoch === browseEpoch) {
@@ -433,7 +351,7 @@ export async function newNavigatorTab(path?: string): Promise<void> {
       pane.type = "guide";
     }
   }
-  schedulePersist(false);
+  scheduleOpenStatePersist(false);
   revealPathNonBlocking(target);
 }
 
@@ -443,7 +361,7 @@ export async function closeNavigatorTab(groupIndex: number): Promise<void> {
   const next = openStateAfterCloseGroup(liveOpenState.value, groupIndex);
   liveOpenState.value = next;
   // Closing often activates another group — keep strip responsive (AIA-225).
-  schedulePersist(false);
+  scheduleOpenStatePersist(false);
   const active = activeStripTab(next);
   if (active?.path) {
     revealPathNonBlocking(active.path);
@@ -455,7 +373,7 @@ export async function closeNavigatorTab(groupIndex: number): Promise<void> {
 export async function switchNavigatorTab(groupIndex: number): Promise<void> {
   // AIA-225: strip + path paint first; listing + OpenState disk write are deferred.
   liveOpenState.value = openStateAfterSwitchGroup(liveOpenState.value, groupIndex);
-  schedulePersist(false);
+  scheduleOpenStatePersist(false);
   const active = activeStripTab(liveOpenState.value);
   if (active?.path) {
     revealPathNonBlocking(active.path);
@@ -484,7 +402,7 @@ export async function reorderNavigatorTabs(
   if (next.tabGroups.length !== before) return;
   liveOpenState.value = next;
   // Reorder does not change active listing; debounce disk write (AIA-225).
-  schedulePersist(false);
+  scheduleOpenStatePersist(false);
 }
 
 /** Cycle page groups (Sigma Ctrl+Tab / Ctrl+Shift+Tab → switchToAdjacentTabGroup). */
@@ -494,7 +412,7 @@ export async function switchNavigatorTabAdjacent(
   if (liveOpenState.value.tabGroups.length < 2) return;
   // AIA-225: same non-blocking reveal as click-to-switch.
   liveOpenState.value = openStateAfterSwitchAdjacent(liveOpenState.value, direction);
-  schedulePersist(false);
+  scheduleOpenStatePersist(false);
   const active = activeStripTab(liveOpenState.value);
   if (active?.path) {
     revealPathNonBlocking(active.path);
@@ -510,7 +428,7 @@ export async function openOrFocusNavigatorTab(path: string): Promise<void> {
   if (!trimmed) return;
   const result = openStateOpenOrFocusPath(liveOpenState.value, trimmed);
   liveOpenState.value = result.state;
-  schedulePersist(false);
+  scheduleOpenStatePersist(false);
   const active = activeStripTab(liveOpenState.value);
   if (active?.path) {
     revealPathNonBlocking(active.path);
@@ -529,7 +447,7 @@ export async function openMembersIntoOpenState(
     memberPaths,
   );
   liveOpenState.value = state;
-  schedulePersist(false);
+  scheduleOpenStatePersist(false);
   const active = activeStripTab(liveOpenState.value);
   if (active?.path) {
     revealPathNonBlocking(active.path);
@@ -803,13 +721,3 @@ async function readFileDoubleClickAction(): Promise<FileDoubleClickAction> {
   return "systemDefault";
 }
 
-/** Snapshot for Work Groups IPC that need the leaving group's live Open State. */
-export function snapshotLiveOpenState(): WorkGroupOpenState {
-  return normalizeRestoredOpenState(liveOpenState.value);
-}
-
-/** Same snapshot without pinned tabs, so a switch does not store them on the leaving group. */
-export function snapshotLeavingOpenState(): WorkGroupOpenState {
-  const preferredPin = activeStripTab(liveOpenState.value)?.id ?? null;
-  return openStateWithoutPinned(snapshotLiveOpenState(), pinnedIdSet(preferredPin));
-}

@@ -25,9 +25,9 @@ const pathCards = read("src/styles/path-cards.css");
 assert.ok(pathCards.includes(".path-card-grid"));
 assert.ok(pathCards.includes(".path-card--with-action"));
 
-const model = read("src/state/openStateModel.ts");
+const model = read("src/state/openState/model.ts");
 const pathKey = read("src/state/pathKey.ts");
-assert.match(model, /export \{ toNativeFsPath, normalizePathKey \} from "\.\/pathKey"/);
+assert.match(model, /export \{ toNativeFsPath, normalizePathKey \} from "\.\.\/pathKey"/);
 assert.match(pathKey, /export function toNativeFsPath/);
 assert.match(pathKey, /export function normalizePathKey/);
 assert.match(pathKey, /replace\(\/\\\/\/g,\s*"\\\\"\)/);

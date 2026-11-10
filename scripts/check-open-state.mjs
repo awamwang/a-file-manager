@@ -42,8 +42,12 @@ if (!shell.includes("bootstrapNavigatorOpenState")) {
 }
 
 const browse = readFileSync(join(root, "src/state/navigatorBrowse.ts"), "utf8");
+const session = readFileSync(join(root, "src/state/openState/session.ts"), "utf8");
+if (!session.includes("work_groups_save_open_state")) {
+  console.error("openState/session missing work_groups_save_open_state");
+  process.exit(1);
+}
 for (const token of [
-  "work_groups_save_open_state",
   "restoreWorkGroupOpenState",
   "bootstrapNavigatorOpenState",
   "newNavigatorTab",
@@ -124,7 +128,7 @@ if (
   process.exit(1);
 }
 
-const model = readFileSync(join(root, "src/state/openStateModel.ts"), "utf8");
+const model = readFileSync(join(root, "src/state/openState/model.ts"), "utf8");
 for (const token of [
   "openStateAfterSwitchAdjacent",
   "openStateOpenOrFocusPath",
@@ -132,7 +136,7 @@ for (const token of [
   "findTabGroupIndexByPath",
 ]) {
   if (!model.includes(token)) {
-    console.error(`openStateModel missing ${token}`);
+    console.error(`openState/model missing ${token}`);
     process.exit(1);
   }
 }

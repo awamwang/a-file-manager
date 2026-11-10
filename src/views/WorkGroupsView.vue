@@ -16,8 +16,8 @@ import {
   snapshotLeavingOpenState,
   snapshotLiveOpenState,
 } from "../state/navigatorBrowse";
-import { displayNameFromPath } from "../state/openStateModel";
-import type { WorkGroupOpenState } from "../state/openStateModel";
+import { displayNameFromPath } from "../state/openState";
+import type { WorkGroupOpenState } from "../state/openState";
 import { workGroupDisplayName } from "../state/workGroup";
 import { workGroupsDoc } from "../state/workGroup";
 import FluentIcon from "../components/icons/FluentIcon.vue";

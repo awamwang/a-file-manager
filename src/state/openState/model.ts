@@ -28,10 +28,10 @@ export function nextTabId(prefix = "tab"): string {
   return `${prefix}-${Date.now()}-${tabSeq}`;
 }
 
-import { toNativeFsPath, normalizePathKey } from "./pathKey";
+import { toNativeFsPath, normalizePathKey } from "../pathKey";
 
 /** 路径键权威实现见 `pathKey.ts`；此处再导出以保持 Open State 调用方兼容。 */
-export { toNativeFsPath, normalizePathKey } from "./pathKey";
+export { toNativeFsPath, normalizePathKey } from "../pathKey";
 
 export function displayNameFromPath(path: string): string {
   const native = toNativeFsPath(path);

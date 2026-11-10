@@ -18,7 +18,7 @@ import {
   snapshotLiveOpenState,
 } from "../../state/navigatorBrowse";
 import { workGroupDisplayName } from "../../state/workGroup";
-import type { WorkGroupOpenState } from "../../state/openStateModel";
+import type { WorkGroupOpenState } from "../../state/openState";
 import {
   clipboardMode,
   clipboardPaths,
