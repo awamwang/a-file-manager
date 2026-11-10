@@ -26,8 +26,8 @@ assert.ok(view.includes("list--virt-flat"));
 assert.ok(view.includes("list_window"));
 assert.ok(view.includes("virt-spacer") || view.includes("offsetBeforePx"));
 assert.ok(
-  view.includes("gridVirtualPaddingStyle") || view.includes("paddingTop"),
-  "icon/tiles grid must use padding offsets (spacers squash thumbs in CSS grid)",
+  view.includes("isGridIconOrTilesMode"),
+  "icon/tiles grid must skip virtualization (avoids thin-strip thumbs)",
 );
 assert.ok(view.includes("@scroll"), "list surfaces must track scroll for the virtual window");
 assert.ok(!view.includes("groupedVisibleEntries"), "grouped path must use flattened virt items");

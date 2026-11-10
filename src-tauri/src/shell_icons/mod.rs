@@ -29,8 +29,6 @@ use windows::Win32::UI::Shell::{
 
 /// Bound process-side Shell results so extreme folders cannot retain every PNG data URL (AIA-279).
 const MAX_ICON_CACHE_ENTRIES: usize = 384;
-/// Max worker threads inside one `shell_icon_get_many` batch (COM STA per worker).
-const SHELL_ICON_PARALLELISM: usize = 4;
 
 struct BoundedIconCache {
     map: HashMap<String, String>,
@@ -257,28 +255,15 @@ pub fn resolve_icon(path: &str, size: u16, prefer_thumbnail: bool) -> ShellIconR
         }
     }
 
-    // real_thumb: pixels came from Shell thumbnail handlers (not association icon).
-    let (data_url, real_thumb) = if want_thumb {
-        // AIA-143: system thumbnail first; shell icon only as fallback.
-        match system_thumbnail_data_url(&pb, size) {
-            Ok(url) => (Some(url), true),
-            Err(_) => {
-                if let Ok(cache) = ICON_CACHE.lock() {
-                    if let Some(hit) = cache.get(&type_key) {
-                        return ShellIconResult {
-                            path: trimmed.to_string(),
-                            data_url: Some(hit.clone()),
-                            kind: "thumbnail".to_string(),
-                        };
-                    }
-                }
-                (shell_icon_data_url(&pb, size).ok(), false)
-            }
-        }
+    let data_url = if want_thumb {
+        // AIA-143：系统缩略图（含 SageThumbs 等）优先；批内必须串行 COM。
+        system_thumbnail_data_url(&pb, size)
+            .or_else(|_| shell_icon_data_url(&pb, size))
+            .ok()
     } else if pb.exists() {
-        (shell_icon_data_url(&pb, size).ok(), false)
+        shell_icon_data_url(&pb, size).ok()
     } else {
-        (None, false)
+        None
     };
 
     // Refine kind: if we asked for thumbnail but only got a generic icon-sized result
@@ -293,8 +278,7 @@ pub fn resolve_icon(path: &str, size: u16, prefer_thumbnail: bool) -> ShellIconR
     if let Some(ref url) = data_url {
         if let Ok(mut cache) = ICON_CACHE.lock() {
             cache.insert(path_key, url.clone());
-            // True thumbnails stay path-scoped; association icons also fill the type key.
-            if !real_thumb {
+            if !want_thumb {
                 cache.insert(type_key, url.clone());
             }
         }
@@ -305,57 +289,6 @@ pub fn resolve_icon(path: &str, size: u16, prefer_thumbnail: bool) -> ShellIconR
         data_url,
         kind,
     }
-}
-
-/// Resolve a batch with bounded parallelism; each worker initializes its own COM STA.
-fn resolve_icons_parallel(paths: Vec<String>, size: u16, prefer_thumbnail: bool) -> Vec<ShellIconResult> {
-    let n = paths.len();
-    if n == 0 {
-        return Vec::new();
-    }
-    let workers = SHELL_ICON_PARALLELISM.min(n).max(1);
-    if workers == 1 {
-        return paths
-            .into_iter()
-            .map(|p| resolve_icon(&p, size, prefer_thumbnail))
-            .collect();
-    }
-
-    let mut slots: Vec<Option<ShellIconResult>> = (0..n).map(|_| None).collect();
-    let chunk_size = n.div_ceil(workers);
-
-    std::thread::scope(|scope| {
-        let mut rest = slots.as_mut_slice();
-        let mut offset = 0usize;
-        for _ in 0..workers {
-            if offset >= n {
-                break;
-            }
-            let end = (offset + chunk_size).min(n);
-            let take = end - offset;
-            let (this_slots, next) = rest.split_at_mut(take);
-            rest = next;
-            let chunk_paths: Vec<String> = paths[offset..end].to_vec();
-            offset = end;
-            scope.spawn(move || {
-                ensure_com_sta();
-                for (i, p) in chunk_paths.into_iter().enumerate() {
-                    this_slots[i] = Some(resolve_icon(&p, size, prefer_thumbnail));
-                }
-            });
-        }
-    });
-
-    slots
-        .into_iter()
-        .map(|slot| {
-            slot.unwrap_or(ShellIconResult {
-                path: String::new(),
-                data_url: None,
-                kind: "icon".into(),
-            })
-        })
-        .collect()
 }
 
 #[tauri::command]
@@ -387,11 +320,12 @@ pub async fn shell_icon_get_many(
     let prefer = prefer_thumbnail.unwrap_or(true);
     let n = paths.len();
     let t0 = std::time::Instant::now();
-    // AIA-278: small frontend batches + spawn_blocking so list IPC / UI stay responsive
-    // while Shell generates thumbnails. Inside the blocking task, resolve with
-    // SHELL_ICON_PARALLELISM workers (each thread owns its COM STA).
+    // AIA-278：前端小批 + spawn_blocking；批内串行，避免 SageThumbs 等争用 COM。
     let results = tauri::async_runtime::spawn_blocking(move || {
-        resolve_icons_parallel(paths, size, prefer)
+        paths
+            .into_iter()
+            .map(|p| resolve_icon(&p, size, prefer))
+            .collect::<Vec<_>>()
     })
     .await
     .unwrap_or_default();
@@ -467,12 +401,19 @@ mod tests {
             }
             let batch: Vec<String> = paths.iter().take(40).cloned().collect();
             let t0 = std::time::Instant::now();
-            let _ = resolve_icons_parallel(batch, 20, false);
+            let _ = batch
+                .into_iter()
+                .map(|p| resolve_icon(&p, 20, false))
+                .collect::<Vec<_>>();
             cold_icon.push(t0.elapsed().as_secs_f64() * 1000.0);
         }
         cold_icon.sort_by(|a, b| a.partial_cmp(b).unwrap());
         let warm_t0 = std::time::Instant::now();
-        let _ = resolve_icons_parallel(paths.iter().take(40).cloned().collect(), 20, false);
+        let _ = paths
+            .iter()
+            .take(40)
+            .map(|p| resolve_icon(p, 20, false))
+            .collect::<Vec<_>>();
         let warm_icon_ms = warm_t0.elapsed().as_secs_f64() * 1000.0;
         eprintln!(
             "AFM_PERF shell_icon_batch n=40 thumb=0 cold_samples_ms={cold_icon:?} cold_median_ms={:.1} warm_ms={warm_icon_ms:.1}",
@@ -486,12 +427,18 @@ mod tests {
                 cache.clear();
             }
             let t0 = std::time::Instant::now();
-            let _ = resolve_icons_parallel(thumb_paths.clone(), 96, true);
+            let _ = thumb_paths
+                .iter()
+                .map(|p| resolve_icon(p, 96, true))
+                .collect::<Vec<_>>();
             cold_thumb.push(t0.elapsed().as_secs_f64() * 1000.0);
         }
         cold_thumb.sort_by(|a, b| a.partial_cmp(b).unwrap());
         let warm_t0 = std::time::Instant::now();
-        let _ = resolve_icons_parallel(thumb_paths, 96, true);
+        let _ = thumb_paths
+            .iter()
+            .map(|p| resolve_icon(p, 96, true))
+            .collect::<Vec<_>>();
         let warm_thumb_ms = warm_t0.elapsed().as_secs_f64() * 1000.0;
         eprintln!(
             "AFM_PERF shell_icon_batch n=8 thumb=1 cold_samples_ms={cold_thumb:?} cold_median_ms={:.1} warm_ms={warm_thumb_ms:.1}",

@@ -28,10 +28,16 @@ assert.ok(
   "must not self-decode images into thumbnails",
 );
 assert.ok(rust.includes("spawn_blocking"), "AIA-278: Shell work off async runtime");
-assert.ok(rust.includes("SHELL_ICON_PARALLELISM"), "Phase B: bounded batch parallelism");
-assert.ok(rust.includes("resolve_icons_parallel"), "Phase B: parallel batch resolver");
-assert.ok(rust.includes("thread::scope"), "Phase B: scoped workers for COM STA");
-assert.ok(rust.includes("type_icon_cache_key"), "Phase B: same-extension shell icon reuse");
+assert.ok(
+  !rust.includes("SHELL_ICON_PARALLELISM") && !rust.includes("resolve_icons_parallel"),
+  "must not parallelize IShellItemImageFactory (breaks SageThumbs / shell handlers)",
+);
+assert.ok(rust.includes("type_icon_cache_key"), "same-extension shell icon reuse (icon-only)");
+assert.ok(
+  rust.includes("system_thumbnail_data_url")
+    && /system_thumbnail_data_url[\s\S]*?\.or_else/.test(rust),
+  "thumbnail path must try Shell handlers then fall back to shell icon",
+);
 assert.ok(state.includes("shell_icon_get_many"));
 assert.ok(state.includes("clearShellIconQueue"), "cancel queue on folder change");
 assert.ok(state.includes("cancelShellIconRequests"), "cancel out-of-view thumbs");

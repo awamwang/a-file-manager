@@ -644,15 +644,33 @@ const primaryVirtItems = computed((): ListVirtItem[] => {
   return flattenEntryItems(entries);
 });
 
+function inactiveVirtualWindow(total: number): ListVirtualWindow {
+  return {
+    active: false,
+    startIndex: 0,
+    endIndex: total,
+    offsetBeforePx: 0,
+    offsetAfterPx: 0,
+  };
+}
+
+/** 图标/平铺为 CSS grid：窗口化（含 padding 偏移）仍会压扁格子，一律关闭。 */
+function isGridIconOrTilesMode(mode: string): boolean {
+  return mode.startsWith("icons") || mode === "tiles";
+}
+
 const primaryVirtual = computed((): ListVirtualWindow => {
   const items = primaryVirtItems.value;
   const mode = navigatorViewMode.value as PlaceholderViewMode;
+  if (isGridIconOrTilesMode(mode)) {
+    return inactiveVirtualWindow(items.length);
+  }
   const viewportHeight = listViewportHeightPx(listViewport.value);
   const rowHeight = resolveListRowHeightPx(mode, isCompactListDensity());
   const grouped = navigatorGroupByType.value;
   let win: ListVirtualWindow;
   if (grouped) {
-    // 组头变高：按项高前缀和窗口化；图标/平铺在分组下用纵向流（见 list--virt-flat）。
+    // 组头变高：按项高前缀和窗口化（仅纵向列表视图）。
     const heights = items.map((item) => virtItemHeightPx(item, rowHeight));
     win = computeVariableListVirtualWindow({
       heights,
@@ -676,6 +694,9 @@ const primaryVirtual = computed((): ListVirtualWindow => {
 const secondaryVirtual = computed((): ListVirtualWindow => {
   const total = secondaryEntries.value.length;
   const mode = navigatorViewMode.value as PlaceholderViewMode;
+  if (isGridIconOrTilesMode(mode)) {
+    return inactiveVirtualWindow(total);
+  }
   return computeListVirtualWindow({
     total,
     scrollTop: secondaryScrollTop.value,
@@ -2314,7 +2335,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   justify-content: flex-start;
   gap: var(--fluent-space-xs);
   min-width: 0;
-  min-height: auto;
+  min-height: calc(var(--nav-icon-size, 16px) + 2.5rem);
   padding: var(--fluent-space-sm);
   border-bottom: 0;
   border-radius: var(--fluent-radius-md);

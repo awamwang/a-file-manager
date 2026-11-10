@@ -10,7 +10,8 @@ Follows the performance-optimization skill: measure → identify → fix → ver
 | Group-by-type flattened virt items + variable-height window | grouped path used to mount all rows; now same ≥80 window | **kept** | `listVirtItems` + `computeVariableListVirtualWindow`; icons/tiles use `list--virt-flat` column flow while windowed |
 | `sortedEntries` identity cache + `list_sort` / `list_window` probes | re-sort every computed tick → cache hit | **kept** | `afm.perfProbe=1` logs `[AFM_perf] list_sort` / `list_window` |
 | Soft near-transparent icon slot → final image | Fluent glyph → shell/thumb morph | **kept** | `shell-icon-slot` until one-shot resolve; no shell→thumb two-phase paint |
-| Icon/tiles virtual offsets via padding (not grid spacers) | large dirs thumbs squashed to thin strips | **kept** | CSS grid + `virt-spacer` broke row height; paddingTop/Bottom instead |
+| Icon/tiles list virtualization | large dirs thumbs squashed to thin strips | **disabled** | CSS grid window offsets unreliable; list/details still windowed |
+| Batch-parallel `IShellItemImageFactory` (4 workers) | bench faster; live SageThumbs slower/flaky | **reverted** | Shell thumbnail handlers need serial COM |
 | Fix `guide/index.ts` dynamic import path | build failed → resolves | **kept** | Unblocks production `vite build` (correctness, not a micro-opt) |
 
 ## Budgets / guards
