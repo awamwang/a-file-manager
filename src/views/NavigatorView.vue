@@ -328,6 +328,8 @@ const renameInputEl = ref<HTMLTextAreaElement | null>(null);
 const NAME_RENAME_DELAY_MS = 500;
 let pendingNameRenameTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingNameRenamePath: string | null = null;
+/** 改名期间监听框外 pointerdown；仅点击/快捷键结束，鼠标移出不退出。 */
+let renameOutsideListening = false;
 
 function setRenameInputEl(el: unknown) {
   renameInputEl.value = el instanceof HTMLTextAreaElement ? el : null;
@@ -339,6 +341,30 @@ function clearPendingNameRename() {
     pendingNameRenameTimer = null;
   }
   pendingNameRenamePath = null;
+}
+
+function armRenameOutsideListener() {
+  if (renameOutsideListening) return;
+  renameOutsideListening = true;
+  window.addEventListener("pointerdown", onRenameOutsidePointerDown, true);
+}
+
+function disarmRenameOutsideListener() {
+  if (!renameOutsideListening) return;
+  renameOutsideListening = false;
+  window.removeEventListener("pointerdown", onRenameOutsidePointerDown, true);
+}
+
+/**
+ * 资源管理器：在改名框外按下才结束改名（提交）；鼠标移出或拖选松开不结束。
+ */
+function onRenameOutsidePointerDown(event: PointerEvent) {
+  if (!renamingPath.value) return;
+  const input = renameInputEl.value;
+  const target = event.target;
+  if (!(target instanceof Node)) return;
+  if (input && (target === input || input.contains(target))) return;
+  void commitInlineRename();
 }
 
 /**
@@ -404,6 +430,7 @@ function startInlineRename(entry: NavigatorEntry) {
   selectOnly(entry.path);
   renamingPath.value = entry.path;
   renameDraft.value = entry.name;
+  armRenameOutsideListener();
   void nextTick(() => {
     focusRenameInput(entry.name, entry.kind);
   });
@@ -411,20 +438,28 @@ function startInlineRename(entry: NavigatorEntry) {
 
 function cancelInlineRename() {
   clearPendingNameRename();
+  disarmRenameOutsideListener();
   renamingPath.value = null;
   renameDraft.value = "";
 }
 
+/**
+ * 短暂失焦（如拖选文字后在框外松开、行被 focus）不退出改名；拉回焦点。
+ * 正式退出：Enter 提交 / Esc 取消 / 框外 pointerdown 提交。
+ */
 function onRenameBlur() {
-  // Defer so Enter-commit can clear `renamingPath` first in the same turn.
   queueMicrotask(() => {
-    if (renamingPath.value) cancelInlineRename();
+    if (!renamingPath.value) return;
+    const input = renameInputEl.value;
+    if (!input || document.activeElement === input) return;
+    input.focus({ preventScroll: true });
   });
 }
 
 async function commitInlineRename() {
   const path = renamingPath.value;
   if (!path) return;
+  disarmRenameOutsideListener();
   const entry = visibleEntries.value.find((e) => e.path === path) ?? null;
   const next = renameDraft.value.trim();
   renamingPath.value = null;
@@ -778,6 +813,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   clearPendingNameRename();
+  disarmRenameOutsideListener();
   disconnectIconObservers();
   if (iconObserverRefreshTimer != null) {
     cancelAnimationFrame(iconObserverRefreshTimer);
@@ -1094,6 +1130,9 @@ function onRowMouseDown(event: MouseEvent, _entry: NavigatorEntry) {
 }
 
 function onRowClick(event: MouseEvent, entry: NavigatorEntry) {
+  // 改名会话占有焦点：框外 pointerdown 已先提交并清空 renamingPath；
+  // 拖选文字后在框外松开触发的 click 仍带着 renamingPath，忽略以免抢焦点。
+  if (renamingPath.value) return;
   // Clicking away from a pending name-rename (or another row) cancels the delay.
   if (pendingNameRenamePath && pendingNameRenamePath !== entry.path) {
     clearPendingNameRename();
@@ -2250,20 +2289,31 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   align-items: center;
   justify-content: flex-start;
   gap: var(--fluent-space-xs);
+  min-width: 0;
   min-height: auto;
   padding: var(--fluent-space-sm);
   border-bottom: 0;
   border-radius: var(--fluent-radius-md);
   text-align: center;
+  overflow: hidden;
+}
+
+.list--icons .row--icon .name-block {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .list--icons .row--icon .name {
   width: 100%;
+  max-width: 100%;
   white-space: normal;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  overflow-wrap: anywhere;
   line-height: 1.25;
   font-size: var(--fluent-font-size-caption);
 }

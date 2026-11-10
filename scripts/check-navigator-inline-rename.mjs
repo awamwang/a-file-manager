@@ -32,6 +32,21 @@ assert.ok(view.includes("min-height: 0"));
 assert.ok(view.includes("@mousedown.stop"));
 assert.ok(view.includes("cursor: text"));
 assert.ok(view.includes("input.style.width"));
+// Explorer-like focus: mouse leave / transient blur keep rename; outside pointerdown commits.
+assert.ok(view.includes("onRenameOutsidePointerDown"));
+assert.ok(view.includes("armRenameOutsideListener"));
+assert.ok(view.includes("disarmRenameOutsideListener"));
+assert.ok(view.includes('addEventListener("pointerdown", onRenameOutsidePointerDown, true)'));
+assert.ok(view.includes("input.focus({ preventScroll: true })"));
+{
+  const blurStart = view.indexOf("function onRenameBlur");
+  assert.ok(blurStart >= 0, "onRenameBlur required");
+  const blurEnd = view.indexOf("\nasync function commitInlineRename", blurStart);
+  const blurBody = view.slice(blurStart, blurEnd > blurStart ? blurEnd : blurStart + 400);
+  assert.ok(!blurBody.includes("cancelInlineRename"), "blur must not cancel rename");
+  assert.ok(blurBody.includes("input.focus"), "blur must restore focus while renaming");
+}
+assert.ok(view.includes("if (renamingPath.value) return;"));
 // Drag-select must scroll through overflow — never clip with overflow:hidden.
 assert.ok(view.includes("overflow-x: auto"));
 assert.ok(view.includes("overflow-y: hidden"));
