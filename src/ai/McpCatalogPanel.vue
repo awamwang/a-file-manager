@@ -4,6 +4,9 @@
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
+  aiAgentTargetsList,
+  aiHarvestMcpImport,
+  aiHarvestMcpScan,
   aiMcpCatalogImport,
   aiMcpCatalogList,
   aiMcpCatalogRemove,
@@ -12,7 +15,12 @@ import {
   aiMcpUndeploy,
 } from "./client";
 import { toastSuccess } from "../state/toast";
-import type { AiConfigDocument, McpCatalogEntry } from "./types";
+import type {
+  AgentTarget,
+  AiConfigDocument,
+  HarvestMcpCandidate,
+  McpCatalogEntry,
+} from "./types";
 
 const { t } = useI18n();
 
@@ -26,6 +34,10 @@ const draftName = ref("");
 const draftId = ref("");
 const draftJson = ref('{\n  "command": "npx",\n  "args": ["-y", "example"]\n}');
 const lastNote = ref<string | null>(null);
+const agents = ref<AgentTarget[]>([]);
+const harvestAgentId = ref("");
+const harvestCandidates = ref<HarvestMcpCandidate[]>([]);
+const harvestSelected = ref<Record<string, boolean>>({});
 
 const ERROR_KEYS: Record<string, string> = {
   AI_MCP_ID_EMPTY: "ai.mcp.errorIdEmpty",
@@ -34,6 +46,8 @@ const ERROR_KEYS: Record<string, string> = {
   AI_MCP_DEPLOY_NO_ENABLED: "ai.mcp.errorDeployNoEnabled",
   AI_MCP_TARGET_INVALID: "ai.mcp.errorTargetInvalid",
   AI_MCP_IMPORT_INVALID: "ai.mcp.errorImportInvalid",
+  AI_HARVEST_AGENT_UNKNOWN: "ai.harvest.errorAgentUnknown",
+  AI_HARVEST_PATH_INVALID: "ai.harvest.errorPath",
 };
 
 function mapError(err: unknown): string {
@@ -48,11 +62,23 @@ const selected = computed(
   () => document.value?.mcpCatalog?.find((e) => e.id === selectedId.value) ?? null,
 );
 
+const harvestPickCount = computed(
+  () => Object.values(harvestSelected.value).filter(Boolean).length,
+);
+
 async function refresh() {
   loading.value = true;
   error.value = null;
   try {
-    document.value = await aiMcpCatalogList();
+    const [mcpDoc, agentDoc] = await Promise.all([
+      aiMcpCatalogList(),
+      aiAgentTargetsList(),
+    ]);
+    document.value = mcpDoc;
+    agents.value = agentDoc.agentTargets;
+    if (!harvestAgentId.value && agents.value.length) {
+      harvestAgentId.value = agents.value[0]?.id ?? "";
+    }
     if (!selectedId.value && document.value.mcpCatalog?.length) {
       selectedId.value = document.value.mcpCatalog[0]?.id ?? null;
     }
@@ -92,15 +118,33 @@ async function removeSelected() {
   }
 }
 
-async function deploySelected() {
+async function deployGlobal() {
   if (!selected.value) return;
   error.value = null;
   lastNote.value = null;
   try {
-    const report = await aiMcpDeploy(
-      selected.value.id,
-      projectWorkspace.value.trim() || null,
-    );
+    const report = await aiMcpDeploy(selected.value.id, null);
+    lastNote.value = t("ai.mcp.noticeDeployed", {
+      count: report.written.length,
+      skipped: report.skipped.length,
+    });
+    toastSuccess(lastNote.value);
+  } catch (err) {
+    error.value = mapError(err);
+  }
+}
+
+async function deployToProject() {
+  if (!selected.value) return;
+  const ws = projectWorkspace.value.trim();
+  if (!ws) {
+    error.value = t("ai.mcp.errorTargetInvalid");
+    return;
+  }
+  error.value = null;
+  lastNote.value = null;
+  try {
+    const report = await aiMcpDeploy(selected.value.id, ws);
     lastNote.value = t("ai.mcp.noticeDeployed", {
       count: report.written.length,
       skipped: report.skipped.length,
@@ -115,12 +159,44 @@ async function undeploySelected() {
   if (!selected.value) return;
   error.value = null;
   try {
-    const report = await aiMcpUndeploy(
-      selected.value.id,
-      projectWorkspace.value.trim() || null,
-    );
+    const ws = projectWorkspace.value.trim() || null;
+    const report = await aiMcpUndeploy(selected.value.id, ws);
     lastNote.value = t("ai.mcp.noticeUndeployed", { count: report.written.length });
     toastSuccess(lastNote.value);
+  } catch (err) {
+    error.value = mapError(err);
+  }
+}
+
+async function scanHarvest() {
+  if (!harvestAgentId.value) return;
+  error.value = null;
+  try {
+    const report = await aiHarvestMcpScan(harvestAgentId.value);
+    harvestCandidates.value = report.candidates;
+    const selectedMap: Record<string, boolean> = {};
+    for (const c of report.candidates) {
+      selectedMap[c.id] = !c.alreadyInCatalog;
+    }
+    harvestSelected.value = selectedMap;
+  } catch (err) {
+    error.value = mapError(err);
+  }
+}
+
+async function importHarvest() {
+  const picks = harvestCandidates.value.filter((c) => harvestSelected.value[c.id]);
+  if (!picks.length) return;
+  error.value = null;
+  try {
+    const [next, report] = await aiHarvestMcpImport(picks);
+    document.value = next;
+    lastNote.value = t("ai.harvest.noticeMcpImported", {
+      added: report.added.length,
+      skipped: report.skipped.length,
+    });
+    toastSuccess(lastNote.value);
+    await scanHarvest();
   } catch (err) {
     error.value = mapError(err);
   }
@@ -191,6 +267,47 @@ onMounted(() => {
       />
     </div>
 
+    <div class="fluent-surface mcp-harvest">
+      <h3 class="mcp-harvest-title">{{ t("ai.harvest.mcpTitle") }}</h3>
+      <p class="mcp-hint">{{ t("ai.harvest.mcpHint") }}</p>
+      <div class="mcp-toolbar">
+        <select v-model="harvestAgentId" class="fluent-control mcp-grow">
+          <option v-for="agent in agents" :key="agent.id" :value="agent.id">
+            {{ agent.displayName }}
+          </option>
+        </select>
+        <button type="button" class="fluent-control" @click="scanHarvest">
+          {{ t("ai.harvest.scan") }}
+        </button>
+        <button
+          type="button"
+          class="fluent-control fluent-control--accent"
+          :disabled="!harvestPickCount"
+          @click="importHarvest"
+        >
+          {{ t("ai.harvest.importSelected", { count: harvestPickCount }) }}
+        </button>
+      </div>
+      <ul v-if="harvestCandidates.length" class="mcp-harvest-list">
+        <li v-for="c in harvestCandidates" :key="c.id" class="mcp-harvest-item">
+          <label>
+            <input
+              v-model="harvestSelected[c.id]"
+              type="checkbox"
+              :disabled="c.alreadyInCatalog"
+            />
+            <span>
+              <strong>{{ c.displayName }}</strong>
+              <span class="mcp-meta">
+                {{ c.id }}
+                <template v-if="c.alreadyInCatalog"> · {{ t("ai.harvest.alreadyIn") }}</template>
+              </span>
+            </span>
+          </label>
+        </li>
+      </ul>
+    </div>
+
     <div class="mcp-toolbar">
       <input
         v-model="importPath"
@@ -239,8 +356,16 @@ onMounted(() => {
           <button type="button" class="fluent-control fluent-control--accent" @click="saveEntry">
             {{ t("ai.mcp.save") }}
           </button>
-          <button type="button" class="fluent-control" :disabled="!selected" @click="deploySelected">
-            {{ t("ai.mcp.deploy") }}
+          <button type="button" class="fluent-control" :disabled="!selected" @click="deployGlobal">
+            {{ t("ai.mcp.deployGlobal") }}
+          </button>
+          <button
+            type="button"
+            class="fluent-control"
+            :disabled="!selected"
+            @click="deployToProject"
+          >
+            {{ t("ai.mcp.addToProject") }}
           </button>
           <button
             type="button"
@@ -339,5 +464,29 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: var(--fluent-space-sm);
+}
+.mcp-harvest {
+  padding: var(--fluent-space-md) var(--fluent-space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-sm);
+}
+.mcp-harvest-title {
+  margin: 0;
+  font-size: var(--fluent-font-size-body);
+}
+.mcp-harvest-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-xs);
+}
+.mcp-harvest-item label {
+  display: flex;
+  gap: var(--fluent-space-sm);
+  align-items: flex-start;
+  cursor: pointer;
 }
 </style>

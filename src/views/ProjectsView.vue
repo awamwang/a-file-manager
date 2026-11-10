@@ -23,6 +23,7 @@ import FluentIcon from "../components/icons/FluentIcon.vue";
 import type { FluentGlyphId } from "../components/icons/glyphs";
 import { AI_ADDON_ENABLED } from "../config/flavor";
 import { aiProjectOpenEditor } from "../ai";
+import ProjectAiPanel from "../ai/ProjectAiPanel.vue";
 
 const { t } = useI18n();
 const aiAddonEnabled = AI_ADDON_ENABLED;
@@ -1012,6 +1013,11 @@ onUnmounted(() => {
             {{ t("projects.openInQoder") }}
           </button>
         </div>
+
+        <ProjectAiPanel
+          v-if="aiAddonEnabled && selected.path"
+          :workspace-path="selected.path"
+        />
 
         <h3>{{ t("projects.sessionBinding") }}</h3>
         <p class="fluent-page-meta">

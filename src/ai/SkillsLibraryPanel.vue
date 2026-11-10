@@ -1,13 +1,16 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
 /**
- * AIA-216 / A3 — Public Skill library UI.
- * Import requires root SKILL.md; deploy to agents is A4.
+ * AIA-216 / A3 — Public Skill library UI + Harvest + 部署方式 + 项目分发。
  */
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { toastSuccess } from "../state/toast";
 import {
+  aiAgentTargetsList,
+  aiHarvestSkillsImport,
+  aiHarvestSkillsScan,
+  aiSkillDeployModeSet,
   aiSkillsDeploy,
   aiSkillsImport,
   aiSkillsLibraryGet,
@@ -16,7 +19,13 @@ import {
   aiSkillsSearchProject,
   aiSkillsUndeploy,
 } from "./client";
-import type { ProjectSkillHit, SkillDeployReport, SkillsLibraryStatus } from "./types";
+import type {
+  AgentTarget,
+  HarvestSkillCandidate,
+  ProjectSkillHit,
+  SkillDeployReport,
+  SkillsLibraryStatus,
+} from "./types";
 
 const { t } = useI18n();
 
@@ -30,6 +39,11 @@ const rootDraft = ref("");
 const projectWorkspace = ref("");
 const lastDeployNote = ref<string | null>(null);
 const projectHits = ref<ProjectSkillHit[]>([]);
+const skillDeployMode = ref("junction");
+const agents = ref<AgentTarget[]>([]);
+const harvestAgentId = ref("");
+const harvestCandidates = ref<HarvestSkillCandidate[]>([]);
+const harvestSelected = ref<Record<string, boolean>>({});
 
 const SKILL_ERROR_KEYS: Record<string, string> = {
   AI_SKILL_SOURCE_INVALID: "ai.skills.errorSourceInvalid",
@@ -41,6 +55,8 @@ const SKILL_ERROR_KEYS: Record<string, string> = {
   AI_DEPLOY_NO_ENABLED: "ai.skills.errorDeployNoEnabled",
   AI_DEPLOY_TARGET_CONFLICT: "ai.skills.errorDeployConflict",
   AI_DEPLOY_PROJECT_REQUIRED: "ai.skills.errorDeployProject",
+  AI_HARVEST_AGENT_UNKNOWN: "ai.harvest.errorAgentUnknown",
+  AI_HARVEST_PATH_INVALID: "ai.harvest.errorPath",
 };
 
 function mapError(err: unknown): string {
@@ -51,20 +67,33 @@ function mapError(err: unknown): string {
   return raw;
 }
 
+const harvestPickCount = computed(
+  () => Object.values(harvestSelected.value).filter(Boolean).length,
+);
+
 async function refresh() {
   loading.value = true;
   error.value = null;
   try {
-    status.value = await aiSkillsLibraryGet();
-    rootDraft.value = status.value.root;
+    const [next, agentDoc] = await Promise.all([
+      aiSkillsLibraryGet(),
+      aiAgentTargetsList(),
+    ]);
+    status.value = next;
+    rootDraft.value = next.root;
+    skillDeployMode.value = agentDoc.skillDeployMode || "junction";
+    agents.value = agentDoc.agentTargets;
+    if (!harvestAgentId.value && agents.value.length) {
+      harvestAgentId.value = agents.value[0]?.id ?? "";
+    }
     if (
       selectedName.value &&
-      !status.value.skills.some((skill) => skill.name === selectedName.value)
+      !next.skills.some((skill) => skill.name === selectedName.value)
     ) {
       selectedName.value = null;
     }
-    if (!selectedName.value && status.value.skills.length) {
-      selectedName.value = status.value.skills[0]?.name ?? null;
+    if (!selectedName.value && next.skills.length) {
+      selectedName.value = next.skills[0]?.name ?? null;
     }
   } catch (err) {
     error.value = mapError(err);
@@ -100,6 +129,17 @@ async function resetRoot() {
   }
 }
 
+async function saveDeployMode() {
+  error.value = null;
+  try {
+    const doc = await aiSkillDeployModeSet(skillDeployMode.value);
+    skillDeployMode.value = doc.skillDeployMode || "junction";
+    toastSuccess(t("ai.skills.noticeDeployModeSaved"));
+  } catch (err) {
+    error.value = mapError(err);
+  }
+}
+
 async function importSkill() {
   if (!sourcePath.value.trim()) return;
   error.value = null;
@@ -130,14 +170,31 @@ async function removeSkill(name: string) {
   }
 }
 
-async function deploySkill(name: string) {
+async function deployGlobal(name: string) {
   error.value = null;
   lastDeployNote.value = null;
   try {
-    const report: SkillDeployReport = await aiSkillsDeploy(
-      name,
-      projectWorkspace.value.trim() || null,
-    );
+    const report: SkillDeployReport = await aiSkillsDeploy(name, null);
+    lastDeployNote.value = t("ai.skills.noticeDeployed", {
+      count: report.deployments.length,
+      skipped: report.skipped.length,
+    });
+    toastSuccess(lastDeployNote.value);
+  } catch (err) {
+    error.value = mapError(err);
+  }
+}
+
+async function deployToProject(name: string) {
+  const ws = projectWorkspace.value.trim();
+  if (!ws) {
+    error.value = t("ai.skills.errorDeployProject");
+    return;
+  }
+  error.value = null;
+  lastDeployNote.value = null;
+  try {
+    const report: SkillDeployReport = await aiSkillsDeploy(name, ws);
     lastDeployNote.value = t("ai.skills.noticeDeployed", {
       count: report.deployments.length,
       skipped: report.skipped.length,
@@ -152,10 +209,8 @@ async function undeploySkill(name: string) {
   error.value = null;
   lastDeployNote.value = null;
   try {
-    const report: SkillDeployReport = await aiSkillsUndeploy(
-      name,
-      projectWorkspace.value.trim() || null,
-    );
+    const ws = projectWorkspace.value.trim() || null;
+    const report: SkillDeployReport = await aiSkillsUndeploy(name, ws);
     lastDeployNote.value = t("ai.skills.noticeUndeployed", {
       count: report.deployments.length,
     });
@@ -181,6 +236,40 @@ async function importFromHit(path: string, name: string) {
   await importSkill();
 }
 
+async function scanHarvest() {
+  if (!harvestAgentId.value) return;
+  error.value = null;
+  try {
+    const report = await aiHarvestSkillsScan(harvestAgentId.value);
+    harvestCandidates.value = report.candidates;
+    const selected: Record<string, boolean> = {};
+    for (const c of report.candidates) {
+      selected[c.name] = !c.alreadyInLibrary;
+    }
+    harvestSelected.value = selected;
+  } catch (err) {
+    error.value = mapError(err);
+  }
+}
+
+async function importHarvest() {
+  const picks = harvestCandidates.value.filter((c) => harvestSelected.value[c.name]);
+  if (!picks.length) return;
+  error.value = null;
+  try {
+    const [next, added, skipped] = await aiHarvestSkillsImport(picks);
+    status.value = next;
+    lastDeployNote.value = t("ai.harvest.noticeSkillsImported", {
+      added: added.length,
+      skipped: skipped.length,
+    });
+    toastSuccess(lastDeployNote.value);
+    await scanHarvest();
+  } catch (err) {
+    error.value = mapError(err);
+  }
+}
+
 onMounted(() => {
   void refresh();
 });
@@ -203,6 +292,51 @@ onMounted(() => {
           {{ t("ai.skills.resetRoot") }}
         </button>
       </div>
+      <label class="skills-field">
+        <span>{{ t("ai.skills.deployMode") }}</span>
+        <select v-model="skillDeployMode" class="fluent-control" @change="saveDeployMode">
+          <option value="junction">{{ t("ai.skills.deployModeJunction") }}</option>
+          <option value="copy">{{ t("ai.skills.deployModeCopy") }}</option>
+        </select>
+      </label>
+      <p class="skills-hint">{{ t("ai.skills.deployModeHint") }}</p>
+    </div>
+
+    <div class="fluent-surface skills-block">
+      <h3 class="skills-subhead">{{ t("ai.harvest.skillsTitle") }}</h3>
+      <p class="skills-hint">{{ t("ai.harvest.skillsHint") }}</p>
+      <div class="skills-row">
+        <select v-model="harvestAgentId" class="fluent-control skills-grow">
+          <option v-for="agent in agents" :key="agent.id" :value="agent.id">
+            {{ agent.displayName }}
+          </option>
+        </select>
+        <button type="button" class="fluent-control" @click="scanHarvest">
+          {{ t("ai.harvest.scan") }}
+        </button>
+        <button
+          type="button"
+          class="fluent-control fluent-control--accent"
+          :disabled="!harvestPickCount"
+          @click="importHarvest"
+        >
+          {{ t("ai.harvest.importSelected", { count: harvestPickCount }) }}
+        </button>
+      </div>
+      <ul v-if="harvestCandidates.length" class="skills-list">
+        <li v-for="c in harvestCandidates" :key="c.name" class="skills-list-item">
+          <label class="skills-check">
+            <input v-model="harvestSelected[c.name]" type="checkbox" :disabled="c.alreadyInLibrary" />
+            <span>
+              <strong>{{ c.name }}</strong>
+              <span class="skills-list-meta">
+                {{ c.path }}
+                <template v-if="c.alreadyInLibrary"> · {{ t("ai.harvest.alreadyIn") }}</template>
+              </span>
+            </span>
+          </label>
+        </li>
+      </ul>
     </div>
 
     <div class="fluent-surface skills-block">
@@ -288,9 +422,16 @@ onMounted(() => {
             <button
               type="button"
               class="fluent-control"
-              @click.stop="deploySkill(skill.name)"
+              @click.stop="deployGlobal(skill.name)"
             >
-              {{ t("ai.skills.deploy") }}
+              {{ t("ai.skills.deployGlobal") }}
+            </button>
+            <button
+              type="button"
+              class="fluent-control"
+              @click.stop="deployToProject(skill.name)"
+            >
+              {{ t("ai.skills.addToProject") }}
             </button>
             <button
               type="button"
@@ -347,6 +488,7 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: var(--fluent-space-sm);
+  align-items: center;
 }
 
 .skills-grow {
@@ -374,35 +516,31 @@ onMounted(() => {
 .skills-list-item {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--fluent-space-sm);
+  flex-wrap: wrap;
   padding: var(--fluent-space-sm) var(--fluent-space-md);
   border-radius: var(--fluent-radius-md);
   background: var(--fluent-color-fill-subtle);
-  color: var(--fluent-color-text-primary);
   cursor: pointer;
-}
-
-.skills-list-item:hover {
-  background: var(--fluent-color-fill-control-hover);
 }
 
 .skills-list-item--active {
   background: var(--fluent-color-fill-selected);
-  font-weight: var(--fluent-font-weight-semibold);
   box-shadow: inset 3px 0 0 var(--fluent-color-stroke-accent-soft);
 }
 
 .skills-list-main {
-  flex: 1;
-  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
-.skills-list-wrap {
+.skills-check {
   display: flex;
-  flex-direction: column;
+  align-items: flex-start;
   gap: var(--fluent-space-sm);
+  cursor: pointer;
 }
 </style>

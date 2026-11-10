@@ -231,11 +231,15 @@ health_get,
                     #[cfg(feature = "ai-addon")]
                     ai::ai_agent_targets_set_enabled,
                     #[cfg(feature = "ai-addon")]
+                    ai::ai_agent_targets_set_default_in_projects,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_agent_targets_update,
                     #[cfg(feature = "ai-addon")]
                     ai::ai_agent_targets_upsert_custom,
                     #[cfg(feature = "ai-addon")]
                     ai::ai_agent_targets_remove,
+                    #[cfg(feature = "ai-addon")]
+                    ai::ai_skill_deploy_mode_set,
                     #[cfg(feature = "ai-addon")]
                     ai::ai_skills_library_get,
                     #[cfg(feature = "ai-addon")]
@@ -262,6 +266,18 @@ health_get,
                     ai::ai_mcp_deploy,
                     #[cfg(feature = "ai-addon")]
                     ai::ai_mcp_undeploy,
+                    #[cfg(feature = "ai-addon")]
+                    ai::ai_harvest_mcp_scan,
+                    #[cfg(feature = "ai-addon")]
+                    ai::ai_harvest_mcp_import,
+                    #[cfg(feature = "ai-addon")]
+                    ai::ai_harvest_skills_scan,
+                    #[cfg(feature = "ai-addon")]
+                    ai::ai_harvest_skills_import,
+                    #[cfg(feature = "ai-addon")]
+                    ai::ai_project_ai_get,
+                    #[cfg(feature = "ai-addon")]
+                    ai::ai_project_ai_set_enabled_agents,
                     #[cfg(feature = "ai-addon")]
                     ai::ai_harness_init,
                     #[cfg(feature = "ai-addon")]

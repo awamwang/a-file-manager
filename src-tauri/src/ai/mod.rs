@@ -17,8 +17,10 @@
 mod agents;
 mod deploy;
 mod harness;
+mod harvest;
 mod mcp;
 mod open_editor;
+mod project_ai;
 mod providers;
 mod skills;
 
@@ -37,7 +39,7 @@ use tauri::Manager;
 pub const AI_MENU_SECTION_IDS: &[&str] =
     &["providers", "mcp", "skills", "agents", "harness"];
 
-pub const AI_ADDON_SHELL_VERSION: u32 = 7;
+pub const AI_ADDON_SHELL_VERSION: u32 = 8;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -108,6 +110,31 @@ pub fn ai_agent_targets_set_enabled(
     let dir = config_dir(&app)?;
     let current = agents::load_from_path(&dir)?;
     let next = agents::set_enabled(&current, &id, enabled)?;
+    agents::save_to_path(&dir, &next)?;
+    Ok(next)
+}
+
+#[tauri::command]
+pub fn ai_agent_targets_set_default_in_projects(
+    app: AppHandle,
+    id: String,
+    default_in_projects: bool,
+) -> Result<AiConfigDocument, String> {
+    let dir = config_dir(&app)?;
+    let current = agents::load_from_path(&dir)?;
+    let next = agents::set_default_in_projects(&current, &id, default_in_projects)?;
+    agents::save_to_path(&dir, &next)?;
+    Ok(next)
+}
+
+#[tauri::command]
+pub fn ai_skill_deploy_mode_set(
+    app: AppHandle,
+    mode: String,
+) -> Result<AiConfigDocument, String> {
+    let dir = config_dir(&app)?;
+    let current = agents::load_from_path(&dir)?;
+    let next = agents::set_skill_deploy_mode(&current, &mode)?;
     agents::save_to_path(&dir, &next)?;
     Ok(next)
 }
@@ -311,6 +338,75 @@ pub fn ai_mcp_undeploy(
     let dir = config_dir(&app)?;
     let doc = agents::load_from_path(&dir)?;
     mcp::undeploy_entry(&doc, &entry_id, project_workspace.as_deref())
+}
+
+#[tauri::command]
+pub fn ai_harvest_mcp_scan(
+    app: AppHandle,
+    agent_id: String,
+) -> Result<harvest::HarvestMcpScanReport, String> {
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    harvest::scan_mcp_from_agent(&doc, &agent_id)
+}
+
+#[tauri::command]
+pub fn ai_harvest_mcp_import(
+    app: AppHandle,
+    candidates: Vec<harvest::HarvestMcpCandidate>,
+) -> Result<(AiConfigDocument, mcp::McpImportReport), String> {
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    let (next, report) = harvest::import_mcp_candidates(&doc, &candidates)?;
+    agents::save_to_path(&dir, &next)?;
+    Ok((next, report))
+}
+
+#[tauri::command]
+pub fn ai_harvest_skills_scan(
+    app: AppHandle,
+    agent_id: String,
+) -> Result<harvest::HarvestSkillScanReport, String> {
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    harvest::scan_skills_from_agent(&dir, &doc, &agent_id)
+}
+
+#[tauri::command]
+pub fn ai_harvest_skills_import(
+    app: AppHandle,
+    candidates: Vec<harvest::HarvestSkillCandidate>,
+) -> Result<(skills::SkillsLibraryStatus, Vec<String>, Vec<String>), String> {
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    let (status, imported, skipped) =
+        harvest::import_skill_candidates(&dir, &doc, &candidates)?;
+    Ok((
+        status,
+        imported.into_iter().map(|s| s.name).collect(),
+        skipped,
+    ))
+}
+
+#[tauri::command]
+pub fn ai_project_ai_get(
+    app: AppHandle,
+    workspace_path: String,
+) -> Result<project_ai::AiProjectDocument, String> {
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    project_ai::load_or_init(&workspace_path, &doc)
+}
+
+#[tauri::command]
+pub fn ai_project_ai_set_enabled_agents(
+    app: AppHandle,
+    workspace_path: String,
+    enabled_agent_ids: Vec<String>,
+) -> Result<project_ai::AiProjectDocument, String> {
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    project_ai::set_enabled_agents(&workspace_path, &doc, enabled_agent_ids)
 }
 
 /// Explicit Harness / Superpower init on a Project Workspace (ADR 0008).

@@ -6,9 +6,14 @@ import type {
   AgentTargetPatch,
   AiAddonStatus,
   AiConfigDocument,
+  AiProjectDocument,
   AiProjectOpenEditorReport,
   AiProviderPatch,
   HarnessInitReport,
+  HarvestMcpCandidate,
+  HarvestMcpScanReport,
+  HarvestSkillCandidate,
+  HarvestSkillScanReport,
   LibrarySkill,
   McpDeployReport,
   McpImportReport,
@@ -37,6 +42,16 @@ export function aiAgentTargetsSetEnabled(
   return invoke<AiConfigDocument>("ai_agent_targets_set_enabled", { id, enabled });
 }
 
+export function aiAgentTargetsSetDefaultInProjects(
+  id: string,
+  defaultInProjects: boolean,
+): Promise<AiConfigDocument> {
+  return invoke<AiConfigDocument>("ai_agent_targets_set_default_in_projects", {
+    id,
+    defaultInProjects,
+  });
+}
+
 export function aiAgentTargetsUpdate(
   id: string,
   patch: AgentTargetPatch,
@@ -58,6 +73,10 @@ export function aiAgentTargetsUpsertCustom(args: {
 
 export function aiAgentTargetsRemove(id: string): Promise<AiConfigDocument> {
   return invoke<AiConfigDocument>("ai_agent_targets_remove", { id });
+}
+
+export function aiSkillDeployModeSet(mode: string): Promise<AiConfigDocument> {
+  return invoke<AiConfigDocument>("ai_skill_deploy_mode_set", { mode });
 }
 
 export function aiSkillsLibraryGet(): Promise<SkillsLibraryStatus> {
@@ -134,6 +153,42 @@ export function aiMcpUndeploy(
   projectWorkspace: string | null,
 ): Promise<McpUndeployReport> {
   return invoke<McpUndeployReport>("ai_mcp_undeploy", { entryId, projectWorkspace });
+}
+
+export function aiHarvestMcpScan(agentId: string): Promise<HarvestMcpScanReport> {
+  return invoke<HarvestMcpScanReport>("ai_harvest_mcp_scan", { agentId });
+}
+
+export function aiHarvestMcpImport(
+  candidates: HarvestMcpCandidate[],
+): Promise<[AiConfigDocument, McpImportReport]> {
+  return invoke<[AiConfigDocument, McpImportReport]>("ai_harvest_mcp_import", { candidates });
+}
+
+export function aiHarvestSkillsScan(agentId: string): Promise<HarvestSkillScanReport> {
+  return invoke<HarvestSkillScanReport>("ai_harvest_skills_scan", { agentId });
+}
+
+export function aiHarvestSkillsImport(
+  candidates: HarvestSkillCandidate[],
+): Promise<[SkillsLibraryStatus, string[], string[]]> {
+  return invoke<[SkillsLibraryStatus, string[], string[]]>("ai_harvest_skills_import", {
+    candidates,
+  });
+}
+
+export function aiProjectAiGet(workspacePath: string): Promise<AiProjectDocument> {
+  return invoke<AiProjectDocument>("ai_project_ai_get", { workspacePath });
+}
+
+export function aiProjectAiSetEnabledAgents(
+  workspacePath: string,
+  enabledAgentIds: string[],
+): Promise<AiProjectDocument> {
+  return invoke<AiProjectDocument>("ai_project_ai_set_enabled_agents", {
+    workspacePath,
+    enabledAgentIds,
+  });
 }
 
 export function aiProvidersList(): Promise<AiConfigDocument> {

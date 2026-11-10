@@ -9,8 +9,9 @@
 //! merge into the catalog. Existing ids are left alone (no wipe of user edits).
 
 use super::agents::{
-    expand_agent_path, AgentTarget, AiConfigDocument, McpCatalogEntry, AI_CONFIG_SCHEMA_VERSION,
+    expand_agent_path, AiConfigDocument, McpCatalogEntry, AI_CONFIG_SCHEMA_VERSION,
 };
+use super::project_ai::{resolve_global_agents, resolve_project_agents};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::fs;
@@ -315,6 +316,27 @@ fn merge_into_file(path: &Path, key: &str, server: &Value, remove: bool) -> Resu
     write_mcp_file(path, &root)
 }
 
+fn resolve_mcp_agents<'a>(
+    document: &'a AiConfigDocument,
+    project_workspace: Option<&str>,
+) -> Result<Vec<&'a crate::ai::agents::AgentTarget>, String> {
+    if let Some(ws) = project_workspace {
+        let agents = resolve_project_agents(document, ws)?;
+        if agents.is_empty() {
+            return Err(ERR_MCP_DEPLOY_NO_ENABLED.to_string());
+        }
+        Ok(agents)
+    } else {
+        let agents = resolve_global_agents(document);
+        if agents.is_empty() {
+            return Err(ERR_MCP_DEPLOY_NO_ENABLED.to_string());
+        }
+        Ok(agents)
+    }
+}
+
+/// 部署 MCP 目录条目。
+/// `project_workspace = None` → 全局部署；`Some` → 仅项目相对 MCP 路径（按项目启用集）。
 pub fn deploy_entry(
     document: &AiConfigDocument,
     entry_id: &str,
@@ -329,41 +351,39 @@ pub fn deploy_entry(
     let server: Value = serde_json::from_str(&entry.server_json)
         .map_err(|err| format!("Corrupt catalog server JSON: {err}"))?;
     let key = managed_key(&id);
-
-    let enabled: Vec<&AgentTarget> = document.agent_targets.iter().filter(|a| a.enabled).collect();
-    if enabled.is_empty() {
-        return Err(ERR_MCP_DEPLOY_NO_ENABLED.to_string());
-    }
+    let agents = resolve_mcp_agents(document, project_workspace)?;
 
     let mut written = Vec::new();
     let mut skipped = Vec::new();
 
-    for agent in enabled {
-        let global = expand_agent_path(&agent.global_mcp_path);
-        if global.is_empty() {
-            skipped.push(format!("{}: empty global MCP path", agent.id));
-        } else {
-            let path = PathBuf::from(&global);
-            match merge_into_file(&path, &key, &server, false) {
-                Ok(()) => written.push(normalize(&path)),
-                Err(err) => skipped.push(format!("{}: {err}", agent.id)),
-            }
+    if let Some(ws) = project_workspace {
+        let ws_path = PathBuf::from(ws.trim());
+        if !ws_path.is_dir() {
+            return Err(ERR_MCP_TARGET_INVALID.to_string());
         }
-
-        if let Some(ws) = project_workspace {
+        for agent in agents {
             let rel = agent.project_mcp_path.trim();
             if rel.is_empty() {
                 skipped.push(format!("{}: empty project MCP path", agent.id));
                 continue;
             }
-            let ws_path = PathBuf::from(ws.trim());
-            if !ws_path.is_dir() {
-                return Err(ERR_MCP_TARGET_INVALID.to_string());
-            }
             let path = ws_path.join(rel.replace('/', "\\"));
             match merge_into_file(&path, &key, &server, false) {
                 Ok(()) => written.push(normalize(&path)),
                 Err(err) => skipped.push(format!("{}@project: {err}", agent.id)),
+            }
+        }
+    } else {
+        for agent in agents {
+            let global = expand_agent_path(&agent.global_mcp_path);
+            if global.is_empty() {
+                skipped.push(format!("{}: empty global MCP path", agent.id));
+                continue;
+            }
+            let path = PathBuf::from(&global);
+            match merge_into_file(&path, &key, &server, false) {
+                Ok(()) => written.push(normalize(&path)),
+                Err(err) => skipped.push(format!("{}: {err}", agent.id)),
             }
         }
     }
@@ -385,23 +405,13 @@ pub fn undeploy_entry(
         return Err(ERR_MCP_UNKNOWN.to_string());
     }
     let key = managed_key(&id);
-    let enabled: Vec<&AgentTarget> = document.agent_targets.iter().filter(|a| a.enabled).collect();
+    let agents = resolve_mcp_agents(document, project_workspace)?;
     let mut written = Vec::new();
     let mut skipped = Vec::new();
     let dummy = json!({});
 
-    for agent in enabled {
-        let global = expand_agent_path(&agent.global_mcp_path);
-        if !global.is_empty() {
-            let path = PathBuf::from(&global);
-            if path.exists() {
-                match merge_into_file(&path, &key, &dummy, true) {
-                    Ok(()) => written.push(normalize(&path)),
-                    Err(err) => skipped.push(format!("{}: {err}", agent.id)),
-                }
-            }
-        }
-        if let Some(ws) = project_workspace {
+    if let Some(ws) = project_workspace {
+        for agent in agents {
             let rel = agent.project_mcp_path.trim();
             if rel.is_empty() {
                 continue;
@@ -411,6 +421,20 @@ pub fn undeploy_entry(
                 match merge_into_file(&path, &key, &dummy, true) {
                     Ok(()) => written.push(normalize(&path)),
                     Err(err) => skipped.push(format!("{}@project: {err}", agent.id)),
+                }
+            }
+        }
+    } else {
+        for agent in agents {
+            let global = expand_agent_path(&agent.global_mcp_path);
+            if global.is_empty() {
+                continue;
+            }
+            let path = PathBuf::from(&global);
+            if path.exists() {
+                match merge_into_file(&path, &key, &dummy, true) {
+                    Ok(()) => written.push(normalize(&path)),
+                    Err(err) => skipped.push(format!("{}: {err}", agent.id)),
                 }
             }
         }

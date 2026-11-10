@@ -11,6 +11,7 @@ import {
   aiAgentTargetsDiscover,
   aiAgentTargetsList,
   aiAgentTargetsRemove,
+  aiAgentTargetsSetDefaultInProjects,
   aiAgentTargetsSetEnabled,
   aiAgentTargetsUpdate,
   aiAgentTargetsUpsertCustom,
@@ -124,6 +125,18 @@ async function toggleEnabled(target: AgentTarget) {
   error.value = null;
   try {
     document.value = await aiAgentTargetsSetEnabled(target.id, !target.enabled);
+  } catch (err) {
+    error.value = mapError(err);
+  }
+}
+
+async function toggleDefaultInProjects(target: AgentTarget) {
+  error.value = null;
+  try {
+    document.value = await aiAgentTargetsSetDefaultInProjects(
+      target.id,
+      !target.defaultInProjects,
+    );
   } catch (err) {
     error.value = mapError(err);
   }
@@ -295,18 +308,32 @@ onMounted(() => {
               <template v-if="agent.discovered"> · {{ t("ai.agents.badgeDiscovered") }}</template>
             </span>
           </div>
-          <button
-            type="button"
-            class="fluent-control agents-enable"
-            @click.stop="toggleEnabled(agent)"
-          >
-            {{ agent.enabled ? t("ai.agents.disable") : t("ai.agents.enable") }}
-          </button>
+          <div class="agents-list-toggles">
+            <button
+              type="button"
+              class="fluent-control agents-enable"
+              @click.stop="toggleEnabled(agent)"
+            >
+              {{ agent.enabled ? t("ai.agents.disable") : t("ai.agents.enable") }}
+            </button>
+            <button
+              type="button"
+              class="fluent-control agents-enable"
+              @click.stop="toggleDefaultInProjects(agent)"
+            >
+              {{
+                agent.defaultInProjects
+                  ? t("ai.agents.defaultInProjectsOn")
+                  : t("ai.agents.defaultInProjectsOff")
+              }}
+            </button>
+          </div>
         </li>
       </ul>
 
       <div v-if="selected" class="fluent-surface agents-detail">
         <h3 class="agents-subhead">{{ selected.displayName }}</h3>
+        <p class="agents-hint">{{ t("ai.agents.defaultInProjectsHint") }}</p>
         <label class="agents-field">
           <span>{{ t("ai.agents.fieldName") }}</span>
           <input v-model="draftName" class="fluent-control" type="text" />
@@ -443,8 +470,16 @@ onMounted(() => {
   font-size: var(--fluent-font-size-caption);
 }
 
+.agents-list-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 .agents-enable {
   flex-shrink: 0;
+  font-size: var(--fluent-font-size-caption);
 }
 
 .agents-detail,

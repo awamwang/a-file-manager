@@ -13,7 +13,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub const AI_CONFIG_FILE_NAME: &str = "ai-config.json";
 /// One-shot backup of unparseable non-empty `ai-config.json` (AIA-277).
 pub const AI_CONFIG_CORRUPT_BACKUP_NAME: &str = "ai-config.json.corrupt.bak";
-pub const AI_CONFIG_SCHEMA_VERSION: u32 = 1;
+/// v2：Agent Target 增加 `defaultInProjects`；AI 配置增加 `skillDeployMode`（ADR 0010 / 0011）。
+pub const AI_CONFIG_SCHEMA_VERSION: u32 = 2;
+
+pub const SKILL_DEPLOY_MODE_JUNCTION: &str = "junction";
+pub const SKILL_DEPLOY_MODE_COPY: &str = "copy";
 
 pub const ERR_AGENT_ID_EMPTY: &str = "AI_AGENT_ID_EMPTY";
 pub const ERR_AGENT_ID_INVALID: &str = "AI_AGENT_ID_INVALID";
@@ -32,6 +36,9 @@ pub struct AgentTarget {
     /// `"builtin"` | `"custom"`.
     pub kind: String,
     pub enabled: bool,
+    /// 新项目「项目 Agent 启用集」的默认勾选（ADR 0010）。缺省迁移时对齐 `enabled`。
+    #[serde(default)]
+    pub default_in_projects: bool,
     /// True when global skills dir and/or global MCP path exists on disk.
     pub discovered: bool,
     pub global_skills_dir: String,
@@ -49,6 +56,7 @@ pub struct AgentTarget {
 pub struct AgentTargetPatch {
     pub display_name: Option<String>,
     pub enabled: Option<bool>,
+    pub default_in_projects: Option<bool>,
     pub global_skills_dir: Option<String>,
     pub project_skills_dir: Option<String>,
     pub global_mcp_path: Option<String>,
@@ -70,6 +78,20 @@ pub struct AiConfigDocument {
     /// AI model Providers MVP (A7) — presets + Compatible; not FS Providers.
     #[serde(default)]
     pub ai_providers: Vec<crate::ai::providers::AiProvider>,
+    /// Skill 部署方式：`junction`（默认）| `copy`（ADR 0011）。
+    #[serde(default = "default_skill_deploy_mode")]
+    pub skill_deploy_mode: String,
+}
+
+fn default_skill_deploy_mode() -> String {
+    SKILL_DEPLOY_MODE_JUNCTION.to_string()
+}
+
+pub fn normalize_skill_deploy_mode(raw: &str) -> String {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        SKILL_DEPLOY_MODE_COPY => SKILL_DEPLOY_MODE_COPY.to_string(),
+        _ => SKILL_DEPLOY_MODE_JUNCTION.to_string(),
+    }
 }
 
 /// One public MCP server entry (stored in APPDATA AI config).
@@ -92,6 +114,7 @@ impl AiConfigDocument {
             skills_library_root: String::new(),
             mcp_catalog: Vec::new(),
             ai_providers: Vec::new(),
+            skill_deploy_mode: default_skill_deploy_mode(),
         }
     }
 }
@@ -339,6 +362,7 @@ fn builtin_target(def: &BuiltinDef, stamp: u64) -> AgentTarget {
         display_name: def.display_name.to_string(),
         kind: "builtin".to_string(),
         enabled: false,
+        default_in_projects: false,
         discovered: false,
         global_skills_dir: def.global_skills_dir.to_string(),
         project_skills_dir: def.project_skills_dir.to_string(),
@@ -356,7 +380,9 @@ fn builtin_target(def: &BuiltinDef, stamp: u64) -> AgentTarget {
 pub fn sync_builtins_and_discover(document: &AiConfigDocument) -> AiConfigDocument {
     let stamp = now_millis();
     let mut next = document.clone();
+    let migrate_defaults = next.schema_version < 2;
     next.schema_version = AI_CONFIG_SCHEMA_VERSION;
+    next.skill_deploy_mode = normalize_skill_deploy_mode(&next.skill_deploy_mode);
 
     for def in BUILTIN_DEFS {
         if let Some(existing) = next.agent_targets.iter_mut().find(|t| t.id == def.id) {
@@ -371,6 +397,10 @@ pub fn sync_builtins_and_discover(document: &AiConfigDocument) -> AiConfigDocume
     }
 
     for target in &mut next.agent_targets {
+        if migrate_defaults {
+            // ADR 0010：首次出现时 defaultInProjects = enabled。
+            target.default_in_projects = target.enabled;
+        }
         refresh_discovered(target);
     }
 
@@ -445,6 +475,32 @@ pub fn set_enabled(
     Ok(next)
 }
 
+pub fn set_default_in_projects(
+    document: &AiConfigDocument,
+    id: &str,
+    default_in_projects: bool,
+) -> Result<AiConfigDocument, String> {
+    let mut next = document.clone();
+    let target = next
+        .agent_targets
+        .iter_mut()
+        .find(|t| t.id == id)
+        .ok_or_else(|| ERR_AGENT_UNKNOWN.to_string())?;
+    target.default_in_projects = default_in_projects;
+    target.updated_at = now_millis();
+    refresh_discovered(target);
+    Ok(next)
+}
+
+pub fn set_skill_deploy_mode(
+    document: &AiConfigDocument,
+    mode: &str,
+) -> Result<AiConfigDocument, String> {
+    let mut next = document.clone();
+    next.skill_deploy_mode = normalize_skill_deploy_mode(mode);
+    Ok(next)
+}
+
 pub fn update_target(
     document: &AiConfigDocument,
     id: &str,
@@ -466,6 +522,9 @@ pub fn update_target(
     }
     if let Some(enabled) = patch.enabled {
         target.enabled = enabled;
+    }
+    if let Some(default_in_projects) = patch.default_in_projects {
+        target.default_in_projects = default_in_projects;
     }
     if let Some(v) = patch.global_skills_dir {
         target.global_skills_dir = v.trim().to_string();
@@ -549,6 +608,7 @@ pub fn upsert_custom(
         display_name: name.to_string(),
         kind: "custom".to_string(),
         enabled: false,
+        default_in_projects: false,
         discovered: false,
         global_skills_dir: global_skills_dir.trim().to_string(),
         project_skills_dir: project_skills_dir.trim().replace('/', "\\"),
@@ -619,6 +679,7 @@ mod tests {
             AgentTargetPatch {
                 display_name: None,
                 enabled: None,
+                default_in_projects: None,
                 global_skills_dir: None,
                 project_skills_dir: None,
                 global_mcp_path: None,

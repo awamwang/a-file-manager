@@ -22,12 +22,14 @@ export type AiMenuSectionDef = {
   icon: "cloud" | "puzzle" | "link" | "viewAll" | "flash";
 };
 
-/** Agent Target registry row (ADR 0006). */
+/** Agent Target registry row (ADR 0006 / 0010). */
 export type AgentTarget = {
   id: string;
   displayName: string;
   kind: "builtin" | "custom" | string;
   enabled: boolean;
+  /** 新项目启用集的默认勾选。 */
+  defaultInProjects: boolean;
   discovered: boolean;
   globalSkillsDir: string;
   projectSkillsDir: string;
@@ -59,17 +61,21 @@ export type AiProvider = {
   updatedAt: number;
 };
 
+export type SkillDeployMode = "junction" | "copy";
+
 export type AiConfigDocument = {
   schemaVersion: number;
   agentTargets: AgentTarget[];
   skillsLibraryRoot?: string;
   mcpCatalog?: McpCatalogEntry[];
   aiProviders?: AiProvider[];
+  skillDeployMode?: SkillDeployMode | string;
 };
 
 export type AgentTargetPatch = {
   displayName?: string | null;
   enabled?: boolean | null;
+  defaultInProjects?: boolean | null;
   globalSkillsDir?: string | null;
   projectSkillsDir?: string | null;
   globalMcpPath?: string | null;
@@ -134,4 +140,37 @@ export type AiProjectOpenEditorReport = {
   mode: string;
   success: boolean;
   error: string | null;
+};
+
+export type AiProjectDocument = {
+  schemaVersion: number;
+  enabledAgentIds: string[];
+  updatedAt: number;
+};
+
+export type HarvestMcpCandidate = {
+  id: string;
+  displayName: string;
+  serverJson: string;
+  alreadyInCatalog: boolean;
+  sourceAgentId: string;
+};
+
+export type HarvestSkillCandidate = {
+  name: string;
+  path: string;
+  alreadyInLibrary: boolean;
+  sourceAgentId: string;
+};
+
+export type HarvestMcpScanReport = {
+  agentId: string;
+  sourcePath: string;
+  candidates: HarvestMcpCandidate[];
+};
+
+export type HarvestSkillScanReport = {
+  agentId: string;
+  sourcePath: string;
+  candidates: HarvestSkillCandidate[];
 };
