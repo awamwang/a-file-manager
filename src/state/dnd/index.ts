@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-/** DnD 概念共址：模式 / 路径解析 / hover / 落入表面 / 向外拖出（壳内策略；跨应用见 FIL-7）。 */
+/** DnD 概念共址：模式 / 路径解析 / hover / 落入表面 / Hybrid 向外拖出（Explorer OLE 互通）。 */
 
 export { dropTransferMode, type DropMode } from "./mode";
 export {

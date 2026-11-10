@@ -2,6 +2,8 @@
 
 Windows-first Hybrid outbound (HTML5 in-window → OLE/`CF_HDROP` on leave) and shell inbound. Related: AIA-240 (COPY|MOVE|LINK), AIA-261/264/266/268/280 (focus).
 
+**Status (FIL-7 MVP):** landed. Outbound uses `src/state/dnd/dragOut.ts` + patched `DoDragDrop`; inbound uses `dnd/paths` + `dnd/surface` (`commitFolderDrop`). Focus policy lives in `drag_focus.rs`. Guard: `npm run test:cross-app-dnd`.
+
 ## 8. Outbound focus — drag vs click (AIA-261 → AIA-264 → AIA-266 → AIA-268 → AIA-280)
 
 **Problem.** Dragging a file from a background AFM window onto a foreground drop target (Explorer) must not raise AFM over the target. AIA-261 covered `MA_NOACTIVATE` + OLE prior-FG restore when FG was still the target at `DoDragDrop` start. AIA-264 added press-time prior FG + sticky restore after selection mousedown raised AFM first. AIA-266 deferred background row focus until mouse-up. Dogfood after `2983def` still raised on **press**: WebView2 often keeps `document.hasFocus()` while OS FG is Explorer, so the background-only `preventDefault` gate still allowed `tabindex` focus → host raise/z-order bump. AIA-268 then always `preventDefault` on row mousedown — that **cancelled Chromium HTML5 dragstart** entirely (AIA-280).
