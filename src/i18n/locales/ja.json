@@ -502,7 +502,8 @@
     "statusOk": "正常",
     "title": "プロバイダー",
     "uriPlaceholder": "プロバイダーのパスを貼り付け（クラウドやナレッジのルートなど）",
-    "openUnsupported": "この項目はプロバイダーからまだ開けません。"
+    "openUnsupported": "この項目はプロバイダーからまだ開けません。",
+    "openInExplorer": "エクスプローラーで開く"
   },
   "settings": {
     "fields": {
@@ -964,7 +965,8 @@
       "folders": "フォルダー",
       "recent": "最近",
       "favorites": "お気に入り",
-      "drives": "ドライブ"
+      "drives": "ドライブ",
+      "providers": "プロバイダー"
     },
     "folders": {
       "home": "ホーム",
@@ -977,8 +979,10 @@
     },
     "drive": "ローカル ディスク ({letter}:)",
     "driveNamed": "{label} ({letter}:)",
+    "providersRoot": "すべてのプロバイダー",
     "emptyFolders": "よく使うフォルダーが見つかりません",
-    "emptyDrives": "ドライブが見つかりません"
+    "emptyDrives": "ドライブが見つかりません",
+    "emptyProviders": "利用可能なプロバイダーはまだありません"
   },
   "recycleBin": {
     "tabName": "ごみ箱",

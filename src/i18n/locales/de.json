@@ -502,7 +502,8 @@
     "statusOk": "ok",
     "title": "Anbieter",
     "uriPlaceholder": "Anbieterpfad einfügen (z. B. Cloud- oder Wissenswurzel)",
-    "openUnsupported": "Dieser Eintrag lässt sich aus Anbietern noch nicht öffnen."
+    "openUnsupported": "Dieser Eintrag lässt sich aus Anbietern noch nicht öffnen.",
+    "openInExplorer": "Im Explorer oeffnen"
   },
   "settings": {
     "fields": {
@@ -964,7 +965,8 @@
       "folders": "Ordner",
       "recent": "Zuletzt verwendet",
       "favorites": "Favoriten",
-      "drives": "Laufwerke"
+      "drives": "Laufwerke",
+      "providers": "Anbieter"
     },
     "folders": {
       "home": "Startordner",
@@ -977,8 +979,10 @@
     },
     "drive": "Lokaler Datentraeger ({letter}:)",
     "driveNamed": "{label} ({letter}:)",
+    "providersRoot": "Alle Anbieter",
     "emptyFolders": "Keine gaengigen Ordner gefunden",
-    "emptyDrives": "Keine Laufwerke gefunden"
+    "emptyDrives": "Keine Laufwerke gefunden",
+    "emptyProviders": "Noch keine Anbieter verfuegbar"
   },
   "recycleBin": {
     "tabName": "Papierkorb",

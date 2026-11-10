@@ -46,6 +46,7 @@ import {
   currentPath,
   flushOpenStatePersist,
   goUp,
+  hydrateNavigatorListing,
   listError,
   listLoading,
   listing,
@@ -79,6 +80,7 @@ import {
   resolveHomePath,
 } from "../../state/guide";
 import { isRecyclePath, RECYCLE_PATH } from "../../state/recycle";
+import { isProviderPath, providerLeafName, PROVIDER_ROOT } from "../../state/provider";
 import { selectedPaths } from "../../state/navigatorSelection";
 import { formatBytes, selectionByteSize } from "../../state/formatBytes";
 import {
@@ -183,7 +185,11 @@ const unlisteners: UnlistenFn[] = [];
 
 const breadcrumbs = computed(() => {
   void locale.value;
-  return buildNavigatorBreadcrumbs(currentPath.value, t("guide.rootLabel"));
+  return buildNavigatorBreadcrumbs(
+    currentPath.value,
+    t("guide.rootLabel"),
+    t("guide.providersRoot"),
+  );
 });
 const isNavigatorRoute = computed(
   () => route.path === "/navigator" || route.path === "/",
@@ -210,11 +216,11 @@ function closePlacesMenu() {
   clearPlacesFileDropHover();
 }
 
-/** Folder destinations only — files / guide / recycle match tab reject rules. */
+/** Folder destinations only — files / guide / recycle / provider match tab reject rules. */
 function placesAcceptsFileDrop(path: string | null | undefined, isDir: boolean): boolean {
   if (!isDir) return false;
   if (!path || !path.trim()) return false;
-  if (isGuidePath(path) || isRecyclePath(path)) return false;
+  if (isGuidePath(path) || isRecyclePath(path) || isProviderPath(path)) return false;
   return true;
 }
 
@@ -425,9 +431,9 @@ async function toggleCrumbMenu(
   }
 
   try {
-    const listing = await invoke<{
-      entries: Array<{ name: string; path: string; kind: string }>;
-    }>("navigator_list", { path: parentPath });
+    const listing = hydrateNavigatorListing(
+      await invoke("navigator_list", { path: parentPath }),
+    );
     crumbSiblings.value = listing.entries
       .filter((entry) => entry.kind === "dir")
       .map((entry) => ({ name: entry.name, path: entry.path }));
@@ -849,7 +855,13 @@ watch(
 const freeDiskText = ref("");
 
 async function refreshFreeDisk(path: string) {
-  if (!path || isGuidePath(path) || isRecyclePath(path) || path.toLowerCase().startsWith("afm://")) {
+  if (
+    !path ||
+    isGuidePath(path) ||
+    isRecyclePath(path) ||
+    isProviderPath(path) ||
+    path.toLowerCase().startsWith("afm://")
+  ) {
     freeDiskText.value = "";
     return;
   }
@@ -1073,6 +1085,12 @@ function openTab(id: string, path: string) {
 function tabLabel(path: string) {
   if (isGuidePath(path)) return t("guide.tabName");
   if (isRecyclePath(path)) return t("recycleBin.tabName");
+  if (isProviderPath(path)) {
+    if (path.trim().toLowerCase() === PROVIDER_ROOT) {
+      return t("guide.providersRoot");
+    }
+    return providerLeafName(path) || t("nav.providers");
+  }
   const parts = path.replace(/\\/g, "/").replace(/\/+$/, "").split("/");
   return parts[parts.length - 1] || path;
 }
@@ -1173,7 +1191,7 @@ function clearTabFileDropHover() {
 
 function tabAcceptsFileDrop(path: string | null | undefined): boolean {
   if (!path || !path.trim()) return false;
-  if (isGuidePath(path) || isRecyclePath(path)) return false;
+  if (isGuidePath(path) || isRecyclePath(path) || isProviderPath(path)) return false;
   return true;
 }
 

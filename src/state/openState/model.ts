@@ -35,8 +35,20 @@ export { toNativeFsPath, normalizePathKey } from "../pathKey";
 
 export function displayNameFromPath(path: string): string {
   const native = toNativeFsPath(path);
-  if (native.toLowerCase() === "afm://guide") {
+  const lower = native.toLowerCase();
+  if (lower === "afm://guide") {
     return "Guide";
+  }
+  if (lower === "afm://recycle-bin") {
+    return "Recycle Bin";
+  }
+  if (lower === "awam://root" || lower === "awam://") {
+    return "Providers";
+  }
+  if (lower.startsWith("awam://")) {
+    const rest = native.slice("awam://".length);
+    const parts = rest.split("/").filter(Boolean);
+    return parts[parts.length - 1] || "Providers";
   }
   const parts = native.split(/[/\\]/);
   return parts[parts.length - 1] || path || "Tab";
@@ -53,11 +65,15 @@ export function createEmptyOpenState(): WorkGroupOpenState {
 export function createDirectoryTab(path: string, id?: string): WorkGroupOpenStateTab {
   const native = toNativeFsPath(path);
   const lower = native.toLowerCase();
+  let type = "directory";
+  if (lower === "afm://guide") type = "guide";
+  else if (lower === "afm://recycle-bin") type = "recycle";
+  else if (lower.startsWith("awam://")) type = "provider";
   return {
     id: id ?? nextTabId(),
     name: displayNameFromPath(native),
     path: native,
-    type: lower === "afm://guide" ? "guide" : "directory",
+    type,
   };
 }
 
@@ -340,7 +356,11 @@ export function openStateAfterNavigate(
   const pane = group[next.currentTabIndex] ?? group[0];
   pane.path = native;
   pane.name = displayNameFromPath(native);
-  pane.type = native.toLowerCase() === "afm://guide" ? "guide" : "directory";
+  const lower = native.toLowerCase();
+  if (lower === "afm://guide") pane.type = "guide";
+  else if (lower === "afm://recycle-bin") pane.type = "recycle";
+  else if (lower.startsWith("awam://")) pane.type = "provider";
+  else pane.type = "directory";
   return next;
 }
 

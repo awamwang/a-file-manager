@@ -23,6 +23,7 @@ import {
 } from "../state/folderContextMenu";
 import { isGuidePath } from "../state/guide";
 import { isRecyclePath } from "../state/recycle";
+import { isProviderPath } from "../state/provider";
 import { restoreRecyclePaths } from "../state/recycle";
 import NavigatorGuide from "../components/navigator/NavigatorGuide.vue";
 import { hydrateSettings } from "../state/settingsHydrate";
@@ -671,9 +672,12 @@ watch(secondaryPath, () => {
 });
 
 function requestIconsFor(paths: string[], priority = false) {
+  // Provider URI 无本地 shell 图标；走 Fluent 回退即可。
+  const localPaths = paths.filter((path) => !isProviderPath(path));
+  if (!localPaths.length) return;
   const size = VIEW_ICON_SIZE[navigatorViewMode.value];
   // Icon views: prefer system thumbnails for images; list/details use small shell icons.
-  requestShellIcons(paths, size, isIconView.value, { priority });
+  requestShellIcons(localPaths, size, isIconView.value, { priority });
 }
 
 /** Only request shell icons / thumbnails for rows in (or near) the scroll viewport (AIA-182 / AIA-278). */
@@ -1577,6 +1581,7 @@ function onDragStart(event: DragEvent, entry: NavigatorEntry) {
 
 function onDragOver(event: DragEvent, entry: NavigatorEntry) {
   if (entry.kind !== "dir") return;
+  if (isProviderPath(entry.path) || isProviderPath(currentPath.value)) return;
   const mode = acceptFolderDragOver(event, entry.path, { rejectIfSelected: true });
   if (mode == null) return;
   dragOverPath.value = entry.path;
@@ -1589,7 +1594,9 @@ function onDragLeave(entry: NavigatorEntry) {
 }
 
 function onListDragOver(event: DragEvent, destPath: string | null | undefined) {
-  if (!destPath || isGuidePath(destPath) || isRecyclePath(destPath)) return;
+  if (!destPath || isGuidePath(destPath) || isRecyclePath(destPath) || isProviderPath(destPath)) {
+    return;
+  }
   // Row handlers stopPropagation when targeting a folder; background accepts drops.
   event.preventDefault();
   const mode = previewDropMode(event, destPath, previewSourcePaths(event));
@@ -1627,11 +1634,14 @@ async function transferDroppedPaths(
 
 async function onDrop(event: DragEvent, entry: NavigatorEntry) {
   if (entry.kind !== "dir") return;
+  if (isProviderPath(entry.path) || isProviderPath(currentPath.value)) return;
   await transferDroppedPaths(event, entry.path, entry.name);
 }
 
 async function onListDrop(event: DragEvent, destPath: string | null | undefined) {
-  if (!destPath || isGuidePath(destPath) || isRecyclePath(destPath)) return;
+  if (!destPath || isGuidePath(destPath) || isRecyclePath(destPath) || isProviderPath(destPath)) {
+    return;
+  }
   const base = destPath.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || destPath;
   await transferDroppedPaths(event, destPath, base);
 }

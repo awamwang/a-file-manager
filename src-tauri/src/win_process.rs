@@ -7,7 +7,7 @@
 
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 /// `CREATE_NO_WINDOW` — hide the console for helper/CLI child processes.
 #[cfg(windows)]
@@ -22,6 +22,22 @@ pub fn command(program: impl AsRef<OsStr>) -> Command {
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
     cmd
+}
+
+/// 终止进程及其子进程树（rclone→ssh 等）。失败时仍尝试普通 kill。
+pub fn kill_process_tree(pid: u32) {
+    #[cfg(windows)]
+    {
+        let _ = command("taskkill")
+            .args(["/F", "/T", "/PID", &pid.to_string()])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = pid;
+    }
 }
 
 /// Resolve a bare command name via `PATH` (+ `PATHEXT` on Windows) without

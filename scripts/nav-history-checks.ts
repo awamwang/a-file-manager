@@ -77,5 +77,13 @@ assert.equal(
   navigableParentPath("D:\\"),
 );
 
+assert.equal(navigableParentPath("awam://rclone"), "awam://root");
+assert.equal(navigableParentPath("awam://root"), GUIDE_PATH);
+const providerCrumbs = buildNavigatorBreadcrumbs("awam://rclone/a", "This PC");
+assert.equal(providerCrumbs[0]?.path, GUIDE_PATH);
+assert.equal(providerCrumbs[1]?.path, "awam://root");
+assert.equal(providerCrumbs[2]?.path, "awam://rclone");
+assert.equal(providerCrumbs[3]?.path, "awam://rclone/a");
+
 resetNavHistory();
 console.log("Nav history / breadcrumb checks OK (AIA-63).");

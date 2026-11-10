@@ -36,6 +36,12 @@ import { navigableParentPath, recordNavHistory } from "./navHistory";
 import { GUIDE_PATH, isGuidePath } from "./guide";
 import { isRecyclePath, RECYCLE_PATH } from "./recycle";
 import { loadRecycleListing } from "./recycle";
+import {
+  isProviderPath,
+  loadProviderListing,
+  openProviderEntry,
+  toProviderUri,
+} from "./provider";
 import { readNewTabBehavior } from "./newTabBehavior";
 import { hydrateSettings } from "./settingsHydrate";
 import { recordPathVisit } from "./visitStats";
@@ -43,7 +49,7 @@ import { clearNavigatorFilter } from "./navigatorFilter";
 import { showHiddenItems } from "./showHidden";
 import { forgetPinnedTabs, pinnedIdSet } from "./tabPins";
 import { clearSelection } from "./navigatorSelection";
-import { normalizePathKey } from "./pathKey";
+import { normalizePathKey, toNativeFsPath } from "./pathKey";
 import { perfSpan } from "./perfProbe";
 
 export {
@@ -75,6 +81,47 @@ export type NavigatorListing = {
   dirCount: number;
   fileCount: number;
 };
+
+/** Wire shape: `path` may be omitted when equal to join(listing.path, name). */
+type NavigatorEntryWire = Omit<NavigatorEntry, "path"> & { path?: string | null };
+
+type NavigatorListingWire = Omit<NavigatorListing, "entries"> & {
+  entries: NavigatorEntryWire[];
+};
+
+/** Reconstruct `parent\name` for entries that omitted `path` (Phase C IPC trim). */
+export function joinListingChildPath(parent: string, name: string): string {
+  const native = toNativeFsPath(parent);
+  if (!native) return name;
+  if (isProviderPath(native)) {
+    const uri = toProviderUri(native);
+    return `${uri.replace(/\/+$/, "")}/${name}`;
+  }
+  if (/^[a-zA-Z]:\\?$/i.test(native)) {
+    return `${native.slice(0, 2)}\\${name}`;
+  }
+  return `${native.replace(/\\+$/, "")}\\${name}`;
+}
+
+/** Fill omitted entry paths after `navigator_list` / search-shaped listings. */
+export function hydrateNavigatorListing(listing: NavigatorListingWire): NavigatorListing {
+  const parent = listing.path;
+  return {
+    path: listing.path,
+    dirCount: listing.dirCount,
+    fileCount: listing.fileCount,
+    entries: listing.entries.map((entry) => {
+      const trimmed = entry.path?.trim() ?? "";
+      return {
+        name: entry.name,
+        kind: entry.kind,
+        size: entry.size,
+        modifiedMs: entry.modifiedMs,
+        path: trimmed || joinListingChildPath(parent, entry.name),
+      };
+    }),
+  };
+}
 
 export const currentPath = ref("");
 export const listing = shallowRef<NavigatorListing | null>(null);
@@ -196,12 +243,18 @@ export async function navigateSecondary(path: string): Promise<void> {
     const result = await perfSpan(
       "navigator_list",
       async () => {
-        const listingResult = await invoke<NavigatorListing>("navigator_list", {
+        if (isProviderPath(trimmed)) {
+          const hydrated = await loadProviderListing(trimmed);
+          entryCount = hydrated.entries.length;
+          return hydrated;
+        }
+        const listingResult = await invoke<NavigatorListingWire>("navigator_list", {
           path: trimmed,
           showHidden: showHiddenItems.value,
         });
-        entryCount = listingResult.entries.length;
-        return listingResult;
+        const hydrated = hydrateNavigatorListing(listingResult);
+        entryCount = hydrated.entries.length;
+        return hydrated;
       },
       () => ({ path: trimmed, n: entryCount, pane: "secondary" }),
     );
@@ -300,6 +353,52 @@ export async function navigateTo(
     return;
   }
 
+  if (isProviderPath(trimmed)) {
+    const target = toProviderUri(trimmed);
+    listLoading.value = true;
+    listError.value = null;
+    try {
+      const result = await loadProviderListing(target);
+      if (epoch !== browseEpoch) return;
+      listing.value = result;
+      currentPath.value = result.path;
+      if (pathChanged) clearNavigatorFilter();
+      if (recordVisit) {
+        void recordPathVisit(result.path, true);
+      }
+      if (recordHistory) {
+        recordNavHistory(previous, result.path);
+      }
+      if (syncOpenState) {
+        liveOpenState.value = openStateAfterNavigate(liveOpenState.value, result.path);
+        const group = liveOpenState.value.tabGroups[liveOpenState.value.currentTabGroupIndex];
+        const pane = group?.[liveOpenState.value.currentTabIndex] ?? group?.[0];
+        if (pane) {
+          pane.type = "provider";
+        }
+        scheduleOpenStatePersist(false);
+      }
+    } catch (err) {
+      if (epoch !== browseEpoch) return;
+      listing.value = null;
+      listError.value = err instanceof Error ? err.message : String(err);
+      currentPath.value = target;
+      if (pathChanged) clearNavigatorFilter();
+      if (recordHistory) {
+        recordNavHistory(previous, target);
+      }
+      if (syncOpenState && target) {
+        liveOpenState.value = openStateAfterNavigate(liveOpenState.value, target);
+        scheduleOpenStatePersist(false);
+      }
+    } finally {
+      if (epoch === browseEpoch) {
+        listLoading.value = false;
+      }
+    }
+    return;
+  }
+
   listLoading.value = true;
   listError.value = null;
   try {
@@ -307,12 +406,13 @@ export async function navigateTo(
     const result = await perfSpan(
       "navigator_list",
       async () => {
-        const listingResult = await invoke<NavigatorListing>("navigator_list", {
+        const listingResult = await invoke<NavigatorListingWire>("navigator_list", {
           path: trimmed,
           showHidden: showHiddenItems.value,
         });
-        entryCount = listingResult.entries.length;
-        return listingResult;
+        const hydrated = hydrateNavigatorListing(listingResult);
+        entryCount = hydrated.entries.length;
+        return hydrated;
       },
       () => ({ path: trimmed, n: entryCount }),
     );
@@ -708,9 +808,14 @@ export async function goUp(): Promise<void> {
   }
   // Breadcrumb-aligned parent (drive / UNC share root → guide). Prefer pure
   // path logic so Up matches the This PC crumb even when IPC parent is null.
+  // Provider `awam://` also resolves here (backend root → Providers root → guide).
   const logical = navigableParentPath(currentPath.value);
   if (logical) {
     await navigateTo(logical);
+    return;
+  }
+  if (isProviderPath(currentPath.value)) {
+    await navigateTo(GUIDE_PATH);
     return;
   }
   const parent = await invoke<string | null>("navigator_parent", {
@@ -755,6 +860,10 @@ export async function openEntry(entry: NavigatorEntry): Promise<void> {
     // AIA-150: in-list folder activate stays in the current tab (context Open
     // already did; open-or-focus remains for shell places / Discovery / etc.).
     await navigateTo(entry.path);
+    return;
+  }
+  if (isProviderPath(entry.path) || isProviderPath(currentPath.value)) {
+    await openProviderEntry(entry.path);
     return;
   }
   // Non-dir entries (file / symlink-as-file) follow double-click Settings.

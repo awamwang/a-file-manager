@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import FluentIcon from "../icons/FluentIcon.vue";
 import { favoritesDoc, loadFavorites } from "../../state/favorites";
@@ -14,6 +14,11 @@ import {
   type UserFolderId,
 } from "../../state/guide";
 import { RECYCLE_PATH } from "../../state/recycle";
+import {
+  listProviderBackends,
+  PROVIDER_ROOT,
+  type ProviderBackendInfo,
+} from "../../state/provider";
 
 const props = defineProps<{
   /** Navigate the current tab to this OS path. */
@@ -23,6 +28,7 @@ const props = defineProps<{
 const { t } = useI18n();
 
 const folderRows = computed(() => userFolderItems(userFolders.value));
+const providerBackends = ref<ProviderBackendInfo[]>([]);
 
 function folderLabel(id: UserFolderId): string {
   return t(`guide.folders.${id}`);
@@ -40,10 +46,21 @@ function driveLabel(letter: string, label: string): string {
   return t("guide.drive", { letter });
 }
 
+function providerDetail(backend: ProviderBackendInfo): string {
+  return backend.detail || backend.description || `awam://${backend.id}`;
+}
+
 onMounted(() => {
   void loadNavigatorPlaces();
   void loadFavorites().catch(() => undefined);
   void loadVisitStats().catch(() => undefined);
+  void listProviderBackends()
+    .then((list) => {
+      providerBackends.value = list;
+    })
+    .catch(() => {
+      providerBackends.value = [];
+    });
 });
 
 function onOpen(path: string) {
@@ -150,6 +167,37 @@ function onOpen(path: string) {
           <span class="guide-card-path">{{ t("recycleBin.subtitle") }}</span>
         </button>
       </div>
+    </section>
+
+    <section class="guide-section" :aria-label="t('guide.sections.providers')">
+      <h2 class="guide-section-title">{{ t("guide.sections.providers") }}</h2>
+      <div class="guide-grid">
+        <button
+          type="button"
+          class="guide-card fluent-surface"
+          :title="PROVIDER_ROOT"
+          @click="onOpen(PROVIDER_ROOT)"
+        >
+          <FluentIcon name="cloud" size="md" />
+          <span class="guide-card-label">{{ t("guide.providersRoot") }}</span>
+          <span class="guide-card-path">{{ PROVIDER_ROOT }}</span>
+        </button>
+        <button
+          v-for="backend in providerBackends"
+          :key="backend.id"
+          type="button"
+          class="guide-card fluent-surface"
+          :title="`awam://${backend.id}`"
+          @click="onOpen(`awam://${backend.id}`)"
+        >
+          <FluentIcon name="cloud" size="md" />
+          <span class="guide-card-label">{{ backend.name || backend.id }}</span>
+          <span class="guide-card-path">{{ providerDetail(backend) }}</span>
+        </button>
+      </div>
+      <p v-if="!providerBackends.length" class="guide-empty">
+        {{ t("guide.emptyProviders") }}
+      </p>
     </section>
 
     <section

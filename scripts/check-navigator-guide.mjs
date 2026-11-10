@@ -53,6 +53,14 @@ assert.equal(en.settings.fields.core.newTabBehavior.options.guide, "Guide page")
 assert.equal(zh.settings.fields.core.newTabBehavior.options.guide, "引导页");
 assert.equal(en.guide.rootLabel, "This PC");
 assert.equal(zh.guide.rootLabel, "此电脑");
+assert.equal(en.guide.sections.providers, "Providers");
+assert.equal(zh.guide.sections.providers, "Providers");
+const guideVue = readFileSync(
+  join(root, "src/components/navigator/NavigatorGuide.vue"),
+  "utf8",
+);
+assert.ok(guideVue.includes("PROVIDER_ROOT"), "guide must expose provider root entry");
+assert.ok(guideVue.includes("listProviderBackends"), "guide loads provider backends");
 
 const history = spawnSync(
   process.execPath,

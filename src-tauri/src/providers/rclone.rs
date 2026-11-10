@@ -8,7 +8,8 @@ use crate::win_process;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::io::Read;
-use std::process::Stdio;
+use std::process::{Child, Stdio};
+use std::sync::mpsc;
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -18,6 +19,13 @@ const CAPABILITIES: &[ProviderCapability] = &[
     ProviderCapability::Stat,
     ProviderCapability::Resolve,
 ];
+
+/// listremotes 本地读配置，短超时即可。
+const LIST_REMOTES_TIMEOUT: Duration = Duration::from_secs(15);
+/// 进入具体 remote（含 SSH）的墙钟上限；超时必须返回错误，禁止无限挂起。
+const LIST_REMOTE_TIMEOUT: Duration = Duration::from_secs(20);
+/// 杀进程后等待管道线程退出的上限；超时放弃 join，避免卡死。
+const PIPE_JOIN_TIMEOUT: Duration = Duration::from_secs(2);
 
 #[derive(Debug, Clone)]
 pub struct CommandOutput {
@@ -30,7 +38,7 @@ pub trait RcloneRunner: Send + Sync {
     fn run(&self, args: &[&str], timeout: Duration) -> Result<CommandOutput, String>;
 }
 
-/// rclone CLI runner (no mount / no VFS). Honors `timeout` by killing the child (AIA-182).
+/// rclone CLI runner (no mount / no VFS). Honors `timeout` by killing the child tree.
 #[derive(Debug, Default)]
 pub struct BlockingRcloneRunner {
     pub exe: String,
@@ -46,12 +54,35 @@ impl BlockingRcloneRunner {
     }
 }
 
+fn join_bytes_with_timeout(
+    handle: thread::JoinHandle<Vec<u8>>,
+    timeout: Duration,
+) -> Vec<u8> {
+    let (tx, rx) = mpsc::channel();
+    thread::spawn(move || {
+        let _ = tx.send(handle.join().unwrap_or_default());
+    });
+    match rx.recv_timeout(timeout) {
+        Ok(buf) => buf,
+        Err(_) => Vec::new(),
+    }
+}
+
+fn terminate_child_tree(child: &mut Child) {
+    let pid = child.id();
+    win_process::kill_process_tree(pid);
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
 impl RcloneRunner for BlockingRcloneRunner {
     fn run(&self, args: &[&str], timeout: Duration) -> Result<CommandOutput, String> {
         // rclone is a console binary; CREATE_NO_WINDOW prevents flash on GUI builds
         // (provider_preload / health / listremotes at app start and on Providers refresh).
+        // RCLONE_ASK_PASSWORD=false：禁止交互式要密码把管道挂死。
         let mut child = win_process::command(&self.exe)
             .args(args)
+            .env("RCLONE_ASK_PASSWORD", "false")
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
@@ -87,20 +118,30 @@ impl RcloneRunner for BlockingRcloneRunner {
             match child.try_wait() {
                 Ok(Some(status)) => break status,
                 Ok(None) if Instant::now() >= deadline => {
-                    let _ = child.kill();
-                    let _ = child.wait();
+                    terminate_child_tree(&mut child);
+                    let _ = join_bytes_with_timeout(stdout_thr, PIPE_JOIN_TIMEOUT);
+                    let _ = join_bytes_with_timeout(stderr_thr, PIPE_JOIN_TIMEOUT);
                     return Err(format!(
-                        "rclone timed out after {}s",
+                        "rclone timed out after {}s (remote may be unreachable or waiting for credentials)",
                         timeout.as_secs().max(1)
                     ));
                 }
                 Ok(None) => thread::sleep(Duration::from_millis(25)),
-                Err(err) => return Err(format!("Failed to wait for rclone: {err}")),
+                Err(err) => {
+                    terminate_child_tree(&mut child);
+                    let _ = join_bytes_with_timeout(stdout_thr, PIPE_JOIN_TIMEOUT);
+                    let _ = join_bytes_with_timeout(stderr_thr, PIPE_JOIN_TIMEOUT);
+                    return Err(format!("Failed to wait for rclone: {err}"));
+                }
             }
         };
 
-        let stdout = String::from_utf8_lossy(&stdout_thr.join().unwrap_or_default()).to_string();
-        let stderr = String::from_utf8_lossy(&stderr_thr.join().unwrap_or_default()).to_string();
+        let stdout =
+            String::from_utf8_lossy(&join_bytes_with_timeout(stdout_thr, PIPE_JOIN_TIMEOUT))
+                .to_string();
+        let stderr =
+            String::from_utf8_lossy(&join_bytes_with_timeout(stderr_thr, PIPE_JOIN_TIMEOUT))
+                .to_string();
         Ok(CommandOutput {
             status_code: status.code().unwrap_or(-1),
             stdout,
@@ -125,7 +166,7 @@ impl RcloneProvider {
     fn list_remotes(&self) -> Result<Vec<String>, String> {
         let output = self
             .runner
-            .run(&["listremotes"], Duration::from_secs(15))?;
+            .run(&["listremotes"], LIST_REMOTES_TIMEOUT)?;
         if output.status_code != 0 {
             let err = output.stderr.trim();
             return Err(if err.is_empty() {
@@ -150,6 +191,24 @@ impl RcloneProvider {
         let remote = parts.next()?;
         let rest = parts.next().unwrap_or("");
         Some(format!("{remote}:{rest}"))
+    }
+
+    /// 进入具体 remote 时附加网络超时参数，避免 SSH 握手无限挂起。
+    fn lsjson_args(spec: &str) -> Vec<&str> {
+        vec![
+            "lsjson",
+            "--max-depth",
+            "1",
+            "--contimeout",
+            "8s",
+            "--timeout",
+            "15s",
+            "--retries",
+            "1",
+            "--low-level-retries",
+            "1",
+            spec,
+        ]
     }
 }
 
@@ -254,10 +313,8 @@ impl Provider for RcloneProvider {
             };
         };
 
-        match self
-            .runner
-            .run(&["lsjson", &spec], Duration::from_secs(60))
-        {
+        let args = Self::lsjson_args(&spec);
+        match self.runner.run(&args, LIST_REMOTE_TIMEOUT) {
             Ok(output) if output.status_code == 0 => match parse_lsjson(&output.stdout, uri) {
                 Ok(entries) => DirListing {
                     uri: uri.to_string_uri(),
@@ -418,10 +475,13 @@ mod tests {
     struct MockRclone {
         remotes: Mutex<Vec<String>>,
         lsjson: Mutex<String>,
+        last_args: Mutex<Vec<String>>,
     }
 
     impl RcloneRunner for MockRclone {
         fn run(&self, args: &[&str], _timeout: Duration) -> Result<CommandOutput, String> {
+            *self.last_args.lock().unwrap() =
+                args.iter().map(|s| (*s).to_string()).collect();
             if args.first() == Some(&"listremotes") {
                 let stdout = self
                     .remotes
@@ -456,8 +516,9 @@ mod tests {
                 r#"[{"Name":"var","IsDir":true,"Size":0},{"Name":"readme.txt","IsDir":false,"Size":12}]"#
                     .to_string(),
             ),
+            last_args: Mutex::new(Vec::new()),
         });
-        let provider = RcloneProvider::new(runner);
+        let provider = RcloneProvider::new(runner.clone());
         assert!(provider.health().healthy);
 
         let root = provider.list(&AwamUri {
@@ -483,6 +544,12 @@ mod tests {
             .iter()
             .any(|entry| entry.name == "readme.txt" && entry.is_file));
 
+        let args = runner.last_args.lock().unwrap().clone();
+        assert_eq!(args.first().as_deref(), Some(&"lsjson".to_string()));
+        assert!(args.iter().any(|a| a == "--max-depth"));
+        assert!(args.iter().any(|a| a == "--contimeout"));
+        assert!(args.iter().any(|a| a == "mysftp:"));
+
         let resolved = provider.resolve(&AwamUri {
             backend: "rclone".to_string(),
             path: "mysftp/var".to_string(),
@@ -493,5 +560,37 @@ mod tests {
             resolved.action_args.get("rclone_spec"),
             Some(&Value::String("mysftp:var".to_string()))
         );
+    }
+
+    #[test]
+    fn remote_list_surfaces_timeout_error() {
+        struct TimeoutRunner;
+        impl RcloneRunner for TimeoutRunner {
+            fn run(&self, _args: &[&str], timeout: Duration) -> Result<CommandOutput, String> {
+                Err(format!(
+                    "rclone timed out after {}s (remote may be unreachable or waiting for credentials)",
+                    timeout.as_secs().max(1)
+                ))
+            }
+        }
+        let provider = RcloneProvider::new(Arc::new(TimeoutRunner));
+        let listing = provider.list(&AwamUri {
+            backend: "rclone".to_string(),
+            path: "dy-c1".to_string(),
+            query: HashMap::new(),
+        });
+        assert!(listing.entries.is_empty());
+        let err = listing.error.unwrap_or_default();
+        assert!(err.contains("timed out"), "{err}");
+    }
+
+    #[test]
+    fn join_bytes_timeout_returns_empty() {
+        let handle = thread::spawn(|| {
+            thread::sleep(Duration::from_secs(2));
+            b"late".to_vec()
+        });
+        let buf = join_bytes_with_timeout(handle, Duration::from_millis(50));
+        assert!(buf.is_empty());
     }
 }

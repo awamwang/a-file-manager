@@ -700,7 +700,8 @@
     "emptyListing": "This location has no items.",
     "folder": "Folder",
     "file": "File",
-    "openUnsupported": "This item cannot be opened from Providers yet."
+    "openUnsupported": "This item cannot be opened from Providers yet.",
+    "openInExplorer": "Open in Explorer"
   },
   "workGroups": {
     "title": "Work Groups",
@@ -1015,7 +1016,7 @@
   },
   "guide": {
     "title": "This PC",
-    "subtitle": "Jump to common folders, recent places, favorites, or drives",
+    "subtitle": "Jump to common folders, recent places, favorites, drives, or providers",
     "tabName": "This PC",
     "rootLabel": "This PC",
     "rootTitle": "Open This PC guide",
@@ -1025,7 +1026,8 @@
       "folders": "Folders",
       "recent": "Recent",
       "favorites": "Favorites",
-      "drives": "Drives"
+      "drives": "Drives",
+      "providers": "Providers"
     },
     "folders": {
       "home": "Home",
@@ -1038,8 +1040,10 @@
     },
     "drive": "Local Disk ({letter}:)",
     "driveNamed": "{label} ({letter}:)",
+    "providersRoot": "All providers",
     "emptyFolders": "No common folders found",
-    "emptyDrives": "No drives found"
+    "emptyDrives": "No drives found",
+    "emptyProviders": "No providers available yet"
   },
   "recycleBin": {
     "tabName": "Recycle Bin",

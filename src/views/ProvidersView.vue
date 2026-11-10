@@ -2,13 +2,17 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import { useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import { entryKindIcon } from "../components/icons/glyphs";
 import { preloadProviderCache } from "../state/providerCache";
+import { navigateTo } from "../state/navigatorBrowse";
+import { PROVIDER_ROOT } from "../state/provider";
 
 const { t } = useI18n();
+const router = useRouter();
 
 type BackendInfo = {
   id: string;
@@ -95,13 +99,24 @@ function entrySecondary(entry: ProviderEntry): string {
 
 async function openEntry(entry: ProviderEntry) {
   if (entry.isDir) {
-    void listUri(entry.uri);
+    void openInExplorer(entry.uri);
     return;
   }
   try {
     const resolved = await invoke<ResolveResult>("provider_resolve", { uri: entry.uri });
     if (resolved.error) {
       error.value = resolved.error;
+      return;
+    }
+    const local = resolved.localPath?.trim();
+    if (local) {
+      const opened = await invoke<{ success: boolean; error: string | null }>(
+        "open_path_default",
+        { path: local },
+      );
+      if (!opened.success) {
+        error.value = opened.error ?? t("providers.openUnsupported");
+      }
       return;
     }
     if (resolved.action === "open_url") {
@@ -117,11 +132,22 @@ async function openEntry(entry: ProviderEntry) {
   }
 }
 
+/** 在资源管理器中打开 Provider 路径。 */
+async function openInExplorer(target: string) {
+  error.value = null;
+  try {
+    await router.push("/navigator");
+    await navigateTo(target);
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err);
+  }
+}
+
 onMounted(() => {
   // AIA-181: if idle preload has not finished (or was deferred), warm on first visit.
   void preloadProviderCache();
   void loadBackends()
-    .then(() => listUri("awam://root"))
+    .then(() => listUri(PROVIDER_ROOT))
     .catch((err) => {
       error.value = err instanceof Error ? err.message : String(err);
     });
@@ -170,7 +196,7 @@ onMounted(() => {
           'fluent-accent-edge--down': !backend.interfaceOnly && !backend.healthy,
           'fluent-accent-edge--stub': backend.interfaceOnly,
         }"
-        @click="listUri(`awam://${backend.id}`)"
+        @click="openInExplorer(`awam://${backend.id}`)"
       >
         <strong>{{ backend.name }}</strong>
         <span
@@ -209,6 +235,14 @@ onMounted(() => {
       />
       <button class="fluent-control fluent-control--accent" type="submit" :disabled="loading">
         {{ loading ? t("providers.listing") : t("providers.list") }}
+      </button>
+      <button
+        class="fluent-control"
+        type="button"
+        :disabled="!uri.trim()"
+        @click="openInExplorer(uri.trim() || PROVIDER_ROOT)"
+      >
+        {{ t("providers.openInExplorer") }}
       </button>
     </form>
 

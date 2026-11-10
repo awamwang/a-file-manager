@@ -700,7 +700,8 @@
     "emptyListing": "此位置没有项目。",
     "folder": "文件夹",
     "file": "文件",
-    "openUnsupported": "此项目暂时无法从提供程序打开。"
+    "openUnsupported": "此项目暂时无法从提供程序打开。",
+    "openInExplorer": "在资源管理器中打开"
   },
   "workGroups": {
     "title": "工作组",
@@ -1015,7 +1016,7 @@
   },
   "guide": {
     "title": "此电脑",
-    "subtitle": "快速打开常用文件夹、近期访问、收藏与驱动器",
+    "subtitle": "快速打开常用文件夹、近期访问、收藏、驱动器与 Providers",
     "tabName": "此电脑",
     "rootLabel": "此电脑",
     "rootTitle": "打开此电脑引导页",
@@ -1025,7 +1026,8 @@
       "folders": "常用文件夹",
       "recent": "近期访问",
       "favorites": "收藏",
-      "drives": "驱动器"
+      "drives": "驱动器",
+      "providers": "Providers"
     },
     "folders": {
       "home": "主文件夹",
@@ -1038,8 +1040,10 @@
     },
     "drive": "本地磁盘 ({letter}:)",
     "driveNamed": "{label} ({letter}:)",
+    "providersRoot": "全部 Providers",
     "emptyFolders": "未找到常用文件夹",
-    "emptyDrives": "未找到驱动器"
+    "emptyDrives": "未找到驱动器",
+    "emptyProviders": "暂无可用 Provider"
   },
   "recycleBin": {
     "tabName": "回收站",

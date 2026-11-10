@@ -5,12 +5,40 @@ import { computed, ref } from "vue";
 
 /** Keep in sync with `guide/path.ts` (avoid ESM extension issues in Node checks). */
 const GUIDE_PATH = "afm://guide";
+/** Keep in sync with `provider/path.ts`. */
+const PROVIDER_ROOT = "awam://root";
 
 function isGuidePath(path: string): boolean {
   return (
     path.trim().replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase() ===
     GUIDE_PATH
   );
+}
+
+function isProviderPath(path: string): boolean {
+  return path.trim().toLowerCase().startsWith("awam://");
+}
+
+function toProviderUri(path: string): string {
+  const trimmed = path.trim();
+  if (!trimmed) return "";
+  const key = trimmed.replace(/\/+$/, "").toLowerCase();
+  if (!key || key === "awam:" || key === "awam://" || key === "awam://root") {
+    return PROVIDER_ROOT;
+  }
+  return trimmed.replace(/\/+$/, "") || PROVIDER_ROOT;
+}
+
+function providerParentPath(path: string): string | null {
+  const uri = toProviderUri(path);
+  if (!uri || !isProviderPath(uri)) return null;
+  if (uri.toLowerCase() === PROVIDER_ROOT) return null;
+  const rest = uri.slice("awam://".length);
+  const slash = rest.lastIndexOf("/");
+  if (slash < 0) return PROVIDER_ROOT;
+  const parentRest = rest.slice(0, slash);
+  if (!parentRest) return PROVIDER_ROOT;
+  return `awam://${parentRest}`;
 }
 
 const backStack = ref<string[]>([]);
@@ -70,7 +98,12 @@ export function popForward(current: string): string | null {
 }
 
 function normalizeKey(path: string): string {
-  return path.replace(/\//g, "\\").replace(/\\+$/, "").toLowerCase();
+  const trimmed = path.trim();
+  // URI 方案（afm:// / awam:// / http://…）保留 `/`，避免破坏权威路径。
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
+    return trimmed.replace(/\/+$/, "").toLowerCase();
+  }
+  return trimmed.replace(/\//g, "\\").replace(/\\+$/, "").toLowerCase();
 }
 
 export type BreadcrumbCrumb = {
@@ -82,11 +115,16 @@ export type BreadcrumbCrumb = {
 
 /** Pure path → breadcrumb crumbs for the address bar (no root segment). */
 export function buildBreadcrumbs(path: string): BreadcrumbCrumb[] {
-  const raw = path.trim().replace(/\//g, "\\");
-  if (!raw) return [];
-  if (isGuidePath(raw) || normalizeGuideLike(raw)) {
+  const trimmed = path.trim();
+  if (!trimmed) return [];
+  if (isGuidePath(trimmed) || normalizeGuideLike(trimmed)) {
     return [];
   }
+  if (isProviderPath(trimmed)) {
+    return buildProviderBreadcrumbs(trimmed);
+  }
+
+  const raw = trimmed.replace(/\//g, "\\");
 
   if (raw.startsWith("\\\\")) {
     const body = raw.slice(2);
@@ -134,6 +172,30 @@ function normalizeGuideLike(path: string): boolean {
   return path.trim().toLowerCase().startsWith("afm://");
 }
 
+/** `awam://rclone/a/b` → Providers 根 + 各级 backend/path 段。 */
+export function buildProviderBreadcrumbs(
+  path: string,
+  providersLabel = "Providers",
+): BreadcrumbCrumb[] {
+  const uri = toProviderUri(path);
+  if (!uri) return [];
+  const crumbs: BreadcrumbCrumb[] = [
+    { label: providersLabel, path: PROVIDER_ROOT, kind: "path" },
+  ];
+  if (uri.toLowerCase() === PROVIDER_ROOT) {
+    return crumbs;
+  }
+  const rest = uri.slice("awam://".length);
+  const parts = rest.split("/").filter(Boolean);
+  let acc = "awam://";
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i]!;
+    acc = i === 0 ? `awam://${part}` : `${acc}/${part}`;
+    crumbs.push({ label: part, path: acc, kind: "path" });
+  }
+  return crumbs;
+}
+
 /**
  * Windows-style breadcrumbs with a leading root segment.
  * Root path is the guide landing (`afm://guide`); its chevron opens Home/drives/Recent/Favorites.
@@ -141,6 +203,7 @@ function normalizeGuideLike(path: string): boolean {
 export function buildNavigatorBreadcrumbs(
   path: string,
   rootLabel: string,
+  providersLabel = "Providers",
 ): BreadcrumbCrumb[] {
   const root: BreadcrumbCrumb = {
     label: rootLabel,
@@ -149,6 +212,9 @@ export function buildNavigatorBreadcrumbs(
   };
   if (!path.trim() || isGuidePath(path)) {
     return [root];
+  }
+  if (isProviderPath(path)) {
+    return [root, ...buildProviderBreadcrumbs(path, providersLabel)];
   }
   if (normalizeGuideLike(path)) {
     const leaf = path.trim().replace(/^afm:\/\//i, "");
@@ -167,11 +233,18 @@ export function buildNavigatorBreadcrumbs(
 /**
  * Up / parent target aligned with breadcrumb hierarchy.
  * Drive roots (`D:\`) and UNC share roots (`\\server\share`) → guide (`afm://guide`).
+ * Provider backend 根 → `awam://root`；Providers 根 → guide。
  * Guide / empty → `null` (nowhere further).
  */
 export function navigableParentPath(path: string): string | null {
   const trimmed = path.trim();
-  if (!trimmed || isGuidePath(trimmed) || normalizeGuideLike(trimmed)) {
+  if (!trimmed || isGuidePath(trimmed)) {
+    return null;
+  }
+  if (isProviderPath(trimmed)) {
+    return providerParentPath(trimmed) ?? GUIDE_PATH;
+  }
+  if (normalizeGuideLike(trimmed)) {
     return null;
   }
 

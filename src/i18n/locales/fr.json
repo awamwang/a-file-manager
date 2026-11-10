@@ -502,7 +502,8 @@
     "statusOk": "ok",
     "title": "Fournisseurs",
     "uriPlaceholder": "Collez un chemin de fournisseur (ex. racine cloud ou connaissances)",
-    "openUnsupported": "Cet élément ne peut pas encore être ouvert depuis Fournisseurs."
+    "openUnsupported": "Cet élément ne peut pas encore être ouvert depuis Fournisseurs.",
+    "openInExplorer": "Ouvrir dans l'Explorateur"
   },
   "settings": {
     "fields": {
@@ -964,7 +965,8 @@
       "folders": "Dossiers",
       "recent": "Recents",
       "favorites": "Favoris",
-      "drives": "Lecteurs"
+      "drives": "Lecteurs",
+      "providers": "Fournisseurs"
     },
     "folders": {
       "home": "Dossier principal",
@@ -977,8 +979,10 @@
     },
     "drive": "Disque local ({letter}:)",
     "driveNamed": "{label} ({letter}:)",
+    "providersRoot": "Tous les fournisseurs",
     "emptyFolders": "Aucun dossier courant trouve",
-    "emptyDrives": "Aucun lecteur trouve"
+    "emptyDrives": "Aucun lecteur trouve",
+    "emptyProviders": "Aucun fournisseur disponible pour le moment"
   },
   "recycleBin": {
     "tabName": "Corbeille",

@@ -147,58 +147,82 @@ fn resolve_dispatch(uri_str: &str) -> Result<ResolveResult, String> {
     }
 }
 
+/// Provider IPC 一律 `spawn_blocking`：rclone SSH / knowledge 扫盘等不得卡住 UI 线程。
 #[tauri::command]
-pub fn provider_gateway_status() -> gateway::GatewayStatus {
-    gateway::status()
+pub async fn provider_gateway_status() -> gateway::GatewayStatus {
+    tauri::async_runtime::spawn_blocking(gateway::status)
+        .await
+        .unwrap_or_else(|_| gateway::GatewayStatus {
+            online: false,
+            base_url: gateway::gateway_base_url(),
+            detail: Some("provider_gateway_status worker failed".to_string()),
+            backend_count: None,
+        })
 }
 
 #[tauri::command]
-pub fn provider_backends() -> Result<Vec<BackendInfo>, String> {
-    discover_backends()
+pub async fn provider_backends() -> Result<Vec<BackendInfo>, String> {
+    tauri::async_runtime::spawn_blocking(discover_backends)
+        .await
+        .map_err(|err| format!("provider_backends worker failed: {err}"))?
 }
 
 #[tauri::command]
-pub fn provider_list(uri: String) -> Result<DirListing, String> {
-    list_with_cache(&LISTING_CACHE, &uri)
+pub async fn provider_list(uri: String) -> Result<DirListing, String> {
+    tauri::async_runtime::spawn_blocking(move || list_with_cache(&LISTING_CACHE, &uri))
+        .await
+        .map_err(|err| format!("provider_list worker failed: {err}"))?
 }
 
 #[tauri::command]
-pub fn provider_stat(uri: String) -> Result<StatResult, String> {
-    stat_dispatch(&uri)
+pub async fn provider_stat(uri: String) -> Result<StatResult, String> {
+    tauri::async_runtime::spawn_blocking(move || stat_dispatch(&uri))
+        .await
+        .map_err(|err| format!("provider_stat worker failed: {err}"))?
 }
 
 #[tauri::command]
-pub fn provider_resolve(uri: String) -> Result<ResolveResult, String> {
-    resolve_dispatch(&uri)
+pub async fn provider_resolve(uri: String) -> Result<ResolveResult, String> {
+    tauri::async_runtime::spawn_blocking(move || resolve_dispatch(&uri))
+        .await
+        .map_err(|err| format!("provider_resolve worker failed: {err}"))?
 }
 
 /// Preload depth-1 listings: `awam://root` + each non-interface-only backend root.
 /// Wired from the frontend on idle / Providers visit (see `src/state/providerCache.ts`).
 /// Respects `power.providerPreloadKnowledge` (AIA-182).
 #[tauri::command]
-pub fn provider_preload(app: AppHandle) -> Result<PreloadReport, String> {
-    let include_knowledge =
-        crate::settings::read_bool_setting_or(&app, "power.providerPreloadKnowledge", true);
-    preload_depth1(&LISTING_CACHE, include_knowledge)
+pub async fn provider_preload(app: AppHandle) -> Result<PreloadReport, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let include_knowledge =
+            crate::settings::read_bool_setting_or(&app, "power.providerPreloadKnowledge", true);
+        preload_depth1(&LISTING_CACHE, include_knowledge)
+    })
+    .await
+    .map_err(|err| format!("provider_preload worker failed: {err}"))?
 }
 
 /// Invalidate depth-1 cache. Omit `uri` (or pass empty) to clear all.
 #[tauri::command]
-pub fn provider_cache_invalidate(uri: Option<String>) -> Result<usize, String> {
-    let mut cache = LISTING_CACHE.lock().map_err(|err| err.to_string())?;
-    match uri.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
-        None => {
-            let n = cache.len();
-            cache.invalidate_all();
-            Ok(n)
+pub async fn provider_cache_invalidate(uri: Option<String>) -> Result<usize, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut cache = LISTING_CACHE.lock().map_err(|err| err.to_string())?;
+        match uri.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+            None => {
+                let n = cache.len();
+                cache.invalidate_all();
+                Ok(n)
+            }
+            Some(raw) => {
+                let parsed = parse_awam_uri(raw)?;
+                let key = depth1_cache_key(&parsed)
+                    .ok_or_else(|| format!("Not a depth-1 URI (nothing to invalidate): {raw}"))?;
+                Ok(usize::from(cache.invalidate_key(&key)))
+            }
         }
-        Some(raw) => {
-            let parsed = parse_awam_uri(raw)?;
-            let key = depth1_cache_key(&parsed)
-                .ok_or_else(|| format!("Not a depth-1 URI (nothing to invalidate): {raw}"))?;
-            Ok(usize::from(cache.invalidate_key(&key)))
-        }
-    }
+    })
+    .await
+    .map_err(|err| format!("provider_cache_invalidate worker failed: {err}"))?
 }
 
 fn list_with_cache(

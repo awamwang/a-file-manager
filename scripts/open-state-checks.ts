@@ -194,6 +194,11 @@ assert.equal(softNone.state.tabGroups.length, 4);
   assert.equal(guideTab.tabGroups[0]?.[0]?.path, "afm://guide");
   const afterNav = openStateAfterNavigate(guideTab, "afm://guide");
   assert.equal(afterNav.tabGroups[0]?.[0]?.type, "guide");
+  const providerTab = openStateWithNewTab(createEmptyOpenState(), "awam://rclone");
+  assert.equal(providerTab.tabGroups[0]?.[0]?.type, "provider");
+  const afterProviderNav = openStateAfterNavigate(providerTab, "awam://rclone/mysftp");
+  assert.equal(afterProviderNav.tabGroups[0]?.[0]?.type, "provider");
+  assert.equal(afterProviderNav.tabGroups[0]?.[0]?.name, "mysftp");
 }
 
 console.log("open-state-checks: ok");
