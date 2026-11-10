@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-/** AIA-218 / A5 — Public MCP catalog + merge deploy (afm__* keys only). */
-import { computed, onMounted, ref } from "vue";
+/** 公共 MCP 目录：横向主从布局；添加到指定单个项目。 */
+import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   aiAgentTargetsList,
@@ -14,7 +14,9 @@ import {
   aiMcpDeploy,
   aiMcpUndeploy,
 } from "./client";
+import { openConfirmDialog } from "../state/confirmDialog";
 import { toastSuccess } from "../state/toast";
+import { listProjectOptions, type ProjectOption } from "./projectOptions";
 import type {
   AgentTarget,
   AiConfigDocument,
@@ -28,7 +30,7 @@ const document = ref<AiConfigDocument | null>(null);
 const error = ref<string | null>(null);
 const loading = ref(false);
 const selectedId = ref<string | null>(null);
-const projectWorkspace = ref("");
+const filterText = ref("");
 const importPath = ref("");
 const draftName = ref("");
 const draftId = ref("");
@@ -38,6 +40,9 @@ const agents = ref<AgentTarget[]>([]);
 const harvestAgentId = ref("");
 const harvestCandidates = ref<HarvestMcpCandidate[]>([]);
 const harvestSelected = ref<Record<string, boolean>>({});
+const showTools = ref(false);
+const projects = ref<ProjectOption[]>([]);
+const targetProjectPath = ref("");
 
 const ERROR_KEYS: Record<string, string> = {
   AI_MCP_ID_EMPTY: "ai.mcp.errorIdEmpty",
@@ -66,16 +71,45 @@ const harvestPickCount = computed(
   () => Object.values(harvestSelected.value).filter(Boolean).length,
 );
 
+const filteredEntries = computed(() => {
+  const q = filterText.value.trim().toLowerCase();
+  const list = document.value?.mcpCatalog ?? [];
+  if (!q) return list;
+  return list.filter(
+    (e) =>
+      e.id.toLowerCase().includes(q) ||
+      e.displayName.toLowerCase().includes(q) ||
+      e.serverJson.toLowerCase().includes(q),
+  );
+});
+
+watch(selected, (entry) => {
+  if (!entry) return;
+  draftId.value = entry.id;
+  draftName.value = entry.displayName;
+  try {
+    draftJson.value = JSON.stringify(JSON.parse(entry.serverJson), null, 2);
+  } catch {
+    draftJson.value = entry.serverJson;
+  }
+});
+
 async function refresh() {
   loading.value = true;
   error.value = null;
   try {
-    const [mcpDoc, agentDoc] = await Promise.all([
+    const [mcpDoc, agentDoc, projectList] = await Promise.all([
       aiMcpCatalogList(),
       aiAgentTargetsList(),
+      listProjectOptions(),
     ]);
     document.value = mcpDoc;
     agents.value = agentDoc.agentTargets;
+    projects.value = projectList.options;
+    if (!targetProjectPath.value) {
+      const active = projectList.options.find((p) => p.slug === projectList.activeSlug);
+      targetProjectPath.value = active?.path ?? projectList.options[0]?.path ?? "";
+    }
     if (!harvestAgentId.value && agents.value.length) {
       harvestAgentId.value = agents.value[0]?.id ?? "";
     }
@@ -108,6 +142,14 @@ async function saveEntry() {
 
 async function removeSelected() {
   if (!selected.value) return;
+  const result = await openConfirmDialog({
+    title: t("ai.mcp.confirmRemoveTitle"),
+    message: t("ai.mcp.confirmRemoveMessage", { name: selected.value.displayName }),
+    confirmLabel: t("common.remove"),
+    cancelLabel: t("common.cancel"),
+    danger: true,
+  });
+  if (!result.confirmed) return;
   error.value = null;
   try {
     document.value = await aiMcpCatalogRemove(selected.value.id);
@@ -134,18 +176,21 @@ async function deployGlobal() {
   }
 }
 
-async function deployToProject() {
+async function deployToSelectedProject() {
   if (!selected.value) return;
-  const ws = projectWorkspace.value.trim();
+  const ws = targetProjectPath.value.trim();
   if (!ws) {
-    error.value = t("ai.mcp.errorTargetInvalid");
+    error.value = t("ai.mcp.errorPickProject");
     return;
   }
   error.value = null;
   lastNote.value = null;
   try {
     const report = await aiMcpDeploy(selected.value.id, ws);
-    lastNote.value = t("ai.mcp.noticeDeployed", {
+    const project =
+      projects.value.find((p) => p.path === ws)?.displayName ?? ws;
+    lastNote.value = t("ai.mcp.noticeDeployedToProject", {
+      project,
       count: report.written.length,
       skipped: report.skipped.length,
     });
@@ -155,17 +200,56 @@ async function deployToProject() {
   }
 }
 
-async function undeploySelected() {
+async function undeployFromSelectedProject() {
   if (!selected.value) return;
+  const ws = targetProjectPath.value.trim();
+  if (!ws) {
+    error.value = t("ai.mcp.errorPickProject");
+    return;
+  }
   error.value = null;
   try {
-    const ws = projectWorkspace.value.trim() || null;
     const report = await aiMcpUndeploy(selected.value.id, ws);
     lastNote.value = t("ai.mcp.noticeUndeployed", { count: report.written.length });
     toastSuccess(lastNote.value);
   } catch (err) {
     error.value = mapError(err);
   }
+}
+
+async function importMcpJson() {
+  const path = importPath.value.trim();
+  if (!path) {
+    error.value = t("ai.mcp.errorImportInvalid");
+    return;
+  }
+  error.value = null;
+  lastNote.value = null;
+  try {
+    const [next, report] = await aiMcpCatalogImport(path);
+    document.value = next;
+    if (!selectedId.value && next.mcpCatalog?.length) {
+      selectedId.value = next.mcpCatalog[0]?.id ?? null;
+    }
+    lastNote.value = t("ai.mcp.noticeImported", {
+      added: report.added.length,
+      skipped: report.skipped.length,
+    });
+    toastSuccess(lastNote.value);
+  } catch (err) {
+    error.value = mapError(err);
+  }
+}
+
+function selectEntry(entry: McpCatalogEntry) {
+  selectedId.value = entry.id;
+}
+
+function startNew() {
+  selectedId.value = null;
+  draftId.value = "";
+  draftName.value = "";
+  draftJson.value = '{\n  "command": "npx",\n  "args": ["-y", "example"]\n}';
 }
 
 async function scanHarvest() {
@@ -202,48 +286,6 @@ async function importHarvest() {
   }
 }
 
-async function importMcpJson() {
-  const path = importPath.value.trim();
-  if (!path) {
-    error.value = t("ai.mcp.errorImportInvalid");
-    return;
-  }
-  error.value = null;
-  lastNote.value = null;
-  try {
-    const [next, report] = await aiMcpCatalogImport(path);
-    document.value = next;
-    if (!selectedId.value && next.mcpCatalog?.length) {
-      selectedId.value = next.mcpCatalog[0]?.id ?? null;
-    }
-    lastNote.value = t("ai.mcp.noticeImported", {
-      added: report.added.length,
-      skipped: report.skipped.length,
-    });
-    toastSuccess(lastNote.value);
-  } catch (err) {
-    error.value = mapError(err);
-  }
-}
-
-function selectEntry(entry: McpCatalogEntry) {
-  selectedId.value = entry.id;
-  draftId.value = entry.id;
-  draftName.value = entry.displayName;
-  try {
-    draftJson.value = JSON.stringify(JSON.parse(entry.serverJson), null, 2);
-  } catch {
-    draftJson.value = entry.serverJson;
-  }
-}
-
-function startNew() {
-  selectedId.value = null;
-  draftId.value = "";
-  draftName.value = "";
-  draftJson.value = '{\n  "command": "npx",\n  "args": ["-y", "example"]\n}';
-}
-
 onMounted(() => {
   void refresh();
 });
@@ -253,93 +295,97 @@ onMounted(() => {
   <div class="mcp-panel" data-ai-mcp-panel>
     <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
     <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
-    <p class="mcp-hint">{{ t("ai.mcp.mergeHint") }}</p>
 
     <div class="mcp-toolbar">
+      <input
+        v-model="filterText"
+        class="fluent-control mcp-filter"
+        type="search"
+        :placeholder="t('ai.mcp.filterPlaceholder')"
+      />
       <button type="button" class="fluent-control" @click="startNew">
         {{ t("ai.mcp.add") }}
       </button>
-      <input
-        v-model="projectWorkspace"
-        class="fluent-control mcp-grow"
-        type="text"
-        :placeholder="t('ai.mcp.projectWorkspaceHint')"
-      />
-    </div>
-
-    <div class="fluent-surface mcp-harvest">
-      <h3 class="mcp-harvest-title">{{ t("ai.harvest.mcpTitle") }}</h3>
-      <p class="mcp-hint">{{ t("ai.harvest.mcpHint") }}</p>
-      <div class="mcp-toolbar">
-        <select v-model="harvestAgentId" class="fluent-control mcp-grow">
-          <option v-for="agent in agents" :key="agent.id" :value="agent.id">
-            {{ agent.displayName }}
-          </option>
-        </select>
-        <button type="button" class="fluent-control" @click="scanHarvest">
-          {{ t("ai.harvest.scan") }}
-        </button>
-        <button
-          type="button"
-          class="fluent-control fluent-control--accent"
-          :disabled="!harvestPickCount"
-          @click="importHarvest"
-        >
-          {{ t("ai.harvest.importSelected", { count: harvestPickCount }) }}
-        </button>
-      </div>
-      <ul v-if="harvestCandidates.length" class="mcp-harvest-list">
-        <li v-for="c in harvestCandidates" :key="c.id" class="mcp-harvest-item">
-          <label>
-            <input
-              v-model="harvestSelected[c.id]"
-              type="checkbox"
-              :disabled="c.alreadyInCatalog"
-            />
-            <span>
-              <strong>{{ c.displayName }}</strong>
-              <span class="mcp-meta">
-                {{ c.id }}
-                <template v-if="c.alreadyInCatalog"> · {{ t("ai.harvest.alreadyIn") }}</template>
-              </span>
-            </span>
-          </label>
-        </li>
-      </ul>
-    </div>
-
-    <div class="mcp-toolbar">
-      <input
-        v-model="importPath"
-        class="fluent-control mcp-grow"
-        type="text"
-        :placeholder="t('ai.mcp.importPathHint')"
-      />
-      <button type="button" class="fluent-control" @click="importMcpJson">
-        {{ t("ai.mcp.import") }}
+      <button type="button" class="fluent-control" @click="showTools = !showTools">
+        {{ showTools ? t("ai.mcp.hideTools") : t("ai.mcp.showTools") }}
       </button>
     </div>
 
-    <div class="mcp-layout">
-      <ul class="mcp-list" role="listbox" :aria-label="t('ai.sections.mcp.title')">
-        <li
-          v-for="entry in document?.mcpCatalog ?? []"
-          :key="entry.id"
-          class="mcp-list-item"
-          :class="{ 'mcp-list-item--active': entry.id === selectedId }"
-          role="option"
-          :aria-selected="entry.id === selectedId"
-          @click="selectEntry(entry)"
-        >
-          <strong>{{ entry.displayName }}</strong>
-          <span class="mcp-meta">{{ entry.id }}</span>
-        </li>
-        <li v-if="!(document?.mcpCatalog?.length)" class="mcp-meta">
-          {{ t("ai.mcp.empty") }}
-        </li>
-      </ul>
+    <div v-if="showTools" class="fluent-surface mcp-tools">
+      <div class="mcp-tools-grid">
+        <div class="mcp-tool-col">
+          <h3 class="mcp-subhead">{{ t("ai.harvest.mcpTitle") }}</h3>
+          <div class="mcp-row">
+            <select v-model="harvestAgentId" class="fluent-control mcp-grow">
+              <option v-for="agent in agents" :key="agent.id" :value="agent.id">
+                {{ agent.displayName }}
+              </option>
+            </select>
+            <button type="button" class="fluent-control" @click="scanHarvest">
+              {{ t("ai.harvest.scan") }}
+            </button>
+            <button
+              type="button"
+              class="fluent-control fluent-control--accent"
+              :disabled="!harvestPickCount"
+              @click="importHarvest"
+            >
+              {{ t("ai.harvest.importSelected", { count: harvestPickCount }) }}
+            </button>
+          </div>
+          <div v-if="harvestCandidates.length" class="mcp-harvest-scroll">
+            <label v-for="c in harvestCandidates" :key="c.id" class="mcp-check">
+              <input
+                v-model="harvestSelected[c.id]"
+                type="checkbox"
+                :disabled="c.alreadyInCatalog"
+              />
+              <span>{{ c.displayName }}</span>
+            </label>
+          </div>
+        </div>
+        <div class="mcp-tool-col">
+          <h3 class="mcp-subhead">{{ t("ai.mcp.import") }}</h3>
+          <div class="mcp-row">
+            <input
+              v-model="importPath"
+              class="fluent-control mcp-grow"
+              type="text"
+              :placeholder="t('ai.mcp.importPathHint')"
+            />
+            <button type="button" class="fluent-control" @click="importMcpJson">
+              {{ t("ai.mcp.import") }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-      <div class="fluent-surface mcp-detail">
+    <div class="mcp-split">
+      <aside class="fluent-surface mcp-list-pane">
+        <ul
+          v-if="filteredEntries.length"
+          class="mcp-list"
+          role="listbox"
+          :aria-label="t('ai.sections.mcp.title')"
+        >
+          <li
+            v-for="entry in filteredEntries"
+            :key="entry.id"
+            class="mcp-list-item"
+            :class="{ 'mcp-list-item--active': entry.id === selectedId }"
+            role="option"
+            :aria-selected="entry.id === selectedId"
+            @click="selectEntry(entry)"
+          >
+            <strong>{{ entry.displayName }}</strong>
+            <span class="mcp-meta">{{ entry.id }}</span>
+          </li>
+        </ul>
+        <p v-else class="mcp-meta">{{ t("ai.mcp.empty") }}</p>
+      </aside>
+
+      <article class="fluent-surface mcp-detail">
         <label class="mcp-field">
           <span>{{ t("ai.mcp.fieldName") }}</span>
           <input v-model="draftName" class="fluent-control" type="text" />
@@ -348,9 +394,9 @@ onMounted(() => {
           <span>{{ t("ai.mcp.fieldId") }}</span>
           <input v-model="draftId" class="fluent-control" type="text" />
         </label>
-        <label class="mcp-field">
+        <label class="mcp-field mcp-field--grow">
           <span>{{ t("ai.mcp.fieldJson") }}</span>
-          <textarea v-model="draftJson" class="fluent-control mcp-json" rows="8" />
+          <textarea v-model="draftJson" class="fluent-control mcp-json" rows="10" />
         </label>
         <div class="mcp-actions">
           <button type="button" class="fluent-control fluent-control--accent" @click="saveEntry">
@@ -359,28 +405,38 @@ onMounted(() => {
           <button type="button" class="fluent-control" :disabled="!selected" @click="deployGlobal">
             {{ t("ai.mcp.deployGlobal") }}
           </button>
+          <label class="mcp-field mcp-project-pick">
+            <span>{{ t("ai.mcp.targetProject") }}</span>
+            <select v-model="targetProjectPath" class="fluent-control">
+              <option value="" disabled>{{ t("ai.mcp.pickProject") }}</option>
+              <option v-for="p in projects" :key="p.path" :value="p.path">
+                {{ p.displayName }}
+              </option>
+            </select>
+          </label>
           <button
             type="button"
             class="fluent-control"
-            :disabled="!selected"
-            @click="deployToProject"
+            :disabled="!selected || !targetProjectPath"
+            @click="deployToSelectedProject"
           >
             {{ t("ai.mcp.addToProject") }}
           </button>
           <button
             type="button"
             class="fluent-control"
-            :disabled="!selected"
-            @click="undeploySelected"
+            :disabled="!selected || !targetProjectPath"
+            @click="undeployFromSelectedProject"
           >
-            {{ t("ai.mcp.undeploy") }}
+            {{ t("ai.mcp.removeFromProject") }}
           </button>
           <button type="button" class="fluent-control" :disabled="!selected" @click="removeSelected">
             {{ t("common.remove") }}
           </button>
         </div>
+        <p class="mcp-hint">{{ t("ai.mcp.projectDefaultHint") }}</p>
         <p v-if="lastNote" class="mcp-hint">{{ lastNote }}</p>
-      </div>
+      </article>
     </div>
   </div>
 </template>
@@ -391,31 +447,74 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: var(--fluent-space-md);
-}
-.mcp-hint,
-.mcp-meta {
-  margin: 0;
-  color: var(--fluent-color-text-secondary);
-  font-size: var(--fluent-font-size-caption);
+  min-width: 0;
 }
 .mcp-toolbar {
   display: flex;
-  gap: var(--fluent-space-sm);
   flex-wrap: wrap;
+  gap: var(--fluent-space-sm);
+  align-items: center;
 }
-.mcp-grow {
+.mcp-filter {
   flex: 1;
   min-width: 12rem;
 }
-.mcp-layout {
+.mcp-tools {
+  padding: var(--fluent-space-md);
+}
+.mcp-tools-grid {
   display: grid;
-  grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--fluent-space-md);
 }
-@media (max-width: 720px) {
-  .mcp-layout {
+@media (max-width: 900px) {
+  .mcp-tools-grid {
     grid-template-columns: 1fr;
   }
+}
+.mcp-tool-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-sm);
+  min-width: 0;
+}
+.mcp-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fluent-space-sm);
+}
+.mcp-grow {
+  flex: 1;
+  min-width: 8rem;
+}
+.mcp-harvest-scroll {
+  max-height: 8rem;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mcp-check {
+  display: flex;
+  gap: var(--fluent-space-sm);
+  align-items: center;
+  font-size: var(--fluent-font-size-caption);
+}
+.mcp-split {
+  display: grid;
+  grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
+  gap: var(--fluent-space-md);
+  min-height: 22rem;
+}
+@media (max-width: 720px) {
+  .mcp-split {
+    grid-template-columns: 1fr;
+  }
+}
+.mcp-list-pane {
+  padding: var(--fluent-space-sm);
+  max-height: 32rem;
+  overflow: auto;
 }
 .mcp-list {
   list-style: none;
@@ -423,7 +522,7 @@ onMounted(() => {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--fluent-space-xs);
+  gap: 2px;
 }
 .mcp-list-item {
   display: flex;
@@ -431,8 +530,6 @@ onMounted(() => {
   gap: 2px;
   padding: var(--fluent-space-sm) var(--fluent-space-md);
   border-radius: var(--fluent-radius-md);
-  background: var(--fluent-color-fill-subtle);
-  color: var(--fluent-color-text-primary);
   cursor: pointer;
 }
 .mcp-list-item:hover {
@@ -448,6 +545,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: var(--fluent-space-sm);
+  min-width: 0;
 }
 .mcp-field {
   display: flex;
@@ -456,37 +554,35 @@ onMounted(() => {
   font-size: var(--fluent-font-size-caption);
   color: var(--fluent-color-text-secondary);
 }
+.mcp-field--grow {
+  flex: 1;
+}
 .mcp-json {
   font-family: var(--fluent-font-family-mono);
   resize: vertical;
+  min-height: 10rem;
 }
 .mcp-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--fluent-space-sm);
+  align-items: flex-end;
 }
-.mcp-harvest {
-  padding: var(--fluent-space-md) var(--fluent-space-lg);
-  display: flex;
-  flex-direction: column;
-  gap: var(--fluent-space-sm);
+.mcp-project-pick {
+  min-width: 14rem;
+  flex: 1;
 }
-.mcp-harvest-title {
+.mcp-hint,
+.mcp-meta,
+.mcp-subhead {
   margin: 0;
+}
+.mcp-hint,
+.mcp-meta {
+  color: var(--fluent-color-text-secondary);
+  font-size: var(--fluent-font-size-caption);
+}
+.mcp-subhead {
   font-size: var(--fluent-font-size-body);
-}
-.mcp-harvest-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--fluent-space-xs);
-}
-.mcp-harvest-item label {
-  display: flex;
-  gap: var(--fluent-space-sm);
-  align-items: flex-start;
-  cursor: pointer;
 }
 </style>

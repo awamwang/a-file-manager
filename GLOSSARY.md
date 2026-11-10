@@ -25,7 +25,7 @@ _Avoid_: 技能包、插件、prompt
 _Avoid_: 同步、镜像、adopt、自动发现
 
 **部署**：
-把中央仓库中的 MCP 目录条目或 Library Skill 写入指定范围（全局和/或某个 Project Workspace）下、该范围启用集内的 Agent Target 路径。
+把中央仓库中的 MCP 目录条目或 Library Skill 写入指定范围（全局和/或**某一个** Project Workspace）下、该范围启用集内的 Agent Target 路径。项目默认不启用任何 Skill/MCP，须显式「添加到所选项目」。
 _Avoid_: 安装、发布、分发（产品叙述可用「分发」，领域动词用「部署」）
 
 **项目 Agent 启用集**：

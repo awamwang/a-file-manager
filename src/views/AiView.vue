@@ -134,11 +134,11 @@ onMounted(() => {
 
 .ai-layout {
   display: grid;
-  grid-template-columns: 15rem minmax(0, 1fr);
+  grid-template-columns: 13rem minmax(0, 1fr);
   gap: var(--fluent-space-lg);
   align-items: start;
   margin-top: var(--fluent-space-lg);
-  max-width: 64rem;
+  max-width: min(100%, 88rem);
 }
 
 .ai-nav {

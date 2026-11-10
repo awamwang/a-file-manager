@@ -1,10 +1,11 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
 /**
- * AIA-216 / A3 — Public Skill library UI + Harvest + 部署方式 + 项目分发。
+ * 公共 Skill 库：横向主从布局；删除需确认；添加到指定单个项目。
  */
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import { openConfirmDialog } from "../state/confirmDialog";
 import { toastSuccess } from "../state/toast";
 import {
   aiAgentTargetsList,
@@ -16,13 +17,13 @@ import {
   aiSkillsLibraryGet,
   aiSkillsLibrarySetRoot,
   aiSkillsRemove,
-  aiSkillsSearchProject,
   aiSkillsUndeploy,
 } from "./client";
+import { listProjectOptions, type ProjectOption } from "./projectOptions";
 import type {
   AgentTarget,
   HarvestSkillCandidate,
-  ProjectSkillHit,
+  LibrarySkill,
   SkillDeployReport,
   SkillsLibraryStatus,
 } from "./types";
@@ -36,14 +37,16 @@ const selectedName = ref<string | null>(null);
 const sourcePath = ref("");
 const importName = ref("");
 const rootDraft = ref("");
-const projectWorkspace = ref("");
+const filterText = ref("");
 const lastDeployNote = ref<string | null>(null);
-const projectHits = ref<ProjectSkillHit[]>([]);
 const skillDeployMode = ref("junction");
 const agents = ref<AgentTarget[]>([]);
 const harvestAgentId = ref("");
 const harvestCandidates = ref<HarvestSkillCandidate[]>([]);
 const harvestSelected = ref<Record<string, boolean>>({});
+const showTools = ref(false);
+const projects = ref<ProjectOption[]>([]);
+const targetProjectPath = ref("");
 
 const SKILL_ERROR_KEYS: Record<string, string> = {
   AI_SKILL_SOURCE_INVALID: "ai.skills.errorSourceInvalid",
@@ -71,18 +74,37 @@ const harvestPickCount = computed(
   () => Object.values(harvestSelected.value).filter(Boolean).length,
 );
 
+const filteredSkills = computed(() => {
+  const q = filterText.value.trim().toLowerCase();
+  const list = status.value?.skills ?? [];
+  if (!q) return list;
+  return list.filter(
+    (s) => s.name.toLowerCase().includes(q) || s.path.toLowerCase().includes(q),
+  );
+});
+
+const selected = computed(
+  () => status.value?.skills.find((s) => s.name === selectedName.value) ?? null,
+);
+
 async function refresh() {
   loading.value = true;
   error.value = null;
   try {
-    const [next, agentDoc] = await Promise.all([
+    const [next, agentDoc, projectList] = await Promise.all([
       aiSkillsLibraryGet(),
       aiAgentTargetsList(),
+      listProjectOptions(),
     ]);
     status.value = next;
     rootDraft.value = next.root;
     skillDeployMode.value = agentDoc.skillDeployMode || "junction";
     agents.value = agentDoc.agentTargets;
+    projects.value = projectList.options;
+    if (!targetProjectPath.value) {
+      const active = projectList.options.find((p) => p.slug === projectList.activeSlug);
+      targetProjectPath.value = active?.path ?? projectList.options[0]?.path ?? "";
+    }
     if (!harvestAgentId.value && agents.value.length) {
       harvestAgentId.value = agents.value[0]?.id ?? "";
     }
@@ -102,8 +124,8 @@ async function refresh() {
   }
 }
 
-function selectSkill(name: string) {
-  selectedName.value = name;
+function selectSkill(skill: LibrarySkill) {
+  selectedName.value = skill.name;
 }
 
 async function saveRoot() {
@@ -158,6 +180,14 @@ async function importSkill() {
 }
 
 async function removeSkill(name: string) {
+  const result = await openConfirmDialog({
+    title: t("ai.skills.confirmRemoveTitle"),
+    message: t("ai.skills.confirmRemoveMessage", { name }),
+    confirmLabel: t("common.remove"),
+    cancelLabel: t("common.cancel"),
+    danger: true,
+  });
+  if (!result.confirmed) return;
   error.value = null;
   try {
     status.value = await aiSkillsRemove(name);
@@ -185,17 +215,20 @@ async function deployGlobal(name: string) {
   }
 }
 
-async function deployToProject(name: string) {
-  const ws = projectWorkspace.value.trim();
+async function deployToSelectedProject(name: string) {
+  const ws = targetProjectPath.value.trim();
   if (!ws) {
-    error.value = t("ai.skills.errorDeployProject");
+    error.value = t("ai.skills.errorPickProject");
     return;
   }
   error.value = null;
   lastDeployNote.value = null;
   try {
     const report: SkillDeployReport = await aiSkillsDeploy(name, ws);
-    lastDeployNote.value = t("ai.skills.noticeDeployed", {
+    const project =
+      projects.value.find((p) => p.path === ws)?.displayName ?? ws;
+    lastDeployNote.value = t("ai.skills.noticeDeployedToProject", {
+      project,
       count: report.deployments.length,
       skipped: report.skipped.length,
     });
@@ -205,11 +238,15 @@ async function deployToProject(name: string) {
   }
 }
 
-async function undeploySkill(name: string) {
+async function undeployFromSelectedProject(name: string) {
+  const ws = targetProjectPath.value.trim();
+  if (!ws) {
+    error.value = t("ai.skills.errorPickProject");
+    return;
+  }
   error.value = null;
   lastDeployNote.value = null;
   try {
-    const ws = projectWorkspace.value.trim() || null;
     const report: SkillDeployReport = await aiSkillsUndeploy(name, ws);
     lastDeployNote.value = t("ai.skills.noticeUndeployed", {
       count: report.deployments.length,
@@ -220,33 +257,17 @@ async function undeploySkill(name: string) {
   }
 }
 
-async function searchProject() {
-  if (!projectWorkspace.value.trim()) return;
-  error.value = null;
-  try {
-    projectHits.value = await aiSkillsSearchProject(projectWorkspace.value.trim());
-  } catch (err) {
-    error.value = mapError(err);
-  }
-}
-
-async function importFromHit(path: string, name: string) {
-  sourcePath.value = path;
-  importName.value = name;
-  await importSkill();
-}
-
 async function scanHarvest() {
   if (!harvestAgentId.value) return;
   error.value = null;
   try {
     const report = await aiHarvestSkillsScan(harvestAgentId.value);
     harvestCandidates.value = report.candidates;
-    const selected: Record<string, boolean> = {};
+    const selectedMap: Record<string, boolean> = {};
     for (const c of report.candidates) {
-      selected[c.name] = !c.alreadyInLibrary;
+      selectedMap[c.name] = !c.alreadyInLibrary;
     }
-    harvestSelected.value = selected;
+    harvestSelected.value = selectedMap;
   } catch (err) {
     error.value = mapError(err);
   }
@@ -280,177 +301,172 @@ onMounted(() => {
     <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
     <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
 
-    <div class="fluent-surface skills-block">
-      <h3 class="skills-subhead">{{ t("ai.skills.libraryRoot") }}</h3>
-      <p class="skills-hint">{{ t("ai.skills.libraryRootHint") }}</p>
-      <div class="skills-row">
-        <input v-model="rootDraft" class="fluent-control skills-grow" type="text" />
-        <button type="button" class="fluent-control fluent-control--accent" @click="saveRoot">
-          {{ t("ai.skills.saveRoot") }}
-        </button>
-        <button type="button" class="fluent-control" @click="resetRoot">
-          {{ t("ai.skills.resetRoot") }}
-        </button>
-      </div>
-      <label class="skills-field">
-        <span>{{ t("ai.skills.deployMode") }}</span>
-        <select v-model="skillDeployMode" class="fluent-control" @change="saveDeployMode">
-          <option value="junction">{{ t("ai.skills.deployModeJunction") }}</option>
-          <option value="copy">{{ t("ai.skills.deployModeCopy") }}</option>
-        </select>
-      </label>
-      <p class="skills-hint">{{ t("ai.skills.deployModeHint") }}</p>
-    </div>
-
-    <div class="fluent-surface skills-block">
-      <h3 class="skills-subhead">{{ t("ai.harvest.skillsTitle") }}</h3>
-      <p class="skills-hint">{{ t("ai.harvest.skillsHint") }}</p>
-      <div class="skills-row">
-        <select v-model="harvestAgentId" class="fluent-control skills-grow">
-          <option v-for="agent in agents" :key="agent.id" :value="agent.id">
-            {{ agent.displayName }}
-          </option>
-        </select>
-        <button type="button" class="fluent-control" @click="scanHarvest">
-          {{ t("ai.harvest.scan") }}
-        </button>
-        <button
-          type="button"
-          class="fluent-control fluent-control--accent"
-          :disabled="!harvestPickCount"
-          @click="importHarvest"
-        >
-          {{ t("ai.harvest.importSelected", { count: harvestPickCount }) }}
-        </button>
-      </div>
-      <ul v-if="harvestCandidates.length" class="skills-list">
-        <li v-for="c in harvestCandidates" :key="c.name" class="skills-list-item">
-          <label class="skills-check">
-            <input v-model="harvestSelected[c.name]" type="checkbox" :disabled="c.alreadyInLibrary" />
-            <span>
-              <strong>{{ c.name }}</strong>
-              <span class="skills-list-meta">
-                {{ c.path }}
-                <template v-if="c.alreadyInLibrary"> · {{ t("ai.harvest.alreadyIn") }}</template>
-              </span>
-            </span>
-          </label>
-        </li>
-      </ul>
-    </div>
-
-    <div class="fluent-surface skills-block">
-      <h3 class="skills-subhead">{{ t("ai.skills.importTitle") }}</h3>
-      <p class="skills-hint">{{ t("ai.skills.importHint") }}</p>
-      <label class="skills-field">
-        <span>{{ t("ai.skills.fieldSource") }}</span>
-        <input v-model="sourcePath" class="fluent-control" type="text" />
-      </label>
-      <label class="skills-field">
-        <span>{{ t("ai.skills.fieldName") }}</span>
-        <input
-          v-model="importName"
-          class="fluent-control"
-          type="text"
-          :placeholder="t('ai.skills.fieldNameHint')"
-        />
-      </label>
-      <button type="button" class="fluent-control fluent-control--accent" @click="importSkill">
-        {{ t("ai.skills.import") }}
+    <div class="skills-toolbar">
+      <input
+        v-model="filterText"
+        class="fluent-control skills-filter"
+        type="search"
+        :placeholder="t('ai.skills.filterPlaceholder')"
+      />
+      <p class="skills-summary">
+        {{ t("ai.skills.summary", { count: status?.skills.length ?? 0 }) }}
+      </p>
+      <button type="button" class="fluent-control" @click="showTools = !showTools">
+        {{ showTools ? t("ai.skills.hideTools") : t("ai.skills.showTools") }}
       </button>
     </div>
 
-    <div class="fluent-surface skills-block">
-      <h3 class="skills-subhead">{{ t("ai.skills.deployTitle") }}</h3>
-      <p class="skills-hint">{{ t("ai.skills.deployHint") }}</p>
-      <label class="skills-field">
-        <span>{{ t("ai.skills.fieldProjectWorkspace") }}</span>
-        <input
-          v-model="projectWorkspace"
-          class="fluent-control"
-          type="text"
-          :placeholder="t('ai.skills.fieldProjectWorkspaceHint')"
-        />
-      </label>
-      <div class="skills-row">
-        <button type="button" class="fluent-control" @click="searchProject">
-          {{ t("ai.skills.searchProject") }}
-        </button>
-      </div>
-      <ul v-if="projectHits.length" class="skills-list">
-        <li v-for="hit in projectHits" :key="hit.path" class="skills-list-item">
-          <div class="skills-list-main">
-            <strong>{{ hit.name }}</strong>
-            <span class="skills-list-meta">{{ hit.path }}</span>
+    <div v-if="showTools" class="fluent-surface skills-tools">
+      <div class="skills-tools-grid">
+        <div class="skills-tool-col">
+          <h3 class="skills-subhead">{{ t("ai.skills.libraryRoot") }}</h3>
+          <div class="skills-row">
+            <input v-model="rootDraft" class="fluent-control skills-grow" type="text" />
+            <button type="button" class="fluent-control fluent-control--accent" @click="saveRoot">
+              {{ t("ai.skills.saveRoot") }}
+            </button>
+            <button type="button" class="fluent-control" @click="resetRoot">
+              {{ t("ai.skills.resetRoot") }}
+            </button>
           </div>
+          <label class="skills-field">
+            <span>{{ t("ai.skills.deployMode") }}</span>
+            <select v-model="skillDeployMode" class="fluent-control" @change="saveDeployMode">
+              <option value="junction">{{ t("ai.skills.deployModeJunction") }}</option>
+              <option value="copy">{{ t("ai.skills.deployModeCopy") }}</option>
+            </select>
+          </label>
+        </div>
+        <div class="skills-tool-col">
+          <h3 class="skills-subhead">{{ t("ai.harvest.skillsTitle") }}</h3>
+          <div class="skills-row">
+            <select v-model="harvestAgentId" class="fluent-control skills-grow">
+              <option v-for="agent in agents" :key="agent.id" :value="agent.id">
+                {{ agent.displayName }}
+              </option>
+            </select>
+            <button type="button" class="fluent-control" @click="scanHarvest">
+              {{ t("ai.harvest.scan") }}
+            </button>
+            <button
+              type="button"
+              class="fluent-control fluent-control--accent"
+              :disabled="!harvestPickCount"
+              @click="importHarvest"
+            >
+              {{ t("ai.harvest.importSelected", { count: harvestPickCount }) }}
+            </button>
+          </div>
+          <div v-if="harvestCandidates.length" class="skills-harvest-scroll">
+            <label
+              v-for="c in harvestCandidates"
+              :key="c.name"
+              class="skills-check"
+            >
+              <input
+                v-model="harvestSelected[c.name]"
+                type="checkbox"
+                :disabled="c.alreadyInLibrary"
+              />
+              <span>{{ c.name }}</span>
+            </label>
+          </div>
+        </div>
+        <div class="skills-tool-col">
+          <h3 class="skills-subhead">{{ t("ai.skills.importTitle") }}</h3>
+          <input
+            v-model="sourcePath"
+            class="fluent-control"
+            type="text"
+            :placeholder="t('ai.skills.fieldSource')"
+          />
+          <input
+            v-model="importName"
+            class="fluent-control"
+            type="text"
+            :placeholder="t('ai.skills.fieldNameHint')"
+          />
+          <button type="button" class="fluent-control fluent-control--accent" @click="importSkill">
+            {{ t("ai.skills.import") }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="skills-split">
+      <aside class="fluent-surface skills-list-pane">
+        <ul
+          v-if="filteredSkills.length"
+          class="skills-list"
+          role="listbox"
+          :aria-label="t('ai.sections.skills.title')"
+        >
+          <li
+            v-for="skill in filteredSkills"
+            :key="skill.name"
+            class="skills-list-item"
+            :class="{ 'skills-list-item--active': skill.name === selectedName }"
+            role="option"
+            :aria-selected="skill.name === selectedName"
+            @click="selectSkill(skill)"
+          >
+            <strong>{{ skill.name }}</strong>
+          </li>
+        </ul>
+        <p v-else class="skills-empty">{{ t("ai.skills.empty") }}</p>
+      </aside>
+
+      <article v-if="selected" class="fluent-surface skills-detail">
+        <header class="skills-detail-head">
+          <div>
+            <h3 class="skills-subhead">{{ selected.name }}</h3>
+            <p class="skills-hint">{{ selected.path }}</p>
+          </div>
+          <button type="button" class="fluent-control" @click="removeSkill(selected.name)">
+            {{ t("common.remove") }}
+          </button>
+        </header>
+
+        <div class="skills-detail-actions">
           <button
             type="button"
             class="fluent-control"
-            @click="importFromHit(hit.path, hit.name)"
+            @click="deployGlobal(selected.name)"
           >
-            {{ t("ai.skills.import") }}
+            {{ t("ai.skills.deployGlobal") }}
           </button>
-        </li>
-      </ul>
-      <p v-if="lastDeployNote" class="skills-hint">{{ lastDeployNote }}</p>
-    </div>
-
-    <div v-if="status" class="skills-list-wrap">
-      <p class="skills-summary">
-        {{ t("ai.skills.summary", { count: status.skills.length }) }}
-      </p>
-      <ul
-        v-if="status.skills.length"
-        class="skills-list"
-        role="listbox"
-        :aria-label="t('ai.sections.skills.title')"
-      >
-        <li
-          v-for="skill in status.skills"
-          :key="skill.name"
-          class="skills-list-item"
-          :class="{ 'skills-list-item--active': skill.name === selectedName }"
-          role="option"
-          :aria-selected="skill.name === selectedName"
-          @click="selectSkill(skill.name)"
-        >
-          <div class="skills-list-main">
-            <strong>{{ skill.name }}</strong>
-            <span class="skills-list-meta">{{ skill.path }}</span>
-          </div>
-          <div class="skills-row">
-            <button
-              type="button"
-              class="fluent-control"
-              @click.stop="deployGlobal(skill.name)"
-            >
-              {{ t("ai.skills.deployGlobal") }}
-            </button>
-            <button
-              type="button"
-              class="fluent-control"
-              @click.stop="deployToProject(skill.name)"
-            >
-              {{ t("ai.skills.addToProject") }}
-            </button>
-            <button
-              type="button"
-              class="fluent-control"
-              @click.stop="undeploySkill(skill.name)"
-            >
-              {{ t("ai.skills.undeploy") }}
-            </button>
-            <button
-              type="button"
-              class="fluent-control"
-              @click.stop="removeSkill(skill.name)"
-            >
-              {{ t("common.remove") }}
-            </button>
-          </div>
-        </li>
-      </ul>
-      <p v-else class="skills-empty">{{ t("ai.skills.empty") }}</p>
+          <label class="skills-field skills-project-pick">
+            <span>{{ t("ai.skills.targetProject") }}</span>
+            <select v-model="targetProjectPath" class="fluent-control">
+              <option value="" disabled>{{ t("ai.skills.pickProject") }}</option>
+              <option v-for="p in projects" :key="p.path" :value="p.path">
+                {{ p.displayName }}
+              </option>
+            </select>
+          </label>
+          <button
+            type="button"
+            class="fluent-control fluent-control--accent"
+            :disabled="!targetProjectPath"
+            @click="deployToSelectedProject(selected.name)"
+          >
+            {{ t("ai.skills.addToProject") }}
+          </button>
+          <button
+            type="button"
+            class="fluent-control"
+            :disabled="!targetProjectPath"
+            @click="undeployFromSelectedProject(selected.name)"
+          >
+            {{ t("ai.skills.removeFromProject") }}
+          </button>
+        </div>
+        <p class="skills-hint">{{ t("ai.skills.projectDefaultHint") }}</p>
+        <p v-if="lastDeployNote" class="skills-hint">{{ lastDeployNote }}</p>
+      </article>
+      <article v-else class="fluent-surface skills-detail skills-detail--empty">
+        <p class="skills-empty">{{ t("ai.skills.selectHint") }}</p>
+      </article>
     </div>
   </div>
 </template>
@@ -461,13 +477,139 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: var(--fluent-space-md);
+  min-width: 0;
 }
 
-.skills-block {
-  padding: var(--fluent-space-md) var(--fluent-space-lg);
+.skills-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+}
+
+.skills-filter {
+  flex: 1;
+  min-width: 12rem;
+}
+
+.skills-summary,
+.skills-hint,
+.skills-empty {
+  margin: 0;
+  color: var(--fluent-color-text-secondary);
+  font-size: var(--fluent-font-size-caption);
+}
+
+.skills-tools {
+  padding: var(--fluent-space-md);
+}
+
+.skills-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--fluent-space-md);
+}
+
+@media (max-width: 960px) {
+  .skills-tools-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.skills-tool-col {
   display: flex;
   flex-direction: column;
   gap: var(--fluent-space-sm);
+  min-width: 0;
+}
+
+.skills-harvest-scroll {
+  max-height: 8rem;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.skills-split {
+  display: grid;
+  grid-template-columns: minmax(12rem, 18rem) minmax(0, 1fr);
+  gap: var(--fluent-space-md);
+  min-height: 22rem;
+  align-items: stretch;
+}
+
+@media (max-width: 720px) {
+  .skills-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.skills-list-pane {
+  padding: var(--fluent-space-sm);
+  min-height: 0;
+  max-height: 32rem;
+  overflow: auto;
+}
+
+.skills-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.skills-list-item {
+  padding: var(--fluent-space-sm) var(--fluent-space-md);
+  border-radius: var(--fluent-radius-md);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skills-list-item:hover {
+  background: var(--fluent-color-fill-control-hover);
+}
+
+.skills-list-item--active {
+  background: var(--fluent-color-fill-selected);
+  font-weight: var(--fluent-font-weight-semibold);
+  box-shadow: inset 3px 0 0 var(--fluent-color-stroke-accent-soft);
+}
+
+.skills-detail {
+  padding: var(--fluent-space-md) var(--fluent-space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-md);
+  min-width: 0;
+}
+
+.skills-detail--empty {
+  align-items: center;
+  justify-content: center;
+}
+
+.skills-detail-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--fluent-space-md);
+  align-items: flex-start;
+}
+
+.skills-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--fluent-space-sm);
+}
+
+.skills-project-pick {
+  min-width: 14rem;
+  flex: 1;
 }
 
 .skills-subhead {
@@ -475,25 +617,15 @@ onMounted(() => {
   font-size: var(--fluent-font-size-body);
 }
 
-.skills-hint,
-.skills-summary,
-.skills-empty,
-.skills-list-meta {
-  margin: 0;
-  color: var(--fluent-color-text-secondary);
-  font-size: var(--fluent-font-size-caption);
-}
-
 .skills-row {
   display: flex;
   flex-wrap: wrap;
   gap: var(--fluent-space-sm);
-  align-items: center;
 }
 
 .skills-grow {
   flex: 1;
-  min-width: 12rem;
+  min-width: 8rem;
 }
 
 .skills-field {
@@ -504,43 +636,10 @@ onMounted(() => {
   color: var(--fluent-color-text-secondary);
 }
 
-.skills-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--fluent-space-xs);
-}
-
-.skills-list-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--fluent-space-sm);
-  flex-wrap: wrap;
-  padding: var(--fluent-space-sm) var(--fluent-space-md);
-  border-radius: var(--fluent-radius-md);
-  background: var(--fluent-color-fill-subtle);
-  cursor: pointer;
-}
-
-.skills-list-item--active {
-  background: var(--fluent-color-fill-selected);
-  box-shadow: inset 3px 0 0 var(--fluent-color-stroke-accent-soft);
-}
-
-.skills-list-main {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
 .skills-check {
   display: flex;
-  align-items: flex-start;
   gap: var(--fluent-space-sm);
-  cursor: pointer;
+  align-items: center;
+  font-size: var(--fluent-font-size-caption);
 }
 </style>
