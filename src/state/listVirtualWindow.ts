@@ -17,7 +17,7 @@ export const LIST_VIRTUALIZE_MIN_ENTRIES = 80;
 export const LIST_VIRTUAL_OVERSCAN_ROWS = 8;
 /** 与 `--fluent-list-row-height-compact` 对齐。 */
 export const COMPACT_LIST_ROW_HEIGHT_PX = 24;
-/** `.list--icons` / `.list--tiles` 的 `gap: var(--fluent-space-sm)`。 */
+/** `.list--tiles` 的 `gap`；图标视图仅 `column-gap`（`row-gap: 0`）。 */
 export const LIST_GRID_GAP_PX = 8;
 /** `.list--tiles` 的 `minmax(14rem, 1fr)` @ 16px。 */
 export const TILES_COL_MIN_PX = 224;
@@ -57,7 +57,9 @@ export function resolveListRowHeightPx(
 }
 
 function rowStridePx(rowHeight: number, columns: number, mode: string): number {
-  const usesGap = columns > 1 || mode.startsWith("icons") || mode === "tiles";
+  // 图标格行间无 gap，步进即行高；平铺/多列仍计入 LIST_GRID_GAP_PX。
+  if (mode.startsWith("icons")) return rowHeight;
+  const usesGap = columns > 1 || mode === "tiles";
   return rowHeight + (usesGap ? LIST_GRID_GAP_PX : 0);
 }
 

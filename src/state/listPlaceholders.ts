@@ -42,8 +42,8 @@ export const DETAILS_HEADER_HEIGHT_PX = 32;
 export const TILE_ROW_HEIGHT_PX = 72;
 /** Content view row with meta line. */
 export const CONTENT_ROW_HEIGHT_PX = 48;
-/** Caption + padding under icon cells. */
-const ICON_CAPTION_EXTRA_PX = 40;
+/** 图标格下方标签区 + 内边距（与 `--nav-icon-caption-extra` / `.row--icon` 行高同步）。 */
+export const ICON_CAPTION_EXTRA_PX = 64;
 /** Cap so a huge window does not mount hundreds of inert nodes. */
 export const PLACEHOLDER_COUNT_CAP = 120;
 /** Fold fallback when the list surface has not been measured yet. */

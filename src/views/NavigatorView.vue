@@ -84,6 +84,7 @@ import {
 import {
   DETAILS_HEADER_HEIGHT_PX,
   estimatePlaceholderCount,
+  ICON_CAPTION_EXTRA_PX,
   iconSlotCssSize,
   type PlaceholderViewMode,
 } from "../state/listPlaceholders";
@@ -382,7 +383,7 @@ function onRenameOutsidePointerDown(event: PointerEvent) {
 function syncRenameInputSize() {
   const input = renameInputEl.value;
   if (!input) return;
-  const maxLines = isIconView.value ? 2 : 1;
+  const maxLines = isIconView.value ? 3 : 1;
   input.rows = 1;
   input.style.height = "auto";
   input.style.width = "auto";
@@ -1097,11 +1098,13 @@ function usesVirtSpacers(win: ListVirtualWindow): boolean {
 /** Reserve shell-icon slot at the active view size (AIA-267). */
 const primaryListStyle = computed(() => ({
   "--nav-icon-size": iconSlotCssSize(navigatorViewMode.value),
+  "--nav-icon-caption-extra": `${ICON_CAPTION_EXTRA_PX}px`,
   ...gridVirtualPaddingStyle(primaryVirtual.value),
 }));
 
 const secondaryListStyle = computed(() => ({
   "--nav-icon-size": iconSlotCssSize(navigatorViewMode.value),
+  "--nav-icon-caption-extra": `${ICON_CAPTION_EXTRA_PX}px`,
   ...gridVirtualPaddingStyle(secondaryVirtual.value),
 }));
 
@@ -2340,7 +2343,9 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
 .list--icons {
   display: grid;
   align-content: start;
-  gap: var(--fluent-space-sm);
+  /* 列间保留间距；行间无纯空白条，行高由格子自身占满。 */
+  column-gap: var(--fluent-space-sm);
+  row-gap: 0;
   padding: var(--fluent-space-sm);
 }
 
@@ -2367,7 +2372,8 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   justify-content: flex-start;
   gap: var(--fluent-space-xs);
   min-width: 0;
-  min-height: calc(var(--nav-icon-size, 16px) + 2.5rem);
+  height: calc(var(--nav-icon-size, 16px) + var(--nav-icon-caption-extra, 64px));
+  min-height: calc(var(--nav-icon-size, 16px) + var(--nav-icon-caption-extra, 64px));
   padding: var(--fluent-space-sm);
   border-bottom: 0;
   border-radius: var(--fluent-radius-md);
@@ -2379,7 +2385,11 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: hidden;
+  justify-content: flex-start;
+  align-items: center;
 }
 
 .list--icons .row--icon .name {
@@ -2387,7 +2397,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   max-width: 100%;
   white-space: normal;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   overflow-wrap: anywhere;

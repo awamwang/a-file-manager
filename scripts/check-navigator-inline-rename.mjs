@@ -26,7 +26,7 @@ assert.ok(view.includes('rows="1"'));
 assert.ok(view.includes('@keydown.enter.prevent.stop="commitInlineRename"'));
 assert.ok(view.includes('@keydown.escape.prevent.stop="cancelInlineRename"'));
 assert.ok(view.includes('registerShortcutHandler("navigator.rename"'));
-assert.ok(view.includes("isIconView.value ? 2 : 1"));
+assert.ok(view.includes("isIconView.value ? 3 : 1"));
 assert.ok(view.includes("field-sizing: content"));
 assert.ok(view.includes("min-height: 0"));
 assert.ok(view.includes("@mousedown.stop"));
