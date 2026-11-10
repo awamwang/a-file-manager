@@ -158,12 +158,8 @@ pub fn run() {
         .on_menu_event(|app, event| {
             system_tray::handle_menu_event(app, event);
         })
-        .invoke_handler({
-            // AIA-222: Core-only builds omit AI Add-on IPC (`--no-default-features`).
-            #[cfg(feature = "ai-addon")]
-            {
-                tauri::generate_handler![
-                    health_get,
+        .invoke_handler(tauri::generate_handler![
+health_get,
                     app_quit,
                     system_tray::afm_startup_should_reveal,
                     autostart::autostart_status,
@@ -225,32 +221,59 @@ pub fn run() {
                     work_groups::work_groups_silent_switch,
                     work_groups::work_groups_save_open_state,
                     work_groups::work_groups_save_members_from_open_state,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_addon_status,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_agent_targets_list,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_agent_targets_discover,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_agent_targets_set_enabled,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_agent_targets_update,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_agent_targets_upsert_custom,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_agent_targets_remove,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_skills_library_get,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_skills_library_set_root,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_skills_import,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_skills_remove,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_skills_deploy,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_skills_undeploy,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_skills_search_project,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_mcp_catalog_list,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_mcp_catalog_upsert,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_mcp_catalog_remove,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_mcp_catalog_import,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_mcp_deploy,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_mcp_undeploy,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_harness_init,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_providers_list,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_providers_set_enabled,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_providers_update,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_providers_upsert_compatible,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_providers_remove,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_project_open_editor,
                     projects::projects_index_get,
                     projects::projects_index_set_active,
@@ -303,129 +326,8 @@ pub fn run() {
                     preview_bridge::preview_bridge_switch,
                     preview_bridge::preview_bridge_dismiss,
                     archive::archive_compress_zip,
-                    archive::archive_extract_zip,
-                ]
-            }
-            #[cfg(not(feature = "ai-addon"))]
-            {
-                tauri::generate_handler![
-                    health_get,
-                    app_quit,
-                    system_tray::afm_startup_should_reveal,
-                    autostart::autostart_status,
-                    autostart::autostart_set_enabled,
-                    navigator::navigator_list,
-                    navigator::navigator_search,
-                    navigator::navigator_default_path,
-                    navigator::navigator_parent,
-                    navigator::navigator_stat,
-                    navigator::navigator_get_attributes,
-                    navigator::navigator_set_attributes,
-                    navigator::navigator_list_drives,
-                    navigator::navigator_user_folders,
-                    navigator::navigator_shell_places,
-                    navigator::navigator_disk_space,
-                    navigator::navigator_expand_path,
-                    ide_launch::ide_list_apps,
-                    ide_launch::ide_open_path,
-                    file_ops::file_ops_name_exists,
-                    file_ops::file_ops_copy,
-                    file_ops::file_ops_move,
-                    file_ops::file_ops_rename,
-                    file_ops::file_ops_create_dir,
-                    file_ops::file_ops_create_file,
-                    file_ops::shortcut::file_ops_create_shortcuts,
-                    file_ops::file_ops_delete,
-                    file_ops::file_ops_delete_permanent,
-                    file_ops::file_ops_can_recycle,
-                    file_ops::file_ops_recycle_list,
-                    file_ops::file_ops_restore,
-                    file_ops::file_ops_new_templates,
-                    file_ops::clipboard::file_ops_clipboard_set,
-                    file_ops::clipboard::file_ops_clipboard_get,
-                    file_ops::clipboard::file_ops_clipboard_clear,
-                    shell_icons::shell_icon_get,
-                    shell_icons::shell_icon_get_many,
-                    settings::settings_schema_get,
-                    settings::settings_get,
-                    settings::settings_set,
-                    discovery::discovery_status,
-                    discovery::discovery_estimate_count,
-                    discovery::discovery_set_fallback_enabled,
-                    discovery::discovery_search,
-                    discovery::discovery_set_blacklist,
-                    providers::provider_backends,
-                    providers::provider_gateway_status,
-                    providers::provider_list,
-                    providers::provider_stat,
-                    providers::provider_resolve,
-                    providers::provider_preload,
-                    providers::provider_cache_invalidate,
-                    work_groups::work_groups_get,
-                    work_groups::work_groups_create,
-                    work_groups::work_groups_add_member,
-                    work_groups::work_groups_remove_member,
-                    work_groups::work_groups_rename,
-                    work_groups::work_groups_copy,
-                    work_groups::work_groups_delete,
-                    work_groups::work_groups_silent_switch,
-                    work_groups::work_groups_save_open_state,
-                    work_groups::work_groups_save_members_from_open_state,
-                    projects::projects_index_get,
-                    projects::projects_index_set_active,
-                    projects::projects_root_ensure,
-                    projects::projects_workspace_create,
-                    projects::projects_workspace_list,
-                    projects::projects_workspace_bind_work_group,
-                    projects::projects_workspace_activate,
-                    projects::projects_workspace_member_add,
-                    projects::projects_workspace_member_list,
-                    projects::projects_workspace_member_remove,
-                    projects::projects_resolve_open_path,
-                    projects::projects_workspace_context_get,
-                    projects::projects_workspace_context_set,
-                    projects::projects_workspace_board_get,
-                    projects::projects_workspace_board_add_task,
-                    projects::projects_workspace_board_update_task,
-                    projects::projects_workspace_board_move_task,
-                    projects::projects_workspace_board_delete_task,
-                    projects::projects_workspace_delete,
-                    projects::projects_workspace_rename,
-                    projects::projects_workspace_copy,
-                    projects::projects_workspace_promote_from_work_group,
-                    extension_host::extension_host_status,
-                    extension_host::extension_host_marketplace,
-                    extension_host::extension_host_list_installed,
-                    extension_host::extension_host_install,
-                    extension_host::extension_host_set_enabled,
-                    extension_host::extension_host_uninstall,
-                    extension_host::extension_host_dispatch_ui_command,
-                    extension_host::extension_host_list_fs_provider_hooks,
-                    extension_host::extension_host_register_fs_provider_hook,
-                    shell_menu::shell_show_context_menu,
-                    shell_menu::shell_get_context_menu,
-                    shell_menu::shell_invoke_context_menu_item,
-                    terminal::terminal_list_apps,
-                    terminal::open_in_terminal,
-                    favorites::favorites_get,
-                    favorites::favorites_toggle,
-                    favorites::favorites_contains,
-                    favorites::favorites_os_hook_status,
-                    favorites::favorites_os_hook_set_enabled,
-                    visit_stats::visit_stats_get,
-                    visit_stats::visit_stats_record,
-                    visit_stats::visit_stats_quick_access,
-                    open_with::open_path_default,
-                    open_with::open_native_open_with_dialog,
-                    preview::preview_load,
-                    preview_bridge::preview_bridge_invoke,
-                    preview_bridge::preview_bridge_switch,
-                    preview_bridge::preview_bridge_dismiss,
-                    archive::archive_compress_zip,
-                    archive::archive_extract_zip,
-                ]
-            }
-        })
+                    archive::archive_extract_zip
+                ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app_handle, event| {

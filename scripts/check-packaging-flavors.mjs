@@ -22,7 +22,15 @@ assert.ok(cargo.includes('default = ["ai-addon"]'), "Cargo default enables ai-ad
 assert.ok(cargo.includes("ai-addon = []"), "ai-addon feature declared");
 assert.ok(lib.includes('#[cfg(feature = "ai-addon")]'), "lib gates AI module");
 assert.ok(lib.includes("cfg!(feature = \"ai-addon\")") || lib.includes("ai_addon:"), "health reports flavor");
-assert.ok(lib.includes('#[cfg(not(feature = "ai-addon"))]'), "Core handler list without AI IPC");
+// 单一 generate_handler：AI IPC 逐条 cfg 门控，Core 构建自动剔除
+assert.ok(
+  /#\[cfg\(feature = "ai-addon"\)\]\s*\n\s*ai::/.test(lib),
+  "AI IPC entries gated inside shared generate_handler",
+);
+assert.ok(
+  !lib.includes('#[cfg(not(feature = "ai-addon"))]'),
+  "no duplicated Core-only generate_handler branch",
+);
 
 assert.ok(flavor.includes("VITE_AFM_AI_ADDON"), "Vite flavor env");
 assert.ok(sideNav.includes("AI_ADDON_ENABLED"), "side nav gated");
