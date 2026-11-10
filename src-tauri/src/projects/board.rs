@@ -4,7 +4,7 @@
 //! Four fixed columns (Cursor-style): backlog | doing | review | done.
 //! Board authority is the Workspace `board.json` on disk — not APPDATA projects.json.
 
-use super::ops::{next_id, now_millis};
+use super::helpers::{next_id, now_millis};
 use super::types::TASK_STATUSES;
 use super::workspace::{
     load_workspace, WORKSPACE_BOARD_FILE, WORKSPACE_BOARD_SCHEMA_VERSION, WORKSPACE_CONTEXT_FILE,

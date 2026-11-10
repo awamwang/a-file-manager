@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+//! Legacy `projects.json` 文档突变 — 仅供 migrate / 单测；活产品路径用 Workspace API。
 
+use super::helpers::{basename_label, next_id, now_millis, validate_bindable_work_group};
 use super::types::{
     OpenAllLinksResult, ProjectTask, TaskPatch, UserProject, UserProjects, WorkspaceLink,
     ERR_DEFAULT_WORK_GROUP_FORBIDDEN, ERR_PROJECT_UNBOUND, ERR_UNKNOWN_WORK_GROUP, TASK_STATUSES,
@@ -10,27 +12,6 @@ use crate::work_groups::sync::{
 use crate::work_groups::types::{
     SilentSwitchResult, UserWorkGroups, WorkGroupOpenState, DEFAULT_WORK_GROUP_ID,
 };
-use std::time::{SystemTime, UNIX_EPOCH};
-
-pub fn now_millis() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0)
-}
-
-pub fn next_id(prefix: &str) -> String {
-    format!("{prefix}-{}", now_millis())
-}
-
-pub fn basename_label(path: &str) -> String {
-    path.replace('\\', "/")
-        .trim_end_matches('/')
-        .rsplit('/')
-        .next()
-        .unwrap_or(path)
-        .to_string()
-}
 
 fn normalize_path(path: &str) -> String {
     path.trim().replace('/', "\\")
@@ -57,25 +38,6 @@ fn find_project_mut<'a>(
         .iter_mut()
         .find(|p| p.id == project_id)
         .ok_or_else(|| format!("Unknown Project: {project_id}"))
-}
-
-/// Reject default WG and unknown ids. `work_groups` is the authority for existence / isDefault.
-pub fn validate_bindable_work_group(
-    work_groups: &UserWorkGroups,
-    work_group_id: &str,
-) -> Result<(), String> {
-    if work_group_id == DEFAULT_WORK_GROUP_ID {
-        return Err(ERR_DEFAULT_WORK_GROUP_FORBIDDEN.to_string());
-    }
-    let group = work_groups
-        .work_groups
-        .iter()
-        .find(|group| group.id == work_group_id)
-        .ok_or_else(|| ERR_UNKNOWN_WORK_GROUP.to_string())?;
-    if group.is_default {
-        return Err(ERR_DEFAULT_WORK_GROUP_FORBIDDEN.to_string());
-    }
-    Ok(())
 }
 
 pub fn create_project(

@@ -7,7 +7,7 @@ use super::index::{
     workspace_path_for_slug, ProjectsIndex,
 };
 use super::members::{add_member_junction, list_member_junctions, WorkspaceMember};
-use super::ops::{next_id, now_millis, validate_bindable_work_group};
+use super::helpers::{next_id, now_millis, validate_bindable_work_group};
 use super::workspace::{
     create_workspace_at, list_workspaces, load_workspace, write_project_meta, CreateWorkspaceResult,
     WorkspaceListItem, ERR_PROJECT_DISPLAY_NAME_EMPTY, ERR_PROJECT_WORKSPACE_NOT_FOUND,

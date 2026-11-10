@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use super::ops::{basename_label, now_millis, next_id};
+use super::helpers::{basename_label, now_millis, next_id};
 use super::types::{UserProject, UserProjects, WorkspaceLink, SCHEMA_VERSION};
 use serde_json::Value;
 
@@ -126,6 +126,7 @@ pub fn normalize_document(mut document: UserProjects) -> UserProjects {
     document
 }
 
+#[allow(dead_code)] // store/tests; live create uses Workspace layout
 pub fn empty_document() -> UserProjects {
     UserProjects {
         schema_version: SCHEMA_VERSION,

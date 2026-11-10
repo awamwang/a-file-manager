@@ -11,6 +11,7 @@ pub fn projects_file_path(config_dir: &Path) -> PathBuf {
     config_dir.join(PROJECTS_FILE_NAME)
 }
 
+#[allow(dead_code)] // retained for migrate/tests; Workspace path no longer loads via IPC
 pub fn load_from_path(config_dir: &Path) -> Result<UserProjects, String> {
     let path = projects_file_path(config_dir);
     if !path.exists() {
@@ -27,6 +28,7 @@ pub fn load_from_path(config_dir: &Path) -> Result<UserProjects, String> {
     Ok(document)
 }
 
+#[allow(dead_code)] // retained for migrate/tests; Workspace path no longer saves via IPC
 pub fn save_to_path(config_dir: &Path, document: &UserProjects) -> Result<(), String> {
     fs::create_dir_all(config_dir)
         .map_err(|err| format!("Failed to create projects directory: {err}"))?;

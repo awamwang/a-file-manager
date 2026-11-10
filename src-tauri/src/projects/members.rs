@@ -5,7 +5,7 @@
 //! (original) path — never the junction path under `members/`.
 
 use super::index::normalize_path_string;
-use super::ops::basename_label;
+use super::helpers::basename_label;
 use super::workspace::{load_workspace, WORKSPACE_MEMBERS_DIR};
 use serde::{Deserialize, Serialize};
 use std::fs;

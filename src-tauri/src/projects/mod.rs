@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Project-mode — WG super-set: session on bound Work Group; assets on Project.
+//! Project-mode 鈥?WG super-set: session on bound Work Group; assets on Project.
 //!
 //! C1 (AIA-207): thin APPDATA index (`projects-index.json`) holds Projects Root +
 //! `activeProject` only. C7 removed `projects.json` UI authority.
@@ -7,37 +7,33 @@
 //! C3 (AIA-209): list / activate / bind WG on disk Workspaces.
 //! C4 (AIA-210): `members/` junctions; open real target paths.
 //! C5 (AIA-211): CONTEXT.md + board.json four-column board.
-//! C6 (AIA-212): delete / rename / Promote WG→Workspace.
-//! AIA-202: one-shot migrate leftover APPDATA `projects.json` → Workspace layout.
+//! C6 (AIA-212): delete / rename / Promote WG鈫扺orkspace.
+//! AIA-202: one-shot migrate leftover APPDATA `projects.json` 鈫?Workspace layout.
 
 pub(crate) mod board;
+pub(crate) mod helpers;
 pub(crate) mod index;
 pub(crate) mod legacy_migrate;
 pub(crate) mod lifecycle;
 pub(crate) mod members;
 pub(crate) mod migrate;
+/// Legacy projects.json 突变仅供单测；活路径用 Workspace / helpers。
+#[cfg(test)]
 mod ops;
 pub(crate) mod store;
 pub(crate) mod types;
 pub(crate) mod workspace;
 
 use crate::work_groups::store as wg_store;
-use crate::work_groups::types::{UserWorkGroups, WorkGroupOpenState};
-use index::{load_from_path as load_index_from_path, save_to_path as save_index_to_path, ProjectsIndex};
-use ops::{
-    activate_project, add_task, add_workspace_link, bind_work_group, create_project, delete_project,
-    delete_task, move_task, open_all_links, promote_work_group_to_project, remove_workspace_link,
-    rename_project, save_bound_members_from_open_state, set_active_project, set_context_notes,
-    update_task, validate_bindable_work_group,
-};
-use store::{load_from_path, save_to_path};
-use tauri::{AppHandle, Manager};
-use types::{ActivateProjectResult, OpenAllLinksResult, ProjectTask, TaskPatch, UserProjects};
+use crate::work_groups::types::WorkGroupOpenState;
 use board::{BoardTask, BoardTaskPatch, WorkspaceBoard};
+use helpers::validate_bindable_work_group;
+use index::{load_from_path as load_index_from_path, save_to_path as save_index_to_path, ProjectsIndex};
 use lifecycle::{
     CopyWorkspaceResult, DeleteWorkspaceResult, PromoteWorkspaceResult, RenameWorkspaceResult,
 };
 use members::WorkspaceMember;
+use tauri::{AppHandle, Manager};
 use workspace::{
     ActivateWorkspaceResult, CreateWorkspaceResult, WorkspaceListItem, WorkspaceListResult,
 };
@@ -55,7 +51,7 @@ fn configured_projects_root(app: &AppHandle) -> String {
 fn load_index(app: &AppHandle) -> Result<ProjectsIndex, String> {
     let dir = config_dir(app)?;
     let configured = configured_projects_root(app);
-    // AIA-202: one-shot AFM legacy projects.json → Workspace (no Sigma read).
+    // AIA-202: one-shot AFM legacy projects.json 鈫?Workspace (no Sigma read).
     legacy_migrate::maybe_migrate_legacy_projects(&dir, &configured)?;
     load_index_from_path(&dir, &configured)
 }
@@ -84,7 +80,7 @@ pub fn projects_index_set_active(
     Ok(next)
 }
 
-/// Resolve effective Projects Root from settings (empty → default), ensure directory, sync index.
+/// Resolve effective Projects Root from settings (empty 鈫?default), ensure directory, sync index.
 #[tauri::command]
 pub fn projects_root_ensure(app: AppHandle) -> Result<ProjectsIndex, String> {
     load_index(&app)
@@ -173,7 +169,7 @@ pub fn projects_workspace_activate(
     Ok(result)
 }
 
-/// Create a directory junction under Workspace `members/` → `target_path`.
+/// Create a directory junction under Workspace `members/` 鈫?`target_path`.
 #[tauri::command]
 pub fn projects_workspace_member_add(
     app: AppHandle,
@@ -315,7 +311,7 @@ pub fn projects_workspace_delete(
     Ok(result)
 }
 
-/// Rename displayName and/or slug (slug renames the directory; conflict → PROJECT_SLUG_CONFLICT).
+/// Rename displayName and/or slug (slug renames the directory; conflict 鈫?PROJECT_SLUG_CONFLICT).
 #[tauri::command]
 pub fn projects_workspace_rename(
     app: AppHandle,
@@ -337,7 +333,7 @@ pub fn projects_workspace_rename(
     Ok(result)
 }
 
-/// Promote non-default WG → Workspace: create + bind + seed members/ junctions from memberPaths.
+/// Promote non-default WG 鈫?Workspace: create + bind + seed members/ junctions from memberPaths.
 #[tauri::command]
 pub fn projects_workspace_promote_from_work_group(
     app: AppHandle,
@@ -367,18 +363,6 @@ pub fn projects_workspace_copy(
     Ok(result)
 }
 
-#[allow(dead_code)]
-fn with_document<F>(app: &AppHandle, f: F) -> Result<UserProjects, String>
-where
-    F: FnOnce(&UserProjects) -> Result<UserProjects, String>,
-{
-    let dir = config_dir(app)?;
-    let document = load_from_path(&dir)?;
-    let next = f(&document)?;
-    save_to_path(&dir, &next)?;
-    Ok(next)
-}
-
 fn persist_silent_switch(
     dir: &std::path::Path,
     mut switch: crate::work_groups::types::SilentSwitchResult,
@@ -397,225 +381,3 @@ fn persist_silent_switch(
     Ok(switch)
 }
 
-// --- Legacy projects.json IPC (no longer registered in lib.rs; AIA-213 / C7) ---
-// Disk helpers remain for AIA-202 legacy_migrate / tests. Do not re-expose as UI authority.
-
-#[allow(dead_code)]
-#[tauri::command]
-pub fn projects_get(app: AppHandle) -> Result<UserProjects, String> {
-    let dir = config_dir(&app)?;
-    load_from_path(&dir)
-}
-
-#[allow(dead_code)]
-#[tauri::command]
-pub fn projects_create(
-    app: AppHandle,
-    name: Option<String>,
-    description: Option<String>,
-    work_group_id: Option<String>,
-) -> Result<UserProjects, String> {
-    let dir = config_dir(&app)?;
-    let document = load_from_path(&dir)?;
-    if let Some(ref wg_id) = work_group_id {
-        let wgs = wg_store::load_from_path(&dir)?;
-        validate_bindable_work_group(&wgs, wg_id)?;
-    }
-    let (next, _) = create_project(&document, name, description, work_group_id);
-    save_to_path(&dir, &next)?;
-    Ok(next)
-}
-
-#[allow(dead_code)]
-#[tauri::command]
-pub fn projects_rename(
-    app: AppHandle,
-    project_id: String,
-    name: String,
-    description: Option<String>,
-) -> Result<UserProjects, String> {
-    with_document(&app, |document| rename_project(document, &project_id, name, description))
-}
-
-#[allow(dead_code)]
-#[tauri::command]
-pub fn projects_delete(app: AppHandle, project_id: String) -> Result<UserProjects, String> {
-    with_document(&app, |document| delete_project(document, &project_id))
-}
-
-#[allow(dead_code)]
-#[tauri::command]
-pub fn projects_set_active(
-    app: AppHandle,
-    project_id: Option<String>,
-) -> Result<UserProjects, String> {
-    with_document(&app, |document| set_active_project(document, project_id))
-}
-
-/// Legacy session activate against projects.json (superseded by projects_workspace_activate).
-#[allow(dead_code)]
-#[tauri::command]
-pub fn projects_activate(
-    app: AppHandle,
-    project_id: String,
-    live_open_state: Option<WorkGroupOpenState>,
-) -> Result<ActivateProjectResult, String> {
-    let dir = config_dir(&app)?;
-    let projects = load_from_path(&dir)?;
-    let work_groups = wg_store::load_from_path(&dir)?;
-    let (projects_next, switch) =
-        activate_project(&projects, &work_groups, &project_id, live_open_state.as_ref())?;
-    save_to_path(&dir, &projects_next)?;
-    let silent_switch = match switch {
-        Some(result) => Some(persist_silent_switch(&dir, result)?),
-        None => None,
-    };
-    Ok(ActivateProjectResult {
-        projects: projects_next,
-        silent_switch,
-    })
-}
-
-#[allow(dead_code)]
-#[tauri::command]
-pub fn projects_bind_work_group(
-    app: AppHandle,
-    project_id: String,
-    work_group_id: Option<String>,
-) -> Result<UserProjects, String> {
-    let dir = config_dir(&app)?;
-    let document = load_from_path(&dir)?;
-    let wgs = wg_store::load_from_path(&dir)?;
-    let next = bind_work_group(&document, &wgs, &project_id, work_group_id)?;
-    save_to_path(&dir, &next)?;
-    Ok(next)
-}
-
-#[allow(dead_code)]
-#[tauri::command]
-pub fn projects_promote_from_work_group(
-    app: AppHandle,
-    work_group_id: String,
-) -> Result<UserProjects, String> {
-    let dir = config_dir(&app)?;
-    let document = load_from_path(&dir)?;
-    let wgs = wg_store::load_from_path(&dir)?;
-    let (next, _) = promote_work_group_to_project(&document, &wgs, &work_group_id)?;
-    save_to_path(&dir, &next)?;
-    Ok(next)
-}
-
-#[allow(dead_code)]
-#[tauri::command]
-pub fn projects_save_members_from_open_state(
-    app: AppHandle,
-    project_id: String,
-    live_open_state: Option<WorkGroupOpenState>,
-) -> Result<UserWorkGroups, String> {
-    let dir = config_dir(&app)?;
-    let projects = load_from_path(&dir)?;
-    let wgs = wg_store::load_from_path(&dir)?;
-    let next =
-        save_bound_members_from_open_state(&projects, &wgs, &project_id, live_open_state.as_ref())?;
-    wg_store::save_to_path(&dir, &next)?;
-    Ok(next)
-}
-
-#[allow(dead_code)]
-#[tauri::command]
-pub fn projects_add_workspace_link(
-    app: AppHandle,
-    project_id: String,
-    path: String,
-    label: Option<String>,
-) -> Result<UserProjects, String> {
-    with_document(&app, |document| {
-        add_workspace_link(document, &project_id, &path, label)
-    })
-}
-
-#[allow(dead_code)]
-#[tauri::command]
-pub fn projects_remove_workspace_link(
-    app: AppHandle,
-    project_id: String,
-    link_id: String,
-) -> Result<UserProjects, String> {
-    with_document(&app, |document| {
-        remove_workspace_link(document, &project_id, &link_id)
-    })
-}
-
-#[allow(dead_code)]
-#[tauri::command]
-pub fn projects_set_context_notes(
-    app: AppHandle,
-    project_id: String,
-    context_notes: String,
-) -> Result<UserProjects, String> {
-    with_document(&app, |document| {
-        set_context_notes(document, &project_id, context_notes)
-    })
-}
-
-#[allow(dead_code)]
-#[tauri::command]
-pub fn projects_add_task(
-    app: AppHandle,
-    project_id: String,
-    title: String,
-    status_id: Option<String>,
-) -> Result<(UserProjects, ProjectTask), String> {
-    let dir = config_dir(&app)?;
-    let document = load_from_path(&dir)?;
-    let (next, task) = add_task(&document, &project_id, title, status_id)?;
-    save_to_path(&dir, &next)?;
-    Ok((next, task))
-}
-
-#[allow(dead_code)]
-#[tauri::command]
-pub fn projects_update_task(
-    app: AppHandle,
-    project_id: String,
-    task_id: String,
-    patch: TaskPatch,
-) -> Result<UserProjects, String> {
-    with_document(&app, |document| update_task(document, &project_id, &task_id, patch))
-}
-
-#[allow(dead_code)]
-#[tauri::command]
-pub fn projects_move_task(
-    app: AppHandle,
-    project_id: String,
-    task_id: String,
-    status_id: String,
-    sort_key: i64,
-) -> Result<UserProjects, String> {
-    with_document(&app, |document| {
-        move_task(document, &project_id, &task_id, status_id, sort_key)
-    })
-}
-
-#[allow(dead_code)]
-#[tauri::command]
-pub fn projects_delete_task(
-    app: AppHandle,
-    project_id: String,
-    task_id: String,
-) -> Result<UserProjects, String> {
-    with_document(&app, |document| delete_task(document, &project_id, &task_id))
-}
-
-#[allow(dead_code)]
-#[tauri::command]
-pub fn projects_open_all_links(
-    app: AppHandle,
-    project_id: String,
-) -> Result<OpenAllLinksResult, String> {
-    let dir = config_dir(&app)?;
-    let document = load_from_path(&dir)?;
-    // Open-all still only returns paths — binding / WG hard config unchanged.
-    open_all_links(&document, &project_id)
-}

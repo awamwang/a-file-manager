@@ -9,7 +9,7 @@ use super::index::{
     normalize_path_string, set_active_project as set_index_active, validate_slug,
     workspace_path_for_slug, ProjectsIndex, MAX_SLUG_LEN,
 };
-use super::ops::{now_millis, validate_bindable_work_group};
+use super::helpers::{now_millis, validate_bindable_work_group};
 use crate::work_groups::sync::silent_switch_work_group;
 use crate::work_groups::types::{SilentSwitchResult, UserWorkGroups, WorkGroupOpenState};
 use serde::{Deserialize, Serialize};

@@ -11,6 +11,7 @@ pub const TASK_STATUSES: [&str; 4] = ["backlog", "doing", "review", "done"];
 /// Stable IPC error codes (UI maps via i18n).
 pub const ERR_DEFAULT_WORK_GROUP_FORBIDDEN: &str = "PROJECT_DEFAULT_WORK_GROUP_FORBIDDEN";
 pub const ERR_UNKNOWN_WORK_GROUP: &str = "PROJECT_UNKNOWN_WORK_GROUP";
+#[allow(dead_code)] // legacy ops / tests only after C7
 pub const ERR_PROJECT_UNBOUND: &str = "PROJECT_UNBOUND";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -62,6 +63,7 @@ pub struct UserProjects {
     pub active_project_id: Option<String>,
 }
 
+#[allow(dead_code)] // legacy ops / tests only after C7
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenAllLinksResult {
@@ -80,6 +82,7 @@ pub struct ActivateProjectResult {
     pub silent_switch: Option<SilentSwitchResult>,
 }
 
+#[allow(dead_code)] // legacy ops / tests only after C7
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskPatch {

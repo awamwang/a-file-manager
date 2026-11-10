@@ -11,7 +11,7 @@ use super::index::{
 };
 use super::members::add_member_junction;
 use super::migrate::migrate_value;
-use super::ops::validate_bindable_work_group;
+use super::helpers::validate_bindable_work_group;
 use super::store::projects_file_path;
 use super::types::{ProjectTask, UserProject, UserProjects};
 use super::workspace::{
@@ -397,7 +397,7 @@ mod tests {
         assert!(!report.skipped);
         assert_eq!(report.migrated_count, 2);
         assert_eq!(report.workspace_slugs.len(), 2);
-        assert_eq!(report.active_slug.as_deref(), Some("project"));
+        assert_eq!(report.active_slug.as_deref(), Some("视频制作"));
         assert!(report.member_junctions >= 2);
         assert!(report.member_skipped >= 1);
         assert!(!projects_file_path(&dir).exists());
@@ -410,7 +410,7 @@ mod tests {
         assert!(openmontage.join("board.json").is_file());
         assert!(openmontage.join("members").join("OpenMontage").exists());
 
-        let video = root.join("project");
+        let video = root.join("视频制作");
         let meta_text = fs::read_to_string(video.join("project.json")).unwrap();
         assert!(meta_text.contains("视频制作"));
         assert!(meta_text.contains("work-group-video"));
@@ -427,7 +427,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             index.active_project.as_ref().map(|a| a.slug.as_str()),
-            Some("project")
+            Some("视频制作")
         );
 
         // Idempotent second pass.
