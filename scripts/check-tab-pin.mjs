@@ -13,11 +13,19 @@ if (!shell.includes("onToggleTabPin") || !shell.includes("@dblclick.stop=\"onTog
   console.error("tab strip must pin from the button and a double-click");
   process.exit(1);
 }
+// FIL-31: pin trigger always uses thumbtack; never star (favorites keep star).
+const pinBtnIdx = shell.indexOf('class="tab-pin"');
+const pinBtnSlice = pinBtnIdx >= 0 ? shell.slice(pinBtnIdx, pinBtnIdx + 700) : "";
 const hasPinGlyph =
-  shell.includes("isTabPinned(tab.id) ? 'pin' : 'star'") ||
-  shell.includes('isTabPinned(tab.id) ? "pin" : "star"');
-if (!shell.includes("tab--pinned") || !hasPinGlyph) {
-  console.error("pinned tabs need tab--pinned chrome and a pin glyph when pinned");
+  /<FluentIcon[^>]*name="pin"/.test(pinBtnSlice) ||
+  /<FluentIcon[^>]*name='pin'/.test(pinBtnSlice) ||
+  pinBtnSlice.includes('name="pin"');
+const pinUsesStar =
+  pinBtnSlice.includes("? 'pin' : 'star'") ||
+  pinBtnSlice.includes('? "pin" : "star"') ||
+  /tab-pin[\s\S]*?name="star"/.test(pinBtnSlice);
+if (!shell.includes("tab--pinned") || !hasPinGlyph || pinUsesStar) {
+  console.error("pinned tabs need tab--pinned chrome and a pin (not star) glyph");
   process.exit(1);
 }
 const model = readFileSync(join(root, "src/state/openState/model.ts"), "utf8");
