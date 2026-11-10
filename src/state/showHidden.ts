@@ -14,9 +14,14 @@ export { readShowHidden };
 
 export const showHiddenItems = ref(false);
 
+/** Sync apply from already-hydrated settings (cold-start critical path). */
+export function applyShowHiddenFromValues(values: Record<string, unknown>): void {
+  showHiddenItems.value = readShowHidden(values);
+}
+
 export async function loadShowHidden(): Promise<boolean> {
   const doc = await hydrateSettings();
-  showHiddenItems.value = readShowHidden(doc.values);
+  applyShowHiddenFromValues(doc.values ?? {});
   return showHiddenItems.value;
 }
 

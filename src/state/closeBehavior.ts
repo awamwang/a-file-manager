@@ -24,12 +24,16 @@ export function parseCloseBehavior(value: unknown): CloseBehavior {
   return "ask";
 }
 
+/** Sync apply from already-hydrated settings (cold-start critical path). */
+export function applyCloseBehaviorFromValues(values: Record<string, unknown>): void {
+  closeBehavior.value = parseCloseBehavior(values?.[CLOSE_BEHAVIOR_SETTING_KEY]);
+}
+
 export async function loadCloseBehavior(): Promise<CloseBehavior> {
   try {
     const doc = await hydrateSettings();
-    const next = parseCloseBehavior(doc.values?.[CLOSE_BEHAVIOR_SETTING_KEY]);
-    closeBehavior.value = next;
-    return next;
+    applyCloseBehaviorFromValues(doc.values ?? {});
+    return closeBehavior.value;
   } catch {
     closeBehavior.value = "ask";
     return "ask";

@@ -129,7 +129,14 @@ pub fn run() {
                 from_autostart && settings::read_bool_setting(app.handle(), "core.launchAtStartupHidden");
             app.manage(system_tray::StartupReveal::new(!hide_on_autostart));
 
-            discovery::sync_blacklist_from_settings(app.handle());
+            // Discovery blacklist is unused until the user searches — keep it off
+            // the setup critical path (extra settings disk read + service mutate).
+            {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn_blocking(move || {
+                    discovery::sync_blacklist_from_settings(&handle);
+                });
+            }
 
             if let Some(path) = add_favorite_path.clone() {
                 match favorites::apply_add_favorite_cli(app.handle(), &path) {

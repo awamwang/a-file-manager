@@ -31,10 +31,9 @@ import {
   clearShellIconQueue,
   requestShellIcons,
 } from "../state/shellIcons";
-import {
-  loadFavorites,
-  loadFavoritesOsHookStatus,
-} from "../state/favorites";
+import { loadFavorites, loadFavoritesOsHookStatus } from "../state/favorites";
+import { scheduleAfterPaint, scheduleIdle } from "../state/scheduleIdle";
+import { startupMark } from "../state/startupTiming";
 import {
   clearClipboard,
   clipboardMode,
@@ -601,7 +600,6 @@ function onWindowFocus() {
 }
 
 onMounted(() => {
-  void loadNewFileTemplates();
   registerNavFileShortcuts();
   window.addEventListener("mousemove", onMarqueeMove);
   window.addEventListener("mouseup", onMarqueeEnd);
@@ -617,12 +615,12 @@ onMounted(() => {
     .catch(() => {
       /* non-Tauri / permission — DOM focus still covers browser/dev */
     });
+  // Critical: OpenState + listing first. Preview/viewMode already sync-applied
+  // from main.ts settings hydrate (viewMode) or default until after-paint.
+  startupMark("navigator:bootstrap_start");
   void (async () => {
-    await refreshPreviewSetting();
-    await loadNavigatorViewMode();
     await bootstrapNavigatorOpenState();
-    await loadFavorites().catch(() => undefined);
-    await loadFavoritesOsHookStatus().catch(() => undefined);
+    startupMark("navigator:open_state_ready");
     if (
       currentPath.value &&
       !isGuidePath(currentPath.value) &&
@@ -633,6 +631,14 @@ onMounted(() => {
       await navigateTo(currentPath.value, { syncOpenState: false });
     }
   })();
+  scheduleAfterPaint(() => {
+    void refreshPreviewSetting();
+    void loadNavigatorViewMode();
+  });
+  scheduleIdle(() => {
+    void loadNewFileTemplates();
+    void loadFavoritesOsHookStatus().catch(() => undefined);
+  }, 3000);
 });
 
 onUnmounted(() => {

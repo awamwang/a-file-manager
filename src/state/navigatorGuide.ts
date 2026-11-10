@@ -58,14 +58,24 @@ export const drivesList = ref<DriveInfo[]>([]);
 export const userFolders = ref<UserFolders | null>(null);
 export const shellPlaces = ref<ShellPlaces | null>(null);
 
+let drivesHydrate: Promise<DriveInfo[]> | null = null;
+
 export function guideTabName(translate: (key: string) => string): string {
   return translate("guide.tabName");
 }
 
-export async function loadDrives(): Promise<DriveInfo[]> {
-  const list = await invoke<DriveInfo[]>("navigator_list_drives");
-  drivesList.value = list;
-  return list;
+/** Cold-start: FolderTree + places share one `navigator_list_drives` flight. */
+export function loadDrives(): Promise<DriveInfo[]> {
+  if (drivesHydrate) return drivesHydrate;
+  drivesHydrate = (async () => {
+    const list = await invoke<DriveInfo[]>("navigator_list_drives");
+    drivesList.value = list;
+    return list;
+  })().catch((err) => {
+    drivesHydrate = null;
+    throw err;
+  });
+  return drivesHydrate;
 }
 
 export async function loadUserFolders(): Promise<UserFolders> {

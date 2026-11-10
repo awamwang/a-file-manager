@@ -6,6 +6,7 @@
  */
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { startupMark } from "./startupTiming";
 
 function afterNextPaint(): Promise<void> {
   return new Promise((resolve) => {
@@ -18,7 +19,10 @@ function afterNextPaint(): Promise<void> {
 export async function revealMainWindowAfterReady(): Promise<void> {
   try {
     const shouldReveal = await invoke<boolean>("afm_startup_should_reveal");
-    if (!shouldReveal) return;
+    if (!shouldReveal) {
+      startupMark("reveal:skipped_autostart_hidden");
+      return;
+    }
 
     const win = getCurrentWindow();
     // Config already maximizes while hidden; re-assert in case the HWND
@@ -34,6 +38,7 @@ export async function revealMainWindowAfterReady(): Promise<void> {
     await afterNextPaint();
     await win.show();
     await win.setFocus();
+    startupMark("reveal:shown");
   } catch {
     // vite-only / missing IPC — nothing to reveal.
   }

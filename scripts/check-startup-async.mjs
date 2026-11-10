@@ -56,6 +56,10 @@ assert.ok(viewMode.includes("rememberSettingsDocument"), "viewMode must remember
     "main.ts must apply ui chrome before mount",
   );
   assert.ok(
+    beforeMount.includes("applySessionSettingsFromValues"),
+    "main.ts must sync-apply session settings (showHidden/viewMode/close) before mount",
+  );
+  assert.ok(
     /async function bootstrap/.test(main),
     "main.ts must use async bootstrap so hydrate awaits before mount",
   );
@@ -104,6 +108,64 @@ assert.ok(
   assert.ok(
     !/activeTab\?\.path[\s\S]*?await navigateTo\(/.test(boot),
     "restored-tab path must not block bootstrap on await navigateTo",
+  );
+}
+
+// --- cold-start: shell/navigator must not await settings side-loads before OpenState ---
+{
+  const session = read("src/state/applySessionSettings.ts");
+  assert.ok(
+    session.includes("applyShowHiddenFromValues") &&
+      session.includes("applyNavigatorViewModeFromValues") &&
+      session.includes("applyCloseBehaviorFromValues"),
+    "applySessionSettings must sync-apply listing/chrome refs",
+  );
+  const shellMount = shell.indexOf("onMounted(() => {");
+  assert.ok(shellMount >= 0, "AppShell must have onMounted");
+  const shellMountEnd = shell.indexOf("\nonUnmounted(", shellMount);
+  const shellBody = shell.slice(shellMount, shellMountEnd > shellMount ? shellMountEnd : shell.length);
+  assert.ok(
+    shellBody.includes("bootstrapNavigatorOpenState"),
+    "AppShell must bootstrap OpenState on mount",
+  );
+  assert.ok(
+    !/await loadShowHidden/.test(shellBody),
+    "AppShell must not await loadShowHidden before OpenState (applied in main.ts)",
+  );
+  assert.ok(
+    shellBody.includes("scheduleAfterPaint") && shellBody.includes("loadFavorites"),
+    "AppShell must defer favorites/places after paint",
+  );
+  assert.ok(
+    shellBody.includes("scheduleIdle") && shellBody.includes("loadVisitStats"),
+    "AppShell must idle-defer visit stats / health",
+  );
+  const nav = read("src/views/NavigatorView.vue");
+  const navMount = nav.indexOf("onMounted(() => {");
+  assert.ok(navMount >= 0, "NavigatorView must have onMounted");
+  const navMountEnd = nav.indexOf("\nonUnmounted(", navMount);
+  const navBody = nav.slice(navMount, navMountEnd > navMount ? navMountEnd : nav.length);
+  assert.ok(
+    navBody.includes("bootstrapNavigatorOpenState"),
+    "NavigatorView must bootstrap OpenState",
+  );
+  {
+    const bootIdx = navBody.indexOf("bootstrapNavigatorOpenState");
+    const previewIdx = navBody.indexOf("refreshPreviewSetting");
+    assert.ok(
+      previewIdx < 0 || previewIdx > bootIdx,
+      "NavigatorView must not await preview setting before OpenState bootstrap",
+    );
+  }
+  assert.ok(
+    !/await refreshPreviewSetting/.test(navBody) &&
+      !/await loadNavigatorViewMode/.test(navBody),
+    "NavigatorView must not await preview/viewMode before OpenState",
+  );
+  const libRs = read("src-tauri/src/lib.rs");
+  assert.ok(
+    /spawn_blocking[\s\S]*sync_blacklist_from_settings/.test(libRs),
+    "Rust setup must defer discovery blacklist sync off critical path",
   );
 }
 

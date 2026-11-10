@@ -13,6 +13,7 @@ import {
   STARTUP_PAGE_SETTING_KEY,
   startupRouteFor,
 } from "./state/startupPage";
+import { startupMark } from "./state/startupTiming";
 import { shellRemountKey } from "./state/uiReload";
 
 const router = useRouter();
@@ -20,13 +21,15 @@ const router = useRouter();
 onMounted(() => {
   void (async () => {
     // Locale/chrome already applied in main.ts bootstrap (AIA-265).
-    // Reuse the single-flight hydrate for startup-page routing only.
+    // Prefer sync cache so non-navigator startup pages do not await IPC.
     let values: Record<string, unknown> = getCachedSettingsValues() ?? {};
-    try {
-      const doc = await hydrateSettings();
-      values = doc.values ?? {};
-    } catch {
-      // Keep cached/empty values; locale already fell back in bootstrap.
+    if (!Object.keys(values).length) {
+      try {
+        const doc = await hydrateSettings();
+        values = doc.values ?? {};
+      } catch {
+        // Keep empty values; locale already fell back in bootstrap.
+      }
     }
     // AIA-101: honor startup page once on cold launch (after `/` → /navigator redirect).
     const target = startupRouteFor(values[STARTUP_PAGE_SETTING_KEY]);
@@ -35,6 +38,7 @@ onMounted(() => {
       (current === "/" || current === "/navigator") &&
       target !== "/navigator"
     ) {
+      startupMark("app:startup_route_replace");
       await router.replace(target);
     }
     // AIA-181 P0: defer provider_preload off the first navigator_list window

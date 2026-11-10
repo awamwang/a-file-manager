@@ -78,13 +78,18 @@ function coerceMode(value: unknown): NavigatorViewMode {
   return "details";
 }
 
+/** Sync apply from already-hydrated settings (cold-start critical path). */
+export function applyNavigatorViewModeFromValues(values: Record<string, unknown>): void {
+  navigatorViewMode.value = coerceMode(values["core.navigatorViewMode"]);
+  navigatorGroupByType.value = values["core.navigatorGroupByType"] === true;
+}
+
 export async function loadNavigatorViewMode(): Promise<NavigatorViewMode> {
   if (!loadPromise) {
     loadPromise = (async () => {
       try {
         const doc = await hydrateSettings();
-        navigatorViewMode.value = coerceMode(doc.values["core.navigatorViewMode"]);
-        navigatorGroupByType.value = doc.values["core.navigatorGroupByType"] === true;
+        applyNavigatorViewModeFromValues(doc.values ?? {});
       } catch {
         navigatorViewMode.value = "details";
         navigatorGroupByType.value = false;

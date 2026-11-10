@@ -137,7 +137,8 @@ import {
 } from "../../state/sidenavWidth";
 import { isTabPinned, togglePinnedTab } from "../../state/tabPins";
 import { workGroupDisplayName } from "../../state/workGroupName";
-import { scheduleAfterPaint } from "../../state/scheduleIdle";
+import { scheduleAfterPaint, scheduleIdle } from "../../state/scheduleIdle";
+import { startupMark } from "../../state/startupTiming";
 
 const { t, locale } = useI18n();
 
@@ -1410,22 +1411,35 @@ function onVisibilityFlush() {
 onMounted(() => {
   reclaimFluentTitlebar();
   loadSidenavWidth();
-  void loadHealth();
   void refreshMaximized();
-  void (async () => {
-    await loadShowHidden().catch(() => undefined);
-    await bootstrapNavigatorOpenState();
-  })();
-  void loadFavorites().catch(() => undefined);
-  void loadVisitStats().catch(() => undefined);
-  void loadNavigatorPlaces().catch(() => undefined);
-  void loadNavigatorViewMode().catch(() => undefined);
+  // Critical path: OpenState + first listing. showHidden/viewMode/closeBehavior
+  // were sync-applied in main.ts from the same settings hydrate.
+  startupMark("shell:bootstrap_open_state");
+  void bootstrapNavigatorOpenState().then(() => {
+    startupMark("shell:open_state_ready");
+  });
+  // Shares work_groups_get single-flight with bootstrap (tabs + WG chrome).
   void loadWorkGroupsChrome().catch(() => undefined);
-  void loadCloseBehavior().catch(() => undefined);
   registerShellShortcuts();
   window.addEventListener("keydown", onGlobalKeydown);
   document.addEventListener("pointerdown", onDocumentPointerDown, true);
   document.addEventListener("visibilitychange", onVisibilityFlush);
+
+  // Side-nav / chrome IPC off the first navigator_list window.
+  scheduleAfterPaint(() => {
+    startupMark("shell:after_paint_side_loads");
+    void loadShowHidden().catch(() => undefined);
+    void loadNavigatorViewMode().catch(() => undefined);
+    void loadCloseBehavior().catch(() => undefined);
+    void loadFavorites().catch(() => undefined);
+    void loadNavigatorPlaces().catch(() => undefined);
+  });
+  // Health + visit ranks are status/sidebar niceties — idle after shell paint.
+  scheduleIdle(() => {
+    startupMark("shell:idle_secondary_loads");
+    void loadHealth();
+    void loadVisitStats().catch(() => undefined);
+  }, 2500);
 
   const win = getCurrentWindow();
   void win.onCloseRequested((event) => {

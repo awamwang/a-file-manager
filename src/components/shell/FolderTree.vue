@@ -12,6 +12,7 @@ import {
   loadDrives,
 } from "../../state/navigatorGuide";
 import { isOsHierarchyPath } from "../../state/folderTree";
+import { scheduleAfterPaint } from "../../state/scheduleIdle";
 
 const { t } = useI18n();
 
@@ -54,8 +55,11 @@ watch(
 );
 
 onMounted(() => {
-  void loadDrives().catch(() => {
-    drivesList.value = [];
+  // Defer drive roots past first navigator_list so tree IPC does not contend.
+  scheduleAfterPaint(() => {
+    void loadDrives().catch(() => {
+      drivesList.value = [];
+    });
   });
 });
 </script>
