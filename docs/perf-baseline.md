@@ -183,10 +183,35 @@ cargo test --manifest-path src-tauri/Cargo.toml --lib shell_icons::tests::bench_
 
 成功标准核对：icon 冷批 ≥40% ↓（达成）；实机 thumb median ≥25% ↓（达成）。
 
+## Run #3（Phase C：listing path 省略）
+
+- **日期**：2026-11-10
+- **改动**：`NavigatorEntry.path` 在等于 `join(listing.path, name)` 时不序列化；FE `hydrateNavigatorListing` 还原；junction 覆盖路径仍下发
+- **对照**：同 `.perf-fixtures/large|med`，debug
+
+| 指标 | Run #1 | Run #3 | 变化 |
+| --- | --- | --- | --- |
+| list_serde_json n=5000 median | 30.7ms | **12.1ms** | −61% |
+| list_serde_json n=5000 bytes | （未记） | **354 004** | path 字段大量省略 |
+| list_serde_json n=1000 median | 4.1ms | **4.1ms** | 持平（小目录收益有限） |
+
+```json
+{
+  "run": 3,
+  "date": "2026-11-10",
+  "git_sha": "local",
+  "machine": { "os": "Windows 11", "build": "debug", "notes": "Phase C path elision" },
+  "samples": [
+    { "scenario": "S3", "op": "list_serde_json", "n": 5000, "median": 12.1, "bytes": 354004, "notes": "vs R1 30.7ms" },
+    { "scenario": "S2", "op": "list_serde_json", "n": 1000, "median": 4.1, "bytes": 70002 }
+  ]
+}
+```
+
 ## 下一阶段候选（按数据排序）
 
-1. **大目录 JSON 序列化（S3）** — serde median ≈ **30.7ms** vs list **10.3ms**；IPC 载荷/字段裁剪（图标冷路径已在 Phase B 处理）。
-2. **大目录 FE 渲染 / 主线程** — Rust list/icon 批已明显下降，可感知卡顿更可能在 WebView 挂载行（虚拟列表 / 占位）。
-3. **缩略图首批残留** — 实机首批仍可到 ~145ms（Shell 冷 COM）；可评估渐进「先壳图标后升级 thumb」。
-4. **侧栏树祖先列举** — 进深路径多次 `navigator_list`；非关键但争用 IO/IPC。
-5. **冷启动链（S1）** — 开 `startupMark` 后按里程碑拆 defer。
+1. **大目录 FE 渲染 / 主线程** — serde 已低于 list 量级；可感知卡顿更可能在 WebView 挂载（继续压虚拟窗口 / 占位）。
+2. **缩略图首批残留** — 实机首批仍可到 ~145ms（Shell 冷 COM）；可评估渐进「先壳图标后升级 thumb」。
+3. **侧栏树祖先列举** — 进深路径多次 `navigator_list`；非关键但争用 IO/IPC。
+4. **冷启动链（S1）** — 开 `startupMark` 后按里程碑拆 defer。
+5. **进一步 IPC** — 按视图延迟 `size`/`modifiedMs`（细节视图再取），收益需再测。

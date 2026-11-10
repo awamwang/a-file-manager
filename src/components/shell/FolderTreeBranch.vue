@@ -4,7 +4,12 @@ import { computed, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import FluentIcon from "../icons/FluentIcon.vue";
-import { currentPath, navigateTo, type NavigatorListing } from "../../state/navigatorBrowse";
+import {
+  currentPath,
+  hydrateNavigatorListing,
+  navigateTo,
+  type NavigatorListing,
+} from "../../state/navigatorBrowse";
 import {
   directoryChildren,
   treeRowHighlight,
@@ -59,8 +64,9 @@ async function loadChildren() {
           path: props.path,
           showHidden: showHiddenItems.value,
         });
-        entryCount = result.entries.length;
-        return result;
+        const hydrated = hydrateNavigatorListing(result);
+        entryCount = hydrated.entries.length;
+        return hydrated;
       },
       () => ({ path: props.path, n: entryCount }),
     );

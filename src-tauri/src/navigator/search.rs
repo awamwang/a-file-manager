@@ -114,7 +114,8 @@ pub fn search_directory(root: &str, query: &str, show_hidden: bool) -> Result<Na
 
         entries.push(NavigatorEntry {
             name: name.to_string(),
-            path: display_path(entry.path()),
+            // Search hits are not under a single list parent join — always send path.
+            path: Some(display_path(entry.path())),
             kind: kind.to_string(),
             size,
             modified_ms,
@@ -445,7 +446,13 @@ mod tests {
         let hit = search_directory(&dir.to_string_lossy(), "invoice", true).unwrap();
         assert_eq!(hit.entries.len(), 1);
         assert_eq!(hit.entries[0].name, "Invoice-2026.txt");
-        assert!(hit.entries[0].path.contains("nested"));
+        assert!(
+            hit.entries[0]
+                .path
+                .as_deref()
+                .unwrap_or("")
+                .contains("nested")
+        );
         assert!(!hit.truncated);
 
         let _ = fs::remove_dir_all(&dir);

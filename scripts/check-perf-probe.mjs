@@ -22,6 +22,12 @@ assert.ok(browse.includes('from "./perfProbe"'), "navigatorBrowse imports perfPr
 assert.ok(/perfSpan\(\s*"navigator_list"/.test(browse), "navigator_list span");
 assert.ok(/perfSpan\(\s*"tab_switch"/.test(browse), "tab_switch span");
 assert.ok(browse.includes("revealPathForTabSwitch"), "tab switch uses timed reveal");
+assert.ok(browse.includes("hydrateNavigatorListing"), "Phase C path hydrate");
+assert.ok(browse.includes("joinListingChildPath"), "Phase C child path join");
+
+const listRs = read("src-tauri/src/navigator/list.rs");
+assert.ok(listRs.includes("skip_serializing_if"), "Phase C omit default entry path");
+assert.ok(listRs.includes("elides_default_child_path_on_wire"), "Phase C elision test");
 
 const icons = read("src/state/shellIcons.ts");
 assert.ok(icons.includes('from "./perfProbe"'), "shellIcons imports perfProbe");

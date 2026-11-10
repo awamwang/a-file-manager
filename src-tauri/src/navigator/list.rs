@@ -11,7 +11,10 @@ use std::time::SystemTime;
 #[serde(rename_all = "camelCase")]
 pub struct NavigatorEntry {
     pub name: String,
-    pub path: String,
+    /// Full open path. Omitted on the wire when equal to `join(listing.path, name)`
+    /// (Phase C IPC trim). Junctions / reparse targets that differ stay `Some`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
     /// `"dir"` or `"file"` (symlinks reported by target kind when possible).
     pub kind: String,
     pub size: u64,
@@ -90,9 +93,18 @@ pub fn list_directory(path: &str, show_hidden: bool) -> Result<NavigatorListing,
             entry_path.clone()
         };
 
+        let open_display = display_path(&open_path);
+        let default_child = display_path(&root.join(&name));
+        // Phase C: skip serializing path when the FE can reconstruct parent\name.
+        let path = if display_paths_equal(&open_display, &default_child) {
+            None
+        } else {
+            Some(open_display)
+        };
+
         entries.push(NavigatorEntry {
             name,
-            path: display_path(&open_path),
+            path,
             kind,
             size,
             modified_ms,
@@ -135,6 +147,11 @@ pub fn parent_path(path: &str) -> Result<Option<String>, String> {
 
 pub(crate) fn display_path(path: &Path) -> String {
     path.to_string_lossy().replace('/', "\\")
+}
+
+fn display_paths_equal(left: &str, right: &str) -> bool {
+    left.replace('/', "\\")
+        .eq_ignore_ascii_case(&right.replace('/', "\\"))
 }
 
 pub(crate) fn system_time_ms(time: SystemTime) -> Option<u64> {
@@ -182,14 +199,45 @@ mod tests {
             assert!(!payload.is_empty());
         }
         serde_times.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let payload = serde_json::to_string(&listing).expect("serialize listing");
         eprintln!(
             "AFM_PERF list_directory n={n} samples_ms={times:?} median_ms={:.1}",
             times[times.len() / 2]
         );
         eprintln!(
-            "AFM_PERF list_serde_json n={n} samples_ms={serde_times:?} median_ms={:.1}",
-            serde_times[serde_times.len() / 2]
+            "AFM_PERF list_serde_json n={n} samples_ms={serde_times:?} median_ms={:.1} bytes={}",
+            serde_times[serde_times.len() / 2],
+            payload.len()
         );
+    }
+
+    #[test]
+    fn elides_default_child_path_on_wire() {
+        let dir = std::env::temp_dir().join(format!(
+            "a-file-manager-nav-elide-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        File::create(dir.join("plain.txt")).unwrap();
+        fs::create_dir(dir.join("sub")).unwrap();
+
+        let listing = list_directory(&dir.to_string_lossy(), true).unwrap();
+        assert!(
+            listing.entries.iter().all(|e| e.path.is_none()),
+            "default children must omit path: {:?}",
+            listing.entries
+        );
+        let value = serde_json::to_value(&listing).unwrap();
+        for entry in value["entries"].as_array().unwrap() {
+            assert!(
+                entry.get("path").is_none(),
+                "wire JSON must skip path for default children: {entry}"
+            );
+            assert!(entry.get("name").is_some());
+        }
+
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -279,7 +327,15 @@ mod tests {
         let listing = list_directory(&members.to_string_lossy(), true).unwrap();
         assert_eq!(listing.entries.len(), 1);
         assert_eq!(listing.entries[0].name, "alias");
-        let open = PathBuf::from(&listing.entries[0].path);
+        // Wire may omit path when equal to parent\name; canonicalize still follows junctions.
+        let open_raw = listing.entries[0].path.clone().unwrap_or_else(|| {
+            format!(
+                "{}\\{}",
+                listing.path.trim_end_matches('\\'),
+                listing.entries[0].name
+            )
+        });
+        let open = PathBuf::from(&open_raw);
         let open_canon = fs::canonicalize(&open).unwrap();
         let real_canon = fs::canonicalize(&real).unwrap();
         assert_eq!(open_canon, real_canon);
