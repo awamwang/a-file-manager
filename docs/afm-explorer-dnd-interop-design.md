@@ -25,6 +25,8 @@ Windows-first Hybrid outbound (HTML5 in-window → OLE/`CF_HDROP` on leave) and 
 
 **FIL-39 (2026-11):** Hybrid 仍窗内 HTML5（ADR 0012）；近边 24px + 离开客户区 / blur / 失焦，以及宿主在「拖势成立且 `WindowFromPoint` 不在根 HWND 树」时发 `afm://dnd/ole-promote`，提前进入 OLE。
 
+**FIL-42 (2026-11):** Shell `IDataObject` 出站在 `DoDragDrop` 前设置 `CFSTR_PREFERREDDROPEFFECT`（随 `options.mode`，默认 COPY）并 `IDataObjectAsyncCapability::SetAsyncMode(FALSE)`，保证媒体播放器在 Drop 期间同步 `GetData(CF_HDROP)`；仍无 PotPlayer 私有格式。效果掩码保持 COPY|MOVE|LINK。
+
 **If dogfood still fails (FIL-37 upgrade gate — ask TZ):**
 - **WebView child HWND subclass** — can catch secondary raises on the WebView2 input path; couples host/child lifetime and widens crash surface.
 - **`LockSetForegroundWindow`** — only works when already FG; can block other apps' foreground switches; use as a timed last resort only.

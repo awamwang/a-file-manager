@@ -54,6 +54,22 @@ assert.ok(
   "FIL-38 handwritten DataObject must not remain on Files path",
 );
 assert.ok(patch.includes("SetWindowPos"), "FIL-37 OLE DropSource restores z-order");
+assert.ok(
+  patch.includes("CFSTR_PREFERREDDROPEFFECT") || patch.includes("Preferred DropEffect"),
+  "FIL-42 sets Preferred DropEffect on Shell IDataObject",
+);
+assert.ok(
+  patch.includes("IDataObjectAsyncCapability") && patch.includes("SetAsyncMode"),
+  "FIL-42 disables async capability so Drop GetData stays synchronous",
+);
+assert.ok(
+  patch.includes("prepare_shell_file_data_object"),
+  "FIL-42 prepare helper wires PreferredDropEffect + sync GetData",
+);
+assert.ok(
+  !/if\s*\(.*PotPlayer/i.test(patch) && !/target\s*==\s*["']PotPlayer/i.test(patch),
+  "FIL-42 must not add PotPlayer-specific format hacks",
+);
 assert.ok(design.includes("Hybrid outbound"), "design doc names Hybrid outbound");
 assert.ok(design.includes("shell inbound") || design.includes("inbound"), "design doc names inbound");
 assert.ok(
@@ -62,5 +78,5 @@ assert.ok(
 );
 
 console.log(
-  "cross-app DnD Hybrid OK (Explorer OLE out + shell inbound + FIL-37/38/39 guards).",
+  "cross-app DnD Hybrid OK (Explorer OLE out + shell inbound + FIL-37/38/39/42 guards).",
 );

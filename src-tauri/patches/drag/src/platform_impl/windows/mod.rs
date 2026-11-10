@@ -4,7 +4,7 @@
 
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
-use crate::{CursorPosition, DragItem, DragResult, Image, Options};
+use crate::{CursorPosition, DragItem, DragMode, DragResult, Image, Options};
 
 use std::{
     ffi::c_void,
@@ -21,6 +21,7 @@ use windows::{
         Graphics::Gdi::{GetObjectW, BITMAP},
         System::Com::*,
         System::DataExchange::RegisterClipboardFormatW,
+        System::Memory::{GlobalAlloc, GlobalLock, GlobalSize, GlobalUnlock, GMEM_MOVEABLE},
         System::Ole::{DoDragDrop, OleInitialize, ReleaseStgMedium},
         System::Ole::{
             IDropSource, IDropSource_Impl, CF_HDROP, DROPEFFECT, DROPEFFECT_COPY, DROPEFFECT_LINK,
@@ -29,8 +30,9 @@ use windows::{
         System::SystemServices::{MK_LBUTTON, MODIFIERKEYS_FLAGS},
         UI::{
             Shell::{
-                BHID_DataObject, CLSID_DragDropHelper, Common, IDragSourceHelper, IShellItemArray,
-                SHCreateShellItemArrayFromIDLists, CFSTR_SHELLIDLIST, SHDRAGIMAGE,
+                BHID_DataObject, CLSID_DragDropHelper, Common, IDataObjectAsyncCapability,
+                IDragSourceHelper, IShellItemArray, SHCreateShellItemArrayFromIDLists,
+                CFSTR_PREFERREDDROPEFFECT, CFSTR_SHELLIDLIST, SHDRAGIMAGE,
             },
             WindowsAndMessaging::{
                 GetAncestor, GetCursorPos, GetForegroundWindow, IsChild, SetForegroundWindow,
@@ -290,9 +292,16 @@ pub fn start_drag<W: HasWindowHandle, F: Fn(DragResult, CursorPosition) + Send +
                 }
 
                 let data_object: IDataObject = get_file_data_object(&paths).unwrap();
+                // FIL-42: PreferredDropEffect + sync GetData，使播放器 Drop 时拿到与 Explorer 同等路径数据。
+                let preferred = preferred_effect_for_mode(options.mode);
+                prepare_shell_file_data_object(&data_object, preferred);
                 debug_assert!(
                     shell_file_formats_gettable(&data_object),
                     "FIL-38: Shell IDataObject must expose GetData-able CF_HDROP + Shell IDList"
+                );
+                debug_assert!(
+                    preferred_drop_effect_is(&data_object, preferred.0),
+                    "FIL-42: Preferred DropEffect must be GetData-able"
                 );
                 let drop_source: IDropSource = DropSource::new(our_root, preserve_fg).into();
 
@@ -307,8 +316,7 @@ pub fn start_drag<W: HasWindowHandle, F: Fn(DragResult, CursorPosition) + Send +
 
                     let mut out_dropeffect = DROPEFFECT::default();
                     // AIA-240: Explorer-parity — offer copy|move|link; target + modifiers choose.
-                    // `options.mode` kept for API compat but mask always includes all three.
-                    let _ = options.mode;
+                    // FIL-42: PreferredDropEffect（由 options.mode）引导非壳目标走 copy/open，而非空 MOVE。
                     let effect = DROPEFFECT_COPY | DROPEFFECT_MOVE | DROPEFFECT_LINK;
 
                     restore_preserved_foreground(our_root, preserve_fg);
@@ -426,6 +434,99 @@ fn get_file_data_object(paths: &[PathBuf]) -> Option<IDataObject> {
     unsafe {
         let shell_item_array = get_shell_item_array(paths).unwrap();
         shell_item_array.BindToHandler(None, &BHID_DataObject).ok()
+    }
+}
+
+fn preferred_effect_for_mode(mode: DragMode) -> DROPEFFECT {
+    match mode {
+        DragMode::Move => DROPEFFECT_MOVE,
+        DragMode::Copy => DROPEFFECT_COPY,
+    }
+}
+
+/// FIL-42：对齐 Explorer 出站给媒体播放器可用的 Drop 合同。
+/// - Preferred DropEffect：标明 copy/open 偏好（默认 copy），避免目标只认 MOVE 语义却无法打开路径。
+/// - 关闭 `IDataObjectAsyncCapability`：强制 Drop 期间同步 `GetData`，避免 DoDragDrop 返回后源释放对象导致播放器拿到空/失效数据。
+fn prepare_shell_file_data_object(obj: &IDataObject, preferred: DROPEFFECT) {
+    let _ = set_preferred_drop_effect(obj, preferred.0);
+    disable_shell_async_capability(obj);
+}
+
+fn preferred_drop_effect_format() -> u16 {
+    unsafe { RegisterClipboardFormatW(CFSTR_PREFERREDDROPEFFECT) as u16 }
+}
+
+fn set_preferred_drop_effect(obj: &IDataObject, effect: u32) -> Result<()> {
+    let cf = preferred_drop_effect_format();
+    if cf == 0 {
+        return Err(Error::from(E_FAIL));
+    }
+    unsafe {
+        let handle = GlobalAlloc(GMEM_MOVEABLE, std::mem::size_of::<u32>())?;
+        let ptr = GlobalLock(handle);
+        if ptr.is_null() {
+            let _ = GlobalFree(handle);
+            return Err(Error::from(E_OUTOFMEMORY));
+        }
+        std::ptr::write(ptr as *mut u32, effect);
+        let _ = GlobalUnlock(handle);
+        let fmt = hglobal_format_etc(cf);
+        let medium = STGMEDIUM {
+            tymed: TYMED_HGLOBAL.0 as u32,
+            u: STGMEDIUM_0 { hGlobal: handle },
+            pUnkForRelease: std::mem::ManuallyDrop::new(None),
+        };
+        // frelease=TRUE：Shell 对象接管 HGLOBAL。
+        if let Err(err) = obj.SetData(&fmt, &medium, TRUE) {
+            let _ = GlobalFree(handle);
+            return Err(err);
+        }
+    }
+    Ok(())
+}
+
+fn disable_shell_async_capability(obj: &IDataObject) {
+    unsafe {
+        if let Ok(async_cap) = obj.cast::<IDataObjectAsyncCapability>() {
+            let _ = async_cap.SetAsyncMode(FALSE);
+        }
+    }
+}
+
+fn preferred_drop_effect_is(obj: &IDataObject, expected: u32) -> bool {
+    read_preferred_drop_effect(obj) == Some(expected)
+}
+
+fn read_preferred_drop_effect(obj: &IDataObject) -> Option<u32> {
+    let cf = preferred_drop_effect_format();
+    if cf == 0 {
+        return None;
+    }
+    let fmt = hglobal_format_etc(cf);
+    unsafe {
+        if obj.QueryGetData(&fmt) != S_OK {
+            return None;
+        }
+        match obj.GetData(&fmt) {
+            Ok(mut medium) => {
+                let mut effect = None;
+                if medium.tymed == TYMED_HGLOBAL.0 as u32 {
+                    let hglobal = medium.u.hGlobal;
+                    let size = GlobalSize(hglobal);
+                    let ptr = GlobalLock(hglobal);
+                    if !ptr.is_null() && size >= 4 {
+                        let bytes = std::slice::from_raw_parts(ptr as *const u8, 4);
+                        effect = Some(u32::from_le_bytes([
+                            bytes[0], bytes[1], bytes[2], bytes[3],
+                        ]));
+                    }
+                    let _ = GlobalUnlock(hglobal);
+                }
+                ReleaseStgMedium(&mut medium);
+                effect
+            }
+            Err(_) => None,
+        }
     }
 }
 
@@ -552,6 +653,26 @@ mod tests {
             shell_file_formats_gettable(&obj),
             "CF_HDROP + CFSTR_SHELLIDLIST must be QueryGetData/GetData-able"
         );
+        // FIL-42：同一对象上准备 PreferredDropEffect + 同步 GetData。
+        prepare_shell_file_data_object(&obj, DROPEFFECT_COPY);
+        assert!(
+            shell_file_formats_gettable(&obj),
+            "prepare must keep CF_HDROP + Shell IDList GetData-able"
+        );
+        assert_eq!(
+            read_preferred_drop_effect(&obj),
+            Some(DROPEFFECT_COPY.0),
+            "Preferred DropEffect must be COPY for open/play targets"
+        );
+        unsafe {
+            if let Ok(async_cap) = obj.cast::<IDataObjectAsyncCapability>() {
+                let mode = async_cap.GetAsyncMode().expect("GetAsyncMode");
+                assert!(
+                    !mode.as_bool(),
+                    "FIL-42: async capability must be disabled so Drop GetData stays sync"
+                );
+            }
+        }
         let _ = std::fs::remove_file(&file);
         let _ = std::fs::remove_dir(&dir);
     }
