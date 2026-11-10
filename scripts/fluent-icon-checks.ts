@@ -52,6 +52,21 @@ assert.equal(commandGroupIcon("Navigate"), "folderOpen");
 assert.equal(commandGroupIcon("View"), "view");
 assert.equal(commandGroupIcon("Actions"), "flash");
 
+// FIL-31: pin / list / eye metaphors stay visually distinct in the catalog.
+assert.ok(FLUENT_GLYPHS.pin);
+assert.ok(FLUENT_GLYPHS.star);
+assert.ok(FLUENT_GLYPHS.list);
+assert.ok(FLUENT_GLYPHS.eye);
+assert.ok(FLUENT_GLYPHS.eyeOff);
+assert.notEqual(FLUENT_GLYPHS.pin.codepoint, FLUENT_GLYPHS.star.codepoint);
+assert.notEqual(FLUENT_GLYPHS.list.codepoint, FLUENT_GLYPHS.eye.codepoint);
+assert.notEqual(FLUENT_GLYPHS.list.codepoint, FLUENT_GLYPHS.eyeOff.codepoint);
+assert.notEqual(FLUENT_GLYPHS.eye.codepoint, FLUENT_GLYPHS.eyeOff.codepoint);
+assert.equal(FLUENT_GLYPHS.pin.codepoint, "\uE718");
+assert.equal(FLUENT_GLYPHS.list.codepoint, "\uEA37");
+assert.equal(FLUENT_GLYPHS.eye.codepoint, "\uE7B3");
+assert.equal(FLUENT_GLYPHS.eyeOff.codepoint, "\uE894");
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const iconVue = readFileSync(join(root, "src/components/icons/FluentIcon.vue"), "utf8");
 assert.ok(iconVue.includes("Segoe Fluent Icons"));

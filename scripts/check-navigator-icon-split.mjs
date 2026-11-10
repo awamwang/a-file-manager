@@ -21,6 +21,13 @@ if (!shell.includes('name="star"')) {
   console.error("Places trigger must use star icon");
   process.exit(1);
 }
+// FIL-31: favorites/places keep star; tab pin trigger must not.
+const pinBlockStart = shell.indexOf('class="tab-pin"');
+const pinBlock = pinBlockStart >= 0 ? shell.slice(pinBlockStart, pinBlockStart + 500) : "";
+if (pinBlock.includes('name="star"') || pinBlock.includes("name='star'")) {
+  console.error("tab pin trigger must not use star (favorites keep star)");
+  process.exit(1);
+}
 if (!shell.includes('name="dualPane"')) {
   console.error("Dual Pane toggle must use dualPane glyph");
   process.exit(1);
