@@ -26,8 +26,12 @@ assert.ok(view.includes('rows="1"'));
 assert.ok(view.includes('@keydown.enter.prevent.stop="commitInlineRename"'));
 assert.ok(view.includes('@keydown.escape.prevent.stop="cancelInlineRename"'));
 assert.ok(view.includes('registerShortcutHandler("navigator.rename"'));
-assert.ok(view.includes("min-width: 10rem"));
 assert.ok(view.includes("isIconView.value ? 2 : 1"));
+assert.ok(view.includes("field-sizing: content"));
+assert.ok(view.includes("min-height: 0"));
+assert.ok(view.includes("@mousedown.stop"));
+assert.ok(view.includes("cursor: text"));
+assert.ok(view.includes("input.style.width"));
 // Drag-select must scroll through overflow — never clip with overflow:hidden.
 assert.ok(view.includes("overflow-x: auto"));
 assert.ok(view.includes("overflow-y: hidden"));
@@ -36,6 +40,8 @@ assert.ok(view.includes("user-select: text"));
 assert.ok(view.includes("scrollbar-width: none"));
 assert.match(view, /\.inline-rename\s*\{[^}]*overflow-x:\s*auto/s);
 assert.ok(!/\.inline-rename\s*\{[^}]*overflow:\s*hidden/s.test(view));
+assert.ok(!/\.inline-rename\s*\{[^}]*min-width:\s*10rem/s.test(view));
+assert.ok(!/\.inline-rename\s*\{[^}]*min-height:\s*var\(--fluent-control-height/s.test(view));
 assert.ok(!view.includes("window.prompt(t(\"contextMenu.renamePrompt\")"));
 assert.ok(!view.includes("window.prompt(t('contextMenu.renamePrompt')"));
 

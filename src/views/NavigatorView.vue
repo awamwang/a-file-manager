@@ -315,8 +315,7 @@ function clearPendingNameRename() {
 }
 
 /**
- * Match rename box height to how many lines the name wraps in the list
- * (icon views clamp at 2; list/details stay single-line). Never pad empty lines.
+ * 改名框紧贴文字：高度随 wrap 行数（图标最多 2 行）；宽度跟内容，不留框内空白。
  */
 function syncRenameInputSize() {
   const input = renameInputEl.value;
@@ -324,6 +323,7 @@ function syncRenameInputSize() {
   const maxLines = isIconView.value ? 2 : 1;
   input.rows = 1;
   input.style.height = "auto";
+  input.style.width = "auto";
   const style = getComputedStyle(input);
   const lineHeight = Number.parseFloat(style.lineHeight) || Number.parseFloat(style.fontSize) * 1.25 || 16;
   const padY =
@@ -331,9 +331,19 @@ function syncRenameInputSize() {
   const borderY =
     (Number.parseFloat(style.borderTopWidth) || 0) +
     (Number.parseFloat(style.borderBottomWidth) || 0);
+  const padX =
+    (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0);
+  const borderX =
+    (Number.parseFloat(style.borderLeftWidth) || 0) +
+    (Number.parseFloat(style.borderRightWidth) || 0);
   const maxHeight = lineHeight * maxLines + padY + borderY;
   const next = Math.min(input.scrollHeight, maxHeight);
   input.style.height = `${Math.max(next, lineHeight + padY + borderY)}px`;
+  const parent = input.parentElement;
+  const maxWidth = parent?.clientWidth || input.clientWidth || 0;
+  const contentWidth = Math.ceil(input.scrollWidth + borderX);
+  const fitted = Math.max(contentWidth, Math.ceil(lineHeight + padX + borderX));
+  input.style.width = `${maxWidth > 0 ? Math.min(fitted, maxWidth) : fitted}px`;
 }
 
 /** Select basename for files (keep extension); full name for folders. */
@@ -1658,6 +1668,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
               wrap="soft"
               spellcheck="false"
               :aria-label="t('contextMenu.rename')"
+              @mousedown.stop
               @click.stop
               @dblclick.stop
               @input="onRenameDraftInput"
@@ -1727,6 +1738,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           wrap="soft"
           spellcheck="false"
           :aria-label="t('contextMenu.rename')"
+          @mousedown.stop
           @click.stop
           @dblclick.stop
           @input="onRenameDraftInput"
@@ -2090,8 +2102,10 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
 }
 
 .list--icons .row--icon .inline-rename {
-  width: 100%;
+  width: auto;
+  max-width: 100%;
   min-width: 0;
+  margin-inline: auto;
   text-align: center;
   font-size: var(--fluent-font-size-caption);
   white-space: pre-wrap;
@@ -2331,13 +2345,15 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
 }
 
 .inline-rename {
-  /* Slightly wider than a collapsed name cell; still fills the column. */
-  min-width: 10rem;
-  width: 100%;
+  /* 覆盖 fluent-control 的标准控件高度/内边距，使边框紧贴文字。 */
+  min-width: 0;
+  width: max-content;
+  max-width: 100%;
   min-height: 0;
   height: auto;
   box-sizing: border-box;
-  padding: 1px var(--fluent-space-xs);
+  padding: 0 2px;
+  border-radius: 2px;
   font: inherit;
   line-height: inherit;
   resize: none;
@@ -2348,8 +2364,10 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   overflow-x: auto;
   overflow-y: hidden;
   white-space: nowrap;
-  field-sizing: fixed;
+  field-sizing: content;
   user-select: text;
+  caret-color: var(--fluent-color-text-primary);
+  cursor: text;
   scrollbar-width: none;
 }
 
