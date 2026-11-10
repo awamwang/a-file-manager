@@ -25,7 +25,9 @@ export type FluentGlyphId =
   | "globe"
   | "color"
   | "density"
+  | "list"
   | "eye"
+  | "eyeOff"
   | "shield"
   | "flash"
   | "bug"
@@ -180,10 +182,24 @@ export const FLUENT_GLYPHS: Record<FluentGlyphId, FluentGlyph> = {
       "M2.5 3.5h11v1.4H2.5V3.5zm0 3.8h11v1.4H2.5V7.3zm0 3.8h11v1.4H2.5v-1.4z",
     ],
   },
+  /** Segoe List — layout / view-mode trigger (distinct from eye visibility). */
+  list: {
+    codepoint: "\uEA37",
+    paths: [
+      "M2.5 3.4h2.2v2.2H2.5V3.4zm3.4 0.5h7.6v1.2H5.9V3.9zM2.5 6.9h2.2v2.2H2.5V6.9zm3.4 0.5h7.6v1.2H5.9V7.4zM2.5 10.4h2.2v2.2H2.5v-2.2zm3.4 0.5h7.6v1.2H5.9v-1.2z",
+    ],
+  },
   eye: {
     codepoint: "\uE7B3",
     paths: [
       "M8 3.5C4.2 3.5 1.5 8 1.5 8s2.7 4.5 6.5 4.5S14.5 8 14.5 8 11.8 3.5 8 3.5zM8 5.2A2.8 2.8 0 1 1 8 10.8 2.8 2.8 0 0 1 8 5.2zm0 1.3a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z",
+    ],
+  },
+  /** Segoe Hide — eye with slash when hidden items are not shown. */
+  eyeOff: {
+    codepoint: "\uE894",
+    paths: [
+      "M2.1 3.1 3 2.2 13.8 13l-.9.9-2.1-2.1C9.7 12.4 8.9 12.5 8 12.5 4.2 12.5 1.5 8 1.5 8s1.1-1.8 2.9-3.2L2.1 3.1zM8 5.2c.3 0 .6.1.9.2L5.4 8.9A2.8 2.8 0 0 1 8 5.2zm0 5.6c-.3 0-.6-.1-.9-.2l3.5-3.5A2.8 2.8 0 0 1 8 10.8zM8 3.5c.7 0 1.4.1 2 .4l-1 1A2.8 2.8 0 0 0 5.4 8.5l-1.2 1.2C2.9 8.7 1.5 8 1.5 8S4.2 3.5 8 3.5zm5.1 1.7C14 6.2 14.5 8 14.5 8s-2.7 4.5-6.5 4.5c-.5 0-1-.1-1.4-.2l1.1-1.1c.1 0 .2 0 .3 0a2.8 2.8 0 0 0 2.7-2.3l2.4-2.4z",
     ],
   },
   shield: {

@@ -1731,11 +1731,7 @@ onUnmounted(() => {
               @dblclick.stop
               @pointerdown.stop
             >
-              <FluentIcon
-                :name="isTabPinned(tab.id) ? 'pin' : 'star'"
-                size="sm"
-                aria-hidden="true"
-              />
+              <FluentIcon name="pin" size="sm" aria-hidden="true" />
             </button>
             <FluentIcon name="folder" size="sm" class="tab-icon" aria-hidden="true" />
             <span class="tab-label">{{ tab.name || tabLabel(tab.path) }}</span>
@@ -2004,7 +2000,7 @@ onUnmounted(() => {
               aria-haspopup="menu"
               @click.stop="toggleViewModeMenu"
             >
-              <FluentIcon name="view" size="sm" />
+              <FluentIcon name="list" size="sm" />
               <FluentIcon name="chevronDown" size="sm" class="places-chevron" />
             </button>
             <div
@@ -2053,7 +2049,7 @@ onUnmounted(() => {
             :aria-pressed="showHiddenItems"
             @click="onToggleShowHidden"
           >
-            <FluentIcon name="eye" size="sm" />
+            <FluentIcon :name="showHiddenItems ? 'eye' : 'eyeOff'" size="sm" />
           </button>
 
           <button
