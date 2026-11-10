@@ -2,15 +2,18 @@
 // Navigator Open State / multi-tab pure model smoke.
 import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { readFileSync } from "node:fs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const runner = join(root, "scripts", "open-state-checks.ts");
+const registerUrl = pathToFileURL(
+  join(root, "scripts/register-ts-resolve.mjs"),
+).href;
 
 const result = spawnSync(
   process.execPath,
-  ["--experimental-strip-types", runner],
+  ["--import", registerUrl, "--experimental-strip-types", runner],
   { cwd: root, encoding: "utf8" },
 );
 

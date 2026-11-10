@@ -103,7 +103,7 @@ pub fn resolve_projects_root(config_dir: &Path, configured: &str) -> PathBuf {
 }
 
 pub fn normalize_path_string(path: &Path) -> String {
-    path.to_string_lossy().replace('/', "\\")
+    crate::paths::to_native_fs_path(&path.to_string_lossy())
 }
 
 /// On-disk Workspace folder name (= project slug): display name with Windows path sanitization.

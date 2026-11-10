@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /** Pure helpers for the navigator folder tree (dirs only, path highlight). */
 
+import { normalizeTreePathKey } from "./pathKey";
+
 export type FolderTreeChild = {
   name: string;
   path: string;
@@ -17,9 +19,9 @@ export function directoryChildren(
     );
 }
 
-/** Compare Windows paths without trailing slashes. `C:\` stays distinguishable from `C:`. */
+/** Compare Windows paths without trailing slashes. `C:\` 与 `C:` 同键。 */
 export function normalizeTreePath(path: string): string {
-  return path.replace(/\//g, "\\").replace(/\\+$/, "").toLowerCase();
+  return normalizeTreePathKey(path);
 }
 
 /** True when `current` is the node or a descendant. Drive roots match `C:\…`. */

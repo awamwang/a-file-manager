@@ -28,24 +28,10 @@ export function nextTabId(prefix = "tab"): string {
   return `${prefix}-${Date.now()}-${tabSeq}`;
 }
 
-/**
- * Windows 本地路径统一为 `\`；`afm://` 等 URI 方案保持原样。
- * 写入 Open State / 成员路径时使用，避免磁盘上再出现 `/`。
- */
-export function toNativeFsPath(path: string): string {
-  const trimmed = path.trim();
-  if (!trimmed) return "";
-  if (/^[a-zA-Z]:[\\/]/.test(trimmed) || trimmed.startsWith("\\\\") || trimmed.startsWith("//")) {
-    let native = trimmed.replace(/\//g, "\\");
-    if (/^[a-zA-Z]:\\$/i.test(native)) return native;
-    return native.replace(/\\+$/, "");
-  }
-  // 含 `://` 的方案（afm://guide、http://…）不改分隔符
-  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
-    return trimmed.replace(/\/+$/, "");
-  }
-  return trimmed.replace(/\//g, "\\").replace(/\\+$/, "");
-}
+import { toNativeFsPath, normalizePathKey } from "./pathKey";
+
+/** 路径键权威实现见 `pathKey.ts`；此处再导出以保持 Open State 调用方兼容。 */
+export { toNativeFsPath, normalizePathKey } from "./pathKey";
 
 export function displayNameFromPath(path: string): string {
   const native = toNativeFsPath(path);
@@ -225,10 +211,6 @@ export function openStateAfterReorderGroups(
 }
 
 /** Case-insensitive path key for tab-group identity (Sigma openOrFocus / dedupe). Aligns with Rust `normalize_path_for_comparison`. */
-export function normalizePathKey(path: string): string {
-  return toNativeFsPath(path).toLowerCase();
-}
-
 /** Index of the first tab group that already shows `path`, or -1. */
 export function findTabGroupIndexByPath(
   state: WorkGroupOpenState,

@@ -96,7 +96,10 @@ fn encode_rgba_png_data_url(width: u32, height: u32, pixels: &[u8]) -> Result<St
 }
 
 fn cache_key(path: &str, size: u16, kind: &str) -> String {
-    format!("{kind}|{size}|{}", path.replace('/', "\\").to_ascii_lowercase())
+    format!(
+        "{kind}|{size}|{}",
+        crate::paths::normalize_path_for_comparison(path)
+    )
 }
 
 fn shell_icon_data_url(path: &Path, size: u16) -> Result<String, String> {

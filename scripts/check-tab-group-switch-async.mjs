@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -74,9 +74,17 @@ for (const name of [
   }
 }
 
+const registerUrl = pathToFileURL(
+  join(root, "scripts/register-ts-resolve.mjs"),
+).href;
 const modelCheck = spawnSync(
   process.execPath,
-  ["--experimental-strip-types", join(root, "scripts/open-state-checks.ts")],
+  [
+    "--import",
+    registerUrl,
+    "--experimental-strip-types",
+    join(root, "scripts/open-state-checks.ts"),
+  ],
   { cwd: root, encoding: "utf8" },
 );
 if (modelCheck.stdout) process.stdout.write(modelCheck.stdout);

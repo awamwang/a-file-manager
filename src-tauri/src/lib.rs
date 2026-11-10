@@ -10,6 +10,7 @@ mod favorites;
 mod visit_stats;
 mod file_ops;
 mod navigator;
+mod paths;
 mod preview;
 mod preview_bridge;
 mod shell_icons;

@@ -33,6 +33,7 @@ import { clearNavigatorFilter } from "./navigatorFilter";
 import { showHiddenItems } from "./showHidden";
 import { forgetPinnedTabs, pinnedIdSet } from "./tabPins";
 import { clearSelection } from "./navigatorSelection";
+import { normalizePathKey } from "./pathKey";
 
 export type NavigatorEntry = {
   name: string;
@@ -208,7 +209,7 @@ export function bootstrapNavigatorOpenState(): Promise<void> {
 }
 
 function normalizeBrowseKey(path: string): string {
-  return path.trim().replace(/\//g, "\\").replace(/\\+$/, "").toLowerCase();
+  return normalizePathKey(path);
 }
 
 /**

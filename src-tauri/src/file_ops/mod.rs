@@ -39,7 +39,7 @@ fn err_msg(message: impl Into<String>) -> FileOpsResult {
 }
 
 fn display_path(path: &Path) -> String {
-    path.to_string_lossy().replace('/', "\\")
+    crate::paths::to_native_fs_path(&path.to_string_lossy())
 }
 
 fn ensure_existing(path: &str) -> Result<PathBuf, String> {

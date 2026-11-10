@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const shell = readFileSync(join(root, "src/components/shell/AppShell.vue"), "utf8");
@@ -80,9 +80,17 @@ if (!registry.includes("navigator.closeTab") || !registry.includes("navigator.ju
   process.exit(1);
 }
 
+const registerUrl = pathToFileURL(
+  join(root, "scripts/register-ts-resolve.mjs"),
+).href;
 const result = spawnSync(
   process.execPath,
-  ["--experimental-strip-types", join(root, "scripts/tab-pin-checks.ts")],
+  [
+    "--import",
+    registerUrl,
+    "--experimental-strip-types",
+    join(root, "scripts/tab-pin-checks.ts"),
+  ],
   { cwd: root, encoding: "utf8" },
 );
 if (result.stdout) process.stdout.write(result.stdout);
