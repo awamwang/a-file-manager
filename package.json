@@ -45,6 +45,7 @@
     "test:view-layout": "node scripts/check-view-layout.mjs",
     "test:list-placeholders": "node scripts/check-list-placeholders.mjs",
     "test:ui-perf": "node scripts/check-ui-perf.mjs",
+    "test:perf-probe": "node scripts/check-perf-probe.mjs",
     "test:list-virtual": "node scripts/check-list-virtual.mjs",
     "test:settings-switch": "node scripts/check-settings-switch.mjs",
     "test:dead-code": "node scripts/check-dead-code.mjs",

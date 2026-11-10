@@ -29,6 +29,8 @@ use windows::Win32::UI::Shell::{
 
 /// Bound process-side Shell results so extreme folders cannot retain every PNG data URL (AIA-279).
 const MAX_ICON_CACHE_ENTRIES: usize = 384;
+/// Max worker threads inside one `shell_icon_get_many` batch (COM STA per worker).
+const SHELL_ICON_PARALLELISM: usize = 4;
 
 struct BoundedIconCache {
     map: HashMap<String, String>,
@@ -71,6 +73,12 @@ impl BoundedIconCache {
     fn len(&self) -> usize {
         self.map.len()
     }
+
+    #[cfg(test)]
+    fn clear(&mut self) {
+        self.map.clear();
+        self.order.clear();
+    }
 }
 
 static ICON_CACHE: Lazy<Mutex<BoundedIconCache>> =
@@ -102,7 +110,26 @@ fn cache_key(path: &str, size: u16, kind: &str) -> String {
     )
 }
 
+/// Shared shell-icon key for the same file type (extension / dir), not per-path.
+fn type_icon_cache_key(path: &Path, size: u16) -> String {
+    if path.is_dir() {
+        return format!("icon|{size}|type:dir");
+    }
+    match path.extension().and_then(|e| e.to_str()) {
+        Some(ext) if !ext.is_empty() => {
+            format!("icon|{size}|type:{}", ext.to_ascii_lowercase())
+        }
+        _ => format!("icon|{size}|type:none"),
+    }
+}
+
+fn ensure_com_sta() {
+    // Ensure COM for this thread; do not CoUninitialize (host may own it).
+    let _ = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
+}
+
 fn shell_icon_data_url(path: &Path, size: u16) -> Result<String, String> {
+    ensure_com_sta();
     let icon = get_file_icon(path, size).map_err(|err| format!("shell icon failed: {err:?}"))?;
     encode_rgba_png_data_url(icon.width, icon.height, &icon.pixels)
 }
@@ -172,8 +199,7 @@ fn system_thumbnail_data_url(path: &Path, size: u16) -> Result<String, String> {
     let sz = SIZE { cx: edge, cy: edge };
 
     unsafe {
-        // Ensure COM for this thread; do not CoUninitialize (host may own it).
-        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+        ensure_com_sta();
 
         let factory: IShellItemImageFactory = SHCreateItemFromParsingName(&hstring, None)
             .map_err(|err| format!("SHCreateItemFromParsingName: {err}"))?;
@@ -208,32 +234,51 @@ pub fn resolve_icon(path: &str, size: u16, prefer_thumbnail: bool) -> ShellIconR
     let size = size.clamp(8, 256);
     let want_thumb = prefer_thumbnail && pb.is_file();
     let kind = if want_thumb { "thumbnail" } else { "icon" };
-    let key = cache_key(trimmed, size, kind);
+    let path_key = cache_key(trimmed, size, kind);
+    let type_key = type_icon_cache_key(&pb, size);
 
     if let Ok(cache) = ICON_CACHE.lock() {
-        if let Some(hit) = cache.get(&key) {
+        if let Some(hit) = cache.get(&path_key) {
             return ShellIconResult {
                 path: trimmed.to_string(),
                 data_url: Some(hit.clone()),
                 kind: kind.to_string(),
             };
         }
+        // Shell icons (and thumb→icon fallbacks) share one glyph per file type.
+        if !want_thumb {
+            if let Some(hit) = cache.get(&type_key) {
+                return ShellIconResult {
+                    path: trimmed.to_string(),
+                    data_url: Some(hit.clone()),
+                    kind: "icon".to_string(),
+                };
+            }
+        }
     }
 
-    let data_url = if want_thumb {
+    // real_thumb: pixels came from Shell thumbnail handlers (not association icon).
+    let (data_url, real_thumb) = if want_thumb {
         // AIA-143: system thumbnail first; shell icon only as fallback.
-        system_thumbnail_data_url(&pb, size)
-            .or_else(|_| shell_icon_data_url(&pb, size))
-            .ok()
-            .map(|url| {
-                // If only icon fell through, still surface as thumbnail request path
-                // but kind stays "thumbnail" when prefer_thumbnail was set and we got pixels.
-                url
-            })
+        match system_thumbnail_data_url(&pb, size) {
+            Ok(url) => (Some(url), true),
+            Err(_) => {
+                if let Ok(cache) = ICON_CACHE.lock() {
+                    if let Some(hit) = cache.get(&type_key) {
+                        return ShellIconResult {
+                            path: trimmed.to_string(),
+                            data_url: Some(hit.clone()),
+                            kind: "thumbnail".to_string(),
+                        };
+                    }
+                }
+                (shell_icon_data_url(&pb, size).ok(), false)
+            }
+        }
     } else if pb.exists() {
-        shell_icon_data_url(&pb, size).ok()
+        (shell_icon_data_url(&pb, size).ok(), false)
     } else {
-        None
+        (None, false)
     };
 
     // Refine kind: if we asked for thumbnail but only got a generic icon-sized result
@@ -247,7 +292,11 @@ pub fn resolve_icon(path: &str, size: u16, prefer_thumbnail: bool) -> ShellIconR
 
     if let Some(ref url) = data_url {
         if let Ok(mut cache) = ICON_CACHE.lock() {
-            cache.insert(key, url.clone());
+            cache.insert(path_key, url.clone());
+            // True thumbnails stay path-scoped; association icons also fill the type key.
+            if !real_thumb {
+                cache.insert(type_key, url.clone());
+            }
         }
     }
 
@@ -256,6 +305,57 @@ pub fn resolve_icon(path: &str, size: u16, prefer_thumbnail: bool) -> ShellIconR
         data_url,
         kind,
     }
+}
+
+/// Resolve a batch with bounded parallelism; each worker initializes its own COM STA.
+fn resolve_icons_parallel(paths: Vec<String>, size: u16, prefer_thumbnail: bool) -> Vec<ShellIconResult> {
+    let n = paths.len();
+    if n == 0 {
+        return Vec::new();
+    }
+    let workers = SHELL_ICON_PARALLELISM.min(n).max(1);
+    if workers == 1 {
+        return paths
+            .into_iter()
+            .map(|p| resolve_icon(&p, size, prefer_thumbnail))
+            .collect();
+    }
+
+    let mut slots: Vec<Option<ShellIconResult>> = (0..n).map(|_| None).collect();
+    let chunk_size = n.div_ceil(workers);
+
+    std::thread::scope(|scope| {
+        let mut rest = slots.as_mut_slice();
+        let mut offset = 0usize;
+        for _ in 0..workers {
+            if offset >= n {
+                break;
+            }
+            let end = (offset + chunk_size).min(n);
+            let take = end - offset;
+            let (this_slots, next) = rest.split_at_mut(take);
+            rest = next;
+            let chunk_paths: Vec<String> = paths[offset..end].to_vec();
+            offset = end;
+            scope.spawn(move || {
+                ensure_com_sta();
+                for (i, p) in chunk_paths.into_iter().enumerate() {
+                    this_slots[i] = Some(resolve_icon(&p, size, prefer_thumbnail));
+                }
+            });
+        }
+    });
+
+    slots
+        .into_iter()
+        .map(|slot| {
+            slot.unwrap_or(ShellIconResult {
+                path: String::new(),
+                data_url: None,
+                kind: "icon".into(),
+            })
+        })
+        .collect()
 }
 
 #[tauri::command]
@@ -285,16 +385,24 @@ pub async fn shell_icon_get_many(
 ) -> Vec<ShellIconResult> {
     let size = size.unwrap_or(20);
     let prefer = prefer_thumbnail.unwrap_or(true);
+    let n = paths.len();
+    let t0 = std::time::Instant::now();
     // AIA-278: small frontend batches + spawn_blocking so list IPC / UI stay responsive
-    // while Shell generates thumbnails.
-    tauri::async_runtime::spawn_blocking(move || {
-        paths
-            .into_iter()
-            .map(|p| resolve_icon(&p, size, prefer))
-            .collect()
+    // while Shell generates thumbnails. Inside the blocking task, resolve with
+    // SHELL_ICON_PARALLELISM workers (each thread owns its COM STA).
+    let results = tauri::async_runtime::spawn_blocking(move || {
+        resolve_icons_parallel(paths, size, prefer)
     })
     .await
-    .unwrap_or_default()
+    .unwrap_or_default();
+    crate::perf_log::afm_perf_line(format!(
+        "AFM_PERF shell_icon_batch n={} size={} thumb={} {:.1}ms",
+        n,
+        size,
+        if prefer { 1 } else { 0 },
+        t0.elapsed().as_secs_f64() * 1000.0
+    ));
+    results
 }
 
 #[cfg(test)]
@@ -312,6 +420,83 @@ mod tests {
         assert_eq!(cache.len(), MAX_ICON_CACHE_ENTRIES);
         assert!(cache.get("k0").is_none(), "oldest entries must be evicted");
         assert!(cache.get(&format!("k{}", MAX_ICON_CACHE_ENTRIES + 9)).is_some());
+    }
+
+    #[test]
+    fn type_icon_cache_reuses_same_extension() {
+        let dir = std::env::temp_dir().join(format!("afm-type-icon-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let a = dir.join("a.txt");
+        let b = dir.join("b.txt");
+        fs::write(&a, "a").unwrap();
+        fs::write(&b, "b").unwrap();
+        if let Ok(mut cache) = ICON_CACHE.lock() {
+            cache.clear();
+        }
+        let first = resolve_icon(&a.to_string_lossy(), 16, false);
+        assert!(first.data_url.is_some());
+        let type_key = type_icon_cache_key(&a, 16);
+        {
+            let cache = ICON_CACHE.lock().unwrap();
+            assert!(cache.get(&type_key).is_some(), "type cache must fill after shell icon");
+        }
+        let second = resolve_icon(&b.to_string_lossy(), 16, false);
+        assert_eq!(first.data_url, second.data_url);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Manual perf probe: `AFM_PERF_DIR=<dir> cargo test --lib shell_icons::tests::bench_shell_icon_batch -- --nocapture`
+    #[test]
+    fn bench_shell_icon_batch() {
+        let Ok(dir) = std::env::var("AFM_PERF_DIR") else {
+            return;
+        };
+        let paths: Vec<String> = fs::read_dir(&dir)
+            .expect("AFM_PERF_DIR")
+            .filter_map(|e| e.ok())
+            .map(|e| e.path().to_string_lossy().to_string())
+            .take(40)
+            .collect();
+        assert!(paths.len() >= 8, "need at least 8 files in AFM_PERF_DIR");
+
+        let mut cold_icon = Vec::new();
+        for _ in 0..5 {
+            if let Ok(mut cache) = ICON_CACHE.lock() {
+                cache.clear();
+            }
+            let batch: Vec<String> = paths.iter().take(40).cloned().collect();
+            let t0 = std::time::Instant::now();
+            let _ = resolve_icons_parallel(batch, 20, false);
+            cold_icon.push(t0.elapsed().as_secs_f64() * 1000.0);
+        }
+        cold_icon.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let warm_t0 = std::time::Instant::now();
+        let _ = resolve_icons_parallel(paths.iter().take(40).cloned().collect(), 20, false);
+        let warm_icon_ms = warm_t0.elapsed().as_secs_f64() * 1000.0;
+        eprintln!(
+            "AFM_PERF shell_icon_batch n=40 thumb=0 cold_samples_ms={cold_icon:?} cold_median_ms={:.1} warm_ms={warm_icon_ms:.1}",
+            cold_icon[cold_icon.len() / 2]
+        );
+
+        let thumb_paths: Vec<String> = paths.iter().take(8).cloned().collect();
+        let mut cold_thumb = Vec::new();
+        for _ in 0..5 {
+            if let Ok(mut cache) = ICON_CACHE.lock() {
+                cache.clear();
+            }
+            let t0 = std::time::Instant::now();
+            let _ = resolve_icons_parallel(thumb_paths.clone(), 96, true);
+            cold_thumb.push(t0.elapsed().as_secs_f64() * 1000.0);
+        }
+        cold_thumb.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let warm_t0 = std::time::Instant::now();
+        let _ = resolve_icons_parallel(thumb_paths, 96, true);
+        let warm_thumb_ms = warm_t0.elapsed().as_secs_f64() * 1000.0;
+        eprintln!(
+            "AFM_PERF shell_icon_batch n=8 thumb=1 cold_samples_ms={cold_thumb:?} cold_median_ms={:.1} warm_ms={warm_thumb_ms:.1}",
+            cold_thumb[cold_thumb.len() / 2]
+        );
     }
 
     #[test]

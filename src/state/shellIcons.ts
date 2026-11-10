@@ -4,6 +4,7 @@
 
 import { reactive } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { perfSpan } from "./perfProbe";
 
 export type ShellIconResult = {
   path: string;
@@ -181,11 +182,21 @@ async function flushQueue(): Promise<void> {
         const size = items[0]!.size;
         const preferThumbnail = items[0]!.preferThumbnail;
         try {
-          const results = await invoke<ShellIconResult[]>("shell_icon_get_many", {
-            paths: items.map((i) => i.path),
-            size,
-            preferThumbnail,
-          });
+          const results = await perfSpan(
+            "shell_icon_batch",
+            () =>
+              invoke<ShellIconResult[]>("shell_icon_get_many", {
+                paths: items.map((i) => i.path),
+                size,
+                preferThumbnail,
+              }),
+            () => ({
+              n: items.length,
+              size,
+              thumb: preferThumbnail ? 1 : 0,
+              queue: queue.length,
+            }),
+          );
           if (gen !== generation) return;
           for (const item of results) {
             if (item.dataUrl) applyResult(item.path, size, item.dataUrl, gen);

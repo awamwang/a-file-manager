@@ -21,6 +21,7 @@ import {
 } from "../../state/dnd";
 import { toastError, toastSuccess } from "../../state/toast";
 import { scheduleAfterPaint } from "../../state/scheduleIdle";
+import { perfSpan } from "../../state/perfProbe";
 
 const props = withDefaults(
   defineProps<{
@@ -50,10 +51,19 @@ const highlight = computed(() =>
 async function loadChildren() {
   loading.value = true;
   try {
-    const listing = await invoke<NavigatorListing>("navigator_list", {
-      path: props.path,
-      showHidden: showHiddenItems.value,
-    });
+    let entryCount = 0;
+    const listing = await perfSpan(
+      "tree_list",
+      async () => {
+        const result = await invoke<NavigatorListing>("navigator_list", {
+          path: props.path,
+          showHidden: showHiddenItems.value,
+        });
+        entryCount = result.entries.length;
+        return result;
+      },
+      () => ({ path: props.path, n: entryCount }),
+    );
     children.value = directoryChildren(listing.entries);
   } catch {
     children.value = [];

@@ -12,7 +12,23 @@ pub(crate) mod path_guard;
 
 #[tauri::command]
 pub fn navigator_list(path: String, show_hidden: Option<bool>) -> Result<list::NavigatorListing, String> {
-    list::list_directory(&path, show_hidden.unwrap_or(false))
+    let t0 = std::time::Instant::now();
+    let result = list::list_directory(&path, show_hidden.unwrap_or(false));
+    match &result {
+        Ok(listing) => crate::perf_log::afm_perf_line(format!(
+            "AFM_PERF navigator_list n={} {:.1}ms path={}",
+            listing.entries.len(),
+            t0.elapsed().as_secs_f64() * 1000.0,
+            path
+        )),
+        Err(err) => crate::perf_log::afm_perf_line(format!(
+            "AFM_PERF navigator_list ERR {:.1}ms path={} err={}",
+            t0.elapsed().as_secs_f64() * 1000.0,
+            path,
+            err
+        )),
+    }
+    result
 }
 
 #[tauri::command]

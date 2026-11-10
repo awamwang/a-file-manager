@@ -24,3 +24,6 @@ dist-ssr
 
 .scratch/
 
+# Local perf baseline fixtures (thousands of tiny files)
+.perf-fixtures/
+

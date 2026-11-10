@@ -28,6 +28,10 @@ assert.ok(
   "must not self-decode images into thumbnails",
 );
 assert.ok(rust.includes("spawn_blocking"), "AIA-278: Shell work off async runtime");
+assert.ok(rust.includes("SHELL_ICON_PARALLELISM"), "Phase B: bounded batch parallelism");
+assert.ok(rust.includes("resolve_icons_parallel"), "Phase B: parallel batch resolver");
+assert.ok(rust.includes("thread::scope"), "Phase B: scoped workers for COM STA");
+assert.ok(rust.includes("type_icon_cache_key"), "Phase B: same-extension shell icon reuse");
 assert.ok(state.includes("shell_icon_get_many"));
 assert.ok(state.includes("clearShellIconQueue"), "cancel queue on folder change");
 assert.ok(state.includes("cancelShellIconRequests"), "cancel out-of-view thumbs");

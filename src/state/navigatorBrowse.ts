@@ -44,6 +44,7 @@ import { showHiddenItems } from "./showHidden";
 import { forgetPinnedTabs, pinnedIdSet } from "./tabPins";
 import { clearSelection } from "./navigatorSelection";
 import { normalizePathKey } from "./pathKey";
+import { perfSpan } from "./perfProbe";
 
 export {
   activeWorkGroupId,
@@ -140,9 +141,10 @@ function normalizeBrowseKey(path: string): string {
  * AIA-259: drop stale entries when the target path changes so the prior WG/tab
  * folder does not keep painting under the new strip.
  */
-function revealPathNonBlocking(path: string): void {
+/** Paint chrome immediately; return the listing promise for optional perf spans. */
+function revealPathAsync(path: string): Promise<void> {
   const trimmed = path.trim();
-  if (!trimmed) return;
+  if (!trimmed) return Promise.resolve();
   const priorKey = normalizeBrowseKey(listing.value?.path ?? currentPath.value);
   currentPath.value = trimmed;
   listLoading.value = true;
@@ -152,10 +154,21 @@ function revealPathNonBlocking(path: string): void {
   }
   if (isGuidePath(trimmed)) {
     // Guide has no async list — apply fully via navigateTo without blocking callers.
-    void navigateTo(GUIDE_PATH, { syncOpenState: false, recordHistory: false });
-    return;
+    return navigateTo(GUIDE_PATH, { syncOpenState: false, recordHistory: false });
   }
-  void navigateTo(trimmed, { syncOpenState: false, recordHistory: false });
+  return navigateTo(trimmed, { syncOpenState: false, recordHistory: false });
+}
+
+function revealPathNonBlocking(path: string): void {
+  void revealPathAsync(path);
+}
+
+/** Fire-and-forget tab/WG reveal timed as `tab_switch` when perf probe is on. */
+function revealPathForTabSwitch(path: string): void {
+  void perfSpan("tab_switch", () => revealPathAsync(path), () => ({
+    path: currentPath.value,
+    n: listing.value?.entries.length ?? 0,
+  }));
 }
 
 /**
@@ -179,10 +192,19 @@ export async function navigateSecondary(path: string): Promise<void> {
   secondaryLoading.value = true;
   secondaryError.value = null;
   try {
-    const result = await invoke<NavigatorListing>("navigator_list", {
-      path: trimmed,
-      showHidden: showHiddenItems.value,
-    });
+    let entryCount = 0;
+    const result = await perfSpan(
+      "navigator_list",
+      async () => {
+        const listingResult = await invoke<NavigatorListing>("navigator_list", {
+          path: trimmed,
+          showHidden: showHiddenItems.value,
+        });
+        entryCount = listingResult.entries.length;
+        return listingResult;
+      },
+      () => ({ path: trimmed, n: entryCount, pane: "secondary" }),
+    );
     secondaryListing.value = result;
     secondaryPath.value = result.path;
     if (normalizeBrowseKey(previous) !== normalizeBrowseKey(result.path)) {
@@ -276,10 +298,19 @@ export async function navigateTo(
   listLoading.value = true;
   listError.value = null;
   try {
-    const result = await invoke<NavigatorListing>("navigator_list", {
-      path: trimmed,
-      showHidden: showHiddenItems.value,
-    });
+    let entryCount = 0;
+    const result = await perfSpan(
+      "navigator_list",
+      async () => {
+        const listingResult = await invoke<NavigatorListing>("navigator_list", {
+          path: trimmed,
+          showHidden: showHiddenItems.value,
+        });
+        entryCount = listingResult.entries.length;
+        return listingResult;
+      },
+      () => ({ path: trimmed, n: entryCount }),
+    );
     if (epoch !== browseEpoch) return;
     listing.value = result;
     currentPath.value = result.path;
@@ -436,7 +467,7 @@ export async function switchNavigatorTab(groupIndex: number): Promise<void> {
   scheduleOpenStatePersist(false);
   const active = activeStripTab(liveOpenState.value);
   if (active?.path) {
-    revealPathNonBlocking(active.path);
+    revealPathForTabSwitch(active.path);
   }
 }
 
@@ -475,7 +506,7 @@ export async function switchNavigatorTabAdjacent(
   scheduleOpenStatePersist(false);
   const active = activeStripTab(liveOpenState.value);
   if (active?.path) {
-    revealPathNonBlocking(active.path);
+    revealPathForTabSwitch(active.path);
   }
 }
 
@@ -549,7 +580,7 @@ export async function restoreWorkGroupOpenState(
     ) {
       return;
     }
-    revealPathNonBlocking(active.path);
+    revealPathForTabSwitch(active.path);
   } else if (!liveOpenState.value.tabGroups.length) {
     listing.value = null;
     listLoading.value = false;

@@ -172,10 +172,23 @@ mod tests {
             assert!(listing.entries.len() >= 1000, "unexpected small dir");
         }
         times.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        let n = list_directory(&path, true).unwrap().entries.len();
+        let listing = list_directory(&path, true).unwrap();
+        let n = listing.entries.len();
+        let mut serde_times = Vec::new();
+        for _ in 0..5 {
+            let t0 = std::time::Instant::now();
+            let payload = serde_json::to_string(&listing).expect("serialize listing");
+            serde_times.push(t0.elapsed().as_secs_f64() * 1000.0);
+            assert!(!payload.is_empty());
+        }
+        serde_times.sort_by(|a, b| a.partial_cmp(b).unwrap());
         eprintln!(
             "AFM_PERF list_directory n={n} samples_ms={times:?} median_ms={:.1}",
             times[times.len() / 2]
+        );
+        eprintln!(
+            "AFM_PERF list_serde_json n={n} samples_ms={serde_times:?} median_ms={:.1}",
+            serde_times[serde_times.len() / 2]
         );
     }
 
