@@ -157,6 +157,28 @@ mod tests {
     use std::fs::File;
     use std::io::Write;
 
+    /// Manual perf probe: `AFM_PERF_DIR=<large-dir> cargo test --lib navigator::list::tests::bench_list_large_directory -- --nocapture`
+    #[test]
+    fn bench_list_large_directory() {
+        let Ok(path) = std::env::var("AFM_PERF_DIR") else {
+            return;
+        };
+        let _ = list_directory(&path, true).unwrap();
+        let mut times = Vec::new();
+        for _ in 0..5 {
+            let t0 = std::time::Instant::now();
+            let listing = list_directory(&path, true).unwrap();
+            times.push(t0.elapsed().as_secs_f64() * 1000.0);
+            assert!(listing.entries.len() >= 1000, "unexpected small dir");
+        }
+        times.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let n = list_directory(&path, true).unwrap().entries.len();
+        eprintln!(
+            "AFM_PERF list_directory n={n} samples_ms={times:?} median_ms={:.1}",
+            times[times.len() / 2]
+        );
+    }
+
     #[test]
     fn lists_temp_directory_entries() {
         let dir = std::env::temp_dir().join(format!(

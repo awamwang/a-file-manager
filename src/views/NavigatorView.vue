@@ -80,9 +80,17 @@ import {
   moveSelectionByArrow,
 } from "../state/navigatorKeyboardNav";
 import {
+  DETAILS_HEADER_HEIGHT_PX,
   estimatePlaceholderCount,
   iconSlotCssSize,
+  type PlaceholderViewMode,
 } from "../state/listPlaceholders";
+import {
+  computeListVirtualWindow,
+  estimateListColumns,
+  resolveListRowHeightPx,
+  type ListVirtualWindow,
+} from "../state/listVirtualWindow";
 import { sortedEntries, sortColumn, sortDirection, toggleSort } from "../state/navigatorSort";
 import {
   isContentView,
@@ -286,6 +294,9 @@ const secondaryListRoot = ref<HTMLElement | null>(null);
 /** AIA-267: measure list surface so loading placeholders match the viewport. */
 const listViewport = ref({ w: 0, h: 0 });
 const secondaryViewport = ref({ w: 0, h: 0 });
+/** 大目录窗口化：跟踪滚动位置以切片挂载行。 */
+const primaryScrollTop = ref(0);
+const secondaryScrollTop = ref(0);
 let listSizeObserver: ResizeObserver | null = null;
 let secondarySizeObserver: ResizeObserver | null = null;
 const marquee = ref<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -516,6 +527,98 @@ function entryLocation(path: string): string {
 
 const orderedPaths = computed(() => visibleEntries.value.map((e) => e.path));
 
+function isCompactListDensity(): boolean {
+  try {
+    return document.documentElement.dataset.listDensity === "compact";
+  } catch {
+    return false;
+  }
+}
+
+function buildVirtualWindow(
+  total: number,
+  scrollTop: number,
+  viewport: { w: number; h: number },
+  grouped: boolean,
+): ListVirtualWindow {
+  const mode = navigatorViewMode.value as PlaceholderViewMode;
+  if (grouped) {
+    return {
+      active: false,
+      startIndex: 0,
+      endIndex: total,
+      offsetBeforePx: 0,
+      offsetAfterPx: 0,
+    };
+  }
+  let viewportHeight = viewport.h;
+  if (mode === "details") {
+    viewportHeight = Math.max(0, viewportHeight - DETAILS_HEADER_HEIGHT_PX);
+  }
+  return computeListVirtualWindow({
+    total,
+    scrollTop,
+    viewportHeight,
+    rowHeight: resolveListRowHeightPx(mode, isCompactListDensity()),
+    columns: estimateListColumns(mode, viewport.w),
+    mode,
+  });
+}
+
+const primaryVirtual = computed(() =>
+  buildVirtualWindow(
+    visibleEntries.value.length,
+    primaryScrollTop.value,
+    listViewport.value,
+    navigatorGroupByType.value,
+  ),
+);
+
+const secondaryVirtual = computed(() =>
+  buildVirtualWindow(
+    secondaryEntries.value.length,
+    secondaryScrollTop.value,
+    secondaryViewport.value,
+    false,
+  ),
+);
+
+const primaryWindowedEntries = computed(() => {
+  const win = primaryVirtual.value;
+  if (!win.active) return visibleEntries.value;
+  return visibleEntries.value.slice(win.startIndex, win.endIndex);
+});
+
+const secondaryWindowedEntries = computed(() => {
+  const win = secondaryVirtual.value;
+  if (!win.active) return secondaryEntries.value;
+  return secondaryEntries.value.slice(win.startIndex, win.endIndex);
+});
+
+function onPrimaryListScroll(event: Event) {
+  const el = event.target;
+  if (!(el instanceof HTMLElement)) return;
+  primaryScrollTop.value = el.scrollTop;
+  scheduleViewportIconObservers();
+}
+
+function onSecondaryListScroll(event: Event) {
+  const el = event.target;
+  if (!(el instanceof HTMLElement)) return;
+  secondaryScrollTop.value = el.scrollTop;
+  scheduleViewportIconObservers();
+}
+
+watch(currentPath, () => {
+  primaryScrollTop.value = 0;
+  if (listRoot.value) listRoot.value.scrollTop = 0;
+});
+
+watch(secondaryPath, () => {
+  secondaryScrollTop.value = 0;
+  if (secondaryListRoot.value) secondaryListRoot.value.scrollTop = 0;
+});
+
 function requestIconsFor(paths: string[], priority = false) {
   const size = VIEW_ICON_SIZE[navigatorViewMode.value];
   // Icon views: prefer system thumbnails for images; list/details use small shell icons.
@@ -582,7 +685,13 @@ function scheduleViewportIconObservers() {
 }
 
 watch(
-  [visibleEntries, secondaryEntries, navigatorViewMode, listRoot, secondaryListRoot],
+  [
+    primaryWindowedEntries,
+    secondaryWindowedEntries,
+    navigatorViewMode,
+    listRoot,
+    secondaryListRoot,
+  ],
   () => {
     scheduleViewportIconObservers();
   },
@@ -1540,6 +1649,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
       :aria-label="listLoading ? t('navigator.loading') : undefined"
       @keydown="onListKeyDown"
       @wheel="onListWheel"
+      @scroll="onPrimaryListScroll"
       @contextmenu="onListContextMenu"
       @mousedown="onListMouseDown"
       @click.self="clearSelection()"
@@ -1692,7 +1802,13 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
       </template>
       <template v-else>
       <div
-        v-for="entry in visibleEntries"
+        v-if="primaryVirtual.active && primaryVirtual.offsetBeforePx > 0"
+        class="virt-spacer"
+        aria-hidden="true"
+        :style="{ height: `${primaryVirtual.offsetBeforePx}px` }"
+      />
+      <div
+        v-for="entry in primaryWindowedEntries"
         :key="entry.path"
         class="fluent-list-row fluent-list-row--density row"
         :class="{
@@ -1758,6 +1874,12 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         <span v-if="isDetailsView" class="size">{{ formatSize(entry) }}</span>
         <span v-if="isDetailsView" class="modified">{{ formatModified(entry) }}</span>
       </div>
+      <div
+        v-if="primaryVirtual.active && primaryVirtual.offsetAfterPx > 0"
+        class="virt-spacer"
+        aria-hidden="true"
+        :style="{ height: `${primaryVirtual.offsetAfterPx}px` }"
+      />
       </template>
 
       <div
@@ -1810,6 +1932,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         :aria-busy="secondaryLoading ? 'true' : undefined"
         :aria-label="secondaryLoading ? t('navigator.loading') : undefined"
         @wheel="onListWheel"
+        @scroll="onSecondaryListScroll"
         @dragover="onListDragOver($event, secondaryPath)"
         @dragleave="onListDragLeave($event, secondaryPath)"
         @drop="onListDrop($event, secondaryPath)"
@@ -1839,7 +1962,13 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         </template>
         <template v-else>
         <div
-          v-for="entry in secondaryEntries"
+          v-if="secondaryVirtual.active && secondaryVirtual.offsetBeforePx > 0"
+          class="virt-spacer"
+          aria-hidden="true"
+          :style="{ height: `${secondaryVirtual.offsetBeforePx}px` }"
+        />
+        <div
+          v-for="entry in secondaryWindowedEntries"
           :key="entry.path"
           class="fluent-list-row fluent-list-row--density row"
           :class="{
@@ -1885,6 +2014,12 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           <span v-if="isDetailsView" class="size">{{ formatSize(entry) }}</span>
           <span v-if="isDetailsView" class="modified">{{ formatModified(entry) }}</span>
         </div>
+        <div
+          v-if="secondaryVirtual.active && secondaryVirtual.offsetAfterPx > 0"
+          class="virt-spacer"
+          aria-hidden="true"
+          :style="{ height: `${secondaryVirtual.offsetAfterPx}px` }"
+        />
         </template>
       </div>
     </div>
@@ -1998,6 +2133,13 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   min-height: 0;
   overflow: auto;
   user-select: none;
+}
+
+.virt-spacer {
+  flex: 0 0 auto;
+  width: 100%;
+  pointer-events: none;
+  grid-column: 1 / -1;
 }
 
 .list--list .row {
