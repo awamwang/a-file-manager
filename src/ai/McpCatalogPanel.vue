@@ -3,7 +3,14 @@
 /** AIA-218 / A5 — Public MCP catalog + merge deploy (afm__* keys only). */
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { invoke } from "@tauri-apps/api/core";
+import {
+  aiMcpCatalogImport,
+  aiMcpCatalogList,
+  aiMcpCatalogRemove,
+  aiMcpCatalogUpsert,
+  aiMcpDeploy,
+  aiMcpUndeploy,
+} from "./client";
 import { toastSuccess } from "../state/toast";
 import type { AiConfigDocument, McpCatalogEntry } from "./types";
 
@@ -45,7 +52,7 @@ async function refresh() {
   loading.value = true;
   error.value = null;
   try {
-    document.value = await invoke<AiConfigDocument>("ai_mcp_catalog_list");
+    document.value = await aiMcpCatalogList();
     if (!selectedId.value && document.value.mcpCatalog?.length) {
       selectedId.value = document.value.mcpCatalog[0]?.id ?? null;
     }
@@ -59,7 +66,7 @@ async function refresh() {
 async function saveEntry() {
   error.value = null;
   try {
-    document.value = await invoke<AiConfigDocument>("ai_mcp_catalog_upsert", {
+    document.value = await aiMcpCatalogUpsert({
       id: draftId.value.trim() || selected.value?.id || null,
       displayName: draftName.value,
       serverJson: draftJson.value,
@@ -77,9 +84,7 @@ async function removeSelected() {
   if (!selected.value) return;
   error.value = null;
   try {
-    document.value = await invoke<AiConfigDocument>("ai_mcp_catalog_remove", {
-      id: selected.value.id,
-    });
+    document.value = await aiMcpCatalogRemove(selected.value.id);
     selectedId.value = document.value.mcpCatalog?.[0]?.id ?? null;
     toastSuccess(t("ai.mcp.noticeRemoved"));
   } catch (err) {
@@ -92,10 +97,10 @@ async function deploySelected() {
   error.value = null;
   lastNote.value = null;
   try {
-    const report = await invoke<{ written: string[]; skipped: string[] }>("ai_mcp_deploy", {
-      entryId: selected.value.id,
-      projectWorkspace: projectWorkspace.value.trim() || null,
-    });
+    const report = await aiMcpDeploy(
+      selected.value.id,
+      projectWorkspace.value.trim() || null,
+    );
     lastNote.value = t("ai.mcp.noticeDeployed", {
       count: report.written.length,
       skipped: report.skipped.length,
@@ -110,10 +115,10 @@ async function undeploySelected() {
   if (!selected.value) return;
   error.value = null;
   try {
-    const report = await invoke<{ written: string[] }>("ai_mcp_undeploy", {
-      entryId: selected.value.id,
-      projectWorkspace: projectWorkspace.value.trim() || null,
-    });
+    const report = await aiMcpUndeploy(
+      selected.value.id,
+      projectWorkspace.value.trim() || null,
+    );
     lastNote.value = t("ai.mcp.noticeUndeployed", { count: report.written.length });
     toastSuccess(lastNote.value);
   } catch (err) {
@@ -130,10 +135,7 @@ async function importMcpJson() {
   error.value = null;
   lastNote.value = null;
   try {
-    const [next, report] = await invoke<[AiConfigDocument, { added: string[]; skipped: string[] }]>(
-      "ai_mcp_catalog_import",
-      { path },
-    );
+    const [next, report] = await aiMcpCatalogImport(path);
     document.value = next;
     if (!selectedId.value && next.mcpCatalog?.length) {
       selectedId.value = next.mcpCatalog[0]?.id ?? null;

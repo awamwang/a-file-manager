@@ -6,20 +6,17 @@
  */
 import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { invoke } from "@tauri-apps/api/core";
 import { toastSuccess } from "../state/toast";
-
-type LibrarySkill = {
-  name: string;
-  path: string;
-  manifestPath: string;
-  importedAt: number;
-};
-
-type SkillsLibraryStatus = {
-  root: string;
-  skills: LibrarySkill[];
-};
+import {
+  aiSkillsDeploy,
+  aiSkillsImport,
+  aiSkillsLibraryGet,
+  aiSkillsLibrarySetRoot,
+  aiSkillsRemove,
+  aiSkillsSearchProject,
+  aiSkillsUndeploy,
+} from "./client";
+import type { ProjectSkillHit, SkillDeployReport, SkillsLibraryStatus } from "./types";
 
 const { t } = useI18n();
 
@@ -32,7 +29,7 @@ const importName = ref("");
 const rootDraft = ref("");
 const projectWorkspace = ref("");
 const lastDeployNote = ref<string | null>(null);
-const projectHits = ref<Array<{ name: string; path: string }>>([]);
+const projectHits = ref<ProjectSkillHit[]>([]);
 
 const SKILL_ERROR_KEYS: Record<string, string> = {
   AI_SKILL_SOURCE_INVALID: "ai.skills.errorSourceInvalid",
@@ -58,7 +55,7 @@ async function refresh() {
   loading.value = true;
   error.value = null;
   try {
-    status.value = await invoke<SkillsLibraryStatus>("ai_skills_library_get");
+    status.value = await aiSkillsLibraryGet();
     rootDraft.value = status.value.root;
     if (
       selectedName.value &&
@@ -84,9 +81,7 @@ async function saveRoot() {
   error.value = null;
   try {
     const trimmed = rootDraft.value.trim();
-    status.value = await invoke<SkillsLibraryStatus>("ai_skills_library_set_root", {
-      root: trimmed || null,
-    });
+    status.value = await aiSkillsLibrarySetRoot(trimmed || null);
     rootDraft.value = status.value.root;
     toastSuccess(t("ai.skills.noticeRootSaved"));
   } catch (err) {
@@ -97,9 +92,7 @@ async function saveRoot() {
 async function resetRoot() {
   error.value = null;
   try {
-    status.value = await invoke<SkillsLibraryStatus>("ai_skills_library_set_root", {
-      root: null,
-    });
+    status.value = await aiSkillsLibrarySetRoot(null);
     rootDraft.value = status.value.root;
     toastSuccess(t("ai.skills.noticeRootReset"));
   } catch (err) {
@@ -111,10 +104,10 @@ async function importSkill() {
   if (!sourcePath.value.trim()) return;
   error.value = null;
   try {
-    const [next] = await invoke<[SkillsLibraryStatus, LibrarySkill]>("ai_skills_import", {
-      sourcePath: sourcePath.value.trim(),
-      name: importName.value.trim() || null,
-    });
+    const [next] = await aiSkillsImport(
+      sourcePath.value.trim(),
+      importName.value.trim() || null,
+    );
     status.value = next;
     sourcePath.value = "";
     importName.value = "";
@@ -127,7 +120,7 @@ async function importSkill() {
 async function removeSkill(name: string) {
   error.value = null;
   try {
-    status.value = await invoke<SkillsLibraryStatus>("ai_skills_remove", { name });
+    status.value = await aiSkillsRemove(name);
     if (selectedName.value === name) {
       selectedName.value = status.value.skills[0]?.name ?? null;
     }
@@ -137,20 +130,14 @@ async function removeSkill(name: string) {
   }
 }
 
-type DeployReport = {
-  skillName: string;
-  deployments: Array<{ agentId: string; scope: string; junctionPath: string }>;
-  skipped: string[];
-};
-
 async function deploySkill(name: string) {
   error.value = null;
   lastDeployNote.value = null;
   try {
-    const report = await invoke<DeployReport>("ai_skills_deploy", {
-      skillName: name,
-      projectWorkspace: projectWorkspace.value.trim() || null,
-    });
+    const report: SkillDeployReport = await aiSkillsDeploy(
+      name,
+      projectWorkspace.value.trim() || null,
+    );
     lastDeployNote.value = t("ai.skills.noticeDeployed", {
       count: report.deployments.length,
       skipped: report.skipped.length,
@@ -165,10 +152,10 @@ async function undeploySkill(name: string) {
   error.value = null;
   lastDeployNote.value = null;
   try {
-    const report = await invoke<DeployReport>("ai_skills_undeploy", {
-      skillName: name,
-      projectWorkspace: projectWorkspace.value.trim() || null,
-    });
+    const report: SkillDeployReport = await aiSkillsUndeploy(
+      name,
+      projectWorkspace.value.trim() || null,
+    );
     lastDeployNote.value = t("ai.skills.noticeUndeployed", {
       count: report.deployments.length,
     });
@@ -182,9 +169,7 @@ async function searchProject() {
   if (!projectWorkspace.value.trim()) return;
   error.value = null;
   try {
-    projectHits.value = await invoke("ai_skills_search_project", {
-      workspacePath: projectWorkspace.value.trim(),
-    });
+    projectHits.value = await aiSkillsSearchProject(projectWorkspace.value.trim());
   } catch (err) {
     error.value = mapError(err);
   }

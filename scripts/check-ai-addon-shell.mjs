@@ -69,6 +69,7 @@ assert.ok(deploy.includes("mklink"), "A4 Junction deploy via mklink /J");
 assert.ok(deploy.includes("search_project_skills"), "project skill search");
 
 assert.ok(index.includes("AI_MENU_SECTIONS"), "src/ai public export");
+assert.ok(index.includes("aiAddonStatus"), "typed client re-exported from index");
 assert.ok(sections.includes('id: "providers"'));
 assert.ok(sections.includes('id: "mcp"'));
 assert.ok(sections.includes('id: "skills"'));
@@ -82,6 +83,17 @@ assert.ok(
     rustAi.includes('"harness"'),
   "Rust AI section ids include Providers/MCP/Skills/Agents/Harness",
 );
+const client = read("src/ai/client.ts");
+assert.ok(client.includes('"ai_addon_status"'), "typed client: addon status");
+assert.ok(client.includes('"ai_agent_targets_list"'), "typed client: agent list");
+assert.ok(client.includes('"ai_skills_import"'), "typed client: skills import");
+assert.ok(client.includes('"ai_skills_deploy"'), "typed client: skills deploy");
+assert.ok(client.includes('"ai_skills_search_project"'), "typed client: skills search");
+assert.ok(client.includes('"ai_mcp_deploy"'), "typed client: mcp deploy");
+assert.ok(client.includes('"ai_harness_init"'), "typed client: harness");
+assert.ok(client.includes('"ai_providers_list"'), "typed client: providers list");
+assert.ok(client.includes('"ai_providers_upsert_compatible"'), "typed client: providers compatible");
+assert.ok(client.includes('"ai_project_open_editor"'), "typed client: open editor");
 // AIA-263: left nav + Fluent selected UI (not purple-on-white / outline-only)
 assert.ok(view.includes('role="tablist"'), "AI settings left nav tablist");
 assert.ok(view.includes("ai-nav-item--active"), "section nav selected class");
@@ -89,13 +101,14 @@ assert.ok(view.includes("fluent-color-fill-selected"), "Fluent selected fill on 
 assert.ok(view.includes("data-ai-nav"), "nav items expose section ids");
 assert.ok(view.includes("AgentTargetsPanel"));
 assert.ok(view.includes("SkillsLibraryPanel"));
-assert.ok(panel.includes("ai_agent_targets_list"));
+assert.ok(view.includes("aiAddonStatus"), "AiView uses typed client");
+assert.ok(panel.includes("aiAgentTargetsList"));
 assert.ok(panel.includes("mcpUsagePrompt"));
 assert.ok(panel.includes("agents-list-item--active"), "agent row selected class");
 assert.ok(panel.includes("fluent-color-fill-selected"), "agent selected uses Fluent fill");
-assert.ok(skillsPanel.includes("ai_skills_import"));
-assert.ok(skillsPanel.includes("ai_skills_deploy"));
-assert.ok(skillsPanel.includes("ai_skills_search_project"));
+assert.ok(skillsPanel.includes("aiSkillsImport"));
+assert.ok(skillsPanel.includes("aiSkillsDeploy"));
+assert.ok(skillsPanel.includes("aiSkillsSearchProject"));
 assert.ok(skillsPanel.includes("skills-list-item--active"), "skill row selected class");
 assert.ok(skillsPanel.includes("fluent-color-fill-selected"), "skill selected uses Fluent fill");
 const mcpRs = read("src-tauri/src/ai/mcp.rs");
@@ -103,7 +116,7 @@ assert.ok(mcpRs.includes("afm__"), "managed MCP key prefix");
 assert.ok(mcpRs.includes("mcpServers"), "mcpServers merge target");
 assert.ok(view.includes("McpCatalogPanel"));
 const mcpPanel = read("src/ai/McpCatalogPanel.vue");
-assert.ok(mcpPanel.includes("ai_mcp_deploy"));
+assert.ok(mcpPanel.includes("aiMcpDeploy"));
 assert.ok(mcpPanel.includes("mcp-list-item--active"), "mcp row selected class");
 assert.ok(mcpPanel.includes("fluent-color-fill-selected"), "mcp selected uses Fluent fill");
 assert.ok(view.includes("HarnessInitPanel"));
@@ -112,7 +125,7 @@ assert.ok(harness.includes("AGENTS.md"), "writes AGENTS.md");
 assert.ok(harness.includes("include_sdd"), "SDD option");
 assert.ok(harness.includes("ERR_HARNESS_WORKSPACE"), "workspace gate");
 const harnessPanel = read("src/ai/HarnessInitPanel.vue");
-assert.ok(harnessPanel.includes("ai_harness_init"));
+assert.ok(harnessPanel.includes("aiHarnessInit"));
 assert.ok(harnessPanel.includes("includeSdd"));
 assert.ok(view.includes("ProvidersPanel"));
 const providersRs = read("src-tauri/src/ai/providers.rs");
@@ -120,8 +133,8 @@ assert.ok(providersRs.includes("compatible"), "Compatible kind");
 assert.ok(providersRs.includes("openai"), "OpenAI preset");
 assert.ok(providersRs.includes("No billing"), "documents no billing panel");
 const providersPanel = read("src/ai/ProvidersPanel.vue");
-assert.ok(providersPanel.includes("ai_providers_list"));
-assert.ok(providersPanel.includes("ai_providers_upsert_compatible"));
+assert.ok(providersPanel.includes("aiProvidersList"));
+assert.ok(providersPanel.includes("aiProvidersUpsertCompatible"));
 assert.ok(providersPanel.includes("row--active"), "provider row selected class");
 assert.ok(
   providersPanel.includes("fluent-color-fill-selected"),
@@ -131,7 +144,7 @@ const openEditor = read("src-tauri/src/ai/open_editor.rs");
 assert.ok(openEditor.includes("CONTEXT.md"), "Qoder opens CONTEXT.md");
 assert.ok(openEditor.includes("ide_open_path"), "reuses ide_launch");
 const projectsView = read("src/views/ProjectsView.vue");
-assert.ok(projectsView.includes("ai_project_open_editor"));
+assert.ok(projectsView.includes("aiProjectOpenEditor"));
 assert.ok(projectsView.includes("openInEditor"));
 assert.ok(router.includes('path: "/ai"'));
 assert.ok(sideNav.includes('id: "ai"'));

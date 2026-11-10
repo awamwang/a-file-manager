@@ -6,8 +6,15 @@
  */
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { invoke } from "@tauri-apps/api/core";
 import { toastSuccess } from "../state/toast";
+import {
+  aiAgentTargetsDiscover,
+  aiAgentTargetsList,
+  aiAgentTargetsRemove,
+  aiAgentTargetsSetEnabled,
+  aiAgentTargetsUpdate,
+  aiAgentTargetsUpsertCustom,
+} from "./client";
 import type { AgentTarget, AiConfigDocument } from "./types";
 
 const { t } = useI18n();
@@ -86,7 +93,7 @@ async function refresh() {
   loading.value = true;
   error.value = null;
   try {
-    document.value = await invoke<AiConfigDocument>("ai_agent_targets_list");
+    document.value = await aiAgentTargetsList();
     if (
       selectedId.value &&
       !document.value.agentTargets.some((a) => a.id === selectedId.value)
@@ -106,7 +113,7 @@ async function refresh() {
 async function discover() {
   error.value = null;
   try {
-    document.value = await invoke<AiConfigDocument>("ai_agent_targets_discover");
+    document.value = await aiAgentTargetsDiscover();
     toastSuccess(t("ai.agents.noticeDiscovered"));
   } catch (err) {
     error.value = mapError(err);
@@ -116,10 +123,7 @@ async function discover() {
 async function toggleEnabled(target: AgentTarget) {
   error.value = null;
   try {
-    document.value = await invoke<AiConfigDocument>("ai_agent_targets_set_enabled", {
-      id: target.id,
-      enabled: !target.enabled,
-    });
+    document.value = await aiAgentTargetsSetEnabled(target.id, !target.enabled);
   } catch (err) {
     error.value = mapError(err);
   }
@@ -129,16 +133,13 @@ async function saveSelected() {
   if (!selected.value) return;
   error.value = null;
   try {
-    document.value = await invoke<AiConfigDocument>("ai_agent_targets_update", {
-      id: selected.value.id,
-      patch: {
-        displayName: draftName.value,
-        globalSkillsDir: draftGlobalSkills.value,
-        projectSkillsDir: draftProjectSkills.value,
-        globalMcpPath: draftGlobalMcp.value,
-        projectMcpPath: draftProjectMcp.value,
-        mcpUsagePrompt: draftPrompt.value,
-      },
+    document.value = await aiAgentTargetsUpdate(selected.value.id, {
+      displayName: draftName.value,
+      globalSkillsDir: draftGlobalSkills.value,
+      projectSkillsDir: draftProjectSkills.value,
+      globalMcpPath: draftGlobalMcp.value,
+      projectMcpPath: draftProjectMcp.value,
+      mcpUsagePrompt: draftPrompt.value,
     });
     toastSuccess(t("ai.agents.noticeSaved"));
   } catch (err) {
@@ -149,7 +150,7 @@ async function saveSelected() {
 async function addCustom() {
   error.value = null;
   try {
-    document.value = await invoke<AiConfigDocument>("ai_agent_targets_upsert_custom", {
+    document.value = await aiAgentTargetsUpsertCustom({
       id: customId.value.trim() || null,
       displayName: customName.value,
       globalSkillsDir: customGlobalSkills.value,
@@ -182,7 +183,7 @@ async function removeSelected() {
   error.value = null;
   try {
     const id = selected.value.id;
-    document.value = await invoke<AiConfigDocument>("ai_agent_targets_remove", { id });
+    document.value = await aiAgentTargetsRemove(id);
     selectedId.value = document.value.agentTargets[0]?.id ?? null;
     toastSuccess(t("ai.agents.noticeRemoved"));
   } catch (err) {

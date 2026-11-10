@@ -3,15 +3,8 @@
 /** AIA-219 / A6 — Explicit Harness / SDD init (ADR 0008). Not part of Core create. */
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { invoke } from "@tauri-apps/api/core";
 import { toastSuccess } from "../state/toast";
-
-type HarnessInitReport = {
-  workspacePath: string;
-  includeSdd: boolean;
-  written: string[];
-  skipped: string[];
-};
+import { aiHarnessInit } from "./client";
 
 const { t } = useI18n();
 
@@ -39,7 +32,7 @@ async function runInit() {
   lastNote.value = null;
   busy.value = true;
   try {
-    const report = await invoke<HarnessInitReport>("ai_harness_init", {
+    const report = await aiHarnessInit({
       workspacePath: workspacePath.value.trim(),
       includeSdd: includeSdd.value,
       reinforceContext: reinforceContext.value,

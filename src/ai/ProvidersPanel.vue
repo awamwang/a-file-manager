@@ -3,8 +3,14 @@
 /** AIA-220 / A7 — AI Providers MVP: mainstream presets + Compatible. No billing. */
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { invoke } from "@tauri-apps/api/core";
 import { toastSuccess } from "../state/toast";
+import {
+  aiProvidersList,
+  aiProvidersRemove,
+  aiProvidersSetEnabled,
+  aiProvidersUpdate,
+  aiProvidersUpsertCompatible,
+} from "./client";
 import type { AiConfigDocument, AiProvider } from "./types";
 
 const { t } = useI18n();
@@ -54,7 +60,7 @@ async function refresh() {
   loading.value = true;
   error.value = null;
   try {
-    document.value = await invoke<AiConfigDocument>("ai_providers_list");
+    document.value = await aiProvidersList();
     if (selectedId.value && !providers.value.some((p) => p.id === selectedId.value)) {
       selectedId.value = null;
     }
@@ -76,10 +82,7 @@ function select(row: AiProvider) {
 async function toggleEnabled(row: AiProvider) {
   error.value = null;
   try {
-    document.value = await invoke<AiConfigDocument>("ai_providers_set_enabled", {
-      id: row.id,
-      enabled: !row.enabled,
-    });
+    document.value = await aiProvidersSetEnabled(row.id, !row.enabled);
     toastSuccess(
       row.enabled ? t("ai.providers.noticeDisabled") : t("ai.providers.noticeEnabled"),
     );
@@ -92,14 +95,11 @@ async function saveSelected() {
   if (!selected.value) return;
   error.value = null;
   try {
-    document.value = await invoke<AiConfigDocument>("ai_providers_update", {
-      id: selected.value.id,
-      patch: {
-        displayName: selected.value.kind === "compatible" ? draftName.value : null,
-        baseUrl: draftBaseUrl.value,
-        apiKey: draftApiKey.value,
-        defaultModel: draftModel.value,
-      },
+    document.value = await aiProvidersUpdate(selected.value.id, {
+      displayName: selected.value.kind === "compatible" ? draftName.value : null,
+      baseUrl: draftBaseUrl.value,
+      apiKey: draftApiKey.value,
+      defaultModel: draftModel.value,
     });
     toastSuccess(t("ai.providers.noticeSaved"));
   } catch (err) {
@@ -110,7 +110,7 @@ async function saveSelected() {
 async function addCompatible() {
   error.value = null;
   try {
-    document.value = await invoke<AiConfigDocument>("ai_providers_upsert_compatible", {
+    document.value = await aiProvidersUpsertCompatible({
       id: draftId.value.trim() || null,
       displayName: draftName.value,
       baseUrl: draftBaseUrl.value,
@@ -129,9 +129,7 @@ async function removeSelected() {
   if (!selected.value || selected.value.kind !== "compatible") return;
   error.value = null;
   try {
-    document.value = await invoke<AiConfigDocument>("ai_providers_remove", {
-      id: selected.value.id,
-    });
+    document.value = await aiProvidersRemove(selected.value.id);
     selectedId.value = null;
     toastSuccess(t("ai.providers.noticeRemoved"));
   } catch (err) {

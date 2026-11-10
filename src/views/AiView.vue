@@ -6,9 +6,9 @@
  */
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { invoke } from "@tauri-apps/api/core";
 import {
   AI_MENU_SECTIONS,
+  aiAddonStatus,
   type AiAddonStatus,
   type AiMenuSectionId,
 } from "../ai";
@@ -46,7 +46,7 @@ async function refresh() {
   loading.value = true;
   error.value = null;
   try {
-    status.value = await invoke<AiAddonStatus>("ai_addon_status");
+    status.value = await aiAddonStatus();
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {

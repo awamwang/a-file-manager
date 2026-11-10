@@ -22,6 +22,7 @@ import { toastError, toastInfo, toastSuccess } from "../state/toast";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import type { FluentGlyphId } from "../components/icons/glyphs";
 import { AI_ADDON_ENABLED } from "../config/flavor";
+import { aiProjectOpenEditor } from "../ai";
 
 const { t } = useI18n();
 const aiAddonEnabled = AI_ADDON_ENABLED;
@@ -816,16 +817,7 @@ async function openInEditor(ideId: "cursor" | "qoder") {
   if (!selected.value?.path) return;
   error.value = null;
   try {
-    const report = await invoke<{
-      ideId: string;
-      openedPath: string;
-      mode: string;
-      success: boolean;
-      error: string | null;
-    }>("ai_project_open_editor", {
-      workspacePath: selected.value.path,
-      ideId,
-    });
+    const report = await aiProjectOpenEditor(selected.value.path, ideId);
     if (!report.success) {
       error.value = report.error || t("projects.openEditorFailed");
       return;

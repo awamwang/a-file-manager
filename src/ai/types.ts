@@ -76,3 +76,62 @@ export type AgentTargetPatch = {
   projectMcpPath?: string | null;
   mcpUsagePrompt?: string | null;
 };
+
+export type LibrarySkill = {
+  name: string;
+  path: string;
+  manifestPath: string;
+  importedAt: number;
+};
+
+export type SkillsLibraryStatus = {
+  root: string;
+  skills: LibrarySkill[];
+};
+
+export type SkillDeployReport = {
+  skillName: string;
+  deployments: Array<{ agentId: string; scope: string; junctionPath: string }>;
+  skipped: string[];
+};
+
+export type ProjectSkillHit = {
+  name: string;
+  path: string;
+};
+
+export type McpDeployReport = {
+  written: string[];
+  skipped: string[];
+};
+
+export type McpUndeployReport = {
+  written: string[];
+};
+
+export type McpImportReport = {
+  added: string[];
+  skipped: string[];
+};
+
+export type AiProviderPatch = {
+  displayName?: string | null;
+  baseUrl?: string | null;
+  apiKey?: string | null;
+  defaultModel?: string | null;
+};
+
+export type HarnessInitReport = {
+  workspacePath: string;
+  includeSdd: boolean;
+  written: string[];
+  skipped: string[];
+};
+
+export type AiProjectOpenEditorReport = {
+  ideId: string;
+  openedPath: string;
+  mode: string;
+  success: boolean;
+  error: string | null;
+};
