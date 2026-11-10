@@ -389,6 +389,7 @@ impl Provider for BrowserProvider {
                 .collect(),
             detail,
             interface_only: false,
+            source: Some("builtin".to_string()),
         }
     }
 
