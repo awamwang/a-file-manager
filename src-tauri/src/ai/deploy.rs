@@ -141,10 +141,14 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
         let ty = entry
             .file_type()
             .map_err(|err| format!("Failed to stat skill entry: {err}"))?;
+        // 不跟随 junction/symlink，避免 copy 模式部署卷入回环路径。
+        if ty.is_symlink() {
+            continue;
+        }
         let to = dst.join(entry.file_name());
         if ty.is_dir() {
             copy_dir_recursive(&entry.path(), &to)?;
-        } else {
+        } else if ty.is_file() {
             fs::copy(entry.path(), &to)
                 .map_err(|err| format!("Failed to copy skill file: {err}"))?;
         }

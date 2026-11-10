@@ -13,8 +13,18 @@ pub struct OpenWithResult {
 
 /// Open a file/folder with the OS default association (ShellExecute "open").
 /// Prefer this over `plugin-opener` for arbitrary FS paths (opener path ACL).
+/// 文件夹走 explorer 直启；整体放阻塞线程，避免与 Skill 导入等 FS 重活互相卡住 UI（FIL-30）。
 #[tauri::command]
-pub fn open_path_default(path: String) -> OpenWithResult {
+pub async fn open_path_default(path: String) -> OpenWithResult {
+    tauri::async_runtime::spawn_blocking(move || open_path_default_inner(path))
+        .await
+        .unwrap_or_else(|err| OpenWithResult {
+            success: false,
+            error: Some(format!("open_path_default worker failed: {err}")),
+        })
+}
+
+fn open_path_default_inner(path: String) -> OpenWithResult {
     let trimmed = path.trim();
     if trimmed.is_empty() {
         return OpenWithResult {
@@ -31,6 +41,10 @@ pub fn open_path_default(path: String) -> OpenWithResult {
     }
     #[cfg(windows)]
     {
+        // 目录用 explorer 进程直启，不经 ShellExecute（壳扩展/DDE 仍可能拖住 ASYNCOK）。
+        if p.is_dir() {
+            return windows_impl::open_folder_in_explorer(trimmed);
+        }
         windows_impl::open_default(trimmed)
     }
     #[cfg(not(windows))]
@@ -205,14 +219,22 @@ mod tests {
 
     #[test]
     fn open_path_default_empty_fails() {
-        let result = open_path_default(String::new());
+        let result = open_path_default_inner(String::new());
         assert!(!result.success);
     }
 
     #[test]
     fn open_path_default_missing_fails() {
-        let result = open_path_default("Z:/missing-afm-open-default-xyz.bin".into());
+        let result = open_path_default_inner("Z:/missing-afm-open-default-xyz.bin".into());
         assert!(!result.success);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn open_path_default_directory_uses_explorer_spawn() {
+        let dir = std::env::temp_dir();
+        let result = open_path_default_inner(dir.to_string_lossy().into_owned());
+        assert!(result.success);
     }
 
     #[test]

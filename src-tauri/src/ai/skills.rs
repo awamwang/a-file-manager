@@ -96,6 +96,10 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
         let ty = entry
             .file_type()
             .map_err(|err| format!("Failed to stat skill entry: {err}"))?;
+        // 不跟随 junction/symlink：源树若回链到 Skill 库根（项目部署常见），跟随会递归炸盘并卡死导入。
+        if ty.is_symlink() {
+            continue;
+        }
         let to = dst.join(entry.file_name());
         if ty.is_dir() {
             copy_dir_recursive(&entry.path(), &to)?;
@@ -323,6 +327,44 @@ mod tests {
         assert_eq!(next.skills_library_root, normalize_path_string(&custom));
         assert_eq!(status.root, normalize_path_string(&custom));
         assert!(custom.is_dir());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// FIL-30：源树 junction 回链到库根时，导入必须跳过 reparse point，否则会无限递归卡死。
+    #[cfg(windows)]
+    #[test]
+    fn import_skips_junction_back_into_library() {
+        let dir = temp_dir("junction-skip");
+        let lib = dir.join("lib");
+        fs::create_dir_all(&lib).unwrap();
+        let mut doc = load_from_path(&dir).unwrap();
+        doc.skills_library_root = normalize_path_string(&lib);
+        save_ai_config(&dir, &doc).unwrap();
+
+        let src = dir.join("src-skill");
+        fs::create_dir_all(src.join("nested")).unwrap();
+        fs::write(src.join(SKILL_MANIFEST_FILE), "# Junction probe\n").unwrap();
+        let link = src.join("nested").join("back-to-lib");
+        let status = std::process::Command::new("cmd")
+            .args([
+                "/C",
+                "mklink",
+                "/J",
+                &link.to_string_lossy(),
+                &lib.to_string_lossy(),
+            ])
+            .status()
+            .expect("mklink");
+        assert!(status.success(), "mklink /J failed");
+
+        let (_status, skill) =
+            import_skill(&dir, &doc, src.to_str().unwrap(), Some("junction-probe".into()))
+                .expect("import must finish without following junction");
+        let dest = PathBuf::from(&skill.path);
+        assert!(dest.join(SKILL_MANIFEST_FILE).is_file());
+        assert!(dest.join("nested").is_dir());
+        // 跳过 junction：目标侧不应出现回链目录，更不应把整个库拷进去。
+        assert!(!dest.join("nested").join("back-to-lib").exists());
         let _ = fs::remove_dir_all(&dir);
     }
 }

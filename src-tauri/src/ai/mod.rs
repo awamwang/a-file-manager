@@ -214,15 +214,20 @@ pub fn ai_skills_library_set_root(
 }
 
 /// Import a folder into the public Skill library. Root must contain `SKILL.md`.
+/// 递归拷贝可能较重，放到阻塞线程，避免拖住后续打开工作区等 IPC（FIL-30）。
 #[tauri::command]
-pub fn ai_skills_import(
+pub async fn ai_skills_import(
     app: AppHandle,
     source_path: String,
     name: Option<String>,
 ) -> Result<(skills::SkillsLibraryStatus, skills::LibrarySkill), String> {
-    let dir = config_dir(&app)?;
-    let doc = agents::load_from_path(&dir)?;
-    skills::import_skill(&dir, &doc, &source_path, name)
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = config_dir(&app)?;
+        let doc = agents::load_from_path(&dir)?;
+        skills::import_skill(&dir, &doc, &source_path, name)
+    })
+    .await
+    .map_err(|err| format!("ai_skills_import worker failed: {err}"))?
 }
 
 #[tauri::command]
