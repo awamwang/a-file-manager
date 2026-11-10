@@ -28,12 +28,31 @@ export function nextTabId(prefix = "tab"): string {
   return `${prefix}-${Date.now()}-${tabSeq}`;
 }
 
+/**
+ * Windows 本地路径统一为 `\`；`afm://` 等 URI 方案保持原样。
+ * 写入 Open State / 成员路径时使用，避免磁盘上再出现 `/`。
+ */
+export function toNativeFsPath(path: string): string {
+  const trimmed = path.trim();
+  if (!trimmed) return "";
+  if (/^[a-zA-Z]:[\\/]/.test(trimmed) || trimmed.startsWith("\\\\") || trimmed.startsWith("//")) {
+    let native = trimmed.replace(/\//g, "\\");
+    if (/^[a-zA-Z]:\\$/i.test(native)) return native;
+    return native.replace(/\\+$/, "");
+  }
+  // 含 `://` 的方案（afm://guide、http://…）不改分隔符
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
+    return trimmed.replace(/\/+$/, "");
+  }
+  return trimmed.replace(/\//g, "\\").replace(/\\+$/, "");
+}
+
 export function displayNameFromPath(path: string): string {
-  const cleaned = path.replace(/\\/g, "/").replace(/\/+$/, "");
-  if (cleaned.toLowerCase() === "afm://guide") {
+  const native = toNativeFsPath(path);
+  if (native.toLowerCase() === "afm://guide") {
     return "Guide";
   }
-  const parts = cleaned.split("/");
+  const parts = native.split(/[/\\]/);
   return parts[parts.length - 1] || path || "Tab";
 }
 
@@ -46,11 +65,11 @@ export function createEmptyOpenState(): WorkGroupOpenState {
 }
 
 export function createDirectoryTab(path: string, id?: string): WorkGroupOpenStateTab {
-  const trimmed = path.trim();
+  const native = toNativeFsPath(path);
   return {
     id: id ?? nextTabId(),
-    name: displayNameFromPath(trimmed),
-    path: trimmed,
+    name: displayNameFromPath(native),
+    path: native,
     type: "directory",
   };
 }
@@ -207,11 +226,7 @@ export function openStateAfterReorderGroups(
 
 /** Case-insensitive path key for tab-group identity (Sigma openOrFocus / dedupe). Aligns with Rust `normalize_path_for_comparison`. */
 export function normalizePathKey(path: string): string {
-  return path
-    .trim()
-    .replace(/\\/g, "/")
-    .replace(/\/+$/, "")
-    .toLowerCase();
+  return toNativeFsPath(path).toLowerCase();
 }
 
 /** Index of the first tab group that already shows `path`, or -1. */
@@ -278,27 +293,24 @@ export function openStateAfterNavigate(
   state: WorkGroupOpenState,
   path: string,
 ): WorkGroupOpenState {
-  const trimmed = path.trim();
-  if (!trimmed) return clampOpenStateIndices(state);
+  const native = toNativeFsPath(path);
+  if (!native) return clampOpenStateIndices(state);
 
   if (state.tabGroups.length === 0) {
-    return openStateWithNewTab(state, trimmed);
+    return openStateWithNewTab(state, native);
   }
 
   const next = clampOpenStateIndices(cloneOpenState(state));
   const group = next.tabGroups[next.currentTabGroupIndex];
   if (!group || group.length === 0) {
-    next.tabGroups[next.currentTabGroupIndex] = [createDirectoryTab(trimmed)];
+    next.tabGroups[next.currentTabGroupIndex] = [createDirectoryTab(native)];
     next.currentTabIndex = 0;
     return next;
   }
   const pane = group[next.currentTabIndex] ?? group[0];
-  pane.path = trimmed;
-  pane.name = displayNameFromPath(trimmed);
-  pane.type =
-    trimmed.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase() === "afm://guide"
-      ? "guide"
-      : "directory";
+  pane.path = native;
+  pane.name = displayNameFromPath(native);
+  pane.type = native.toLowerCase() === "afm://guide" ? "guide" : "directory";
   return next;
 }
 
@@ -332,14 +344,14 @@ export function openStateEnsureMemberPaths(
   const seenKeys = new Set<string>();
 
   for (const raw of memberPaths) {
-    const trimmed = raw.trim();
-    if (!trimmed) continue;
-    const key = normalizePathKey(trimmed);
+    const native = toNativeFsPath(raw);
+    if (!native) continue;
+    const key = normalizePathKey(native);
     if (!key || seenKeys.has(key)) continue;
     seenKeys.add(key);
-    if (findTabGroupIndexByPath(next, trimmed) >= 0) continue;
-    next.tabGroups.push([createDirectoryTab(trimmed)]);
-    opened.push(trimmed);
+    if (findTabGroupIndexByPath(next, native) >= 0) continue;
+    next.tabGroups.push([createDirectoryTab(native)]);
+    opened.push(native);
   }
 
   return { state: clampOpenStateIndices(next), opened };
@@ -480,12 +492,15 @@ export function normalizeRestoredOpenState(
   return clampOpenStateIndices(
     ensureUniqueTabIds({
       tabGroups: (state.tabGroups ?? []).map((group) =>
-        (group ?? []).map((tab) => ({
-          id: tab.id || nextTabId(),
-          name: tab.name || displayNameFromPath(tab.path ?? ""),
-          path: tab.path ?? "",
-          type: tab.type || "directory",
-        })),
+        (group ?? []).map((tab) => {
+          const path = toNativeFsPath(tab.path ?? "");
+          return {
+            id: tab.id || nextTabId(),
+            name: tab.name || displayNameFromPath(path),
+            path,
+            type: tab.type || "directory",
+          };
+        }),
       ),
       currentTabGroupIndex: state.currentTabGroupIndex ?? 0,
       currentTabIndex: state.currentTabIndex ?? 0,

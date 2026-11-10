@@ -26,7 +26,9 @@ assert.ok(pathCards.includes(".path-card-grid"));
 assert.ok(pathCards.includes(".path-card--with-action"));
 
 const model = read("src/state/openStateModel.ts");
-assert.match(model, /normalizePathKey[\s\S]*?\.trim\(\)/);
+assert.match(model, /export function toNativeFsPath/);
+assert.match(model, /export function normalizePathKey/);
+assert.match(model, /replace\(\/\\\/\/g,\s*"\\\\"\)/);
 
 const wg = read("src/views/WorkGroupsView.vue");
 assert.ok(wg.includes("displayNameFromPath"));

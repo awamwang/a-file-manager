@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use super::paths::{is_exact_member_path, unique_member_paths};
+use super::paths::{is_exact_member_path, to_native_fs_path, unique_member_paths};
 use super::types::{
     SilentSwitchResult, UserWorkGroups, WorkGroup, WorkGroupOpenState, WorkGroupOpenStateTab,
     WorkGroupSoftSyncNotice, DEFAULT_WORK_GROUP_ID,
@@ -21,9 +21,9 @@ fn next_id(prefix: &str) -> String {
 }
 
 fn display_name(path: &str) -> String {
-    path.replace('\\', "/")
-        .trim_end_matches('/')
-        .rsplit('/')
+    let native = to_native_fs_path(path);
+    native
+        .rsplit(['\\', '/'])
         .next()
         .unwrap_or(path)
         .to_string()
@@ -38,10 +38,11 @@ pub fn create_empty_open_state() -> WorkGroupOpenState {
 }
 
 pub fn create_directory_open_tab(path: &str) -> WorkGroupOpenStateTab {
+    let native = to_native_fs_path(path);
     WorkGroupOpenStateTab {
         id: next_id("tab"),
-        name: display_name(path),
-        path: path.to_string(),
+        name: display_name(&native),
+        path: native,
         tab_type: "directory".to_string(),
     }
 }
@@ -267,7 +268,7 @@ pub fn clone_open_state_with_fresh_tab_ids(
                     .map(|tab| WorkGroupOpenStateTab {
                         id: next_id("tab"),
                         name: tab.name.clone(),
-                        path: tab.path.clone(),
+                        path: to_native_fs_path(&tab.path),
                         tab_type: tab.tab_type.clone(),
                     })
                     .collect()
@@ -488,8 +489,11 @@ mod tests {
         let live = open_state(&["D:/keep", "D:/scratch"]);
         let (next_group, next_open, notice) =
             add_member_to_hard_config(&group, Some(&live), "D:/new");
-        assert_eq!(next_group.member_paths, vec!["D:/keep", "D:/new"]);
-        assert!(open_state_has_exact_path(&next_open, "D:/new"));
+        assert_eq!(
+            next_group.member_paths,
+            vec![r"D:\keep".to_string(), r"D:\new".to_string()]
+        );
+        assert!(open_state_has_exact_path(&next_open, r"D:\new"));
         assert!(open_state_has_exact_path(&next_open, "D:/scratch"));
         assert_eq!(
             notice.as_ref().map(|n| n.kind.as_str()),
