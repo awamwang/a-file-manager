@@ -12,7 +12,13 @@ export type ShellIconResult = {
   kind: string;
 };
 
-type QueueItem = { path: string; size: number; preferThumbnail: boolean };
+type QueueItem = {
+  path: string;
+  size: number;
+  preferThumbnail: boolean;
+  /** Monotonic attempt id; stale in-flight results are dropped after leave/reenter. */
+  attempt: number;
+};
 
 export type RequestShellIconsOptions = {
   /** Push to the front so the current viewport wins over stale scroll leftovers. */
@@ -38,7 +44,11 @@ const lruOrder = new Map<string, true>();
 const cacheMeta = new Map<string, CacheMeta>();
 let liveBytes = 0;
 
+/** Queued or in-flight keys. Cleared on settle, cancel, or full clear. */
 const pending = new Set<string>();
+/** Latest attempt id per cache key — leave/reenter bumps this so old IPC cannot stick. */
+const attemptByKey = new Map<string, number>();
+let nextAttempt = 1;
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 const queue: QueueItem[] = [];
 /** Bumped on folder change / full cancel so in-flight IPC results are dropped. */
@@ -128,14 +138,22 @@ function enqueue(item: QueueItem, priority: boolean): void {
   const key = cacheKey(item.path, item.size);
   const existing = queueIndex(key);
   if (existing >= 0) {
+    const row = queue[existing]!;
+    row.attempt = item.attempt;
+    row.preferThumbnail = item.preferThumbnail;
     if (priority && existing > 0) {
-      const [row] = queue.splice(existing, 1);
-      if (row) queue.unshift(row);
+      queue.splice(existing, 1);
+      queue.unshift(row);
     }
     return;
   }
   if (priority) queue.unshift(item);
   else queue.push(item);
+}
+
+function settleKey(key: string): void {
+  pending.delete(key);
+  attemptByKey.delete(key);
 }
 
 function scheduleApply(): void {
@@ -149,9 +167,17 @@ function scheduleApply(): void {
   });
 }
 
-function applyResult(path: string, size: number, dataUrl: string, gen: number): void {
+function applyResult(
+  path: string,
+  size: number,
+  dataUrl: string,
+  gen: number,
+  attempt: number,
+): void {
   if (gen !== generation) return;
-  pendingApplies.push({ key: cacheKey(path, size), dataUrl });
+  const key = cacheKey(path, size);
+  if (attemptByKey.get(key) !== attempt) return;
+  pendingApplies.push({ key, dataUrl });
   scheduleApply();
 }
 
@@ -166,7 +192,6 @@ async function flushQueue(): Promise<void> {
       const preferThumb = queue[0]?.preferThumbnail === true;
       const batchSize = preferThumb ? BATCH_THUMB : BATCH_ICON;
       const batch = queue.splice(0, batchSize);
-      for (const item of batch) pending.delete(cacheKey(item.path, item.size));
 
       // Group by size + preferThumbnail so one IPC round-trip stays coherent.
       const groups = new Map<string, QueueItem[]>();
@@ -181,34 +206,53 @@ async function flushQueue(): Promise<void> {
         if (gen !== generation) return;
         const size = items[0]!.size;
         const preferThumbnail = items[0]!.preferThumbnail;
+        // 离开视口或再次进入会 bump attempt：过期 batch 项直接跳过，且不得 settle 新 attempt。
+        const activeItems = items.filter(
+          (item) => attemptByKey.get(cacheKey(item.path, item.size)) === item.attempt,
+        );
+        if (!activeItems.length) continue;
+
         try {
           const results = await perfSpan(
             "shell_icon_batch",
             () =>
               invoke<ShellIconResult[]>("shell_icon_get_many", {
-                paths: items.map((i) => i.path),
+                paths: activeItems.map((i) => i.path),
                 size,
                 preferThumbnail,
               }),
             () => ({
-              n: items.length,
+              n: activeItems.length,
               size,
               thumb: preferThumbnail ? 1 : 0,
               queue: queue.length,
             }),
           );
           if (gen !== generation) return;
-          for (const item of results) {
-            if (item.dataUrl) applyResult(item.path, size, item.dataUrl, gen);
+          const byPath = new Map(results.map((item) => [item.path, item] as const));
+          for (const item of activeItems) {
+            const key = cacheKey(item.path, item.size);
+            if (attemptByKey.get(key) !== item.attempt) continue;
+            const result = byPath.get(item.path);
+            if (result?.dataUrl) {
+              applyResult(item.path, size, result.dataUrl, gen, item.attempt);
+            }
+            // 成功写入或空结果均结束本轮 attempt，允许离开后再进入时重新排队。
+            if (attemptByKey.get(key) === item.attempt) settleKey(key);
           }
         } catch {
-          // Fallback glyphs remain visible.
+          // Fallback glyphs remain visible; clear attempts so viewport reenter can retry.
+          for (const item of activeItems) {
+            const key = cacheKey(item.path, item.size);
+            if (attemptByKey.get(key) === item.attempt) settleKey(key);
+          }
         }
       }
     }
   } finally {
     flushing = false;
-    if (queue.length && generation === gen) scheduleFlush();
+    // 文件夹切换会 bump generation；若期间已有新的排队，仍要继续刷。
+    if (queue.length) scheduleFlush();
   }
 }
 
@@ -224,6 +268,7 @@ export function clearShellIconQueue(): void {
   generation += 1;
   queue.length = 0;
   pending.clear();
+  attemptByKey.clear();
   pendingApplies.length = 0;
   if (flushTimer) {
     clearTimeout(flushTimer);
@@ -237,6 +282,11 @@ export function clearShellIconQueue(): void {
   for (const key of cacheMeta.keys()) markSoftKey(key);
 }
 
+function forgetPendingKey(key: string): void {
+  pending.delete(key);
+  attemptByKey.delete(key);
+}
+
 /** Remove paths that left the viewport so they cannot starve visible work. */
 export function cancelShellIconRequests(paths: string[], size?: number): void {
   if (!paths.length) return;
@@ -248,13 +298,21 @@ export function cancelShellIconRequests(paths: string[], size?: number): void {
     if (!pathSet.has(item.path)) continue;
     if (size != null && item.size !== size) continue;
     queue.splice(i, 1);
-    pending.delete(cacheKey(item.path, item.size));
+    forgetPendingKey(cacheKey(item.path, item.size));
   }
 
+  // 窗口化/observer 重绑可能丢掉 leave：即使已在 in-flight，也要清掉 pending，
+  // 否则回滚视口时会被当成「已请求」而永久跳过。
   for (const path of pathSet) {
     if (size != null) {
+      forgetPendingKey(cacheKey(path, size));
       markSoftKey(cacheKey(path, size));
     } else {
+      for (const key of [...pending]) {
+        if (key.endsWith(`|${path}`) || key.slice(key.indexOf("|") + 1) === path) {
+          forgetPendingKey(key);
+        }
+      }
       for (const key of cacheMeta.keys()) {
         if (key.endsWith(`|${path}`) || key.slice(key.indexOf("|") + 1) === path) {
           markSoftKey(key);
@@ -278,12 +336,16 @@ export function requestShellIcon(
     return;
   }
   const priority = options?.priority === true;
+  const attempt = nextAttempt++;
+  attemptByKey.set(key, attempt);
   if (pending.has(key)) {
-    if (priority) enqueue({ path: keyPath, size, preferThumbnail }, true);
+    // 仍在排队：刷新 attempt 并提到队首；若仅 in-flight，则重新入队以便回视口必载。
+    enqueue({ path: keyPath, size, preferThumbnail, attempt }, true);
+    scheduleFlush();
     return;
   }
   pending.add(key);
-  enqueue({ path: keyPath, size, preferThumbnail }, priority);
+  enqueue({ path: keyPath, size, preferThumbnail, attempt }, priority);
   scheduleFlush();
 }
 
@@ -310,6 +372,10 @@ export function shellIconQueueSizeForTests(): number {
 
 export function shellIconGenerationForTests(): number {
   return generation;
+}
+
+export function shellIconPendingHasForTests(path: string, size: number): boolean {
+  return pending.has(cacheKey(path, size));
 }
 
 export function shellIconCacheStatsForTests(): {

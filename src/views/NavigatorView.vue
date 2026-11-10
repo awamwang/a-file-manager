@@ -764,20 +764,35 @@ function requestIconsFor(paths: string[], priority = false) {
 let primaryIconObserver: IntersectionObserver | null = null;
 let secondaryIconObserver: IntersectionObserver | null = null;
 let iconObserverRefreshTimer: ReturnType<typeof requestAnimationFrame> | null = null;
+/** 窗口化切片路径；observer 重绑会丢掉 leave，需显式 diff cancel。 */
+let primaryObservedPaths = new Set<string>();
+let secondaryObservedPaths = new Set<string>();
 
 function disconnectIconObservers() {
   primaryIconObserver?.disconnect();
   primaryIconObserver = null;
   secondaryIconObserver?.disconnect();
   secondaryIconObserver = null;
+  primaryObservedPaths = new Set();
+  secondaryObservedPaths = new Set();
+}
+
+function pathsLeavingWindow(prev: Set<string>, next: Iterable<string>): string[] {
+  const nextSet = next instanceof Set ? next : new Set(next);
+  const leaving: string[] = [];
+  for (const path of prev) {
+    if (!nextSet.has(path)) leaving.push(path);
+  }
+  return leaving;
 }
 
 function bindIconObserver(
   root: HTMLElement | null,
   previous: IntersectionObserver | null,
-): IntersectionObserver | null {
+  previousPaths: Set<string>,
+): { observer: IntersectionObserver | null; paths: Set<string> } {
   previous?.disconnect();
-  if (!root) return null;
+  if (!root) return { observer: null, paths: new Set() };
   const observer = new IntersectionObserver(
     (entries) => {
       const enter: string[] = [];
@@ -796,19 +811,36 @@ function bindIconObserver(
     // Prefetch a little past the fold so scroll feels warm without loading the whole listing.
     { root, rootMargin: "80px 0px", threshold: 0 },
   );
+  const paths = new Set<string>();
   for (const el of root.querySelectorAll<HTMLElement>("[data-entry-path]")) {
+    const path = el.dataset.entryPath;
+    if (path) paths.add(path);
     observer.observe(el);
   }
-  return observer;
+  // 虚拟窗口换片时旧行直接卸载，disconnect 不会补发 leave——这里按路径 diff 取消。
+  const left = pathsLeavingWindow(previousPaths, paths);
+  if (left.length) {
+    cancelShellIconRequests(left, VIEW_ICON_SIZE[navigatorViewMode.value]);
+  }
+  return { observer, paths };
 }
 
 async function refreshViewportIconObservers() {
   await nextTick();
-  primaryIconObserver = bindIconObserver(listRoot.value, primaryIconObserver);
-  secondaryIconObserver = bindIconObserver(
+  const primary = bindIconObserver(
+    listRoot.value,
+    primaryIconObserver,
+    primaryObservedPaths,
+  );
+  primaryIconObserver = primary.observer;
+  primaryObservedPaths = primary.paths;
+  const secondary = bindIconObserver(
     secondaryListRoot.value,
     secondaryIconObserver,
+    secondaryObservedPaths,
   );
+  secondaryIconObserver = secondary.observer;
+  secondaryObservedPaths = secondary.paths;
 }
 
 function scheduleViewportIconObservers() {
