@@ -4,6 +4,7 @@
 import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { resolveNameConflictChoice } from "./nameConflict";
+import { normalizePathKey } from "./pathKey";
 
 export type ClipboardMode = "copy" | "cut";
 
@@ -19,6 +20,22 @@ export const clipboardMode = ref<ClipboardMode | null>(null);
 export const hasClipboard = computed(
   () => clipboardPaths.value.length > 0 && clipboardMode.value !== null,
 );
+
+/** 剪切态路径键集合；非 cut 时为 null，供列表项半透明判断复用。 */
+const cutPathKeys = computed(() => {
+  if (clipboardMode.value !== "cut" || !clipboardPaths.value.length) return null;
+  return new Set(
+    clipboardPaths.value.map((path) => normalizePathKey(path)).filter(Boolean),
+  );
+});
+
+/** 该项是否处于待剪切（cut clipboard）状态。 */
+export function isClipboardCutPath(path: string): boolean {
+  const keys = cutPathKeys.value;
+  if (!keys) return false;
+  const key = normalizePathKey(path);
+  return Boolean(key) && keys.has(key);
+}
 
 export function setClipboard(paths: string[], mode: ClipboardMode): void {
   clipboardPaths.value = [...paths];

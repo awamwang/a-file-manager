@@ -71,6 +71,24 @@ assert.equal(en.contextMenu.copy, "Copy");
 assert.equal(en.contextMenu.newFile, "New file");
 assert.equal(en.contextMenu.deleteConfirm.includes("Recycle"), true);
 
+// FIL-29: cut/pending-cut rows reuse clipboardMode+paths; icon/name opacity ~0.5.
+const navigatorView = readFileSync(
+  join(root, "src/views/NavigatorView.vue"),
+  "utf8",
+);
+assert.ok(clip.includes("isClipboardCutPath"));
+assert.ok(clip.includes('clipboardMode.value !== "cut"'));
+assert.ok(navigatorView.includes("isClipboardCutPath"));
+assert.ok(navigatorView.includes("'row--cut': isClipboardCutPath(entry.path)"));
+assert.match(
+  navigatorView,
+  /\.row--cut\s+\.kind[\s\S]*?opacity:\s*0\.5/s,
+);
+assert.match(
+  navigatorView,
+  /\.row--cut\s+\.name-block[\s\S]*?opacity:\s*0\.5/s,
+);
+
 const modelCheck = spawnSync(
   process.execPath,
   ["--experimental-strip-types", join(root, "scripts/context-menu-model-checks.ts")],

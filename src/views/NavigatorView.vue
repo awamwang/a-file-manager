@@ -43,6 +43,7 @@ import {
   createFolder,
   deleteEntries,
   hasClipboard,
+  isClipboardCutPath,
   pasteClipboard,
   pathsWithoutRecycle,
   refreshClipboardFromSystem,
@@ -1825,6 +1826,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
               'row--tile': isTilesView,
               'row--content': isContentView,
               'row--selected': isSelected(entry.path),
+              'row--cut': isClipboardCutPath(entry.path),
               'row--drop': dragOverPath === entry.path,
             }"
             :style="isDetailsView ? detailsGridStyle : undefined"
@@ -1898,6 +1900,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           'row--tile': isTilesView,
           'row--content': isContentView,
           'row--selected': isSelected(entry.path),
+          'row--cut': isClipboardCutPath(entry.path),
           'row--drop': dragOverPath === entry.path,
         }"
         :style="isDetailsView ? detailsGridStyle : undefined"
@@ -2058,6 +2061,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
             'row--tile': isTilesView,
             'row--content': isContentView,
             'row--selected': isSelected(entry.path),
+            'row--cut': isClipboardCutPath(entry.path),
             'row--drop': dragOverPath === entry.path,
           }"
           :style="isDetailsView ? detailsGridStyle : undefined"
@@ -2481,6 +2485,12 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
 
 .row--selected {
   background: var(--fluent-color-fill-selected);
+}
+
+/* 剪切态：图标与名称半透明，近似资源管理器待剪切外观。 */
+.row--cut .kind,
+.row--cut .name-block {
+  opacity: 0.5;
 }
 
 .row--drop {
