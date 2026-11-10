@@ -32,6 +32,14 @@ assert.ok(view.includes("min-height: 0"));
 assert.ok(view.includes("@mousedown.stop"));
 assert.ok(view.includes("cursor: text"));
 assert.ok(view.includes("input.style.width"));
+// FIL-28: icon-view rename box floors at icon width; short text must not hug.
+assert.ok(view.includes("iconMinWidth"));
+assert.ok(view.includes('querySelector(".kind")'));
+assert.ok(view.includes("--nav-icon-size"));
+assert.match(
+  view,
+  /\.list--icons\s+\.row--icon\s+\.inline-rename\s*\{[^}]*min-width:\s*var\(--nav-icon-size/s,
+);
 // Explorer-like focus: mouse leave / transient blur keep rename; outside pointerdown commits.
 assert.ok(view.includes("onRenameOutsidePointerDown"));
 assert.ok(view.includes("armRenameOutsideListener"));

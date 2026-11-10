@@ -369,7 +369,8 @@ function onRenameOutsidePointerDown(event: PointerEvent) {
 }
 
 /**
- * 改名框紧贴文字：高度随 wrap 行数（图标最多 2 行）；宽度跟内容，不留框内空白。
+ * 改名框紧贴文字：高度随 wrap 行数（图标最多 2 行）；宽度跟内容。
+ * 图标视图下最小与图标同宽，短文本不收缩；更长文本仍可长到格子上限。
  */
 function syncRenameInputSize() {
   const input = renameInputEl.value;
@@ -390,14 +391,29 @@ function syncRenameInputSize() {
   const borderX =
     (Number.parseFloat(style.borderLeftWidth) || 0) +
     (Number.parseFloat(style.borderRightWidth) || 0);
+  const parent = input.parentElement;
+  const maxWidth = parent?.clientWidth || input.clientWidth || 0;
+  let iconMinWidth = 0;
+  if (isIconView.value) {
+    const kind = parent?.querySelector(".kind");
+    if (kind instanceof HTMLElement) {
+      iconMinWidth = Math.ceil(kind.getBoundingClientRect().width);
+    }
+    if (iconMinWidth <= 0) {
+      iconMinWidth = Math.ceil(Number.parseFloat(style.getPropertyValue("--nav-icon-size")) || 0);
+    }
+  }
+  const contentWidth = Math.ceil(input.scrollWidth + borderX);
+  const fitted = Math.max(
+    contentWidth,
+    iconMinWidth,
+    Math.ceil(lineHeight + padX + borderX),
+  );
+  const widthPx = maxWidth > 0 ? Math.min(fitted, maxWidth) : fitted;
+  input.style.width = `${widthPx}px`;
   const maxHeight = lineHeight * maxLines + padY + borderY;
   const next = Math.min(input.scrollHeight, maxHeight);
   input.style.height = `${Math.max(next, lineHeight + padY + borderY)}px`;
-  const parent = input.parentElement;
-  const maxWidth = parent?.clientWidth || input.clientWidth || 0;
-  const contentWidth = Math.ceil(input.scrollWidth + borderX);
-  const fitted = Math.max(contentWidth, Math.ceil(lineHeight + padX + borderX));
-  input.style.width = `${maxWidth > 0 ? Math.min(fitted, maxWidth) : fitted}px`;
 }
 
 /** Select basename for files (keep extension); full name for folders. */
@@ -2331,7 +2347,8 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
 .list--icons .row--icon .inline-rename {
   width: auto;
   max-width: 100%;
-  min-width: 0;
+  /* 改名时最小与图标同宽，短文件名不缩成窄条。 */
+  min-width: var(--nav-icon-size, 16px);
   margin-inline: auto;
   text-align: center;
   font-size: var(--fluent-font-size-caption);
