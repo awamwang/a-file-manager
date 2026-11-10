@@ -28,8 +28,8 @@ if (!shell.includes("showHiddenItems ? 'eye' : 'eyeOff'") && !shell.includes('sh
   console.error("show-hidden toggle must use eye / eyeOff glyphs");
   process.exit(1);
 }
-const viewModeIdx = shell.indexOf("navigator-view-mode-menu");
-const viewModeSlice = viewModeIdx >= 0 ? shell.slice(viewModeIdx, viewModeIdx + 450) : "";
+const viewModeIdx = shell.indexOf('id="navigator-view-mode-menu"');
+const viewModeSlice = viewModeIdx >= 0 ? shell.slice(viewModeIdx, viewModeIdx + 600) : "";
 if (!viewModeSlice.includes('name="list"') && !viewModeSlice.includes("name='list'")) {
   console.error("view-mode trigger must use list glyph (distinct from eye)");
   process.exit(1);
