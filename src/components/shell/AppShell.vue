@@ -39,7 +39,10 @@ import {
 } from "../../state/focusCycle";
 import {
   bootstrapNavigatorOpenState,
+  closeAllNavigatorTabs,
   closeNavigatorTab,
+  closeNavigatorTabsToRight,
+  closeOtherNavigatorTabs,
   currentPath,
   flushOpenStatePersist,
   goUp,
@@ -637,7 +640,7 @@ function onGlobalKeydown(event: KeyboardEvent) {
       workGroupMenuOpen.value ||
       viewModeMenuOpen.value ||
       crumbMenuIndex.value !== null ||
-      tabContextPath.value !== null)
+      tabContextGroupIndex.value !== null)
   ) {
     closeChromeMenus();
     event.preventDefault();
@@ -654,7 +657,7 @@ function onDocumentPointerDown(event: PointerEvent) {
     !workGroupMenuOpen.value &&
     !viewModeMenuOpen.value &&
     crumbMenuIndex.value === null &&
-    tabContextPath.value === null
+    tabContextGroupIndex.value === null
   ) {
     return;
   }
@@ -675,7 +678,7 @@ function onDocumentPointerDown(event: PointerEvent) {
   if (viewModeMenuOpen.value && viewRoot && !viewRoot.contains(target)) {
     closeViewModeMenu();
   }
-  if (tabContextPath.value !== null && tabMenu && !tabMenu.contains(target)) {
+  if (tabContextGroupIndex.value !== null && tabMenu && !tabMenu.contains(target)) {
     closeTabContextMenu();
   }
   if (crumbMenuIndex.value !== null) {
@@ -1340,29 +1343,46 @@ function onToggleTabPin(tabId: string) {
   togglePinnedTab(tabId);
 }
 
-const tabContextPath = ref<string | null>(null);
+const tabContextGroupIndex = ref<number | null>(null);
 const tabContextStyle = ref<Record<string, string>>({});
 
+const tabContextCanCloseOthers = computed(() => {
+  const idx = tabContextGroupIndex.value;
+  return idx != null && stripTabs.value.length > 1;
+});
+
+const tabContextCanCloseRight = computed(() => {
+  const idx = tabContextGroupIndex.value;
+  return idx != null && idx < stripTabs.value.length - 1;
+});
+
+const tabContextCanDuplicate = computed(() => {
+  const idx = tabContextGroupIndex.value;
+  if (idx == null) return false;
+  const tab = stripTabs.value.find((item) => item.groupIndex === idx);
+  return Boolean(tab?.path?.trim());
+});
+
 function closeTabContextMenu() {
-  tabContextPath.value = null;
+  tabContextGroupIndex.value = null;
   tabContextStyle.value = {};
 }
 
-function onTabContextMenu(event: MouseEvent, path: string) {
+function onTabContextMenu(event: MouseEvent, groupIndex: number) {
   event.preventDefault();
   event.stopPropagation();
   closeChromeMenus();
-  const text = path.trim();
-  if (!text) return;
-  tabContextPath.value = text;
-  const menuWidth = Math.min(180, window.innerWidth * 0.7);
+  if (!Number.isInteger(groupIndex) || groupIndex < 0) return;
+  tabContextGroupIndex.value = groupIndex;
+  const menuWidth = Math.min(220, window.innerWidth * 0.7);
+  const menuHeight = 220;
   let left = event.clientX;
   if (left + menuWidth > window.innerWidth - 8) {
     left = Math.max(8, window.innerWidth - menuWidth - 8);
   }
   let top = event.clientY;
-  if (top + 48 > window.innerHeight - 8) {
-    top = Math.max(8, window.innerHeight - 56);
+  if (top + menuHeight > window.innerHeight - 8) {
+    top = Math.max(8, window.innerHeight - menuHeight - 8);
   }
   tabContextStyle.value = {
     position: "fixed",
@@ -1372,16 +1392,46 @@ function onTabContextMenu(event: MouseEvent, path: string) {
   };
 }
 
-async function copyTabPath() {
-  const path = tabContextPath.value;
+async function onDuplicateTabFromContext() {
+  const idx = tabContextGroupIndex.value;
+  const path =
+    idx != null
+      ? stripTabs.value.find((item) => item.groupIndex === idx)?.path?.trim()
+      : "";
   closeTabContextMenu();
   if (!path) return;
-  try {
-    await navigator.clipboard.writeText(path);
-    toastSuccess(t("contextMenu.copiedPath"));
-  } catch {
-    toastError(t("contextMenu.opFailed"));
-  }
+  await ensureNavigatorRoute();
+  await newNavigatorTab(path);
+}
+
+async function onCloseTabFromContext() {
+  const idx = tabContextGroupIndex.value;
+  closeTabContextMenu();
+  if (idx == null) return;
+  await ensureNavigatorRoute();
+  await closeNavigatorTab(idx);
+}
+
+async function onCloseOtherTabsFromContext() {
+  const idx = tabContextGroupIndex.value;
+  closeTabContextMenu();
+  if (idx == null) return;
+  await ensureNavigatorRoute();
+  await closeOtherNavigatorTabs(idx);
+}
+
+async function onCloseRightTabsFromContext() {
+  const idx = tabContextGroupIndex.value;
+  closeTabContextMenu();
+  if (idx == null) return;
+  await ensureNavigatorRoute();
+  await closeNavigatorTabsToRight(idx);
+}
+
+async function onCloseAllTabsFromContext() {
+  closeTabContextMenu();
+  await ensureNavigatorRoute();
+  await closeAllNavigatorTabs();
 }
 
 async function onCloseNavigatorTab(event: Event, groupIndex: number) {
@@ -1641,7 +1691,7 @@ onUnmounted(() => {
             :title="tab.path"
             @click="onTabClick(tab.groupIndex)"
             @dblclick.stop="onToggleTabPin(tab.id)"
-            @contextmenu="onTabContextMenu($event, tab.path)"
+            @contextmenu="onTabContextMenu($event, tab.groupIndex)"
             @pointerdown="onTabPointerDown($event, tab.groupIndex)"
             @dragover="onTabFileDragOver($event, tab.groupIndex)"
             @dragleave="onTabFileDragLeave($event, tab.groupIndex)"
@@ -2106,11 +2156,11 @@ onUnmounted(() => {
 
         <Teleport to="body">
           <div
-            v-if="tabContextPath"
+            v-if="tabContextGroupIndex !== null"
             id="navigator-tab-context-menu"
             class="tab-context-menu fluent-surface"
             role="menu"
-            :aria-label="t('contextMenu.copyPath')"
+            :aria-label="t('chrome.tabs')"
             :style="tabContextStyle"
             @click.stop
           >
@@ -2118,9 +2168,44 @@ onUnmounted(() => {
               type="button"
               class="tab-context-item"
               role="menuitem"
-              @click="copyTabPath"
+              :disabled="!tabContextCanDuplicate"
+              @click="onDuplicateTabFromContext"
             >
-              {{ t("contextMenu.copyPath") }}
+              {{ t("chrome.duplicateTab") }}
+            </button>
+            <button
+              type="button"
+              class="tab-context-item"
+              role="menuitem"
+              @click="onCloseTabFromContext"
+            >
+              {{ t("chrome.tabClose") }}
+            </button>
+            <button
+              type="button"
+              class="tab-context-item"
+              role="menuitem"
+              :disabled="!tabContextCanCloseOthers"
+              @click="onCloseOtherTabsFromContext"
+            >
+              {{ t("chrome.closeOtherTabs") }}
+            </button>
+            <button
+              type="button"
+              class="tab-context-item"
+              role="menuitem"
+              :disabled="!tabContextCanCloseRight"
+              @click="onCloseRightTabsFromContext"
+            >
+              {{ t("chrome.closeRightTabs") }}
+            </button>
+            <button
+              type="button"
+              class="tab-context-item"
+              role="menuitem"
+              @click="onCloseAllTabsFromContext"
+            >
+              {{ t("chrome.closeAllTabs") }}
             </button>
           </div>
         </Teleport>
@@ -2865,7 +2950,7 @@ onUnmounted(() => {
 }
 
 .tab-context-menu {
-  min-width: 9rem;
+  min-width: 11rem;
   padding: var(--fluent-space-xs);
   display: flex;
   flex-direction: column;
@@ -2888,6 +2973,16 @@ onUnmounted(() => {
 .tab-context-item:focus-visible {
   background: var(--fluent-color-fill-selected);
   outline: none;
+}
+
+.tab-context-item:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.tab-context-item:disabled:hover,
+.tab-context-item:disabled:focus-visible {
+  background: transparent;
 }
 
 .body {

@@ -13,7 +13,10 @@ import {
   liveOpenState,
   mergePinnedIntoOpenState,
   normalizeRestoredOpenState,
+  openStateAfterCloseAllGroups,
   openStateAfterCloseGroup,
+  openStateAfterCloseGroupsToRight,
+  openStateAfterCloseOtherGroups,
   openStateAfterNavigate,
   openStateAfterReorderGroups,
   openStateAfterSwitchAdjacent,
@@ -368,6 +371,63 @@ export async function closeNavigatorTab(groupIndex: number): Promise<void> {
   } else {
     void loadDefaultPath();
   }
+}
+
+/** 关闭除 keepIndex 以外的全部标签。 */
+export async function closeOtherNavigatorTabs(keepIndex: number): Promise<void> {
+  const prev = liveOpenState.value;
+  if (
+    !Number.isInteger(keepIndex) ||
+    keepIndex < 0 ||
+    keepIndex >= prev.tabGroups.length ||
+    prev.tabGroups.length <= 1
+  ) {
+    return;
+  }
+  const closingIds = prev.tabGroups.flatMap((group, index) =>
+    index === keepIndex ? [] : group.map((tab) => tab.id),
+  );
+  forgetPinnedTabs(closingIds);
+  const next = openStateAfterCloseOtherGroups(prev, keepIndex);
+  liveOpenState.value = next;
+  scheduleOpenStatePersist(false);
+  const active = activeStripTab(next);
+  if (active?.path) {
+    revealPathNonBlocking(active.path);
+  }
+}
+
+/** 关闭 groupIndex 右侧的全部标签。 */
+export async function closeNavigatorTabsToRight(groupIndex: number): Promise<void> {
+  const prev = liveOpenState.value;
+  if (
+    !Number.isInteger(groupIndex) ||
+    groupIndex < 0 ||
+    groupIndex >= prev.tabGroups.length - 1
+  ) {
+    return;
+  }
+  const closingIds = prev.tabGroups
+    .slice(groupIndex + 1)
+    .flatMap((group) => group.map((tab) => tab.id));
+  forgetPinnedTabs(closingIds);
+  const next = openStateAfterCloseGroupsToRight(prev, groupIndex);
+  liveOpenState.value = next;
+  scheduleOpenStatePersist(false);
+  const active = activeStripTab(next);
+  if (active?.path) {
+    revealPathNonBlocking(active.path);
+  }
+}
+
+/** 关闭全部标签，并回落到默认路径。 */
+export async function closeAllNavigatorTabs(): Promise<void> {
+  const prev = liveOpenState.value;
+  if (!prev.tabGroups.length) return;
+  forgetPinnedTabs(prev.tabGroups.flatMap((group) => group.map((tab) => tab.id)));
+  liveOpenState.value = openStateAfterCloseAllGroups(prev);
+  scheduleOpenStatePersist(false);
+  void loadDefaultPath();
 }
 
 export async function switchNavigatorTab(groupIndex: number): Promise<void> {

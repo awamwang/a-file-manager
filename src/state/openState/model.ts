@@ -157,6 +157,53 @@ export function openStateAfterCloseGroup(
   return clampOpenStateIndices(next);
 }
 
+/** 仅保留指定页组，关闭其余标签。 */
+export function openStateAfterCloseOtherGroups(
+  state: WorkGroupOpenState,
+  keepIndex: number,
+): WorkGroupOpenState {
+  const next = cloneOpenState(state);
+  if (keepIndex < 0 || keepIndex >= next.tabGroups.length) {
+    return clampOpenStateIndices(next);
+  }
+  const kept = next.tabGroups[keepIndex];
+  if (!kept) {
+    return clampOpenStateIndices(next);
+  }
+  next.tabGroups = [kept];
+  next.currentTabGroupIndex = 0;
+  next.currentTabIndex = 0;
+  return clampOpenStateIndices(next);
+}
+
+/** 关闭指定页组右侧的全部标签。 */
+export function openStateAfterCloseGroupsToRight(
+  state: WorkGroupOpenState,
+  groupIndex: number,
+): WorkGroupOpenState {
+  const next = cloneOpenState(state);
+  if (groupIndex < 0 || groupIndex >= next.tabGroups.length) {
+    return clampOpenStateIndices(next);
+  }
+  next.tabGroups = next.tabGroups.slice(0, groupIndex + 1);
+  if (next.currentTabGroupIndex > groupIndex) {
+    next.currentTabGroupIndex = groupIndex;
+  }
+  next.currentTabIndex = 0;
+  return clampOpenStateIndices(next);
+}
+
+/** 关闭全部页组（空条由上层补默认路径）。 */
+export function openStateAfterCloseAllGroups(
+  state: WorkGroupOpenState,
+): WorkGroupOpenState {
+  const next = cloneOpenState(state);
+  next.tabGroups = [];
+  next.currentTabGroupIndex = 0;
+  next.currentTabIndex = 0;
+  return next;
+}
+
 export function openStateAfterSwitchGroup(
   state: WorkGroupOpenState,
   groupIndex: number,

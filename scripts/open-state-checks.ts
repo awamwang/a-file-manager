@@ -8,7 +8,10 @@ import {
   displayNameFromPath,
   findTabGroupIndexByPath,
   normalizeRestoredOpenState,
+  openStateAfterCloseAllGroups,
   openStateAfterCloseGroup,
+  openStateAfterCloseGroupsToRight,
+  openStateAfterCloseOtherGroups,
   openStateAfterNavigate,
   openStateAfterReorderGroups,
   openStateAfterSwitchAdjacent,
@@ -66,6 +69,36 @@ state = openStateAfterSwitchGroup(state, 1);
 const closedActive = openStateAfterCloseGroup(state, 1);
 assert.equal(closedActive.tabGroups.length, 2);
 assert.ok(closedActive.currentTabGroupIndex < closedActive.tabGroups.length);
+
+// FIL-24: close others / close to the right / close all
+{
+  let multi = openStateFromPaths([
+    "G:/Projects/A",
+    "G:/Projects/B",
+    "G:/Projects/C",
+    "G:/Projects/D",
+  ]);
+  multi = openStateAfterSwitchGroup(multi, 1);
+  const others = openStateAfterCloseOtherGroups(multi, 1);
+  assert.equal(others.tabGroups.length, 1);
+  assert.equal(activeStripTab(others)?.name, "B");
+  assert.equal(others.currentTabGroupIndex, 0);
+
+  multi = openStateFromPaths([
+    "G:/Projects/A",
+    "G:/Projects/B",
+    "G:/Projects/C",
+    "G:/Projects/D",
+  ]);
+  const toRight = openStateAfterCloseGroupsToRight(multi, 1);
+  assert.equal(toRight.tabGroups.length, 2);
+  assert.equal(activeStripTab(toRight)?.name, "A");
+  assert.ok(toRight.tabGroups.every((g) => g[0].name === "A" || g[0].name === "B"));
+
+  const emptied = openStateAfterCloseAllGroups(multi);
+  assert.equal(emptied.tabGroups.length, 0);
+  assert.equal(emptied.currentTabGroupIndex, 0);
+}
 
 // Sigma-shaped restore (one pane per group + currentTabGroupIndex)
 const sigmaLike: WorkGroupOpenState = {
