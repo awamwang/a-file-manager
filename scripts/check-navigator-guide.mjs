@@ -37,6 +37,18 @@ assert.ok(defaults.includes('"duplicate"'));
 assert.ok(fields.includes('"core.newTabBehavior"'));
 assert.ok(navView.includes("NavigatorGuide"));
 assert.ok(navView.includes("isGuidePath"));
+// FIL-25: guide/list surfaces stay mounted (v-show) to avoid remount jank.
+assert.ok(navView.includes("guideSurfaceMounted"));
+assert.ok(navView.includes("listSurfaceMounted"));
+assert.ok(navView.includes('v-show="showingGuide"') || navView.includes("v-show=\"showingGuide\""));
+assert.ok(
+  browse.includes("!pathChanged && isGuidePath(previous)"),
+  "navigateTo guide must no-op when already on guide",
+);
+assert.ok(
+  shell.includes("focusAddressBar()") && shell.includes("isGuidePath(currentPath.value)"),
+  "root crumb on guide opens address edit instead of re-navigate",
+);
 assert.equal(en.settings.fields.core.newTabBehavior.options.guide, "Guide page");
 assert.equal(zh.settings.fields.core.newTabBehavior.options.guide, "引导页");
 assert.equal(en.guide.rootLabel, "This PC");

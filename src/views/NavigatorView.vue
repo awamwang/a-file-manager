@@ -177,6 +177,22 @@ const previewPaneSession = ref<boolean | null>(null);
 /** AIA-235: Alt+Shift+P details pane (separate from Alt+Enter properties). */
 const detailsPaneOpen = ref(false);
 
+/**
+ * 引导页与目录列表互斥展示，但各自首次出现后用 v-show 保活，
+ * 避免从 afm://guide 切回目录时整表 DOM 卸载/重挂造成关标签卡顿。
+ */
+const guideSurfaceMounted = ref(false);
+const listSurfaceMounted = ref(false);
+const showingGuide = computed(() => isGuidePath(currentPath.value));
+watch(
+  currentPath,
+  (path) => {
+    if (isGuidePath(path)) guideSurfaceMounted.value = true;
+    else if (path.trim()) listSurfaceMounted.value = true;
+  },
+  { immediate: true },
+);
+
 const previewPaneEnabled = computed(() => {
   const base = previewPaneSession.value ?? previewPaneSetting.value;
   return base || previewBridgeForcePane.value;
@@ -1599,10 +1615,11 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
       @mousedown="setActivePane('primary')"
     >
     <NavigatorGuide
-      v-if="isGuidePath(currentPath)"
+      v-if="guideSurfaceMounted"
+      v-show="showingGuide"
       :open-path="(path) => navigateTo(path)"
     />
-    <template v-else>
+    <div v-if="listSurfaceMounted" v-show="!showingGuide" class="pane-list-surface">
     <p class="pane-path" :title="currentPath">{{ currentPath || t("navigator.noPath") }}</p>
     <p v-if="listError && !listLoading" class="fluent-banner fluent-banner--error">{{ listError }}</p>
     <p v-else-if="folderSearchActive && primarySearchLoading" class="fluent-banner">
@@ -1893,7 +1910,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         }"
       />
     </div>
-    </template>
+    </div>
     </div>
 
     <div
@@ -2109,6 +2126,14 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   min-height: 0;
   border: var(--fluent-stroke-width) solid transparent;
   border-radius: var(--fluent-radius-md);
+}
+
+.pane-list-surface {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
 }
 
 .pane--active {

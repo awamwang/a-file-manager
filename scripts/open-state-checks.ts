@@ -187,4 +187,13 @@ const softNone = openStateEnsureMemberPaths(soft.state, ["G:/Projects/A", "G:/Pr
 assert.equal(softNone.opened.length, 0);
 assert.equal(softNone.state.tabGroups.length, 4);
 
+// FIL-25: guide 路径建标签即为 type=guide，避免 directory 误标。
+{
+  const guideTab = openStateWithNewTab(createEmptyOpenState(), "afm://guide");
+  assert.equal(guideTab.tabGroups[0]?.[0]?.type, "guide");
+  assert.equal(guideTab.tabGroups[0]?.[0]?.path, "afm://guide");
+  const afterNav = openStateAfterNavigate(guideTab, "afm://guide");
+  assert.equal(afterNav.tabGroups[0]?.[0]?.type, "guide");
+}
+
 console.log("open-state-checks: ok");

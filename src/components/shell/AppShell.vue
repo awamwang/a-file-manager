@@ -596,6 +596,11 @@ async function onBreadcrumb(path: string) {
 }
 
 async function onRootCrumb() {
+  // 引导页仅有根面包屑：点击应进入地址栏编辑，而非再次 navigateTo（会克隆 Open State）。
+  if (isGuidePath(currentPath.value)) {
+    focusAddressBar();
+    return;
+  }
   addressEditing.value = false;
   await ensureNavigatorRoute();
   await navigateTo(GUIDE_PATH);

@@ -120,4 +120,12 @@ assert.equal(currentPath.value, GUIDE_PATH);
 assert.equal(listing.value, null);
 assert.equal(listError.value, null);
 
+// FIL-25：已在引导页时再次 navigateTo 不得克隆 Open State（路径栏误点根屑）。
+{
+  const before = liveOpenState.value;
+  await navigateTo(GUIDE_PATH);
+  assert.equal(currentPath.value, GUIDE_PATH);
+  assert.equal(liveOpenState.value, before);
+}
+
 console.log("navigator-session-checks: ok");

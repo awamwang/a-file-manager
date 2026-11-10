@@ -242,6 +242,11 @@ export async function navigateTo(
     listing.value = null;
     listError.value = null;
     listLoading.value = false;
+    // 已在引导页：跳过 Open State 克隆与写盘，避免路径栏误点根面包屑时卡顿。
+    if (!pathChanged && isGuidePath(previous)) {
+      currentPath.value = GUIDE_PATH;
+      return;
+    }
     currentPath.value = GUIDE_PATH;
     if (pathChanged) clearNavigatorFilter();
     if (recordHistory) {

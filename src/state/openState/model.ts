@@ -52,11 +52,12 @@ export function createEmptyOpenState(): WorkGroupOpenState {
 
 export function createDirectoryTab(path: string, id?: string): WorkGroupOpenStateTab {
   const native = toNativeFsPath(path);
+  const lower = native.toLowerCase();
   return {
     id: id ?? nextTabId(),
     name: displayNameFromPath(native),
     path: native,
-    type: "directory",
+    type: lower === "afm://guide" ? "guide" : "directory",
   };
 }
 
