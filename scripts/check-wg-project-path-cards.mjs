@@ -98,4 +98,14 @@ assert.ok(pathCards.includes("user-select: text"));
 assert.equal(en.contextMenu.copyPath, "Copy path");
 assert.ok(zh.contextMenu.copyPath.includes("路径") || zh.contextMenu.copyPath.includes("複製"));
 
+// FIL-8: 长路径完整可见（换行，不 ellipsis 截断）。
+assert.match(pathCards, /\.path-card-path\s*\{[^}]*overflow-wrap:\s*anywhere/s);
+assert.match(pathCards, /\.path-card-path\s*\{[^}]*white-space:\s*normal/s);
+assert.ok(!/\.path-card-path\s*\{[^}]*text-overflow:\s*ellipsis/s.test(pathCards));
+assert.ok(!/\.path-card-path\s*\{[^}]*white-space:\s*nowrap/s.test(pathCards));
+assert.match(
+  pathCards,
+  /\.path-card-grid\s*\{[^}]*minmax\(min\(100%,\s*22rem\),\s*1fr\)/s,
+);
+
 console.log("wg/project path cards + list ⋯ + scroll chrome OK.");

@@ -3,7 +3,8 @@
 
 .path-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  /* 宽卡优先：长路径可完整换行显示，避免窄列强制截断。 */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
   gap: var(--fluent-space-sm);
 }
 
@@ -29,7 +30,7 @@
 
 .path-card--with-action {
   flex-direction: row;
-  align-items: center;
+  align-items: flex-start;
   cursor: default;
   gap: var(--fluent-space-sm);
 }
@@ -65,29 +66,31 @@
 
 .path-card-name {
   font-weight: var(--fluent-font-weight-regular);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .path-card-path {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
   user-select: text;
+  line-height: 1.35;
 }
 
 .path-card-actions {
   display: flex;
   flex-shrink: 0;
-  align-items: center;
+  align-items: flex-start;
   gap: 2px;
+  padding-top: 0.1rem;
 }
 
 .path-card-copy,
 .path-card-remove {
   flex-shrink: 0;
-  align-self: center;
+  align-self: flex-start;
   min-width: 2rem;
   padding-inline: var(--fluent-space-sm);
   color: var(--fluent-color-text-secondary);
