@@ -13,7 +13,7 @@ import {
   type SilentSwitchResult,
   type SoftSyncNotice,
   type UserWorkGroupsDoc,
-} from "./navigatorBrowse";
+} from "../navigatorBrowse";
 
 export type WorkGroupSummary = UserWorkGroupsDoc["workGroups"][number];
 

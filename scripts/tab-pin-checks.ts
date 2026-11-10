@@ -19,7 +19,7 @@ import {
   pinnedTabIds,
   togglePinnedTab,
 } from "../src/state/tabPins.ts";
-import { workGroupDisplayName } from "../src/state/workGroupName.ts";
+import { workGroupDisplayName } from "../src/state/workGroup/name.ts";
 
 function tab(id: string, path: string): WorkGroupOpenStateTab {
   return { id, name: id, path, type: "directory" };

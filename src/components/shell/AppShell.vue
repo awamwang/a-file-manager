@@ -74,8 +74,8 @@ import {
   isGuidePath,
   loadNavigatorPlaces,
   resolveHomePath,
-} from "../../state/navigatorGuide";
-import { isRecyclePath, RECYCLE_PATH } from "../../state/recyclePath";
+} from "../../state/guide";
+import { isRecyclePath, RECYCLE_PATH } from "../../state/recycle";
 import { selectedPaths } from "../../state/navigatorSelection";
 import { formatBytes, selectionByteSize } from "../../state/formatBytes";
 import {
@@ -107,7 +107,7 @@ import {
   workGroupChromeError,
   workGroupsDoc,
   workGroupSoftNotice,
-} from "../../state/workGroupChrome";
+} from "../../state/workGroup";
 import {
   hideMainWindowToTray,
   loadCloseBehavior,
@@ -136,7 +136,7 @@ import {
   sidenavWidth,
 } from "../../state/sidenavWidth";
 import { isTabPinned, togglePinnedTab } from "../../state/tabPins";
-import { workGroupDisplayName } from "../../state/workGroupName";
+import { workGroupDisplayName } from "../../state/workGroup";
 import { scheduleAfterPaint, scheduleIdle } from "../../state/scheduleIdle";
 import { startupMark } from "../../state/startupTiming";
 

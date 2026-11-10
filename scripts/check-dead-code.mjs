@@ -21,7 +21,7 @@ const panel = read("src/state/commandPanel.ts");
 assert.ok(!panel.includes("openCommandPanel"), "unused openCommandPanel removed");
 assert.ok(panel.includes("toggleCommandPanel") && panel.includes("closeCommandPanel"));
 
-const undo = read("src/state/fileUndo.ts");
+const undo = read("src/state/fileUndo/index.ts");
 assert.ok(!undo.includes("canUndo"), "unused canUndo removed");
 assert.ok(!undo.includes("clearUndoStack"), "unused clearUndoStack removed");
 assert.ok(!undo.includes("peekUndoStack"), "unused peekUndoStack removed");

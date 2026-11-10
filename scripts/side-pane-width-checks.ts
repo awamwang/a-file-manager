@@ -8,7 +8,7 @@ import {
   SIDE_PANE_MIN_WORKSPACE,
   clampSidePaneWidth,
 } from "../src/state/sidePaneWidth.ts";
-import { DUAL_PANE_MIN_PANE_PX } from "../src/state/dualPaneLayout.ts";
+import { DUAL_PANE_MIN_PANE_PX } from "../src/state/dualPane/layout.ts";
 
 assert.equal(SIDE_PANE_MIN_WIDTH, 240);
 assert.equal(SIDE_PANE_MIN_WIDTH, DUAL_PANE_MIN_PANE_PX, "align with AIA-252 dual-pane floor");

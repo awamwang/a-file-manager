@@ -3,7 +3,7 @@
 
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { GUIDE_PATH, isGuidePath, normalizeGuideKey } from "./guidePath";
+import { GUIDE_PATH, isGuidePath, normalizeGuideKey } from "./path";
 
 export { GUIDE_PATH, isGuidePath, normalizeGuideKey };
 

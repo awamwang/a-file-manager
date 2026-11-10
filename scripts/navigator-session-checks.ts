@@ -27,7 +27,7 @@ import {
   openStateFromPaths,
   type WorkGroupOpenState,
 } from "../src/state/openStateModel.ts";
-import { GUIDE_PATH } from "../src/state/navigatorGuide.ts";
+import { GUIDE_PATH } from "../src/state/guide/index.ts";
 
 function stubListOk(): void {
   __setInvokeHandler("navigator_list", async (args: { path?: string }) => {

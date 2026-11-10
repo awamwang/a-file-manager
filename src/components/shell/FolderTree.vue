@@ -10,7 +10,7 @@ import {
   drivesList,
   isGuidePath,
   loadDrives,
-} from "../../state/navigatorGuide";
+} from "../../state/guide";
 import { isOsHierarchyPath } from "../../state/folderTree";
 import { scheduleAfterPaint } from "../../state/scheduleIdle";
 

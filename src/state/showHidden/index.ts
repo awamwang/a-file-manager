@@ -7,8 +7,8 @@ import {
   hydrateSettings,
   rememberSettingsDocument,
   type SettingsDocument,
-} from "./settingsHydrate";
-import { readShowHidden } from "./showHiddenFlag";
+} from "../settingsHydrate";
+import { readShowHidden } from "./flag";
 
 export { readShowHidden };
 

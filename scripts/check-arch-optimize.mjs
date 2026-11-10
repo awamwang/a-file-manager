@@ -26,9 +26,11 @@ assert.ok(pathCards.includes(".path-card-grid"));
 assert.ok(pathCards.includes(".path-card--with-action"));
 
 const model = read("src/state/openStateModel.ts");
-assert.match(model, /export function toNativeFsPath/);
-assert.match(model, /export function normalizePathKey/);
-assert.match(model, /replace\(\/\\\/\/g,\s*"\\\\"\)/);
+const pathKey = read("src/state/pathKey.ts");
+assert.match(model, /export \{ toNativeFsPath, normalizePathKey \} from "\.\/pathKey"/);
+assert.match(pathKey, /export function toNativeFsPath/);
+assert.match(pathKey, /export function normalizePathKey/);
+assert.match(pathKey, /replace\(\/\\\/\/g,\s*"\\\\"\)/);
 
 const wg = read("src/views/WorkGroupsView.vue");
 assert.ok(wg.includes("displayNameFromPath"));

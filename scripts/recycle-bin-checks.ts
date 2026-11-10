@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import assert from "node:assert/strict";
-import { isRecyclePath, RECYCLE_PATH } from "../src/state/recyclePath.ts";
-import { recycleListingFromItems } from "../src/state/recycleListing.ts";
+import { isRecyclePath, RECYCLE_PATH } from "../src/state/recycle/path.ts";
+import { recycleListingFromItems } from "../src/state/recycle/listing.ts";
 
 assert.equal(RECYCLE_PATH, "afm://recycle-bin");
 assert.equal(isRecyclePath("afm://recycle-bin"), true);

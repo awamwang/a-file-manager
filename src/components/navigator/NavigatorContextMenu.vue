@@ -17,7 +17,7 @@ import {
   restoreWorkGroupOpenState,
   snapshotLiveOpenState,
 } from "../../state/navigatorBrowse";
-import { workGroupDisplayName } from "../../state/workGroupName";
+import { workGroupDisplayName } from "../../state/workGroup";
 import type { WorkGroupOpenState } from "../../state/openStateModel";
 import {
   clipboardMode,
@@ -37,8 +37,8 @@ import {
   recordDeleteUndo,
   recordMoveUndo,
 } from "../../state/fileUndo";
-import { isRecyclePath } from "../../state/recyclePath";
-import { restoreRecyclePaths } from "../../state/recycleBin";
+import { isRecyclePath } from "../../state/recycle";
+import { restoreRecyclePaths } from "../../state/recycle";
 import { confirmDeleteIfNeeded, confirmPermanentDelete } from "../../state/confirmBeforeDelete";
 import { openPromptDialog } from "../../state/promptDialog";
 import {

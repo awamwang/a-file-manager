@@ -9,7 +9,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const places = readFileSync(join(root, "src-tauri/src/navigator/places.rs"), "utf8");
 const guide = readFileSync(join(root, "src/components/navigator/NavigatorGuide.vue"), "utf8");
 const tree = readFileSync(join(root, "src/components/shell/FolderTree.vue"), "utf8");
-const state = readFileSync(join(root, "src/state/navigatorGuide.ts"), "utf8");
+const state = readFileSync(join(root, "src/state/guide/index.ts"), "utf8");
 const en = JSON.parse(readFileSync(join(root, "src/i18n/locales/en.json"), "utf8"));
 
 assert.ok(places.includes("struct ShellPlaces"));

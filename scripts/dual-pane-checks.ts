@@ -7,7 +7,7 @@ import {
   DUAL_PANE_WINDOW_MIN_WIDTH_PX,
   dualPaneFitsInnerWidth,
   windowMinWidthForDualPane,
-} from "../src/state/dualPaneLayout.ts";
+} from "../src/state/dualPane/layout.ts";
 
 assert.equal(DEFAULT_WINDOW_MIN_WIDTH_PX, 330);
 assert.equal(DUAL_PANE_MIN_PANE_PX, 240);

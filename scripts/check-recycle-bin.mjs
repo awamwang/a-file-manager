@@ -8,14 +8,14 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const browse = readFileSync(join(root, "src/state/navigatorBrowse.ts"), "utf8");
 const guide = readFileSync(join(root, "src/components/navigator/NavigatorGuide.vue"), "utf8");
-const tree = readFileSync(join(root, "src/components/shell/FolderTree.vue"), "utf8");
+const shell = readFileSync(join(root, "src/components/shell/AppShell.vue"), "utf8");
 const model = readFileSync(join(root, "src/components/navigator/contextMenuModel.ts"), "utf8");
 const en = JSON.parse(readFileSync(join(root, "src/i18n/locales/en.json"), "utf8"));
 
 assert.ok(browse.includes("isRecyclePath"));
 assert.ok(browse.includes("loadRecycleListing"));
 assert.ok(guide.includes("RECYCLE_PATH"));
-assert.ok(tree.includes("openRecycleBin"));
+assert.ok(shell.includes("openPlacesPath(RECYCLE_PATH)"), "places entry opens recycle");
 assert.ok(model.includes("recycleMode"));
 assert.ok(model.includes('id: "restore"'));
 assert.equal(en.recycleBin.tabName, "Recycle Bin");

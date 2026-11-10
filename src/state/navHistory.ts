@@ -3,7 +3,7 @@
 
 import { computed, ref } from "vue";
 
-/** Keep in sync with `guidePath.ts` (avoid ESM extension issues in Node checks). */
+/** Keep in sync with `guide/path.ts` (avoid ESM extension issues in Node checks). */
 const GUIDE_PATH = "afm://guide";
 
 function isGuidePath(path: string): boolean {

@@ -21,9 +21,9 @@ import {
   dirEntryFromPath,
   folderContextMenuRequest,
 } from "../state/folderContextMenu";
-import { isGuidePath } from "../state/navigatorGuide";
-import { isRecyclePath } from "../state/recyclePath";
-import { restoreRecyclePaths } from "../state/recycleBin";
+import { isGuidePath } from "../state/guide";
+import { isRecyclePath } from "../state/recycle";
+import { restoreRecyclePaths } from "../state/recycle";
 import NavigatorGuide from "../components/navigator/NavigatorGuide.vue";
 import { hydrateSettings } from "../state/settingsHydrate";
 import {

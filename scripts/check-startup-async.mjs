@@ -11,7 +11,7 @@ const read = (rel) => readFileSync(join(root, rel), "utf8");
 const hydrate = read("src/state/settingsHydrate.ts");
 const idle = read("src/state/scheduleIdle.ts");
 const browse = read("src/state/navigatorBrowse.ts");
-const wgChrome = read("src/state/workGroupChrome.ts");
+const wgChrome = read("src/state/workGroup/chrome.ts");
 const main = read("src/main.ts");
 const app = read("src/App.vue");
 const shell = read("src/components/shell/AppShell.vue");

@@ -2,12 +2,12 @@
 /** Recycle Bin listing / restore bridge. */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { FileOpsResult } from "./fileClipboard";
+import type { FileOpsResult } from "../fileClipboard";
 import {
   recycleListingFromItems,
   type RecycleBinItem,
   type RecycleNavigatorListing,
-} from "./recycleListing";
+} from "./listing";
 
 export type { RecycleBinItem };
 export { recycleListingFromItems };

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /** Pure Recycle Bin → Navigator listing mapping. */
 
-import { RECYCLE_PATH } from "./recyclePath.ts";
+import { RECYCLE_PATH } from "./path.ts";
 
 export type RecycleBinItem = {
   name: string;

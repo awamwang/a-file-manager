@@ -7,7 +7,7 @@ import {
   popRecord,
   pushRecord,
   renameUndoRecord,
-} from "../src/state/fileUndoStack.ts";
+} from "../src/state/fileUndo/stack.ts";
 import { BUILTIN_SHORTCUTS, resolveDispatchMap } from "../src/shortcuts/registry.ts";
 import { chordKey } from "../src/shortcuts/chord.ts";
 

@@ -8,14 +8,14 @@ import {
   renameEntry,
   transferEntries,
   type FileOpsResult,
-} from "./fileClipboard";
+} from "../fileClipboard";
 import {
   moveUndoRecord,
   popRecord,
   pushRecord,
   renameUndoRecord,
   type UndoRecord,
-} from "./fileUndoStack";
+} from "./stack";
 
 export type { UndoRecord };
 

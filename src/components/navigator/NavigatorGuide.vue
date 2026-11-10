@@ -12,8 +12,8 @@ import {
   userFolderItems,
   userFolders,
   type UserFolderId,
-} from "../../state/navigatorGuide";
-import { RECYCLE_PATH } from "../../state/recyclePath";
+} from "../../state/guide";
+import { RECYCLE_PATH } from "../../state/recycle";
 
 const props = defineProps<{
   /** Navigate the current tab to this OS path. */

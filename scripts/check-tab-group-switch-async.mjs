@@ -9,7 +9,7 @@ import { spawnSync } from "node:child_process";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const browse = readFileSync(join(root, "src/state/navigatorBrowse.ts"), "utf8");
-const chrome = readFileSync(join(root, "src/state/workGroupChrome.ts"), "utf8");
+const chrome = readFileSync(join(root, "src/state/workGroup/chrome.ts"), "utf8");
 const idle = readFileSync(join(root, "src/state/scheduleIdle.ts"), "utf8");
 const branch = readFileSync(
   join(root, "src/components/shell/FolderTreeBranch.vue"),

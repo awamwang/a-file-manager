@@ -13,7 +13,7 @@ import {
   recordNavHistory,
   resetNavHistory,
 } from "../src/state/navHistory.ts";
-import { GUIDE_PATH } from "../src/state/guidePath.ts";
+import { GUIDE_PATH } from "../src/state/guide/path.ts";
 
 resetNavHistory();
 assert.equal(canGoBack.value, false);

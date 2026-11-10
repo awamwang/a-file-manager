@@ -18,8 +18,8 @@ import {
 } from "../state/navigatorBrowse";
 import { displayNameFromPath } from "../state/openStateModel";
 import type { WorkGroupOpenState } from "../state/openStateModel";
-import { workGroupDisplayName } from "../state/workGroupName";
-import { workGroupsDoc } from "../state/workGroupChrome";
+import { workGroupDisplayName } from "../state/workGroup";
+import { workGroupsDoc } from "../state/workGroup";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import { openConfirmDialog } from "../state/confirmDialog";
 import { toastError, toastInfo, toastSuccess } from "../state/toast";

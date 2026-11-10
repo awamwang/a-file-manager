@@ -27,7 +27,7 @@ if (result.stderr) process.stderr.write(result.stderr);
 assert.equal(result.status, 0, "navigator-session-checks failed");
 
 const browse = read("src/state/navigatorBrowse.ts");
-const chrome = read("src/state/workGroupChrome.ts");
+const chrome = read("src/state/workGroup/chrome.ts");
 const shell = read("src/components/shell/AppShell.vue");
 
 for (const token of [

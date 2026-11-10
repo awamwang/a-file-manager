@@ -23,9 +23,9 @@ import {
   type WorkGroupOpenState,
 } from "./openStateModel";
 import { navigableParentPath, recordNavHistory } from "./navHistory";
-import { GUIDE_PATH, isGuidePath } from "./navigatorGuide";
-import { isRecyclePath, RECYCLE_PATH } from "./recyclePath";
-import { loadRecycleListing } from "./recycleBin";
+import { GUIDE_PATH, isGuidePath } from "./guide";
+import { isRecyclePath, RECYCLE_PATH } from "./recycle";
+import { loadRecycleListing } from "./recycle";
 import { readNewTabBehavior } from "./newTabBehavior";
 import { hydrateSettings } from "./settingsHydrate";
 import { recordPathVisit } from "./visitStats";

@@ -6,8 +6,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const state = readFileSync(join(root, "src/state/dualPane.ts"), "utf8");
-const layout = readFileSync(join(root, "src/state/dualPaneLayout.ts"), "utf8");
+const state = readFileSync(join(root, "src/state/dualPane/index.ts"), "utf8");
+const layout = readFileSync(join(root, "src/state/dualPane/layout.ts"), "utf8");
 const view = readFileSync(join(root, "src/views/NavigatorView.vue"), "utf8");
 const shell = readFileSync(join(root, "src/components/shell/AppShell.vue"), "utf8");
 const en = JSON.parse(readFileSync(join(root, "src/i18n/locales/en.json"), "utf8"));
@@ -15,7 +15,7 @@ const tauri = JSON.parse(readFileSync(join(root, "src-tauri/tauri.conf.json"), "
 
 assert.ok(state.includes("toggleDualPane"));
 assert.ok(state.includes("navigateSecondary"));
-assert.ok(state.includes("dualPaneLayout"), "re-exports layout clamp helpers");
+assert.ok(state.includes('from "./layout"'), "re-exports layout clamp helpers");
 assert.ok(layout.includes("DUAL_PANE_MIN_PANE_PX = 240"));
 assert.ok(layout.includes("DUAL_PANE_WINDOW_MIN_WIDTH_PX"));
 assert.ok(layout.includes("windowMinWidthForDualPane"));

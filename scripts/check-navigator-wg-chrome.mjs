@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const shell = readFileSync(join(root, "src/components/shell/AppShell.vue"), "utf8");
-const chrome = readFileSync(join(root, "src/state/workGroupChrome.ts"), "utf8");
+const chrome = readFileSync(join(root, "src/state/workGroup/chrome.ts"), "utf8");
 const wgView = readFileSync(join(root, "src/views/WorkGroupsView.vue"), "utf8");
 const en = JSON.parse(readFileSync(join(root, "src/i18n/locales/en.json"), "utf8"));
 

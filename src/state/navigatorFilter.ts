@@ -3,7 +3,7 @@
 
 import { ref, shallowRef } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { isGuidePath } from "./guidePath";
+import { isGuidePath } from "./guide/path";
 import type { NavigatorEntry } from "./navigatorBrowse";
 import { showHiddenItems } from "./showHidden";
 
