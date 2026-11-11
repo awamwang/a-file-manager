@@ -29,6 +29,10 @@ npm run build
 npm run test:rust
 ```
 
+## Dev conventions
+
+性能与非阻塞 UI：[docs/dev-performance-conventions.md](./docs/dev-performance-conventions.md)（基线见 [docs/perf-baseline.md](./docs/perf-baseline.md)、[PERF.md](./PERF.md)）。
+
 ## Release
 
 Version sources (keep in sync): `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`.

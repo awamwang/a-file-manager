@@ -1,5 +1,7 @@
 # Performance ledger
 
+开发约定（特性性能分析 / 基线 / 非阻塞 UI）：[docs/dev-performance-conventions.md](./docs/dev-performance-conventions.md)。
+
 Follows the performance-optimization skill: measure → identify → fix → verify → keep/revert.
 
 | Idea | Baseline → Result | Verdict | Why |
