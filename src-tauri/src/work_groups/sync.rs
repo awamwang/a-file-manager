@@ -183,6 +183,32 @@ pub fn rename_work_group_in_list(
     Ok(next)
 }
 
+/// 将工作组从 `from_id` 位置拖到 `to_id` 当前位置，持久化数组顺序即 UI 顺序。
+pub fn reorder_work_groups_in_list(
+    document: &UserWorkGroups,
+    from_id: &str,
+    to_id: &str,
+) -> Result<UserWorkGroups, String> {
+    let mut groups = document.work_groups.clone();
+    let from = groups
+        .iter()
+        .position(|group| group.id == from_id)
+        .ok_or_else(|| format!("Unknown Work Group: {from_id}"))?;
+    let to = groups
+        .iter()
+        .position(|group| group.id == to_id)
+        .ok_or_else(|| format!("Unknown Work Group: {to_id}"))?;
+    if from == to {
+        return Ok(document.clone());
+    }
+    let item = groups.remove(from);
+    groups.insert(to, item);
+    Ok(UserWorkGroups {
+        work_groups: groups,
+        active_work_group_id: document.active_work_group_id.clone(),
+    })
+}
+
 pub fn delete_work_group_in_list(
     document: &UserWorkGroups,
     work_group_id: &str,
@@ -553,6 +579,40 @@ mod tests {
         assert_eq!(list.len(), 2);
         assert_eq!(created.name, "Focus");
         assert!(!created.is_default);
+    }
+
+    #[test]
+    fn reorder_work_groups_moves_item_and_keeps_active() {
+        let default = create_default_work_group(None);
+        let a = WorkGroup {
+            id: "wg-a".into(),
+            name: "A".into(),
+            is_default: false,
+            member_paths: Vec::new(),
+            open_state: None,
+        };
+        let b = WorkGroup {
+            id: "wg-b".into(),
+            name: "B".into(),
+            is_default: false,
+            member_paths: Vec::new(),
+            open_state: None,
+        };
+        let document = UserWorkGroups {
+            work_groups: vec![default.clone(), a.clone(), b.clone()],
+            active_work_group_id: a.id.clone(),
+        };
+        let next = reorder_work_groups_in_list(&document, &b.id, &default.id).unwrap();
+        assert_eq!(
+            next.work_groups
+                .iter()
+                .map(|g| g.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["wg-b", DEFAULT_WORK_GROUP_ID, "wg-a"]
+        );
+        assert_eq!(next.active_work_group_id, a.id);
+        let same = reorder_work_groups_in_list(&next, &b.id, &b.id).unwrap();
+        assert_eq!(same.work_groups.len(), 3);
     }
 
     #[test]

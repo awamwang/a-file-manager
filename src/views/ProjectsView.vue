@@ -19,6 +19,7 @@ import {
 } from "../state/navigatorBrowse";
 import { openConfirmDialog } from "../state/confirmDialog";
 import { toastError, toastInfo, toastSuccess } from "../state/toast";
+import { createListPointerReorder } from "../state/listPointerReorder";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import type { FluentGlyphId } from "../components/icons/glyphs";
 import { AI_ADDON_ENABLED } from "../config/flavor";
@@ -307,6 +308,53 @@ async function selectProject(id: string) {
   } catch (err) {
     error.value = mapProjectError(err);
   }
+}
+
+async function reorderProjects(fromId: string, toId: string) {
+  error.value = null;
+  try {
+    const list = await invoke<WorkspaceListResult>("projects_workspace_reorder", {
+      fromSlug: fromId,
+      toSlug: toId,
+    });
+    const prior = document.value;
+    const projects = list.workspaces.map((w) => {
+      const old = prior?.projects.find((p) => p.id === w.project.slug);
+      return mapListItem(
+        w,
+        old
+          ? {
+              workspaceLinks: old.workspaceLinks,
+              tasks: old.tasks,
+              contextNotes: old.contextNotes,
+            }
+          : undefined,
+      );
+    });
+    document.value = {
+      projects,
+      activeProjectId: list.activeSlug,
+    };
+  } catch (err) {
+    error.value = mapProjectError(err);
+    toastError(error.value);
+  }
+}
+
+const {
+  dragFromId: listDragFromId,
+  dragOverId: listDragOverId,
+  dragMoved: listDragMoved,
+  onPointerDown: onListPointerDown,
+  shouldSuppressActivate: shouldSuppressProjectActivate,
+  dispose: disposeListReorder,
+} = createListPointerReorder({
+  onReorder: reorderProjects,
+});
+
+async function onProjectActivate(id: string) {
+  if (shouldSuppressProjectActivate()) return;
+  await selectProject(id);
 }
 
 async function createProject() {
@@ -863,6 +911,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener("pointerdown", onProjectDetailPointerDown, true);
+  disposeListReorder();
 });
 </script>
 
@@ -884,12 +933,18 @@ onUnmounted(() => {
             v-for="project in document.projects"
             :key="project.id"
             class="fluent-surface group"
-            :class="{ 'group--active': project.id === selectedId }"
+            :class="{
+              'group--active': project.id === selectedId,
+              'group--dragging': listDragFromId === project.id && listDragMoved,
+              'group--drop-target': listDragOverId === project.id,
+            }"
             role="button"
             tabindex="0"
             :data-list-item-id="project.id"
-            @click="selectProject(project.id)"
-            @keydown.enter.prevent="selectProject(project.id)"
+            :title="t('projects.dragReorderHint')"
+            @pointerdown="onListPointerDown($event, project.id)"
+            @click="onProjectActivate(project.id)"
+            @keydown.enter.prevent="onProjectActivate(project.id)"
           >
             <div class="group-top">
               <span class="group-head">
@@ -1442,6 +1497,19 @@ onUnmounted(() => {
   border-color: var(--fluent-color-stroke-accent-soft);
   background: var(--fluent-color-fill-selected);
   box-shadow: inset 3px 0 0 var(--fluent-color-stroke-accent-soft);
+}
+
+.group--dragging {
+  opacity: 0.55;
+}
+
+.group--drop-target {
+  outline: 2px solid var(--fluent-color-stroke-accent-soft, var(--fluent-color-fill-accent));
+  outline-offset: -2px;
+}
+
+.group:active {
+  cursor: grabbing;
 }
 
 .create,

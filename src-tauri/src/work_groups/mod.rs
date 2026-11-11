@@ -10,8 +10,8 @@ use store::{load_from_path, save_to_path};
 use sync::{
     add_member_to_hard_config, copy_work_group_in_list, create_and_activate_work_group,
     delete_work_group_in_list, remove_member_from_hard_config, rename_work_group_in_list,
-    save_members_from_open_state_to_hard, save_runtime_open_state_to_hard,
-    silent_switch_work_group,
+    reorder_work_groups_in_list, save_members_from_open_state_to_hard,
+    save_runtime_open_state_to_hard, silent_switch_work_group,
 };
 use tauri::{AppHandle, Manager};
 use types::{
@@ -135,6 +135,20 @@ pub fn work_groups_delete(
     let dir = config_dir(&app)?;
     let document = load_from_path(&dir)?;
     let next = delete_work_group_in_list(&document, &work_group_id)?;
+    save_to_path(&dir, &next)?;
+    Ok(next)
+}
+
+/// 拖动调整工作组列表顺序并写入 work-groups.json。
+#[tauri::command]
+pub fn work_groups_reorder(
+    app: AppHandle,
+    from_id: String,
+    to_id: String,
+) -> Result<UserWorkGroups, String> {
+    let dir = config_dir(&app)?;
+    let document = load_from_path(&dir)?;
+    let next = reorder_work_groups_in_list(&document, &from_id, &to_id)?;
     save_to_path(&dir, &next)?;
     Ok(next)
 }

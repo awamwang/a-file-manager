@@ -474,6 +474,7 @@
     "renamePrompt": "Projektname",
     "renamed": "Projekt umbenannt",
     "renameHint": "Doppelklick zum Umbenennen",
+    "dragReorderHint": "Ziehen zum Neuordnen",
     "openWorkspaceFolder": "Workspace-Ordner öffnen",
     "openWorkspaceFolderHint": "Öffnet diesen Project-Workspace-Ordner im Datei-Explorer",
     "noticeOpenedWorkspace": "Workspace-Ordner geöffnet",
@@ -776,7 +777,8 @@
     "deleted": "Arbeitsgruppe gelöscht",
     "deleteConfirmClearTabs": "Arbeitsgruppe \"{name}\" löschen? Gespeicherte Open-State-Registerkarten werden entfernt. Bei aktiver Gruppe wird zur Standardgruppe gewechselt.",
     "deletedSwitched": "Arbeitsgruppe gelöscht; zur Standardgruppe gewechselt",
-    "renameHint": "Doppelklick zum Umbenennen"
+    "renameHint": "Doppelklick zum Umbenennen",
+    "dragReorderHint": "Ziehen zum Neuordnen"
   },
   "shortcuts": {
     "meta": "Eingebaute Akkorde aus der zentralen Registry. Bei Konflikten gewinnt die erste Registrierung; blockierte Einträge bleiben gelistet.",

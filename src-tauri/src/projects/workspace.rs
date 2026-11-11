@@ -318,6 +318,37 @@ pub fn list_workspaces(projects_root: &Path) -> Result<Vec<WorkspaceListItem>, S
     Ok(items)
 }
 
+/// 按 thin-index `workspaceOrder` 重排列表；未收录的 slug 保持相对顺序排在末尾。
+pub fn apply_workspace_order(
+    mut items: Vec<WorkspaceListItem>,
+    order: &[String],
+) -> Vec<WorkspaceListItem> {
+    if order.is_empty() || items.len() < 2 {
+        return items;
+    }
+    let rank: std::collections::HashMap<String, usize> = order
+        .iter()
+        .enumerate()
+        .map(|(i, slug)| (slug.to_ascii_lowercase(), i))
+        .collect();
+    items.sort_by(|a, b| {
+        let ra = rank.get(&a.project.slug.to_ascii_lowercase());
+        let rb = rank.get(&b.project.slug.to_ascii_lowercase());
+        match (ra, rb) {
+            (Some(i), Some(j)) => i.cmp(j),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => a
+                .project
+                .display_name
+                .to_ascii_lowercase()
+                .cmp(&b.project.display_name.to_ascii_lowercase())
+                .then_with(|| a.project.slug.cmp(&b.project.slug)),
+        }
+    });
+    items
+}
+
 /// Bind or unbind a non-default Work Group on a Workspace `project.json` (C3).
 pub fn bind_workspace_work_group(
     projects_root: &Path,

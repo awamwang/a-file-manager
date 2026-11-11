@@ -20,6 +20,7 @@ import { displayNameFromPath } from "../state/openState";
 import type { WorkGroupOpenState } from "../state/openState";
 import { workGroupDisplayName } from "../state/workGroup";
 import { workGroupsDoc } from "../state/workGroup";
+import { createListPointerReorder } from "../state/listPointerReorder";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import { openConfirmDialog } from "../state/confirmDialog";
 import { toastError, toastInfo, toastSuccess } from "../state/toast";
@@ -131,6 +132,38 @@ async function createGroup() {
     result.document.activeWorkGroupId,
     result.openStateToRestore,
   );
+}
+
+async function reorderGroups(fromId: string, toId: string) {
+  error.value = null;
+  try {
+    const next = await invoke<UserWorkGroups>("work_groups_reorder", {
+      fromId,
+      toId,
+    });
+    document.value = next;
+    rememberHydratedWorkGroups(next);
+    workGroupsDoc.value = next;
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err);
+    toastError(error.value);
+  }
+}
+
+const {
+  dragFromId: listDragFromId,
+  dragOverId: listDragOverId,
+  dragMoved: listDragMoved,
+  onPointerDown: onListPointerDown,
+  shouldSuppressActivate: shouldSuppressGroupActivate,
+  dispose: disposeListReorder,
+} = createListPointerReorder({
+  onReorder: reorderGroups,
+});
+
+async function onGroupActivate(targetId: string) {
+  if (shouldSuppressGroupActivate()) return;
+  await silentSwitch(targetId);
 }
 
 async function silentSwitch(targetId: string) {
@@ -549,6 +582,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener("pointerdown", onDetailPointerDown, true);
+  disposeListReorder();
 });
 </script>
 
@@ -571,12 +605,18 @@ onUnmounted(() => {
             v-for="group in document.workGroups"
             :key="group.id"
             class="fluent-surface group"
-            :class="{ 'group--active': group.id === document.activeWorkGroupId }"
+            :class="{
+              'group--active': group.id === document.activeWorkGroupId,
+              'group--dragging': listDragFromId === group.id && listDragMoved,
+              'group--drop-target': listDragOverId === group.id,
+            }"
             role="button"
             tabindex="0"
             :data-list-item-id="group.id"
-            @click="silentSwitch(group.id)"
-            @keydown.enter.prevent="silentSwitch(group.id)"
+            :title="t('workGroups.dragReorderHint')"
+            @pointerdown="onListPointerDown($event, group.id)"
+            @click="onGroupActivate(group.id)"
+            @keydown.enter.prevent="onGroupActivate(group.id)"
           >
             <div class="group-top">
               <span class="group-head">
@@ -1045,6 +1085,19 @@ onUnmounted(() => {
   border-color: var(--fluent-color-stroke-accent-soft);
   background: var(--fluent-color-fill-selected);
   box-shadow: inset 3px 0 0 var(--fluent-color-stroke-accent-soft);
+}
+
+.group--dragging {
+  opacity: 0.55;
+}
+
+.group--drop-target {
+  outline: 2px solid var(--fluent-color-stroke-accent-soft, var(--fluent-color-fill-accent));
+  outline-offset: -2px;
+}
+
+.group:active {
+  cursor: grabbing;
 }
 
 .create,

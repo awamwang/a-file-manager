@@ -474,6 +474,7 @@
     "renamePrompt": "Nom du projet",
     "renamed": "Projet renommé",
     "renameHint": "Double-cliquez pour renommer",
+    "dragReorderHint": "Glisser pour réordonner",
     "openWorkspaceFolder": "Ouvrir le dossier Workspace",
     "openWorkspaceFolderHint": "Ouvre ce dossier Project Workspace dans l’Explorateur",
     "noticeOpenedWorkspace": "Dossier Workspace ouvert",
@@ -776,7 +777,8 @@
     "deleted": "Groupe de travail supprimé",
     "deleteConfirmClearTabs": "Supprimer le groupe « {name} » ? Ses onglets Open State enregistrés seront effacés. S'il est actif, bascule vers le groupe par défaut.",
     "deletedSwitched": "Groupe supprimé ; bascule vers le défaut",
-    "renameHint": "Double-cliquez pour renommer"
+    "renameHint": "Double-cliquez pour renommer",
+    "dragReorderHint": "Glisser pour réordonner"
   },
   "shortcuts": {
     "meta": "Accords intégrés du registre central. En cas de conflit, le premier enregistrement gagne ; les lignes bloquées restent listées.",

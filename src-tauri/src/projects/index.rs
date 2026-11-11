@@ -63,7 +63,7 @@ pub struct ActiveProjectRef {
     pub path: String,
 }
 
-/// APPDATA thin index — Root path + activeProject only (ADR 0007).
+/// APPDATA thin index — Root path + activeProject + optional UI list order (ADR 0007).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectsIndex {
@@ -71,6 +71,9 @@ pub struct ProjectsIndex {
     /// Absolute Projects Root path (effective).
     pub projects_root: String,
     pub active_project: Option<ActiveProjectRef>,
+    /// UI list order of Workspace slugs (FIL-45). Empty → list keeps scan/alpha order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub workspace_order: Vec<String>,
 }
 
 impl ProjectsIndex {
@@ -79,8 +82,89 @@ impl ProjectsIndex {
             schema_version: INDEX_SCHEMA_VERSION,
             projects_root: projects_root.into(),
             active_project: None,
+            workspace_order: Vec::new(),
         }
     }
+
+    /// Append slug when a custom order is already being tracked.
+    pub fn append_workspace_order(mut self, slug: &str) -> Self {
+        if self.workspace_order.is_empty() {
+            return self;
+        }
+        if !self
+            .workspace_order
+            .iter()
+            .any(|s| s.eq_ignore_ascii_case(slug))
+        {
+            self.workspace_order.push(slug.to_string());
+        }
+        self
+    }
+
+    pub fn remove_workspace_order(mut self, slug: &str) -> Self {
+        self.workspace_order
+            .retain(|s| !s.eq_ignore_ascii_case(slug));
+        self
+    }
+
+    pub fn rename_workspace_order(mut self, old_slug: &str, new_slug: &str) -> Self {
+        if old_slug.eq_ignore_ascii_case(new_slug) {
+            return self;
+        }
+        for entry in &mut self.workspace_order {
+            if entry.eq_ignore_ascii_case(old_slug) {
+                *entry = new_slug.to_string();
+            }
+        }
+        self
+    }
+}
+
+/// Move `from_slug` to the position currently occupied by `to_slug` within `order`.
+/// When `order` is empty, seed from `fallback_slugs` (current list order) first.
+pub fn reorder_workspace_slugs(
+    order: &[String],
+    fallback_slugs: &[String],
+    from_slug: &str,
+    to_slug: &str,
+) -> Result<Vec<String>, String> {
+    let mut next = if order.is_empty() {
+        fallback_slugs.to_vec()
+    } else {
+        let mut known: Vec<String> = order
+            .iter()
+            .filter(|s| {
+                fallback_slugs
+                    .iter()
+                    .any(|f| f.eq_ignore_ascii_case(s.as_str()))
+            })
+            .cloned()
+            .collect();
+        for slug in fallback_slugs {
+            if !known
+                .iter()
+                .any(|s| s.eq_ignore_ascii_case(slug.as_str()))
+            {
+                known.push(slug.clone());
+            }
+        }
+        known
+    };
+
+    let from = next
+        .iter()
+        .position(|s| s.eq_ignore_ascii_case(from_slug))
+        .ok_or_else(|| ERR_PROJECT_SLUG_INVALID.to_string())?;
+    let to = next
+        .iter()
+        .position(|s| s.eq_ignore_ascii_case(to_slug))
+        .ok_or_else(|| ERR_PROJECT_SLUG_INVALID.to_string())?;
+    if from == to {
+        return Ok(next);
+    }
+    let item = next.remove(from);
+    next.insert(to, item);
+    Ok(next)
 }
 
 pub fn projects_index_file_path(config_dir: &Path) -> PathBuf {
@@ -274,9 +358,35 @@ mod tests {
         assert_eq!(index.schema_version, INDEX_SCHEMA_VERSION);
         assert_eq!(index.projects_root, expected_root);
         assert!(index.active_project.is_none());
+        assert!(index.workspace_order.is_empty());
         assert!(dir.join("projects").is_dir());
         assert!(projects_index_file_path(&dir).is_file());
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn workspace_order_helpers_and_reorder() {
+        let base = ProjectsIndex::empty(r"D:\projects");
+        assert!(base.workspace_order.is_empty());
+        // 尚未跟踪顺序时，append 为 no-op。
+        assert!(base.clone().append_workspace_order("a").workspace_order.is_empty());
+
+        let tracked = ProjectsIndex {
+            workspace_order: vec!["a".into(), "b".into(), "c".into()],
+            ..base
+        };
+        let appended = tracked.clone().append_workspace_order("d");
+        assert_eq!(appended.workspace_order, vec!["a", "b", "c", "d"]);
+        let removed = appended.remove_workspace_order("b");
+        assert_eq!(removed.workspace_order, vec!["a", "c", "d"]);
+        let renamed = removed.rename_workspace_order("c", "c2");
+        assert_eq!(renamed.workspace_order, vec!["a", "c2", "d"]);
+
+        let fallback = vec!["a".into(), "b".into(), "c".into()];
+        let moved = reorder_workspace_slugs(&[], &fallback, "c", "a").unwrap();
+        assert_eq!(moved, vec!["c", "a", "b"]);
+        let moved2 = reorder_workspace_slugs(&moved, &fallback, "a", "b").unwrap();
+        assert_eq!(moved2, vec!["c", "b", "a"]);
     }
 
     #[test]

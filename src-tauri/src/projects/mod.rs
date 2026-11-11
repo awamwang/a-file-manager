@@ -28,7 +28,10 @@ use crate::work_groups::store as wg_store;
 use crate::work_groups::types::WorkGroupOpenState;
 use board::{BoardTask, BoardTaskPatch, WorkspaceBoard};
 use helpers::validate_bindable_work_group;
-use index::{load_from_path as load_index_from_path, save_to_path as save_index_to_path, ProjectsIndex};
+use index::{
+    load_from_path as load_index_from_path, reorder_workspace_slugs,
+    save_to_path as save_index_to_path, ProjectsIndex,
+};
 use lifecycle::{
     CopyWorkspaceResult, DeleteWorkspaceResult, PromoteWorkspaceResult, RenameWorkspaceResult,
 };
@@ -108,13 +111,19 @@ pub fn projects_workspace_create(
         None
     };
 
-    workspace::create_workspace_at(
+    let created = workspace::create_workspace_at(
         &root,
         &display_name,
         description.as_deref(),
         slug.as_deref(),
         bound,
-    )
+    )?;
+    let prior_order_len = index.workspace_order.len();
+    let next_index = index.append_workspace_order(&created.project.slug);
+    if next_index.workspace_order.len() != prior_order_len {
+        save_index_to_path(&dir, &next_index)?;
+    }
+    Ok(created)
 }
 
 /// Scan Projects Root for Workspaces (`project.json` dirs).
@@ -122,7 +131,37 @@ pub fn projects_workspace_create(
 pub fn projects_workspace_list(app: AppHandle) -> Result<WorkspaceListResult, String> {
     let index = load_index(&app)?;
     let root = std::path::PathBuf::from(&index.projects_root);
-    let workspaces = workspace::list_workspaces(&root)?;
+    let workspaces =
+        workspace::apply_workspace_order(workspace::list_workspaces(&root)?, &index.workspace_order);
+    Ok(WorkspaceListResult {
+        projects_root: index.projects_root,
+        active_slug: index.active_project.map(|a| a.slug),
+        workspaces,
+    })
+}
+
+/// 拖动调整项目列表顺序，写入 thin-index `workspaceOrder`。
+#[tauri::command]
+pub fn projects_workspace_reorder(
+    app: AppHandle,
+    from_slug: String,
+    to_slug: String,
+) -> Result<WorkspaceListResult, String> {
+    let dir = config_dir(&app)?;
+    let mut index = load_index(&app)?;
+    let root = std::path::PathBuf::from(&index.projects_root);
+    let listed = workspace::apply_workspace_order(
+        workspace::list_workspaces(&root)?,
+        &index.workspace_order,
+    );
+    let fallback: Vec<String> = listed
+        .iter()
+        .map(|item| item.project.slug.clone())
+        .collect();
+    index.workspace_order =
+        reorder_workspace_slugs(&index.workspace_order, &fallback, &from_slug, &to_slug)?;
+    save_index_to_path(&dir, &index)?;
+    let workspaces = workspace::apply_workspace_order(listed, &index.workspace_order);
     Ok(WorkspaceListResult {
         projects_root: index.projects_root,
         active_slug: index.active_project.map(|a| a.slug),
@@ -311,7 +350,8 @@ pub fn projects_workspace_delete(
     let dir = config_dir(&app)?;
     let index = load_index(&app)?;
     let root = std::path::PathBuf::from(&index.projects_root);
-    let result = lifecycle::delete_workspace(&root, &index, &slug)?;
+    let mut result = lifecycle::delete_workspace(&root, &index, &slug)?;
+    result.index = result.index.remove_workspace_order(&slug);
     save_index_to_path(&dir, &result.index)?;
     Ok(result)
 }
@@ -327,13 +367,16 @@ pub fn projects_workspace_rename(
     let dir = config_dir(&app)?;
     let index = load_index(&app)?;
     let root = std::path::PathBuf::from(&index.projects_root);
-    let result = lifecycle::rename_workspace(
+    let mut result = lifecycle::rename_workspace(
         &root,
         &index,
         &slug,
         display_name.as_deref(),
         new_slug.as_deref(),
     )?;
+    result.index = result
+        .index
+        .rename_workspace_order(&slug, &result.workspace.project.slug);
     save_index_to_path(&dir, &result.index)?;
     Ok(result)
 }
@@ -351,8 +394,11 @@ pub async fn projects_workspace_promote_from_work_group(
         let index = load_index(&app)?;
         let root = std::path::PathBuf::from(&index.projects_root);
         let wgs = wg_store::load_from_path(&dir)?;
-        let result =
+        let mut result =
             lifecycle::promote_work_group_to_workspace(&root, &wgs, &work_group_id, &index)?;
+        result.index = result
+            .index
+            .append_workspace_order(&result.workspace.project.slug);
         save_index_to_path(&dir, &result.index)?;
         Ok(result)
     })
@@ -373,6 +419,12 @@ pub fn projects_workspace_copy(
     let (result, wgs_next) = lifecycle::copy_workspace(&root, &wgs, &slug)?;
     if result.copied_work_group.is_some() {
         wg_store::save_to_path(&dir, &wgs_next)?;
+    }
+    // copy_workspace 不改 thin-index；有自定义顺序时把副本追加到末尾。
+    let prior_order_len = index.workspace_order.len();
+    let next_index = index.append_workspace_order(&result.workspace.project.slug);
+    if next_index.workspace_order.len() != prior_order_len {
+        save_index_to_path(&dir, &next_index)?;
     }
     Ok(result)
 }

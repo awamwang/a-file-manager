@@ -741,7 +741,8 @@
     "deleted": "工作组已删除",
     "deleteConfirmClearTabs": "删除工作组「{name}」？将清除其保存的 Open State 标签。若当前正使用该组，将切换到默认工作组。",
     "deletedSwitched": "工作组已删除；已切换到默认",
-    "renameHint": "双击可改名"
+    "renameHint": "双击可改名",
+    "dragReorderHint": "拖动可调整顺序"
   },
   "projects": {
     "title": "项目",
@@ -797,6 +798,7 @@
     "renamePrompt": "项目名称",
     "renamed": "项目已重命名",
     "renameHint": "双击可改名",
+    "dragReorderHint": "拖动可调整顺序",
     "openWorkspaceFolder": "打开工作区文件夹",
     "openWorkspaceFolderHint": "在资源管理器中打开本 Project Workspace 目录",
     "noticeOpenedWorkspace": "已打开工作区文件夹",
