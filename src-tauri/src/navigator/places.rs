@@ -232,26 +232,67 @@ fn volume_label_for_root(_path: &str) -> String {
     String::new()
 }
 
-/// Enumerate mounted local drive roots (`A:\` … `Z:\`) that currently exist as directories.
+/// Enumerate mounted drive roots (`A:\` … `Z:\`).
+///
+/// FIL-54: 用 `GetLogicalDrives` 位图，避免对离线映射盘 / 空光驱反复 `is_dir` /
+/// `GetVolumeInformation` 把引导页与侧栏拖死；远程卷跳过卷标探测。
 pub fn list_drives() -> Result<Vec<DriveInfo>, String> {
-    let mut drives = Vec::new();
-    for code in b'A'..=b'Z' {
-        let letter = (code as char).to_string();
-        let path = format!("{letter}:\\");
-        let root = Path::new(&path);
-        if !root.is_dir() {
-            continue;
+    #[cfg(windows)]
+    {
+        use windows::Win32::Storage::FileSystem::GetLogicalDrives;
+
+        let mask = unsafe { GetLogicalDrives() };
+        let mut drives = Vec::new();
+        for i in 0..26u32 {
+            if mask & (1 << i) == 0 {
+                continue;
+            }
+            let letter = ((b'A' + i as u8) as char).to_string();
+            let path = format!("{letter}:\\");
+            let kind = drive_kind_for_root(&path);
+            // 固定/可移动仍确认目录存在；远程/光驱/RAM 仅信驱动器类型，避免离线挂起。
+            let present = match kind {
+                DriveKind::Remote | DriveKind::Cdrom | DriveKind::Ramdisk => true,
+                _ => Path::new(&path).is_dir(),
+            };
+            if !present {
+                continue;
+            }
+            let label = match kind {
+                DriveKind::Fixed | DriveKind::Removable => volume_label_for_root(&path),
+                _ => String::new(),
+            };
+            drives.push(DriveInfo {
+                letter: letter.clone(),
+                path,
+                label,
+                kind,
+            });
         }
-        let kind = drive_kind_for_root(&path);
-        let label = volume_label_for_root(&path);
-        drives.push(DriveInfo {
-            letter: letter.clone(),
-            path,
-            label,
-            kind,
-        });
+        return Ok(drives);
     }
-    Ok(drives)
+
+    #[cfg(not(windows))]
+    {
+        let mut drives = Vec::new();
+        for code in b'A'..=b'Z' {
+            let letter = (code as char).to_string();
+            let path = format!("{letter}:\\");
+            let root = Path::new(&path);
+            if !root.is_dir() {
+                continue;
+            }
+            let kind = drive_kind_for_root(&path);
+            let label = volume_label_for_root(&path);
+            drives.push(DriveInfo {
+                letter: letter.clone(),
+                path,
+                label,
+                kind,
+            });
+        }
+        Ok(drives)
+    }
 }
 
 #[cfg(test)]

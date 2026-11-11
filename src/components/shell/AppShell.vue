@@ -2082,8 +2082,10 @@ onUnmounted(() => {
             v-if="!addressEditing"
             id="navigator-crumb-menu"
             class="breadcrumbs"
+            :class="{ 'breadcrumbs--loading': route.path === '/navigator' && listLoading }"
             role="navigation"
             :aria-label="t('chrome.breadcrumbs')"
+            :aria-busy="route.path === '/navigator' && listLoading ? 'true' : undefined"
             @click="focusAddressBar"
           >
             <template v-if="breadcrumbs.length">
@@ -2660,6 +2662,7 @@ onUnmounted(() => {
 }
 
 .breadcrumbs {
+  position: relative;
   flex: 1;
   display: flex;
   align-items: center;
@@ -2675,6 +2678,35 @@ onUnmounted(() => {
 
 .breadcrumbs:hover {
   background: var(--fluent-color-fill-subtle-secondary);
+}
+
+/* FIL-54: 非磁盘慢路径加载时路径栏底边轻提示，不遮挡交互。 */
+.breadcrumbs--loading::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--fluent-color-fill-accent) 35%,
+    var(--fluent-color-fill-accent) 65%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: breadcrumbs-loading-sweep 1.1s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes breadcrumbs-loading-sweep {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
 }
 
 .crumb-seg {

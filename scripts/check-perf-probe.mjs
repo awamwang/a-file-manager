@@ -47,6 +47,15 @@ assert.ok(perfLog.includes("AFM_PERF_LOG"), "Rust perf_log supports file sink");
 
 const navMod = read("src-tauri/src/navigator/mod.rs");
 assert.ok(navMod.includes("afm_perf_line"), "navigator_list logs via perf_log");
+assert.ok(
+  /pub async fn navigator_list[\s\S]*?spawn_blocking/.test(navMod),
+  "FIL-54/55: navigator_list async + spawn_blocking (baseline critical path)",
+);
+assert.ok(navMod.includes("navigator_list_drives"), "S7 list_drives command present");
+assert.ok(
+  navMod.includes("AFM_PERF navigator_list_drives") || navMod.includes("navigator_list_drives n="),
+  "S7 list_drives joins AFM_PERF baseline log",
+);
 
 const shellMod = read("src-tauri/src/shell_icons/mod.rs");
 assert.ok(shellMod.includes("afm_perf_line"), "shell_icon_get_many logs via perf_log");

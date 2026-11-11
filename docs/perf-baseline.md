@@ -39,6 +39,7 @@ $env:AFM_PERF_LOG = "G:\Projects\Tools\a-file-manager\.perf-fixtures\afm-perf.lo
 | S4 | 图标视图滚动缩略图 | 同 S3，`preferThumbnail` | icon batch 耗时与队列积压 |
 | S5 | Tab / 工作组切换 | 两路径已打开过 | `tab_switch` 到 listing 就绪 |
 | S6 | 窗口回焦刷新 | 已打开目录 | focus debounce 后的 re-list |
+| S7 | 非磁盘 / 特殊路径 | UNC、映射网络盘、OneDrive、Libraries、`navigator_list_drives` / `shell_places` | UI 不冻结；`listLoading` + 路径栏提示；IPC 在 blocking 池 |
 
 ## 卡点 → 代码路径
 
@@ -52,6 +53,8 @@ $env:AFM_PERF_LOG = "G:\Projects\Tools\a-file-manager\.perf-fixtures\afm-perf.lo
 | Rust 纯列举（无 IPC） | `src-tauri/src/navigator/list.rs` `bench_list_large_directory` | `AFM_PERF list_directory` |
 | Rust JSON 序列化对照 | 同上 bench | `AFM_PERF list_serde_json` |
 | Rust icon/thumb 冷热 | `shell_icons::tests::bench_shell_icon_batch` | `AFM_PERF shell_icon_batch` |
+| 驱动器 / Shell places（S7） | `navigator/places.rs` → `navigator_list_drives` / `navigator_shell_places` | `AFM_PERF` + FE `listLoading` / 路径栏 `breadcrumbs--loading` |
+| UNC / 远程列举（S7） | `navigatorBrowse.navigateTo` → `navigator_list` | `navigator_list`（墙钟可长；不得阻塞 UI） |
 
 ## 分类矩阵
 
@@ -68,6 +71,9 @@ $env:AFM_PERF_LOG = "G:\Projects\Tools\a-file-manager\.perf-fixtures\afm-perf.lo
 | S5 | `tab_switch` | `switchNavigatorTab*` | 动态 | IPC, 主线程 | 是 | 切换本身轻，墙钟≈listing | 见 Run #1 |
 | S6 | focus re-list | `refreshActiveListing` | 动态 | IO, IPC | 部分 | 400ms debounce 后触发 | 见 Run #1 |
 | — | `tree_list` | `FolderTreeBranch.loadChildren` | 动态 | IO, IPC | 否（延后） | afterPaint，不抢首屏 | 见 Run #1 |
+| S7 | `navigator_list_drives` / `shell_places` | `guide/index.ts` `loadNavigatorPlaces` | 一次/会话 | IO, IPC | 是（引导/侧栏） | 离线映射盘不得冻 UI；位图枚举 + 远程跳过卷标 | FIL-54 守卫 |
+| S7 | UNC / 远程 `navigator_list` | `navigatorBrowse.navigateTo` | 动态 | IO, IPC, 网络 | 是 | 墙钟可变长；`browseEpoch` 作废；路径栏/内容区加载提示 | FIL-54 守卫 |
+| S7 | 回收站打开 | `open_recycle_bin_system` | 一次 | IPC | 否（外开） | FIL-52：系统 Explorer，不在 AFM 内枚举 | 回归守卫 |
 
 ## 环境与数据约定
 
@@ -222,6 +228,27 @@ cargo test --manifest-path src-tauri/Cargo.toml --lib shell_icons::tests::bench_
 - **明确不做**：壳图标→缩略图两阶段绘制（避免图标跳变）。
 - **守卫**：`npm run test:shell-icons`。
 
+## Run #4（FIL-54：非磁盘路径非阻塞）
+
+- **日期**：2026-11-12
+- **改动**：`navigator_list` / `stat` / `search` / attrs / drives / shell_places / disk_space → `async` + `spawn_blocking`；`list_drives` 用 `GetLogicalDrives`，远程卷跳过 `GetVolumeInformation`；路径栏 `breadcrumbs--loading`；回收站仍走 FIL-52 系统打开。
+- **成功标准**：慢路径（UNC / 离线映射盘 / places）不得冻 WebView；导航离开作废 listing；基线场景 S2/S3 的 `navigator_list` span 仍可用；守卫 `npm run test:navigator-nonblocking` + `test:perf-probe` + `test:recycle-bin`。
+- **说明**：S7 墙钟高度依赖网络可达性，不设固定 ms 门槛；以「UI 可交互 + 探针仍接线」为合入门槛。补测时开 `afm.perfProbe` / `AFM_PERF` 记录 UNC 与 `list_drives` 样本即可。对齐性能与非阻塞 UI 约定（FIL-55）。
+
+```json
+{
+  "run": 4,
+  "date": "2026-11-12",
+  "git_sha": "fil-54",
+  "machine": { "os": "Windows 11", "build": "debug", "notes": "FIL-54 non-disk nonblocking" },
+  "samples": [
+    { "scenario": "S7", "op": "navigator_list_async", "notes": "spawn_blocking; UI listLoading + path-bar hint" },
+    { "scenario": "S7", "op": "list_drives", "notes": "GetLogicalDrives; remote skips volume label" },
+    { "scenario": "S7", "op": "recycle_open", "notes": "FIL-52 shell:RecycleBinFolder unchanged" }
+  ]
+}
+```
+
 ## 下一阶段候选（按数据排序）
 
 1. **侧栏树祖先列举** — 进深路径多次 `navigator_list`；非关键但争用 IO/IPC。
@@ -229,3 +256,4 @@ cargo test --manifest-path src-tauri/Cargo.toml --lib shell_icons::tests::bench_
 3. **进一步 IPC** — 按视图延迟 `size`/`modifiedMs`（细节视图再取），收益需再测。
 4. **分组图标多列窗口化** — 若需恢复分组下的多列网格，需网格感知的变高窗口（当前用纵向流）。
 5. **缩略图首批墙钟** — 实机首批仍可到 ~145ms（Shell 冷 COM）；视觉跳变已用占位消除，墙钟可另测。
+6. **S7 UNC 墙钟样本** — 在可达/不可达共享上补 `AFM_PERF` 中位数（不要求低于磁盘基线）。
