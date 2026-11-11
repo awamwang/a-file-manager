@@ -716,13 +716,6 @@ const primaryWindowedItems = computed(() => {
   return items.slice(win.startIndex, win.endIndex);
 });
 
-/** 图标观察仍只要条目路径。 */
-const primaryWindowedEntries = computed(() =>
-  primaryWindowedItems.value
-    .filter((item): item is Extract<ListVirtItem, { kind: "entry" }> => item.kind === "entry")
-    .map((item) => item.entry),
-);
-
 const secondaryWindowedEntries = computed(() => {
   const win = secondaryVirtual.value;
   if (!win.active) return secondaryEntries.value;
