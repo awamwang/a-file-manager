@@ -4,6 +4,18 @@
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 
+/// Logical drive kind from `GetDriveTypeW` (guide / This PC visuals).
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum DriveKind {
+    Fixed,
+    Removable,
+    Remote,
+    Cdrom,
+    Ramdisk,
+    Unknown,
+}
+
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct DriveInfo {
@@ -13,6 +25,8 @@ pub struct DriveInfo {
     pub path: String,
     /// Volume label when available; otherwise empty.
     pub label: String,
+    /// Drive type for guide coloring / icons.
+    pub kind: DriveKind,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -153,6 +167,71 @@ fn list_network_places() -> Vec<NetworkPlace> {
     places
 }
 
+#[cfg(windows)]
+fn drive_kind_for_root(path: &str) -> DriveKind {
+    use std::os::windows::ffi::OsStrExt;
+    use windows::core::PCWSTR;
+    use windows::Win32::Storage::FileSystem::GetDriveTypeW;
+
+    // Win32 DRIVE_* constants (avoid extra Cargo feature for WindowsProgramming).
+    const DRIVE_REMOVABLE: u32 = 2;
+    const DRIVE_FIXED: u32 = 3;
+    const DRIVE_REMOTE: u32 = 4;
+    const DRIVE_CDROM: u32 = 5;
+    const DRIVE_RAMDISK: u32 = 6;
+
+    let wide: Vec<u16> = std::ffi::OsStr::new(path)
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    match unsafe { GetDriveTypeW(PCWSTR(wide.as_ptr())) } {
+        DRIVE_REMOVABLE => DriveKind::Removable,
+        DRIVE_FIXED => DriveKind::Fixed,
+        DRIVE_REMOTE => DriveKind::Remote,
+        DRIVE_CDROM => DriveKind::Cdrom,
+        DRIVE_RAMDISK => DriveKind::Ramdisk,
+        _ => DriveKind::Unknown,
+    }
+}
+
+#[cfg(not(windows))]
+fn drive_kind_for_root(_path: &str) -> DriveKind {
+    DriveKind::Unknown
+}
+
+#[cfg(windows)]
+fn volume_label_for_root(path: &str) -> String {
+    use std::os::windows::ffi::OsStrExt;
+    use windows::core::PCWSTR;
+    use windows::Win32::Storage::FileSystem::GetVolumeInformationW;
+
+    let wide: Vec<u16> = std::ffi::OsStr::new(path)
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    let mut name = [0u16; 64];
+    let ok = unsafe {
+        GetVolumeInformationW(
+            PCWSTR(wide.as_ptr()),
+            Some(&mut name),
+            None,
+            None,
+            None,
+            None,
+        )
+    };
+    if ok.is_err() {
+        return String::new();
+    }
+    let end = name.iter().position(|&c| c == 0).unwrap_or(name.len());
+    String::from_utf16_lossy(&name[..end]).trim().to_string()
+}
+
+#[cfg(not(windows))]
+fn volume_label_for_root(_path: &str) -> String {
+    String::new()
+}
+
 /// Enumerate mounted local drive roots (`A:\` … `Z:\`) that currently exist as directories.
 pub fn list_drives() -> Result<Vec<DriveInfo>, String> {
     let mut drives = Vec::new();
@@ -163,11 +242,13 @@ pub fn list_drives() -> Result<Vec<DriveInfo>, String> {
         if !root.is_dir() {
             continue;
         }
-        // Volume labels need extra Win32 features; letter + path is enough for the guide/root menu.
+        let kind = drive_kind_for_root(&path);
+        let label = volume_label_for_root(&path);
         drives.push(DriveInfo {
             letter: letter.clone(),
             path,
-            label: letter,
+            label,
+            kind,
         });
     }
     Ok(drives)
@@ -191,6 +272,14 @@ mod tests {
         for drive in &drives {
             assert!(drive.path.ends_with('\\'));
             assert!(Path::new(&drive.path).is_dir());
+            assert!(!drive.letter.is_empty());
+        }
+        #[cfg(windows)]
+        {
+            let system = drives.iter().find(|d| d.letter.eq_ignore_ascii_case("C"));
+            if let Some(drive) = system {
+                assert_eq!(drive.kind, DriveKind::Fixed);
+            }
         }
     }
 

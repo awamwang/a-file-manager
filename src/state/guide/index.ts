@@ -7,10 +7,25 @@ import { GUIDE_PATH, isGuidePath, normalizeGuideKey } from "./path";
 
 export { GUIDE_PATH, isGuidePath, normalizeGuideKey };
 
+export type DriveKind =
+  | "fixed"
+  | "removable"
+  | "remote"
+  | "cdrom"
+  | "ramdisk"
+  | "unknown";
+
 export type DriveInfo = {
   letter: string;
   path: string;
   label: string;
+  kind?: DriveKind;
+};
+
+export type DiskSpaceInfo = {
+  path: string;
+  freeBytes: number;
+  totalBytes: number;
 };
 
 export type UserFolders = {
@@ -138,4 +153,30 @@ export async function resolveHomePath(): Promise<string> {
   } catch {
     return "C:\\";
   }
+}
+
+/** 查询卷可用/总容量；失败返回 null（引导页用量条静默跳过）。 */
+export async function fetchDiskSpace(path: string): Promise<DiskSpaceInfo | null> {
+  try {
+    return await invoke<DiskSpaceInfo>("navigator_disk_space", { path });
+  } catch {
+    return null;
+  }
+}
+
+/** 并行拉取多个驱动器容量；保持路径→容量映射，不阻塞引导页首屏。 */
+export async function fetchDriveSpaces(
+  drives: readonly DriveInfo[],
+): Promise<Record<string, DiskSpaceInfo>> {
+  const entries = await Promise.all(
+    drives.map(async (drive) => {
+      const info = await fetchDiskSpace(drive.path);
+      return info ? ([drive.path, info] as const) : null;
+    }),
+  );
+  const out: Record<string, DiskSpaceInfo> = {};
+  for (const entry of entries) {
+    if (entry) out[entry[0]] = entry[1];
+  }
+  return out;
 }

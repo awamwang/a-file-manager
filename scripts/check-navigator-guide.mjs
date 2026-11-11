@@ -61,6 +61,24 @@ const guideVue = readFileSync(
 );
 assert.ok(guideVue.includes("PROVIDER_ROOT"), "guide must expose provider root entry");
 assert.ok(guideVue.includes("listProviderBackends"), "guide loads provider backends");
+// FIL-44: per-storage colors/icons + Windows-style drive capacity bar.
+assert.ok(guideVue.includes("guide-card-icon"), "guide cards use toned icon wash");
+assert.ok(guideVue.includes("guide-card--drive-fixed"), "fixed drives get distinct tone");
+assert.ok(guideVue.includes("guide-card--drive-removable"), "removable drives get distinct tone");
+assert.ok(guideVue.includes("guide-capacity"), "drive cards render capacity UI");
+assert.ok(guideVue.includes("guide-capacity-fill"), "capacity bar fill present");
+assert.ok(guideVue.includes("fetchDriveSpaces"), "guide loads real disk space asynchronously");
+assert.ok(guideVue.includes("scheduleAfterPaint"), "capacity fetch deferred past first paint");
+assert.ok(guideVue.includes('name="hardDrive"') || guideVue.includes("hardDrive"), "fixed drive icon");
+assert.ok(guideVue.includes("recycle"), "recycle bin uses recycle glyph");
+assert.equal(en.guide.driveCapacity, "{free} free of {total}");
+assert.equal(zh.guide.driveCapacity, "{free} 可用，共 {total}");
+assert.ok(guideState.includes("fetchDriveSpaces"));
+assert.ok(guideState.includes("DiskSpaceInfo"));
+const placesRs = readFileSync(join(root, "src-tauri/src/navigator/places.rs"), "utf8");
+assert.ok(placesRs.includes("DriveKind"), "DriveInfo exposes kind");
+assert.ok(placesRs.includes("GetDriveTypeW"), "drive kind from GetDriveTypeW");
+assert.ok(placesRs.includes("GetVolumeInformationW"), "volume label from GetVolumeInformationW");
 
 const history = spawnSync(
   process.execPath,

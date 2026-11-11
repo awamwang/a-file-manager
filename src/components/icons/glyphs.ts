@@ -43,7 +43,17 @@ export type FluentGlyphId =
   | "paste"
   | "rename"
   | "link"
-  | "refresh";
+  | "refresh"
+  | "hardDrive"
+  | "usbDrive"
+  | "opticalDrive"
+  | "recycle"
+  | "desktop"
+  | "download"
+  | "picture"
+  | "musicNote"
+  | "video"
+  | "library";
 
 export type FluentGlyph = {
   /** Segoe Fluent Icons / MDL2 private-use codepoint */
@@ -298,6 +308,76 @@ export const FLUENT_GLYPHS: Record<FluentGlyphId, FluentGlyph> = {
     codepoint: "\uE72C",
     paths: [
       "M8 2.5A5.5 5.5 0 0 0 3.2 5.4l1.1.7A4.2 4.2 0 0 1 8 3.8c2.3 0 4.2 1.9 4.2 4.2S10.3 12.2 8 12.2A4.2 4.2 0 0 1 3.8 8H2.5a5.5 5.5 0 1 0 6.8-5.3V1.4L12 4.1 9.3 6.8V5.2A4 4 0 0 0 8 5z",
+    ],
+  },
+  /** Segoe HardDrive — local fixed volumes. */
+  hardDrive: {
+    codepoint: "\uEDA2",
+    paths: [
+      "M2.5 4.2h11v3.2H2.5V4.2zm1.2 1.1v1h1.6v-1H3.7zm8.1 0a.7.7 0 1 0 0 1.4.7.7 0 0 0 0-1.4zM2.5 8.6h11v3.2H2.5V8.6zm1.2 1.1v1h1.6v-1H3.7zm8.1 0a.7.7 0 1 0 0 1.4.7.7 0 0 0 0-1.4z",
+    ],
+  },
+  /** Segoe USB — removable media. */
+  usbDrive: {
+    codepoint: "\uE88E",
+    paths: [
+      "M6.2 2.4h3.6v2.2h1.5v9H4.7v-9h1.5V2.4zm1.2 1.2v1h1.2v-1H7.4zM5.9 5.8v6.2h4.2V5.8H5.9zm1.4 1.2h1.4v1.4H7.3V7zm0 2.2h1.4v1.4H7.3V9.2z",
+    ],
+  },
+  /** Segoe CD — optical drives. */
+  opticalDrive: {
+    codepoint: "\uE958",
+    paths: [
+      "M8 2.4a5.6 5.6 0 1 0 0 11.2A5.6 5.6 0 0 0 8 2.4zm0 1.3a4.3 4.3 0 1 1 0 8.6 4.3 4.3 0 0 1 0-8.6zM8 6.2A1.8 1.8 0 1 0 8 9.8 1.8 1.8 0 0 0 8 6.2z",
+    ],
+  },
+  /** Segoe RecycleBin. */
+  recycle: {
+    codepoint: "\uE74D",
+    paths: [
+      "M6.2 2.6h3.6l.6 1.1h2.7v1.3H2.9V3.7h2.7l.6-1.1zm.7 1.2-.3.5H9.4l-.3-.5H6.9zM4.2 6.2h7.6l-.6 7.2H4.8L4.2 6.2zm1.4 1.3-.3 4.6h1.2l.3-4.6H5.6zm2.1 0v4.6h1.2V7.5H7.7zm2.1 0-.3 4.6h1.2l.3-4.6h-1.2z",
+    ],
+  },
+  /** Segoe Desktop. */
+  desktop: {
+    codepoint: "\uE7F4",
+    paths: [
+      "M2.5 3.2h11v7.2H8.8v1.2H11v1.2H5v-1.2h2.2V10.4H2.5V3.2zm1.2 1.2v4.8h8.6V4.4H3.7z",
+    ],
+  },
+  /** Segoe Download. */
+  download: {
+    codepoint: "\uE896",
+    paths: [
+      "M7.25 2.5h1.5v6.1l2.1-2.1.9.9L8 11.15 3.9 7.4l.9-.9 2.45 2.1V2.5zM3.5 12.2h9v1.3h-9v-1.3z",
+    ],
+  },
+  /** Segoe Photo. */
+  picture: {
+    codepoint: "\uEB9F",
+    paths: [
+      "M2.5 3.5h11v9H2.5v-9zm1.2 1.2v6.6h8.6V4.7H3.7zm1.6 1.1a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2zm-.3 5.2 2.1-2.5 1.5 1.4 2.2-2.8 2.4 3.9H5z",
+    ],
+  },
+  /** Segoe MusicNote. */
+  musicNote: {
+    codepoint: "\uE8D6",
+    paths: [
+      "M10.2 2.5v6.1a2.3 2.3 0 1 1-1.2-2V5.2l3.7-1.1V2.8L10.2 2.5zM6.3 9.2a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2z",
+    ],
+  },
+  /** Segoe Video. */
+  video: {
+    codepoint: "\uE714",
+    paths: [
+      "M2.5 4.2h7.2v7.6H2.5V4.2zm1.2 1.2v5.2h4.8V5.4H3.7zm7.4.3 3.4-1.6v8.2l-3.4-1.6V5.7z",
+    ],
+  },
+  /** Segoe Library. */
+  library: {
+    codepoint: "\uE8F1",
+    paths: [
+      "M2.5 3.2h2.2v9.6H2.5V3.2zm3.4 0h2.2v9.6H5.9V3.2zm3.4 0H13l-1.6 9.6H9.3L10.7 3.2z",
     ],
   },
 };
