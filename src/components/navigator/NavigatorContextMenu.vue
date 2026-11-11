@@ -59,13 +59,8 @@ import {
   buildContextMenuItems,
   buildContextToolbarItems,
   canOpenInNewTab,
-  type ShellEmbedMenuChild,
 } from "./contextMenuModel";
-import {
-  invokeShellEmbedChild,
-  loadShellEmbedChildren,
-  shellEmbedLoadingPlaceholder,
-} from "./shellMenuEmbed";
+import { showNativeShellContextMenu } from "./shellMenuEmbed";
 import { BUILTIN_SHORTCUTS, formatChordLabel } from "../../shortcuts/index.ts";
 
 const props = defineProps<{
@@ -94,12 +89,9 @@ const submenuPos = ref({ left: 0, top: 0 });
 const openSubmenuId = ref<string | null>(null);
 const submenuAnchor = ref<HTMLElement | null>(null);
 let submenuCloseTimer: ReturnType<typeof setTimeout> | null = null;
-/** AIA-239: shell verbs loaded into AFM submenu (no native TrackPopupMenu). */
-const shellEmbedChildren = ref<ShellEmbedMenuChild[]>([]);
-const shellEmbedPath = ref<string | null>(null);
-const shellEmbedLoading = ref(false);
-const shellEmbedError = ref<string | null>(null);
-let shellEmbedLoadSeq = 0;
+/** FIL-53 / AIA-229: 悬停稍候再弹出原生系统菜单，避免路过误触。 */
+let shellCascadeTimer: ReturnType<typeof setTimeout> | null = null;
+let shellCascadeOpening = false;
 const ideApps = ref<Array<{ id: string; name: string; available: boolean }>>([]);
 const terminals = ref<
   Array<{ id: string; name: string; available: boolean; supportsElevation: boolean }>
@@ -215,37 +207,11 @@ function hideToolbarTip() {
   tip.value = null;
 }
 
-function resetShellEmbed() {
-  shellEmbedChildren.value = [];
-  shellEmbedPath.value = null;
-  shellEmbedLoading.value = false;
-  shellEmbedError.value = null;
-  shellEmbedLoadSeq += 1;
-}
-
-async function ensureShellEmbedLoaded(path: string) {
-  if (
-    shellEmbedPath.value === path &&
-    (shellEmbedChildren.value.length > 0 || shellEmbedLoading.value || shellEmbedError.value)
-  ) {
-    return;
+function clearShellCascadeTimer() {
+  if (shellCascadeTimer != null) {
+    clearTimeout(shellCascadeTimer);
+    shellCascadeTimer = null;
   }
-  const seq = ++shellEmbedLoadSeq;
-  shellEmbedPath.value = path;
-  shellEmbedLoading.value = true;
-  shellEmbedError.value = null;
-  shellEmbedChildren.value = shellEmbedLoadingPlaceholder(
-    t("contextMenu.systemMenuLoading"),
-  );
-  const { children, error } = await loadShellEmbedChildren(path, {
-    loading: t("contextMenu.systemMenuLoading"),
-    error: t("contextMenu.systemMenuError"),
-    empty: t("contextMenu.systemMenuEmpty"),
-  });
-  if (seq !== shellEmbedLoadSeq) return;
-  shellEmbedChildren.value = children;
-  shellEmbedError.value = error;
-  shellEmbedLoading.value = false;
 }
 
 const workGroupMenuOptions = computed(() =>
@@ -265,36 +231,14 @@ const items = computed(() =>
     terminals: terminals.value,
     newFileTemplates: newFileTemplates.value,
     workGroups: workGroupMenuOptions.value,
-  }).map((item) => {
-    const base = {
-      ...item,
-      label: t(item.labelKey),
-      children: item.children?.map((child) => ({
-        ...child,
-        label: childLabel(child),
-      })),
-    };
-    if (item.shellEmbed) {
-      return {
-        ...base,
-        children:
-          shellEmbedChildren.value.length > 0
-            ? shellEmbedChildren.value
-            : [
-                {
-                  id: "shell:loading",
-                  labelKey: "contextMenu.systemMenuLoading",
-                  rawLabel: t("contextMenu.systemMenuLoading"),
-                  label: t("contextMenu.systemMenuLoading"),
-                  enabled: false,
-                  shellCommandId: 0,
-                  shellVerb: null,
-                },
-              ],
-      };
-    }
-    return base;
-  }),
+  }).map((item) => ({
+    ...item,
+    label: t(item.labelKey),
+    children: item.children?.map((child) => ({
+      ...child,
+      label: childLabel(child),
+    })),
+  })),
 );
 
 const openSubmenuChildren = computed(
@@ -322,7 +266,7 @@ watch(
       void loadNewFileTemplates();
       void refreshWorkGroupsForMenu();
       clearSubmenuCloseTimer();
-      resetShellEmbed();
+      clearShellCascadeTimer();
       openSubmenuId.value = null;
       submenuAnchor.value = null;
       hideToolbarTip();
@@ -330,7 +274,7 @@ watch(
       preloadLaunchersIfNeeded();
     } else {
       clearSubmenuCloseTimer();
-      resetShellEmbed();
+      clearShellCascadeTimer();
       openSubmenuId.value = null;
       submenuAnchor.value = null;
       hideToolbarTip();
@@ -669,21 +613,36 @@ async function runExtractZip(entry: NavigatorEntry) {
   }
 }
 
-async function runShellVerb(child: ShellEmbedMenuChild, path: string) {
-  const error = await invokeShellEmbedChild(path, child);
+async function openShellCascadeAt(x: number, y: number) {
+  const entry = props.entry;
+  if (!entry || shellCascadeOpening) return;
+  shellCascadeOpening = true;
+  clearShellCascadeTimer();
+  // 先关掉 Vue 菜单，避免盖住 TrackPopupMenu。
+  emit("close");
+  const error = await showNativeShellContextMenu(entry.path, x, y);
   if (error) emit("notice", error);
+  shellCascadeOpening = false;
+}
+
+function openShellCascadeFromAnchor(anchor: HTMLElement, immediate = false) {
+  clearShellCascadeTimer();
+  scheduleSubmenuClose();
+  const fire = () => {
+    shellCascadeTimer = null;
+    const rect = anchor.getBoundingClientRect();
+    // 在行右侧弹出（Sigma 子菜单位置）。
+    void openShellCascadeAt(Math.round(rect.right - 4), Math.round(rect.top));
+  };
+  if (immediate) {
+    fire();
+    return;
+  }
+  shellCascadeTimer = setTimeout(fire, 220);
 }
 
 async function run(id: string) {
   const entry = props.entry;
-  if (id.startsWith("shell:")) {
-    if (id === "shell:loading" || id === "shell:error" || id === "shell:empty") return;
-    const child = shellEmbedChildren.value.find((row) => row.id === id);
-    if (!entry || !child?.enabled) return;
-    emit("close");
-    await runShellVerb(child, entry.path);
-    return;
-  }
   emit("close");
   switch (id) {
     case "open":
@@ -771,7 +730,9 @@ async function run(id: string) {
       if (entry) await runAddAsSkill(entry);
       break;
     case "systemMenu":
-      // AIA-239: systemMenu is a submenu parent; leaf shell verbs use shell:* ids.
+      // FIL-53: 点击仍可用；悬停/聚焦优先走 openShellCascadeFromAnchor。
+      if (!entry) break;
+      await openShellCascadeAt(Math.round(props.x), Math.round(props.y));
       break;
     case "reveal":
       if (!entry) break;
@@ -929,11 +890,9 @@ function scheduleSubmenuClose() {
 
 function openSubmenuFor(itemId: string, anchor: HTMLElement) {
   clearSubmenuCloseTimer();
+  clearShellCascadeTimer();
   if (itemId === "openWith" || itemId === "openInTerminal") {
     preloadLaunchersIfNeeded();
-  }
-  if (itemId === "systemMenu" && props.entry) {
-    void ensureShellEmbedLoaded(props.entry.path);
   }
   // Position before mount so the flyout never appears at (0,0).
   positionSubmenuFromAnchor(anchor);
@@ -946,11 +905,15 @@ function findItemById(itemId: string) {
   return items.value.find((item) => item.id === itemId) ?? null;
 }
 
+function itemHasChildren(item: { children?: unknown[] }): boolean {
+  return Boolean(item.children && item.children.length);
+}
+
 function itemHasSubmenu(item: {
   children?: unknown[];
-  shellEmbed?: boolean;
+  shellCascade?: boolean;
 }): boolean {
-  return Boolean(item.shellEmbed || (item.children && item.children.length));
+  return Boolean(item.shellCascade || itemHasChildren(item));
 }
 
 /** Sigma-style: which parent row is under the pointer → expand its submenu. */
@@ -961,72 +924,97 @@ function syncSubmenuFromClientPoint(clientX: number, clientY: number) {
   // Still inside the open flyout — keep it.
   if (submenuRoot.value?.contains(hit)) {
     clearSubmenuCloseTimer();
+    clearShellCascadeTimer();
     return;
   }
   const btn = hit.closest<HTMLElement>("[data-ctx-id]");
   if (!btn || !root.value.contains(btn)) {
     // Pointer left the parent menu (and not over flyout) — delay-close.
     if (openSubmenuId.value) scheduleSubmenuClose();
+    clearShellCascadeTimer();
     return;
   }
   const itemId = btn.dataset.ctxId;
   if (!itemId) return;
   const item = findItemById(itemId);
   if (!item) return;
-  if (itemHasSubmenu(item)) {
+  if (itemHasChildren(item)) {
     openSubmenuFor(item.id, btn);
     return;
   }
+  if (item.shellCascade) {
+    openShellCascadeFromAnchor(btn);
+    return;
+  }
   scheduleSubmenuClose();
+  clearShellCascadeTimer();
 }
 
 function onItemClick(
-  item: { id: string; children?: unknown[]; shellEmbed?: boolean },
+  item: { id: string; children?: unknown[]; shellCascade?: boolean },
   event: MouseEvent,
 ) {
-  if (itemHasSubmenu(item)) {
+  if (itemHasChildren(item)) {
     // Hover owns expand; click keeps the flyout open (do not toggle shut).
     if (event.currentTarget instanceof HTMLElement) {
       openSubmenuFor(item.id, event.currentTarget);
     }
     return;
   }
+  if (item.shellCascade && event.currentTarget instanceof HTMLElement) {
+    openShellCascadeFromAnchor(event.currentTarget, true);
+    return;
+  }
   void run(item.id);
 }
 
 function onItemEnter(
-  item: { id: string; children?: unknown[]; shellEmbed?: boolean },
+  item: { id: string; children?: unknown[]; shellCascade?: boolean },
   event: MouseEvent,
 ) {
-  if (itemHasSubmenu(item)) {
+  if (itemHasChildren(item)) {
     if (event.currentTarget instanceof HTMLElement) {
       openSubmenuFor(item.id, event.currentTarget);
     }
     return;
   }
+  if (item.shellCascade && event.currentTarget instanceof HTMLElement) {
+    openShellCascadeFromAnchor(event.currentTarget);
+    return;
+  }
   scheduleSubmenuClose();
+  clearShellCascadeTimer();
 }
 
-/** Keyboard focus expands nested / shell-embed submenu like hover. */
+/** 键盘聚焦像悬停一样展开嵌套 / 原生系统菜单。 */
 function onItemFocus(
-  item: { id: string; children?: unknown[]; shellEmbed?: boolean },
+  item: { id: string; children?: unknown[]; shellCascade?: boolean },
   event: FocusEvent,
 ) {
   if (!(event.currentTarget instanceof HTMLElement)) return;
-  if (itemHasSubmenu(item)) {
+  if (itemHasChildren(item)) {
     openSubmenuFor(item.id, event.currentTarget);
+    return;
+  }
+  if (item.shellCascade) {
+    openShellCascadeFromAnchor(event.currentTarget);
   }
 }
 
 function onItemKeydown(
-  item: { id: string; children?: unknown[]; shellEmbed?: boolean },
+  item: { id: string; children?: unknown[]; shellCascade?: boolean },
   event: KeyboardEvent,
 ) {
   if (event.key !== "ArrowRight") return;
   if (!(event.currentTarget instanceof HTMLElement)) return;
-  if (itemHasSubmenu(item)) {
+  if (itemHasChildren(item)) {
     event.preventDefault();
     openSubmenuFor(item.id, event.currentTarget);
+    return;
+  }
+  if (item.shellCascade) {
+    event.preventDefault();
+    openShellCascadeFromAnchor(event.currentTarget, true);
   }
 }
 
@@ -1075,7 +1063,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   clearSubmenuCloseTimer();
-  resetShellEmbed();
+  clearShellCascadeTimer();
   window.removeEventListener("mousedown", onDocPointer, true);
   window.removeEventListener("keydown", onKey, true);
 });
@@ -1122,7 +1110,7 @@ onUnmounted(() => {
           role="menuitem"
           :data-ctx-id="item.id"
           :aria-haspopup="itemHasSubmenu(item) ? 'menu' : undefined"
-          :aria-expanded="itemHasSubmenu(item) ? openSubmenuId === item.id : undefined"
+          :aria-expanded="itemHasChildren(item) ? openSubmenuId === item.id : undefined"
           :disabled="!item.enabled"
           :class="{
             'ctx-item--danger': item.danger,

@@ -40,10 +40,10 @@ export type ContextMenuItemDef = {
   /** Nested submenu (Sigma-style). */
   children?: ContextMenuItemDef[];
   /**
-   * AIA-239: lazy-load Windows shell verbs into AFM's own submenu
-   * (no independent TrackPopupMenu; no nested systemMenuShow hop — AIA-224).
+   * FIL-53 / AIA-229: 悬停/聚焦时在旁弹出原生 Win32 TrackPopupMenu
+   *（不把系统项转成 AFM 自研样式；无 systemMenuShow 跳转 — AIA-224）。
    */
-  shellEmbed?: boolean;
+  shellCascade?: boolean;
   /** Payload for IDE open. */
   ideId?: string;
   /** Payload for terminal open. */
@@ -51,20 +51,6 @@ export type ContextMenuItemDef = {
   elevated?: boolean;
   /** Pre-resolved label (e.g. ShellNew template name); skips i18n. */
   rawLabel?: string;
-};
-
-/**
- * AIA-239 shell-embed submenu rows. Presentation optionals (`danger` / `icon` /
- * `separatorBefore`) come from {@link ContextMenuItemDef} so unions with AFM
- * children type-check in the submenu template.
- */
-export type ShellEmbedMenuChild = Pick<
-  ContextMenuItemDef,
-  "id" | "labelKey" | "enabled" | "danger" | "icon" | "separatorBefore" | "rawLabel"
-> & {
-  label: string;
-  shellCommandId: number;
-  shellVerb: string | null;
 };
 
 export type ContextMenuBuildOptions = {
@@ -236,12 +222,12 @@ export function buildContextMenuItems(
     ...buildAddToWorkGroupItems(isDir, options.workGroups),
     ...buildAddAsSkillItems(isDir),
     {
-      // AIA-224/239: no nested systemMenuShow hop; shell verbs render inside AFM submenu.
+      // AIA-224 / FIL-53: 无 systemMenuShow 跳转；悬停弹出原生系统菜单。
       id: "systemMenu",
       labelKey: "contextMenu.systemMenu",
       enabled: true,
       icon: "viewAll",
-      shellEmbed: true,
+      shellCascade: true,
     },
     // Clipboard / rename / copy-path live in the Windows-style top toolbar.
     { id: "newFolder", labelKey: "contextMenu.newFolder", enabled: true, separatorBefore: true, icon: "folder" },

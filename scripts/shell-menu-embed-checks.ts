@@ -3,10 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  flattenShellItems,
-  shellEmbedLoadingPlaceholder,
-} from "../src/components/navigator/shellMenuEmbed.ts";
+import { showNativeShellContextMenu } from "../src/components/navigator/shellMenuEmbed.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const host = readFileSync(
@@ -18,40 +15,16 @@ const embed = readFileSync(
   "utf8",
 );
 
-const flat = flattenShellItems([
-  { id: 10, name: "Open", verb: "open", children: null },
-  {
-    id: 0,
-    name: "Send to",
-    verb: null,
-    children: [
-      { id: 20, name: "Bluetooth", verb: null, children: null },
-      { id: 21, name: "Desktop", verb: "link", children: null },
-    ],
-  },
-  { id: 0, name: "Empty parent", verb: null, children: [] },
-  { id: 0, name: "No id no verb", verb: null, children: null },
-]);
-
-assert.deepEqual(flat, [
-  { commandId: 10, verb: "open", label: "Open" },
-  { commandId: 20, verb: null, label: "Send to › Bluetooth" },
-  { commandId: 21, verb: "link", label: "Send to › Desktop" },
-]);
-
-assert.deepEqual(flattenShellItems([]), []);
-
-const loading = shellEmbedLoadingPlaceholder("Loading…");
-assert.equal(loading.length, 1);
-assert.equal(loading[0]?.id, "shell:loading");
-assert.equal(loading[0]?.enabled, false);
-
-assert.ok(embed.includes("export async function loadShellEmbedChildren"));
-assert.ok(embed.includes("export async function invokeShellEmbedChild"));
-assert.ok(host.includes("loadShellEmbedChildren"));
-assert.ok(host.includes("invokeShellEmbedChild"));
-assert.ok(!host.includes("flattenShellItems"));
+assert.equal(typeof showNativeShellContextMenu, "function");
+assert.ok(embed.includes("export async function showNativeShellContextMenu"));
+assert.ok(embed.includes("shell_show_context_menu"));
+assert.ok(host.includes("showNativeShellContextMenu"));
+assert.ok(host.includes("openShellCascadeFromAnchor"));
+assert.ok(host.includes("shellCascade"));
+assert.ok(!host.includes("loadShellEmbedChildren"));
+assert.ok(!host.includes("invokeShellEmbedChild"));
 assert.ok(!host.includes("shell_get_context_menu"));
 assert.ok(!host.includes("shell_invoke_context_menu_item"));
+assert.ok(!embed.includes("flattenShellItems"));
 
-console.log("Shell menu embed checks OK (AIA-239).");
+console.log("Shell menu native cascade checks OK (FIL-53).");

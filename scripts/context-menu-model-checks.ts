@@ -25,15 +25,14 @@ const systemMenu = dirItems.find((item) => item.id === "systemMenu");
 assert.ok(systemMenu);
 assert.equal(systemMenu.enabled, true);
 assert.equal(systemMenu.stub, undefined);
-// AIA-239: embed shell verbs in AFM submenu; still no nested systemMenuShow hop (AIA-224).
-assert.equal(systemMenu.shellEmbed, true);
-assert.equal(systemMenu.shellCascade, undefined);
+// FIL-53: native TrackPopupMenu cascade; still no nested systemMenuShow hop (AIA-224).
+assert.equal(systemMenu.shellCascade, true);
+assert.equal(systemMenu.shellEmbed, undefined);
 const openInTerminal = dirItems.find((item) => item.id === "openInTerminal");
 assert.ok(openInTerminal);
 assert.equal(openInTerminal.enabled, true);
 assert.equal(openInTerminal.stub, undefined);
 assert.ok(dirItems.find((item) => item.id === "openInTerminal")?.children?.length);
-// AIA-224/239: model has no nested systemMenuShow; children are lazy-loaded at runtime.
 assert.equal(dirItems.find((item) => item.id === "systemMenu")?.children, undefined);
 assert.ok(dirItems.find((item) => item.id === "properties")?.enabled);
 assert.ok(dirItems.find((item) => item.id === "compressZip")?.enabled);
@@ -166,4 +165,4 @@ assert.equal(
 
 assert.equal(buildContextMenuItems(null).length, 0);
 
-console.log("Context menu model checks OK (AIA-54..62 file ops).");
+console.log("Context menu model checks OK (FIL-53 native shell cascade).");

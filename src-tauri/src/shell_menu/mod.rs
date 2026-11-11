@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Windows shell context menu: enumerate items + invoke verbs (AIA-239).
+//! Windows shell context menu: native `TrackPopupMenu` cascade (FIL-53 / AIA-229).
 //!
-//! AIA-229 opened a native `TrackPopupMenu` popup beside the row. AIA-239 embeds
-//! shell items inside AFM's own submenu instead (Sigma-style enumeration).
+//! Product UI opens [`shell_show_context_menu`] beside the AFM row. Enumerate /
+//! invoke helpers remain for diagnostics and tests (AIA-239 path retired in UI).
 
 use serde::Serialize;
 
@@ -38,8 +38,7 @@ pub struct InvokeShellMenuResult {
     pub error: Option<String>,
 }
 
-/// Legacy independent Windows popup (kept for tests / diagnostics).
-/// Product UI must use [`shell_get_context_menu`] + [`shell_invoke_context_menu_item`].
+/// 原生 Win32 弹出菜单（FIL-53 产品路径）。
 #[tauri::command]
 pub fn shell_show_context_menu(path: String, x: i32, y: i32) -> ShellMenuResult {
     #[cfg(windows)]
@@ -545,7 +544,9 @@ mod windows_impl {
         let hwnd = GetForegroundWindow();
         let _ = SetForegroundWindow(hwnd);
 
-        let mut point = POINT { x, y };
+        // WebView 传入的是视口坐标；悬停级联时用光标屏幕坐标更稳。
+        let _ = (x, y);
+        let mut point = POINT { x: 0, y: 0 };
         let _ = GetCursorPos(&mut point);
 
         let cmd = TrackPopupMenuEx(

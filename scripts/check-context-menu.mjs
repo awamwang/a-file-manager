@@ -38,20 +38,20 @@ const shellEmbed = readFileSync(
   "utf8",
 );
 assert.ok(
-  shellEmbed.includes("shell_get_context_menu"),
-  "AIA-239: shell adapter enumerates shell items",
+  shellEmbed.includes("shell_show_context_menu"),
+  "FIL-53: shell adapter opens native TrackPopupMenu",
 );
 assert.ok(
-  shellEmbed.includes("shell_invoke_context_menu_item"),
-  "AIA-239: shell adapter invokes verbs",
+  shellEmbed.includes("showNativeShellContextMenu"),
+  "FIL-53: shell adapter exports native popup helper",
 );
 assert.ok(
-  menu.includes("loadShellEmbedChildren") && menu.includes("invokeShellEmbedChild"),
-  "AIA-239: host uses shell adapter (not inline IPC)",
+  menu.includes("showNativeShellContextMenu") && menu.includes("openShellCascadeFromAnchor"),
+  "FIL-53: host uses native cascade adapter (not AFM-restyled shell rows)",
 );
 assert.ok(
-  !menu.includes("shell_show_context_menu") && !shellEmbed.includes("shell_show_context_menu"),
-  "AIA-239: must not open independent native TrackPopupMenu from UI",
+  !menu.includes("shell_get_context_menu") && !menu.includes("shell_invoke_context_menu_item"),
+  "FIL-53: host must not enumerate/invoke shell verbs via AFM submenu IPC",
 );
 assert.ok(menu.includes("open_in_terminal"));
 assert.ok(menu.includes("terminal_list_apps"));
@@ -79,24 +79,24 @@ assert.ok(
   "AIA-224: systemMenu must not nest systemMenuShow hop",
 );
 assert.ok(
-  /id:\s*"systemMenu"[\s\S]*?shellEmbed:\s*true,\s*\}/.test(model),
-  "AIA-239: systemMenu shellEmbed (lazy AFM submenu)",
+  /id:\s*"systemMenu"[\s\S]*?shellCascade:\s*true,\s*\}/.test(model),
+  "FIL-53: systemMenu shellCascade (native Win32 popup)",
 );
 assert.ok(
-  !model.includes("shellCascade"),
-  "AIA-239: shellCascade native popup path removed",
+  !model.includes("shellEmbed"),
+  "FIL-53: AFM-restyled shellEmbed path removed",
 );
 assert.ok(
   !/id:\s*"systemMenu"[\s\S]*?children:\s*\[[\s\S]*?id:\s*"systemMenuShow"/.test(model),
   "AIA-224: systemMenu must not nest systemMenuShow",
 );
 assert.ok(
-  menu.includes("ensureShellEmbedLoaded"),
-  "AIA-239: shell items lazy-load into AFM submenu",
+  menu.includes("openShellCascadeFromAnchor"),
+  "FIL-53: hover/focus opens native cascade",
 );
 assert.ok(
-  !menu.includes("openShellCascadeFromAnchor"),
-  "AIA-239: must not open native cascade from hover/focus",
+  !menu.includes("ensureShellEmbedLoaded") && !menu.includes("loadShellEmbedChildren"),
+  "FIL-53: must not lazy-load shell verbs into AFM submenu",
 );
 assert.ok(menu.includes("onItemFocus"), "keyboard focus expands nested/shell submenu");
 assert.ok(menu.includes("onItemKeydown"), "ArrowRight expands nested/shell submenu");
