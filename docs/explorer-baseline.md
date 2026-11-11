@@ -49,7 +49,7 @@
 
 | 功能 | 资源管理器 | 当前实现 | 结论 |
 | --- | --- | --- | --- |
-| 后退 / 前进 / 向上 | Alt+← / Alt+→ / Alt+↑，以及按钮 | 同样三组快捷键，另有 Ctrl+Alt+←/→ | 对齐 |
+| 后退 / 前进 / 向上 | Alt+← / Alt+→ / Alt+↑，鼠标侧键，以及按钮 | 同样快捷键 + Ctrl+Alt+←/→ + 侧键/BrowserBack；均走 Navigator 历史，不走 WebView SPA 历史 | 对齐 |
 | 刷新 | F5 | F5 → 重新列目录 | 对齐 |
 | 地址栏 | 面包屑 + 输入路径；Ctrl+L、Alt+D、F4 | 面包屑可点；Ctrl+L / Alt+D / F4 聚焦；提交时展开 `%VAR%` | 对齐 |
 | UNC | 地址栏可进 `\\server\share` | `path_guard` 接受 UNC，地址栏能导航过去 | 对齐（没有「网络」这个位置入口） |

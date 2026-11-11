@@ -64,6 +64,19 @@ export const BUILTIN_SHORTCUTS: ShortcutDefinition[] = [
     chord: { ctrl: true, alt: true, key: "arrowright" },
     scope: "global",
   },
+  /** Alias: 键鼠 BrowserBack / BrowserForward（AppCommand），绑定 Navigator 历史而非 WebView。 */
+  {
+    id: "navigator.backBrowser",
+    labelKey: "shortcuts.items.navigatorBack",
+    chord: { key: "browserback" },
+    scope: "global",
+  },
+  {
+    id: "navigator.forwardBrowser",
+    labelKey: "shortcuts.items.navigatorForward",
+    chord: { key: "browserforward" },
+    scope: "global",
+  },
   {
     id: "navigator.newTab",
     labelKey: "shortcuts.items.navigatorNewTab",

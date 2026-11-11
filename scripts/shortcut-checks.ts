@@ -43,6 +43,14 @@ assert.equal(
   "navigator.forwardCtrlAlt",
 );
 assert.equal(
+  winners.get(chordKey({ key: "browserback" }))?.id,
+  "navigator.backBrowser",
+);
+assert.equal(
+  winners.get(chordKey({ key: "browserforward" }))?.id,
+  "navigator.forwardBrowser",
+);
+assert.equal(
   winners.get(chordKey({ ctrl: true, key: "tab" }))?.id,
   "navigator.nextTabGroup",
 );

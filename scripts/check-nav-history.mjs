@@ -22,12 +22,26 @@ assert.ok(registry.includes('id: "navigator.back"'));
 assert.ok(registry.includes('id: "navigator.forward"'));
 assert.ok(registry.includes('id: "navigator.backCtrlAlt"'));
 assert.ok(registry.includes('id: "navigator.forwardCtrlAlt"'));
+assert.ok(registry.includes('id: "navigator.backBrowser"'));
+assert.ok(registry.includes('id: "navigator.forwardBrowser"'));
 assert.ok(registry.includes("ctrl: true, alt: true, key: \"arrowleft\""));
 assert.ok(registry.includes("ctrl: true, alt: true, key: \"arrowright\""));
+assert.ok(registry.includes('key: "browserback"'));
+assert.ok(registry.includes('key: "browserforward"'));
 assert.ok(shell.includes('registerShortcutHandler("navigator.backCtrlAlt"'));
 assert.ok(shell.includes('registerShortcutHandler("navigator.forwardCtrlAlt"'));
+assert.ok(shell.includes('registerShortcutHandler("navigator.backBrowser"'));
+assert.ok(shell.includes('registerShortcutHandler("navigator.forwardBrowser"'));
+assert.ok(shell.includes("installBrowserNavGestureGuards"));
 assert.equal(en.chrome.breadcrumbs, "Breadcrumb path");
 assert.equal(en.shortcuts.items.navigatorBack, "Navigate back");
+
+const gesturesSrc = readFileSync(
+  join(root, "src/state/browserNavGestures.ts"),
+  "utf8",
+);
+assert.ok(gesturesSrc.includes("mouseButtonNavDirection"));
+assert.ok(gesturesSrc.includes("navigationType !== \"traverse\"") || gesturesSrc.includes("navigationType !== 'traverse'"));
 
 const result = spawnSync(
   process.execPath,
@@ -38,4 +52,13 @@ if (result.stdout) process.stdout.write(result.stdout);
 if (result.stderr) process.stderr.write(result.stderr);
 assert.equal(result.status, 0, "nav history checks failed");
 
-console.log("Nav history shell checks OK (AIA-63).");
+const gestures = spawnSync(
+  process.execPath,
+  ["--experimental-strip-types", join(root, "scripts/browser-nav-gestures-checks.ts")],
+  { cwd: root, encoding: "utf8" },
+);
+if (gestures.stdout) process.stdout.write(gestures.stdout);
+if (gestures.stderr) process.stderr.write(gestures.stderr);
+assert.equal(gestures.status, 0, "browser nav gesture checks failed");
+
+console.log("Nav history shell checks OK (AIA-63 / FIL-51).");

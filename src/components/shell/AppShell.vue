@@ -69,6 +69,7 @@ import {
   popBack,
   popForward,
 } from "../../state/navHistory";
+import { installBrowserNavGestureGuards } from "../../state/browserNavGestures";
 import { requestFolderContextMenu } from "../../state/folderContextMenu";
 import { favoritesDoc, loadFavorites } from "../../state/favorites";
 import { quickAccessList, loadVisitStats } from "../../state/visitStats";
@@ -740,6 +741,12 @@ function registerShellShortcuts() {
   registerShortcutHandler("navigator.forwardCtrlAlt", () => {
     void onGoForward();
   });
+  registerShortcutHandler("navigator.backBrowser", () => {
+    void onGoBack();
+  });
+  registerShortcutHandler("navigator.forwardBrowser", () => {
+    void onGoForward();
+  });
   registerShortcutHandler("chrome.focusAddress", () => {
     focusAddressBar();
   });
@@ -780,6 +787,8 @@ function unregisterShellShortcuts() {
     "navigator.forward",
     "navigator.backCtrlAlt",
     "navigator.forwardCtrlAlt",
+    "navigator.backBrowser",
+    "navigator.forwardBrowser",
     "chrome.focusAddress",
     "chrome.focusAddressAltD",
     "chrome.focusAddressF4",
@@ -1494,6 +1503,17 @@ onMounted(() => {
   // Shares work_groups_get single-flight with bootstrap (tabs + WG chrome).
   void loadWorkGroupsChrome().catch(() => undefined);
   registerShellShortcuts();
+  // FIL-51：鼠标侧键 / History traverse → Navigator 历史，而非 WebView SPA 历史。
+  unlisteners.push(
+    installBrowserNavGestureGuards({
+      onBack: () => {
+        void onGoBack();
+      },
+      onForward: () => {
+        void onGoForward();
+      },
+    }),
+  );
   window.addEventListener("keydown", onGlobalKeydown);
   document.addEventListener("pointerdown", onDocumentPointerDown, true);
   document.addEventListener("visibilitychange", onVisibilityFlush);
