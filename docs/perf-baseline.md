@@ -1,6 +1,8 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 # 性能基线（Phase A）
 
+开发约定见 [dev-performance-conventions.md](./dev-performance-conventions.md)。
+
 盘点与测量日期：2026-11-10。目标是建立可复跑的场景清单、分类矩阵与第一轮数字；本阶段不做算法优化。
 
 ## 探针开关
