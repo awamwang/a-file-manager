@@ -13,3 +13,8 @@ export {
   restoreRecyclePaths,
   loadRecycleListing,
 } from "./bin";
+export {
+  RECYCLE_SHELL_TARGET,
+  openRecycleBinInSystem,
+  type OpenRecycleBinResult,
+} from "./openSystem";

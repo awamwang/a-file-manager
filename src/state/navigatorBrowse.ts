@@ -34,8 +34,7 @@ import {
 } from "./openState";
 import { navigableParentPath, recordNavHistory } from "./navHistory";
 import { GUIDE_PATH, isGuidePath } from "./guide";
-import { isRecyclePath, RECYCLE_PATH } from "./recycle";
-import { loadRecycleListing } from "./recycle";
+import { isRecyclePath, openRecycleBinInSystem } from "./recycle";
 import {
   isProviderPath,
   loadProviderListing,
@@ -192,6 +191,14 @@ function normalizeBrowseKey(path: string): string {
 function revealPathAsync(path: string): Promise<void> {
   const trimmed = path.trim();
   if (!trimmed) return Promise.resolve();
+  // 回收站标签：走系统资源管理器，避免慢路径枚举把切标签拖死。
+  if (isRecyclePath(trimmed)) {
+    void openRecycleBinInSystem();
+    if (isRecyclePath(currentPath.value)) {
+      return navigateTo(GUIDE_PATH, { syncOpenState: false, recordHistory: false });
+    }
+    return Promise.resolve();
+  }
   const priorKey = normalizeBrowseKey(listing.value?.path ?? currentPath.value);
   currentPath.value = trimmed;
   listLoading.value = true;
@@ -319,36 +326,20 @@ export async function navigateTo(
   }
 
   if (isRecyclePath(trimmed)) {
-    listLoading.value = true;
-    listError.value = null;
+    // FIL-52：默认用 Explorer/`shell:RecycleBinFolder` 打开，不再在 AFM 内枚举整仓。
+    if (epoch !== browseEpoch) return;
+    listLoading.value = false;
     try {
-      listing.value = await loadRecycleListing();
+      const result = await openRecycleBinInSystem();
       if (epoch !== browseEpoch) return;
-      currentPath.value = RECYCLE_PATH;
-      if (pathChanged) clearNavigatorFilter();
-      if (recordHistory) {
-        recordNavHistory(previous, RECYCLE_PATH);
-      }
-      if (syncOpenState) {
-        liveOpenState.value = openStateAfterNavigate(liveOpenState.value, RECYCLE_PATH);
-        const group = liveOpenState.value.tabGroups[liveOpenState.value.currentTabGroupIndex];
-        const pane = group?.[liveOpenState.value.currentTabIndex] ?? group?.[0];
-        if (pane) {
-          pane.name = "Recycle Bin";
-          pane.type = "recycle";
-        }
-        scheduleOpenStatePersist(false);
+      if (!result.success && result.error) {
+        listError.value = result.error;
+      } else {
+        listError.value = null;
       }
     } catch (err) {
       if (epoch !== browseEpoch) return;
-      listing.value = null;
       listError.value = err instanceof Error ? err.message : String(err);
-      currentPath.value = RECYCLE_PATH;
-      if (pathChanged) clearNavigatorFilter();
-    } finally {
-      if (epoch === browseEpoch) {
-        listLoading.value = false;
-      }
     }
     return;
   }
@@ -622,6 +613,15 @@ export async function switchNavigatorTabAdjacent(
 export async function openOrFocusNavigatorTab(path: string): Promise<void> {
   const trimmed = path.trim();
   if (!trimmed) return;
+  // 侧栏/Places 进回收站：只拉起系统回收站，不新建 AFM 慢路径标签。
+  if (isRecyclePath(trimmed)) {
+    try {
+      await openRecycleBinInSystem();
+    } catch {
+      /* 错误由调用方 toast 可选承接；此处不阻断 */
+    }
+    return;
+  }
   const result = openStateOpenOrFocusPath(liveOpenState.value, trimmed);
   liveOpenState.value = result.state;
   scheduleOpenStatePersist(false);

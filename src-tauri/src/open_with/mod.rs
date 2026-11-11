@@ -56,6 +56,22 @@ fn open_path_default_inner(path: String) -> OpenWithResult {
     }
 }
 
+/// 用系统资源管理器打开回收站（`shell:RecycleBinFolder`），避免 AFM 内慢路径枚举。
+#[tauri::command]
+pub fn open_recycle_bin_system() -> OpenWithResult {
+    #[cfg(windows)]
+    {
+        windows_impl::open_recycle_bin_in_explorer()
+    }
+    #[cfg(not(windows))]
+    {
+        OpenWithResult {
+            success: false,
+            error: Some("Recycle Bin shell open is only supported on Windows".to_string()),
+        }
+    }
+}
+
 #[tauri::command]
 pub fn open_native_open_with_dialog(path: String) -> OpenWithResult {
     let trimmed = path.trim();
@@ -112,6 +128,23 @@ mod windows_impl {
             Err(err) => OpenWithResult {
                 success: false,
                 error: Some(format!("Failed to open folder: {err}")),
+            },
+        }
+    }
+
+    pub fn open_recycle_bin_in_explorer() -> OpenWithResult {
+        // explorer 认识 shell: 命名空间；比 AFM 内 PowerShell/COM 枚举整仓快得多。
+        match win_process::command("explorer.exe")
+            .arg("shell:RecycleBinFolder")
+            .spawn()
+        {
+            Ok(_) => OpenWithResult {
+                success: true,
+                error: None,
+            },
+            Err(err) => OpenWithResult {
+                success: false,
+                error: Some(format!("Failed to open Recycle Bin: {err}")),
             },
         }
     }

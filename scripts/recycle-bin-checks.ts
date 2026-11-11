@@ -2,11 +2,13 @@
 import assert from "node:assert/strict";
 import { isRecyclePath, RECYCLE_PATH } from "../src/state/recycle/path.ts";
 import { recycleListingFromItems } from "../src/state/recycle/listing.ts";
+import { RECYCLE_SHELL_TARGET } from "../src/state/recycle/openSystem.ts";
 
 assert.equal(RECYCLE_PATH, "afm://recycle-bin");
 assert.equal(isRecyclePath("afm://recycle-bin"), true);
 assert.equal(isRecyclePath("afm://recycle-bin/"), true);
 assert.equal(isRecyclePath("afm://guide"), false);
+assert.equal(RECYCLE_SHELL_TARGET, "shell:RecycleBinFolder");
 
 const listing = recycleListingFromItems([
   {
