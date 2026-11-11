@@ -23,14 +23,23 @@ assert.ok(/SHELL_ICON_MAX_ENTRIES/.test(state), "AIA-279: bounded cache");
 assert.ok(/trimToBudget/.test(state), "AIA-279: eviction under budget");
 assert.ok(/attemptByKey/.test(state), "FIL-33: leave/reenter attempt tokens");
 assert.ok(/forgetPendingKey/.test(state), "FIL-33: cancel clears pending even if in-flight");
+assert.ok(
+  /仍在排队\/in-flight：保留 attempt|保留 attempt/.test(state),
+  "FIL-50: repeat request while pending must keep attempt",
+);
 
 // --- Contract: Navigator wires folder / scroll cancel ---
 assert.ok(/watch\(currentPath/.test(view) && view.includes("clearShellIconQueue()"));
-assert.ok(view.includes("cancelShellIconRequests(leave"));
-assert.ok(/requestIconsFor\(enter,\s*true\)/.test(view));
+assert.ok(view.includes("cancelShellIconRequests"));
+assert.ok(view.includes("computeThumbRequestWindow"), "FIL-50: geometry thumb window");
+assert.ok(view.includes("syncThumbRequestsForPane"), "FIL-50: pane thumb sync");
 assert.ok(view.includes("scheduleViewportIconObservers"));
-assert.ok(view.includes("pathsLeavingWindow"), "FIL-33: window diff cancel on observer rebind");
-assert.ok(view.includes("primaryObservedPaths"), "FIL-33: track windowed icon paths");
+assert.ok(view.includes("pathsLeavingWindow"), "FIL-33: window diff cancel");
+assert.ok(view.includes("primaryThumbPaths"), "FIL-50: track thumb request window paths");
+assert.ok(
+  !/new\s+IntersectionObserver/.test(view),
+  "FIL-50: no IntersectionObserver thumb scheduling",
+);
 
 // --- Lightweight queue behavior model (mirrors shellIcons.ts rules) ---
 function simulate() {
@@ -75,7 +84,19 @@ function simulate() {
     const k = key(path, size);
     if (cache.has(k)) return;
     if (pending.has(k)) {
-      enqueue(path, size, true);
+      // FIL-50: keep attempt while pending (viewport geometry may re-request).
+      const existing = attemptByKey.get(k) ?? nextAttempt++;
+      attemptByKey.set(k, existing);
+      const idx = queue.findIndex((q) => key(q.path, q.size) === k);
+      if (idx >= 0) {
+        queue[idx].attempt = existing;
+        if (priority && idx > 0) {
+          const [row] = queue.splice(idx, 1);
+          queue.unshift(row);
+        }
+      } else {
+        queue.unshift({ path, size, attempt: existing });
+      }
       return;
     }
     pending.add(k);
@@ -165,17 +186,45 @@ function simulate() {
   assert.ok(complete(again, "data:ok"));
   assert.equal(cache.has(key("top", 96)), true);
 
-  // FIL-33: reenter while old attempt still in-flight bumps token; stale result ignored.
+  // FIL-50: repeat request while still pending must NOT bump attempt (viewport sync).
   clear();
   cache.clear();
   request("row", 96, true);
+  const attemptBefore = attemptByKey.get(key("row", 96));
   const [first] = takeBatch(1);
-  request("row", 96, true); // priority reenter before settle
-  assert.equal(queue.length, 1);
-  assert.equal(complete(first, "data:old"), false, "stale in-flight ignored");
-  const [second] = takeBatch(1);
-  assert.ok(complete(second, "data:new"));
+  request("row", 96, true); // geometry sync repeats same window
+  assert.equal(attemptByKey.get(key("row", 96)), attemptBefore, "pending repeat keeps attempt");
+  assert.equal(queue.length, 1, "in-flight path re-enqueued for safety");
+  assert.ok(complete(first, "data:ok"), "in-flight result still accepted");
   assert.equal(cache.has(key("row", 96)), true);
+
+  // FIL-33: cancel then reenter bumps attempt; stale in-flight ignored.
+  clear();
+  cache.clear();
+  request("row", 96, true);
+  const [stale] = takeBatch(1);
+  cancel(["row"], 96);
+  request("row", 96, true);
+  assert.equal(complete(stale, "data:old"), false, "stale in-flight ignored after cancel");
+  const [fresh] = takeBatch(1);
+  assert.ok(complete(fresh, "data:new"));
+  assert.equal(cache.has(key("row", 96)), true);
+
+  // FIL-50: visible window larger than one BATCH_THUMB must stay queued (not capped).
+  clear();
+  cache.clear();
+  const batchThumb = 8;
+  const viewportPaths = Array.from({ length: 28 }, (_, i) => `v${i}`);
+  for (const path of viewportPaths) request(path, 96, true);
+  assert.equal(queue.length, 28, "full viewport queued beyond one thumb batch");
+  const firstBatch = takeBatch(batchThumb);
+  assert.equal(firstBatch.length, batchThumb);
+  assert.equal(queue.length, 20, "remaining viewport stays queued for later batches");
+  cancel(
+    viewportPaths.filter((_, i) => i >= 20),
+    96,
+  );
+  assert.ok(queue.length >= 12, "cancel only drops paths that left the window");
 
   return true;
 }

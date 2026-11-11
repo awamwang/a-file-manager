@@ -51,8 +51,18 @@ assert.ok(view.includes("requestShellIcons"));
 assert.ok(view.includes("ShellIconImg"), "per-row icon isolate");
 assert.ok(view.includes("clearShellIconQueue"));
 assert.ok(view.includes("cancelShellIconRequests"));
-assert.ok(view.includes("IntersectionObserver"), "viewport-only icon/thumbnail load (AIA-182)");
-assert.ok(view.includes("bindIconObserver") || view.includes("refreshViewportIconObservers"));
+assert.ok(
+  view.includes("computeThumbRequestWindow") && view.includes("syncThumbRequestsForPane"),
+  "FIL-50: viewport geometry thumb window (full screen + row overscan)",
+);
+assert.ok(
+  view.includes("scheduleViewportIconObservers") || view.includes("refreshViewportIconRequests"),
+  "viewport thumb sync scheduler",
+);
+assert.ok(
+  !/new\s+IntersectionObserver/.test(view),
+  "FIL-50: must not rebind IntersectionObserver for thumbs (invalidates slow batches)",
+);
 assert.ok(
   !/requestIconsFor\(visibleEntries\.value\.map/.test(view),
   "must not request icons for the entire filtered listing",

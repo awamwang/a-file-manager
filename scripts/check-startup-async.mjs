@@ -258,7 +258,10 @@ assert.ok(
 // --- P1: shell icons / thumbnails for viewport window only ---
 {
   const nav = read("src/views/NavigatorView.vue");
-  assert.ok(nav.includes("IntersectionObserver"), "Navigator uses IntersectionObserver");
+  assert.ok(
+  nav.includes("computeThumbRequestWindow") || nav.includes("syncThumbRequestsForPane"),
+  "Navigator thumbs use viewport geometry window",
+);
   assert.ok(
     !/requestIconsFor\(visibleEntries\.value\.map/.test(nav),
     "must not warm icons for every filtered entry",

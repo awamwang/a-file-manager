@@ -14,7 +14,9 @@ const sortState = readFileSync(join(root, "src/state/navigatorSort.ts"), "utf8")
 
 assert.ok(state.includes("computeListVirtualWindow"));
 assert.ok(state.includes("computeVariableListVirtualWindow"));
+assert.ok(state.includes("computeThumbRequestWindow"), "FIL-50 thumb viewport window");
 assert.ok(state.includes("LIST_VIRTUALIZE_MIN_ENTRIES"));
+assert.ok(state.includes("THUMB_REQUEST_OVERSCAN_ROWS"));
 assert.ok(virtItems.includes("flattenGroupedItems"));
 assert.ok(virtItems.includes("LIST_GROUP_HEADER_HEIGHT_PX"));
 assert.ok(sortState.includes("clearSortedEntriesCache"));

@@ -336,14 +336,18 @@ export function requestShellIcon(
     return;
   }
   const priority = options?.priority === true;
-  const attempt = nextAttempt++;
-  attemptByKey.set(key, attempt);
   if (pending.has(key)) {
-    // 仍在排队：刷新 attempt 并提到队首；若仅 in-flight，则重新入队以便回视口必载。
+    // 仍在排队/in-flight：保留 attempt。视口几何同步会重复请求同一窗，
+    // 若每次 bump，慢速外部缩略图器的整批结果都会被当成过期丢弃（FIL-50）。
+    // 离开窗口由 cancel 清 pending；再次进入走下方新 attempt 分支（FIL-33）。
+    const attempt = attemptByKey.get(key) ?? nextAttempt++;
+    attemptByKey.set(key, attempt);
     enqueue({ path: keyPath, size, preferThumbnail, attempt }, true);
     scheduleFlush();
     return;
   }
+  const attempt = nextAttempt++;
+  attemptByKey.set(key, attempt);
   pending.add(key);
   enqueue({ path: keyPath, size, preferThumbnail, attempt }, priority);
   scheduleFlush();

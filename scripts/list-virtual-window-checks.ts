@@ -3,11 +3,13 @@ import assert from "node:assert/strict";
 import {
   COMPACT_LIST_ROW_HEIGHT_PX,
   computeListVirtualWindow,
+  computeThumbRequestWindow,
   computeVariableListVirtualWindow,
   estimateListColumns,
   LIST_VIRTUALIZE_MIN_ENTRIES,
   resolveListRowHeightPx,
   standardDetailsRowHeight,
+  THUMB_REQUEST_FALLBACK_ROWS,
 } from "../src/state/listVirtualWindow.ts";
 import {
   flattenEntryItems,
@@ -78,6 +80,53 @@ const grid = computeListVirtualWindow({
 assert.equal(grid.active, true);
 assert.equal(grid.startIndex % 5, 0);
 assert.ok(grid.endIndex <= 5000);
+
+// FIL-50: thumb request window covers full viewport (+ overscan), not ~2 rows / BATCH_THUMB.
+const thumbCols = 5;
+const thumbRow = 160; // iconsLarge-ish after FIL-34 caption
+const thumbViewport = 800;
+const thumb = computeThumbRequestWindow({
+  total: 5000,
+  scrollTop: 0,
+  viewportHeight: thumbViewport,
+  rowHeight: thumbRow,
+  columns: thumbCols,
+  mode: "iconsLarge",
+  overscanRows: 1,
+});
+const minVisibleRows = Math.ceil(thumbViewport / thumbRow);
+assert.ok(
+  thumb.visibleCount >= minVisibleRows * thumbCols,
+  "thumb window must cover at least a full viewport of cells",
+);
+assert.ok(
+  thumb.visibleCount > 8,
+  "thumb window must exceed one BATCH_THUMB (8) when the viewport holds more",
+);
+assert.equal(thumb.startIndex % thumbCols, 0);
+
+const thumbScrolled = computeThumbRequestWindow({
+  total: 5000,
+  scrollTop: thumbRow * 4,
+  viewportHeight: thumbViewport,
+  rowHeight: thumbRow,
+  columns: thumbCols,
+  mode: "iconsLarge",
+  overscanRows: 1,
+});
+assert.ok(thumbScrolled.startIndex > 0);
+assert.ok(thumbScrolled.visibleCount >= minVisibleRows * thumbCols);
+
+const thumbFallback = computeThumbRequestWindow({
+  total: 5000,
+  scrollTop: 0,
+  viewportHeight: 0,
+  rowHeight: thumbRow,
+  columns: thumbCols,
+  mode: "iconsLarge",
+});
+assert.equal(thumbFallback.startIndex, 0);
+assert.equal(thumbFallback.endIndex, thumbCols * THUMB_REQUEST_FALLBACK_ROWS);
 
 const heights = Array.from({ length: 200 }, (_, i) =>
   i % 20 === 0 ? LIST_GROUP_HEADER_HEIGHT_PX : 32,

@@ -90,6 +90,7 @@ import {
 } from "../state/listPlaceholders";
 import {
   computeListVirtualWindow,
+  computeThumbRequestWindow,
   computeVariableListVirtualWindow,
   estimateListColumns,
   resolveListRowHeightPx,
@@ -761,22 +762,15 @@ function requestIconsFor(paths: string[], priority = false) {
   requestShellIcons(localPaths, size, isIconView.value, { priority });
 }
 
-/** Only request shell icons / thumbnails for rows in (or near) the scroll viewport (AIA-182 / AIA-278). */
-let primaryIconObserver: IntersectionObserver | null = null;
-let secondaryIconObserver: IntersectionObserver | null = null;
-let iconObserverRefreshTimer: ReturnType<typeof requestAnimationFrame> | null = null;
-/** 窗口化切片路径；observer 重绑会丢掉 leave，需显式 diff cancel。 */
-let primaryObservedPaths = new Set<string>();
-let secondaryObservedPaths = new Set<string>();
-
-function disconnectIconObservers() {
-  primaryIconObserver?.disconnect();
-  primaryIconObserver = null;
-  secondaryIconObserver?.disconnect();
-  secondaryIconObserver = null;
-  primaryObservedPaths = new Set();
-  secondaryObservedPaths = new Set();
-}
+/**
+ * AIA-182 / AIA-278 / FIL-50：按滚动几何请求缩略图（整屏 + 行高 overscan）。
+ * 不用 IntersectionObserver 重绑：图标格全量 DOM 时每次滚动 disconnect/observe
+ * 会把慢速外部缩略图器进行中的视口排队项 leave/cancel，最终只剩约一批（≈两行）。
+ */
+let iconRequestSyncTimer: ReturnType<typeof requestAnimationFrame> | null = null;
+/** 当前缩略图请求窗内的路径；离开窗口时 diff cancel（FIL-33）。 */
+let primaryThumbPaths = new Set<string>();
+let secondaryThumbPaths = new Set<string>();
 
 function pathsLeavingWindow(prev: Set<string>, next: Iterable<string>): string[] {
   const nextSet = next instanceof Set ? next : new Set(next);
@@ -787,78 +781,75 @@ function pathsLeavingWindow(prev: Set<string>, next: Iterable<string>): string[]
   return leaving;
 }
 
-function bindIconObserver(
-  root: HTMLElement | null,
-  previous: IntersectionObserver | null,
-  previousPaths: Set<string>,
-): { observer: IntersectionObserver | null; paths: Set<string> } {
-  previous?.disconnect();
-  if (!root) return { observer: null, paths: new Set() };
-  const observer = new IntersectionObserver(
-    (entries) => {
-      const enter: string[] = [];
-      const leave: string[] = [];
-      for (const entry of entries) {
-        const path = (entry.target as HTMLElement).dataset.entryPath;
-        if (!path) continue;
-        if (entry.isIntersecting) enter.push(path);
-        else leave.push(path);
-      }
-      const size = VIEW_ICON_SIZE[navigatorViewMode.value];
-      // Drop work that scrolled away so it cannot block the new viewport (AIA-278).
-      if (leave.length) cancelShellIconRequests(leave, size);
-      if (enter.length) requestIconsFor(enter, true);
-    },
-    // Prefetch a little past the fold so scroll feels warm without loading the whole listing.
-    { root, rootMargin: "80px 0px", threshold: 0 },
-  );
-  const paths = new Set<string>();
-  for (const el of root.querySelectorAll<HTMLElement>("[data-entry-path]")) {
-    const path = el.dataset.entryPath;
-    if (path) paths.add(path);
-    observer.observe(el);
-  }
-  // 虚拟窗口换片时旧行直接卸载，disconnect 不会补发 leave——这里按路径 diff 取消。
-  const left = pathsLeavingWindow(previousPaths, paths);
-  if (left.length) {
-    cancelShellIconRequests(left, VIEW_ICON_SIZE[navigatorViewMode.value]);
-  }
-  return { observer, paths };
+function resetThumbRequestWindows() {
+  primaryThumbPaths = new Set();
+  secondaryThumbPaths = new Set();
 }
 
-async function refreshViewportIconObservers() {
-  await nextTick();
-  const primary = bindIconObserver(
-    listRoot.value,
-    primaryIconObserver,
-    primaryObservedPaths,
+function syncThumbRequestsForPane(
+  entries: { path: string }[],
+  scrollTop: number,
+  viewport: { w: number; h: number },
+  previousPaths: Set<string>,
+): Set<string> {
+  const mode = navigatorViewMode.value;
+  const size = VIEW_ICON_SIZE[mode];
+  const columns = estimateListColumns(mode, viewport.w);
+  const rowHeight = resolveListRowHeightPx(
+    mode as PlaceholderViewMode,
+    isCompactListDensity(),
   );
-  primaryIconObserver = primary.observer;
-  primaryObservedPaths = primary.paths;
-  const secondary = bindIconObserver(
-    secondaryListRoot.value,
-    secondaryIconObserver,
-    secondaryObservedPaths,
+  const win = computeThumbRequestWindow({
+    total: entries.length,
+    scrollTop,
+    viewportHeight: listViewportHeightPx(viewport),
+    rowHeight,
+    columns,
+    mode,
+  });
+  const nextPaths: string[] = [];
+  for (let i = win.startIndex; i < win.endIndex; i += 1) {
+    const path = entries[i]?.path;
+    if (path) nextPaths.push(path);
+  }
+  const nextSet = new Set(nextPaths);
+  const left = pathsLeavingWindow(previousPaths, nextSet);
+  // 仅取消离开请求窗的排队/in-flight；已成功写入的缓存保留（仍挂载项回滚可直接命中）。
+  if (left.length) cancelShellIconRequests(left, size);
+  if (nextPaths.length) requestIconsFor(nextPaths, true);
+  return nextSet;
+}
+
+function refreshViewportIconRequests() {
+  primaryThumbPaths = syncThumbRequestsForPane(
+    visibleEntries.value,
+    primaryScrollTop.value,
+    listViewport.value,
+    primaryThumbPaths,
   );
-  secondaryIconObserver = secondary.observer;
-  secondaryObservedPaths = secondary.paths;
+  secondaryThumbPaths = syncThumbRequestsForPane(
+    secondaryEntries.value,
+    secondaryScrollTop.value,
+    secondaryViewport.value,
+    secondaryThumbPaths,
+  );
 }
 
 function scheduleViewportIconObservers() {
-  if (iconObserverRefreshTimer != null) return;
-  iconObserverRefreshTimer = requestAnimationFrame(() => {
-    iconObserverRefreshTimer = null;
-    void refreshViewportIconObservers();
+  if (iconRequestSyncTimer != null) return;
+  iconRequestSyncTimer = requestAnimationFrame(() => {
+    iconRequestSyncTimer = null;
+    refreshViewportIconRequests();
   });
 }
 
 watch(
   [
-    primaryWindowedEntries,
-    secondaryWindowedEntries,
+    visibleEntries,
+    secondaryEntries,
     navigatorViewMode,
-    listRoot,
-    secondaryListRoot,
+    listViewport,
+    secondaryViewport,
   ],
   () => {
     scheduleViewportIconObservers();
@@ -931,10 +922,10 @@ onMounted(() => {
 onUnmounted(() => {
   clearPendingNameRename();
   disarmRenameOutsideListener();
-  disconnectIconObservers();
-  if (iconObserverRefreshTimer != null) {
-    cancelAnimationFrame(iconObserverRefreshTimer);
-    iconObserverRefreshTimer = null;
+  resetThumbRequestWindows();
+  if (iconRequestSyncTimer != null) {
+    cancelAnimationFrame(iconRequestSyncTimer);
+    iconRequestSyncTimer = null;
   }
   clearShellIconQueue();
   listSizeObserver?.disconnect();
