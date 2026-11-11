@@ -1720,19 +1720,13 @@ onUnmounted(() => {
             @dragleave="onTabFileDragLeave($event, tab.groupIndex)"
             @drop="onTabFileDrop($event, tab.groupIndex)"
           >
-            <button
-              type="button"
+            <span
+              v-if="isTabPinned(tab.id)"
               class="tab-pin"
-              :class="{ 'tab-pin--on': isTabPinned(tab.id) }"
-              :aria-label="isTabPinned(tab.id) ? t('chrome.unpinTab') : t('chrome.pinTab')"
-              :aria-pressed="isTabPinned(tab.id)"
-              :title="isTabPinned(tab.id) ? t('chrome.unpinTab') : t('chrome.pinTab')"
-              @click.stop="onToggleTabPin(tab.id)"
-              @dblclick.stop
-              @pointerdown.stop
+              aria-hidden="true"
             >
               <FluentIcon name="pin" size="sm" aria-hidden="true" />
-            </button>
+            </span>
             <FluentIcon name="folder" size="sm" class="tab-icon" aria-hidden="true" />
             <span class="tab-label">{{ tab.name || tabLabel(tab.path) }}</span>
             <button
@@ -2899,6 +2893,7 @@ onUnmounted(() => {
   cursor: grabbing;
 }
 
+/* 已固定标签的状态图标（不可点击；未固定时不展示） */
 .tab-pin {
   display: inline-flex;
   align-items: center;
@@ -2908,22 +2903,10 @@ onUnmounted(() => {
   padding: 0;
   border: 0;
   border-radius: var(--fluent-radius-sm);
-  background: transparent;
-  color: var(--fluent-color-text-secondary);
-  opacity: 0.55;
-  cursor: pointer;
-}
-
-.tab:hover .tab-pin,
-.tab--active .tab-pin,
-.tab-pin--on {
-  opacity: 1;
-}
-
-.tab-pin--on {
-  color: var(--fluent-color-fill-accent);
   background: color-mix(in srgb, var(--fluent-color-fill-accent) 22%, transparent);
+  color: var(--fluent-color-fill-accent);
   opacity: 1;
+  pointer-events: none;
 }
 
 .tab-close {

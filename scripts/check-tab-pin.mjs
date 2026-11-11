@@ -10,10 +10,20 @@ const zh = readFileSync(join(root, "src/i18n/locales/zh-CN.json"), "utf8");
 const registry = readFileSync(join(root, "src/shortcuts/registry.ts"), "utf8");
 
 if (!shell.includes("onToggleTabPin") || !shell.includes("@dblclick.stop=\"onToggleTabPin(tab.id)\"")) {
-  console.error("tab strip must pin from the button and a double-click");
+  console.error("tab strip must toggle pin via double-click");
   process.exit(1);
 }
-// FIL-31: pin trigger always uses thumbtack; never star (favorites keep star).
+// FIL-49: no dedicated pin/unpin control on each tab (status glyph only when pinned).
+const pinBtnOpen = /<button[^>]*class="[^"]*tab-pin[^"]*"/;
+if (pinBtnOpen.test(shell) || /class="tab-pin"[\s\S]{0,400}@click\.stop="onToggleTabPin/.test(shell)) {
+  console.error("tab strip must not expose a clickable pin button");
+  process.exit(1);
+}
+if (!shell.includes('v-if="isTabPinned(tab.id)"') || !shell.includes('class="tab-pin"')) {
+  console.error("pinned status glyph must render only when the tab is pinned");
+  process.exit(1);
+}
+// FIL-31: pin glyph always uses thumbtack; never star (favorites keep star).
 const pinBtnIdx = shell.indexOf('class="tab-pin"');
 const pinBtnSlice = pinBtnIdx >= 0 ? shell.slice(pinBtnIdx, pinBtnIdx + 700) : "";
 const hasPinGlyph =
@@ -41,8 +51,10 @@ if (
   console.error("openStateWithoutPinned must floor currentTabGroupIndex at 0");
   process.exit(1);
 }
-if (!shell.includes("border-left: 3px solid") || !shell.includes("tab-pin--on")) {
-  console.error("pinned tabs need durable left accent + pin-on chrome (AIA-245)");
+const tabPinCssIdx = shell.indexOf(".tab-pin {");
+const tabPinCss = tabPinCssIdx >= 0 ? shell.slice(tabPinCssIdx, tabPinCssIdx + 450) : "";
+if (!shell.includes("border-left: 3px solid") || !tabPinCss.includes("pointer-events: none")) {
+  console.error("pinned tabs need durable left accent + non-interactive pin status glyph (AIA-245 / FIL-49)");
   process.exit(1);
 }
 const browse = readFileSync(join(root, "src/state/navigatorBrowse.ts"), "utf8");
