@@ -1177,7 +1177,7 @@
     "noTools": "没有工具",
     "capabilities": "能力",
     "noCapabilities": "没有能力",
-    "selectTool": "选择左侧工具以查看能力",
+    "selectTool": "选择工具以查看能力",
     "selectCapability": "选择一项能力以填写参数",
     "preview": "预览",
     "execute": "执行",
@@ -1193,7 +1193,9 @@
     "emptySchema": "此能力无需参数",
     "riskRead": "只读",
     "riskWrite": "写入",
-    "riskDestructive": "破坏性"
+    "riskDestructive": "破坏性",
+    "gateway": "网关",
+    "invoke": "调用"
   },
   "shellPlaces": {
     "onedrive": "OneDrive",

@@ -73,6 +73,11 @@ const statusVersion = computed(() => {
   const version = status.value?.version?.trim();
   return version ? ` · v${version}` : "";
 });
+const capabilityDetail = computed(() => {
+  const capability = selectedCapability.value;
+  if (!capability) return "";
+  return (capability.description || capability.capabilityId).trim();
+});
 
 onMounted(() => {
   void (async () => {
@@ -338,7 +343,7 @@ function riskChipClass(risk: string): string {
       <div class="row-head">
         <h2 class="section-title">
           <span class="fluent-icon-wash"><FluentIcon name="cloud" size="md" /></span>
-          {{ t("toolRuntime.title") }}
+          <span class="section-title-text">{{ t("toolRuntime.gateway") }}</span>
         </h2>
         <div class="actions">
           <button
@@ -350,7 +355,7 @@ function riskChipClass(risk: string): string {
             {{ attaching ? t("toolRuntime.attaching") : t("toolRuntime.attachStart") }}
           </button>
           <button
-            class="fluent-control"
+            class="fluent-control action-icon"
             type="button"
             :disabled="loadingStatus || loadingTools"
             :title="t('common.refresh')"
@@ -358,25 +363,28 @@ function riskChipClass(risk: string): string {
             @click="refreshStatus({ loadToolsIfReachable: true })"
           >
             <FluentIcon name="refresh" size="sm" />
-            {{ t("common.refresh") }}
+            <span class="action-icon-label">{{ t("common.refresh") }}</span>
           </button>
         </div>
       </div>
-      <p
+      <div
         v-if="status"
-        class="fluent-banner"
+        class="fluent-banner status-banner"
         :class="status.reachable ? 'fluent-banner--success' : 'fluent-banner--warning'"
       >
         <span
           class="fluent-chip status-chip"
           :class="status.reachable ? 'fluent-chip--ok' : 'fluent-chip--down'"
-        >{{ status.reachable ? t("common.yes") : t("common.no") }}</span>
-        {{
-          status.reachable
-            ? t("toolRuntime.statusReachable", { version: statusVersion })
-            : t("toolRuntime.statusUnreachable", { detail: status.detail })
-        }}
-      </p>
+          >{{ status.reachable ? t("common.yes") : t("common.no") }}</span
+        >
+        <p class="status-banner-text">
+          {{
+            status.reachable
+              ? t("toolRuntime.statusReachable", { version: statusVersion })
+              : t("toolRuntime.statusUnreachable", { detail: status.detail })
+          }}
+        </p>
+      </div>
       <p v-else-if="loadingStatus" class="fluent-banner">{{ t("common.loading") }}</p>
       <div class="gateway-url-row">
         <label class="gateway-url-label" for="tool-runtime-base-url">{{
@@ -394,7 +402,7 @@ function riskChipClass(risk: string): string {
           @keydown.enter.prevent="saveBaseUrl"
         />
         <button
-          class="fluent-control fluent-control--accent"
+          class="fluent-control fluent-control--accent gateway-url-save"
           type="button"
           :disabled="savingBaseUrl"
           @click="saveBaseUrl"
@@ -408,19 +416,19 @@ function riskChipClass(risk: string): string {
       </div>
     </div>
 
-    <p v-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
+    <p v-if="error" class="fluent-banner fluent-banner--error error-banner">{{ error }}</p>
 
     <div class="layout">
       <section class="fluent-surface card pane">
         <div class="row-head">
           <h2 class="section-title">
             <span class="fluent-icon-wash"><FluentIcon name="puzzle" size="md" /></span>
-            {{ t("toolRuntime.tools") }}
+            <span class="section-title-text">{{ t("toolRuntime.tools") }}</span>
           </h2>
         </div>
         <input
           v-model="filterText"
-          class="fluent-control"
+          class="fluent-control filter-input"
           type="search"
           spellcheck="false"
           :placeholder="t('toolRuntime.filterPlaceholder')"
@@ -438,9 +446,13 @@ function riskChipClass(risk: string): string {
             :class="{ 'row--active': tool.id === selectedToolId }"
             @click="selectTool(tool)"
           >
-            <strong class="name">{{ tool.name }}</strong>
-            <span class="fluent-chip status-chip fluent-chip--stub">{{ tool.kind }}</span>
-            <span class="detail">{{ tool.description || tool.id }}</span>
+            <div class="row-title">
+              <strong class="name" :title="tool.name">{{ tool.name }}</strong>
+              <span class="fluent-chip status-chip fluent-chip--stub">{{ tool.kind }}</span>
+            </div>
+            <span class="detail" :title="tool.description || tool.id">{{
+              tool.description || tool.id
+            }}</span>
           </button>
         </div>
       </section>
@@ -449,7 +461,7 @@ function riskChipClass(risk: string): string {
         <div class="row-head">
           <h2 class="section-title">
             <span class="fluent-icon-wash"><FluentIcon name="flash" size="md" /></span>
-            {{ t("toolRuntime.capabilities") }}
+            <span class="section-title-text">{{ t("toolRuntime.capabilities") }}</span>
           </h2>
           <button
             class="fluent-control"
@@ -475,17 +487,43 @@ function riskChipClass(risk: string): string {
             :class="{ 'row--active': capability.capabilityId === selectedCapabilityId }"
             @click="selectCapability(capability)"
           >
-            <strong class="name">{{ capability.name }}</strong>
-            <span class="fluent-chip status-chip" :class="riskChipClass(capability.risk)">
-              {{ riskLabel(capability.risk) }}
-            </span>
-            <span class="detail">{{ capability.description || capability.capabilityId }}</span>
+            <div class="row-title">
+              <strong class="name" :title="capability.name">{{ capability.name }}</strong>
+              <span class="fluent-chip status-chip" :class="riskChipClass(capability.risk)">
+                {{ riskLabel(capability.risk) }}
+              </span>
+            </div>
+            <span
+              class="detail"
+              :title="capability.description || capability.capabilityId"
+              >{{ capability.description || capability.capabilityId }}</span
+            >
           </button>
+        </div>
+      </section>
+
+      <section class="fluent-surface card pane pane--invoke">
+        <div class="row-head">
+          <h2 class="section-title">
+            <span class="fluent-icon-wash"><FluentIcon name="commands" size="md" /></span>
+            <span class="section-title-text">{{ t("toolRuntime.invoke") }}</span>
+          </h2>
         </div>
 
         <template v-if="selectedCapability">
-          <p class="fluent-page-meta">
-            {{ selectedCapability.description || selectedCapability.capabilityId }}
+          <div class="invoke-heading">
+            <strong class="invoke-name" :title="selectedCapability.name">{{
+              selectedCapability.name
+            }}</strong>
+            <span
+              class="fluent-chip status-chip"
+              :class="riskChipClass(selectedCapability.risk)"
+            >
+              {{ riskLabel(selectedCapability.risk) }}
+            </span>
+          </div>
+          <p v-if="capabilityDetail" class="fluent-page-meta invoke-detail">
+            {{ capabilityDetail }}
           </p>
           <CapabilityForm v-model="formValues" :schema="selectedCapability.inputSchema" />
           <div class="actions">
@@ -515,6 +553,7 @@ function riskChipClass(risk: string): string {
         <p v-else-if="selectedTool" class="fluent-page-meta">
           {{ t("toolRuntime.selectCapability") }}
         </p>
+        <p v-else class="fluent-page-meta">{{ t("toolRuntime.selectTool") }}</p>
 
         <div v-if="previewPayload != null" class="result">
           <h3 class="result-title">{{ t("toolRuntime.previewHeading") }}</h3>
@@ -532,6 +571,8 @@ function riskChipClass(risk: string): string {
 <style scoped>
 .runtime {
   min-height: 0;
+  min-width: 0;
+  gap: var(--fluent-space-lg);
 }
 
 .card {
@@ -539,6 +580,8 @@ function riskChipClass(risk: string): string {
   flex-direction: column;
   gap: var(--fluent-space-md);
   padding: var(--fluent-space-lg);
+  min-width: 0;
+  overflow: visible;
 }
 
 .section-title {
@@ -546,7 +589,14 @@ function riskChipClass(risk: string): string {
   display: flex;
   align-items: center;
   gap: var(--fluent-space-sm);
+  min-width: 0;
   font-size: var(--fluent-font-size-subtitle);
+}
+
+.section-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .row-head {
@@ -555,6 +605,7 @@ function riskChipClass(risk: string): string {
   gap: var(--fluent-space-md);
   flex-wrap: wrap;
   align-items: center;
+  min-width: 0;
 }
 
 .actions {
@@ -564,58 +615,102 @@ function riskChipClass(risk: string): string {
   align-items: center;
 }
 
+.action-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fluent-space-xs);
+}
+
 .status-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
   min-height: var(--fluent-control-height-standard);
   pointer-events: none;
   cursor: default;
   font-size: var(--fluent-font-size-caption);
+  white-space: nowrap;
+}
+
+.status-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--fluent-space-sm);
+  min-width: 0;
+}
+
+.status-banner-text,
+.error-banner,
+.invoke-detail {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .gateway-url-row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: var(--fluent-space-sm);
   align-items: center;
+  min-width: 0;
 }
 
 .gateway-url-label {
-  flex: 0 0 auto;
   font-size: var(--fluent-font-size-caption);
   color: var(--fluent-color-text-secondary);
+  white-space: nowrap;
 }
 
 .gateway-url-input {
-  flex: 1 1 16rem;
-  min-width: 12rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.gateway-url-save {
+  white-space: nowrap;
+}
+
+.filter-input {
+  width: 100%;
+  min-width: 0;
 }
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(14rem, 22rem) minmax(0, 1fr);
+  grid-template-columns: minmax(12rem, 18rem) minmax(12rem, 18rem) minmax(0, 1fr);
   gap: var(--fluent-space-md);
   min-height: 0;
-  align-items: start;
+  min-width: 0;
+  align-items: stretch;
 }
 
 .pane {
   min-width: 0;
+  min-height: 0;
+}
+
+.pane--invoke {
+  gap: var(--fluent-space-md);
 }
 
 .list {
   display: flex;
   flex-direction: column;
   gap: var(--fluent-space-xs);
-  max-height: 22rem;
+  max-height: min(28rem, 55vh);
   overflow: auto;
+  min-width: 0;
 }
 
 .row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: auto auto;
-  column-gap: var(--fluent-space-sm);
-  row-gap: var(--fluent-space-xs);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--fluent-space-xs);
   width: 100%;
+  min-width: 0;
   padding: var(--fluent-space-sm) var(--fluent-space-md);
   border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   border-radius: var(--fluent-radius-md);
@@ -631,19 +726,37 @@ function riskChipClass(risk: string): string {
   background: var(--fluent-color-fill-selected);
 }
 
-.name {
+.row-title,
+.invoke-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  min-width: 0;
+}
+
+.name,
+.invoke-name {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .detail {
-  grid-column: 1 / -1;
   font-size: var(--fluent-font-size-caption);
   color: var(--fluent-color-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
+}
+
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-xs);
+  min-width: 0;
 }
 
 .result-title {
@@ -660,14 +773,37 @@ function riskChipClass(risk: string): string {
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   font-size: var(--fluent-font-size-caption);
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   word-break: break-word;
   -webkit-user-select: text;
   user-select: text;
 }
 
+@media (max-width: 1100px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .pane--invoke {
+    grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 800px) {
   .layout {
     grid-template-columns: 1fr;
+  }
+
+  .pane--invoke {
+    grid-column: auto;
+  }
+
+  .gateway-url-row {
+    grid-template-columns: 1fr;
+  }
+
+  .action-icon-label {
+    display: none;
   }
 }
 </style>

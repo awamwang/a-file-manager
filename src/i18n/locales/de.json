@@ -1116,7 +1116,7 @@
     "noTools": "Keine Tools",
     "capabilities": "Fähigkeiten",
     "noCapabilities": "Keine Fähigkeiten",
-    "selectTool": "Links ein Tool wählen, um Fähigkeiten zu sehen",
+    "selectTool": "Tool auswählen, um Fähigkeiten anzuzeigen",
     "selectCapability": "Eine Fähigkeit wählen, um Argumente einzugeben",
     "preview": "Vorschau",
     "execute": "Ausführen",
@@ -1132,7 +1132,9 @@
     "emptySchema": "Diese Fähigkeit hat keine Argumente",
     "riskRead": "Nur lesen",
     "riskWrite": "Schreiben",
-    "riskDestructive": "Destruktiv"
+    "riskDestructive": "Destruktiv",
+    "gateway": "Gateway",
+    "invoke": "Aufruf"
   },
   "shellPlaces": {
     "onedrive": "OneDrive",

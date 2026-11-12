@@ -53,7 +53,11 @@ function primaryType(schema: JsonSchema): string | undefined {
 }
 
 function fieldLabel(key: string, schema: JsonSchema): string {
-  return schema.title || schema.description || key;
+  return schema.title || key;
+}
+
+function fieldHint(schema: JsonSchema): string {
+  return schema.description?.trim() || "";
 }
 
 function isRequired(key: string): boolean {
@@ -150,10 +154,11 @@ function fieldKind(schema: JsonSchema): "enum" | "boolean" | "number" | "integer
     </p>
     <template v-else>
       <label v-for="[key, schema] in propertyEntries" :key="key" class="field">
-        <span class="field-label">
+        <span class="field-label" :title="fieldHint(schema) || fieldLabel(key, schema)">
           {{ fieldLabel(key, schema) }}
           <span v-if="isRequired(key)" class="required">*</span>
         </span>
+        <span v-if="fieldHint(schema)" class="field-hint">{{ fieldHint(schema) }}</span>
         <select
           v-if="fieldKind(schema) === 'enum'"
           class="fluent-control"
@@ -203,17 +208,42 @@ function fieldKind(schema: JsonSchema): "enum" | "boolean" | "number" | "integer
   display: flex;
   flex-direction: column;
   gap: var(--fluent-space-md);
+  min-width: 0;
 }
 
 .field {
   display: flex;
   flex-direction: column;
   gap: var(--fluent-space-xs);
+  min-width: 0;
 }
 
 .field-label {
+  color: var(--fluent-color-text-primary);
+  font-size: var(--fluent-font-size-caption);
+  font-weight: var(--fluent-font-weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.field-hint {
   color: var(--fluent-color-text-secondary);
   font-size: var(--fluent-font-size-caption);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.field :deep(.fluent-control),
+.field .fluent-control,
+.json-input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .required {
@@ -231,5 +261,7 @@ function fieldKind(schema: JsonSchema): "enum" | "boolean" | "number" | "integer
   min-height: 10rem;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   resize: vertical;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 </style>

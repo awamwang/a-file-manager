@@ -1116,7 +1116,7 @@
     "noTools": "ツールがありません",
     "capabilities": "能力",
     "noCapabilities": "能力がありません",
-    "selectTool": "左側のツールを選ぶと能力が表示されます",
+    "selectTool": "ツールを選択して能力を表示",
     "selectCapability": "能力を選んで引数を入力してください",
     "preview": "プレビュー",
     "execute": "実行",
@@ -1132,7 +1132,9 @@
     "emptySchema": "この能力に引数はありません",
     "riskRead": "読み取り専用",
     "riskWrite": "書き込み",
-    "riskDestructive": "破壊的"
+    "riskDestructive": "破壊的",
+    "gateway": "ゲートウェイ",
+    "invoke": "呼び出し"
   },
   "shellPlaces": {
     "onedrive": "OneDrive",

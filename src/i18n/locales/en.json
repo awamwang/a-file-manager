@@ -1177,7 +1177,7 @@
     "noTools": "No tools",
     "capabilities": "Capabilities",
     "noCapabilities": "No capabilities",
-    "selectTool": "Select a tool on the left to view capabilities",
+    "selectTool": "Select a tool to view capabilities",
     "selectCapability": "Select a capability to fill in arguments",
     "preview": "Preview",
     "execute": "Execute",
@@ -1193,7 +1193,9 @@
     "emptySchema": "This capability takes no arguments",
     "riskRead": "Read-only",
     "riskWrite": "Write",
-    "riskDestructive": "Destructive"
+    "riskDestructive": "Destructive",
+    "gateway": "Gateway",
+    "invoke": "Invoke"
   },
   "shellPlaces": {
     "onedrive": "OneDrive",
