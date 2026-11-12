@@ -118,6 +118,9 @@ fn validate_pack_id(id: &str) -> Result<(), String> {
 }
 
 fn is_valid_pack_id(id: &str) -> bool {
+    if id == "." || id == ".." {
+        return false;
+    }
     !id.is_empty()
         && id.bytes().all(|b| {
             matches!(
@@ -312,6 +315,25 @@ mod tests {
         let err = install_from_directory(&app, &src).unwrap_err();
         assert!(err.contains("Invalid Feature Pack id"));
         assert!(!packs_root(&app).join("escape").exists());
+    }
+
+    #[test]
+    fn rejects_dot_segment_pack_id() {
+        for bad_id in [".", ".."] {
+            let tmp = tempfile::tempdir().unwrap();
+            let src = tmp.path().join("src-pack");
+            let json = format!(
+                r#"{{"id":"{bad_id}","name":"Demo","version":"0.1.0","apiVersion":"feature-pack.1","permissions":[],"contributions":{{}}}}"#,
+            );
+            write_pack_json(&src, &json);
+            let app = tmp.path().join("appdata");
+            let err = install_from_directory(&app, &src).unwrap_err();
+            assert!(
+                err.contains("Invalid Feature Pack id"),
+                "id={bad_id}: {err}"
+            );
+            assert!(!pack_dir(&packs_root(&app), bad_id).exists());
+        }
     }
 
     #[test]
