@@ -11,7 +11,7 @@ function read(rel) {
 }
 
 const checks = [
-  ["src/views/DiscoveryView.vue", ["status-card--ok", "fluent-chip--ok", "fluent-banner--error"]],
+  ["src/views/DiscoveryView.vue", ["engine-card", "fluent-banner--info", "toastError"]],
   [
     "src/views/ProvidersView.vue",
     ["fluent-accent-edge--ok", "fluent-chip--down", "fluent-banner--error", "backend--down"],
@@ -20,8 +20,11 @@ const checks = [
     "src/views/ExtensionsView.vue",
     ["fluent-chip--down", "fluent-banner--info", "state-chip", "card--warn"],
   ],
-  ["src/views/HealthView.vue", ["fluent-banner--success", "fluent-chip--ok", "fluent-status-text--ok"]],
-  ["src/views/ProjectsView.vue", ["fluent-banner--info", "fluent-banner--error"]],
+  [
+    "src/views/HealthView.vue",
+    ["fluent-banner--success", "fluent-banner--warning", "fluent-chip--ok", "fluent-chip--warn", "fluent-status-text--ok"],
+  ],
+  ["src/views/ProjectsView.vue", ["fluent-banner", "fluent-banner--error"]],
   ["src/components/shell/AppShell.vue", ["fluent-status-text--down", "fluent-status-text--ok"]],
   [
     "src/styles/fluent-tokens.css",

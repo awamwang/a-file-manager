@@ -2422,7 +2422,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
 }
 
 .list-group-count {
-  color: var(--fluent-color-text-tertiary, var(--fluent-color-text-secondary));
+  color: var(--fluent-color-text-secondary);
 }
 
 .list--icons {

@@ -35,7 +35,6 @@ const importPath = ref("");
 const draftName = ref("");
 const draftId = ref("");
 const draftJson = ref('{\n  "command": "npx",\n  "args": ["-y", "example"]\n}');
-const lastNote = ref<string | null>(null);
 const agents = ref<AgentTarget[]>([]);
 const harvestAgentId = ref("");
 const harvestCandidates = ref<HarvestMcpCandidate[]>([]);
@@ -163,14 +162,14 @@ async function removeSelected() {
 async function deployGlobal() {
   if (!selected.value) return;
   error.value = null;
-  lastNote.value = null;
   try {
     const report = await aiMcpDeploy(selected.value.id, null);
-    lastNote.value = t("ai.mcp.noticeDeployed", {
-      count: report.written.length,
-      skipped: report.skipped.length,
-    });
-    toastSuccess(lastNote.value);
+    toastSuccess(
+      t("ai.mcp.noticeDeployed", {
+        count: report.written.length,
+        skipped: report.skipped.length,
+      }),
+    );
   } catch (err) {
     error.value = mapError(err);
   }
@@ -184,17 +183,17 @@ async function deployToSelectedProject() {
     return;
   }
   error.value = null;
-  lastNote.value = null;
   try {
     const report = await aiMcpDeploy(selected.value.id, ws);
     const project =
       projects.value.find((p) => p.path === ws)?.displayName ?? ws;
-    lastNote.value = t("ai.mcp.noticeDeployedToProject", {
-      project,
-      count: report.written.length,
-      skipped: report.skipped.length,
-    });
-    toastSuccess(lastNote.value);
+    toastSuccess(
+      t("ai.mcp.noticeDeployedToProject", {
+        project,
+        count: report.written.length,
+        skipped: report.skipped.length,
+      }),
+    );
   } catch (err) {
     error.value = mapError(err);
   }
@@ -210,8 +209,7 @@ async function undeployFromSelectedProject() {
   error.value = null;
   try {
     const report = await aiMcpUndeploy(selected.value.id, ws);
-    lastNote.value = t("ai.mcp.noticeUndeployed", { count: report.written.length });
-    toastSuccess(lastNote.value);
+    toastSuccess(t("ai.mcp.noticeUndeployed", { count: report.written.length }));
   } catch (err) {
     error.value = mapError(err);
   }
@@ -224,18 +222,18 @@ async function importMcpJson() {
     return;
   }
   error.value = null;
-  lastNote.value = null;
   try {
     const [next, report] = await aiMcpCatalogImport(path);
     document.value = next;
     if (!selectedId.value && next.mcpCatalog?.length) {
       selectedId.value = next.mcpCatalog[0]?.id ?? null;
     }
-    lastNote.value = t("ai.mcp.noticeImported", {
-      added: report.added.length,
-      skipped: report.skipped.length,
-    });
-    toastSuccess(lastNote.value);
+    toastSuccess(
+      t("ai.mcp.noticeImported", {
+        added: report.added.length,
+        skipped: report.skipped.length,
+      }),
+    );
   } catch (err) {
     error.value = mapError(err);
   }
@@ -275,11 +273,12 @@ async function importHarvest() {
   try {
     const [next, report] = await aiHarvestMcpImport(picks);
     document.value = next;
-    lastNote.value = t("ai.harvest.noticeMcpImported", {
-      added: report.added.length,
-      skipped: report.skipped.length,
-    });
-    toastSuccess(lastNote.value);
+    toastSuccess(
+      t("ai.harvest.noticeMcpImported", {
+        added: report.added.length,
+        skipped: report.skipped.length,
+      }),
+    );
     await scanHarvest();
   } catch (err) {
     error.value = mapError(err);
@@ -435,7 +434,6 @@ onMounted(() => {
           </button>
         </div>
         <p class="mcp-hint">{{ t("ai.mcp.projectDefaultHint") }}</p>
-        <p v-if="lastNote" class="mcp-hint">{{ lastNote }}</p>
       </article>
     </div>
   </div>

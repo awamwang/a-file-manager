@@ -13,7 +13,6 @@ const includeSdd = ref(false);
 const reinforceContext = ref(true);
 const error = ref<string | null>(null);
 const busy = ref(false);
-const lastNote = ref<string | null>(null);
 
 const ERROR_KEYS: Record<string, string> = {
   AI_HARNESS_WORKSPACE_INVALID: "ai.harness.errorWorkspace",
@@ -29,7 +28,6 @@ function mapError(err: unknown): string {
 
 async function runInit() {
   error.value = null;
-  lastNote.value = null;
   busy.value = true;
   try {
     const report = await aiHarnessInit({
@@ -37,11 +35,12 @@ async function runInit() {
       includeSdd: includeSdd.value,
       reinforceContext: reinforceContext.value,
     });
-    lastNote.value = t("ai.harness.noticeDone", {
-      written: report.written.length,
-      skipped: report.skipped.length,
-    });
-    toastSuccess(lastNote.value);
+    toastSuccess(
+      t("ai.harness.noticeDone", {
+        written: report.written.length,
+        skipped: report.skipped.length,
+      }),
+    );
   } catch (err) {
     error.value = mapError(err);
   } finally {
@@ -60,7 +59,7 @@ async function runInit() {
       <input
         v-model="workspacePath"
         type="text"
-        class="fluent-input"
+        class="fluent-control"
         :placeholder="t('ai.harness.fieldWorkspaceHint')"
       />
     </label>
@@ -79,7 +78,7 @@ async function runInit() {
     <div class="actions">
       <button
         type="button"
-        class="fluent-btn fluent-btn--primary"
+        class="fluent-control fluent-control--accent"
         :disabled="busy || !workspacePath.trim()"
         @click="runInit"
       >
@@ -88,7 +87,6 @@ async function runInit() {
     </div>
 
     <p v-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
-    <p v-else-if="lastNote" class="fluent-banner">{{ lastNote }}</p>
   </div>
 </template>
 
@@ -96,7 +94,7 @@ async function runInit() {
 .harness-panel {
   margin-top: var(--fluent-space-md);
   padding-top: var(--fluent-space-md);
-  border-top: 1px solid var(--fluent-stroke-divider, rgba(0, 0, 0, 0.08));
+  border-top: 1px solid var(--fluent-color-stroke-divider);
 }
 .harness-title {
   margin: 0 0 var(--fluent-space-xs);

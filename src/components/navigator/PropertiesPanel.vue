@@ -4,6 +4,7 @@ import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import FluentIcon from "../icons/FluentIcon.vue";
+import { toastSuccess } from "../../state/toast";
 
 export type EntryStat = {
   name: string;
@@ -31,7 +32,6 @@ const { t, locale } = useI18n();
 const loading = ref(false);
 const saving = ref(false);
 const error = ref<string | null>(null);
-const notice = ref<string | null>(null);
 const stat = ref<EntryStat | null>(null);
 const draftReadonly = ref(false);
 const draftHidden = ref(false);
@@ -111,7 +111,6 @@ async function load() {
   }
   loading.value = true;
   error.value = null;
-  notice.value = null;
   try {
     const next = await invoke<EntryStat>("navigator_stat", { path: props.path });
     stat.value = {
@@ -133,7 +132,6 @@ async function applyAttributes() {
   if (!props.path || !stat.value || !dirty.value) return;
   saving.value = true;
   error.value = null;
-  notice.value = null;
   try {
     const applied = await invoke<{ readonly: boolean; hidden: boolean }>(
       "navigator_set_attributes",
@@ -150,7 +148,7 @@ async function applyAttributes() {
     };
     draftReadonly.value = applied.readonly;
     draftHidden.value = applied.hidden;
-    notice.value = t("properties.attributesSaved");
+    toastSuccess(t("properties.attributesSaved"));
     emit("attributesChanged");
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
@@ -186,7 +184,6 @@ watch(
         <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
         <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
         <template v-else-if="stat">
-          <p v-if="notice" class="fluent-banner">{{ notice }}</p>
           <ul class="props-list">
             <li v-for="row in rows" :key="row.key" class="props-row">
               <span class="props-label">{{ row.label }}</span>
@@ -227,7 +224,7 @@ watch(
   z-index: 90;
   display: flex;
   justify-content: flex-end;
-  background: rgb(0 0 0 / 28%);
+  background: var(--fluent-overlay-scrim);
 }
 
 .props-panel {

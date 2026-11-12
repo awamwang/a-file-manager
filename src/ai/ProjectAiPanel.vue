@@ -36,7 +36,6 @@ const projectAi = ref<AiProjectDocument | null>(null);
 const agents = ref<AgentTarget[]>([]);
 const mcpEntries = ref<McpCatalogEntry[]>([]);
 const skills = ref<LibrarySkill[]>([]);
-const note = ref<string | null>(null);
 const mcpFilter = ref("");
 const skillFilter = ref("");
 
@@ -103,14 +102,14 @@ async function toggleAgent(id: string) {
 
 async function deployMcp(id: string) {
   error.value = null;
-  note.value = null;
   try {
     const report = await aiMcpDeploy(id, props.workspacePath);
-    note.value = t("ai.mcp.noticeDeployed", {
-      count: report.written.length,
-      skipped: report.skipped.length,
-    });
-    toastSuccess(note.value);
+    toastSuccess(
+      t("ai.mcp.noticeDeployed", {
+        count: report.written.length,
+        skipped: report.skipped.length,
+      }),
+    );
   } catch (err) {
     error.value = mapError(err);
   }
@@ -120,8 +119,7 @@ async function undeployMcp(id: string) {
   error.value = null;
   try {
     const report = await aiMcpUndeploy(id, props.workspacePath);
-    note.value = t("ai.mcp.noticeUndeployed", { count: report.written.length });
-    toastSuccess(note.value);
+    toastSuccess(t("ai.mcp.noticeUndeployed", { count: report.written.length }));
   } catch (err) {
     error.value = mapError(err);
   }
@@ -129,14 +127,14 @@ async function undeployMcp(id: string) {
 
 async function deploySkill(name: string) {
   error.value = null;
-  note.value = null;
   try {
     const report = await aiSkillsDeploy(name, props.workspacePath);
-    note.value = t("ai.skills.noticeDeployed", {
-      count: report.deployments.length,
-      skipped: report.skipped.length,
-    });
-    toastSuccess(note.value);
+    toastSuccess(
+      t("ai.skills.noticeDeployed", {
+        count: report.deployments.length,
+        skipped: report.skipped.length,
+      }),
+    );
   } catch (err) {
     error.value = mapError(err);
   }
@@ -146,10 +144,11 @@ async function undeploySkill(name: string) {
   error.value = null;
   try {
     const report = await aiSkillsUndeploy(name, props.workspacePath);
-    note.value = t("ai.skills.noticeUndeployed", {
-      count: report.deployments.length,
-    });
-    toastSuccess(note.value);
+    toastSuccess(
+      t("ai.skills.noticeUndeployed", {
+        count: report.deployments.length,
+      }),
+    );
   } catch (err) {
     error.value = mapError(err);
   }
@@ -174,7 +173,6 @@ onMounted(() => {
         <h3 class="project-ai-title">{{ t("ai.project.title") }}</h3>
         <p class="project-ai-hint">{{ t("ai.project.hint") }}</p>
       </div>
-      <p v-if="note" class="project-ai-hint">{{ note }}</p>
     </header>
     <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
     <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>

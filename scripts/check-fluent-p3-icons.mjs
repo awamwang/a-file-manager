@@ -6,8 +6,8 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 const checks = [
-  ["src/views/NavigatorView.vue", ["entryKindIcon", "FluentIcon"]],
-  ["src/views/DiscoveryView.vue", ["entryKindIcon", 'name="search"']],
+  ["src/views/NavigatorView.vue", ["ShellIconImg"]],
+  ["src/views/DiscoveryView.vue", ["entryKindIcon", 'name="search"', "FluentIcon"]],
   ["src/views/ProvidersView.vue", ["entryKindIcon", "FluentIcon"]],
   ["src/components/command/CommandPanel.vue", ["commandGroupIcon", "cmd-item-icon"]],
   ["src/views/SettingsView.vue", ["settingsIconForKey", "fluent-icon-wash"]],

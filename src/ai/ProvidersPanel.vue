@@ -159,10 +159,10 @@ onMounted(() => {
     <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
 
     <div class="toolbar">
-      <button type="button" class="fluent-btn" @click="startCompatibleDraft">
+      <button type="button" class="fluent-control" @click="startCompatibleDraft">
         {{ t("ai.providers.addCompatible") }}
       </button>
-      <button type="button" class="fluent-btn" :disabled="loading" @click="refresh">
+      <button type="button" class="fluent-control" :disabled="loading" @click="refresh">
         {{ t("ai.providers.refresh") }}
       </button>
     </div>
@@ -181,7 +181,7 @@ onMounted(() => {
           <strong>{{ row.displayName }}</strong>
           <span class="meta">{{ row.id }} · {{ row.kind }}</span>
         </div>
-        <button type="button" class="fluent-btn fluent-btn--quiet" @click.stop="toggleEnabled(row)">
+        <button type="button" class="fluent-control" @click.stop="toggleEnabled(row)">
           {{ row.enabled ? t("ai.providers.disable") : t("ai.providers.enable") }}
         </button>
       </li>
@@ -193,32 +193,32 @@ onMounted(() => {
         <span>{{ t("ai.providers.fieldName") }}</span>
         <input
           v-model="draftName"
-          class="fluent-input"
+          class="fluent-control"
           type="text"
           :disabled="!!selected && selected.kind === 'preset'"
         />
       </label>
       <label v-if="!selected" class="field">
         <span>{{ t("ai.providers.fieldId") }}</span>
-        <input v-model="draftId" class="fluent-input" type="text" />
+        <input v-model="draftId" class="fluent-control" type="text" />
       </label>
       <label class="field">
         <span>{{ t("ai.providers.fieldBaseUrl") }}</span>
-        <input v-model="draftBaseUrl" class="fluent-input" type="text" />
+        <input v-model="draftBaseUrl" class="fluent-control" type="text" />
       </label>
       <label class="field">
         <span>{{ t("ai.providers.fieldApiKey") }}</span>
-        <input v-model="draftApiKey" class="fluent-input" type="password" autocomplete="off" />
+        <input v-model="draftApiKey" class="fluent-control" type="password" autocomplete="off" />
       </label>
       <label class="field">
         <span>{{ t("ai.providers.fieldModel") }}</span>
-        <input v-model="draftModel" class="fluent-input" type="text" />
+        <input v-model="draftModel" class="fluent-control" type="text" />
       </label>
       <div class="actions">
         <button
           v-if="selected"
           type="button"
-          class="fluent-btn fluent-btn--primary"
+          class="fluent-control fluent-control--accent"
           @click="saveSelected"
         >
           {{ t("ai.providers.save") }}
@@ -226,7 +226,7 @@ onMounted(() => {
         <button
           v-else
           type="button"
-          class="fluent-btn fluent-btn--primary"
+          class="fluent-control fluent-control--accent"
           :disabled="!draftName.trim()"
           @click="addCompatible"
         >
@@ -235,7 +235,7 @@ onMounted(() => {
         <button
           v-if="selected?.kind === 'compatible'"
           type="button"
-          class="fluent-btn"
+          class="fluent-control"
           @click="removeSelected"
         >
           {{ t("ai.providers.remove") }}

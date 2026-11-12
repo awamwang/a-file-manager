@@ -55,6 +55,7 @@ const required = [
   ".fluent-chip",
   ".fluent-chip--ok",
   ".fluent-chip--down",
+  ".fluent-chip--warn",
   ".fluent-icon-wash",
   ".fluent-layer-alt",
   ".fluent-field-check",

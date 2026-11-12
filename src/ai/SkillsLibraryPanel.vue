@@ -38,7 +38,6 @@ const sourcePath = ref("");
 const importName = ref("");
 const rootDraft = ref("");
 const filterText = ref("");
-const lastDeployNote = ref<string | null>(null);
 const skillDeployMode = ref("junction");
 const agents = ref<AgentTarget[]>([]);
 const harvestAgentId = ref("");
@@ -202,14 +201,14 @@ async function removeSkill(name: string) {
 
 async function deployGlobal(name: string) {
   error.value = null;
-  lastDeployNote.value = null;
   try {
     const report: SkillDeployReport = await aiSkillsDeploy(name, null);
-    lastDeployNote.value = t("ai.skills.noticeDeployed", {
-      count: report.deployments.length,
-      skipped: report.skipped.length,
-    });
-    toastSuccess(lastDeployNote.value);
+    toastSuccess(
+      t("ai.skills.noticeDeployed", {
+        count: report.deployments.length,
+        skipped: report.skipped.length,
+      }),
+    );
   } catch (err) {
     error.value = mapError(err);
   }
@@ -222,17 +221,17 @@ async function deployToSelectedProject(name: string) {
     return;
   }
   error.value = null;
-  lastDeployNote.value = null;
   try {
     const report: SkillDeployReport = await aiSkillsDeploy(name, ws);
     const project =
       projects.value.find((p) => p.path === ws)?.displayName ?? ws;
-    lastDeployNote.value = t("ai.skills.noticeDeployedToProject", {
-      project,
-      count: report.deployments.length,
-      skipped: report.skipped.length,
-    });
-    toastSuccess(lastDeployNote.value);
+    toastSuccess(
+      t("ai.skills.noticeDeployedToProject", {
+        project,
+        count: report.deployments.length,
+        skipped: report.skipped.length,
+      }),
+    );
   } catch (err) {
     error.value = mapError(err);
   }
@@ -245,13 +244,13 @@ async function undeployFromSelectedProject(name: string) {
     return;
   }
   error.value = null;
-  lastDeployNote.value = null;
   try {
     const report: SkillDeployReport = await aiSkillsUndeploy(name, ws);
-    lastDeployNote.value = t("ai.skills.noticeUndeployed", {
-      count: report.deployments.length,
-    });
-    toastSuccess(lastDeployNote.value);
+    toastSuccess(
+      t("ai.skills.noticeUndeployed", {
+        count: report.deployments.length,
+      }),
+    );
   } catch (err) {
     error.value = mapError(err);
   }
@@ -280,11 +279,12 @@ async function importHarvest() {
   try {
     const [next, added, skipped] = await aiHarvestSkillsImport(picks);
     status.value = next;
-    lastDeployNote.value = t("ai.harvest.noticeSkillsImported", {
-      added: added.length,
-      skipped: skipped.length,
-    });
-    toastSuccess(lastDeployNote.value);
+    toastSuccess(
+      t("ai.harvest.noticeSkillsImported", {
+        added: added.length,
+        skipped: skipped.length,
+      }),
+    );
     await scanHarvest();
   } catch (err) {
     error.value = mapError(err);
@@ -462,7 +462,6 @@ onMounted(() => {
           </button>
         </div>
         <p class="skills-hint">{{ t("ai.skills.projectDefaultHint") }}</p>
-        <p v-if="lastDeployNote" class="skills-hint">{{ lastDeployNote }}</p>
       </article>
       <article v-else class="fluent-surface skills-detail skills-detail--empty">
         <p class="skills-empty">{{ t("ai.skills.selectHint") }}</p>

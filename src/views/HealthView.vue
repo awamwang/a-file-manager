@@ -136,7 +136,7 @@ onMounted(() => {
           !deps.requiredOk
             ? 'fluent-banner--error'
             : deps.missingOptional > 0
-              ? 'fluent-banner--warn'
+              ? 'fluent-banner--warning'
               : 'fluent-banner--success'
         "
       >
@@ -208,23 +208,10 @@ dd {
   gap: var(--fluent-space-sm);
 }
 
-.fluent-banner--warn {
-  background: color-mix(in srgb, var(--fluent-color-status-caution-bg, #fff4ce) 70%, transparent);
-  border: 1px solid var(--fluent-color-status-caution, #9a6700);
-  color: var(--fluent-color-text-primary);
-  border-radius: var(--fluent-radius-md, 6px);
-  padding: var(--fluent-space-sm) var(--fluent-space-md);
-}
-
 .fluent-chip {
   pointer-events: none;
   cursor: default;
   font-size: var(--fluent-font-size-caption);
-}
-
-.fluent-chip--warn {
-  background: color-mix(in srgb, var(--fluent-color-status-caution, #9a6700) 18%, transparent);
-  color: var(--fluent-color-status-caution, #9a6700);
 }
 
 .deps-heading {
@@ -243,19 +230,19 @@ dd {
 
 .deps-card {
   padding: var(--fluent-space-md) var(--fluent-space-lg);
-  border-left: 3px solid var(--fluent-color-stroke-divider, #d1d1d1);
+  border-left: 3px solid var(--fluent-color-stroke-divider);
 }
 
 .deps-card--ok {
-  border-left-color: var(--fluent-color-status-success, #0f7b0f);
+  border-left-color: var(--fluent-color-status-success);
 }
 
 .deps-card--missing {
-  border-left-color: var(--fluent-color-status-danger, #c50f1f);
+  border-left-color: var(--fluent-color-status-danger);
 }
 
 .deps-card--warn {
-  border-left-color: var(--fluent-color-status-caution, #9a6700);
+  border-left-color: var(--fluent-color-status-warning);
 }
 
 .deps-card__head {

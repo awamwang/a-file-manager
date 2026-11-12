@@ -421,6 +421,12 @@ html[data-list-density="compact"] .fluent-list-row--density {
   border-color: transparent;
 }
 
+.fluent-chip--warn {
+  color: var(--fluent-color-status-warning);
+  background: var(--fluent-color-status-warning-bg);
+  border-color: transparent;
+}
+
 .fluent-icon-wash {
   display: inline-flex;
   align-items: center;

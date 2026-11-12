@@ -53,7 +53,7 @@
 
 .path-card-main:hover .path-card-name,
 .path-card-main:focus-visible .path-card-name {
-  color: var(--fluent-color-text-accent);
+  color: var(--fluent-color-fill-accent);
 }
 
 .path-card-body {
@@ -98,7 +98,7 @@
 
 .path-card-copy:hover,
 .path-card-copy:focus-visible {
-  color: var(--fluent-color-text-accent);
+  color: var(--fluent-color-fill-accent);
 }
 
 .path-card-remove:hover,
