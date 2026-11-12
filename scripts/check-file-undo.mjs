@@ -14,10 +14,25 @@ const en = JSON.parse(readFileSync(join(root, "src/i18n/locales/en.json"), "utf8
 assert.ok(view.includes("navigator.undo"));
 assert.ok(view.includes("undoLast"));
 assert.ok(view.includes("recordRenameUndo"));
+assert.ok(view.includes("afterUndoMutation"), "FIL-61 undo must refresh via afterUndoMutation");
+assert.ok(view.includes("afterFileMutation"), "FIL-61 mutations must use afterFileMutation");
 assert.ok(registry.includes('id: "navigator.undo"'));
 assert.ok(ops.includes("file_ops_restore"));
 assert.equal(en.shortcuts.items.navigatorUndo, "Undo last file action");
 assert.equal(en.contextMenu.undone, "Undone");
+
+const mutation = readFileSync(join(root, "src/state/fileMutation.ts"), "utf8");
+assert.ok(mutation.includes("afterFileMutation"));
+assert.ok(mutation.includes("afterUndoMutation"));
+assert.ok(mutation.includes("dirsAffectedByUndo"));
+assert.ok(
+  mutation.includes("reloadListingAfterMutation"),
+  "mutation hook must call reloadListingAfterMutation",
+);
+assert.ok(
+  !/setInterval|setTimeout\s*\(\s*[^,]+,\s*\d{2,}/.test(mutation),
+  "FIL-61 must not poll directories as the primary refresh",
+);
 
 const result = spawnSync(
   process.execPath,

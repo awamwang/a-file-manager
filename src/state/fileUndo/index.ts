@@ -10,6 +10,7 @@ import {
   type FileOpsResult,
 } from "../fileClipboard";
 import {
+  dirsAffectedByUndo,
   moveUndoRecord,
   popRecord,
   pushRecord,
@@ -18,6 +19,7 @@ import {
 } from "./stack";
 
 export type { UndoRecord };
+export { dirsAffectedByUndo };
 
 const stack = ref<UndoRecord[]>([]);
 

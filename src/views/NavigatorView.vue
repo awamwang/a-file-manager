@@ -23,13 +23,15 @@ import {
   liveOpenState,
   navigateTo,
   openEntry,
-  invalidateListingParents,
   refreshActiveListing,
-  reloadListingAfterMutation,
   removePathsFromListings,
   switchNavigatorTab,
   type NavigatorEntry,
 } from "../state/navigatorBrowse";
+import {
+  afterFileMutation,
+  afterUndoMutation,
+} from "../state/fileMutation";
 import {
   dirEntryFromPath,
   folderContextMenuRequest,
@@ -1436,9 +1438,14 @@ function onNotice(message: string, kind: "success" | "error" = "success") {
   else toastSuccess(message);
 }
 
-async function refreshListing() {
-  // FIL-60：与 F5 相同作废/绕过 listing LRU，避免粘贴等变更后仍命中新鲜缓存。
-  await reloadListingAfterMutation({
+async function refreshListing(options?: {
+  invalidateEntryPaths?: string[];
+  invalidateDirs?: string[];
+}) {
+  // FIL-61：统一 mutation 钩子（作废相关缓存 + bypass 重列）。
+  await afterFileMutation({
+    invalidateEntryPaths: options?.invalidateEntryPaths,
+    invalidateDirs: options?.invalidateDirs,
     includeSecondary: dualPaneEnabled.value,
   });
 }
@@ -1485,10 +1492,13 @@ async function shortcutPaste() {
     }
     if (wasCut) {
       recordMoveUndo(sources, result.paths);
-      invalidateListingParents(sources);
-    } else recordCopyUndo(result.paths);
-    onNotice(t("contextMenu.pasted", { count: result.paths.length }));
-    await refreshListing();
+      onNotice(t("contextMenu.pasted", { count: result.paths.length }));
+      await refreshListing({ invalidateEntryPaths: sources });
+    } else {
+      recordCopyUndo(result.paths);
+      onNotice(t("contextMenu.pasted", { count: result.paths.length }));
+      await refreshListing();
+    }
   } catch (err) {
     onNotice(err instanceof Error ? err.message : String(err));
   }
@@ -1504,7 +1514,13 @@ async function shortcutUndo() {
       return;
     }
     onNotice(t("contextMenu.undone"));
-    await refreshListing();
+    if (result.undone) {
+      await afterUndoMutation(result.undone, {
+        includeSecondary: dualPaneEnabled.value,
+      });
+    } else {
+      await refreshListing();
+    }
   } catch (err) {
     onNotice(err instanceof Error ? err.message : String(err), "error");
   }

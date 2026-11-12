@@ -71,3 +71,34 @@ export function moveUndoRecord(
     })),
   };
 }
+
+/** 撤销成功后需作废的目录 listing（源/目标父目录等）。 */
+export function dirsAffectedByUndo(record: UndoRecord): string[] {
+  const dirs: string[] = [];
+  const push = (dir: string) => {
+    const trimmed = dir.trim();
+    if (!trimmed) return;
+    if (!dirs.includes(trimmed)) dirs.push(trimmed);
+  };
+  switch (record.kind) {
+    case "rename":
+      push(parentDir(record.currentPath));
+      break;
+    case "move":
+      for (const item of record.items) {
+        push(parentDir(item.currentPath));
+        push(item.originalDir);
+      }
+      break;
+    case "copy":
+      for (const path of record.createdPaths) push(parentDir(path));
+      break;
+    case "create":
+      push(parentDir(record.path));
+      break;
+    case "delete":
+      for (const path of record.originalPaths) push(parentDir(path));
+      break;
+  }
+  return dirs;
+}

@@ -21,7 +21,7 @@ assert.ok(hover.includes("createDropHoverScheduler"), "hover scheduler export");
 assert.ok(surface.includes("acceptFolderDragOver"), "shared dragover");
 assert.ok(surface.includes("commitFolderDrop"), "shared drop commit");
 assert.ok(surface.includes("previewDropMode"), "shared mode preview");
-assert.ok(surface.includes("refreshActiveListing"), "refresh after drop");
+assert.ok(surface.includes("afterFileMutation"), "refresh after drop via mutation hook");
 assert.ok(surface.includes("transferEntries"), "uses file ops transfer");
 assert.ok(surface.includes("navigator.copiedInto"), "copy notice key");
 assert.ok(surface.includes("navigator.movedInto"), "move notice key");

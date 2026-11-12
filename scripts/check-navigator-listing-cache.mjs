@@ -42,26 +42,36 @@ const menu = readFileSync(
   "utf8",
 );
 assert.ok(
-  view.includes("reloadListingAfterMutation"),
-  "NavigatorView mutation refresh must use reloadListingAfterMutation",
+  view.includes("afterFileMutation"),
+  "NavigatorView mutation refresh must use afterFileMutation",
 );
 assert.ok(
-  menu.includes("reloadListingAfterMutation"),
-  "Context menu mutation refresh must use reloadListingAfterMutation",
+  menu.includes("afterFileMutation"),
+  "Context menu mutation refresh must use afterFileMutation",
+);
+
+const mutation = readFileSync(join(root, "src/state/fileMutation.ts"), "utf8");
+assert.ok(
+  mutation.includes("reloadListingAfterMutation"),
+  "FIL-61 hook must call reloadListingAfterMutation (bypass cache)",
+);
+assert.ok(
+  mutation.includes("invalidateListingParents"),
+  "FIL-61 hook must support invalidateListingParents",
 );
 
 const dnd = readFileSync(join(root, "src/state/dnd/surface.ts"), "utf8");
 assert.ok(
-  dnd.includes("invalidateListingCache(destPath)"),
+  dnd.includes("afterFileMutation"),
+  "drop must refresh via afterFileMutation",
+);
+assert.ok(
+  /invalidateDirs:\s*\[destPath\]/.test(dnd),
   "drop must invalidate destination listing cache",
 );
 assert.ok(
-  dnd.includes("invalidateListingParents"),
+  /invalidateEntryPaths:\s*mode === "move" \? paths/.test(dnd),
   "move-drop must invalidate source parent listings",
-);
-assert.ok(
-  dnd.includes("refreshActiveListing"),
-  "drop must refresh active listing (F5 path)",
 );
 
 assert.ok(

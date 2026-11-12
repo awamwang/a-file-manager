@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import {
   baseName,
+  dirsAffectedByUndo,
   moveUndoRecord,
   parentDir,
   popRecord,
@@ -31,6 +32,30 @@ if (move.kind === "move") {
   assert.equal(move.items[1]?.currentPath, "D:\\Temp\\afm-fixture\\dst\\b.txt");
 }
 
+assert.deepEqual(dirsAffectedByUndo(rename), ["C:\\Temp\\afm-fixture\\a"]);
+assert.deepEqual(dirsAffectedByUndo(move), [
+  "D:\\Temp\\afm-fixture\\dst",
+  "C:\\Temp\\afm-fixture\\src",
+]);
+assert.deepEqual(
+  dirsAffectedByUndo({
+    kind: "copy",
+    createdPaths: ["C:\\Temp\\afm-fixture\\a\\copy.txt"],
+  }),
+  ["C:\\Temp\\afm-fixture\\a"],
+);
+assert.deepEqual(
+  dirsAffectedByUndo({ kind: "create", path: "C:\\Temp\\afm-fixture\\a\\x.txt" }),
+  ["C:\\Temp\\afm-fixture\\a"],
+);
+assert.deepEqual(
+  dirsAffectedByUndo({
+    kind: "delete",
+    originalPaths: ["C:\\Temp\\afm-fixture\\a\\gone.txt"],
+  }),
+  ["C:\\Temp\\afm-fixture\\a"],
+);
+
 let stack = pushRecord([], rename);
 stack = pushRecord(stack, { kind: "create", path: "C:\\Temp\\afm-fixture\\a\\x.txt" });
 assert.equal(stack.length, 2);
@@ -41,4 +66,4 @@ assert.equal(popped.stack.length, 1);
 const winners = resolveDispatchMap(BUILTIN_SHORTCUTS);
 assert.equal(winners.get(chordKey({ ctrl: true, key: "z" }))?.id, "navigator.undo");
 
-console.log("file-undo checks OK (AIA-192).");
+console.log("file-undo checks OK (AIA-192 / FIL-61).");
