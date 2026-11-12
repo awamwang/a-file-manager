@@ -9,6 +9,7 @@
 import { nextTick, ref } from "vue";
 import { applyAppLocaleFromValues } from "../i18n";
 import { closeCommandPanel } from "./commandPanel";
+import { hydrateFeaturePackContributions } from "./featurePack/contributions";
 import { refreshActiveListing } from "./navigatorBrowse";
 import {
   hydrateSettings,
@@ -22,7 +23,8 @@ export const shellRemountKey = ref(0);
 
 /**
  * Soft Reload Window: clear volatile UI caches, remount shell UI, re-hydrate
- * settings from disk. Does not restart the process or wipe persisted state.
+ * settings and Feature Pack contributions. Does not restart the process or
+ * wipe persisted state.
  */
 export async function reloadWindow(): Promise<void> {
   closeCommandPanel();
@@ -36,6 +38,12 @@ export async function reloadWindow(): Promise<void> {
     applyAppLocaleFromValues(values);
   } catch {
     // IPC unavailable (vite-only): still remount UI with prior chrome/locale.
+  }
+
+  try {
+    await hydrateFeaturePackContributions();
+  } catch {
+    // IPC unavailable: keep prior side nav / routes / commands.
   }
 
   shellRemountKey.value += 1;

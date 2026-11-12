@@ -14,6 +14,7 @@ const builtinEntries = read("src/state/featurePack/builtinEntries.ts");
 const router = read("src/router/index.ts");
 const registry = read("src/commands/registry.ts");
 const main = read("src/main.ts");
+const reload = read("src/state/uiReload.ts");
 
 assert.ok(
   sideNav.includes("getSideNavExtras"),
@@ -55,9 +56,42 @@ assert.ok(
   builtinEntries.includes("builtinEntries"),
   "builtinEntries.ts must export entry map",
 );
-assert.ok(router.includes("getRouteExtras"), "router must consume getRouteExtras");
-assert.ok(router.includes("addRoute"), "pack routes must use router.addRoute");
+assert.ok(
+  router.includes("applyFeaturePackRoutes"),
+  "router must register pack routes via applyFeaturePackRoutes",
+);
 assert.ok(router.includes("AI_ADDON_ENABLED"), "router must keep AI_ADDON_ENABLED");
+assert.ok(
+  contributions.includes("registeredPackRouteNames"),
+  "must track added pack route names",
+);
+assert.ok(
+  contributions.includes("removeRoute") && contributions.includes("addRoute"),
+  "re-hydrate must remove stale pack routes before adding current ones",
+);
+assert.ok(
+  contributions.includes("applyFeaturePackSideNav"),
+  "hydrate must rebuild SIDE_NAV_ITEMS via applyFeaturePackSideNav",
+);
+assert.ok(
+  sideNav.includes("SIDE_NAV_ITEMS.splice"),
+  "applyFeaturePackSideNav must splice SIDE_NAV_ITEMS on re-hydrate",
+);
+{
+  const fnStart = reload.indexOf("export async function reloadWindow");
+  assert.ok(fnStart >= 0, "uiReload.ts must export reloadWindow");
+  const fn = reload.slice(fnStart);
+  const hydrateIdx = fn.indexOf("hydrateFeaturePackContributions");
+  const remountIdx = fn.indexOf("shellRemountKey");
+  assert.ok(
+    hydrateIdx >= 0,
+    "reloadWindow must re-call hydrateFeaturePackContributions",
+  );
+  assert.ok(
+    remountIdx > hydrateIdx,
+    "reloadWindow must hydrate Feature Pack contributions before remount",
+  );
+}
 assert.ok(
   registry.includes("getCommandExtras"),
   "command registry must merge getCommandExtras",

@@ -52,6 +52,15 @@ const EMPTY_CONTRIBUTIONS: AggregatedContributions = {
 
 let cached: AggregatedContributions = EMPTY_CONTRIBUTIONS;
 
+/** 已通过 addRoute 挂上的 Pack 路由 name，Soft Reload 时卸载不再启用的项。 */
+const registeredPackRouteNames = new Set<string>();
+
+function packRouteName(extra: RouteRecordRaw): string | null {
+  return typeof extra.name === "string" && extra.name.length > 0
+    ? extra.name
+    : null;
+}
+
 /** 与壳 `router/index.ts` 静态表一致的核心路径（含 AI 门控）。 */
 function coreShellRoutePaths(): Set<string> {
   const paths = new Set([
@@ -153,6 +162,33 @@ export function getCommandExtras(deps: {
   }));
 }
 
+/** 按当前启用贡献同步 Pack 路由：先卸载过期项，再挂上现有项。 */
+export function applyFeaturePackRoutes(router: Router): void {
+  const extras = getRouteExtras();
+  const nextNames = new Set<string>();
+  for (const extra of extras) {
+    const name = packRouteName(extra);
+    if (name) nextNames.add(name);
+  }
+  for (const name of [...registeredPackRouteNames]) {
+    if (!nextNames.has(name)) {
+      if (router.hasRoute(name)) {
+        router.removeRoute(name);
+      }
+      registeredPackRouteNames.delete(name);
+    }
+  }
+  const existingPaths = new Set(router.getRoutes().map((route) => route.path));
+  for (const extra of extras) {
+    const name = packRouteName(extra);
+    if (name && router.hasRoute(name)) continue;
+    if (typeof extra.path === "string" && existingPaths.has(extra.path)) continue;
+    router.addRoute(extra);
+    if (typeof extra.path === "string") existingPaths.add(extra.path);
+    if (name) registeredPackRouteNames.add(name);
+  }
+}
+
 /** 从 Host 拉取已启用 Pack 贡献，并合并进侧栏与路由。 */
 export async function hydrateFeaturePackContributions(): Promise<void> {
   try {
@@ -160,7 +196,7 @@ export async function hydrateFeaturePackContributions(): Promise<void> {
       await invoke<AggregatedContributions>("extension_host_list_contributions"),
     );
   } catch {
-    cached = normalizeContributions(undefined);
+    // 拉取失败时保留上次贡献，避免 Soft Reload 清空已合并项。
   }
   const { applyFeaturePackSideNav } = await import("../../shell/sideNav");
   applyFeaturePackSideNav();
