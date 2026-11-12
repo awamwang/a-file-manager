@@ -333,7 +333,7 @@ mod tests {
     use std::io::{Read, Write};
     use std::net::TcpListener;
     use std::thread;
-    use std::time::{Duration, Instant};
+    use std::time::Duration;
 
     const PREVIEW_JSONRPC: &str = include_str!("fixtures/call_capability_preview.json");
     const PREVIEW_SSE: &str = include_str!("fixtures/call_capability_sse.txt");
