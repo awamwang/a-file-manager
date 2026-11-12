@@ -36,3 +36,5 @@ Windows-first Hybrid outbound (HTML5 in-window → OLE/`CF_HDROP` on leave) and 
 **FIL-46 (2026-11):** OLE play/open OK; maximized AFM still covered the target on press with no taskbar flash (WebView raises before `WM_MOUSEACTIVATE`). Fixes: enable temp `WS_EX_NOACTIVATE` on `WA_INACTIVE` (not only on press); `WH_MOUSE_LL` arms prior FG before the click is dispatched; `GetAncestor(GA_ROOT)` for OOP WebView hit-testing.
 
 **FIL-47 (2026-11):** Retracted FIL-46 `HWND_TOPMOST` / unconditional `SetForegroundWindow(prior)`. That forced PotPlayer to the front on every click and broke OLE (`DoDragDrop` had no drag feedback / target ignored drops). Correct model: **do not activate AFM**; only if AFM **already stole** FG, hand it back. No TOPMOST on the drop target. Poll restore skipped while OLE is in progress.
+
+**FIL-48 (2026-11):** Tighten further: `SetForegroundWindow(prior)` only when (1) this gesture `had_deferred_activate` (background press), and (2) AFM is currently FG. If another app is already FG → no-op. Foreground-initiated presses clear stale prior via `note_press_origin`. Do not invent prior from `LAST_OTHER_FG` during restore.

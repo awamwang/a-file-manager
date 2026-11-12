@@ -133,18 +133,17 @@ fn moved_past_drag_threshold() -> bool {
 }
 
 fn restore_press_prior_if_we_raised(our_root: HWND) {
-    // FIL-47: 只有我们自己已是前台时才还 prior；否则不要去动 PotPlayer。
+    // FIL-48: 其它应用已在前台 → 不动；仅本轮后台推迟激活且我们误抢了 FG 时才还 prior。
+    // 禁止用 LAST_OTHER 凭空 note_deferred（会在前台拖拽时把旧目标强拉前台）。
+    if !drag::had_deferred_activate() {
+        return;
+    }
     let fg = unsafe { GetForegroundWindow() };
     if !hwnd_is_ours(our_root, fg) {
         return;
     }
     if drag::press_prior_foreground() == 0 {
-        let last = LAST_OTHER_FG.load(Ordering::SeqCst);
-        if last != 0 && last != hwnd_to_isize(our_root) {
-            let mut pt = POINT { x: 0, y: 0 };
-            let _ = unsafe { GetCursorPos(&mut pt) };
-            drag::note_deferred_activate(last, pt.x, pt.y);
-        }
+        return;
     }
     drag::restore_press_prior_foreground(hwnd_to_isize(our_root));
 }
@@ -253,17 +252,19 @@ fn note_press(hwnd: HWND) {
         drag::note_deferred_activate(hwnd_to_isize(fg), pt.x, pt.y);
         LAST_OTHER_FG.store(hwnd_to_isize(fg), Ordering::SeqCst);
         enable_temp_noactivate(root);
-        // 此时我们通常还不是 FG：不调用 SetForegroundWindow(prior)。
-    } else {
-        // 我们已是 FG（可能刚被 WebView 抬起）：若有上次其它前台且左键仍按下，推迟并还回。
+        // 其它应用在前台：不 SetForegroundWindow。
+    } else if TEMP_NOACTIVATE.load(Ordering::SeqCst)
+        && left_button_down()
+        && LAST_OTHER_FG.load(Ordering::SeqCst) != 0
+        && LAST_OTHER_FG.load(Ordering::SeqCst) != hwnd_to_isize(root)
+    {
+        // 仍处「后台 noactivate」会话却已是 FG → 视为误抢，记下 prior 并还回。
         let last = LAST_OTHER_FG.load(Ordering::SeqCst);
-        if last != 0 && last != hwnd_to_isize(root) && left_button_down() {
-            drag::note_deferred_activate(last, pt.x, pt.y);
-            enable_temp_noactivate(root);
-            restore_press_prior_if_we_raised(root);
-        } else {
-            drag::note_press_origin(pt.x, pt.y);
-        }
+        drag::note_deferred_activate(last, pt.x, pt.y);
+        restore_press_prior_if_we_raised(root);
+    } else {
+        // 本就前台的正常按下：清空陈旧 prior，绝不拉其它应用。
+        drag::note_press_origin(pt.x, pt.y);
     }
     PROMOTE_EMITTED.store(false, Ordering::SeqCst);
     arm_poll_timer(root);

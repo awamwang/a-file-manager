@@ -107,7 +107,24 @@ assert.ok(
   "FIL-47 restore must no-op unless AFM stole foreground",
 );
 assert.ok(design.includes("FIL-47"), "design doc records FIL-47 retract TOPMOST");
+assert.ok(design.includes("FIL-48") || design.includes("had_deferred_activate"), "design doc records FIL-48");
+assert.ok(
+  patch.includes("had_deferred_activate") && patch.includes("HAD_DEFERRED_ACTIVATE"),
+  "FIL-48 gates preserve/restore on had_deferred_activate",
+);
+assert.ok(
+  focus.includes("had_deferred_activate"),
+  "FIL-48 host restore gates on had_deferred_activate",
+);
+const restoreFn = focus.match(
+  /fn restore_press_prior_if_we_raised\([^)]*\)\s*\{[\s\S]*?\n\}/,
+);
+assert.ok(restoreFn, "restore_press_prior_if_we_raised present");
+assert.ok(
+  !restoreFn[0].includes("note_deferred_activate"),
+  "FIL-48 restore_press_prior must not invent prior from LAST_OTHER",
+);
 
 console.log(
-  "cross-app DnD Hybrid OK (Explorer OLE out + shell inbound + FIL-37..47 guards).",
+  "cross-app DnD Hybrid OK (Explorer OLE out + shell inbound + FIL-37..48 guards).",
 );

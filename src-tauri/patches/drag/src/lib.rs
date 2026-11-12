@@ -90,8 +90,8 @@ pub use platform_impl::start_drag;
 #[cfg(windows)]
 pub use platform_impl::{
     arm_outbound_paths, clear_outbound_paths, clear_press_state, drag_gesture_active,
-    note_deferred_activate, note_drag_gesture, note_press_origin, ole_drag_in_progress,
-    press_origin, press_prior_foreground, resolve_preserve_foreground,
+    had_deferred_activate, note_deferred_activate, note_drag_gesture, note_press_origin,
+    ole_drag_in_progress, press_origin, press_prior_foreground, resolve_preserve_foreground,
     restore_press_prior_foreground, should_suppress_foreground_raise, start_files_drag_hwnd,
     take_outbound_paths, take_pending_activate,
 };

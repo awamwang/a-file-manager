@@ -51,6 +51,9 @@ static OLE_DRAG_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 /// Host deferred activation after background `MA_NOACTIVATE` (cleared on drag / OLE / take).
 static PENDING_BACKGROUND_ACTIVATE: AtomicBool = AtomicBool::new(false);
 
+/// 本轮手势是否因「后台按下」而推迟过激活（与 PENDING 不同：进拖势后 PENDING 会清，此旗仍保留到 clear）。
+static HAD_DEFERRED_ACTIVATE: AtomicBool = AtomicBool::new(false);
+
 /// Press that crossed `SM_CXDRAG`/`SM_CYDRAG` (or entered OLE) — do not activate on mouse-up.
 static DRAG_GESTURE: AtomicBool = AtomicBool::new(false);
 
@@ -85,12 +88,16 @@ pub fn note_deferred_activate(prior_fg: isize, press_x: i32, press_y: i32) {
     PRESS_Y.store(press_y, Ordering::SeqCst);
     DRAG_GESTURE.store(false, Ordering::SeqCst);
     PENDING_BACKGROUND_ACTIVATE.store(true, Ordering::SeqCst);
+    HAD_DEFERRED_ACTIVATE.store(true, Ordering::SeqCst);
 }
 
-/// 记录按下原点（前台窗也可用于拖势阈值），不推迟激活、不改 prior FG。
+/// 记录按下原点（前台窗也可用于拖势阈值），不推迟激活；清空陈旧 prior，避免前台拖拽误拉其它应用。
 pub fn note_press_origin(press_x: i32, press_y: i32) {
     PRESS_X.store(press_x, Ordering::SeqCst);
     PRESS_Y.store(press_y, Ordering::SeqCst);
+    PRESS_PRIOR_FG.store(0, Ordering::SeqCst);
+    PENDING_BACKGROUND_ACTIVATE.store(false, Ordering::SeqCst);
+    HAD_DEFERRED_ACTIVATE.store(false, Ordering::SeqCst);
 }
 
 /// Take-and-clear deferred activation; `false` once a drag gesture / OLE started.
@@ -131,13 +138,22 @@ pub fn should_suppress_foreground_raise() -> bool {
 pub fn clear_press_state() {
     unlock_foreground();
     PENDING_BACKGROUND_ACTIVATE.store(false, Ordering::SeqCst);
+    HAD_DEFERRED_ACTIVATE.store(false, Ordering::SeqCst);
     DRAG_GESTURE.store(false, Ordering::SeqCst);
     PRESS_PRIOR_FG.store(0, Ordering::SeqCst);
 }
 
+/// 本轮是否因后台按下而推迟过激活（才允许把 prior 还回去）。
+pub fn had_deferred_activate() -> bool {
+    HAD_DEFERRED_ACTIVATE.load(Ordering::SeqCst)
+}
+
 /// Resolve which HWND to keep above AFM for the OLE lifetime.
-/// Prefers the press-time prior FG (AIA-264: mousedown may have already raised us).
+/// FIL-48: 仅当本轮是后台推迟激活手势时才保留 prior；前台发起的拖拽返回 None。
 pub fn resolve_preserve_foreground(our_root: isize, current_fg: isize) -> Option<isize> {
+    if !HAD_DEFERRED_ACTIVATE.load(Ordering::SeqCst) {
+        return None;
+    }
     let prior = PRESS_PRIOR_FG.load(Ordering::SeqCst);
     if prior != 0 && prior != our_root {
         return Some(prior);
@@ -193,8 +209,12 @@ fn unlock_foreground() {
     }
 }
 
-/// 用 press-time prior FG 做一次强化恢复（供宿主 timer / OLE 入口共用）。
+/// 用 press-time prior FG 做一次恢复（供宿主 timer / OLE 入口共用）。
+/// 仅后台推迟激活手势 + 我们当前已是 FG 时才会 SetForegroundWindow(prior)。
 pub fn restore_press_prior_foreground(our_root: isize) {
+    if !HAD_DEFERRED_ACTIVATE.load(Ordering::SeqCst) {
+        return;
+    }
     let prior = PRESS_PRIOR_FG.load(Ordering::SeqCst);
     if prior == 0 || prior == our_root {
         return;
@@ -261,9 +281,9 @@ fn root_hwnd(hwnd: HWND) -> HWND {
     }
 }
 
-/// FIL-37/44/47: 仅当我们**已经抢到前台**时，把 prior 还回去并把自身压到其下。
-/// 禁止 HWND_TOPMOST / 无条件 SetForegroundWindow(prior)——那会把播放器强拉前台并打坏 DoDragDrop。
-/// Explorer 做法是源窗不激活，而不是去置顶目标窗。
+/// FIL-37/44/47/48: 仅当「本轮后台推迟激活」且**我们当前已是前台**时，把 prior 还回去。
+/// 若其它应用已在前台：直接返回，绝不 SetForegroundWindow。
+/// 禁止 HWND_TOPMOST / 无条件抬目标窗。
 fn restore_preserved_foreground(our_root: HWND, preserve_fg: Option<HWND>) {
     let Some(prev) = preserve_fg else {
         return;
@@ -271,12 +291,16 @@ fn restore_preserved_foreground(our_root: HWND, preserve_fg: Option<HWND>) {
     if prev.0 == 0 || hwnd_is_ours(our_root, prev) {
         return;
     }
+    if !HAD_DEFERRED_ACTIVATE.load(Ordering::SeqCst) {
+        return;
+    }
     unsafe {
         let fg = GetForegroundWindow();
-        // 我们不是 FG：不要动 prior（它本就该在前台）；乱 SetForegroundWindow 会打坏 OLE。
+        // 其它应用已在前台：不要再 SetForegroundWindow(prior)。
         if !hwnd_is_ours(our_root, fg) {
             return;
         }
+        // 我们误抢了 FG：才把 prior 还回去。
         lock_foreground();
 
         let mut fg_pid = 0u32;
@@ -749,6 +773,7 @@ mod tests {
         clear_press_state();
         // Background press remembered Explorer (0x100); by OLE start we are FG (0x200).
         note_deferred_activate(0x100, 10, 20);
+        assert!(had_deferred_activate());
         assert_eq!(press_prior_foreground(), 0x100);
         assert_eq!(press_origin(), (10, 20));
         assert_eq!(resolve_preserve_foreground(0x200, 0x200), Some(0x100));
@@ -758,10 +783,12 @@ mod tests {
         assert!(!take_pending_activate());
         assert!(drag_gesture_active());
         assert!(should_suppress_foreground_raise());
+        assert!(had_deferred_activate());
+        assert_eq!(resolve_preserve_foreground(0x200, 0x200), Some(0x100));
         clear_press_state();
         assert!(!should_suppress_foreground_raise());
-
-        assert_eq!(resolve_preserve_foreground(0x200, 0x100), Some(0x100));
+        assert!(!had_deferred_activate());
+        assert_eq!(resolve_preserve_foreground(0x200, 0x100), None);
         assert_eq!(resolve_preserve_foreground(0x200, 0x200), None);
         assert_eq!(resolve_preserve_foreground(0x200, 0), None);
     }
@@ -770,10 +797,13 @@ mod tests {
     fn note_press_origin_does_not_defer_activate() {
         let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
         clear_press_state();
+        note_deferred_activate(0x100, 1, 2);
         note_press_origin(3, 4);
         assert_eq!(press_origin(), (3, 4));
         assert_eq!(press_prior_foreground(), 0);
         assert!(!PENDING_BACKGROUND_ACTIVATE.load(Ordering::SeqCst));
+        assert!(!had_deferred_activate());
+        assert_eq!(resolve_preserve_foreground(0x200, 0x200), None);
         clear_press_state();
     }
 
