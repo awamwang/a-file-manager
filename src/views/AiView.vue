@@ -134,7 +134,7 @@ onMounted(() => {
 
 .ai-layout {
   display: grid;
-  grid-template-columns: 13rem minmax(0, 1fr);
+  grid-template-columns: minmax(18rem, max-content) minmax(0, 1fr);
   gap: var(--fluent-space-lg);
   align-items: start;
   margin-top: var(--fluent-space-lg);
@@ -180,8 +180,6 @@ onMounted(() => {
 .ai-nav-label {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
