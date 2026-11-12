@@ -10,9 +10,17 @@ import { entryKindIcon } from "../components/icons/glyphs";
 import { preloadProviderCache } from "../state/providerCache";
 import { navigateTo } from "../state/navigatorBrowse";
 import { PROVIDER_ROOT } from "../state/provider";
+import {
+  hydrateSettings,
+  rememberSettingsDocument,
+  type SettingsDocument,
+} from "../state/settingsHydrate";
 
 const { t } = useI18n();
 const router = useRouter();
+
+const GATEWAY_URL_SETTING_KEY = "power.awamGatewayUrl";
+const DEFAULT_GATEWAY_URL = "http://127.0.0.1:18787";
 
 type BackendInfo = {
   id: string;
@@ -59,10 +67,33 @@ type ResolveResult = {
 
 const backends = ref<BackendInfo[]>([]);
 const gateway = ref<GatewayStatus | null>(null);
+const gatewayUrlDraft = ref(DEFAULT_GATEWAY_URL);
+const gatewayUrlSaving = ref(false);
+const refreshing = ref(false);
 const uri = ref("awam://root");
 const listing = ref<DirListing | null>(null);
 const loading = ref(false);
 const error = ref<string | null>(null);
+
+function normalizeGatewayUrlInput(raw: string): string {
+  return raw.trim().replace(/\/+$/, "");
+}
+
+async function loadGatewayUrlFromSettings() {
+  try {
+    const doc = await hydrateSettings();
+    const raw = doc.values[GATEWAY_URL_SETTING_KEY];
+    if (typeof raw === "string" && raw.trim()) {
+      gatewayUrlDraft.value = normalizeGatewayUrlInput(raw) || DEFAULT_GATEWAY_URL;
+      return;
+    }
+  } catch {
+    // 设置读取失败时仍可用探测到的 baseUrl / 默认值。
+  }
+  if (gateway.value?.baseUrl) {
+    gatewayUrlDraft.value = gateway.value.baseUrl;
+  }
+}
 
 async function loadBackends() {
   // AIA-226: 优先 awam-file 网关发现；离线时回退本机内置提供方。
@@ -72,6 +103,29 @@ async function loadBackends() {
   ]);
   gateway.value = status;
   backends.value = list;
+  if (!gatewayUrlDraft.value.trim() && status.baseUrl) {
+    gatewayUrlDraft.value = status.baseUrl;
+  }
+}
+
+/** 保存网关地址到设置并重新发现后端。 */
+async function saveGatewayUrl() {
+  const next = normalizeGatewayUrlInput(gatewayUrlDraft.value) || DEFAULT_GATEWAY_URL;
+  gatewayUrlDraft.value = next;
+  gatewayUrlSaving.value = true;
+  error.value = null;
+  try {
+    const doc = await invoke<SettingsDocument>("settings_set", {
+      patch: { [GATEWAY_URL_SETTING_KEY]: next },
+    });
+    rememberSettingsDocument(doc);
+    await loadBackends();
+    await listUri(PROVIDER_ROOT);
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    gatewayUrlSaving.value = false;
+  }
 }
 
 async function listUri(target?: string) {
@@ -143,10 +197,26 @@ async function openInExplorer(target: string) {
   }
 }
 
+/** 刷新网关状态、后端列表与当前 URI 列出结果。 */
+async function refreshStatus() {
+  if (refreshing.value || gatewayUrlSaving.value) return;
+  refreshing.value = true;
+  error.value = null;
+  try {
+    await loadBackends();
+    await listUri(uri.value.trim() || PROVIDER_ROOT);
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    refreshing.value = false;
+  }
+}
+
 onMounted(() => {
   // AIA-181: if idle preload has not finished (or was deferred), warm on first visit.
   void preloadProviderCache();
-  void loadBackends()
+  void loadGatewayUrlFromSettings()
+    .then(() => loadBackends())
     .then(() => listUri(PROVIDER_ROOT))
     .catch((err) => {
       error.value = err instanceof Error ? err.message : String(err);
@@ -156,9 +226,22 @@ onMounted(() => {
 
 <template>
   <section class="fluent-page">
-    <header class="fluent-page-header">
-      <h1 class="fluent-page-title">{{ t("providers.title") }}</h1>
-      <p class="fluent-page-meta">{{ t("providers.meta") }}</p>
+    <header class="fluent-page-header providers-header">
+      <div class="providers-header-text">
+        <h1 class="fluent-page-title">{{ t("providers.title") }}</h1>
+        <p class="fluent-page-meta">{{ t("providers.meta") }}</p>
+      </div>
+      <button
+        class="fluent-control"
+        type="button"
+        :disabled="refreshing || gatewayUrlSaving"
+        :title="t('providers.refresh')"
+        :aria-label="t('providers.refresh')"
+        @click="refreshStatus"
+      >
+        <FluentIcon name="refresh" size="sm" />
+        {{ refreshing ? t("providers.refreshing") : t("providers.refresh") }}
+      </button>
     </header>
 
     <p
@@ -178,6 +261,28 @@ onMounted(() => {
     >
       {{ t("providers.gatewayOffline") }}
     </p>
+
+    <form class="uri-row gateway-row" @submit.prevent="saveGatewayUrl">
+      <label class="gateway-label" for="providers-gateway-url">{{
+        t("providers.gatewayUrlLabel")
+      }}</label>
+      <input
+        id="providers-gateway-url"
+        v-model="gatewayUrlDraft"
+        class="fluent-control"
+        type="url"
+        spellcheck="false"
+        autocomplete="off"
+        :placeholder="t('providers.gatewayUrlPlaceholder')"
+      />
+      <button
+        class="fluent-control fluent-control--accent"
+        type="submit"
+        :disabled="gatewayUrlSaving"
+      >
+        {{ gatewayUrlSaving ? t("providers.gatewayUrlSaving") : t("providers.gatewayUrlSave") }}
+      </button>
+    </form>
 
     <p v-if="!backends.length" class="fluent-banner fluent-banner--info">
       {{ t("providers.emptyBackends") }}
@@ -274,6 +379,25 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.providers-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--fluent-space-md);
+}
+
+.providers-header-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.providers-header .fluent-control {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fluent-space-xs);
+  flex: 0 0 auto;
+}
+
 .backends {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
@@ -331,10 +455,24 @@ onMounted(() => {
 .uri-row {
   display: flex;
   gap: var(--fluent-space-sm);
+  align-items: center;
+  flex-wrap: wrap;
 }
 
-.uri-row .fluent-control:first-child {
+.uri-row .fluent-control[type="text"],
+.uri-row .fluent-control[type="url"] {
   flex: 1;
+  min-width: 12rem;
+}
+
+.gateway-row {
+  margin-block: var(--fluent-space-sm);
+}
+
+.gateway-label {
+  flex: 0 0 auto;
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
 }
 
 .list {
