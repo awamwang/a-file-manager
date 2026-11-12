@@ -68,12 +68,13 @@ if (shell.includes("fav-os-hook") || shell.includes("class=\"quick-access\"")) {
   process.exit(1);
 }
 
-if (!settings.includes("settings/favorites") || !settings.includes("setFavoritesOsHookEnabled")) {
-  console.error("Settings missing OS favorites verb panel");
+// FIL-65：收藏 OS 动词并入高级，不再作为独立侧栏大项。
+if (!settings.includes("setFavoritesOsHookEnabled") || !settings.includes("favorites-in-advanced")) {
+  console.error("Settings missing OS favorites verb in Advanced");
   process.exit(1);
 }
 if (!router.includes("/settings/favorites")) {
-  console.error("Router missing /settings/favorites");
+  console.error("Router missing /settings/favorites deep-link");
   process.exit(1);
 }
 if (!settings.includes("settings/open-tools") || !settings.includes("ide_list_apps")) {

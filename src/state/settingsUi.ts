@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
- * 设置页展示归类（FIL-59）。
+ * 设置页展示归类（FIL-59 / FIL-65）。
  * Schema 键仍全部保留；此处只控制侧栏分区内的分组、排序与默认隐藏。
  */
 
@@ -8,6 +8,7 @@ export type SettingsUiGroupId =
   | "appearance"
   | "startup"
   | "files"
+  | "projects"
   | "features"
   | "safety"
   | "advanced"
@@ -28,6 +29,7 @@ const GROUP_ORDER: SettingsUiGroupId[] = [
   "appearance",
   "startup",
   "files",
+  "projects",
   "features",
   "safety",
   "advanced",
@@ -53,7 +55,9 @@ const KEY_GROUP: Record<string, SettingsUiGroupId> = {
   "core.fileDoubleClickAction": "files",
   "core.newFolderDefaultName": "files",
   "core.newFileDefaultName": "files",
-  "core.projectsRoot": "files",
+
+  // FIL-65：项目公共配置（及同类项）单独成组。
+  "core.projectsRoot": "projects",
 
   "core.everythingPreferred": "features",
   "core.extensionsEnabled": "features",

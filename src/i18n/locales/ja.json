@@ -599,12 +599,12 @@
     "fields": {
       "core": {
         "defaultLocation": {
-          "description": "ホームボタンで開く OS パス（空 = USERPROFILE）",
+          "description": "ホームボタンで開く OS パス（既定：{default}）",
           "title": "既定の場所"
         },
         "projectsRoot": {
           "title": "プロジェクトのルート",
-          "description": "Project Workspace を置くフォルダー（空 = %APPDATA%\\com.a-file-manager.app\\projects\\）"
+          "description": "Project Workspace を置くフォルダー（既定：{default}）"
         },
         "startupPage": {
           "title": "起動ページ",
@@ -678,11 +678,11 @@
         },
         "newFolderDefaultName": {
           "title": "新規フォルダーの既定名",
-          "description": "フォルダー作成時の候補名（空=現在の言語の既定）"
+          "description": "フォルダー作成時の候補名（既定：{default}）"
         },
         "newFileDefaultName": {
           "title": "新規ファイルの既定名",
-          "description": "ファイル作成時の候補名（空=現在の言語の既定）"
+          "description": "ファイル作成時の候補名（既定：{default}）"
         },
         "fileDoubleClickAction": {
           "title": "ファイルのダブルクリック動作",
@@ -820,7 +820,7 @@
     "sectionShortcuts": "ショートカット",
     "title": "設定",
     "sectionFavorites": "お気に入り",
-    "favoritesMeta": "エクスプローラーの「AFM のお気に入りに追加」動詞を登録します。",
+    "favoritesMeta": "エクスプローラー「AFM のお気に入りに追加」動詞",
     "sectionOpenTools": "開くツール",
     "openTools": {
       "meta": "「プログラムから開く」に出す IDE/Agent を管理します。まず自動検出、失敗時のみパスを指定します。",
@@ -835,16 +835,12 @@
       "appearance": "外観",
       "startup": "起動とウィンドウ",
       "files": "ファイルとタブ",
+      "projects": "プロジェクトの共通設定",
       "features": "機能",
       "safety": "安全",
       "advanced": "詳細オプション",
       "preview": "プレビュー",
       "other": "その他"
-    },
-    "hiddenNotes": {
-      "core": "Discovery のブラックリストは Discovery ページで編集します。",
-      "power": "ゲートウェイ URL は Providers ページで編集します。",
-      "experimental": "タイトルバーのデバッグ表示はこの画面では非表示です（キーは診断用に保持）。"
     }
   },
   "workGroups": {

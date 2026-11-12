@@ -476,11 +476,11 @@
         },
         "defaultLocation": {
           "title": "Default location",
-          "description": "OS path opened by the Home button (empty = USERPROFILE)"
+          "description": "OS path opened by the Home button (default: {default})"
         },
         "projectsRoot": {
           "title": "Projects Root",
-          "description": "Folder that holds Project Workspaces (empty = %APPDATA%\\com.a-file-manager.app\\projects\\)"
+          "description": "Folder that holds Project Workspaces (default: {default})"
         },
         "startupPage": {
           "title": "Startup page",
@@ -534,11 +534,11 @@
         },
         "newFolderDefaultName": {
           "title": "Default new folder name",
-          "description": "Suggested name when creating a folder (empty = current language default)"
+          "description": "Suggested name when creating a folder (default: {default})"
         },
         "newFileDefaultName": {
           "title": "Default new file name",
-          "description": "Suggested name when creating a file (empty = current language default)"
+          "description": "Suggested name when creating a file (default: {default})"
         },
         "fileDoubleClickAction": {
           "title": "File double-click action",
@@ -666,7 +666,7 @@
       }
     },
     "sectionFavorites": "Favorites",
-    "favoritesMeta": "Register the Explorer context-menu verb that adds a path to AFM favorites.",
+    "favoritesMeta": "Explorer “Add to AFM favorites” verb",
     "sectionOpenTools": "Open tools",
     "openTools": {
       "meta": "Enable IDE/Agent apps in Open with. Paths are discovered automatically; set a path only when discovery fails.",
@@ -681,16 +681,12 @@
       "appearance": "Appearance",
       "startup": "Startup & window",
       "files": "Files & tabs",
+      "projects": "Project shared settings",
       "features": "Features",
       "safety": "Safety",
       "advanced": "Advanced options",
       "preview": "Preview",
       "other": "Other"
-    },
-    "hiddenNotes": {
-      "core": "Discovery blacklist is edited on the Discovery page.",
-      "power": "Gateway URL is edited on the Providers page to avoid duplicate entries.",
-      "experimental": "Titlebar debug status is hidden here; the setting key is retained for diagnostics."
     }
   },
   "health": {

@@ -599,12 +599,12 @@
     "fields": {
       "core": {
         "defaultLocation": {
-          "description": "Chemin OS ouvert par le bouton Accueil (vide = USERPROFILE)",
+          "description": "Chemin OS ouvert par le bouton Accueil (défaut : {default})",
           "title": "Emplacement par défaut"
         },
         "projectsRoot": {
           "title": "Racine des projets",
-          "description": "Dossier des Project Workspaces (vide = %APPDATA%\\com.a-file-manager.app\\projects\\)"
+          "description": "Dossier des Project Workspaces (défaut : {default})"
         },
         "startupPage": {
           "title": "Page de démarrage",
@@ -678,11 +678,11 @@
         },
         "newFolderDefaultName": {
           "title": "Nom par défaut des nouveaux dossiers",
-          "description": "Nom suggéré à la création (vide = défaut de la langue)"
+          "description": "Nom suggéré à la création (défaut : {default})"
         },
         "newFileDefaultName": {
           "title": "Nom par défaut des nouveaux fichiers",
-          "description": "Nom suggéré à la création (vide = défaut de la langue)"
+          "description": "Nom suggéré à la création (défaut : {default})"
         },
         "fileDoubleClickAction": {
           "title": "Double-clic sur un fichier",
@@ -820,7 +820,7 @@
     "sectionShortcuts": "Raccourcis",
     "title": "Paramètres",
     "sectionFavorites": "Favoris",
-    "favoritesMeta": "Enregistre le verbe Explorer Ajouter aux favoris AFM.",
+    "favoritesMeta": "Verbe Explorer « Ajouter aux favoris AFM »",
     "sectionOpenTools": "Outils d’ouverture",
     "openTools": {
       "meta": "IDE/Agents dans Ouvrir avec. Découverte auto d’abord ; chemin seulement en secours.",
@@ -835,16 +835,12 @@
       "appearance": "Apparence",
       "startup": "Démarrage et fenêtre",
       "files": "Fichiers et onglets",
+      "projects": "Réglages partagés du projet",
       "features": "Fonctionnalités",
       "safety": "Sécurité",
       "advanced": "Options avancées",
       "preview": "Aperçu",
       "other": "Autre"
-    },
-    "hiddenNotes": {
-      "core": "La liste noire Discovery s’édite sur la page Discovery.",
-      "power": "L’URL de passerelle s’édite sur la page Providers.",
-      "experimental": "Le statut de débogage de la barre de titre est masqué ici ; la clé est conservée."
     }
   },
   "workGroups": {

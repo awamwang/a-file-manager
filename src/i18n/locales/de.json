@@ -599,12 +599,12 @@
     "fields": {
       "core": {
         "defaultLocation": {
-          "description": "OS-Pfad der Schaltfläche „Home“ (leer = USERPROFILE)",
+          "description": "OS-Pfad der Schaltfläche „Home“ (Standard: {default})",
           "title": "Standardort"
         },
         "projectsRoot": {
           "title": "Projects-Stammverzeichnis",
-          "description": "Ordner für Project Workspaces (leer = %APPDATA%\\com.a-file-manager.app\\projects\\)"
+          "description": "Ordner für Project Workspaces (Standard: {default})"
         },
         "startupPage": {
           "title": "Startseite",
@@ -678,11 +678,11 @@
         },
         "newFolderDefaultName": {
           "title": "Standardname neuer Ordner",
-          "description": "Vorschlag beim Erstellen (leer = Sprachstandard)"
+          "description": "Vorschlag beim Erstellen (Standard: {default})"
         },
         "newFileDefaultName": {
           "title": "Standardname neuer Dateien",
-          "description": "Vorschlag beim Erstellen (leer = Sprachstandard)"
+          "description": "Vorschlag beim Erstellen (Standard: {default})"
         },
         "fileDoubleClickAction": {
           "title": "Doppelklick auf Dateien",
@@ -820,7 +820,7 @@
     "sectionShortcuts": "Tastenkürzel",
     "title": "Einstellungen",
     "sectionFavorites": "Favoriten",
-    "favoritesMeta": "Registriert den Explorer-Kontextmenuebefehl zum Hinzufuegen zu AFM-Favoriten.",
+    "favoritesMeta": "Explorer „Zu AFM-Favoriten hinzufügen“",
     "sectionOpenTools": "Öffnen mit",
     "openTools": {
       "meta": "IDE/Agent-Apps für Öffnen-mit. Zuerst Auto-Erkennung; Pfad nur bei Fehlschlag.",
@@ -835,16 +835,12 @@
       "appearance": "Darstellung",
       "startup": "Start & Fenster",
       "files": "Dateien & Tabs",
+      "projects": "Gemeinsame Projekteinstellungen",
       "features": "Funktionen",
       "safety": "Sicherheit",
       "advanced": "Erweiterte Optionen",
       "preview": "Vorschau",
       "other": "Sonstiges"
-    },
-    "hiddenNotes": {
-      "core": "Die Discovery-Blacklist wird auf der Discovery-Seite bearbeitet.",
-      "power": "Die Gateway-URL wird auf der Providers-Seite bearbeitet.",
-      "experimental": "Der Titlebar-Debugstatus ist hier ausgeblendet; der Schlüssel bleibt erhalten."
     }
   },
   "workGroups": {

@@ -476,11 +476,11 @@
         },
         "defaultLocation": {
           "title": "默认位置",
-          "description": "主页按钮打开的操作系统路径（空 = USERPROFILE）"
+          "description": "主页按钮打开的操作系统路径（默认：{default}）"
         },
         "projectsRoot": {
           "title": "项目根目录",
-          "description": "存放 Project Workspace 的文件夹（空 = %APPDATA%\\com.a-file-manager.app\\projects\\）"
+          "description": "存放 Project Workspace 的文件夹（默认：{default}）"
         },
         "startupPage": {
           "title": "启动页",
@@ -534,11 +534,11 @@
         },
         "newFolderDefaultName": {
           "title": "默认新建文件夹名",
-          "description": "新建文件夹时的建议名称（空=使用当前语言默认）"
+          "description": "新建文件夹时的建议名称（默认：{default}）"
         },
         "newFileDefaultName": {
           "title": "默认新建文件名",
-          "description": "新建文件时的建议名称（空=使用当前语言默认）"
+          "description": "新建文件时的建议名称（默认：{default}）"
         },
         "fileDoubleClickAction": {
           "title": "文件双击行为",
@@ -666,7 +666,7 @@
       }
     },
     "sectionFavorites": "收藏",
-    "favoritesMeta": "注册资源管理器右键「添加到 AFM 收藏」动词。",
+    "favoritesMeta": "资源管理器右键「添加到 AFM 收藏」",
     "sectionOpenTools": "打开工具",
     "openTools": {
       "meta": "控制「打开方式」中的 IDE/Agent。优先自动发现，失败后再用下方路径。",
@@ -681,16 +681,12 @@
       "appearance": "外观",
       "startup": "启动与窗口",
       "files": "文件与标签",
+      "projects": "项目的公共配置",
       "features": "功能",
       "safety": "安全",
       "advanced": "高级选项",
       "preview": "预览",
       "other": "其他"
-    },
-    "hiddenNotes": {
-      "core": "发现黑名单请在「发现」页编辑。",
-      "power": "网关地址请在「资源提供者」页编辑，避免双入口。",
-      "experimental": "标题栏调试状态已在此隐藏；设置键仍保留供诊断。"
     }
   },
   "health": {

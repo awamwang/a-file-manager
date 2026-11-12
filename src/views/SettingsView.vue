@@ -39,6 +39,13 @@ import {
   settingsUiGroupOrder,
   type SettingsUiGroupId,
 } from "../state/settingsUi";
+import {
+  displaySettingsStringValue,
+  isSettingsEmptyMeansDefaultKey,
+  loadSettingsEffectiveDefaults,
+  normalizeSettingsStringForSave,
+  type SettingsEffectiveDefaults,
+} from "../state/settingsEffectiveDefaults";
 
 /** AIA-276: Health stays off the default Settings chunk until that section opens. */
 const HealthView = defineAsyncComponent(() => import("./HealthView.vue"));
@@ -47,6 +54,8 @@ const { t, te, locale } = useI18n();
 const route = useRoute();
 const router = useRouter();
 
+const effectiveDefaults = ref<SettingsEffectiveDefaults>({});
+
 function fieldTitle(def: SettingDefinition): string {
   const path = settingFieldMessagePath(def.key, "title");
   return te(path) ? String(t(path)) : def.title;
@@ -54,7 +63,16 @@ function fieldTitle(def: SettingDefinition): string {
 
 function fieldDescription(def: SettingDefinition): string {
   const path = settingFieldMessagePath(def.key, "description");
-  return te(path) ? String(t(path)) : def.description;
+  const fallbackDefault =
+    isSettingsEmptyMeansDefaultKey(def.key)
+      ? effectiveDefaults.value[def.key]
+      : undefined;
+  if (te(path)) {
+    return fallbackDefault != null && fallbackDefault !== ""
+      ? String(t(path, { default: fallbackDefault }))
+      : String(t(path));
+  }
+  return def.description;
 }
 
 function enumOptionLabel(settingKey: string, option: string): string {
@@ -63,7 +81,7 @@ function enumOptionLabel(settingKey: string, option: string): string {
 }
 
 type SettingsTier = "core" | "power" | "experimental";
-type SettingsSection = SettingsTier | "health" | "shortcuts" | "favorites" | "openTools";
+type SettingsSection = SettingsTier | "health" | "shortcuts" | "openTools";
 
 type IdeAppInfo = {
   id: string;
@@ -101,11 +119,6 @@ const sections = computed(() => [
     icon: "puzzle" as FluentGlyphId,
   },
   {
-    id: "favorites" as const,
-    label: t("settings.sectionFavorites"),
-    icon: "star" as FluentGlyphId,
-  },
-  {
     id: "shortcuts" as const,
     label: t("settings.sectionShortcuts"),
     icon: "commands" as FluentGlyphId,
@@ -139,7 +152,6 @@ const visibleDefs = computed(() =>
       (def) =>
         activeSection.value !== "health" &&
         activeSection.value !== "shortcuts" &&
-        activeSection.value !== "favorites" &&
         activeSection.value !== "openTools" &&
         def.tier === activeSection.value &&
         // Open tools has its own section UI.
@@ -180,19 +192,6 @@ const visibleFieldGroups = computed((): SettingsFieldGroup[] => {
     .filter((group): group is SettingsFieldGroup => group != null);
 });
 
-const sectionHiddenNote = computed(() => {
-  if (activeSection.value === "core") {
-    return t("settings.hiddenNotes.core");
-  }
-  if (activeSection.value === "power") {
-    return t("settings.hiddenNotes.power");
-  }
-  if (activeSection.value === "experimental") {
-    return t("settings.hiddenNotes.experimental");
-  }
-  return "";
-});
-
 function isSpecialSettingsPath(path: string) {
   return (
     path.endsWith("/health") ||
@@ -208,13 +207,13 @@ function syncSectionFromRoute() {
   } else if (route.path.endsWith("/shortcuts")) {
     activeSection.value = "shortcuts";
   } else if (route.path.endsWith("/favorites")) {
-    activeSection.value = "favorites";
+    // FIL-65：收藏配置并入高级；保留深链兼容。
+    activeSection.value = "power";
   } else if (route.path.endsWith("/open-tools")) {
     activeSection.value = "openTools";
   } else if (
     activeSection.value === "health" ||
     activeSection.value === "shortcuts" ||
-    activeSection.value === "favorites" ||
     activeSection.value === "openTools"
   ) {
     activeSection.value = "core";
@@ -288,19 +287,15 @@ function selectSection(section: SettingsSection) {
     }
     return;
   }
-  if (section === "favorites") {
-    if (route.path !== "/settings/favorites") {
-      void router.push("/settings/favorites");
-    }
-    void loadFavoritesOsHookStatus().catch(() => undefined);
-    return;
-  }
   if (section === "openTools") {
     if (route.path !== "/settings/open-tools") {
       void router.push("/settings/open-tools");
     }
     void refreshIdeApps();
     return;
+  }
+  if (section === "power") {
+    void loadFavoritesOsHookStatus().catch(() => undefined);
   }
   if (isSpecialSettingsPath(route.path)) {
     void router.push("/settings");
@@ -328,6 +323,13 @@ function paintSettingsFromCache(): boolean {
   return false;
 }
 
+async function refreshEffectiveDefaults() {
+  effectiveDefaults.value = await loadSettingsEffectiveDefaults({
+    newFolderLocaleDefault: String(t("navigator.newFolderDefault")),
+    newFileLocaleDefault: String(t("navigator.newFileDefault")),
+  });
+}
+
 async function loadAll() {
   error.value = null;
   const hadCache = paintSettingsFromCache();
@@ -344,6 +346,7 @@ async function loadAll() {
     document.value = doc;
     applyUiChromeFromValues(doc.values);
     applyAppLocaleFromValues(doc.values);
+    await refreshEffectiveDefaults();
     // Autostart registry write is non-critical for Settings paint — defer past first frame.
     scheduleAfterPaint(() => {
       void applyLaunchAtStartupPreference(
@@ -407,8 +410,21 @@ function onSelectChange(key: string, event: Event) {
 }
 
 function onTextChange(key: string, event: Event) {
-  const value = (event.target as HTMLInputElement).value;
+  const raw = (event.target as HTMLInputElement).value;
+  const value = normalizeSettingsStringForSave(
+    key,
+    raw,
+    effectiveDefaults.value,
+  );
   void patchValue(key, value);
+}
+
+function stringFieldDisplayValue(key: string): string {
+  return displaySettingsStringValue(
+    valueOf(key),
+    key,
+    effectiveDefaults.value,
+  );
 }
 
 function stringArrayText(key: string): string {
@@ -428,14 +444,18 @@ function onStringArrayChange(key: string, event: Event) {
   void patchValue(key, paths);
 }
 
+watch(locale, () => {
+  void refreshEffectiveDefaults();
+});
+
 onMounted(() => {
   void loadAll().then(() => {
     if (activeSection.value === "openTools") {
       void refreshIdeApps();
     }
   });
-  // Favorites OS-hook status is only needed on that section — defer / gate (AIA-276).
-  if (activeSection.value === "favorites") {
+  // FIL-65：收藏 OS 动词在高级分区 — 仅进入时加载（AIA-276）。
+  if (activeSection.value === "power") {
     scheduleAfterPaint(() => {
       void loadFavoritesOsHookStatus().catch(() => undefined);
     });
@@ -481,20 +501,6 @@ onMounted(() => {
 
       <div v-if="activeSection === 'health'" class="health-slot">
         <HealthView />
-      </div>
-
-      <div v-else-if="activeSection === 'favorites'" class="fluent-surface favorites-panel">
-        <p class="favorites-meta">{{ t("settings.favoritesMeta") }}</p>
-        <label class="favorites-os-hook" :title="favoritesOsHook?.note ?? ''">
-          <input
-            type="checkbox"
-            class="fluent-field-check"
-            :checked="Boolean(favoritesOsHook?.registered)"
-            @change="onToggleOsFavoriteVerb"
-          />
-          <span>{{ t("favorites.osVerb") }}</span>
-        </label>
-        <p v-if="favoritesOsHook?.note" class="favorites-note">{{ favoritesOsHook.note }}</p>
       </div>
 
       <div v-else-if="activeSection === 'openTools'" class="fluent-surface open-tools-panel">
@@ -573,9 +579,6 @@ onMounted(() => {
         <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
 
         <div v-else-if="schema && document" class="fluent-surface fields">
-          <p v-if="sectionHiddenNote" class="fluent-banner fluent-banner--info fields-note">
-            {{ sectionHiddenNote }}
-          </p>
           <section
             v-for="group in visibleFieldGroups"
             :key="group.id"
@@ -632,7 +635,7 @@ onMounted(() => {
                   class="fluent-control text"
                   type="text"
                   :disabled="savingKey === def.key"
-                  :value="String(valueOf(def.key) ?? '')"
+                  :value="stringFieldDisplayValue(def.key)"
                   @change="onTextChange(def.key, $event)"
                 />
 
@@ -647,6 +650,33 @@ onMounted(() => {
                 />
 
                 <span v-else class="readonly">{{ valueOf(def.key) }}</span>
+              </div>
+            </div>
+          </section>
+
+          <section
+            v-if="activeSection === 'power'"
+            class="field-group favorites-in-advanced"
+          >
+            <h2 class="field-group-title">{{ t("settings.favoritesMeta") }}</h2>
+            <div class="field">
+              <span class="fluent-icon-wash field-icon">
+                <FluentIcon name="star" size="md" />
+              </span>
+              <div class="field-text">
+                <label class="title" for="favorites-os-hook">{{
+                  t("favorites.osVerb")
+                }}</label>
+                <p v-if="favoritesOsHook?.note" class="desc">{{ favoritesOsHook.note }}</p>
+              </div>
+              <div class="control">
+                <input
+                  id="favorites-os-hook"
+                  type="checkbox"
+                  class="fluent-field-check"
+                  :checked="Boolean(favoritesOsHook?.registered)"
+                  @change="onToggleOsFavoriteVerb"
+                />
               </div>
             </div>
           </section>
