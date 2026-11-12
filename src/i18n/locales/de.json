@@ -810,9 +810,9 @@
     "meta": "Sprache, Design, Start und Sucheinstellungen",
     "metaKeys": "· {count} Schlüssel",
     "metaVersion": "· v{version}",
-    "tierCore": "Kern",
+    "tierCore": "Allgemein",
     "tierExperimental": "Experimentell",
-    "tierPower": "Power",
+    "tierPower": "Erweitert",
     "sectionHealth": "Health",
     "sectionShortcuts": "Tastenkürzel",
     "title": "Einstellungen",
@@ -827,6 +827,21 @@
       "notFound": "Nicht gefunden — Pfad setzen falls woanders installiert",
       "viaAuto": "Automatisch gefunden",
       "viaConfigured": "Konfigurierter Pfad"
+    },
+    "groups": {
+      "appearance": "Darstellung",
+      "startup": "Start & Fenster",
+      "files": "Dateien & Tabs",
+      "features": "Funktionen",
+      "safety": "Sicherheit",
+      "advanced": "Erweiterte Optionen",
+      "preview": "Vorschau",
+      "other": "Sonstiges"
+    },
+    "hiddenNotes": {
+      "core": "Die Discovery-Blacklist wird auf der Discovery-Seite bearbeitet.",
+      "power": "Die Gateway-URL wird auf der Providers-Seite bearbeitet.",
+      "experimental": "Der Titlebar-Debugstatus ist hier ausgeblendet; der Schlüssel bleibt erhalten."
     }
   },
   "workGroups": {

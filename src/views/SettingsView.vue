@@ -31,6 +31,14 @@ import {
   loadFavoritesOsHookStatus,
   setFavoritesOsHookEnabled,
 } from "../state/favorites";
+import {
+  compareSettingsUiKeys,
+  isSettingsUiHiddenKey,
+  settingsUiGroupForKey,
+  settingsUiGroupMessagePath,
+  settingsUiGroupOrder,
+  type SettingsUiGroupId,
+} from "../state/settingsUi";
 
 /** AIA-276: Health stays off the default Settings chunk until that section opens. */
 const HealthView = defineAsyncComponent(() => import("./HealthView.vue"));
@@ -126,19 +134,64 @@ const shortcutRows = computed(() => {
 const shortcutConflicts = computed(() => findShortcutConflicts());
 
 const visibleDefs = computed(() =>
-  (schema.value?.definitions ?? []).filter(
-    (def) =>
-      activeSection.value !== "health" &&
-      activeSection.value !== "shortcuts" &&
-      activeSection.value !== "favorites" &&
-      activeSection.value !== "openTools" &&
-      def.tier === activeSection.value &&
-      // AIA-87/89: Discovery owns blacklist editing (Settings is not the authority UI).
-      def.key !== "core.discoveryBlacklist" &&
-      // Open tools has its own section UI.
-      !def.key.startsWith("core.openTool."),
-  ),
+  (schema.value?.definitions ?? [])
+    .filter(
+      (def) =>
+        activeSection.value !== "health" &&
+        activeSection.value !== "shortcuts" &&
+        activeSection.value !== "favorites" &&
+        activeSection.value !== "openTools" &&
+        def.tier === activeSection.value &&
+        // Open tools has its own section UI.
+        !def.key.startsWith("core.openTool.") &&
+        // FIL-59：过时/双入口项默认隐藏（键仍在 schema）。
+        !isSettingsUiHiddenKey(def.key),
+    )
+    .slice()
+    .sort((a, b) => compareSettingsUiKeys(a.key, b.key)),
 );
+
+type SettingsFieldGroup = {
+  id: SettingsUiGroupId;
+  label: string;
+  defs: SettingDefinition[];
+};
+
+const visibleFieldGroups = computed((): SettingsFieldGroup[] => {
+  const defs = visibleDefs.value;
+  if (!defs.length) return [];
+  const byGroup = new Map<SettingsUiGroupId, SettingDefinition[]>();
+  for (const def of defs) {
+    const id = settingsUiGroupForKey(def.key);
+    const list = byGroup.get(id) ?? [];
+    list.push(def);
+    byGroup.set(id, list);
+  }
+  return settingsUiGroupOrder()
+    .map((id) => {
+      const groupDefs = byGroup.get(id);
+      if (!groupDefs?.length) return null;
+      return {
+        id,
+        label: t(settingsUiGroupMessagePath(id)),
+        defs: groupDefs,
+      };
+    })
+    .filter((group): group is SettingsFieldGroup => group != null);
+});
+
+const sectionHiddenNote = computed(() => {
+  if (activeSection.value === "core") {
+    return t("settings.hiddenNotes.core");
+  }
+  if (activeSection.value === "power") {
+    return t("settings.hiddenNotes.power");
+  }
+  if (activeSection.value === "experimental") {
+    return t("settings.hiddenNotes.experimental");
+  }
+  return "";
+});
 
 function isSpecialSettingsPath(path: string) {
   return (
@@ -520,69 +573,83 @@ onMounted(() => {
         <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
 
         <div v-else-if="schema && document" class="fluent-surface fields">
-          <div
-            v-for="def in visibleDefs"
-            :key="def.key"
-            class="field"
-            :class="{ 'field--experimental': def.tier === 'experimental' }"
+          <p v-if="sectionHiddenNote" class="fluent-banner fluent-banner--info fields-note">
+            {{ sectionHiddenNote }}
+          </p>
+          <section
+            v-for="group in visibleFieldGroups"
+            :key="group.id"
+            class="field-group"
           >
-            <span class="fluent-icon-wash field-icon">
-              <FluentIcon :name="settingsIconForKey(def.key)" size="md" />
-            </span>
+            <h2 class="field-group-title">{{ group.label }}</h2>
+            <div
+              v-for="def in group.defs"
+              :key="def.key"
+              class="field"
+              :class="{ 'field--experimental': def.tier === 'experimental' }"
+            >
+              <span class="fluent-icon-wash field-icon">
+                <FluentIcon :name="settingsIconForKey(def.key)" size="md" />
+              </span>
 
-            <div class="field-text">
-              <label class="title" :for="def.key">{{ fieldTitle(def) }}</label>
-              <p class="desc">{{ fieldDescription(def) }}</p>
-              <code class="key">{{ def.key }}</code>
+              <div class="field-text">
+                <label class="title" :for="def.key">{{ fieldTitle(def) }}</label>
+                <p class="desc">{{ fieldDescription(def) }}</p>
+                <code v-if="def.tier === 'experimental'" class="key">{{ def.key }}</code>
+              </div>
+
+              <div class="control">
+                <input
+                  v-if="def.valueKind === 'boolean'"
+                  :id="def.key"
+                  type="checkbox"
+                  class="fluent-field-check"
+                  :checked="Boolean(valueOf(def.key))"
+                  :disabled="savingKey === def.key || isBooleanDisabled(def.key)"
+                  @change="onBooleanChange(def.key, $event)"
+                />
+
+                <select
+                  v-else-if="def.valueKind === 'enum'"
+                  :id="def.key"
+                  class="fluent-control select"
+                  :disabled="savingKey === def.key"
+                  :value="String(valueOf(def.key) ?? '')"
+                  @change="onSelectChange(def.key, $event)"
+                >
+                  <option
+                    v-for="option in def.enumValues ?? []"
+                    :key="option"
+                    :value="option"
+                  >
+                    {{ enumOptionLabel(def.key, option) }}
+                  </option>
+                </select>
+
+                <input
+                  v-else-if="def.valueKind === 'string'"
+                  :id="def.key"
+                  class="fluent-control text"
+                  type="text"
+                  :disabled="savingKey === def.key"
+                  :value="String(valueOf(def.key) ?? '')"
+                  @change="onTextChange(def.key, $event)"
+                />
+
+                <textarea
+                  v-else-if="def.valueKind === 'stringArray'"
+                  :id="def.key"
+                  class="fluent-control text array-text"
+                  rows="4"
+                  :disabled="savingKey === def.key"
+                  :value="stringArrayText(def.key)"
+                  @change="onStringArrayChange(def.key, $event)"
+                />
+
+                <span v-else class="readonly">{{ valueOf(def.key) }}</span>
+              </div>
             </div>
-
-            <div class="control">
-              <input
-                v-if="def.valueKind === 'boolean'"
-                :id="def.key"
-                type="checkbox"
-                class="fluent-field-check"
-                :checked="Boolean(valueOf(def.key))"
-                :disabled="savingKey === def.key || isBooleanDisabled(def.key)"
-                @change="onBooleanChange(def.key, $event)"
-              />
-
-              <select
-                v-else-if="def.valueKind === 'enum'"
-                :id="def.key"
-                class="fluent-control select"
-                :disabled="savingKey === def.key"
-                :value="String(valueOf(def.key) ?? '')"
-                @change="onSelectChange(def.key, $event)"
-              >
-                <option v-for="option in def.enumValues ?? []" :key="option" :value="option">
-                  {{ enumOptionLabel(def.key, option) }}
-                </option>
-              </select>
-
-              <input
-                v-else-if="def.valueKind === 'string'"
-                :id="def.key"
-                class="fluent-control text"
-                type="text"
-                :disabled="savingKey === def.key"
-                :value="String(valueOf(def.key) ?? '')"
-                @change="onTextChange(def.key, $event)"
-              />
-
-              <textarea
-                v-else-if="def.valueKind === 'stringArray'"
-                :id="def.key"
-                class="fluent-control text array-text"
-                rows="4"
-                :disabled="savingKey === def.key"
-                :value="stringArrayText(def.key)"
-                @change="onStringArrayChange(def.key, $event)"
-              />
-
-              <span v-else class="readonly">{{ valueOf(def.key) }}</span>
-            </div>
-          </div>
+          </section>
         </div>
       </template>
     </div>
@@ -649,6 +716,27 @@ onMounted(() => {
 .fields {
   display: flex;
   flex-direction: column;
+  gap: var(--fluent-space-lg);
+  padding-block: var(--fluent-space-md);
+}
+
+.fields-note {
+  margin: 0 var(--fluent-space-lg);
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.field-group-title {
+  margin: 0 var(--fluent-space-lg) var(--fluent-space-sm);
+  font-size: var(--fluent-font-size-caption);
+  font-weight: var(--fluent-font-weight-semibold);
+  color: var(--fluent-color-text-secondary);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .health-slot {

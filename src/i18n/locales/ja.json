@@ -810,9 +810,9 @@
     "meta": "言語・テーマ・起動・検索の設定",
     "metaKeys": "· {count} キー",
     "metaVersion": "· v{version}",
-    "tierCore": "コア",
+    "tierCore": "一般",
     "tierExperimental": "実験的",
-    "tierPower": "パワー",
+    "tierPower": "詳細",
     "sectionHealth": "ヘルス",
     "sectionShortcuts": "ショートカット",
     "title": "設定",
@@ -827,6 +827,21 @@
       "notFound": "未検出 — 別場所ならパスを指定",
       "viaAuto": "自動検出済み",
       "viaConfigured": "設定パスを使用"
+    },
+    "groups": {
+      "appearance": "外観",
+      "startup": "起動とウィンドウ",
+      "files": "ファイルとタブ",
+      "features": "機能",
+      "safety": "安全",
+      "advanced": "詳細オプション",
+      "preview": "プレビュー",
+      "other": "その他"
+    },
+    "hiddenNotes": {
+      "core": "Discovery のブラックリストは Discovery ページで編集します。",
+      "power": "ゲートウェイ URL は Providers ページで編集します。",
+      "experimental": "タイトルバーのデバッグ表示はこの画面では非表示です（キーは診断用に保持）。"
     }
   },
   "workGroups": {

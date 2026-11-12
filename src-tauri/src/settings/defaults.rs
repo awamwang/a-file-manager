@@ -98,9 +98,10 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             Some(vec!["standard".to_string(), "compact".to_string()]),
             json!("standard"),
         ),
+        // FIL-59：发现/扩展归入 Power（键名不变，仅展示分层）。
         def(
             "core.everythingPreferred",
-            SettingsTier::Core,
+            SettingsTier::Power,
             "Everything preferred",
             "Prefer Everything IPC for Discovery when available",
             SettingValueKind::Boolean,
@@ -109,7 +110,7 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
         ),
         def(
             "core.extensionsEnabled",
-            SettingsTier::Core,
+            SettingsTier::Power,
             "Extensions enabled",
             "Master switch for the extension host",
             SettingValueKind::Boolean,
@@ -341,10 +342,10 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             "experimental.debugStatusInTitlebar",
             SettingsTier::Experimental,
             "Debug status in titlebar",
-            "Show phase/debug caption in the custom titlebar",
+            "Show phase/debug caption in the custom titlebar (hidden in Settings UI; key retained)",
             SettingValueKind::Boolean,
             None,
-            json!(true),
+            json!(false),
         ),
         def(
             "experimental.previewPane",

@@ -447,7 +447,7 @@
     "metaVersion": "· v{version}",
     "metaKeys": "· {count} 项",
     "loading": "正在加载模式…",
-    "tierCore": "核心",
+    "tierCore": "常规",
     "tierPower": "高级",
     "tierExperimental": "实验",
     "sectionHealth": "健康",
@@ -676,6 +676,21 @@
       "notFound": "未找到 — 若安装在其他位置请填写路径",
       "viaAuto": "已自动发现",
       "viaConfigured": "使用配置路径"
+    },
+    "groups": {
+      "appearance": "外观",
+      "startup": "启动与窗口",
+      "files": "文件与标签",
+      "features": "功能",
+      "safety": "安全",
+      "advanced": "高级选项",
+      "preview": "预览",
+      "other": "其他"
+    },
+    "hiddenNotes": {
+      "core": "发现黑名单请在「发现」页编辑。",
+      "power": "网关地址请在「资源提供者」页编辑，避免双入口。",
+      "experimental": "标题栏调试状态已在此隐藏；设置键仍保留供诊断。"
     }
   },
   "health": {

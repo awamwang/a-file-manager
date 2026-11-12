@@ -447,8 +447,8 @@
     "metaVersion": "· v{version}",
     "metaKeys": "· {count} keys",
     "loading": "Loading schema…",
-    "tierCore": "Core",
-    "tierPower": "Power",
+    "tierCore": "General",
+    "tierPower": "Advanced",
     "tierExperimental": "Experimental",
     "sectionHealth": "Health",
     "sectionShortcuts": "Shortcuts",
@@ -676,6 +676,21 @@
       "notFound": "Not found — set a path below if installed elsewhere",
       "viaAuto": "Found automatically",
       "viaConfigured": "Using configured path"
+    },
+    "groups": {
+      "appearance": "Appearance",
+      "startup": "Startup & window",
+      "files": "Files & tabs",
+      "features": "Features",
+      "safety": "Safety",
+      "advanced": "Advanced options",
+      "preview": "Preview",
+      "other": "Other"
+    },
+    "hiddenNotes": {
+      "core": "Discovery blacklist is edited on the Discovery page.",
+      "power": "Gateway URL is edited on the Providers page to avoid duplicate entries.",
+      "experimental": "Titlebar debug status is hidden here; the setting key is retained for diagnostics."
     }
   },
   "health": {

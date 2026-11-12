@@ -810,7 +810,7 @@
     "meta": "Langue, thème, démarrage et préférences de recherche",
     "metaKeys": "· {count} clés",
     "metaVersion": "· v{version}",
-    "tierCore": "Cœur",
+    "tierCore": "Général",
     "tierExperimental": "Expérimental",
     "tierPower": "Avancé",
     "sectionHealth": "Santé",
@@ -827,6 +827,21 @@
       "notFound": "Introuvable — indiquez un chemin si installé ailleurs",
       "viaAuto": "Trouvé automatiquement",
       "viaConfigured": "Chemin configuré"
+    },
+    "groups": {
+      "appearance": "Apparence",
+      "startup": "Démarrage et fenêtre",
+      "files": "Fichiers et onglets",
+      "features": "Fonctionnalités",
+      "safety": "Sécurité",
+      "advanced": "Options avancées",
+      "preview": "Aperçu",
+      "other": "Autre"
+    },
+    "hiddenNotes": {
+      "core": "La liste noire Discovery s’édite sur la page Discovery.",
+      "power": "L’URL de passerelle s’édite sur la page Providers.",
+      "experimental": "Le statut de débogage de la barre de titre est masqué ici ; la clé est conservée."
     }
   },
   "workGroups": {
