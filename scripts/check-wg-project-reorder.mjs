@@ -24,6 +24,10 @@ assert.ok(helper.includes("createListPointerReorder"));
 assert.ok(helper.includes("shouldSuppressActivate"));
 assert.ok(helper.includes("thresholdPx"));
 assert.ok(helper.includes("clickSuppressMs"));
+assert.ok(helper.includes("dragPreview"));
+assert.ok(helper.includes("dropEdge"));
+assert.ok(helper.includes("landedId"));
+assert.ok(helper.includes("getPreview"));
 
 assert.ok(wg.includes("createListPointerReorder"));
 assert.ok(wg.includes("work_groups_reorder"));
@@ -31,6 +35,8 @@ assert.ok(wg.includes("onListPointerDown"));
 assert.ok(wg.includes("shouldSuppressGroupActivate"));
 assert.ok(wg.includes("group--drop-target"));
 assert.ok(wg.includes("group--dragging"));
+assert.ok(wg.includes("group--drop-before"));
+assert.ok(wg.includes("list-drag-ghost"));
 assert.ok(wg.includes("workGroups.dragReorderHint"));
 assert.ok(!wg.includes('@click="silentSwitch(group.id)"'));
 
@@ -40,6 +46,8 @@ assert.ok(projects.includes("onListPointerDown"));
 assert.ok(projects.includes("shouldSuppressProjectActivate"));
 assert.ok(projects.includes("group--drop-target"));
 assert.ok(projects.includes("group--dragging"));
+assert.ok(projects.includes("group--drop-before"));
+assert.ok(projects.includes("list-drag-ghost"));
 assert.ok(projects.includes("projects.dragReorderHint"));
 assert.ok(!projects.includes('@click="selectProject(project.id)"'));
 

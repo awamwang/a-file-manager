@@ -154,11 +154,24 @@ const {
   dragFromId: listDragFromId,
   dragOverId: listDragOverId,
   dragMoved: listDragMoved,
+  dragPreview: listDragPreview,
+  dropEdge: listDropEdge,
+  landedId: listLandedId,
   onPointerDown: onListPointerDown,
   shouldSuppressActivate: shouldSuppressGroupActivate,
   dispose: disposeListReorder,
 } = createListPointerReorder({
   onReorder: reorderGroups,
+  getPreview: (itemId) => {
+    const group = document.value?.workGroups.find((item) => item.id === itemId);
+    if (!group) return null;
+    return {
+      label: workGroupDisplayName(group, t("workGroups.defaultName")),
+      meta: group.isDefault
+        ? t("workGroups.defaultHint")
+        : t("workGroups.membersCount", { count: group.memberPaths.length }),
+    };
+  },
 });
 
 async function onGroupActivate(targetId: string) {
@@ -599,7 +612,11 @@ onUnmounted(() => {
     <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
 
     <div v-if="document" class="layout">
-      <aside ref="masterListEl" class="master-list">
+      <aside
+        ref="masterListEl"
+        class="master-list"
+        :class="{ 'master-list--reordering': listDragMoved && listDragFromId != null }"
+      >
         <div class="master-list-scroll">
           <div
             v-for="group in document.workGroups"
@@ -609,6 +626,11 @@ onUnmounted(() => {
               'group--active': group.id === document.activeWorkGroupId,
               'group--dragging': listDragFromId === group.id && listDragMoved,
               'group--drop-target': listDragOverId === group.id,
+              'group--drop-before':
+                listDragOverId === group.id && listDropEdge === 'before',
+              'group--drop-after':
+                listDragOverId === group.id && listDropEdge === 'after',
+              'group--landed': listLandedId === group.id,
             }"
             role="button"
             tabindex="0"
@@ -828,6 +850,30 @@ onUnmounted(() => {
       </div>
     </div>
 
+    <Teleport to="body">
+      <div
+        v-if="listDragPreview && listDragMoved"
+        class="list-drag-ghost fluent-surface"
+        :style="{
+          width: `${listDragPreview.width}px`,
+          height: `${listDragPreview.height}px`,
+          transform: `translate3d(${listDragPreview.x - listDragPreview.offsetX}px, ${listDragPreview.y - listDragPreview.offsetY - 6}px, 0) scale(1.03)`,
+        }"
+        aria-hidden="true"
+      >
+        <div class="group-top">
+          <span class="group-head">
+            <span class="fluent-icon-wash">
+              <FluentIcon name="viewAll" size="md" />
+            </span>
+            <strong>{{ listDragPreview.label }}</strong>
+          </span>
+        </div>
+        <span v-if="listDragPreview.meta" class="fluent-page-meta">{{
+          listDragPreview.meta
+        }}</span>
+      </div>
+    </Teleport>
     <!-- Portaled out of .fluent-surface { overflow: hidden } cards / scrollers. -->
     <Teleport to="body">
       <div
@@ -1015,6 +1061,11 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
+.master-list--reordering,
+.master-list--reordering .group {
+  cursor: grabbing;
+}
+
 .master-list-scroll {
   display: flex;
   flex-direction: column;
@@ -1037,9 +1088,11 @@ onUnmounted(() => {
   color: inherit;
   font: inherit;
   text-align: left;
-  cursor: pointer;
+  cursor: grab;
   width: 100%;
   box-sizing: border-box;
+  touch-action: none;
+  user-select: none;
 }
 
 .group-top {
@@ -1088,16 +1141,99 @@ onUnmounted(() => {
 }
 
 .group--dragging {
-  opacity: 0.55;
+  opacity: 0.4;
+  color: transparent;
+  background: color-mix(in srgb, var(--fluent-color-fill-subtle-secondary) 80%, transparent);
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.group--dragging .group-top,
+.group--dragging .fluent-page-meta {
+  visibility: hidden;
 }
 
 .group--drop-target {
-  outline: 2px solid var(--fluent-color-stroke-accent-soft, var(--fluent-color-fill-accent));
-  outline-offset: -2px;
+  background: color-mix(in srgb, var(--fluent-color-fill-selected) 70%, transparent);
+}
+
+.group--drop-before::before,
+.group--drop-after::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--fluent-color-fill-accent);
+  box-shadow: 0 0 0 1px
+    color-mix(in srgb, var(--fluent-color-fill-accent) 35%, transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.group--drop-before::before {
+  top: -5px;
+}
+
+.group--drop-after::after {
+  bottom: -5px;
+}
+
+.group--landed {
+  animation: list-item-land 280ms ease-out;
+}
+
+@keyframes list-item-land {
+  0% {
+    transform: translateY(-3px) scale(1.02);
+  }
+  100% {
+    transform: none;
+  }
 }
 
 .group:active {
   cursor: grabbing;
+}
+
+.list-drag-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--fluent-space-xs);
+  padding: var(--fluent-space-md);
+  box-sizing: border-box;
+  box-shadow: var(--fluent-shadow-flyout);
+  opacity: 0.96;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.list-drag-ghost .group-top {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--fluent-space-sm);
+  width: 100%;
+  min-width: 0;
+}
+
+.list-drag-ghost .group-head {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  min-width: 0;
+  flex: 1;
+}
+
+.list-drag-ghost .group-head strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .create,
