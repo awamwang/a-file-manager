@@ -36,6 +36,22 @@ assert.ok(
   "routes register only when entry exists in builtinEntries",
 );
 assert.ok(
+  contributions.includes("resolvableContributionPaths"),
+  "contributions must build resolvable path set for shell + pack routes",
+);
+assert.ok(
+  contributions.includes("isResolvableNavTo"),
+  "sideNav extras must filter unknown targets",
+);
+assert.ok(
+  contributions.includes("isResolvableCommandRoute"),
+  "command extras must filter routes that would 404",
+);
+assert.ok(
+  contributions.includes("AI_ADDON_ENABLED"),
+  "resolvable paths must respect AI_ADDON_ENABLED core routes",
+);
+assert.ok(
   builtinEntries.includes("builtinEntries"),
   "builtinEntries.ts must export entry map",
 );

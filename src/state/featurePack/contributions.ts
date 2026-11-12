@@ -7,6 +7,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { RouteRecordRaw, Router } from "vue-router";
 import type { AppCommand } from "../../commands/types";
 import type { SideNavItem } from "../../shell/sideNav";
+import { AI_ADDON_ENABLED } from "../../config/flavor";
 import { builtinEntries } from "./builtinEntries";
 
 export type FeaturePackSideNavContribution = {
@@ -51,6 +52,49 @@ const EMPTY_CONTRIBUTIONS: AggregatedContributions = {
 
 let cached: AggregatedContributions = EMPTY_CONTRIBUTIONS;
 
+/** 与壳 `router/index.ts` 静态表一致的核心路径（含 AI 门控）。 */
+function coreShellRoutePaths(): Set<string> {
+  const paths = new Set([
+    "/",
+    "/health",
+    "/navigator",
+    "/discovery",
+    "/providers",
+    "/work-groups",
+    "/projects",
+    "/extensions",
+    "/settings",
+    "/settings/health",
+    "/settings/shortcuts",
+    "/settings/favorites",
+    "/settings/open-tools",
+  ]);
+  if (AI_ADDON_ENABLED) {
+    paths.add("/ai");
+  }
+  return paths;
+}
+
+/** 核心路由 + 将于 `builtinEntries` 注册的 Pack 路由路径。 */
+function resolvableContributionPaths(): Set<string> {
+  const paths = coreShellRoutePaths();
+  for (const route of cached.routes) {
+    if (!route.path || !builtinEntries[route.entry]) continue;
+    paths.add(route.path);
+  }
+  return paths;
+}
+
+function isResolvableNavTo(to: string): boolean {
+  return resolvableContributionPaths().has(to);
+}
+
+function isResolvableCommandRoute(route: string | null | undefined): boolean {
+  if (route == null) return true;
+  if (route === "") return false;
+  return resolvableContributionPaths().has(route);
+}
+
 function normalizeContributions(
   raw: Partial<AggregatedContributions> | null | undefined,
 ): AggregatedContributions {
@@ -62,14 +106,16 @@ function normalizeContributions(
   };
 }
 
-/** 已启用 Pack 的侧栏贡献（含 `order`，由侧栏按序插入）。 */
+/** 已启用 Pack 的侧栏贡献（含 `order`，由侧栏按序插入）；未知 `to` 不暴露。 */
 export function getSideNavExtras(): SideNavItem[] {
-  return cached.sideNav.map((item) => ({
-    id: item.id,
-    labelKey: item.labelKey,
-    to: item.to,
-    order: item.order,
-  }));
+  return cached.sideNav
+    .filter((item) => item.to && isResolvableNavTo(item.to))
+    .map((item) => ({
+      id: item.id,
+      labelKey: item.labelKey,
+      to: item.to,
+      order: item.order,
+    }));
 }
 
 /** 仅当 `entry` 在 builtinEntries 有映射时生成可注册路由。 */
@@ -92,7 +138,9 @@ export function getCommandExtras(deps: {
   router: Pick<Router, "push">;
   t: (key: string) => string;
 }): AppCommand[] {
-  return cached.commands.map((cmd) => ({
+  return cached.commands
+    .filter((cmd) => isResolvableCommandRoute(cmd.route))
+    .map((cmd) => ({
     id: cmd.id,
     title: deps.t(cmd.labelKey),
     group: "View",
