@@ -1,17 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * 本地发版准备：同步版本 →（可选）提交 → 打 annotated tag。
- * 推送 tag 后由 GitHub Actions 打包并创建 Release。
+ * 推送 tag 后由 GitHub Actions 按同一 vX.Y.Z 打 Core / AI / Feature Pack 并挂到一个 Release。
  *
  * Usage:
- *   node scripts/prepare-release.mjs 0.2.0
- *   node scripts/prepare-release.mjs 0.2.0 --commit
- *   node scripts/prepare-release.mjs 0.2.0 --commit --push
+ *   node scripts/prepare-release.mjs 0.3.0
+ *   node scripts/prepare-release.mjs 0.3.0 --commit
+ *   node scripts/prepare-release.mjs 0.3.0 --commit --push
+ *   node scripts/prepare-release.mjs 0.3.0 --dry-run
  */
 import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { isPrerelease, normalizeVersion, syncVersionFiles } from "./sync-version.mjs";
+import {
+  featurePackAssetName,
+  listFeaturePacks,
+  nsisAssetName,
+} from "./release-assets.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -29,20 +35,49 @@ function run(cmd, args, opts = {}) {
   return (r.stdout || "").trim();
 }
 
+function printAssetPlan(ver) {
+  console.log("同一 Release 将挂载（CI / build-release-artifacts）：");
+  console.log(`  - ${nsisAssetName(ver, "core")}  (Core)`);
+  console.log(`  - ${nsisAssetName(ver, "ai")}  (AI)`);
+  for (const p of listFeaturePacks()) {
+    console.log(
+      `  - ${featurePackAssetName(ver, p.dirName)}  (Feature Pack ${p.manifest.id})`,
+    );
+  }
+}
+
 function main() {
   const args = process.argv.slice(2);
   const versionArg = args.find((a) => !a.startsWith("-"));
   const doCommit = args.includes("--commit");
   const doPush = args.includes("--push");
+  const dryRun = args.includes("--dry-run");
 
   if (!versionArg) {
-    console.error("Usage: node scripts/prepare-release.mjs <version> [--commit] [--push]");
+    console.error(
+      "Usage: node scripts/prepare-release.mjs <version> [--commit] [--push] [--dry-run]",
+    );
     process.exit(1);
   }
 
   const ver = normalizeVersion(versionArg);
   const tag = `v${ver}`;
   const pre = isPrerelease(ver);
+
+  console.log(`计划发版 ${tag}${pre ? "（prerelease）" : ""}`);
+  printAssetPlan(ver);
+
+  if (dryRun) {
+    const status = run("git", ["status", "--porcelain"], { capture: true });
+    console.log(`工作区${status ? "有" : "无"}未提交变更`);
+    const existing = spawnSync("git", ["rev-parse", `refs/tags/${tag}`], {
+      cwd: root,
+      encoding: "utf8",
+    });
+    console.log(`本地 tag ${tag}: ${existing.status === 0 ? "已存在" : "不存在"}`);
+    console.log("dry-run：未改文件、未 commit、未打 tag、未推送");
+    return;
+  }
 
   const status = run("git", ["status", "--porcelain"], { capture: true });
   if (status && !doCommit) {
@@ -77,12 +112,16 @@ function main() {
   if (doPush) {
     run("git", ["push", "origin", "HEAD"]);
     run("git", ["push", "origin", tag]);
-    console.log(`已推送 HEAD 与 ${tag} → 将触发 GitHub Actions Release 工作流`);
+    console.log(`已推送 HEAD 与 ${tag} → 将触发 GitHub Actions 多包 Release 工作流`);
   } else {
     console.log("");
     console.log("下一步：");
     console.log(`  git push origin HEAD && git push origin ${tag}`);
-    console.log("推送 tag 后 Actions 会生成发版说明、打包 NSIS 并上传到 GitHub Release。");
+    console.log(
+      "推送 tag 后 Actions 会生成发版说明，并上传 Core / AI NSIS 与 Feature Pack zip 到同一 GitHub Release。",
+    );
+    console.log("本地仅验证产物命名/打包（不上传）：");
+    console.log(`  npm run build:release-artifacts -- --dry-run --version ${ver}`);
   }
 }
 

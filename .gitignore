@@ -23,7 +23,10 @@ dist-ssr
 *.sw?
 
 # 本机 Cursor / MCP 配置（含绝对路径，不随仓库发布）
-.cursor/
+# 忽略 .cursor 下内容，但保留仓库内 Agent skills（父目录被整目录忽略时无法再取反）
+.cursor/*
+!.cursor/skills/
+!.cursor/skills/**/
 
 .scratch/
 

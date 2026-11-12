@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Tag 驱动发版：v* 标签指定版本 → 同步版本源 → 生成发版说明 → 打包 NSIS → 上传 GitHub Release。
+# Tag 驱动多包发版：同一 vX.Y.Z → Core NSIS + AI NSIS + Feature Pack zip 挂到一个 GitHub Release。
 name: Release
 
 on:
@@ -9,9 +9,19 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "版本号（如 0.2.0 或 v0.2.0）；留空则用 package.json"
+        description: "版本号（如 0.3.0 或 v0.3.0）；留空则用 package.json"
         required: false
         type: string
+      packs:
+        description: "要构建的包：all 或 core,ai,feature-pack"
+        required: false
+        default: "all"
+        type: string
+      publish:
+        description: "全部产物上传后是否取消 draft（正式发布）"
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: write
@@ -21,23 +31,43 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish-tauri:
+  prepare:
     runs-on: windows-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+      packs: ${{ steps.meta.outputs.packs }}
+      want_core: ${{ steps.meta.outputs.want_core }}
+      want_ai: ${{ steps.meta.outputs.want_ai }}
+      want_feature_pack: ${{ steps.meta.outputs.want_feature_pack }}
+      flavor_matrix: ${{ steps.meta.outputs.flavor_matrix }}
+      publish: ${{ steps.meta.outputs.publish }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Resolve tag and version
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Resolve tag, version, packs
         id: meta
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_PACKS: ${{ inputs.packs }}
+          INPUT_PUBLISH: ${{ inputs.publish }}
         shell: bash
         run: |
           set -euo pipefail
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             TAG="${GITHUB_REF_NAME}"
-          elif [ -n "${{ inputs.version }}" ]; then
-            RAW="${{ inputs.version }}"
+          elif [ -n "${INPUT_VERSION:-}" ]; then
+            RAW="${INPUT_VERSION}"
             RAW="${RAW#v}"
             TAG="v${RAW}"
           else
@@ -53,25 +83,66 @@ jobs:
           if [[ "$VERSION" == *-* ]]; then
             PRE=true
           fi
+
+          PACKS_RAW="${INPUT_PACKS:-all}"
+          if [ -z "${PACKS_RAW}" ]; then PACKS_RAW=all; fi
+          export PACKS_RAW
+          PACKS_CSV="$(node --input-type=module -e "
+            import { parsePackKinds } from './scripts/release-assets.mjs';
+            process.stdout.write(parsePackKinds(process.env.PACKS_RAW || 'all').join(','));
+          ")"
+
+          WANT_CORE=false
+          WANT_AI=false
+          WANT_FP=false
+          IFS=',' read -ra KIND_ARR <<< "${PACKS_CSV}"
+          for k in "${KIND_ARR[@]}"; do
+            case "$k" in
+              core) WANT_CORE=true ;;
+              ai) WANT_AI=true ;;
+              feature-pack) WANT_FP=true ;;
+            esac
+          done
+          export PACKS_CSV
+          FLAVOR_JSON="$(node --input-type=module -e "
+            const kinds = (process.env.PACKS_CSV || '').split(',').filter(Boolean);
+            const rows = [];
+            if (kinds.includes('core')) rows.push({ flavor: 'core', vite_ai: '0' });
+            if (kinds.includes('ai')) rows.push({ flavor: 'ai', vite_ai: '1' });
+            process.stdout.write(JSON.stringify(rows));
+          ")"
+
+          PUBLISH=true
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ "${INPUT_PUBLISH}" = "false" ]; then
+            PUBLISH=false
+          fi
+
           {
             echo "tag=${TAG}"
             echo "version=${VERSION}"
             echo "prerelease=${PRE}"
+            echo "packs=${PACKS_CSV}"
+            echo "want_core=${WANT_CORE}"
+            echo "want_ai=${WANT_AI}"
+            echo "want_feature_pack=${WANT_FP}"
+            echo "flavor_matrix=${FLAVOR_JSON}"
+            echo "publish=${PUBLISH}"
           } >> "$GITHUB_OUTPUT"
-          echo "Resolved tag=${TAG} version=${VERSION} prerelease=${PRE}"
+          echo "Resolved tag=${TAG} version=${VERSION} packs=${PACKS_CSV} matrix=${FLAVOR_JSON} publish=${PUBLISH}"
 
       - name: Sync version into package / tauri / cargo
         shell: bash
         run: node scripts/sync-version.mjs "${{ steps.meta.outputs.version }}"
 
-      - name: Generate release notes
-        id: notes
+      - name: Generate release notes and ensure draft Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          PRE: ${{ steps.meta.outputs.prerelease }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${{ steps.meta.outputs.tag }}"
           NOTES_FILE="${RUNNER_TEMP}/afm-notes.md"
 
           if git rev-parse "refs/tags/${TAG}" >/dev/null 2>&1; then
@@ -107,18 +178,56 @@ jobs:
 
           {
             printf '%s\n\n' "${BODY}"
+            echo "### Packages"
+            echo
+            echo "同一版本号下提供多个安装包（不是三个不同 semver）："
+            echo
+            echo "| Asset | 说明 |"
+            echo "|---|---|"
+            echo "| \`A.File.Manager_${VERSION}_x64-setup.exe\` | **Core**（无 AI Add-on） |"
+            echo "| \`A.File.Manager_${VERSION}_x64-ai-setup.exe\` | **AI**（默认含 ai-addon） |"
+            echo "| \`A.File.Manager_${VERSION}_feature-pack-*.zip\` | **Feature Pack**（本机 zip 安装） |"
+            echo
             echo "### Install"
             echo
-            echo "Download the Windows NSIS \`.exe\` asset below, then install and run **A File Manager**."
+            echo "Download a Windows NSIS \`.exe\` or Feature Pack \`.zip\` below."
             echo
             echo "All builds: https://github.com/${{ github.repository }}/releases"
           } > "${NOTES_FILE}"
 
-          {
-            echo "body<<EOF"
-            cat "${NOTES_FILE}"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+          PRE_ARGS=()
+          if [ "${PRE}" = "true" ]; then PRE_ARGS+=(--prerelease); fi
+
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "Release ${TAG} already exists; refresh notes and keep draft until finalize"
+            gh release edit "${TAG}" --notes-file "${NOTES_FILE}" --draft=true || true
+          else
+            if git rev-parse "refs/tags/${TAG}" >/dev/null 2>&1; then
+              gh release create "${TAG}" --draft --title "A File Manager ${TAG}" \
+                --notes-file "${NOTES_FILE}" "${PRE_ARGS[@]}"
+            else
+              gh release create "${TAG}" --draft --title "A File Manager ${TAG}" \
+                --notes-file "${NOTES_FILE}" --target "${GITHUB_SHA}" "${PRE_ARGS[@]}"
+            fi
+          fi
+
+  build-app:
+    needs: prepare
+    if: needs.prepare.outputs.flavor_matrix != '[]'
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.prepare.outputs.flavor_matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sync version
+        shell: bash
+        run: node scripts/sync-version.mjs "${{ needs.prepare.outputs.version }}"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -133,6 +242,7 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
+          shared-key: release-${{ matrix.flavor }}
 
       - name: Install frontend dependencies
         run: npm ci
@@ -144,14 +254,109 @@ jobs:
           node -e "const c=require('./src-tauri/tauri.conf.json'); if(c.bundle?.windows?.webviewInstallMode?.type!=='embedBootstrapper') process.exit(1)"
           npm run test:deps-surface
 
-      - name: Build and publish GitHub Release
-        uses: tauri-apps/tauri-action@v1
+      - name: Build NSIS (${{ matrix.flavor }})
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_AFM_AI_ADDON: ${{ matrix.vite_ai }}
+        shell: bash
+        run: node scripts/build-flavor.mjs "${{ matrix.flavor }}" --bundle
+
+      - name: Collect canonical asset
+        id: asset
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          FLAVOR: ${{ matrix.flavor }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/release
+          SRC="src-tauri/target/release/bundle/nsis/A File Manager_${VERSION}_x64-setup.exe"
+          if [ ! -f "${SRC}" ]; then
+            echo "Missing NSIS artifact: ${SRC}"
+            ls -la "src-tauri/target/release/bundle/nsis" || true
+            exit 1
+          fi
+          DEST="$(node --input-type=module -e "
+            import { nsisAssetName } from './scripts/release-assets.mjs';
+            process.stdout.write(nsisAssetName(process.env.VERSION, process.env.FLAVOR));
+          ")"
+          cp "${SRC}" "dist/release/${DEST}"
+          echo "file=${DEST}" >> "$GITHUB_OUTPUT"
+          echo "Collected ${DEST}"
+
+      - name: Upload to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release upload "${{ needs.prepare.outputs.tag }}" \
+            "dist/release/${{ steps.asset.outputs.file }}" --clobber
+
+  build-feature-packs:
+    needs: prepare
+    if: needs.prepare.outputs.want_feature_pack == 'true'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          tagName: ${{ steps.meta.outputs.tag }}
-          releaseName: "A File Manager ${{ steps.meta.outputs.tag }}"
-          releaseBody: ${{ steps.notes.outputs.body }}
-          releaseDraft: false
-          prerelease: ${{ steps.meta.outputs.prerelease }}
-          args: --bundles nsis
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Package Feature Packs
+        shell: bash
+        run: node scripts/package-feature-packs.mjs "${{ needs.prepare.outputs.version }}"
+
+      - name: Upload Feature Pack zips
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(dist/release/*_feature-pack-*.zip)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No feature-pack zip produced"
+            exit 1
+          fi
+          gh release upload "${{ needs.prepare.outputs.tag }}" "${files[@]}" --clobber
+
+  finalize:
+    needs: [prepare, build-app, build-feature-packs]
+    if: always() && needs.prepare.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check dependent jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "build-app=${{ needs.build-app.result }}"
+          echo "build-feature-packs=${{ needs.build-feature-packs.result }}"
+          app="${{ needs.build-app.result }}"
+          fp="${{ needs.build-feature-packs.result }}"
+          ok_app=false
+          ok_fp=false
+          [[ "$app" == "success" || "$app" == "skipped" ]] && ok_app=true
+          [[ "$fp" == "success" || "$fp" == "skipped" ]] && ok_fp=true
+          if [ "$ok_app" != true ] || [ "$ok_fp" != true ]; then
+            echo "One or more build jobs failed; leaving release as draft"
+            exit 1
+          fi
+
+      - name: Publish release (undraft)
+        if: needs.prepare.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ needs.prepare.outputs.tag }}"
+          PRE="${{ needs.prepare.outputs.prerelease }}"
+          ARGS=(--draft=false)
+          if [ "${PRE}" = "true" ]; then ARGS+=(--prerelease); else ARGS+=(--prerelease=false); fi
+          gh release edit "${TAG}" "${ARGS[@]}"
+          echo "Published ${TAG}"
+          gh release view "${TAG}" --json name,isDraft,isPrerelease,url

@@ -50,27 +50,42 @@ npm run test:rust
 
 ## Release
 
-发版由 **Git tag** 指定版本并触发打包。推送 `v*` 标签后，[`.github/workflows/release.yml`](.github/workflows/release.yml) 会：
+发版由 **Git tag** 指定**一个** semver，并在**同一个** GitHub Release 下挂多个包（Core / AI / Feature Pack），不是三个不同版本号。
+
+推送 `v*` 后，[`.github/workflows/release.yml`](.github/workflows/release.yml) 会：
 
 1. 按 tag 同步版本到 `package.json` / `src-tauri/tauri.conf.json` / `src-tauri/Cargo.toml`
-2. 用 GitHub `generate-notes`（失败则回退 `git log`）写发版说明
-3. 在 `windows-latest` 打 Windows NSIS 安装包
-4. 创建 / 更新对应 GitHub Release，并上传 `.exe` 产物
+2. 用 GitHub `generate-notes`（失败则回退 `git log`）写发版说明，并创建 **draft** Release
+3. Matrix 构建 **Core** 与 **AI** Windows NSIS；再打包 `packs/*/pack.json` 为 Feature Pack zip
+4. 上传规范命名资产后 undraft（可在 workflow_dispatch 里关闭 publish）
 
-版本号含 `-`（如 `v0.2.0-rc.1`）会标为 prerelease。
+| Asset | 含义 |
+|---|---|
+| `A.File.Manager_${ver}_x64-setup.exe` | Core（`VITE_AFM_AI_ADDON=0` + Cargo `--no-default-features`） |
+| `A.File.Manager_${ver}_x64-ai-setup.exe` | AI（默认 features / ai-addon） |
+| `A.File.Manager_${ver}_feature-pack-*.zip` | Feature Pack（本机 zip 安装） |
+
+版本号含 `-`（如 `v0.3.0-rc.1`）会标为 prerelease。Agent 流程见 [`.cursor/skills/afm-multi-pack-release/SKILL.md`](.cursor/skills/afm-multi-pack-release/SKILL.md)。
 
 ```bash
-# 推荐：同步版本、提交、打 annotated tag（不推送）
-npm run prepare-release -- 0.2.0 --commit
+# 先看计划（不改仓库）
+npm run prepare-release -- 0.3.0 --dry-run
+npm run build:release-artifacts -- --dry-run --version 0.3.0
 
-# 推送提交与 tag → 触发 Actions
-git push origin HEAD && git push origin v0.2.0
+# 同步版本、提交、打 annotated tag（不推送）
+npm run prepare-release -- 0.3.0 --commit
+
+# 推送提交与 tag → 触发多包 Release
+git push origin HEAD && git push origin v0.3.0
 
 # 一步推送
-npm run prepare-release -- 0.2.0 --commit --push
+npm run prepare-release -- 0.3.0 --commit --push
+
+# 仅本地打 Feature Pack zip
+npm run package:feature-packs -- 0.3.0
 ```
 
-也可在 **Actions → Release → Run workflow** 手动跑；可填版本号，留空则用当前 `package.json` 的 version。
+也可在 **Actions → Release → Run workflow** 手动跑；可填 `version` / `packs`（`all` 或 `core,ai,feature-pack`）/ `publish`。
 
 ## License
 
