@@ -3,11 +3,16 @@
 
 export {
   PROVIDER_ROOT,
+  type ProviderQueryParam,
+  getProviderQuery,
+  isBlockedSearchProvider,
   isProviderPath,
   normalizeProviderKey,
+  providerBackendId,
   toProviderUri,
   providerParentPath,
   providerLeafName,
+  withProviderQuery,
 } from "./path";
 export {
   providerListingFromDir,

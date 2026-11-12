@@ -2,11 +2,15 @@
 /** Navigator back / forward stacks + breadcrumb helpers (AIA-63). */
 
 import { computed, ref } from "vue";
+import {
+  isProviderPath,
+  PROVIDER_ROOT,
+  providerParentPath,
+  toProviderUri,
+} from "./provider/path.ts";
 
 /** Keep in sync with `guide/path.ts` (avoid ESM extension issues in Node checks). */
 const GUIDE_PATH = "afm://guide";
-/** Keep in sync with `provider/path.ts`. */
-const PROVIDER_ROOT = "awam://root";
 
 function isGuidePath(path: string): boolean {
   return (
@@ -15,39 +19,10 @@ function isGuidePath(path: string): boolean {
   );
 }
 
-function isProviderPath(path: string): boolean {
-  return path.trim().toLowerCase().startsWith("awam://");
-}
-
-/** Keep in sync with `provider/path.ts`：backend 小写，path 保留大小写与编码。 */
-function toProviderUri(path: string): string {
-  const trimmed = path.trim();
-  if (!trimmed || !isProviderPath(trimmed)) return trimmed;
-  const body = trimmed.slice("awam://".length).replace(/\/+$/, "");
-  if (!body) return PROVIDER_ROOT;
-  const slash = body.indexOf("/");
-  if (slash < 0) {
-    const backend = body.toLowerCase();
-    return !backend || backend === "root" ? PROVIDER_ROOT : `awam://${backend}`;
-  }
-  const backend = body.slice(0, slash).toLowerCase() || "root";
-  const rest = body.slice(slash + 1).replace(/\/+$/, "");
-  if (!rest) {
-    return !backend || backend === "root" ? PROVIDER_ROOT : `awam://${backend}`;
-  }
-  return `awam://${backend}/${rest}`;
-}
-
-function providerParentPath(path: string): string | null {
+function providerUriPathOnly(path: string): string {
   const uri = toProviderUri(path);
-  if (!uri || !isProviderPath(uri)) return null;
-  if (uri === PROVIDER_ROOT) return null;
-  const rest = uri.slice("awam://".length);
-  const slash = rest.lastIndexOf("/");
-  if (slash < 0) return PROVIDER_ROOT;
-  const parentRest = rest.slice(0, slash);
-  if (!parentRest) return PROVIDER_ROOT;
-  return toProviderUri(`awam://${parentRest}`);
+  const q = uri.indexOf("?");
+  return q < 0 ? uri : uri.slice(0, q);
 }
 
 /** 面包屑标签：百分号解码，避免显示 `Profile%201`。 */
@@ -204,18 +179,20 @@ export function buildProviderBreadcrumbs(
   const crumbs: BreadcrumbCrumb[] = [
     { label: providersLabel, path: PROVIDER_ROOT, kind: "path" },
   ];
-  if (uri === PROVIDER_ROOT) {
+  const pathOnly = providerUriPathOnly(path);
+  if (pathOnly === PROVIDER_ROOT) {
     return crumbs;
   }
-  const rest = uri.slice("awam://".length);
+  const rest = pathOnly.slice("awam://".length);
   const parts = rest.split("/").filter(Boolean);
   let acc = "awam://";
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i]!;
     acc = i === 0 ? `awam://${part}` : `${acc}/${part}`;
+    const isLeaf = i === parts.length - 1;
     crumbs.push({
       label: providerSegmentLabel(part),
-      path: toProviderUri(acc),
+      path: isLeaf ? uri : toProviderUri(acc),
       kind: "path",
     });
   }

@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import assert from "node:assert/strict";
 import {
+  getProviderQuery,
+  isBlockedSearchProvider,
   isProviderPath,
   PROVIDER_ROOT,
+  providerBackendId,
   providerLeafName,
   providerParentPath,
   toProviderUri,
+  withProviderQuery,
 } from "../src/state/provider/path.ts";
 import {
   providerListingFromDir,
@@ -39,6 +43,23 @@ assert.equal(
 assert.notEqual(
   toProviderUri("awam://browser/edge/Profile%201"),
   "awam://browser/edge/profile%201",
+);
+assert.equal(
+  toProviderUri("awam://prowlarr/search?q=ubuntu"),
+  "awam://prowlarr/search?q=ubuntu",
+);
+assert.equal(providerBackendId("awam://Search/everything?q=a"), "search");
+assert.equal(isBlockedSearchProvider("awam://search/everything?q=a"), true);
+assert.equal(isBlockedSearchProvider("awam://prowlarr/search?q=a"), false);
+assert.deepEqual(getProviderQuery("awam://prowlarr?q=ubuntu"), { q: "ubuntu" });
+assert.equal(providerParentPath("awam://hf/remote?q=bert"), "awam://hf");
+assert.equal(
+  withProviderQuery("awam://hf/remote", { q: "bert" }),
+  "awam://hf/remote?q=bert",
+);
+assert.equal(
+  withProviderQuery("awam://hf/remote?q=bert", { q: null }),
+  "awam://hf/remote",
 );
 assert.equal(providerParentPath(PROVIDER_ROOT), null);
 assert.equal(providerParentPath("awam://rclone"), PROVIDER_ROOT);
