@@ -24,6 +24,25 @@ assert.ok(browse.includes("loadProviderListing"));
 assert.ok(browse.includes("openProviderEntry"));
 assert.ok(browse.includes("isBlockedSearchProvider"));
 assert.ok(browse.includes("PROVIDER_SEARCH_BLOCKED"));
+const navigateToSrc = browse.slice(
+  browse.indexOf("export async function navigateTo"),
+);
+const epochBump = navigateToSrc.indexOf("++browseEpoch");
+assert.ok(epochBump > 0);
+const navigateToBeforeEpoch = navigateToSrc.slice(0, epochBump);
+assert.ok(navigateToBeforeEpoch.includes("isBlockedSearchProvider"));
+assert.ok(navigateToBeforeEpoch.includes("PROVIDER_SEARCH_BLOCKED"));
+assert.ok(!navigateToBeforeEpoch.includes("listing.value = null"));
+const navigateSecondarySrc = browse.slice(
+  browse.indexOf("export async function navigateSecondary"),
+  browse.indexOf("export async function navigateTo"),
+);
+assert.ok(navigateSecondarySrc.includes("isBlockedSearchProvider"));
+assert.ok(navigateSecondarySrc.includes("PROVIDER_SEARCH_BLOCKED"));
+assert.ok(
+  navigateSecondarySrc.indexOf("isBlockedSearchProvider") <
+    navigateSecondarySrc.indexOf("secondaryListing.value = null"),
+);
 assert.ok(guide.includes("PROVIDER_ROOT"));
 assert.ok(guide.includes("listProviderBackends"));
 assert.ok(guide.includes("guide.sections.providers"));
