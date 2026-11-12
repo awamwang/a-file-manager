@@ -14,7 +14,7 @@ pub fn parse_permissions(raw: &[String]) -> Result<Vec<ExtensionPermission>, Str
             }
             None => {
                 return Err(format!(
-                    "Unknown permission '{item}' (vNext allowlist: uiCommands, fsProvider, network)"
+                    "Unknown permission '{item}' (vNext allowlist: uiCommands, fsProvider, network, spawnSidecar)"
                 ));
             }
         }
@@ -38,13 +38,26 @@ mod tests {
     }
 
     #[test]
+    fn parse_spawn_sidecar_permission() {
+        assert_eq!(
+            ExtensionPermission::parse("spawnSidecar"),
+            Some(ExtensionPermission::SpawnSidecar)
+        );
+        assert_eq!(
+            ExtensionPermission::parse("spawn_sidecar"),
+            Some(ExtensionPermission::SpawnSidecar)
+        );
+    }
+
+    #[test]
     fn accepts_allowlist() {
         let parsed = parse_permissions(&[
             "uiCommands".to_string(),
             "fsProvider".to_string(),
             "network".to_string(),
+            "spawnSidecar".to_string(),
         ])
         .unwrap();
-        assert_eq!(parsed.len(), 3);
+        assert_eq!(parsed.len(), 4);
     }
 }

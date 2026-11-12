@@ -7,6 +7,7 @@
 
 mod commands;
 mod host;
+pub(crate) mod pack_fs;
 mod permissions;
 pub mod types;
 

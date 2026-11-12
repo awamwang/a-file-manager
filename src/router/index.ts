@@ -2,6 +2,7 @@
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
 import { AI_ADDON_ENABLED } from "../config/flavor";
+import { applyFeaturePackRoutes } from "../state/featurePack/contributions";
 // Default startup page stays eager; other routes are lazy (AIA-182).
 import NavigatorView from "../views/NavigatorView.vue";
 
@@ -74,5 +75,10 @@ const router = createRouter({
   history: createWebHistory(),
   routes,
 });
+
+/** 将 builtinEntries 已映射的 Pack 路由动态挂到壳上；Soft Reload 时先卸过期项。 */
+export function registerFeaturePackRoutes(): void {
+  applyFeaturePackRoutes(router);
+}
 
 export default router;

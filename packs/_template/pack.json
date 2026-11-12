@@ -1,0 +1,15 @@
+{
+  "id": "example.pack",
+  "name": "Example Pack",
+  "version": "0.1.0",
+  "apiVersion": "feature-pack.1",
+  "description": "Template only",
+  "permissions": ["network", "spawnSidecar"],
+  "gatewayCompat": { "minVersion": "0.0.0", "maxVersion": "99.0.0" },
+  "contributions": {
+    "sideNav": [{ "id": "example", "labelKey": "nav.example", "to": "/example", "order": 50 }],
+    "routes": [{ "path": "/example", "name": "example", "entry": "builtin:example" }],
+    "commands": [],
+    "sidecars": []
+  }
+}

@@ -61,6 +61,9 @@ tauri-plugin-drag = "2"
 drag = "2.1.1"
 ureq = { version = "3.5.1", features = ["json"] }
 
+[dev-dependencies]
+tempfile = "3"
+
 # AIA-240: local drag patch offers COPY|MOVE|LINK on Windows DoDragDrop.
 # AIA-261/264: preserve prior foreground; distinguish click activate vs drag.
 [patch.crates-io]

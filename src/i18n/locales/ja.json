@@ -365,7 +365,32 @@
     "runHello": "hello を実行",
     "title": "拡張機能",
     "uninstall": "アンインストール",
-    "unknownError": "不明"
+    "unknownError": "不明",
+    "packsTitle": "Feature Pack",
+    "packsMeta": "この PC 上の Feature Pack のみインストールします。ストアやマーケットではありません。",
+    "packsLocalOnly": "このコンピューターのフォルダーまたは zip からインストールします。リモートのカタログ・マーケット・ストアには接続しません。",
+    "installFromFolder": "フォルダーまたは zip からインストール",
+    "installPathTitle": "Feature Pack をインストール",
+    "installPathLabel": "ローカルのフォルダーまたは .zip パス",
+    "installPathHint": "pack.json を含むフォルダー、またはこの PC 上の .zip を入力してください。ストアではありません。",
+    "installPathPlaceholder": "C:\\\\path\\\\to\\\\pack または pack.zip",
+    "noPacks": "Feature Pack はインストールされていません。",
+    "packEnable": "有効",
+    "packState": {
+      "installed": "インストール済み",
+      "enabled": "有効",
+      "disabled": "無効",
+      "crashed": "クラッシュ"
+    },
+    "uninstallPackTitle": "Feature Pack をアンインストール",
+    "uninstallPackMessage": "この PC から {name}（{id}）をアンインストールしますか？",
+    "noticePackInstalled": "{id} をこの PC からインストールしました。サイドナビを更新するにはウィンドウを再読み込みしてください。",
+    "noticePackEnabled": "{id} を有効にしました。サイドナビを更新するにはウィンドウを再読み込みしてください。",
+    "noticePackDisabled": "{id} を無効にしました。サイドナビを更新するにはウィンドウを再読み込みしてください。",
+    "noticePackUninstalled": "{id} をアンインストールしました。サイドナビを更新するにはウィンドウを再読み込みしてください。",
+    "reloadHint": "有効な Pack のサイドナビは「ウィンドウの再読み込み」の後に表示されます。",
+    "demoTitle": "vNext デモ拡張",
+    "demoMeta": "メモリ上のデモホスト — Feature Pack とは別です。ストアではありません。"
   },
   "health": {
     "failed": "ヘルス失敗: {error}",

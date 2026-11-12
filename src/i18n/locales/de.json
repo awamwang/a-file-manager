@@ -365,7 +365,32 @@
     "runHello": "hello ausführen",
     "title": "Erweiterungen",
     "uninstall": "Deinstallieren",
-    "unknownError": "unbekannt"
+    "unknownError": "unbekannt",
+    "packsTitle": "Feature Packs",
+    "packsMeta": "Nur lokale Feature-Pack-Installation. Dies ist kein Marktplatz und kein Store.",
+    "packsLocalOnly": "Installation aus einem Ordner oder einer ZIP-Datei auf diesem Computer. Es wird kein entfernter Katalog, Marktplatz oder Store abgefragt.",
+    "installFromFolder": "Aus Ordner oder ZIP installieren",
+    "installPathTitle": "Feature Pack installieren",
+    "installPathLabel": "Lokaler Ordner- oder ZIP-Pfad",
+    "installPathHint": "Geben Sie einen Pack-Ordner (mit pack.json) oder eine ZIP-Datei auf diesem Rechner ein. Kein Store.",
+    "installPathPlaceholder": "C:\\\\path\\\\to\\\\pack oder pack.zip",
+    "noPacks": "Keine Feature Packs installiert.",
+    "packEnable": "Aktiviert",
+    "packState": {
+      "installed": "installiert",
+      "enabled": "aktiviert",
+      "disabled": "deaktiviert",
+      "crashed": "abgestürzt"
+    },
+    "uninstallPackTitle": "Feature Pack deinstallieren",
+    "uninstallPackMessage": "{name} ({id}) von diesem Rechner deinstallieren?",
+    "noticePackInstalled": "{id} von diesem Rechner installiert. Fenster neu laden, wenn die Seitenleiste aktualisiert werden soll.",
+    "noticePackEnabled": "{id} aktiviert. Fenster neu laden, um die Seitenleiste zu aktualisieren.",
+    "noticePackDisabled": "{id} deaktiviert. Fenster neu laden, um die Seitenleiste zu aktualisieren.",
+    "noticePackUninstalled": "{id} deinstalliert. Fenster neu laden, um die Seitenleiste zu aktualisieren.",
+    "reloadHint": "Die Seitenleiste aktivierter Packs erscheint nach „Fenster neu laden“.",
+    "demoTitle": "vNext-Demoerweiterungen",
+    "demoMeta": "In-Memory-Demo-Host — getrennt von Feature Packs. Kein Store."
   },
   "health": {
     "failed": "Health fehlgeschlagen: {error}",

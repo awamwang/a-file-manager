@@ -2,6 +2,7 @@
 
 import type { Router } from "vue-router";
 import { AI_ADDON_ENABLED } from "../config/flavor";
+import { getCommandExtras } from "../state/featurePack/contributions";
 import type { AppCommand } from "./types";
 
 export type TranslateFn = (key: string) => string;
@@ -122,7 +123,9 @@ export function buildAppCommands(deps: CommandPanelDeps): AppCommand[] {
     },
   ];
 
-  return AI_ADDON_ENABLED
+  const built = AI_ADDON_ENABLED
     ? commands
     : commands.filter((cmd) => cmd.id !== "view.ai");
+  built.push(...getCommandExtras({ router: deps.router, t: deps.t }));
+  return built;
 }
