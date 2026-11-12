@@ -13,6 +13,9 @@ pub const TOKEN_FILE_NAME: &str = "http-token";
 /// 覆盖运行时目录的环境变量（与 awam-tool-manager `AWAM_RUNTIME_DIR` 一致）。
 pub const RUNTIME_DIR_ENV: &str = "AWAM_RUNTIME_DIR";
 
+/// Bearer token 环境变量（与 awam-tool-manager `AWAM_HTTP_TOKEN` 一致，优先于 token 文件）。
+pub const TOKEN_ENV_VAR: &str = "AWAM_HTTP_TOKEN";
+
 const RUNTIME_DIR_NAME: &str = ".awam-tool-manager";
 
 /// 探活超时：网关未启动时应尽快失败。
@@ -64,6 +67,24 @@ fn home_dir() -> PathBuf {
         }
     }
     PathBuf::from(".")
+}
+
+/// 解析 HTTP Bearer token：`AWAM_HTTP_TOKEN` 优先，否则读运行时目录 `http-token`。
+pub fn resolve_http_token(runtime_dir: &Path) -> Result<String, String> {
+    resolve_http_token_with_env(
+        runtime_dir,
+        std::env::var(TOKEN_ENV_VAR).ok().as_deref(),
+    )
+}
+
+pub(crate) fn resolve_http_token_with_env(
+    runtime_dir: &Path,
+    env_token: Option<&str>,
+) -> Result<String, String> {
+    if let Some(token) = env_token.map(str::trim).filter(|value| !value.is_empty()) {
+        return Ok(token.to_string());
+    }
+    read_http_token(runtime_dir)
 }
 
 /// 读取运行时目录下的 `http-token`（去除首尾空白）。
@@ -166,6 +187,20 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         write_token(dir.path(), "secret-token\r\n");
         assert_eq!(read_http_token(dir.path()).unwrap(), "secret-token");
+    }
+
+    #[test]
+    fn resolve_http_token_prefers_env_over_file() {
+        let dir = tempfile::tempdir().unwrap();
+        write_token(dir.path(), "file-token\n");
+        assert_eq!(
+            resolve_http_token_with_env(dir.path(), Some(" env-token \n")).unwrap(),
+            "env-token"
+        );
+        assert_eq!(
+            resolve_http_token_with_env(dir.path(), Some("  ")).unwrap(),
+            "file-token"
+        );
     }
 
     #[test]

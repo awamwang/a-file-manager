@@ -1,0 +1,3 @@
+event: message
+data: {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"{\"success\":true,\"toolId\":\"everything-search-mcp\",\"capabilityId\":\"search_files\",\"executed\":false}"}],"structuredContent":{"success":true,"toolId":"everything-search-mcp","capabilityId":"search_files","executed":false},"isError":false}}
+

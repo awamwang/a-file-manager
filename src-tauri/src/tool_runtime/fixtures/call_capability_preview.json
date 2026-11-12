@@ -1,0 +1,22 @@
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"success\":true,\"toolId\":\"everything-search-mcp\",\"capabilityId\":\"search_files\",\"risk\":\"read\",\"executed\":false,\"arguments\":{\"query\":\"测试\"},\"note\":\"未执行：传 execute=true 才会产生副作用\"}"
+      }
+    ],
+    "structuredContent": {
+      "success": true,
+      "toolId": "everything-search-mcp",
+      "capabilityId": "search_files",
+      "risk": "read",
+      "executed": false,
+      "arguments": { "query": "测试" },
+      "note": "未执行：传 execute=true 才会产生副作用"
+    },
+    "isError": false
+  }
+}

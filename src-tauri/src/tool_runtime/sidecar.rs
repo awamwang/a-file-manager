@@ -136,7 +136,7 @@ fn load_config(app_data: &Path) -> ToolRuntimeConfig {
     load_from_path(app_data).unwrap_or_default()
 }
 
-fn find_tool_runtime_pack() -> Option<InstalledPackRecord> {
+pub(crate) fn find_tool_runtime_pack() -> Option<InstalledPackRecord> {
     crate::extension_host::extension_host_list_packs()
         .ok()?
         .into_iter()

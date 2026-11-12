@@ -14,6 +14,11 @@ pub fn version_in_range(version: &str, min: &str, max: &str) -> bool {
     v >= lo && v <= hi
 }
 
+/// 能否解析为 `主.次.补丁` 三段数字（未知版本不参与兼容拦截）。
+pub fn known_triple(version: &str) -> bool {
+    parse_triple(version).is_some()
+}
+
 fn parse_triple(s: &str) -> Option<(u32, u32, u32)> {
     let mut parts = s.split('.');
     let major = parts.next()?.parse().ok()?;
