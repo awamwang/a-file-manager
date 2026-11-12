@@ -18,4 +18,9 @@ export {
   previewSourcePaths,
   type FolderDropCommit,
 } from "./surface";
-export { armNativeFileDragOut } from "./dragOut";
+export {
+  armNativeFileDragOut,
+  armOutboundPathsForPress,
+  clearOutboundPathsForPress,
+  startNativeFileDragOut,
+} from "./dragOut";

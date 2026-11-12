@@ -162,12 +162,13 @@ import {
 import { toastError, toastInfo, toastSuccess } from "../state/toast";
 import {
   acceptFolderDragOver,
-  armNativeFileDragOut,
+  armOutboundPathsForPress,
+  clearOutboundPathsForPress,
   commitFolderDrop,
   noticeKeyForDropMode,
   previewDropMode,
   previewSourcePaths,
-  setOutboundPathPayload,
+  startNativeFileDragOut,
 } from "../state/dnd";
 import {
   dismissPreviewBridge,
@@ -1355,19 +1356,19 @@ function onListKeyDown(event: KeyboardEvent) {
 }
 
 /**
- * AIA-280 / Explorer press→drag: do **not** preventDefault on mousedown.
- * Chromium/WebView2 cancels HTML5 dragstart when mousedown default is
- * prevented (AIA-268 unconditional preventDefault broke all row drags —
- * primary, dual-pane secondary). Raise mitigation stays on tabindex=-1 +
- * host `drag_focus` (MA_NOACTIVATE / WebView 子 HWND subclass / z-order，FIL-43)。
- * 禁止在此 focus()/setFocus；选中与行焦点在 `@click`（mouse-up）完成；
- * dragstart 可 selectOnly 且不调用 focusEntryRow。
+ * AIA-280：mousedown 仍不 preventDefault（以免误伤其它指针手势）。
+ * FIL-45：按下即登记出站路径，供宿主在 SM_CXDRAG 阈值直启 OLE（早于 dragstart）；
+ * 禁止在此 focus()/setFocus；选中与行焦点在 `@click`（mouse-up）完成。
  */
-function onRowMouseDown(event: MouseEvent, _entry: NavigatorEntry) {
+function onRowMouseDown(event: MouseEvent, entry: NavigatorEntry) {
   if (event.button !== 0) return;
+  const paths = isSelected(entry.path) ? selectionPaths() : [entry.path];
+  armOutboundPathsForPress(paths);
 }
 
 function onRowClick(event: MouseEvent, entry: NavigatorEntry) {
+  // 单击无拖势：清掉按下时登记的出站路径。
+  clearOutboundPathsForPress();
   // 改名会话占有焦点：框外 pointerdown 已先提交并清空 renamingPath；
   // 拖选文字后在框外松开触发的 click 仍带着 renamingPath，忽略以免抢焦点。
   if (renamingPath.value) return;
@@ -1810,17 +1811,15 @@ function hitTestRows(x: number, y: number, w: number, h: number): string[] {
 
 /* —— Drag in (AFM + Explorer/external) · drag out (OLE / CF_HDROP + link) —— */
 function onDragStart(event: DragEvent, entry: NavigatorEntry) {
-  // Drag past threshold: select for payload only — never focusEntryRow / raise.
+  // FIL-45: 取消 HTML5 出站，跨应用只走 OLE（避免 Sublime 粘路径 / 播放器空拖）。
+  event.preventDefault();
   if (!isSelected(entry.path)) {
     selectOnly(entry.path);
   }
   const paths = selectionPaths();
-  if (event.dataTransfer) {
-    setOutboundPathPayload(event.dataTransfer, paths);
-    // all: copy / move / link (Alt); Hybrid OLE offers the same mask.
-    event.dataTransfer.effectAllowed = "all";
-  }
-  armNativeFileDragOut(paths);
+  armOutboundPathsForPress(paths);
+  // 宿主可能已在阈值处直启 OLE；此处幂等补启。
+  void startNativeFileDragOut(paths);
 }
 
 function onDragOver(event: DragEvent, entry: NavigatorEntry) {

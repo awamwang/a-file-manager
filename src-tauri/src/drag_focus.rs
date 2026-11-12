@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! AIA-261/264/266 + FIL-37/39/43: outbound drag must not raise AFM over the drop target.
+//! AIA-261/264/266 + FIL-37/39/43/44/45/46: outbound drag must not raise AFM over the drop target.
 //!
 //! Explorer parity for "drag from a background window onto the foreground one":
 //! 1. `WM_MOUSEACTIVATE` → `MA_NOACTIVATE` when another top-level window is already
@@ -10,26 +10,16 @@
 //!    `WM_ACTIVATE` + a short poll timer (`SM_CXDRAG` / `SM_CYDRAG`).
 //! 4. Plain click (mouse-up without drag/OLE) still activates via `WM_PARENTNOTIFY`
 //!    or the poll-timer fallback when WebView swallows parent notify.
-//! 5. FIL-39: once past drag threshold and cursor is not over our root HWND tree
-//!    (`WindowFromPoint`), emit `afm://dnd/ole-promote` so Hybrid can lift OLE
-//!    before the external target only sees HTML5.
-//! 6. FIL-43: also subclass in-process WebView2 child HWNDs (`Chrome_WidgetWin_*`
-//!    等). Parent-only subclass still races Chromium's press-time raise; child
-//!    `WM_MOUSEACTIVATE`/`WM_LBUTTONDOWN` arms `MA_NOACTIVATE` / prior FG before
-//!    the host is brought forward. Permanent `WS_EX_NOACTIVATE` on the main
-//!    window is intentionally not used.
+//! 5. FIL-45: 越过拖势阈值且已 `arm_outbound_paths` 时**立即**宿主直启 OLE；
+//!    前端 `dragstart` `preventDefault` 取消 HTML5 文本出站。
+//! 6. FIL-46/47: 失焦挂临时 `WS_EX_NOACTIVATE`；`WH_MOUSE_LL` 预武装 prior；
+//!    `GetAncestor(GA_ROOT)` 识别 OOP WebView。FIL-47：**禁止**对目标窗
+//!    `HWND_TOPMOST` / 无条件 `SetForegroundWindow`——那会把 PotPlayer 强拉前台并
+//!    打断 `DoDragDrop`。仅当我们自己已抢到 FG 时才把 prior 还回去。
 //!
-//! Complements Navigator row `mousedown` (AIA-266/280: no `preventDefault` —
-//! that cancels HTML5 dragstart) and the patched `drag` crate,
-//! which prefers press-time prior FG when Hybrid leave/blur → `DoDragDrop`
-//! runs after the press already raised AFM.
-//!
-//! ## FIL-37 / FIL-43 升级闸
-//! - **WebView 子 HWND subclass（FIL-43 已启用）**：拦截子窗路径上的按下激活；
-//!   仅同进程 HWND（`SetWindowSubclass` 约束）；创建后延迟重扫。
-//! - **`LockSetForegroundWindow`**：需已是 FG 才能锁，易误伤其它应用的前台切换；
-//!   仅作有时限的最后手段，需 TZ。当前路径以 `MA_NOACTIVATE` + prior FG sticky
-//!   `SetWindowPos`/`SetForegroundWindow` + 子窗 subclass 为准。
+//! ## FIL-45/47 焦点 / OLE
+//! - 后台临时 `WS_EX_NOACTIVATE` + `MA_NOACTIVATE`；仅「我们是 FG」时 sticky 还 prior
+//! - 阈值 OLE：`take_outbound_paths` → `start_files_drag_hwnd`；OLE 期间不轮询抢焦点
 
 #![cfg(windows)]
 
@@ -39,15 +29,17 @@ use std::sync::{Mutex, OnceLock};
 
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 use windows::core::BOOL;
-use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM};
+use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
 use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
 use windows::Win32::UI::Shell::{DefSubclassProc, SetWindowSubclass};
 use windows::Win32::UI::WindowsAndMessaging::{
-    EnumChildWindows, GetClassNameW, GetCursorPos, GetForegroundWindow, GetSystemMetrics,
-    GetWindowThreadProcessId, IsChild, KillTimer, SetForegroundWindow, SetTimer, SetWindowPos,
-    WindowFromPoint, HWND_TOP, MA_NOACTIVATE, SM_CXDRAG, SM_CYDRAG, SWP_NOACTIVATE, SWP_NOMOVE,
-    SWP_NOSIZE, SWP_SHOWWINDOW, WA_INACTIVE, WM_ACTIVATE, WM_CREATE, WM_LBUTTONDOWN, WM_LBUTTONUP,
-    WM_MOUSEACTIVATE, WM_PARENTNOTIFY, WM_TIMER,
+    CallNextHookEx, EnumChildWindows, GetAncestor, GetClassNameW, GetCursorPos,
+    GetForegroundWindow, GetSystemMetrics, GetWindowLongPtrW, GetWindowRect,
+    GetWindowThreadProcessId, IsChild, KillTimer, SetForegroundWindow, SetTimer,
+    SetWindowLongPtrW, SetWindowsHookExW, UnhookWindowsHookEx, WindowFromPoint, GA_ROOT,
+    GWL_EXSTYLE, HHOOK, MA_NOACTIVATE, MSLLHOOKSTRUCT, SM_CXDRAG, SM_CYDRAG, WA_INACTIVE,
+    WH_MOUSE_LL, WM_ACTIVATE, WM_CREATE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEACTIVATE,
+    WM_PARENTNOTIFY, WM_TIMER, WS_EX_NOACTIVATE,
 };
 
 const SUBCLASS_ID: usize = 0xA_F1_26_01; // AFM + AIA-261（主窗）
@@ -58,7 +50,7 @@ const POLL_INTERVAL_MS: u32 = 16;
 const FIND_INTERVAL_MS: u32 = 250;
 const FIND_MAX_TICKS: i32 = 40; // ~10s 内重扫 WebView 子窗
 
-/// Hybrid 前端监听：拖势已成立且光标不在 AFM 根 HWND 树上时请求提升 OLE。
+/// Hybrid 前端监听（FIL-45 宿主直启失败时的回退事件名，保持稳定）。
 pub const OLE_PROMOTE_EVENT: &str = "afm://dnd/ole-promote";
 
 static PROMOTE_EMIT: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
@@ -66,6 +58,10 @@ static POLL_ARMED: AtomicBool = AtomicBool::new(false);
 static PROMOTE_EMITTED: AtomicBool = AtomicBool::new(false);
 static ROOT_HWND: AtomicIsize = AtomicIsize::new(0);
 static FIND_TICKS: AtomicI32 = AtomicI32::new(0);
+static TEMP_NOACTIVATE: AtomicBool = AtomicBool::new(false);
+/// 最近一次「非我们」的前台窗（失焦时记录），最大化抢前台时作 prior 兜底。
+static LAST_OTHER_FG: AtomicIsize = AtomicIsize::new(0);
+static MOUSE_HOOK: AtomicIsize = AtomicIsize::new(0);
 static WEBVIEW_SUBCLASSED: OnceLock<Mutex<HashSet<isize>>> = OnceLock::new();
 
 fn webview_subclassed() -> &'static Mutex<HashSet<isize>> {
@@ -79,7 +75,14 @@ fn hwnd_is_ours(our_root: HWND, candidate: HWND) -> bool {
     if candidate == our_root {
         return true;
     }
-    unsafe { IsChild(our_root, candidate).as_bool() }
+    unsafe {
+        if IsChild(our_root, candidate).as_bool() {
+            return true;
+        }
+        // FIL-46: WebView2 OOP 命中窗上 IsChild 常为假；同一顶层根仍算我们。
+        let root = GetAncestor(candidate, GA_ROOT);
+        root == our_root
+    }
 }
 
 fn hwnd_to_isize(hwnd: HWND) -> isize {
@@ -98,6 +101,26 @@ fn left_button_down() -> bool {
     unsafe { GetAsyncKeyState(VK_LBUTTON.0 as i32) < 0 }
 }
 
+fn point_targets_us(our_root: HWND, pt: POINT) -> bool {
+    if our_root.0.is_null() {
+        return false;
+    }
+    let hit = unsafe { WindowFromPoint(pt) };
+    if hwnd_is_ours(our_root, hit) {
+        return true;
+    }
+    let mut rc = RECT::default();
+    if unsafe { GetWindowRect(our_root, &mut rc) }.is_err() {
+        return false;
+    }
+    if pt.x < rc.left || pt.x >= rc.right || pt.y < rc.top || pt.y >= rc.bottom {
+        return false;
+    }
+    // 点在我们矩形内，且该点顶层根是我们（露出的最大化区域）。
+    let top_root = unsafe { GetAncestor(hit, GA_ROOT) };
+    top_root == our_root
+}
+
 fn moved_past_drag_threshold() -> bool {
     let (ox, oy) = drag::press_origin();
     let mut pt = POINT { x: 0, y: 0 };
@@ -109,41 +132,60 @@ fn moved_past_drag_threshold() -> bool {
     (pt.x - ox).abs() >= cx || (pt.y - oy).abs() >= cy
 }
 
-fn cursor_over_our_tree(our_root: HWND) -> bool {
-    let mut pt = POINT { x: 0, y: 0 };
-    if unsafe { GetCursorPos(&mut pt) }.is_err() {
-        return true;
+fn restore_press_prior_if_we_raised(our_root: HWND) {
+    // FIL-47: 只有我们自己已是前台时才还 prior；否则不要去动 PotPlayer。
+    let fg = unsafe { GetForegroundWindow() };
+    if !hwnd_is_ours(our_root, fg) {
+        return;
     }
-    let hit = unsafe { WindowFromPoint(pt) };
-    hwnd_is_ours(our_root, hit)
+    if drag::press_prior_foreground() == 0 {
+        let last = LAST_OTHER_FG.load(Ordering::SeqCst);
+        if last != 0 && last != hwnd_to_isize(our_root) {
+            let mut pt = POINT { x: 0, y: 0 };
+            let _ = unsafe { GetCursorPos(&mut pt) };
+            drag::note_deferred_activate(last, pt.x, pt.y);
+        }
+    }
+    drag::restore_press_prior_foreground(hwnd_to_isize(our_root));
 }
 
-fn restore_press_prior_if_we_raised(our_root: HWND) {
-    let prior = drag::press_prior_foreground();
-    if prior == 0 {
+/// 后台期间挂临时 WS_EX_NOACTIVATE（失焦即挂；单击激活 / OLE 结束时清除）。
+fn enable_temp_noactivate(root: HWND) {
+    if root.0.is_null() {
         return;
     }
-    let prev = isize_to_hwnd(prior);
-    if hwnd_is_ours(our_root, prev) {
+    let _ = TEMP_NOACTIVATE.swap(true, Ordering::SeqCst);
+    unsafe {
+        let style = GetWindowLongPtrW(root, GWL_EXSTYLE);
+        let flag = WS_EX_NOACTIVATE.0 as isize;
+        if style & flag == 0 {
+            SetWindowLongPtrW(root, GWL_EXSTYLE, style | flag);
+        }
+    }
+}
+
+fn disable_temp_noactivate(root: HWND) {
+    if !TEMP_NOACTIVATE.swap(false, Ordering::SeqCst) {
         return;
     }
+    if root.0.is_null() {
+        return;
+    }
+    unsafe {
+        let style = GetWindowLongPtrW(root, GWL_EXSTYLE);
+        let flag = WS_EX_NOACTIVATE.0 as isize;
+        if style & flag != 0 {
+            SetWindowLongPtrW(root, GWL_EXSTYLE, style & !flag);
+        }
+    }
+}
+
+fn remember_other_foreground(our_root: HWND) {
     let fg = unsafe { GetForegroundWindow() };
-    // AIA-268: WebView may bump z-order without a stable FG steal — always
-    // re-stack the press-time prior window, and re-foreground when we own FG.
-    let _ = unsafe {
-        SetWindowPos(
-            prev,
-            Some(HWND_TOP),
-            0,
-            0,
-            0,
-            0,
-            SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW | SWP_NOACTIVATE,
-        )
-    };
-    if hwnd_is_ours(our_root, fg) {
-        let _ = unsafe { SetForegroundWindow(prev) };
+    if fg.0.is_null() || hwnd_is_ours(our_root, fg) {
+        return;
     }
+    LAST_OTHER_FG.store(hwnd_to_isize(fg), Ordering::SeqCst);
 }
 
 fn request_ole_promote_if_needed(our_root: HWND) {
@@ -153,12 +195,26 @@ fn request_ole_promote_if_needed(our_root: HWND) {
     if !drag::drag_gesture_active() {
         return;
     }
-    if cursor_over_our_tree(our_root) {
+    let paths = drag::take_outbound_paths();
+    if paths.is_empty() {
         return;
     }
     PROMOTE_EMITTED.store(true, Ordering::SeqCst);
-    if let Some(emit) = PROMOTE_EMIT.get() {
-        emit();
+    // 仅当我们误抢了 FG 时还 prior；不要在进 OLE 前无条件抬目标窗。
+    restore_press_prior_if_we_raised(our_root);
+
+    match drag::start_files_drag_hwnd(hwnd_to_isize(our_root), paths.clone()) {
+        Ok(()) => {
+            disable_temp_noactivate(our_root);
+        }
+        Err(err) => {
+            eprintln!("FIL-45: host-direct OLE start failed: {err}");
+            drag::arm_outbound_paths(paths);
+            PROMOTE_EMITTED.store(false, Ordering::SeqCst);
+            if let Some(emit) = PROMOTE_EMIT.get() {
+                emit();
+            }
+        }
     }
 }
 
@@ -172,7 +228,7 @@ fn disarm_poll_timer(hwnd: HWND) {
     let _ = unsafe { KillTimer(Some(hwnd), POLL_TIMER_ID) };
 }
 
-/// 按下：后台则 MA_NOACTIVATE 推迟激活；前台也记录原点以便 Hybrid 提升时序。
+/// 按下：后台则推迟激活；前台也记录原点以便阈值 OLE。
 fn note_press(hwnd: HWND) {
     let root = {
         let r = root_hwnd();
@@ -187,15 +243,27 @@ fn note_press(hwnd: HWND) {
     let _ = unsafe { GetCursorPos(&mut pt) };
 
     if drag::should_suppress_foreground_raise() {
-        // Already armed for this press — do not reset origin mid-gesture.
         arm_poll_timer(root);
+        // 仅当我们已是 FG 时才尝试还 prior（否则无操作）。
+        restore_press_prior_if_we_raised(root);
         return;
     }
 
     if !hwnd_is_ours(root, fg) {
         drag::note_deferred_activate(hwnd_to_isize(fg), pt.x, pt.y);
+        LAST_OTHER_FG.store(hwnd_to_isize(fg), Ordering::SeqCst);
+        enable_temp_noactivate(root);
+        // 此时我们通常还不是 FG：不调用 SetForegroundWindow(prior)。
     } else {
-        drag::note_press_origin(pt.x, pt.y);
+        // 我们已是 FG（可能刚被 WebView 抬起）：若有上次其它前台且左键仍按下，推迟并还回。
+        let last = LAST_OTHER_FG.load(Ordering::SeqCst);
+        if last != 0 && last != hwnd_to_isize(root) && left_button_down() {
+            drag::note_deferred_activate(last, pt.x, pt.y);
+            enable_temp_noactivate(root);
+            restore_press_prior_if_we_raised(root);
+        } else {
+            drag::note_press_origin(pt.x, pt.y);
+        }
     }
     PROMOTE_EMITTED.store(false, Ordering::SeqCst);
     arm_poll_timer(root);
@@ -216,9 +284,16 @@ fn finish_press_maybe_activate(hwnd: HWND) {
     let should_activate = drag::take_pending_activate()
         && !drag::ole_drag_in_progress()
         && !drag::drag_gesture_active();
+    if !drag::ole_drag_in_progress() && !drag::drag_gesture_active() {
+        drag::clear_outbound_paths();
+    }
     drag::clear_press_state();
+    disable_temp_noactivate(root);
     if should_activate {
         let _ = unsafe { SetForegroundWindow(root) };
+    } else if !hwnd_is_ours(root, unsafe { GetForegroundWindow() }) {
+        // 仍在后台：保持 noactivate，便于下次按下。
+        enable_temp_noactivate(root);
     }
 }
 
@@ -232,7 +307,6 @@ fn class_name(hwnd: HWND) -> String {
 }
 
 fn is_webview_input_class(name: &str) -> bool {
-    // WebView2 / Chromium 宿主常见类名（同进程子窗）。
     name.starts_with("Chrome_WidgetWin_")
         || name == "Intermediate D3D Window"
         || name == "Chrome_RenderWidgetHostHWND"
@@ -289,7 +363,57 @@ fn disarm_find_timer(hwnd: HWND) {
     let _ = unsafe { KillTimer(Some(hwnd), FIND_TIMER_ID) };
 }
 
-/// FIL-43: WebView 子窗按下路径——在 Chromium 抬宿主之前记下 prior FG / 推迟激活。
+/// FIL-46: 系统分发点击前武装——不依赖 WebView 是否把 MOUSEACTIVATE 交给我们。
+unsafe extern "system" fn mouse_ll_proc(
+    code: i32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
+    if code >= 0 && wparam.0 as u32 == WM_LBUTTONDOWN {
+        let root = root_hwnd();
+        if !root.0.is_null() {
+            let info = *(lparam.0 as *const MSLLHOOKSTRUCT);
+            let pt = info.pt;
+            let fg = GetForegroundWindow();
+            if point_targets_us(root, pt) && !hwnd_is_ours(root, fg) {
+                note_press(root);
+            }
+        }
+    }
+    CallNextHookEx(
+        Some(HHOOK(MOUSE_HOOK.load(Ordering::SeqCst) as *mut _)),
+        code,
+        wparam,
+        lparam,
+    )
+}
+
+fn install_mouse_ll_hook() {
+    if MOUSE_HOOK.load(Ordering::SeqCst) != 0 {
+        return;
+    }
+    let hook = unsafe {
+        SetWindowsHookExW(WH_MOUSE_LL, Some(mouse_ll_proc), None, 0)
+    };
+    match hook {
+        Ok(h) => {
+            MOUSE_HOOK.store(h.0 as isize, Ordering::SeqCst);
+        }
+        Err(err) => {
+            eprintln!("FIL-46: SetWindowsHookExW WH_MOUSE_LL failed: {err}");
+        }
+    }
+}
+
+#[allow(dead_code)]
+fn uninstall_mouse_ll_hook() {
+    let raw = MOUSE_HOOK.swap(0, Ordering::SeqCst);
+    if raw != 0 {
+        let _ = unsafe { UnhookWindowsHookEx(HHOOK(raw as *mut _)) };
+    }
+}
+
+/// FIL-43: WebView 子窗按下路径。
 unsafe extern "system" fn webview_subclass_proc(
     hwnd: HWND,
     msg: u32,
@@ -305,12 +429,10 @@ unsafe extern "system" fn webview_subclass_proc(
             let fg = unsafe { GetForegroundWindow() };
             if !hwnd_is_ours(our, fg) {
                 note_press(our);
-                // 不调用 DefSubclassProc：避免子窗默认路径继续激活顶层宿主。
                 return LRESULT(MA_NOACTIVATE as isize);
             }
         }
         WM_LBUTTONDOWN => {
-            // 同进程输入窗上的按下：即使 MOUSEACTIVATE 已处理，也补记 press（前台提升时序）。
             note_press(our);
         }
         WM_LBUTTONUP => {
@@ -333,22 +455,27 @@ unsafe extern "system" fn subclass_proc(
         WM_MOUSEACTIVATE => {
             let fg = unsafe { GetForegroundWindow() };
             if !hwnd_is_ours(hwnd, fg) {
-                // Defer activation: keep the drop-target (or other) window in front
-                // while the user may be starting an outbound file drag.
                 note_press(hwnd);
                 return LRESULT(MA_NOACTIVATE as isize);
             }
         }
         WM_ACTIVATE => {
             let active = (wparam.0 as u32) & 0xffff;
-            if active != WA_INACTIVE
-                && drag::should_suppress_foreground_raise()
-                && (left_button_down()
-                    || drag::drag_gesture_active()
-                    || drag::ole_drag_in_progress())
+            if active == WA_INACTIVE {
+                remember_other_foreground(hwnd);
+                enable_temp_noactivate(hwnd);
+            } else if left_button_down()
+                || drag::should_suppress_foreground_raise()
+                || drag::drag_gesture_active()
             {
-                // WebView/Chromium often raises us on the same press — put prior FG back.
+                // 左键未松就变成前台：这是误抢，还 prior（内部仅当我们是 FG 才动手）。
+                if !drag::should_suppress_foreground_raise() {
+                    note_press(hwnd);
+                }
                 restore_press_prior_if_we_raised(hwnd);
+                enable_temp_noactivate(hwnd);
+            } else if !drag::ole_drag_in_progress() {
+                disable_temp_noactivate(hwnd);
             }
         }
         WM_TIMER => {
@@ -376,12 +503,15 @@ unsafe extern "system" fn subclass_proc(
                     if !drag::drag_gesture_active() && moved_past_drag_threshold() {
                         drag::note_drag_gesture();
                     }
-                    if drag::should_suppress_foreground_raise() {
+                    // OLE 进行中由 DropSource 处理；此处只在我们误持 FG 时还 prior。
+                    if !drag::ole_drag_in_progress()
+                        && drag::should_suppress_foreground_raise()
+                        && hwnd_is_ours(hwnd, unsafe { GetForegroundWindow() })
+                    {
                         restore_press_prior_if_we_raised(hwnd);
                     }
                     request_ole_promote_if_needed(hwnd);
                 } else {
-                    // WebView2 sometimes swallows WM_PARENTNOTIFY LBUTTONUP.
                     finish_press_maybe_activate(hwnd);
                 }
                 return LRESULT(0);
@@ -390,11 +520,8 @@ unsafe extern "system" fn subclass_proc(
         WM_PARENTNOTIFY => {
             let child_msg = (wparam.0 as u32) & 0xffff;
             if child_msg == WM_CREATE {
-                // WebView 控制器晚于 setup 创建子窗时补挂 subclass。
                 scan_webview_children(hwnd);
             } else if child_msg == WM_LBUTTONDOWN {
-                // Belt-and-suspenders when MOUSEACTIVATE did not arm the press.
-                // Also arms FG presses for FIL-39 Hybrid promote timing.
                 note_press(hwnd);
             } else if child_msg == WM_LBUTTONUP {
                 finish_press_maybe_activate(hwnd);
@@ -405,7 +532,27 @@ unsafe extern "system" fn subclass_proc(
     unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) }
 }
 
-/// Install the no-activate-on-background-drag subclass on the main window + WebView children.
+/// FIL-44: 前端 arm 出站时登记路径，供宿主阈值直启 OLE。
+#[tauri::command]
+pub fn dnd_arm_outbound_paths(paths: Vec<String>) -> Result<(), String> {
+    let cleaned: Vec<std::path::PathBuf> = paths
+        .into_iter()
+        .map(|p| p.trim().to_string())
+        .filter(|p| !p.is_empty())
+        .map(std::path::PathBuf::from)
+        .collect();
+    drag::arm_outbound_paths(cleaned);
+    Ok(())
+}
+
+/// FIL-44: 取消拖势且未进入 OLE 时清空登记路径。
+#[tauri::command]
+pub fn dnd_clear_outbound_paths() -> Result<(), String> {
+    drag::clear_outbound_paths();
+    Ok(())
+}
+
+/// Install focus / OLE host hooks on the main window.
 pub fn install_for_main_window<R: Runtime>(app: &AppHandle<R>) {
     let Some(window) = app.get_webview_window("main") else {
         return;
@@ -423,9 +570,15 @@ pub fn install_for_main_window<R: Runtime>(app: &AppHandle<R>) {
         eprintln!("AIA-266: SetWindowSubclass for drag focus failed");
         return;
     }
-    // FIL-43: 立即扫一次；WebView 子窗可能稍后才出现，定时重试。
     scan_webview_children(hwnd);
     arm_find_timer(hwnd);
+    install_mouse_ll_hook();
+    // 启动时若已在后台，预先挂 noactivate，避免第一次点击才武装。
+    let fg = unsafe { GetForegroundWindow() };
+    if !hwnd_is_ours(hwnd, fg) {
+        remember_other_foreground(hwnd);
+        enable_temp_noactivate(hwnd);
+    }
 }
 
 #[cfg(test)]
@@ -433,7 +586,6 @@ mod tests {
     use super::{is_webview_input_class, OLE_PROMOTE_EVENT};
     use std::sync::Mutex;
 
-    // Shared process atomics in `drag` — serialize host tests that touch them.
     static LOCK: Mutex<()> = Mutex::new(());
 
     #[test]

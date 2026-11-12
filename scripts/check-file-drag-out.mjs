@@ -81,17 +81,14 @@ assert.ok(
 
 assert.ok(dragOut.includes("startDrag"), "dnd/dragOut must call startDrag");
 assert.ok(dragOut.includes("@crabnebula/tauri-plugin-drag"), "import CrabNebula drag plugin");
-assert.ok(dragOut.includes("armNativeFileDragOut"), "export armNativeFileDragOut");
 assert.ok(
-  dragOut.includes("EDGE_MARGIN") || dragOut.includes("isOutsideOrNearEdge"),
-  "must promote OLE near window edge",
+  dragOut.includes("armOutboundPathsForPress") && dragOut.includes("startNativeFileDragOut"),
+  "FIL-45 exports press-arm + startNativeFileDragOut",
 );
-assert.ok(dragOut.includes("dragleave"), "must promote OLE on document dragleave");
 assert.ok(dragOut.includes("resolveResource"), "must resolve drag preview icon");
 
-assert.ok(nav.includes("armNativeFileDragOut"), "NavigatorView must arm native drag-out");
-assert.ok(nav.includes("setOutboundPathPayload"), "NavigatorView must keep HTML5 payload");
-assert.ok(nav.includes('effectAllowed = "all"'), "dragstart should allow copy+move+link");
+assert.ok(nav.includes("armOutboundPathsForPress"), "NavigatorView must arm paths on press");
+assert.ok(nav.includes("startNativeFileDragOut"), "NavigatorView must start OLE on dragstart");
 assert.ok(
   !nav.includes("afmWindowFocused"),
   "must not gate press focus on fragile DOM/OS focus cache (AIA-268)",
@@ -101,8 +98,13 @@ assert.ok(
   "rows must be tabindex=-1 so Chromium does not focus-on-press (AIA-268)",
 );
 assert.ok(
-  dragFocusSrc.includes("SetWindowPos") && dragFocusSrc.includes("HWND_TOP"),
-  "drag_focus must restore prior z-order, not only SetForegroundWindow (AIA-268)",
+  (dragFocusSrc.includes("SetWindowPos") && dragFocusSrc.includes("HWND_TOP")) ||
+    dragFocusSrc.includes("restore_press_prior_foreground"),
+  "drag_focus must restore prior z-order via SetWindowPos or drag::restore_press_prior_foreground (AIA-268/FIL-44)",
+);
+assert.ok(
+  patchSrc.includes("SetWindowPos") && patchSrc.includes("HWND_TOP"),
+  "FIL-44: patched drag must SetWindowPos prior FG above source",
 );
 assert.ok(
   dragFocusSrc.includes("webview_subclass_proc") && dragFocusSrc.includes("Chrome_WidgetWin_"),
@@ -129,10 +131,21 @@ assert.ok(
   "all list surfaces must wire dragstart (primary virtualized + dual-pane)",
 );
 assert.ok(
-  nav.includes("armNativeFileDragOut(paths)"),
-  "dragstart must arm Hybrid OLE outbound (threshold path)",
+  nav.includes("startNativeFileDragOut(paths)"),
+  "dragstart must start OLE outbound (FIL-45)",
+);
+const dragStartFn = nav.match(/function onDragStart\([^)]*\)\s*\{[\s\S]*?\n\}/);
+assert.ok(dragStartFn && dragStartFn[0].includes("preventDefault"), "FIL-45 dragstart cancels HTML5");
+
+assert.ok(
+  dragOut.includes("dnd_arm_outbound_paths"),
+  "FIL-44: dragOut must arm host outbound paths for in-process OLE promote",
+);
+assert.ok(
+  patchSrc.includes("start_files_drag_hwnd") && patchSrc.includes("AttachThreadInput"),
+  "FIL-44: patch must support host-direct OLE + AttachThreadInput restore",
 );
 
 console.log(
-  "File drag-out checks OK (AIA-240 COPY|MOVE|LINK + AIA-261/264/266/268/280 Explorer press→drag).",
+  "File drag-out checks OK (AIA-240 COPY|MOVE|LINK + AIA-261/264/266/268/280 + FIL-44 Explorer press→drag).",
 );

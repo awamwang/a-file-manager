@@ -226,6 +226,10 @@ health_get,
                     file_ops::clipboard::file_ops_clipboard_set,
                     file_ops::clipboard::file_ops_clipboard_get,
                     file_ops::clipboard::file_ops_clipboard_clear,
+                    #[cfg(windows)]
+                    drag_focus::dnd_arm_outbound_paths,
+                    #[cfg(windows)]
+                    drag_focus::dnd_clear_outbound_paths,
                     shell_icons::shell_icon_get,
                     shell_icons::shell_icon_get_many,
                     settings::settings_schema_get,

@@ -86,12 +86,14 @@ use std::path::PathBuf;
 mod platform_impl;
 pub use platform_impl::start_drag;
 
-/// AIA-261/264: OLE + deferred-activate + drag-vs-click helpers for the host subclass.
+/// AIA-261/264/FIL-44: OLE + deferred-activate + drag-vs-click + host-direct outbound helpers.
 #[cfg(windows)]
 pub use platform_impl::{
-    clear_press_state, drag_gesture_active, note_deferred_activate, note_drag_gesture,
-    note_press_origin, ole_drag_in_progress, press_origin, press_prior_foreground,
-    resolve_preserve_foreground, should_suppress_foreground_raise, take_pending_activate,
+    arm_outbound_paths, clear_outbound_paths, clear_press_state, drag_gesture_active,
+    note_deferred_activate, note_drag_gesture, note_press_origin, ole_drag_in_progress,
+    press_origin, press_prior_foreground, resolve_preserve_foreground,
+    restore_press_prior_foreground, should_suppress_foreground_raise, start_files_drag_hwnd,
+    take_outbound_paths, take_pending_activate,
 };
 
 pub type Result<T> = std::result::Result<T, Error>;

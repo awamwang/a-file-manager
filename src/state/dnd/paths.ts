@@ -115,10 +115,12 @@ export function pathsFromDataTransfer(dt: DataTransfer | null | undefined): stri
   return [];
 }
 
-/** Build uri-list + plain text companions for outbound HTML5 drag (OLE still primary). */
+/**
+ * 窗内 HTML5 仅带 AFM 私有 MIME。
+ * FIL-45：出站跨应用改走 OLE；不再写入 text/uri-list / text/plain，
+ * 以免外部编辑器（如 Sublime）在 HTML5 泄漏时把路径粘进正文。
+ */
 export function setOutboundPathPayload(dt: DataTransfer, paths: string[]): void {
   const cleaned = uniquePaths(paths);
   dt.setData(AFM_MIME, JSON.stringify(cleaned));
-  dt.setData("text/uri-list", cleaned.map(pathToFileUrl).join("\r\n"));
-  dt.setData("text/plain", cleaned.join("\r\n"));
 }

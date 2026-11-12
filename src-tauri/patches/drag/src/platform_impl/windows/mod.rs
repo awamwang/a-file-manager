@@ -12,7 +12,7 @@ use std::{
     os::windows::ffi::OsStrExt,
     path::{Path, PathBuf},
     sync::atomic::{AtomicBool, AtomicI32, AtomicIsize, Ordering},
-    sync::Once,
+    sync::{Mutex, Once, OnceLock},
 };
 use windows::{
     core::*,
@@ -28,6 +28,7 @@ use windows::{
             DROPEFFECT_MOVE,
         },
         System::SystemServices::{MK_LBUTTON, MODIFIERKEYS_FLAGS},
+        System::Threading::{AttachThreadInput, GetCurrentThreadId},
         UI::{
             Shell::{
                 BHID_DataObject, CLSID_DragDropHelper, Common, IDataObjectAsyncCapability,
@@ -35,8 +36,9 @@ use windows::{
                 CFSTR_PREFERREDDROPEFFECT, CFSTR_SHELLIDLIST, SHDRAGIMAGE,
             },
             WindowsAndMessaging::{
-                GetAncestor, GetCursorPos, GetForegroundWindow, IsChild, SetForegroundWindow,
-                SetWindowPos, GA_ROOT, HWND_TOP, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
+                GetAncestor, GetCursorPos, GetForegroundWindow, GetWindowThreadProcessId,
+                IsChild, LockSetForegroundWindow, SetForegroundWindow, SetWindowPos, GA_ROOT,
+                HWND_TOP, LSFW_LOCK, LSFW_UNLOCK, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
                 SWP_SHOWWINDOW,
             },
         },
@@ -58,6 +60,18 @@ static PRESS_PRIOR_FG: AtomicIsize = AtomicIsize::new(0);
 /// Screen coordinates of that press (for drag-threshold detection).
 static PRESS_X: AtomicI32 = AtomicI32::new(0);
 static PRESS_Y: AtomicI32 = AtomicI32::new(0);
+
+/// FIL-44: 已对前台切换上锁（后台拖出期间阻止 WebView 再抢 FG）。
+static FG_LOCKED: AtomicBool = AtomicBool::new(false);
+
+/// FIL-44: 本轮 arm 是否已有人启动 OLE（宿主直启与 JS startDrag 互斥）。
+static OUTBOUND_CLAIMED: AtomicBool = AtomicBool::new(false);
+
+/// FIL-44: Hybrid 出站路径（JS arm → 宿主近边/离窗直启 OLE，避免 IPC 竞态）。
+fn outbound_paths_slot() -> &'static Mutex<Vec<PathBuf>> {
+    static SLOT: OnceLock<Mutex<Vec<PathBuf>>> = OnceLock::new();
+    SLOT.get_or_init(|| Mutex::new(Vec::new()))
+}
 
 /// Whether a Windows OLE outbound drag is currently inside `DoDragDrop`.
 pub fn ole_drag_in_progress() -> bool {
@@ -115,6 +129,7 @@ pub fn should_suppress_foreground_raise() -> bool {
 
 /// End of the press (mouse-up) or after OLE finishes consuming the gesture.
 pub fn clear_press_state() {
+    unlock_foreground();
     PENDING_BACKGROUND_ACTIVATE.store(false, Ordering::SeqCst);
     DRAG_GESTURE.store(false, Ordering::SeqCst);
     PRESS_PRIOR_FG.store(0, Ordering::SeqCst);
@@ -132,6 +147,59 @@ pub fn resolve_preserve_foreground(our_root: isize, current_fg: isize) -> Option
     } else {
         Some(current_fg)
     }
+}
+
+/// FIL-44: JS `armNativeFileDragOut` 登记路径，供宿主离窗直启 OLE。
+pub fn arm_outbound_paths(paths: Vec<PathBuf>) {
+    let cleaned: Vec<PathBuf> = paths
+        .into_iter()
+        .filter(|p| !p.as_os_str().is_empty())
+        .collect();
+    OUTBOUND_CLAIMED.store(false, Ordering::SeqCst);
+    if let Ok(mut slot) = outbound_paths_slot().lock() {
+        *slot = cleaned;
+    }
+}
+
+pub fn clear_outbound_paths() {
+    if let Ok(mut slot) = outbound_paths_slot().lock() {
+        slot.clear();
+    }
+}
+
+/// 取出并清空已登记路径（宿主直启 OLE 用）。
+pub fn take_outbound_paths() -> Vec<PathBuf> {
+    match outbound_paths_slot().lock() {
+        Ok(mut slot) => std::mem::take(&mut *slot),
+        Err(poisoned) => std::mem::take(&mut *poisoned.into_inner()),
+    }
+}
+
+fn lock_foreground() {
+    if FG_LOCKED.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    unsafe {
+        let _ = LockSetForegroundWindow(LSFW_LOCK);
+    }
+}
+
+fn unlock_foreground() {
+    if !FG_LOCKED.swap(false, Ordering::SeqCst) {
+        return;
+    }
+    unsafe {
+        let _ = LockSetForegroundWindow(LSFW_UNLOCK);
+    }
+}
+
+/// 用 press-time prior FG 做一次强化恢复（供宿主 timer / OLE 入口共用）。
+pub fn restore_press_prior_foreground(our_root: isize) {
+    let prior = PRESS_PRIOR_FG.load(Ordering::SeqCst);
+    if prior == 0 || prior == our_root {
+        return;
+    }
+    restore_preserved_foreground(HWND(our_root), Some(HWND(prior)));
 }
 
 mod image;
@@ -193,8 +261,9 @@ fn root_hwnd(hwnd: HWND) -> HWND {
     }
 }
 
-/// FIL-37: 恢复 prior 窗 Z-order（SWP_NOACTIVATE）并在我们持有 FG 时还回前台。
-/// 对齐 drag_focus：WebView 可能只抬 Z 不稳抢 FG，单靠 SetForegroundWindow 不够。
+/// FIL-37/44/47: 仅当我们**已经抢到前台**时，把 prior 还回去并把自身压到其下。
+/// 禁止 HWND_TOPMOST / 无条件 SetForegroundWindow(prior)——那会把播放器强拉前台并打坏 DoDragDrop。
+/// Explorer 做法是源窗不激活，而不是去置顶目标窗。
 fn restore_preserved_foreground(our_root: HWND, preserve_fg: Option<HWND>) {
     let Some(prev) = preserve_fg else {
         return;
@@ -203,6 +272,26 @@ fn restore_preserved_foreground(our_root: HWND, preserve_fg: Option<HWND>) {
         return;
     }
     unsafe {
+        let fg = GetForegroundWindow();
+        // 我们不是 FG：不要动 prior（它本就该在前台）；乱 SetForegroundWindow 会打坏 OLE。
+        if !hwnd_is_ours(our_root, fg) {
+            return;
+        }
+        lock_foreground();
+
+        let mut fg_pid = 0u32;
+        let fg_tid = GetWindowThreadProcessId(fg, Some(&mut fg_pid));
+        let mut prev_pid = 0u32;
+        let prev_tid = GetWindowThreadProcessId(prev, Some(&mut prev_pid));
+        let cur_tid = GetCurrentThreadId();
+        let attached_fg = fg_tid != 0
+            && fg_tid != cur_tid
+            && AttachThreadInput(cur_tid, fg_tid, TRUE).as_bool();
+        let attached_prev = prev_tid != 0
+            && prev_tid != cur_tid
+            && prev_tid != fg_tid
+            && AttachThreadInput(cur_tid, prev_tid, TRUE).as_bool();
+
         let _ = SetWindowPos(
             prev,
             HWND_TOP,
@@ -212,9 +301,24 @@ fn restore_preserved_foreground(our_root: HWND, preserve_fg: Option<HWND>) {
             0,
             SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW | SWP_NOACTIVATE,
         );
-        let fg = GetForegroundWindow();
-        if hwnd_is_ours(our_root, fg) {
-            let _ = SetForegroundWindow(prev);
+        let _ = SetForegroundWindow(prev);
+        if our_root.0 != 0 {
+            let _ = SetWindowPos(
+                our_root,
+                prev,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+            );
+        }
+
+        if attached_prev {
+            let _ = AttachThreadInput(cur_tid, prev_tid, FALSE);
+        }
+        if attached_fg {
+            let _ = AttachThreadInput(cur_tid, fg_tid, FALSE);
         }
     }
 }
@@ -267,79 +371,30 @@ pub fn start_drag<W: HasWindowHandle, F: Fn(DragResult, CursorPosition) + Send +
     options: Options,
 ) -> crate::Result<()> {
     if let Ok(RawWindowHandle::Win32(w)) = handle.window_handle().map(|h| h.as_raw()) {
-        let our_hwnd = HWND(w.hwnd.get());
-        let our_root = root_hwnd(our_hwnd);
-        // AIA-261/264: prefer press-time prior FG (mousedown may have already raised AFM),
-        // else the FG at OLE start when Hybrid left/blur moved focus to the drop target.
-        let preserve_fg = unsafe {
-            let fg = GetForegroundWindow();
-            resolve_preserve_foreground(our_root.0, fg.0).map(HWND)
-        };
-
+        let our_hwnd = HWND(w.hwnd.get() as isize);
         match item {
             DragItem::Files(files) => {
-                init_ole();
-                unsafe {
-                    #[allow(static_mut_refs)]
-                    if let Err(e) = &OLE_RESULT {
-                        return Err(e.clone().into());
-                    }
-                }
-
                 let mut paths = Vec::new();
                 for f in files {
                     paths.push(dunce::canonicalize(f)?);
                 }
-
-                let data_object: IDataObject = get_file_data_object(&paths).unwrap();
-                // FIL-42: PreferredDropEffect + sync GetData，使播放器 Drop 时拿到与 Explorer 同等路径数据。
-                let preferred = preferred_effect_for_mode(options.mode);
-                prepare_shell_file_data_object(&data_object, preferred);
-                debug_assert!(
-                    shell_file_formats_gettable(&data_object),
-                    "FIL-38: Shell IDataObject must expose GetData-able CF_HDROP + Shell IDList"
-                );
-                debug_assert!(
-                    preferred_drop_effect_is(&data_object, preferred.0),
-                    "FIL-42: Preferred DropEffect must be GetData-able"
-                );
-                let drop_source: IDropSource = DropSource::new(our_root, preserve_fg).into();
-
-                unsafe {
-                    if let Some(drag_image) = get_drag_image(image) {
-                        if let Ok(helper) =
-                            create_instance::<IDragSourceHelper>(&CLSID_DragDropHelper)
-                        {
-                            let _ = helper.InitializeFromBitmap(&drag_image, &data_object);
+                let result = run_files_ole_drag(our_hwnd, &paths, Some(image), options.mode)?;
+                match result {
+                    Some(DragResult::Dropped) => {
+                        let mut pt = POINT { x: 0, y: 0 };
+                        unsafe {
+                            GetCursorPos(&mut pt)?;
                         }
-                    }
-
-                    let mut out_dropeffect = DROPEFFECT::default();
-                    // AIA-240: Explorer-parity — offer copy|move|link; target + modifiers choose.
-                    // FIL-42: PreferredDropEffect（由 options.mode）引导非壳目标走 copy/open，而非空 MOVE。
-                    let effect = DROPEFFECT_COPY | DROPEFFECT_MOVE | DROPEFFECT_LINK;
-
-                    restore_preserved_foreground(our_root, preserve_fg);
-
-                    // OLE consumes the gesture — never click-activate on the trailing mouse-up.
-                    note_drag_gesture();
-                    OLE_DRAG_IN_PROGRESS.store(true, Ordering::SeqCst);
-                    let drop_result =
-                        DoDragDrop(&data_object, &drop_source, effect, &mut out_dropeffect);
-                    OLE_DRAG_IN_PROGRESS.store(false, Ordering::SeqCst);
-                    clear_press_state();
-
-                    // Keep drop-target foreground after a background-started OLE drag.
-                    restore_preserved_foreground(our_root, preserve_fg);
-
-                    let mut pt = POINT { x: 0, y: 0 };
-                    GetCursorPos(&mut pt)?;
-                    if drop_result == DRAGDROP_S_DROP {
                         on_drop_callback(DragResult::Dropped, CursorPosition { x: pt.x, y: pt.y });
-                    } else {
-                        // DRAGDROP_S_CANCEL
+                    }
+                    Some(DragResult::Cancel) => {
+                        let mut pt = POINT { x: 0, y: 0 };
+                        unsafe {
+                            GetCursorPos(&mut pt)?;
+                        }
                         on_drop_callback(DragResult::Cancel, CursorPosition { x: pt.x, y: pt.y });
                     }
+                    None => {}
                 }
             }
             DragItem::Data { .. } => {
@@ -390,6 +445,99 @@ pub fn start_drag<W: HasWindowHandle, F: Fn(DragResult, CursorPosition) + Send +
         Ok(())
     } else {
         Err(crate::Error::UnsupportedWindowHandle)
+    }
+}
+
+/// FIL-44: 宿主在离窗/近边时用根 HWND 直启 OLE（跳过 JS→IPC 往返）。
+pub fn start_files_drag_hwnd(hwnd: isize, files: Vec<PathBuf>) -> crate::Result<()> {
+    let _ = run_files_ole_drag(HWND(hwnd), &files, None, DragMode::Copy)?;
+    Ok(())
+}
+
+/// 执行 Files 出站 `DoDragDrop`。若已在 OLE 中则返回 `Ok(None)`（幂等）。
+fn run_files_ole_drag(
+    our_hwnd: HWND,
+    files: &[PathBuf],
+    image: Option<Image>,
+    mode: DragMode,
+) -> crate::Result<Option<DragResult>> {
+    if files.is_empty() {
+        return Ok(None);
+    }
+    if OLE_DRAG_IN_PROGRESS.load(Ordering::SeqCst) {
+        return Ok(None);
+    }
+    // 宿主直启与 JS startDrag 可能先后到达；每轮 arm 只允许一次 DoDragDrop。
+    if OUTBOUND_CLAIMED.swap(true, Ordering::SeqCst) {
+        return Ok(None);
+    }
+
+    init_ole();
+    unsafe {
+        #[allow(static_mut_refs)]
+        if let Err(e) = &OLE_RESULT {
+            return Err(e.clone().into());
+        }
+    }
+
+    let our_root = root_hwnd(our_hwnd);
+    let preserve_fg = unsafe {
+        let fg = GetForegroundWindow();
+        resolve_preserve_foreground(our_root.0, fg.0).map(HWND)
+    };
+
+    let mut paths = Vec::with_capacity(files.len());
+    for f in files {
+        paths.push(dunce::canonicalize(f)?);
+    }
+
+    let data_object: IDataObject = get_file_data_object(&paths).ok_or(crate::Error::FailedToStartDrag)?;
+    // FIL-42: PreferredDropEffect + sync GetData，使播放器 Drop 时拿到与 Explorer 同等路径数据。
+    let preferred = preferred_effect_for_mode(mode);
+    prepare_shell_file_data_object(&data_object, preferred);
+    debug_assert!(
+        shell_file_formats_gettable(&data_object),
+        "FIL-38: Shell IDataObject must expose GetData-able CF_HDROP + Shell IDList"
+    );
+    debug_assert!(
+        preferred_drop_effect_is(&data_object, preferred.0),
+        "FIL-42: Preferred DropEffect must be GetData-able"
+    );
+    let drop_source: IDropSource = DropSource::new(our_root, preserve_fg).into();
+
+    let drop_result = unsafe {
+        if let Some(img) = image {
+            if let Some(drag_image) = get_drag_image(img) {
+                if let Ok(helper) = create_instance::<IDragSourceHelper>(&CLSID_DragDropHelper) {
+                    let _ = helper.InitializeFromBitmap(&drag_image, &data_object);
+                }
+            }
+        }
+
+        let mut out_dropeffect = DROPEFFECT::default();
+        // AIA-240: Explorer-parity — offer copy|move|link; target + modifiers choose.
+        // FIL-42: PreferredDropEffect（由 options.mode）引导非壳目标走 copy/open，而非空 MOVE。
+        let effect = DROPEFFECT_COPY | DROPEFFECT_MOVE | DROPEFFECT_LINK;
+
+        restore_preserved_foreground(our_root, preserve_fg);
+
+        // OLE consumes the gesture — never click-activate on the trailing mouse-up.
+        note_drag_gesture();
+        clear_outbound_paths();
+        OLE_DRAG_IN_PROGRESS.store(true, Ordering::SeqCst);
+        let drop_result = DoDragDrop(&data_object, &drop_source, effect, &mut out_dropeffect);
+        OLE_DRAG_IN_PROGRESS.store(false, Ordering::SeqCst);
+        clear_press_state();
+
+        // Keep drop-target foreground after a background-started OLE drag.
+        restore_preserved_foreground(our_root, preserve_fg);
+        drop_result
+    };
+
+    if drop_result == DRAGDROP_S_DROP {
+        Ok(Some(DragResult::Dropped))
+    } else {
+        Ok(Some(DragResult::Cancel))
     }
 }
 
@@ -627,6 +775,35 @@ mod tests {
         assert_eq!(press_prior_foreground(), 0);
         assert!(!PENDING_BACKGROUND_ACTIVATE.load(Ordering::SeqCst));
         clear_press_state();
+    }
+
+    #[test]
+    fn outbound_paths_arm_take_and_clear() {
+        let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        clear_outbound_paths();
+        arm_outbound_paths(vec![
+            PathBuf::from(r"C:\media\a.mp4"),
+            PathBuf::from(""),
+            PathBuf::from(r"C:\docs\b.txt"),
+        ]);
+        assert!(!OUTBOUND_CLAIMED.load(Ordering::SeqCst));
+        let taken = take_outbound_paths();
+        assert_eq!(taken.len(), 2);
+        assert!(take_outbound_paths().is_empty());
+        arm_outbound_paths(vec![PathBuf::from(r"C:\x")]);
+        clear_outbound_paths();
+        assert!(take_outbound_paths().is_empty());
+        assert!(
+            !OUTBOUND_CLAIMED.swap(true, Ordering::SeqCst),
+            "fresh arm must allow one OLE claim"
+        );
+        assert!(
+            OUTBOUND_CLAIMED.swap(true, Ordering::SeqCst),
+            "second claim in same arm must be rejected"
+        );
+        arm_outbound_paths(vec![PathBuf::from(r"C:\y")]);
+        assert!(!OUTBOUND_CLAIMED.load(Ordering::SeqCst));
+        clear_outbound_paths();
     }
 
     #[test]
