@@ -40,6 +40,7 @@ pub trait Provider: Send + Sync {
                     modified_time: 0,
                     local_path: None,
                     extra: Default::default(),
+                    required_query: None,
                 }),
                 error: None,
             };

@@ -3,6 +3,25 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+fn default_required_true() -> bool {
+    true
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct QueryParam {
+    pub key: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    #[serde(default = "default_required_true")]
+    pub required: bool,
+}
+
+/// 对 AFM 隐藏的后端 id（Everything `search`）；与 `local` 一样大小写不敏感。
+pub fn is_hidden_provider_backend(id: &str) -> bool {
+    id.eq_ignore_ascii_case("search")
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ProviderCapability {
@@ -58,6 +77,8 @@ pub struct ProviderEntry {
     pub local_path: Option<String>,
     #[serde(default)]
     pub extra: HashMap<String, serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub required_query: Option<Vec<QueryParam>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -68,6 +89,8 @@ pub struct DirListing {
     pub entries: Vec<ProviderEntry>,
     #[serde(default)]
     pub error: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub required_query: Option<Vec<QueryParam>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -97,4 +120,46 @@ pub struct AwamUri {
     pub backend: String,
     pub path: String,
     pub query: HashMap<String, String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn query_param_required_defaults_true_and_camel_case() {
+        let parsed: QueryParam = serde_json::from_value(serde_json::json!({
+            "key": "q",
+            "label": "Query"
+        }))
+        .unwrap();
+        assert_eq!(parsed.key, "q");
+        assert_eq!(parsed.label.as_deref(), Some("Query"));
+        assert!(parsed.required);
+
+        let serialized = serde_json::to_value(&parsed).unwrap();
+        assert_eq!(serialized["key"], "q");
+        assert_eq!(serialized["label"], "Query");
+        assert_eq!(serialized["required"], true);
+        assert!(serialized.get("required_query").is_none());
+    }
+
+    #[test]
+    fn dir_listing_serializes_required_query_camel_case() {
+        let listing = DirListing {
+            uri: "awam://hf/remote".to_string(),
+            backend: "hf".to_string(),
+            entries: Vec::new(),
+            error: None,
+            required_query: Some(vec![QueryParam {
+                key: "q".to_string(),
+                label: Some("Query".to_string()),
+                required: true,
+            }]),
+        };
+        let value = serde_json::to_value(&listing).unwrap();
+        assert_eq!(value["requiredQuery"][0]["key"], "q");
+        assert_eq!(value["requiredQuery"][0]["label"], "Query");
+        assert_eq!(value["requiredQuery"][0]["required"], true);
+    }
 }

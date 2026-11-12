@@ -43,7 +43,11 @@ impl KnowledgeProvider {
         if uri.path.is_empty() {
             return self.root.clone();
         }
-        let parts: Vec<&str> = uri.path.split('/').filter(|part| !part.is_empty()).collect();
+        let parts: Vec<&str> = uri
+            .path
+            .split('/')
+            .filter(|part| !part.is_empty())
+            .collect();
         let mut path = self.root.clone();
         for part in parts {
             path.push(part);
@@ -81,6 +85,7 @@ impl KnowledgeProvider {
             modified_time,
             local_path: Some(normalize_path(&path.to_string_lossy())),
             extra: HashMap::new(),
+            required_query: None,
         }
     }
 
@@ -112,30 +117,20 @@ impl KnowledgeProvider {
         let journals = graph.join("journals");
         if pages.is_dir() {
             if let Ok(read_dir) = fs::read_dir(pages) {
-                files.extend(
-                    read_dir
-                        .flatten()
-                        .map(|entry| entry.path())
-                        .filter(|path| {
-                            path.extension()
-                                .and_then(|ext| ext.to_str())
-                                .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
-                        }),
-                );
+                files.extend(read_dir.flatten().map(|entry| entry.path()).filter(|path| {
+                    path.extension()
+                        .and_then(|ext| ext.to_str())
+                        .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
+                }));
             }
         }
         if journals.is_dir() {
             if let Ok(read_dir) = fs::read_dir(journals) {
-                files.extend(
-                    read_dir
-                        .flatten()
-                        .map(|entry| entry.path())
-                        .filter(|path| {
-                            path.extension()
-                                .and_then(|ext| ext.to_str())
-                                .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
-                        }),
-                );
+                files.extend(read_dir.flatten().map(|entry| entry.path()).filter(|path| {
+                    path.extension()
+                        .and_then(|ext| ext.to_str())
+                        .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
+                }));
             }
         }
         files.sort_by(|a, b| {
@@ -170,6 +165,7 @@ impl KnowledgeProvider {
             backend: "knowledge".to_string(),
             entries,
             error: None,
+            required_query: None,
         }
     }
 }
@@ -230,6 +226,7 @@ impl Provider for KnowledgeProvider {
                 backend: "knowledge".to_string(),
                 entries: Vec::new(),
                 error: Some(error),
+                required_query: None,
             };
         }
 
@@ -250,10 +247,15 @@ impl Provider for KnowledgeProvider {
                 backend: "knowledge".to_string(),
                 entries,
                 error: None,
+                required_query: None,
             };
         }
 
-        let parts: Vec<&str> = uri.path.split('/').filter(|part| !part.is_empty()).collect();
+        let parts: Vec<&str> = uri
+            .path
+            .split('/')
+            .filter(|part| !part.is_empty())
+            .collect();
         if parts.len() == 2 && parts[1] == "_flat" {
             return self.list_flat(uri, parts[0]);
         }
@@ -265,6 +267,7 @@ impl Provider for KnowledgeProvider {
                 backend: "knowledge".to_string(),
                 entries: Vec::new(),
                 error: Some(format!("Not found: {}", path.to_string_lossy())),
+                required_query: None,
             };
         }
         if !path.is_dir() {
@@ -273,6 +276,7 @@ impl Provider for KnowledgeProvider {
                 backend: "knowledge".to_string(),
                 entries: Vec::new(),
                 error: Some(format!("Not a directory: {}", path.to_string_lossy())),
+                required_query: None,
             };
         }
 
@@ -293,6 +297,7 @@ impl Provider for KnowledgeProvider {
                 modified_time: system_now_ms(),
                 local_path: None,
                 extra,
+                required_query: None,
             });
         }
 
@@ -302,6 +307,7 @@ impl Provider for KnowledgeProvider {
                 backend: "knowledge".to_string(),
                 entries,
                 error: Some(format!("Failed to read {}", path.to_string_lossy())),
+                required_query: None,
             };
         };
 
@@ -336,6 +342,7 @@ impl Provider for KnowledgeProvider {
             backend: "knowledge".to_string(),
             entries,
             error: None,
+            required_query: None,
         }
     }
 
@@ -353,6 +360,7 @@ impl Provider for KnowledgeProvider {
                     modified_time: 0,
                     local_path: None,
                     extra,
+                    required_query: None,
                 }),
                 error: None,
             };
@@ -415,10 +423,8 @@ mod tests {
     use std::io::Write;
     #[test]
     fn lists_graphs_and_flat_virtual_view() {
-        let dir = std::env::temp_dir().join(format!(
-            "a-file-manager-knowledge-{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("a-file-manager-knowledge-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         let graph = dir.join("logseq-main");
         fs::create_dir_all(graph.join("pages")).unwrap();
@@ -449,8 +455,14 @@ mod tests {
             path: "logseq-main".to_string(),
             query: HashMap::new(),
         });
-        assert!(graph_listing.entries.iter().any(|entry| entry.name == "_flat"));
-        assert!(graph_listing.entries.iter().any(|entry| entry.name == "pages"));
+        assert!(graph_listing
+            .entries
+            .iter()
+            .any(|entry| entry.name == "_flat"));
+        assert!(graph_listing
+            .entries
+            .iter()
+            .any(|entry| entry.name == "pages"));
 
         let flat = provider.list(&AwamUri {
             backend: "knowledge".to_string(),

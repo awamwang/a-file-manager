@@ -110,9 +110,9 @@ fn rclone_path_candidates() -> &'static [&'static str] {
 fn rclone_missing_message(configured: Option<&str>) -> String {
     let hint = rclone_install_hint();
     match configured {
-        Some(path) => format!(
-            "未找到 rclone（已配置：{path}）。请确认路径有效，或安装后加入 PATH。{hint}"
-        ),
+        Some(path) => {
+            format!("未找到 rclone（已配置：{path}）。请确认路径有效，或安装后加入 PATH。{hint}")
+        }
         None => format!("未检测到 rclone。云盘 / SFTP / WebDAV 等需先安装 rclone。{hint}"),
     }
 }
@@ -136,10 +136,7 @@ fn rclone_install_hint() -> &'static str {
     }
 }
 
-fn join_bytes_with_timeout(
-    handle: thread::JoinHandle<Vec<u8>>,
-    timeout: Duration,
-) -> Vec<u8> {
+fn join_bytes_with_timeout(handle: thread::JoinHandle<Vec<u8>>, timeout: Duration) -> Vec<u8> {
     let (tx, rx) = mpsc::channel();
     thread::spawn(move || {
         let _ = tx.send(handle.join().unwrap_or_default());
@@ -251,9 +248,7 @@ impl RcloneProvider {
     }
 
     fn list_remotes(&self) -> Result<Vec<String>, String> {
-        let output = self
-            .runner
-            .run(&["listremotes"], LIST_REMOTES_TIMEOUT)?;
+        let output = self.runner.run(&["listremotes"], LIST_REMOTES_TIMEOUT)?;
         if output.status_code != 0 {
             let err = output.stderr.trim();
             return Err(if err.is_empty() {
@@ -359,6 +354,7 @@ impl Provider for RcloneProvider {
                         "尚未配置 rclone remote。请在终端运行 rclone config 添加后再试。"
                             .to_string(),
                     ),
+                    required_query: None,
                 },
                 Ok(remotes) => {
                     let entries = remotes
@@ -375,6 +371,7 @@ impl Provider for RcloneProvider {
                                 modified_time: 0,
                                 local_path: None,
                                 extra,
+                                required_query: None,
                             }
                         })
                         .collect();
@@ -383,6 +380,7 @@ impl Provider for RcloneProvider {
                         backend: "rclone".to_string(),
                         entries,
                         error: None,
+                        required_query: None,
                     }
                 }
                 Err(err) => DirListing {
@@ -390,6 +388,7 @@ impl Provider for RcloneProvider {
                     backend: "rclone".to_string(),
                     entries: Vec::new(),
                     error: Some(err),
+                    required_query: None,
                 },
             };
         }
@@ -400,6 +399,7 @@ impl Provider for RcloneProvider {
                 backend: "rclone".to_string(),
                 entries: Vec::new(),
                 error: Some("Invalid rclone URI".to_string()),
+                required_query: None,
             };
         };
 
@@ -411,12 +411,14 @@ impl Provider for RcloneProvider {
                     backend: "rclone".to_string(),
                     entries,
                     error: None,
+                    required_query: None,
                 },
                 Err(err) => DirListing {
                     uri: uri.to_string_uri(),
                     backend: "rclone".to_string(),
                     entries: Vec::new(),
                     error: Some(err),
+                    required_query: None,
                 },
             },
             Ok(output) => {
@@ -430,6 +432,7 @@ impl Provider for RcloneProvider {
                     } else {
                         err.to_string()
                     }),
+                    required_query: None,
                 }
             }
             Err(err) => DirListing {
@@ -437,6 +440,7 @@ impl Provider for RcloneProvider {
                 backend: "rclone".to_string(),
                 entries: Vec::new(),
                 error: Some(err),
+                required_query: None,
             },
         }
     }
@@ -453,6 +457,7 @@ impl Provider for RcloneProvider {
                     modified_time: 0,
                     local_path: None,
                     extra: HashMap::new(),
+                    required_query: None,
                 }),
                 error: None,
             };
@@ -491,6 +496,7 @@ impl Provider for RcloneProvider {
                 modified_time: 0,
                 local_path: None,
                 extra,
+                required_query: None,
             }),
             error: None,
         }
@@ -540,7 +546,10 @@ fn parse_lsjson(stdout: &str, parent: &AwamUri) -> Result<Vec<ProviderEntry>, St
             .get("IsDir")
             .and_then(|value| value.as_bool())
             .unwrap_or(false);
-        let size = item.get("Size").and_then(|value| value.as_u64()).unwrap_or(0);
+        let size = item
+            .get("Size")
+            .and_then(|value| value.as_u64())
+            .unwrap_or(0);
         let mut extra = HashMap::new();
         extra.insert("virtual".to_string(), Value::Bool(true));
         entries.push(ProviderEntry {
@@ -552,6 +561,7 @@ fn parse_lsjson(stdout: &str, parent: &AwamUri) -> Result<Vec<ProviderEntry>, St
             modified_time: 0,
             local_path: None,
             extra,
+            required_query: None,
         });
     }
     Ok(entries)
@@ -570,8 +580,7 @@ mod tests {
 
     impl RcloneRunner for MockRclone {
         fn run(&self, args: &[&str], _timeout: Duration) -> Result<CommandOutput, String> {
-            *self.last_args.lock().unwrap() =
-                args.iter().map(|s| (*s).to_string()).collect();
+            *self.last_args.lock().unwrap() = args.iter().map(|s| (*s).to_string()).collect();
             if args.first() == Some(&"listremotes") {
                 let stdout = self
                     .remotes
@@ -690,7 +699,10 @@ mod tests {
         assert!(msg.contains("rclone"), "{msg}");
         assert!(!msg.contains("Day-1"), "{msg}");
         let configured = rclone_missing_message(Some(r"Z:\missing\rclone.exe"));
-        assert!(configured.contains("Z:\\missing\\rclone.exe"), "{configured}");
+        assert!(
+            configured.contains("Z:\\missing\\rclone.exe"),
+            "{configured}"
+        );
     }
 
     #[test]

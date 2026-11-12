@@ -105,10 +105,16 @@ impl BrowserProvider {
             modified_time: 0,
             local_path: None,
             extra,
+            required_query: None,
         }
     }
 
-    fn entry_url(name: &str, uri: String, url: &str, extra: HashMap<String, Value>) -> ProviderEntry {
+    fn entry_url(
+        name: &str,
+        uri: String,
+        url: &str,
+        extra: HashMap<String, Value>,
+    ) -> ProviderEntry {
         let mut extra = extra;
         extra.insert("url".to_string(), Value::String(url.to_string()));
         extra.insert("kind".to_string(), Value::String("bookmark".to_string()));
@@ -121,6 +127,7 @@ impl BrowserProvider {
             modified_time: 0,
             local_path: None,
             extra,
+            required_query: None,
         }
     }
 
@@ -130,10 +137,7 @@ impl BrowserProvider {
             .into_iter()
             .map(|product| {
                 let mut extra = HashMap::new();
-                extra.insert(
-                    "product".to_string(),
-                    Value::String(product.id.to_string()),
-                );
+                extra.insert("product".to_string(), Value::String(product.id.to_string()));
                 Self::entry_dir(
                     product.display,
                     uri.child(product.id).to_string_uri(),
@@ -146,6 +150,7 @@ impl BrowserProvider {
             backend: "browser".to_string(),
             entries,
             error: None,
+            required_query: None,
         }
     }
 
@@ -170,7 +175,8 @@ impl BrowserProvider {
                 );
                 Self::entry_dir(
                     &profile.display_name,
-                    uri.child(&percent_encode(&profile.dir_name)).to_string_uri(),
+                    uri.child(&percent_encode(&profile.dir_name))
+                        .to_string_uri(),
                     extra,
                 )
             })
@@ -180,6 +186,7 @@ impl BrowserProvider {
             backend: "browser".to_string(),
             entries,
             error: None,
+            required_query: None,
         }
     }
 
@@ -197,6 +204,7 @@ impl BrowserProvider {
                     backend: "browser".to_string(),
                     entries: Vec::new(),
                     error: Some(err),
+                    required_query: None,
                 };
             }
         };
@@ -220,21 +228,15 @@ impl BrowserProvider {
                 .unwrap_or(fallback_name);
             let mut extra = HashMap::new();
             extra.insert("rootKey".to_string(), Value::String((*key).to_string()));
-            extra.insert(
-                "product".to_string(),
-                Value::String(product.id.to_string()),
-            );
-            entries.push(Self::entry_dir(
-                name,
-                uri.child(key).to_string_uri(),
-                extra,
-            ));
+            extra.insert("product".to_string(), Value::String(product.id.to_string()));
+            entries.push(Self::entry_dir(name, uri.child(key).to_string_uri(), extra));
         }
         DirListing {
             uri: uri.to_string_uri(),
             backend: "browser".to_string(),
             entries,
             error: None,
+            required_query: None,
         }
     }
 
@@ -253,6 +255,7 @@ impl BrowserProvider {
                     backend: "browser".to_string(),
                     entries: Vec::new(),
                     error: Some(err),
+                    required_query: None,
                 };
             }
         };
@@ -261,7 +264,11 @@ impl BrowserProvider {
                 uri: uri.to_string_uri(),
                 backend: "browser".to_string(),
                 entries: Vec::new(),
-                error: Some(format!("Bookmark folder not found: {}", uri.to_string_uri())),
+                error: Some(format!(
+                    "Bookmark folder not found: {}",
+                    uri.to_string_uri()
+                )),
+                required_query: None,
             };
         };
         let children = node
@@ -277,10 +284,7 @@ impl BrowserProvider {
                 .and_then(Value::as_str)
                 .unwrap_or("(untitled)");
             let mut extra = HashMap::new();
-            extra.insert(
-                "product".to_string(),
-                Value::String(product.id.to_string()),
-            );
+            extra.insert("product".to_string(), Value::String(product.id.to_string()));
             extra.insert(
                 "profileDir".to_string(),
                 Value::String(profile.dir_name.clone()),
@@ -289,9 +293,11 @@ impl BrowserProvider {
                 "folder" => {
                     let id = child
                         .get("id")
-                        .and_then(|v| v.as_str().map(|s| s.to_string()).or_else(|| {
-                            v.as_u64().map(|n| n.to_string())
-                        }))
+                        .and_then(|v| {
+                            v.as_str()
+                                .map(|s| s.to_string())
+                                .or_else(|| v.as_u64().map(|n| n.to_string()))
+                        })
                         .unwrap_or_else(|| name.to_string());
                     entries.push(Self::entry_dir(
                         name,
@@ -306,9 +312,11 @@ impl BrowserProvider {
                     }
                     let id = child
                         .get("id")
-                        .and_then(|v| v.as_str().map(|s| s.to_string()).or_else(|| {
-                            v.as_u64().map(|n| n.to_string())
-                        }))
+                        .and_then(|v| {
+                            v.as_str()
+                                .map(|s| s.to_string())
+                                .or_else(|| v.as_u64().map(|n| n.to_string()))
+                        })
                         .unwrap_or_else(|| name.to_string());
                     entries.push(Self::entry_url(
                         name,
@@ -325,14 +333,11 @@ impl BrowserProvider {
             backend: "browser".to_string(),
             entries,
             error: None,
+            required_query: None,
         }
     }
 
-    fn lookup_url(
-        &self,
-        profile: &ProfileInfo,
-        node_path: &[String],
-    ) -> Option<(String, String)> {
+    fn lookup_url(&self, profile: &ProfileInfo, node_path: &[String]) -> Option<(String, String)> {
         let doc = read_bookmarks_json(&profile.bookmarks_path).ok()?;
         let node = find_node(&doc, node_path)?;
         if node.get("type").and_then(Value::as_str) != Some("url") {
@@ -404,6 +409,7 @@ impl Provider for BrowserProvider {
                         backend: "browser".to_string(),
                         entries: Vec::new(),
                         error: Some(format!("Unknown browser product: {product_id}")),
+                        required_query: None,
                     };
                 };
                 self.list_profiles(uri, product)
@@ -415,6 +421,7 @@ impl Provider for BrowserProvider {
                         backend: "browser".to_string(),
                         entries: Vec::new(),
                         error: Some(format!("Unknown browser product: {product_id}")),
+                        required_query: None,
                     };
                 };
                 let profiles = Self::profile_map(product);
@@ -424,6 +431,7 @@ impl Provider for BrowserProvider {
                         backend: "browser".to_string(),
                         entries: Vec::new(),
                         error: Some(format!("Unknown profile: {profile_dir}")),
+                        required_query: None,
                     };
                 };
                 self.list_profile_roots(uri, product, profile)
@@ -435,6 +443,7 @@ impl Provider for BrowserProvider {
                         backend: "browser".to_string(),
                         entries: Vec::new(),
                         error: Some(format!("Unknown browser product: {product_id}")),
+                        required_query: None,
                     };
                 };
                 let profiles = Self::profile_map(product);
@@ -444,6 +453,7 @@ impl Provider for BrowserProvider {
                         backend: "browser".to_string(),
                         entries: Vec::new(),
                         error: Some(format!("Unknown profile: {profile_dir}")),
+                        required_query: None,
                     };
                 };
                 self.list_folder(uri, product, profile, rest)
@@ -466,6 +476,7 @@ impl Provider for BrowserProvider {
                         modified_time: 0,
                         local_path: None,
                         extra: HashMap::new(),
+                        required_query: None,
                     }),
                     error: Some(error),
                 };
@@ -507,6 +518,7 @@ impl Provider for BrowserProvider {
                     modified_time: 0,
                     local_path: None,
                     extra: HashMap::new(),
+                    required_query: None,
                 }),
                 error: None,
             };
@@ -824,7 +836,10 @@ mod tests {
         });
         assert!(root_list.error.is_none());
         assert_eq!(root_list.entries.len(), 2);
-        assert!(root_list.entries.iter().any(|e| e.uri == "awam://browser/edge"));
+        assert!(root_list
+            .entries
+            .iter()
+            .any(|e| e.uri == "awam://browser/edge"));
         assert!(root_list
             .entries
             .iter()
@@ -878,10 +893,8 @@ mod tests {
             .unwrap()
             .as_millis();
         let missing = std::env::temp_dir().join(format!("afm-browser-missing-{stamp}"));
-        let provider = BrowserProvider::with_user_data_roots(
-            missing.join("edge"),
-            missing.join("chrome"),
-        );
+        let provider =
+            BrowserProvider::with_user_data_roots(missing.join("edge"), missing.join("chrome"));
         assert!(!provider.health().healthy);
         let listing = provider.list(&AwamUri {
             backend: "browser".into(),

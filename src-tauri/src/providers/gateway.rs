@@ -4,7 +4,10 @@
 //! Discovery is dynamic: AFM reads `/api/backends` and proxies list/stat/resolve
 //! without hardcoding each backend id. `awam://local` is filtered out (Navigator).
 
-use super::types::{BackendInfo, DirListing, ProviderEntry, ResolveResult, StatResult};
+use super::types::{
+    is_hidden_provider_backend, BackendInfo, DirListing, ProviderEntry, QueryParam, ResolveResult,
+    StatResult,
+};
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -64,7 +67,8 @@ pub fn set_configured_gateway_url(raw: Option<&str>) {
 
 /// 解析顺序：环境变量 → 设置 → 默认 `http://127.0.0.1:18787`。
 pub fn gateway_base_url() -> String {
-    if let Ok(env) = std::env::var("AWAM_GATEWAY_URL").or_else(|_| std::env::var("VITE_AWAM_GATEWAY_URL"))
+    if let Ok(env) =
+        std::env::var("AWAM_GATEWAY_URL").or_else(|_| std::env::var("VITE_AWAM_GATEWAY_URL"))
     {
         if let Some(url) = normalize_gateway_url(&env) {
             return url;
@@ -196,6 +200,8 @@ struct GatewayDirListing {
     entries: Vec<GatewayEntry>,
     #[serde(default)]
     error: Option<String>,
+    #[serde(default, alias = "requiredQuery")]
+    required_query: Option<Vec<QueryParam>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -213,6 +219,8 @@ struct GatewayEntry {
     local_path: Option<String>,
     #[serde(default)]
     extra: HashMap<String, serde_json::Value>,
+    #[serde(default, alias = "requiredQuery")]
+    required_query: Option<Vec<QueryParam>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -274,10 +282,11 @@ fn map_entry(entry: GatewayEntry) -> ProviderEntry {
         modified_time: modified_ms,
         local_path: entry.local_path,
         extra: entry.extra,
+        required_query: entry.required_query,
     }
 }
 
-/// Discovered backends from the live gateway (excludes `local`).
+/// Discovered backends from the live gateway (excludes `local` and hidden `search`).
 pub fn fetch_backends() -> Result<Vec<BackendInfo>, String> {
     let base_url = gateway_base_url();
     let value = get_json(&base_url, "/api/backends", HTTP_TIMEOUT).map_err(|err| {
@@ -290,7 +299,7 @@ pub fn fetch_backends() -> Result<Vec<BackendInfo>, String> {
     })?;
     let mapped: Vec<BackendInfo> = backends
         .into_iter()
-        .filter(|b| !is_local_backend(&b.id))
+        .filter(|b| !is_local_backend(&b.id) && !is_hidden_provider_backend(&b.id))
         .map(map_backend)
         .collect();
     store_probe(true, None, Some(mapped.len()));
@@ -329,6 +338,8 @@ pub fn list(uri: &str) -> Result<DirListing, String> {
             // Root roster may include awam://local — keep Navigator-only.
             !e.uri.to_ascii_lowercase().starts_with("awam://local")
                 && !e.name.eq_ignore_ascii_case("local")
+                && !e.uri.to_ascii_lowercase().starts_with("awam://search")
+                && !is_hidden_provider_backend(&e.name)
         })
         .map(map_entry)
         .collect();
@@ -337,6 +348,7 @@ pub fn list(uri: &str) -> Result<DirListing, String> {
         backend: listing.backend,
         entries,
         error: listing.error,
+        required_query: listing.required_query,
     })
 }
 
@@ -448,7 +460,9 @@ mod tests {
             .map(map_backend)
             .collect();
         assert_eq!(mapped.len(), 2);
-        assert!(mapped.iter().all(|b| b.source.as_deref() == Some("gateway")));
+        assert!(mapped
+            .iter()
+            .all(|b| b.source.as_deref() == Some("gateway")));
         assert!(mapped.iter().all(|b| b.id != "local"));
         assert!(mapped.iter().any(|b| b.id == "smb" && !b.healthy));
         assert!(mapped.iter().any(|b| b.id == "hf" && b.healthy));
@@ -465,6 +479,7 @@ mod tests {
             modified_time: 1_700_000_000.5,
             local_path: None,
             extra: HashMap::new(),
+            required_query: None,
         });
         assert_eq!(entry.modified_time, 1_700_000_000_500);
     }
@@ -474,5 +489,68 @@ mod tests {
         let encoded = encode_uri_query("awam://smb/share/a b");
         assert!(encoded.contains("awam"));
         assert!(encoded.contains("%20") || encoded.contains("%3A"));
+    }
+
+    #[test]
+    fn filters_search_from_backends_payload() {
+        let value = serde_json::json!({
+            "backends": [
+                {"id":"search","name":"Everything search","description":"x","healthy":true,"capabilities":["list"]},
+                {"id":"rclone","name":"rclone","description":"x","healthy":true,"capabilities":["list"]}
+            ]
+        });
+        let backends = parse_backends_json(&value).unwrap();
+        let mapped: Vec<_> = backends
+            .into_iter()
+            .filter(|b| !is_local_backend(&b.id) && !is_hidden_provider_backend(&b.id))
+            .map(map_backend)
+            .collect();
+        assert!(mapped.iter().all(|b| b.id != "search"));
+        assert!(mapped.iter().any(|b| b.id == "rclone"));
+    }
+
+    #[test]
+    fn filters_search_from_backends_payload_case_insensitively() {
+        let value = serde_json::json!({
+            "backends": [
+                {"id":"SEARCH","name":"Everything","description":"x","healthy":true,"capabilities":["list"]},
+                {"id":"hf","name":"Hugging Face","description":"x","healthy":true,"capabilities":["list"]}
+            ]
+        });
+        let backends = parse_backends_json(&value).unwrap();
+        let mapped: Vec<_> = backends
+            .into_iter()
+            .filter(|b| !is_local_backend(&b.id) && !is_hidden_provider_backend(&b.id))
+            .map(map_backend)
+            .collect();
+        assert!(mapped.iter().all(|b| !b.id.eq_ignore_ascii_case("search")));
+        assert!(mapped.iter().any(|b| b.id == "hf"));
+    }
+
+    #[test]
+    fn parses_required_query_from_list_payload() {
+        let value = serde_json::json!({
+            "uri": "awam://hf/remote",
+            "backend": "hf",
+            "entries": [{
+                "name": "remote",
+                "uri": "awam://hf/remote",
+                "is_dir": true,
+                "is_file": false,
+                "requiredQuery": [{"key": "q"}]
+            }],
+            "error": null,
+            "requiredQuery": [{"key": "q"}]
+        });
+        let listing: GatewayDirListing = serde_json::from_value(value).unwrap();
+        let listing_params = listing.required_query.expect("listing requiredQuery");
+        assert_eq!(listing_params[0].key, "q");
+        assert!(listing_params[0].required);
+        let entry_params = listing.entries[0]
+            .required_query
+            .as_ref()
+            .expect("entry requiredQuery");
+        assert_eq!(entry_params[0].key, "q");
+        assert!(entry_params[0].required);
     }
 }

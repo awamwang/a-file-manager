@@ -103,6 +103,7 @@ mod tests {
             backend: "demo".to_string(),
             entries: Vec::new(),
             error: err.map(str::to_string),
+            required_query: None,
         }
     }
 
@@ -140,7 +141,9 @@ mod tests {
             listing("awam://rclone", Some("down")),
             now,
         );
-        assert!(cache.get("awam://rclone", now + TTL_ERR - Duration::from_millis(1)).is_some());
+        assert!(cache
+            .get("awam://rclone", now + TTL_ERR - Duration::from_millis(1))
+            .is_some());
         assert!(cache.get("awam://rclone", now + TTL_ERR).is_none());
     }
 

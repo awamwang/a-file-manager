@@ -33,7 +33,7 @@ use serde::Serialize;
 use std::sync::{LazyLock, Mutex};
 use std::time::{Duration, Instant};
 use tauri::AppHandle;
-use types::{BackendInfo, DirListing, ResolveResult, StatResult};
+use types::{is_hidden_provider_backend, BackendInfo, DirListing, ResolveResult, StatResult};
 use uri::parse_awam_uri;
 
 static REGISTRY: LazyLock<ProviderRegistry> = LazyLock::new(build_builtin_registry);
@@ -80,6 +80,17 @@ fn local_rejected_listing(uri: &str) -> DirListing {
             "awam://local is not an AFM extension backend; use Navigator for OS paths (ADR 0001/0003)"
                 .to_string(),
         ),
+        required_query: None,
+    }
+}
+
+fn search_blocked_listing(uri: &str) -> DirListing {
+    DirListing {
+        uri: uri.to_string(),
+        backend: "search".into(),
+        entries: vec![],
+        error: Some("PROVIDER_SEARCH_BLOCKED".into()),
+        required_query: None,
     }
 }
 
@@ -114,6 +125,10 @@ fn discover_backends() -> Result<Vec<BackendInfo>, String> {
         Ok(list) => list,
         Err(_) => builtin_backends()?,
     };
+    let backends: Vec<BackendInfo> = backends
+        .into_iter()
+        .filter(|b| !is_hidden_provider_backend(&b.id))
+        .collect();
     if let Ok(mut guard) = BACKENDS_CACHE.lock() {
         *guard = Some(BackendsCacheEntry {
             backends: backends.clone(),
@@ -128,14 +143,15 @@ fn list_dispatch(uri_str: &str) -> Result<DirListing, String> {
     if parsed.backend == "local" {
         return Ok(local_rejected_listing(&parsed.to_string_uri()));
     }
+    if is_hidden_provider_backend(&parsed.backend) {
+        return Ok(search_blocked_listing(uri_str));
+    }
     if gateway::is_online() {
         match gateway::list(uri_str) {
             Ok(listing) => Ok(listing),
             Err(err) => {
                 // Mid-flight outage: degrade to builtin for known ids / root.
-                if parsed.backend == "root"
-                    || REGISTRY.contains(&parsed.backend)
-                {
+                if parsed.backend == "root" || REGISTRY.contains(&parsed.backend) {
                     REGISTRY.list(uri_str)
                 } else {
                     Err(err)
@@ -259,10 +275,7 @@ pub async fn provider_cache_invalidate(uri: Option<String>) -> Result<usize, Str
     tauri::async_runtime::spawn_blocking(move || {
         match uri.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
             None => {
-                let n = LISTING_CACHE
-                    .lock()
-                    .map(|cache| cache.len())
-                    .unwrap_or(0);
+                let n = LISTING_CACHE.lock().map(|cache| cache.len()).unwrap_or(0);
                 invalidate_provider_session();
                 Ok(n)
             }
@@ -279,10 +292,7 @@ pub async fn provider_cache_invalidate(uri: Option<String>) -> Result<usize, Str
     .map_err(|err| format!("provider_cache_invalidate worker failed: {err}"))?
 }
 
-fn list_with_cache(
-    cache_lock: &Mutex<ListingCache>,
-    uri_str: &str,
-) -> Result<DirListing, String> {
+fn list_with_cache(cache_lock: &Mutex<ListingCache>, uri_str: &str) -> Result<DirListing, String> {
     list_with_cache_using(cache_lock, uri_str, list_dispatch)
 }
 
@@ -318,7 +328,12 @@ fn preload_depth1(
     cache_lock: &Mutex<ListingCache>,
     include_knowledge: bool,
 ) -> Result<PreloadReport, String> {
-    preload_depth1_using(cache_lock, include_knowledge, discover_backends, list_dispatch)
+    preload_depth1_using(
+        cache_lock,
+        include_knowledge,
+        discover_backends,
+        list_dispatch,
+    )
 }
 
 fn preload_depth1_using<BF, LF>(
@@ -349,6 +364,10 @@ where
     let backends = backends_fn()?;
     for backend in backends {
         let target = format!("awam://{}", backend.id);
+        if is_hidden_provider_backend(&backend.id) {
+            skipped.push(format!("{target} (hidden)"));
+            continue;
+        }
         if backend.interface_only {
             skipped.push(format!("{target} (interface-only)"));
             continue;
@@ -376,10 +395,7 @@ where
         }
     }
 
-    let cached = cache_lock
-        .lock()
-        .map(|cache| cache.len())
-        .unwrap_or(0);
+    let cached = cache_lock.lock().map(|cache| cache.len()).unwrap_or(0);
 
     Ok(PreloadReport {
         uris,
@@ -392,11 +408,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::providers::types::{AwamUri, ProviderCapability, ProviderEntry};
     use crate::providers::provider::Provider;
+    use crate::providers::types::{AwamUri, ProviderCapability, ProviderEntry};
     use std::collections::HashMap;
-    use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
 
     struct CountingProvider {
         id: &'static str,
@@ -442,8 +458,10 @@ mod tests {
                     modified_time: 0,
                     local_path: None,
                     extra: HashMap::new(),
+                    required_query: None,
                 }],
                 error: None,
+                required_query: None,
             }
         }
     }
@@ -486,6 +504,7 @@ mod tests {
                 backend: self.id.to_string(),
                 entries: Vec::new(),
                 error: Some("interface-only".to_string()),
+                required_query: None,
             }
         }
     }
@@ -573,10 +592,21 @@ mod tests {
     #[test]
     fn local_uri_stays_rejected_when_dispatching() {
         let listing = list_dispatch("awam://local/G:/temp").unwrap();
-        assert!(listing
-            .error
-            .as_ref()
-            .unwrap()
-            .contains("Navigator"));
+        assert!(listing.error.as_ref().unwrap().contains("Navigator"));
+    }
+
+    #[test]
+    fn search_uri_is_blocked_when_dispatching() {
+        let listing = list_dispatch("awam://search/everything?q=a").unwrap();
+        assert_eq!(listing.backend, "search");
+        assert_eq!(listing.error.as_deref(), Some("PROVIDER_SEARCH_BLOCKED"));
+        assert!(listing.entries.is_empty());
+        assert!(listing.required_query.is_none());
+    }
+
+    #[test]
+    fn search_uri_is_blocked_case_insensitively() {
+        let listing = list_dispatch("awam://SEARCH/everything?q=a").unwrap();
+        assert_eq!(listing.error.as_deref(), Some("PROVIDER_SEARCH_BLOCKED"));
     }
 }
