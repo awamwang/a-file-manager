@@ -1,6 +1,6 @@
 # AI Add-on（Skills / MCP）
 
-面向 Agent 的公共库与按项目分发能力：中央仓库收录 MCP 与 Skills，再部署到已启用的 Agent Target（全局或项目相对路径）。不与 ToolPort、Skills Manager 等外部工具对接；外部方案仅作设计参考。
+面向 Agent 的公共库与按项目分发能力：中央仓库收录 MCP 与 Skills，再部署到已启用的 Agent Target（全局或项目相对路径）。本上下文不与 ToolPort、Skills Manager、awam-tool-manager 运行时对接；本机列举/调用见 [Feature Pack / 工具管理运行时](./docs/glossary-feature-pack.md)。多上下文索引见 [GLOSSARY-MAP.md](./GLOSSARY-MAP.md)。
 
 ## Language
 
