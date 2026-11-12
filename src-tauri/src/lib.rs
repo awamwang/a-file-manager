@@ -24,6 +24,11 @@ mod settings;
 mod shell_menu;
 mod system_tray;
 mod terminal;
+mod tool_runtime;
+pub use tool_runtime::{
+    config_file_path, load_from_path, save_to_path, version_in_range, ToolRuntimeConfig,
+    CONFIG_FILE_NAME, DEFAULT_BASE_URL, TOOL_RUNTIME_PACK_ID,
+};
 mod snap_chrome;
 #[cfg(windows)]
 mod drag_focus;
