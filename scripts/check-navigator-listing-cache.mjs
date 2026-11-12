@@ -28,6 +28,41 @@ assert.ok(
   /refreshActiveListing[\s\S]*bypassListingCache:\s*true/.test(browse),
   "F5 refresh must bypass listing cache",
 );
+assert.ok(
+  /reloadListingAfterMutation[\s\S]*bypassListingCache:\s*true/.test(browse),
+  "FIL-60 mutation reload must bypass listing cache",
+);
+assert.ok(
+  browse.includes("invalidateListingParents"),
+  "FIL-60 cut/move must invalidate source parent listings",
+);
+
+const menu = readFileSync(
+  join(root, "src/components/navigator/NavigatorContextMenu.vue"),
+  "utf8",
+);
+assert.ok(
+  view.includes("reloadListingAfterMutation"),
+  "NavigatorView mutation refresh must use reloadListingAfterMutation",
+);
+assert.ok(
+  menu.includes("reloadListingAfterMutation"),
+  "Context menu mutation refresh must use reloadListingAfterMutation",
+);
+
+const dnd = readFileSync(join(root, "src/state/dnd/surface.ts"), "utf8");
+assert.ok(
+  dnd.includes("invalidateListingCache(destPath)"),
+  "drop must invalidate destination listing cache",
+);
+assert.ok(
+  dnd.includes("invalidateListingParents"),
+  "move-drop must invalidate source parent listings",
+);
+assert.ok(
+  dnd.includes("refreshActiveListing"),
+  "drop must refresh active listing (F5 path)",
+);
 
 assert.ok(
   view.includes("gridVirtualPaddingStyle"),

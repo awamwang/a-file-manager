@@ -265,6 +265,37 @@ export function refreshActiveListing(): void {
 }
 
 /**
+ * FIL-60：粘贴/删除/改名等变更后强制重列（作废缓存，与 F5 同路径）。
+ * 可 await，便于后续选中；调用方按需刷新副窗格。
+ */
+export async function reloadListingAfterMutation(options?: {
+  includeSecondary?: boolean;
+}): Promise<void> {
+  const path = currentPath.value.trim();
+  if (!path) return;
+  invalidateListingCache(path);
+  await navigateTo(path, {
+    syncOpenState: false,
+    recordHistory: false,
+    recordVisit: false,
+    bypassListingCache: true,
+  });
+  if (!options?.includeSecondary) return;
+  const secondary = secondaryPath.value.trim();
+  if (!secondary) return;
+  invalidateListingCache(secondary);
+  await navigateSecondary(secondary);
+}
+
+/** 剪切/移动后作废源目录 listing 缓存，避免回访仍显示已移走项。 */
+export function invalidateListingParents(paths: string[]): void {
+  for (const path of paths) {
+    const parent = navigableParentPath(path);
+    if (parent) invalidateListingCache(parent);
+  }
+}
+
+/**
  * 删除成功后先从当前 listing 去掉条目，避免大目录删除阻塞期间界面仍显示旧项。
  * 随后仍应调用 refreshListing / navigateTo 与磁盘对齐。
  */

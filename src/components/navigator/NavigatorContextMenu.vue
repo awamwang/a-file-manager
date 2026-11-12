@@ -14,11 +14,14 @@ import {
   navigateTo,
   newNavigatorTab,
   openEntry,
+  invalidateListingParents,
   rememberHydratedWorkGroups,
+  reloadListingAfterMutation,
   removePathsFromListings,
   restoreWorkGroupOpenState,
   snapshotLiveOpenState,
 } from "../../state/navigatorBrowse";
+import { dualPaneEnabled } from "../../state/dualPane";
 import { workGroupDisplayName } from "../../state/workGroup";
 import type { WorkGroupOpenState } from "../../state/openState";
 import {
@@ -320,10 +323,10 @@ async function copyPath(path: string) {
 }
 
 async function refreshListing() {
-  emit("listingChanged");
-  if (currentPath.value) {
-    await navigateTo(currentPath.value, { syncOpenState: false });
-  }
+  // FIL-60：与 F5 同路径作废/绕过 listing LRU，避免变更后仍命中新鲜缓存。
+  await reloadListingAfterMutation({
+    includeSecondary: dualPaneEnabled.value,
+  });
 }
 
 async function runPaste() {
@@ -341,8 +344,10 @@ async function runPaste() {
       emit("notice", result.error ?? t("contextMenu.opFailed"));
       return;
     }
-    if (wasCut) recordMoveUndo(sources, result.paths);
-    else recordCopyUndo(result.paths);
+    if (wasCut) {
+      recordMoveUndo(sources, result.paths);
+      invalidateListingParents(sources);
+    } else recordCopyUndo(result.paths);
     emit("notice", t("contextMenu.pasted", { count: result.paths.length }));
     await refreshListing();
   } catch (err) {

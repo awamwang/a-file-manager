@@ -23,7 +23,9 @@ import {
   liveOpenState,
   navigateTo,
   openEntry,
+  invalidateListingParents,
   refreshActiveListing,
+  reloadListingAfterMutation,
   removePathsFromListings,
   switchNavigatorTab,
   type NavigatorEntry,
@@ -1435,15 +1437,10 @@ function onNotice(message: string, kind: "success" | "error" = "success") {
 }
 
 async function refreshListing() {
-  if (!currentPath.value) return;
-  await navigateTo(currentPath.value, {
-    syncOpenState: false,
-    recordHistory: false,
-    recordVisit: false,
+  // FIL-60：与 F5 相同作废/绕过 listing LRU，避免粘贴等变更后仍命中新鲜缓存。
+  await reloadListingAfterMutation({
+    includeSecondary: dualPaneEnabled.value,
   });
-  if (dualPaneEnabled.value && secondaryPath.value.trim()) {
-    await navigateSecondary(secondaryPath.value);
-  }
 }
 
 function primaryEntry(): NavigatorEntry | null {
@@ -1486,8 +1483,10 @@ async function shortcutPaste() {
       onNotice(result.error ?? t("contextMenu.opFailed"));
       return;
     }
-    if (wasCut) recordMoveUndo(sources, result.paths);
-    else recordCopyUndo(result.paths);
+    if (wasCut) {
+      recordMoveUndo(sources, result.paths);
+      invalidateListingParents(sources);
+    } else recordCopyUndo(result.paths);
     onNotice(t("contextMenu.pasted", { count: result.paths.length }));
     await refreshListing();
   } catch (err) {

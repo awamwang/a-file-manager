@@ -12,7 +12,11 @@ import { dropTransferMode, type DropMode } from "./mode";
 import { transferEntries } from "../fileClipboard";
 import { recordCopyUndo, recordMoveUndo } from "../fileUndo";
 import { clearSelection, selectedPaths } from "../navigatorSelection";
-import { refreshActiveListing } from "../navigatorBrowse";
+import {
+  invalidateListingParents,
+  refreshActiveListing,
+} from "../navigatorBrowse";
+import { invalidateListingCache } from "../navigatorListingCache";
 
 export type FolderDropCommit = {
   ok: boolean;
@@ -82,7 +86,12 @@ export async function commitFolderDrop(
       return { ok: false, mode, error: result.error ?? "failed" };
     }
     if (mode === "copy") recordCopyUndo(result.paths);
-    else if (mode === "move") recordMoveUndo(paths, result.paths);
+    else if (mode === "move") {
+      recordMoveUndo(paths, result.paths);
+      invalidateListingParents(paths);
+    }
+    // 目标目录可能不是当前浏览路径（拖入子文件夹），单独作废其缓存。
+    invalidateListingCache(destPath);
     clearSelection();
     refreshActiveListing();
     return { ok: true, mode, count: result.paths.length };
