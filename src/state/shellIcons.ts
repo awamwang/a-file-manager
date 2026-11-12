@@ -25,6 +25,12 @@ export type RequestShellIconsOptions = {
   priority?: boolean;
 };
 
+/** 单条壳图标请求；可按条目关闭缩略图（目录只走壳图标）。 */
+export type ShellIconRequest = {
+  path: string;
+  preferThumbnail?: boolean;
+};
+
 /** Hard caps — extreme folders must not retain every decoded bitmap (AIA-279). */
 export const SHELL_ICON_MAX_ENTRIES = 512;
 /** Approximate UTF-16 / string weight of cached data URLs. */
@@ -141,14 +147,42 @@ function enqueue(item: QueueItem, priority: boolean): void {
     const row = queue[existing]!;
     row.attempt = item.attempt;
     row.preferThumbnail = item.preferThumbnail;
-    if (priority && existing > 0) {
-      queue.splice(existing, 1);
-      queue.unshift(row);
-    }
+    // 已在队列中：不因 priority 反复 unshift，避免视口同步把顺序打成扫描推进感。
     return;
   }
   if (priority) queue.unshift(item);
   else queue.push(item);
+}
+
+/**
+ * 将当前视口请求整块放到队头，并保持传入顺序（上→下）。
+ * 避免逐条 unshift 把第一屏倒成最后加载。
+ */
+function promotePriorityWindow(items: QueueItem[]): void {
+  if (!items.length) return;
+  const keys = new Set(items.map((item) => cacheKey(item.path, item.size)));
+  for (let i = queue.length - 1; i >= 0; i -= 1) {
+    const row = queue[i]!;
+    if (keys.has(cacheKey(row.path, row.size))) queue.splice(i, 1);
+  }
+  queue.unshift(...items);
+}
+
+/** 优先抽出非缩略图（壳图标）项，让同屏目录先稳定展示。 */
+function takeNextBatch(): QueueItem[] {
+  const iconIndices: number[] = [];
+  for (let i = 0; i < queue.length; i += 1) {
+    if (queue[i]!.preferThumbnail !== true) iconIndices.push(i);
+  }
+  if (iconIndices.length) {
+    const take = Math.min(BATCH_ICON, iconIndices.length);
+    const batch: QueueItem[] = [];
+    for (let i = take - 1; i >= 0; i -= 1) {
+      batch.unshift(queue.splice(iconIndices[i]!, 1)[0]!);
+    }
+    return batch;
+  }
+  return queue.splice(0, BATCH_THUMB);
 }
 
 function settleKey(key: string): void {
@@ -189,9 +223,7 @@ async function flushQueue(): Promise<void> {
 
   try {
     while (queue.length && gen === generation) {
-      const preferThumb = queue[0]?.preferThumbnail === true;
-      const batchSize = preferThumb ? BATCH_THUMB : BATCH_ICON;
-      const batch = queue.splice(0, batchSize);
+      const batch = takeNextBatch();
 
       // Group by size + preferThumbnail so one IPC round-trip stays coherent.
       const groups = new Map<string, QueueItem[]>();
@@ -342,7 +374,8 @@ export function requestShellIcon(
     // 离开窗口由 cancel 清 pending；再次进入走下方新 attempt 分支（FIL-33）。
     const attempt = attemptByKey.get(key) ?? nextAttempt++;
     attemptByKey.set(key, attempt);
-    enqueue({ path: keyPath, size, preferThumbnail, attempt }, true);
+    // 单条重复请求：已在队列则保持位置；仅 in-flight（不在队列）时按 priority 补排。
+    enqueue({ path: keyPath, size, preferThumbnail, attempt }, priority);
     scheduleFlush();
     return;
   }
@@ -353,13 +386,60 @@ export function requestShellIcon(
   scheduleFlush();
 }
 
+/**
+ * 批量请求壳图标。priority 时整窗按传入顺序置于队头（上→下），
+ * 且可按条目设置 preferThumbnail（目录应关闭缩略图）。
+ */
 export function requestShellIcons(
-  paths: string[],
+  paths: string[] | ShellIconRequest[],
   size = 20,
   preferThumbnail = true,
   options?: RequestShellIconsOptions,
 ): void {
-  for (const path of paths) requestShellIcon(path, size, preferThumbnail, options);
+  const priority = options?.priority === true;
+  const requests: ShellIconRequest[] = paths.map((item) =>
+    typeof item === "string" ? { path: item, preferThumbnail } : item,
+  );
+  if (!priority) {
+    for (const req of requests) {
+      requestShellIcon(
+        req.path,
+        size,
+        req.preferThumbnail ?? preferThumbnail,
+        options,
+      );
+    }
+    return;
+  }
+
+  const windowItems: QueueItem[] = [];
+  for (const req of requests) {
+    const keyPath = req.path.trim();
+    if (!keyPath) continue;
+    const wantThumb = req.preferThumbnail ?? preferThumbnail;
+    const key = cacheKey(keyPath, size);
+    if (iconByPath[key]) {
+      touchKey(key);
+      continue;
+    }
+    let attempt: number;
+    if (pending.has(key)) {
+      attempt = attemptByKey.get(key) ?? nextAttempt++;
+      attemptByKey.set(key, attempt);
+    } else {
+      attempt = nextAttempt++;
+      attemptByKey.set(key, attempt);
+      pending.add(key);
+    }
+    windowItems.push({
+      path: keyPath,
+      size,
+      preferThumbnail: wantThumb,
+      attempt,
+    });
+  }
+  promotePriorityWindow(windowItems);
+  if (windowItems.length) scheduleFlush();
 }
 
 export function iconUrlFor(path: string, size = 20): string | null {

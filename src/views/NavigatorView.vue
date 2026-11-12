@@ -746,13 +746,25 @@ watch(secondaryPath, () => {
   if (secondaryListRoot.value) secondaryListRoot.value.scrollTop = 0;
 });
 
-function requestIconsFor(paths: string[], priority = false) {
+function requestIconsFor(
+  entries: { path: string; kind?: string }[],
+  priority = false,
+) {
   // Provider URI 无本地 shell 图标；走 Fluent 回退即可。
-  const localPaths = paths.filter((path) => !isProviderPath(path));
-  if (!localPaths.length) return;
+  const localEntries = entries.filter((entry) => !isProviderPath(entry.path));
+  if (!localEntries.length) return;
   const size = VIEW_ICON_SIZE[navigatorViewMode.value];
-  // Icon views: prefer system thumbnails for images; list/details use small shell icons.
-  requestShellIcons(localPaths, size, isIconView.value, { priority });
+  const iconView = isIconView.value;
+  // 图标视图：文件走系统缩略图；目录只请求壳图标（快），避免与视频缩略图抢同一慢队列。
+  requestShellIcons(
+    localEntries.map((entry) => ({
+      path: entry.path,
+      preferThumbnail: iconView && entry.kind !== "dir",
+    })),
+    size,
+    iconView,
+    { priority },
+  );
 }
 
 /**
@@ -780,11 +792,11 @@ function resetThumbRequestWindows() {
 }
 
 function syncThumbRequestsForPane(
-  entries: { path: string }[],
+  entries: { path: string; kind?: string }[],
   scrollTop: number,
   viewport: { w: number; h: number },
   previousPaths: Set<string>,
-): Set<string> {
+): { paths: Set<string>; entries: { path: string; kind?: string }[] } {
   const mode = navigatorViewMode.value;
   const size = VIEW_ICON_SIZE[mode];
   const columns = estimateListColumns(mode, viewport.w);
@@ -800,32 +812,36 @@ function syncThumbRequestsForPane(
     columns,
     mode,
   });
-  const nextPaths: string[] = [];
+  const nextEntries: { path: string; kind?: string }[] = [];
   for (let i = win.startIndex; i < win.endIndex; i += 1) {
-    const path = entries[i]?.path;
-    if (path) nextPaths.push(path);
+    const entry = entries[i];
+    if (entry?.path) nextEntries.push(entry);
   }
-  const nextSet = new Set(nextPaths);
+  const nextSet = new Set(nextEntries.map((entry) => entry.path));
   const left = pathsLeavingWindow(previousPaths, nextSet);
   // 仅取消离开请求窗的排队/in-flight；已成功写入的缓存保留（仍挂载项回滚可直接命中）。
   if (left.length) cancelShellIconRequests(left, size);
-  if (nextPaths.length) requestIconsFor(nextPaths, true);
-  return nextSet;
+  return { paths: nextSet, entries: nextEntries };
 }
 
 function refreshViewportIconRequests() {
-  primaryThumbPaths = syncThumbRequestsForPane(
+  const primary = syncThumbRequestsForPane(
     visibleEntries.value,
     primaryScrollTop.value,
     listViewport.value,
     primaryThumbPaths,
   );
-  secondaryThumbPaths = syncThumbRequestsForPane(
+  const secondary = syncThumbRequestsForPane(
     secondaryEntries.value,
     secondaryScrollTop.value,
     secondaryViewport.value,
     secondaryThumbPaths,
   );
+  primaryThumbPaths = primary.paths;
+  secondaryThumbPaths = secondary.paths;
+  // 主栏在前、副栏在后，合并为一次优先窗，避免后同步的一栏把第一屏挤到队尾。
+  const combined = [...primary.entries, ...secondary.entries];
+  if (combined.length) requestIconsFor(combined, true);
 }
 
 function scheduleViewportIconObservers() {

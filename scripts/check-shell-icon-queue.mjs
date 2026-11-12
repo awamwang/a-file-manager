@@ -27,6 +27,17 @@ assert.ok(
   /仍在排队\/in-flight：保留 attempt|保留 attempt/.test(state),
   "FIL-50: repeat request while pending must keep attempt",
 );
+assert.ok(/promotePriorityWindow/.test(state), "priority window keeps top-to-bottom order");
+assert.ok(/takeNextBatch/.test(state), "icon-first drain before thumbnail batches");
+assert.ok(
+  /不因 priority 反复 unshift|不挪动位置/.test(state),
+  "pending queue items must not reshuffle on every viewport sync",
+);
+assert.ok(
+  view.includes("preferThumbnail: iconView && entry.kind !== \"dir\"") ||
+    view.includes("preferThumbnail: iconView && entry.kind !== 'dir'"),
+  "icon view: directories request shell icons only (no thumbnail)",
+);
 
 // --- Contract: Navigator wires folder / scroll cancel ---
 assert.ok(/watch\(currentPath/.test(view) && view.includes("clearShellIconQueue()"));
@@ -62,25 +73,54 @@ function simulate() {
     attemptByKey.delete(k);
   }
 
-  function enqueue(path, size, priority) {
+  function enqueue(path, size, priority, preferThumbnail = true) {
     const k = key(path, size);
     const attempt = nextAttempt++;
     attemptByKey.set(k, attempt);
     const idx = queue.findIndex((q) => key(q.path, q.size) === k);
     if (idx >= 0) {
       queue[idx].attempt = attempt;
-      if (priority && idx > 0) {
-        const [row] = queue.splice(idx, 1);
-        queue.unshift(row);
-      }
+      queue[idx].preferThumbnail = preferThumbnail;
+      // Stable: do not unshift already-queued rows.
       return;
     }
-    const item = { path, size, attempt };
+    const item = { path, size, attempt, preferThumbnail };
     if (priority) queue.unshift(item);
     else queue.push(item);
   }
 
-  function request(path, size, priority) {
+  function promotePriorityWindow(items) {
+    const keys = new Set(items.map((q) => key(q.path, q.size)));
+    for (let i = queue.length - 1; i >= 0; i -= 1) {
+      if (keys.has(key(queue[i].path, queue[i].size))) queue.splice(i, 1);
+    }
+    queue.unshift(...items);
+  }
+
+  function requestWindow(paths, size, priority) {
+    if (!priority) {
+      for (const path of paths) request(path, size, false);
+      return;
+    }
+    const items = [];
+    for (const path of paths) {
+      const k = key(path, size);
+      if (cache.has(k)) continue;
+      let attempt;
+      if (pending.has(k)) {
+        attempt = attemptByKey.get(k) ?? nextAttempt++;
+        attemptByKey.set(k, attempt);
+      } else {
+        attempt = nextAttempt++;
+        attemptByKey.set(k, attempt);
+        pending.add(k);
+      }
+      items.push({ path, size, attempt, preferThumbnail: true });
+    }
+    promotePriorityWindow(items);
+  }
+
+  function request(path, size, priority, preferThumbnail = true) {
     const k = key(path, size);
     if (cache.has(k)) return;
     if (pending.has(k)) {
@@ -90,17 +130,32 @@ function simulate() {
       const idx = queue.findIndex((q) => key(q.path, q.size) === k);
       if (idx >= 0) {
         queue[idx].attempt = existing;
-        if (priority && idx > 0) {
-          const [row] = queue.splice(idx, 1);
-          queue.unshift(row);
-        }
+        queue[idx].preferThumbnail = preferThumbnail;
+      } else if (priority) {
+        queue.unshift({ path, size, attempt: existing, preferThumbnail });
       } else {
-        queue.unshift({ path, size, attempt: existing });
+        queue.push({ path, size, attempt: existing, preferThumbnail });
       }
       return;
     }
     pending.add(k);
-    enqueue(path, size, priority);
+    enqueue(path, size, priority, preferThumbnail);
+  }
+
+  function takeNextBatch(batchIcon = 40, batchThumb = 8) {
+    const iconIndices = [];
+    for (let i = 0; i < queue.length; i += 1) {
+      if (queue[i].preferThumbnail !== true) iconIndices.push(i);
+    }
+    if (iconIndices.length) {
+      const take = Math.min(batchIcon, iconIndices.length);
+      const batch = [];
+      for (let i = take - 1; i >= 0; i -= 1) {
+        batch.unshift(queue.splice(iconIndices[i], 1)[0]);
+      }
+      return batch;
+    }
+    return queue.splice(0, batchThumb);
   }
 
   function cancel(paths, size) {
@@ -215,16 +270,48 @@ function simulate() {
   cache.clear();
   const batchThumb = 8;
   const viewportPaths = Array.from({ length: 28 }, (_, i) => `v${i}`);
-  for (const path of viewportPaths) request(path, 96, true);
+  requestWindow(viewportPaths, 96, true);
   assert.equal(queue.length, 28, "full viewport queued beyond one thumb batch");
+  assert.deepEqual(
+    queue.slice(0, 3).map((q) => q.path),
+    ["v0", "v1", "v2"],
+    "priority window keeps top-to-bottom order (not LIFO)",
+  );
   const firstBatch = takeBatch(batchThumb);
   assert.equal(firstBatch.length, batchThumb);
+  assert.equal(firstBatch[0].path, "v0", "first screen drains first");
   assert.equal(queue.length, 20, "remaining viewport stays queued for later batches");
+  // Geometry sync repeats same window — order must stay stable (no scan push).
+  requestWindow(viewportPaths, 96, true);
+  assert.deepEqual(
+    queue.slice(0, 3).map((q) => q.path),
+    ["v0", "v1", "v2"],
+    "repeat viewport sync does not reverse queue",
+  );
   cancel(
     viewportPaths.filter((_, i) => i >= 20),
     96,
   );
   assert.ok(queue.length >= 12, "cancel only drops paths that left the window");
+
+  // Same screen: folder shell icons drain before video thumbnails.
+  clear();
+  cache.clear();
+  request("video-a", 96, false, true);
+  request("video-b", 96, false, true);
+  request("folder-1", 96, false, false);
+  request("folder-2", 96, false, false);
+  const iconFirst = takeNextBatch();
+  assert.deepEqual(
+    iconFirst.map((q) => q.path),
+    ["folder-1", "folder-2"],
+    "non-thumbnail (folder) icons drain before thumbnails",
+  );
+  const thumbNext = takeNextBatch();
+  assert.deepEqual(
+    thumbNext.map((q) => q.path),
+    ["video-a", "video-b"],
+  );
 
   return true;
 }

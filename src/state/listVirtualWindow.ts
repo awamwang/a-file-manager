@@ -20,8 +20,8 @@ export const LIST_VIRTUAL_OVERSCAN_ROWS = 8;
  * 过小会导致滚动手感冷；过大则慢速外部缩略图器时取消粒度变差。
  */
 export const THUMB_REQUEST_OVERSCAN_ROWS = 1;
-/** 视口高度尚未量到时，按列数估算的兜底行数，避免空请求窗。 */
-export const THUMB_REQUEST_FALLBACK_ROWS = 12;
+/** 视口高度尚未量到时，按列数估算的兜底行数（偏一屏，避免未 layout 时扫到第二屏）。 */
+export const THUMB_REQUEST_FALLBACK_ROWS = 6;
 /** 与 `--fluent-list-row-height-compact` 对齐。 */
 export const COMPACT_LIST_ROW_HEIGHT_PX = 24;
 /** `.list--tiles` 的 `gap`；图标视图仅 `column-gap`（`row-gap: 0`）。 */

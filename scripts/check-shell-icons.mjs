@@ -52,6 +52,12 @@ assert.ok(view.includes("ShellIconImg"), "per-row icon isolate");
 assert.ok(view.includes("clearShellIconQueue"));
 assert.ok(view.includes("cancelShellIconRequests"));
 assert.ok(
+  view.includes("preferThumbnail") && view.includes('entry.kind !== "dir"'),
+  "icon view: directories skip thumbnail prefer",
+);
+assert.ok(state.includes("promotePriorityWindow"), "stable top-to-bottom priority window");
+assert.ok(state.includes("takeNextBatch"), "folder/icon-first batch drain");
+assert.ok(
   view.includes("computeThumbRequestWindow") && view.includes("syncThumbRequestsForPane"),
   "FIL-50: viewport geometry thumb window (full screen + row overscan)",
 );
