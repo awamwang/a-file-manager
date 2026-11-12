@@ -10,12 +10,12 @@
 mod browser;
 mod cache;
 mod factory;
-mod gateway;
+pub(crate) mod gateway;
 /// 网关离线时不再注册；保留实现供网关在线代理与后续扩展。
 #[allow(dead_code)]
 mod knowledge;
 mod provider;
-mod rclone;
+pub(crate) mod rclone;
 mod registry;
 /// 占位提供方；内置列表不再展示，保留类型定义。
 #[allow(dead_code)]

@@ -123,10 +123,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          node-version-file: .nvmrc
           cache: npm
 
-      - name: Install Rust stable
+      - name: Install Rust (respects rust-toolchain.toml)
         uses: dtolnay/rust-toolchain@stable
 
       - name: Rust cache
@@ -136,6 +136,13 @@ jobs:
 
       - name: Install frontend dependencies
         run: npm ci
+
+      - name: Verify WebView2 auto-install bundling
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e "const c=require('./src-tauri/tauri.conf.json'); if(c.bundle?.windows?.webviewInstallMode?.type!=='embedBootstrapper') process.exit(1)"
+          npm run test:deps-surface
 
       - name: Build and publish GitHub Release
         uses: tauri-apps/tauri-action@v1

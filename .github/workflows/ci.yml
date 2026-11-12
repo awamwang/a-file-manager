@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# 构建期门禁：声明的 Node/Rust 工具链 + 前端构建 + Rust 测试，确保发版流水线可过。
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install Rust (respects rust-toolchain.toml)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Declare engines / toolchain surface
+        run: |
+          node -e "const p=require('./package.json'); if(!p.engines?.node) process.exit(1); console.log('engines.node=', p.engines.node)"
+          if (!(Test-Path rust-toolchain.toml)) { throw "missing rust-toolchain.toml" }
+          if (!(Test-Path src-tauri/tauri.conf.json)) { throw "missing tauri.conf.json" }
+          $conf = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          if ($conf.bundle.windows.webviewInstallMode.type -ne "embedBootstrapper") {
+            throw "webviewInstallMode must be embedBootstrapper for auto WebView2 install"
+          }
+
+      - name: Frontend typecheck + build
+        run: npm run build
+
+      - name: Dependency surface checks
+        run: npm run test:deps-surface
+
+      - name: Packaging flavor + focused Rust tests
+        run: |
+          npm run test:packaging-flavors
+          cargo test --manifest-path src-tauri/Cargo.toml --lib deps_probe
+          cargo test --manifest-path src-tauri/Cargo.toml --lib health_get_returns_ok_payload

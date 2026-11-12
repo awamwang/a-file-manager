@@ -27,14 +27,10 @@ pub const ERR_MCP_DEPLOY_NO_ENABLED: &str = "AI_MCP_DEPLOY_NO_ENABLED";
 pub const ERR_MCP_TARGET_INVALID: &str = "AI_MCP_TARGET_INVALID";
 pub const ERR_MCP_IMPORT_INVALID: &str = "AI_MCP_IMPORT_INVALID";
 
-/// Built-in public MCP catalog seeds (dogfood). Inserted only when id is absent.
-/// Source mirror: repo `.cursor/mcp.json` (AIA-262). No secrets/tokens.
-const SEED_MCP_CATALOG: &[SeedMcpDef] = &[SeedMcpDef {
-    id: "knowledge-system",
-    display_name: "Knowledge System",
-    server_json: r#"{"command":"node","args":["G:\\Projects\\19AI\\skills\\awam-knowledge\\code\\mcp-server.js"],"env":{"KM_DATA_ROOT":"G:/Knowledge/data","KM_SOURCE_ID":"logseq-main","AWAM_STATE_DIR":"G:/Knowledge/runtime"}}"#,
-}];
+/// 公开发布不植入本机绝对路径的 MCP seed；需要时由用户「导入 mcp.json」。
+const SEED_MCP_CATALOG: &[SeedMcpDef] = &[];
 
+#[allow(dead_code)]
 struct SeedMcpDef {
     id: &'static str,
     display_name: &'static str,
@@ -526,14 +522,9 @@ mod tests {
     fn catalog_round_trip() {
         let dir = temp_dir("catalog");
         let doc = load_from_path(&dir).unwrap();
-        // load_from_path seeds knowledge-system; remove it for a clean round-trip.
-        let base = if doc.mcp_catalog.iter().any(|e| e.id == "knowledge-system") {
-            remove_entry(&doc, "knowledge-system").unwrap()
-        } else {
-            doc
-        };
+        assert!(doc.mcp_catalog.is_empty(), "no dogfood MCP seed on load");
         let next = upsert_entry(
-            &base,
+            &doc,
             Some("fire".into()),
             "Fire".into(),
             r#"{"url":"http://127.0.0.1"}"#.into(),
@@ -546,38 +537,20 @@ mod tests {
     }
 
     #[test]
-    fn seed_catalog_inserts_knowledge_system_once() {
+    fn seed_catalog_is_empty_for_public_builds() {
         let empty = AiConfigDocument::empty();
         let seeded = sync_seed_catalog(&empty);
-        assert!(
-            seeded
-                .mcp_catalog
-                .iter()
-                .any(|e| e.id == "knowledge-system" && e.display_name == "Knowledge System")
-        );
-        let entry = seeded
-            .mcp_catalog
-            .iter()
-            .find(|e| e.id == "knowledge-system")
-            .unwrap();
-        let server: Value = serde_json::from_str(&entry.server_json).unwrap();
-        assert_eq!(server.get("command").unwrap(), "node");
-        assert!(server
-            .get("args")
-            .unwrap()
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|a| a.as_str().unwrap().contains("mcp-server.js")));
-
-        // Idempotent: user edits preserved.
-        let mut edited = seeded.clone();
-        edited.mcp_catalog[0].display_name = "User Title".into();
-        edited.mcp_catalog[0].server_json = r#"{"command":"keep"}"#.into();
-        let again = sync_seed_catalog(&edited);
+        assert!(seeded.mcp_catalog.is_empty());
+        let with = upsert_entry(
+            &empty,
+            Some("keep".into()),
+            "Keep".into(),
+            r#"{"command":"npx"}"#.into(),
+        )
+        .unwrap();
+        let again = sync_seed_catalog(&with);
         assert_eq!(again.mcp_catalog.len(), 1);
-        assert_eq!(again.mcp_catalog[0].display_name, "User Title");
-        assert_eq!(again.mcp_catalog[0].server_json, r#"{"command":"keep"}"#);
+        assert_eq!(again.mcp_catalog[0].id, "keep");
     }
 
     #[test]
@@ -610,21 +583,15 @@ mod tests {
     }
 
     #[test]
-    fn load_from_path_persists_seed() {
+    fn load_from_path_does_not_inject_local_seed() {
         let dir = temp_dir("seed-persist");
         let doc = load_from_path(&dir).unwrap();
-        assert!(doc.mcp_catalog.iter().any(|e| e.id == "knowledge-system"));
+        assert!(doc.mcp_catalog.is_empty());
         let text = fs::read_to_string(dir.join("ai-config.json")).unwrap();
-        assert!(text.contains("knowledge-system"));
+        assert!(!text.contains("knowledge-system"));
+        assert!(!text.contains(r"G:\\Projects"));
         let again = load_from_path(&dir).unwrap();
-        assert_eq!(
-            again
-                .mcp_catalog
-                .iter()
-                .filter(|e| e.id == "knowledge-system")
-                .count(),
-            1
-        );
+        assert!(again.mcp_catalog.is_empty());
         let _ = fs::remove_dir_all(&dir);
     }
 }

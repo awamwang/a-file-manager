@@ -15,6 +15,20 @@ Windows NSIS installers (`.exe`) are attached to each GitHub Release created fro
 
 On a release page, download the `*-setup.exe` asset, then install and run **A File Manager**. Older tags stay available on the Releases list after newer ones ship.
 
+NSIS 安装包内嵌 **WebView2 bootstrapper**：目标机没有 WebView2 Runtime 时会在安装过程中静默安装。
+
+## Requirements
+
+| 阶段 | 依赖 | 声明位置 |
+|------|------|----------|
+| 构建 | Node.js ≥ 20、npm | `package.json` → `engines` / `.nvmrc` |
+| 构建 | Rust stable | `rust-toolchain.toml` |
+| 构建 | Windows + MSVC（CI 用 `windows-latest`） | GitHub Actions |
+| 运行（必装） | Windows 10/11 + WebView2 Runtime | 安装包自动处理；设置 → 健康 可体检 |
+| 运行（可选） | rclone、awam-file 网关、QuickLook / PowerToys Peek、IDE… | 设置 → 健康：缺什么、怎么补 |
+
+本地知识库目录请设环境变量 `AFM_KNOWLEDGE_ROOT` 或 `AWAM_KNOWLEDGE_ROOT`（不再默认绑定本机盘符）。MCP 需自行导入，不会写入开发机绝对路径。
+
 ## Run
 
 ```bash
@@ -26,6 +40,7 @@ Web-only check:
 
 ```bash
 npm run build
+npm run test:deps-surface
 npm run test:rust
 ```
 

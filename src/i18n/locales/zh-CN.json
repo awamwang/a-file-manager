@@ -671,7 +671,7 @@
   },
   "health": {
     "title": "健康",
-    "meta": "应用身份与核心状态",
+    "meta": "应用身份、核心状态与依赖体检",
     "loading": "加载中…",
     "failed": "健康检查失败：{error}",
     "refresh": "刷新",
@@ -681,7 +681,56 @@
     "fieldIdentifier": "标识符",
     "fieldAiAddon": "AI Add-on",
     "aiAddonOn": "已启用（带 AI 包）",
-    "aiAddonOff": "已禁用（不带 AI / Core 包）"
+    "aiAddonOff": "已禁用（不带 AI / Core 包）",
+    "deps": {
+      "title": "运行期依赖",
+      "meta": "必装与可选组件。可选组件缺失只会降级对应功能，不阻止本地资源管理器。",
+      "fixLabel": "处理：",
+      "summaryAllOk": "必装与可选检查均正常。",
+      "summaryRequiredMissing": "缺少 {count} 项必装依赖 — 请先安装后再使用界面宿主。",
+      "summaryOptionalMissing": "缺少 {count} 项可选组件 — 相关功能会降级（见下方明细）。",
+      "status": {
+        "ok": "正常",
+        "missing": "缺失",
+        "warn": "注意"
+      },
+      "kind": {
+        "required": "必装",
+        "optional": "可选"
+      },
+      "items": {
+        "webview2": {
+          "title": "WebView2 运行时"
+        },
+        "awam_gateway": {
+          "title": "awam-file 网关"
+        },
+        "rclone": {
+          "title": "rclone 命令行"
+        },
+        "knowledge_root": {
+          "title": "知识库根目录"
+        },
+        "quicklook": {
+          "title": "QuickLook"
+        },
+        "powertoys_peek": {
+          "title": "PowerToys Peek"
+        },
+        "browser_bookmarks": {
+          "title": "浏览器书签"
+        },
+        "terminals": {
+          "title": "终端"
+        },
+        "ides": {
+          "title": "编辑器 / IDE"
+        },
+        "ai_addon": {
+          "title": "AI Add-on 包"
+        }
+      }
+    }
   },
   "providers": {
     "title": "提供程序",
@@ -692,7 +741,7 @@
     "sourceGateway": "awam-file",
     "sourceBuiltin": "内置",
     "gatewayOnline": "awam-file 网关在线 — 经 {url} 发现 {count} 个后端",
-    "gatewayOffline": "awam-file 网关离线 — 正在显示本机内置提供方（rclone / 浏览器书签）。",
+    "gatewayOffline": "awam-file 网关离线 — 显示内置提供方（rclone / 浏览器书签）。请启动网关（默认 http://127.0.0.1:18787）或设置 AWAM_GATEWAY_URL。详见 设置 → 健康。",
     "uriPlaceholder": "粘贴提供方路径（例如 rclone remote）",
     "listing": "列出中…",
     "list": "列出",

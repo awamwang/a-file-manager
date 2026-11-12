@@ -671,7 +671,7 @@
   },
   "health": {
     "title": "Health",
-    "meta": "App identity and core status",
+    "meta": "App identity, core status, and dependency checklist",
     "loading": "Loading…",
     "failed": "Health failed: {error}",
     "refresh": "Refresh",
@@ -681,7 +681,56 @@
     "fieldIdentifier": "identifier",
     "fieldAiAddon": "aiAddon",
     "aiAddonOn": "enabled (AI package)",
-    "aiAddonOff": "disabled (Core package)"
+    "aiAddonOff": "disabled (Core package)",
+    "deps": {
+      "title": "Runtime dependencies",
+      "meta": "Required and optional components. Missing optional items degrade a feature; they do not block local Explorer.",
+      "fixLabel": "Fix:",
+      "summaryAllOk": "Required and optional checks look good.",
+      "summaryRequiredMissing": "{count} required dependency missing — install before relying on the UI host.",
+      "summaryOptionalMissing": "{count} optional component(s) missing — related features will degrade (details below).",
+      "status": {
+        "ok": "ok",
+        "missing": "missing",
+        "warn": "warning"
+      },
+      "kind": {
+        "required": "required",
+        "optional": "optional"
+      },
+      "items": {
+        "webview2": {
+          "title": "WebView2 Runtime"
+        },
+        "awam_gateway": {
+          "title": "awam-file gateway"
+        },
+        "rclone": {
+          "title": "rclone CLI"
+        },
+        "knowledge_root": {
+          "title": "Knowledge root"
+        },
+        "quicklook": {
+          "title": "QuickLook"
+        },
+        "powertoys_peek": {
+          "title": "PowerToys Peek"
+        },
+        "browser_bookmarks": {
+          "title": "Browser bookmarks"
+        },
+        "terminals": {
+          "title": "Terminals"
+        },
+        "ides": {
+          "title": "Editors / IDEs"
+        },
+        "ai_addon": {
+          "title": "AI Add-on package"
+        }
+      }
+    }
   },
   "providers": {
     "title": "Providers",
@@ -692,7 +741,7 @@
     "sourceGateway": "awam-file",
     "sourceBuiltin": "built-in",
     "gatewayOnline": "awam-file gateway online — {count} backends via {url}",
-    "gatewayOffline": "awam-file gateway offline — showing built-in providers (rclone / browser bookmarks).",
+    "gatewayOffline": "awam-file gateway offline — showing built-in providers (rclone / browser bookmarks). Start the gateway on http://127.0.0.1:18787 or set AWAM_GATEWAY_URL. See Settings → Health for details.",
     "uriPlaceholder": "Paste a provider path (e.g. an rclone remote)",
     "listing": "Listing…",
     "list": "List",

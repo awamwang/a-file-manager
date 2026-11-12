@@ -4,6 +4,7 @@
 mod ai;
 mod archive;
 mod autostart;
+mod deps_probe;
 mod discovery;
 mod extension_host;
 mod favorites;
@@ -161,6 +162,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
 health_get,
+                    deps_probe::deps_probe_get,
                     app_quit,
                     system_tray::afm_startup_should_reveal,
                     autostart::autostart_status,

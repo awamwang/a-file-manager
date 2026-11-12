@@ -1,0 +1,4 @@
+# 构建期 Rust 版本声明；CI / 本机 rustup 自动对齐。
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "clippy"]

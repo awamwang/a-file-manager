@@ -374,12 +374,61 @@
     "fieldOk": "ok",
     "fieldVersion": "version",
     "loading": "Chargement…",
-    "meta": "Identité de l’app et état du noyau",
+    "meta": "Identité, état du noyau et contrôle des dépendances",
     "refresh": "Actualiser",
     "title": "Santé",
     "fieldAiAddon": "aiAddon",
     "aiAddonOn": "enabled (AI package)",
-    "aiAddonOff": "disabled (Core package)"
+    "aiAddonOff": "disabled (Core package)",
+    "deps": {
+      "title": "Dépendances d’exécution",
+      "meta": "Obligatoire et optionnel. L’absence d’optionnels dégrade une fonction, sans bloquer l’Explorateur local.",
+      "fixLabel": "Correction :",
+      "summaryAllOk": "Contrôles obligatoires et optionnels OK.",
+      "summaryRequiredMissing": "{count} dépendance obligatoire manquante — installez-la avant l’hôte UI.",
+      "summaryOptionalMissing": "{count} composant(s) optionnel(s) manquant(s) — fonctions associées dégradées.",
+      "status": {
+        "ok": "ok",
+        "missing": "manquant",
+        "warn": "attention"
+      },
+      "kind": {
+        "required": "obligatoire",
+        "optional": "optionnel"
+      },
+      "items": {
+        "webview2": {
+          "title": "WebView2 Runtime"
+        },
+        "awam_gateway": {
+          "title": "awam-file gateway"
+        },
+        "rclone": {
+          "title": "rclone CLI"
+        },
+        "knowledge_root": {
+          "title": "Knowledge root"
+        },
+        "quicklook": {
+          "title": "QuickLook"
+        },
+        "powertoys_peek": {
+          "title": "PowerToys Peek"
+        },
+        "browser_bookmarks": {
+          "title": "Browser bookmarks"
+        },
+        "terminals": {
+          "title": "Terminals"
+        },
+        "ides": {
+          "title": "Editors / IDEs"
+        },
+        "ai_addon": {
+          "title": "AI Add-on package"
+        }
+      }
+    }
   },
   "nav": {
     "ai": "IA",
@@ -491,7 +540,7 @@
     "emptyListing": "Cet emplacement ne contient aucun élément.",
     "file": "Fichier",
     "folder": "Dossier",
-    "gatewayOffline": "Passerelle awam-file hors ligne — fournisseurs intégrés (rclone / favoris du navigateur).",
+    "gatewayOffline": "Passerelle awam-file hors ligne — fournisseurs intégrés (rclone / favoris navigateur). Démarrez la passerelle sur http://127.0.0.1:18787 ou définissez AWAM_GATEWAY_URL. Voir Paramètres → Santé.",
     "gatewayOnline": "Passerelle awam-file en ligne — {count} backends via {url}",
     "interfaceOnly": "interface seule",
     "list": "Lister",

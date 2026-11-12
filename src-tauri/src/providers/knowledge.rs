@@ -27,11 +27,15 @@ impl KnowledgeProvider {
         Self { root }
     }
 
+    /// 仅从环境变量读取根目录；未配置时使用空路径（list 时报告缺失，不绑定本机盘符）。
     pub fn from_env_or_default() -> Self {
         let root = std::env::var("AFM_KNOWLEDGE_ROOT")
             .or_else(|_| std::env::var("AWAM_KNOWLEDGE_ROOT"))
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
             .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from(r"G:\Knowledge\data"));
+            .unwrap_or_else(|| PathBuf::from(""));
         Self::new(root)
     }
 
@@ -197,6 +201,11 @@ impl Provider for KnowledgeProvider {
                 .collect(),
             detail: if ok {
                 Some(normalize_path(&self.root.to_string_lossy()))
+            } else if self.root.as_os_str().is_empty() {
+                Some(
+                    "Knowledge root not configured (set AFM_KNOWLEDGE_ROOT or AWAM_KNOWLEDGE_ROOT)"
+                        .to_string(),
+                )
             } else {
                 Some(format!(
                     "Missing knowledge root: {}",
@@ -210,14 +219,17 @@ impl Provider for KnowledgeProvider {
 
     fn list(&self, uri: &AwamUri) -> DirListing {
         if !self.root.is_dir() {
+            let error = if self.root.as_os_str().is_empty() {
+                "Knowledge root not configured (set AFM_KNOWLEDGE_ROOT or AWAM_KNOWLEDGE_ROOT)"
+                    .to_string()
+            } else {
+                format!("Knowledge root missing: {}", self.root.to_string_lossy())
+            };
             return DirListing {
                 uri: uri.to_string_uri(),
                 backend: "knowledge".to_string(),
                 entries: Vec::new(),
-                error: Some(format!(
-                    "Knowledge root missing: {}",
-                    self.root.to_string_lossy()
-                )),
+                error: Some(error),
             };
         }
 

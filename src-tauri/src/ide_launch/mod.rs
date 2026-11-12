@@ -143,6 +143,21 @@ fn enabled_for(app: &AppHandle, id: &str) -> bool {
     crate::settings::read_bool_setting_or(app, &ide_setting_enabled_key(id), true)
 }
 
+/// 仅自动发现（不读设置覆盖），供依赖体检使用。
+pub fn ide_probe_auto() -> Vec<(String, bool, Option<String>)> {
+    IDE_DEFS
+        .iter()
+        .map(|(id, _name, _)| {
+            let resolved = resolve_auto(id);
+            (
+                (*id).to_string(),
+                resolved.is_some(),
+                resolved.map(|p| p.to_string_lossy().into_owned()),
+            )
+        })
+        .collect()
+}
+
 #[tauri::command]
 pub fn ide_list_apps(app: AppHandle) -> Vec<IdeAppInfo> {
     IDE_DEFS
