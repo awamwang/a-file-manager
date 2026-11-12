@@ -1,14 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import assert from "node:assert/strict";
-import { chordKey, eventMatchesChord } from "../src/shortcuts/chord.ts";
+import { chordKey, eventMatchesChord, hasDomTextSelection } from "../src/shortcuts/chord.ts";
 import {
   BUILTIN_SHORTCUTS,
   findShortcutConflicts,
   listShortcutsForDisplay,
   resolveDispatchMap,
 } from "../src/shortcuts/registry.ts";
+import {
+  dispatchShortcutEvent,
+  registerShortcutHandler,
+  unregisterShortcutHandler,
+} from "../src/shortcuts/runtime.ts";
 import { isToggleCommandPanelShortcut } from "../src/state/commandPanel.ts";
 import { isGlobalSearchShortcut } from "../src/state/globalSearch.ts";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 assert.ok(BUILTIN_SHORTCUTS.length >= 6);
 assert.equal(findShortcutConflicts().length, 0, "builtins must not conflict");
@@ -227,6 +235,37 @@ assert.equal(
   }),
   true,
 );
+
+assert.equal(typeof hasDomTextSelection, "function");
+assert.equal(
+  hasDomTextSelection(),
+  false,
+  "Node test env has no DOM selection",
+);
+
+let copyHandled = false;
+registerShortcutHandler("navigator.copy", () => {
+  copyHandled = true;
+});
+assert.equal(
+  dispatchShortcutEvent(
+    keyEvent({ ctrlKey: true, key: "c" }) as KeyboardEvent,
+  ),
+  true,
+  "Ctrl+C without text selection still runs navigator.copy",
+);
+assert.equal(copyHandled, true);
+unregisterShortcutHandler("navigator.copy");
+
+const runtimeSrc = readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), "../src/shortcuts/runtime.ts"),
+  "utf8",
+);
+assert.ok(
+  runtimeSrc.includes("hasDomTextSelection"),
+  "runtime must yield Ctrl+C/X when DOM text is selected",
+);
+assert.ok(runtimeSrc.includes("YIELD_TO_DOM_TEXT_SELECTION"));
 
 console.log(
   `Shortcut registry checks OK (${BUILTIN_SHORTCUTS.length} builtins, conflict + match).`,

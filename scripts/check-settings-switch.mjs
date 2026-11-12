@@ -78,6 +78,12 @@ assert.ok(
 assert.ok(app.includes("KeepAlive"), "App must KeepAlive Navigator across route switches");
 assert.ok(app.includes("NavigatorView"), "KeepAlive include NavigatorView");
 assert.ok(nav.includes('name: "NavigatorView"'), "NavigatorView must declare KeepAlive name");
+assert.ok(nav.includes("onActivated"), "KeepAlive: re-register file shortcuts on activate");
+assert.ok(nav.includes("onDeactivated"), "KeepAlive: drop file shortcuts on deactivate");
+assert.ok(
+  nav.includes("registerNavFileShortcuts"),
+  "Navigator file shortcuts still registered",
+);
 assert.ok(
   shell.includes('v-show="isNavigatorRoute"'),
   "FolderTree / chrome must use v-show to stay warm",

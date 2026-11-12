@@ -1,6 +1,15 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import {
+  computed,
+  nextTick,
+  onActivated,
+  onDeactivated,
+  onMounted,
+  onUnmounted,
+  ref,
+  watch,
+} from "vue";
 import { useI18n } from "vue-i18n";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
@@ -956,8 +965,16 @@ function onWindowFocus() {
   }
 }
 
-onMounted(() => {
+/** KeepAlive 保活时 onUnmounted 不跑；进出页面时挂/卸文件快捷键，避免抢走其它页的 Ctrl+C。 */
+onActivated(() => {
   registerNavFileShortcuts();
+});
+
+onDeactivated(() => {
+  unregisterNavFileShortcuts();
+});
+
+onMounted(() => {
   window.addEventListener("mousemove", onMarqueeMove);
   window.addEventListener("mouseup", onMarqueeEnd);
   window.addEventListener("focus", onWindowFocus);

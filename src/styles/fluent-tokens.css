@@ -414,6 +414,7 @@ html[data-list-density="compact"] .fluent-list-row--density {
   color: var(--fluent-color-text-secondary);
   -webkit-user-select: text;
   user-select: text;
+  cursor: text;
 }
 
 /* 展示性文字（报错、提示、路径、属性值等）可直接选中复制，无需复制按钮。 */

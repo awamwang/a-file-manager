@@ -4,6 +4,7 @@ export {
   chordKey,
   eventMatchesChord,
   formatChordLabel,
+  hasDomTextSelection,
   isEditableTarget,
   normalizeEventKey,
 } from "./chord.ts";

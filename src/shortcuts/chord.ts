@@ -60,9 +60,22 @@ function displayMainKey(key: string): string {
 }
 
 export function isEditableTarget(target: EventTarget | null): boolean {
+  if (typeof HTMLElement === "undefined") return false;
   if (!(target instanceof HTMLElement)) return false;
   if (target.isContentEditable) return true;
   const tag = target.tagName;
   if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
   return Boolean(target.closest("[contenteditable='true']"));
+}
+
+/** 页面上有非空文字选区时，应让出 Ctrl+C/X 给系统复制，而不是走文件剪贴板。 */
+export function hasDomTextSelection(): boolean {
+  if (typeof window === "undefined" || typeof window.getSelection !== "function") {
+    return false;
+  }
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+    return false;
+  }
+  return selection.toString().length > 0;
 }
