@@ -329,6 +329,15 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             json!(true),
         ),
         def(
+            "power.awamGatewayUrl",
+            SettingsTier::Power,
+            "awam-file gateway URL",
+            "HTTP base URL for the awam-file resource gateway (default http://127.0.0.1:18787)",
+            SettingValueKind::String,
+            None,
+            json!("http://127.0.0.1:18787"),
+        ),
+        def(
             "experimental.debugStatusInTitlebar",
             SettingsTier::Experimental,
             "Debug status in titlebar",

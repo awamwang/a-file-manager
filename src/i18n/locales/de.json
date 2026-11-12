@@ -540,7 +540,7 @@
     "emptyListing": "An diesem Ort gibt es keine Einträge.",
     "file": "Datei",
     "folder": "Ordner",
-    "gatewayOffline": "awam-file-Gateway offline — eingebaute Provider (rclone / Browser-Lesezeichen). Gateway unter http://127.0.0.1:18787 starten oder AWAM_GATEWAY_URL setzen. Details: Einstellungen → Health.",
+    "gatewayOffline": "awam-file-Gateway offline — eingebaute Provider (rclone / Browser-Lesezeichen). Gateway starten oder URL unter Einstellungen → Power ändern (Standard http://127.0.0.1:18787).",
     "gatewayOnline": "awam-file-Gateway online — {count} Backends über {url}",
     "interfaceOnly": "nur Schnittstelle",
     "list": "Auflisten",
@@ -762,6 +762,10 @@
         "providerPreloadKnowledge": {
           "title": "Knowledge-Provider vorladen",
           "description": "awam://knowledge beim Provider-Preload warmhalten (bei großem Root abschalten)"
+        },
+        "awamGatewayUrl": {
+          "title": "awam-file-Gateway-URL",
+          "description": "HTTP-Basis-URL des Ressourcen-Gateways (Standard http://127.0.0.1:18787). Änderungen gelten sofort für Providers."
         }
       }
     },

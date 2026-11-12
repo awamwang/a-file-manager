@@ -80,6 +80,11 @@ pub fn settings_set(
     let dir = config_dir(&app)?;
     let sync_blacklist = patch.contains_key("core.discoveryBlacklist");
     let sync_projects_root = patch.contains_key("core.projectsRoot");
+    let sync_gateway_url = patch.contains_key(crate::providers::gateway::GATEWAY_URL_SETTING_KEY);
+    let gateway_url_patch = patch
+        .get(crate::providers::gateway::GATEWAY_URL_SETTING_KEY)
+        .and_then(|value| value.as_str())
+        .map(str::to_string);
     let document = set_values_at_path(&dir, patch)?;
     if sync_blacklist {
         crate::discovery::sync_blacklist_from_settings(&app);
@@ -87,6 +92,9 @@ pub fn settings_set(
     if sync_projects_root {
         // Keep thin projects-index.json Root in sync with the setting (AIA-207 / C1).
         let _ = crate::projects::sync_index_root_from_settings(&app);
+    }
+    if sync_gateway_url {
+        crate::providers::gateway::set_configured_gateway_url(gateway_url_patch.as_deref());
     }
     Ok(document)
 }

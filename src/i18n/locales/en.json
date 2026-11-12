@@ -630,6 +630,10 @@
         "providerPreloadKnowledge": {
           "title": "Preload knowledge provider",
           "description": "Warm awam://knowledge during provider preload (disable if the knowledge root is huge)"
+        },
+        "awamGatewayUrl": {
+          "title": "awam-file gateway URL",
+          "description": "HTTP base URL for the resource gateway (default http://127.0.0.1:18787). Changes apply to Providers discovery immediately."
         }
       },
       "experimental": {
@@ -741,7 +745,7 @@
     "sourceGateway": "awam-file",
     "sourceBuiltin": "built-in",
     "gatewayOnline": "awam-file gateway online — {count} backends via {url}",
-    "gatewayOffline": "awam-file gateway offline — showing built-in providers (rclone / browser bookmarks). Start the gateway on http://127.0.0.1:18787 or set AWAM_GATEWAY_URL. See Settings → Health for details.",
+    "gatewayOffline": "awam-file gateway offline — showing built-in providers (rclone / browser bookmarks). Start the gateway, or change the URL under Settings → Power (default http://127.0.0.1:18787).",
     "uriPlaceholder": "Paste a provider path (e.g. an rclone remote)",
     "listing": "Listing…",
     "list": "List",

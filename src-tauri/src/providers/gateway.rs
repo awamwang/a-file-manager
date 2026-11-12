@@ -13,6 +13,8 @@ use std::time::{Duration, Instant};
 use ureq::Agent;
 
 pub const DEFAULT_BASE_URL: &str = "http://127.0.0.1:18787";
+/// 设置项键：Power 层可配置网关地址。
+pub const GATEWAY_URL_SETTING_KEY: &str = "power.awamGatewayUrl";
 /// 存活探测：只打 `/health`，不跑各适配器健康检查。
 const HEALTH_TIMEOUT: Duration = Duration::from_secs(2);
 /// `/api/backends` 与 list/stat/resolve 会触及适配器探测（qBittorrent/docker 等），
@@ -38,13 +40,42 @@ struct ProbeCache {
 }
 
 static PROBE_CACHE: Mutex<Option<ProbeCache>> = Mutex::new(None);
+/// 来自设置的网关地址（已规范化）；`None` 表示使用默认。
+static CONFIGURED_URL: Mutex<Option<String>> = Mutex::new(None);
 
+/// 规范化网关 base URL：去空白、去尾部 `/`；空串视为未配置。
+pub fn normalize_gateway_url(raw: &str) -> Option<String> {
+    let trimmed = raw.trim().trim_end_matches('/').to_string();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed)
+    }
+}
+
+/// 应用设置中的网关地址，并清空探测缓存以便立即重连。
+pub fn set_configured_gateway_url(raw: Option<&str>) {
+    let normalized = raw.and_then(normalize_gateway_url);
+    if let Ok(mut guard) = CONFIGURED_URL.lock() {
+        *guard = normalized;
+    }
+    invalidate_probe_cache();
+}
+
+/// 解析顺序：环境变量 → 设置 → 默认 `http://127.0.0.1:18787`。
 pub fn gateway_base_url() -> String {
-    std::env::var("AWAM_GATEWAY_URL")
-        .or_else(|_| std::env::var("VITE_AWAM_GATEWAY_URL"))
-        .unwrap_or_else(|_| DEFAULT_BASE_URL.to_string())
-        .trim_end_matches('/')
-        .to_string()
+    if let Ok(env) = std::env::var("AWAM_GATEWAY_URL").or_else(|_| std::env::var("VITE_AWAM_GATEWAY_URL"))
+    {
+        if let Some(url) = normalize_gateway_url(&env) {
+            return url;
+        }
+    }
+    if let Ok(guard) = CONFIGURED_URL.lock() {
+        if let Some(url) = guard.as_ref() {
+            return url.clone();
+        }
+    }
+    DEFAULT_BASE_URL.to_string()
 }
 
 fn agent(timeout: Duration) -> Agent {
@@ -346,6 +377,39 @@ pub fn resolve(uri: &str) -> Result<ResolveResult, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn normalize_gateway_url_trims_and_strips_slash() {
+        assert_eq!(
+            normalize_gateway_url("  http://127.0.0.1:18787/  ").as_deref(),
+            Some("http://127.0.0.1:18787")
+        );
+        assert_eq!(normalize_gateway_url("   "), None);
+        assert_eq!(normalize_gateway_url(""), None);
+    }
+
+    #[test]
+    fn configured_url_overrides_default_when_no_env() {
+        // 不依赖环境变量；测设置缓存路径。
+        let prev = std::env::var_os("AWAM_GATEWAY_URL");
+        let prev_vite = std::env::var_os("VITE_AWAM_GATEWAY_URL");
+        std::env::remove_var("AWAM_GATEWAY_URL");
+        std::env::remove_var("VITE_AWAM_GATEWAY_URL");
+
+        set_configured_gateway_url(Some("http://10.0.0.2:9999/"));
+        assert_eq!(gateway_base_url(), "http://10.0.0.2:9999");
+        set_configured_gateway_url(Some(""));
+        assert_eq!(gateway_base_url(), DEFAULT_BASE_URL);
+
+        match prev {
+            Some(v) => std::env::set_var("AWAM_GATEWAY_URL", v),
+            None => std::env::remove_var("AWAM_GATEWAY_URL"),
+        }
+        match prev_vite {
+            Some(v) => std::env::set_var("VITE_AWAM_GATEWAY_URL", v),
+            None => std::env::remove_var("VITE_AWAM_GATEWAY_URL"),
+        }
+    }
 
     #[test]
     fn filters_local_from_backends_payload() {

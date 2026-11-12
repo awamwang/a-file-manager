@@ -176,6 +176,15 @@ fn migrate_step(
             );
             Ok(())
         }
+        (9, 10) => {
+            for (key, value) in default_document().values {
+                values.entry(key).or_insert(value);
+            }
+            notes.push(
+                "Added power.awamGatewayUrl (schema v10)".to_string(),
+            );
+            Ok(())
+        }
         _ => Err(format!("No migration path from {from} → {to}")),
     }
 }

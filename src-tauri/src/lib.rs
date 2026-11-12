@@ -141,6 +141,15 @@ pub fn run() {
                 });
             }
 
+            // 加载 awam-file 网关地址设置，供 Providers 探测使用。
+            {
+                let url = settings::read_string_setting(
+                    app.handle(),
+                    providers::gateway::GATEWAY_URL_SETTING_KEY,
+                );
+                providers::gateway::set_configured_gateway_url(Some(url.as_str()));
+            }
+
             if let Some(path) = add_favorite_path.clone() {
                 match favorites::apply_add_favorite_cli(app.handle(), &path) {
                     Ok(added) => eprintln!(

@@ -540,7 +540,7 @@
     "emptyListing": "この場所には項目がありません。",
     "file": "ファイル",
     "folder": "フォルダー",
-    "gatewayOffline": "awam-file ゲートウェイオフライン — 内蔵プロバイダ（rclone / ブラウザブックマーク）を表示。http://127.0.0.1:18787 で起動するか AWAM_GATEWAY_URL を設定。詳細は 設定 → ヘルス。",
+    "gatewayOffline": "awam-file ゲートウェイオフライン — 内蔵プロバイダ（rclone / ブラウザブックマーク）を表示。ゲートウェイを起動するか、設定 → パワー で URL を変更（既定 http://127.0.0.1:18787）。",
     "gatewayOnline": "awam-file ゲートウェイオンライン — {url} 経由で {count} バックエンド",
     "interfaceOnly": "インターフェースのみ",
     "list": "一覧",
@@ -762,6 +762,10 @@
         "providerPreloadKnowledge": {
           "title": "Knowledge プロバイダーを事前読込",
           "description": "provider preload 時に awam://knowledge を暖める（巨大なルートならオフ推奨）"
+        },
+        "awamGatewayUrl": {
+          "title": "awam-file ゲートウェイ URL",
+          "description": "リソースゲートウェイの HTTP ベース URL（既定 http://127.0.0.1:18787）。変更は Providers 探索に即反映。"
         }
       }
     },

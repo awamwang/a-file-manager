@@ -205,7 +205,7 @@ fn gateway_status() -> DependencyItem {
                 st.base_url,
                 st.backend_count.unwrap_or(0)
             ),
-            "无需处理。可用 AWAM_GATEWAY_URL 覆盖默认地址。",
+            "无需处理。可在 设置 → 高级 修改网关地址，或用 AWAM_GATEWAY_URL 覆盖。",
         )
     } else {
         item(
@@ -218,7 +218,7 @@ fn gateway_status() -> DependencyItem {
                 st.base_url,
                 st.detail.unwrap_or_else(|| "unreachable".to_string())
             ),
-            "启动本机 awam-file / awam-resource-gateway（默认 http://127.0.0.1:18787），或设置 AWAM_GATEWAY_URL。离线时仍使用内置 rclone/browser。",
+            "启动本机 awam-file 网关，或在 设置 → 高级 修改地址（默认 http://127.0.0.1:18787）。离线时仍使用内置 rclone/browser。",
         )
     }
 }

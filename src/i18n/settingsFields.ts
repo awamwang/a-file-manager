@@ -32,6 +32,7 @@ export const SCHEMA_SETTING_KEYS = [
   "power.confirmBeforeDelete",
   "power.perPathOverridesEnabled",
   "power.providerPreloadKnowledge",
+  "power.awamGatewayUrl",
   "experimental.debugStatusInTitlebar",
   "experimental.previewPane",
   "preview.externalProvider",

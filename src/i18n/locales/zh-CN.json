@@ -630,6 +630,10 @@
         "providerPreloadKnowledge": {
           "title": "预加载知识库 Provider",
           "description": "在 provider preload 时预热 awam://knowledge（知识库根很大时可关闭）"
+        },
+        "awamGatewayUrl": {
+          "title": "awam-file 网关地址",
+          "description": "资源网关 HTTP 地址，默认 http://127.0.0.1:18787。改后立即用于 Providers 发现。"
         }
       },
       "experimental": {
@@ -741,7 +745,7 @@
     "sourceGateway": "awam-file",
     "sourceBuiltin": "内置",
     "gatewayOnline": "awam-file 网关在线 — 经 {url} 发现 {count} 个后端",
-    "gatewayOffline": "awam-file 网关离线 — 显示内置提供方（rclone / 浏览器书签）。请启动网关（默认 http://127.0.0.1:18787）或设置 AWAM_GATEWAY_URL。详见 设置 → 健康。",
+    "gatewayOffline": "awam-file 网关离线 — 显示内置提供方（rclone / 浏览器书签）。请启动网关，或在 设置 → 高级 中修改网关地址（默认 http://127.0.0.1:18787）。",
     "uriPlaceholder": "粘贴提供方路径（例如 rclone remote）",
     "listing": "列出中…",
     "list": "列出",

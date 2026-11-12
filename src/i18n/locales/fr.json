@@ -540,7 +540,7 @@
     "emptyListing": "Cet emplacement ne contient aucun élément.",
     "file": "Fichier",
     "folder": "Dossier",
-    "gatewayOffline": "Passerelle awam-file hors ligne — fournisseurs intégrés (rclone / favoris navigateur). Démarrez la passerelle sur http://127.0.0.1:18787 ou définissez AWAM_GATEWAY_URL. Voir Paramètres → Santé.",
+    "gatewayOffline": "Passerelle awam-file hors ligne — fournisseurs intégrés (rclone / favoris navigateur). Démarrez la passerelle, ou changez l’URL dans Paramètres → Avancé (défaut http://127.0.0.1:18787).",
     "gatewayOnline": "Passerelle awam-file en ligne — {count} backends via {url}",
     "interfaceOnly": "interface seule",
     "list": "Lister",
@@ -762,6 +762,10 @@
         "providerPreloadKnowledge": {
           "title": "Précharger le provider knowledge",
           "description": "Réchauffer awam://knowledge pendant le preload (désactiver si la racine est très large)"
+        },
+        "awamGatewayUrl": {
+          "title": "URL de la passerelle awam-file",
+          "description": "URL HTTP de base de la passerelle (défaut http://127.0.0.1:18787). Les changements s’appliquent aussitôt à Providers."
         }
       }
     },
