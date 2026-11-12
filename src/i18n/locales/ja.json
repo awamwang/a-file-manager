@@ -588,7 +588,8 @@
     "title": "プロバイダー",
     "uriPlaceholder": "プロバイダーのパスを貼り付け（クラウドやナレッジのルートなど）",
     "openUnsupported": "この項目はプロバイダーからまだ開けません。",
-    "openInExplorer": "エクスプローラーで開く"
+    "openInExplorer": "エクスプローラーで開く",
+    "searchBlocked": "Everything は「検索」から利用できます。プロバイダーの search バックエンドはここでは無効です。"
   },
   "settings": {
     "fields": {

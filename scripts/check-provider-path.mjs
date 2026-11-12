@@ -19,6 +19,8 @@ const registerUrl = pathToFileURL(join(root, "scripts/register-ts-resolve.mjs"))
 assert.ok(browse.includes("isProviderPath"));
 assert.ok(browse.includes("loadProviderListing"));
 assert.ok(browse.includes("openProviderEntry"));
+assert.ok(browse.includes("isBlockedSearchProvider"));
+assert.ok(browse.includes("PROVIDER_SEARCH_BLOCKED"));
 assert.ok(guide.includes("PROVIDER_ROOT"));
 assert.ok(guide.includes("listProviderBackends"));
 assert.ok(guide.includes("guide.sections.providers"));
@@ -26,6 +28,10 @@ assert.ok(providers.includes("openInExplorer"));
 assert.ok(history.includes("buildProviderBreadcrumbs"));
 assert.equal(en.guide.sections.providers, "Providers");
 assert.equal(en.providers.openInExplorer, "Open in Explorer");
+assert.equal(
+  en.providers.searchBlocked,
+  "Everything is available via Search. The search provider backend is disabled here.",
+);
 
 const result = spawnSync(
   process.execPath,

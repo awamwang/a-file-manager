@@ -36,10 +36,12 @@ import { navigableParentPath, recordNavHistory } from "./navHistory";
 import { GUIDE_PATH, isGuidePath } from "./guide";
 import { isRecyclePath, openRecycleBinInSystem } from "./recycle";
 import {
+  isBlockedSearchProvider,
   isProviderPath,
   loadProviderListing,
   openProviderEntry,
   toProviderUri,
+  type ProviderQueryParam,
 } from "./provider";
 import { readNewTabBehavior } from "./newTabBehavior";
 import { hydrateSettings } from "./settingsHydrate";
@@ -79,6 +81,7 @@ export type NavigatorListing = {
   entries: NavigatorEntry[];
   dirCount: number;
   fileCount: number;
+  requiredQuery?: ProviderQueryParam[] | null;
 };
 
 /** Wire shape: `path` may be omitted when equal to join(listing.path, name). */
@@ -109,6 +112,7 @@ export function hydrateNavigatorListing(listing: NavigatorListingWire): Navigato
     path: listing.path,
     dirCount: listing.dirCount,
     fileCount: listing.fileCount,
+    requiredQuery: listing.requiredQuery,
     entries: listing.entries.map((entry) => {
       const trimmed = entry.path?.trim() ?? "";
       return {
@@ -381,6 +385,12 @@ export async function navigateTo(
   }
 
   if (isProviderPath(trimmed)) {
+    if (isBlockedSearchProvider(trimmed)) {
+      listLoading.value = false;
+      listError.value = "PROVIDER_SEARCH_BLOCKED";
+      listing.value = null;
+      return;
+    }
     const target = toProviderUri(trimmed);
     listLoading.value = true;
     listError.value = null;

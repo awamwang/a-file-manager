@@ -764,7 +764,8 @@
     "folder": "Folder",
     "file": "File",
     "openUnsupported": "This item cannot be opened from Providers yet.",
-    "openInExplorer": "Open in Explorer"
+    "openInExplorer": "Open in Explorer",
+    "searchBlocked": "Everything is available via Search. The search provider backend is disabled here."
   },
   "workGroups": {
     "title": "Work Groups",

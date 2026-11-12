@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /** Provider DirListing → Navigator listing 映射。 */
 
-import { PROVIDER_ROOT, toProviderUri } from "./path.ts";
+import { PROVIDER_ROOT, toProviderUri, type ProviderQueryParam } from "./path.ts";
 
 export type ProviderBackendInfo = {
   id: string;
@@ -23,6 +23,7 @@ export type ProviderEntryWire = {
   modifiedTime?: number;
   localPath?: string | null;
   extra?: Record<string, unknown>;
+  requiredQuery?: ProviderQueryParam[] | null;
 };
 
 export type ProviderDirListingWire = {
@@ -30,6 +31,7 @@ export type ProviderDirListingWire = {
   backend: string;
   entries: ProviderEntryWire[];
   error?: string | null;
+  requiredQuery?: ProviderQueryParam[] | null;
 };
 
 export type ProviderNavigatorEntry = {
@@ -45,6 +47,7 @@ export type ProviderNavigatorListing = {
   entries: ProviderNavigatorEntry[];
   dirCount: number;
   fileCount: number;
+  requiredQuery?: ProviderQueryParam[] | null;
 };
 
 /** 将 `provider_list` 结果映射为 Navigator 列表形状。 */
@@ -70,7 +73,13 @@ export function providerListingFromDir(
       modifiedMs: modified,
     };
   });
-  return { path, entries, dirCount, fileCount };
+  return {
+    path,
+    entries,
+    dirCount,
+    fileCount,
+    requiredQuery: listing.requiredQuery ?? null,
+  };
 }
 
 /** 后端目录卡片 → 根级 Navigator 条目（Guide / Providers 入口用）。 */

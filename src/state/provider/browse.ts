@@ -39,7 +39,9 @@ export async function loadProviderListing(
   const listing = await invoke<ProviderDirListingWire>("provider_list", {
     uri: target,
   });
-  if (listing.error) {
+  // error == null：成功（含待查询软空列表）。有 requiredQuery 时吞掉旧网关 Missing query。
+  const awaitingQuery = Boolean(listing.requiredQuery?.length);
+  if (listing.error && !awaitingQuery) {
     throw new Error(listing.error);
   }
   return providerListingFromDir(listing);

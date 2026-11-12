@@ -94,6 +94,15 @@ assert.equal(listing.fileCount, 1);
 assert.equal(listing.entries[0]?.path, "awam://rclone/mysftp");
 assert.equal(listing.entries[1]?.kind, "file");
 
+const soft = providerListingFromDir({
+  uri: "awam://hf/remote",
+  backend: "hf",
+  entries: [],
+  requiredQuery: [{ key: "q", label: "Query", required: true }],
+});
+assert.deepEqual(soft.requiredQuery?.[0]?.key, "q");
+assert.equal(soft.entries.length, 0);
+
 const roots = providerRootEntriesFromBackends([
   {
     id: "knowledge",
