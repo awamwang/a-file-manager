@@ -5,8 +5,10 @@ use serde_json::{json, Value};
 use std::time::Duration;
 use ureq::Agent;
 
-/// MCP Streamable HTTP 路径，与 awam-tool-manager `MCP_PATH` 一致。
-pub const MCP_PATH: &str = "/mcp";
+/// MCP Streamable HTTP 路径。
+/// Starlette `Mount("/mcp")` 对无尾斜杠的 `/mcp` 会 307 到 `/mcp/`；
+/// ureq 跟随 POST 重定向常失败（redirect failed），故客户端直打带尾斜杠的路径。
+pub const MCP_PATH: &str = "/mcp/";
 
 /// 与 mcp 1.29/1.30 默认协商版本一致。
 const PROTOCOL_VERSION: &str = "2025-03-26";
@@ -211,6 +213,10 @@ fn mcp_url(base_url: &str) -> Result<String, String> {
     let trimmed = base_url.trim().trim_end_matches('/');
     if trimmed.is_empty() {
         return Err("tool-runtime gateway base URL is empty".to_string());
+    }
+    // 已含 /mcp 或 /mcp/ 时不再重复拼接。
+    if trimmed.ends_with("/mcp") {
+        return Ok(format!("{trimmed}/"));
     }
     Ok(format!("{trimmed}{MCP_PATH}"))
 }
@@ -591,7 +597,14 @@ mod tests {
     }
 
     #[test]
-    fn mcp_url_appends_path() {
-        assert_eq!(mcp_url("http://127.0.0.1:8766/").unwrap(), "http://127.0.0.1:8766/mcp");
+    fn mcp_url_appends_trailing_slash_path() {
+        assert_eq!(
+            mcp_url("http://127.0.0.1:8766/").unwrap(),
+            "http://127.0.0.1:8766/mcp/"
+        );
+        assert_eq!(
+            mcp_url("http://127.0.0.1:8767/mcp").unwrap(),
+            "http://127.0.0.1:8767/mcp/"
+        );
     }
 }
