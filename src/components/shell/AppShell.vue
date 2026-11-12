@@ -1179,12 +1179,28 @@ const tabDragOver = ref<number | null>(null);
 const tabFileDropOver = ref<number | null>(null);
 /** Suppress click / +new-tab after a real drag (capture-loss can retarget click onto +). */
 const tabDragMoved = ref(false);
+/** 拖起浮层：跟随指针的标签预览。 */
+const tabDragPreview = ref<{
+  label: string;
+  pinned: boolean;
+  width: number;
+  height: number;
+  offsetX: number;
+  offsetY: number;
+  x: number;
+  y: number;
+} | null>(null);
+/** 落地插入线：目标标签左侧或右侧。 */
+const tabDropEdge = ref<"before" | "after" | null>(null);
+/** 刚落地的标签 id，用于短促落地动画。 */
+const tabLandedId = ref<string | null>(null);
 /** AIA-242: dwell then activate the hovered tab while file-dragging. */
 const tabHoverActivate = createDropHoverScheduler();
 
 /** Pointer-based reorder — HTML5 DnD is unreliable in WebView2 chrome areas. */
 const TAB_DRAG_THRESHOLD_PX = 6;
 const TAB_DRAG_CLICK_SUPPRESS_MS = 200;
+const TAB_LAND_ANIM_MS = 280;
 let tabPointerId: number | null = null;
 let tabPointerStartX = 0;
 let tabPointerStartY = 0;
@@ -1192,6 +1208,7 @@ let tabPointerStartY = 0;
 let tabPointerFromId: string | null = null;
 let tabReorderBusy = false;
 let tabClickSuppressTimer: ReturnType<typeof setTimeout> | null = null;
+let tabLandedTimer: ReturnType<typeof setTimeout> | null = null;
 
 function clearTabFileDropHover() {
   tabFileDropOver.value = null;
@@ -1262,6 +1279,11 @@ function clearTabPointerListeners() {
   tabPointerId = null;
 }
 
+function clearTabDragPreview() {
+  tabDragPreview.value = null;
+  tabDropEdge.value = null;
+}
+
 function armTabClickSuppress() {
   tabDragMoved.value = true;
   if (tabClickSuppressTimer != null) clearTimeout(tabClickSuppressTimer);
@@ -1269,6 +1291,49 @@ function armTabClickSuppress() {
     tabDragMoved.value = false;
     tabClickSuppressTimer = null;
   }, TAB_DRAG_CLICK_SUPPRESS_MS);
+}
+
+function armTabLanded(tabId: string) {
+  if (tabLandedTimer != null) clearTimeout(tabLandedTimer);
+  tabLandedId.value = tabId;
+  tabLandedTimer = setTimeout(() => {
+    tabLandedId.value = null;
+    tabLandedTimer = null;
+  }, TAB_LAND_ANIM_MS);
+}
+
+function beginTabDragPreview(event: PointerEvent, groupIndex: number) {
+  const tab = stripTabs.value.find((item) => item.groupIndex === groupIndex);
+  if (!tab) return;
+  const el = document.querySelector<HTMLElement>(
+    `[data-tab-group-index="${groupIndex}"]`,
+  );
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  tabDragPreview.value = {
+    label: tab.name || tabLabel(tab.path),
+    pinned: isTabPinned(tab.id),
+    width: Math.round(rect.width),
+    height: Math.round(rect.height),
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top,
+    x: event.clientX,
+    y: event.clientY,
+  };
+}
+
+function updateTabDragPreview(event: PointerEvent) {
+  const preview = tabDragPreview.value;
+  if (!preview) return;
+  tabDragPreview.value = {
+    ...preview,
+    x: event.clientX,
+    y: event.clientY,
+  };
+}
+
+function dropEdgeFor(from: number, to: number): "before" | "after" {
+  return from < to ? "after" : "before";
 }
 
 function onTabPointerDown(event: PointerEvent, groupIndex: number) {
@@ -1328,15 +1393,21 @@ function onTabPointerMove(event: PointerEvent) {
   if (!tabDragMoved.value) {
     if (dist < TAB_DRAG_THRESHOLD_PX) return;
     tabDragMoved.value = true;
+    const startFrom = currentFromIndex();
+    if (startFrom >= 0) beginTabDragPreview(event, startFrom);
+  } else {
+    updateTabDragPreview(event);
   }
   const from = currentFromIndex();
   tabDragFrom.value = from >= 0 ? from : null;
   const idx = tabIndexAtPoint(event.clientX, event.clientY);
   if (idx == null || idx === from) {
     tabDragOver.value = null;
+    tabDropEdge.value = null;
     return;
   }
   tabDragOver.value = idx;
+  tabDropEdge.value = from >= 0 ? dropEdgeFor(from, idx) : null;
 }
 
 async function onTabPointerUp(event: PointerEvent) {
@@ -1347,6 +1418,7 @@ async function onTabPointerUp(event: PointerEvent) {
   clearTabPointerListeners();
   tabDragFrom.value = null;
   tabDragOver.value = null;
+  clearTabDragPreview();
   tabPointerFromId = null;
 
   if (moved) {
@@ -1361,6 +1433,7 @@ async function onTabPointerUp(event: PointerEvent) {
   tabReorderBusy = true;
   try {
     await reorderNavigatorTabs(from, to);
+    armTabLanded(fromId);
   } finally {
     tabReorderBusy = false;
   }
@@ -1565,6 +1638,13 @@ onUnmounted(() => {
   onSidenavResizeEnd();
   clearTabFileDropHover();
   clearPlacesFileDropHover();
+  clearTabPointerListeners();
+  clearTabDragPreview();
+  if (tabLandedTimer != null) {
+    clearTimeout(tabLandedTimer);
+    tabLandedTimer = null;
+  }
+  tabLandedId.value = null;
   void flushOpenStatePersist();
   unregisterShellShortcuts();
   for (const unlisten of unlisteners) {
@@ -1710,6 +1790,7 @@ onUnmounted(() => {
       <div v-show="isNavigatorRoute" class="navigator-chrome-host">
         <div
           class="tabstrip"
+          :class="{ 'tabstrip--reordering': tabDragMoved && tabDragFrom != null }"
           role="tablist"
           data-focus-region="tabstrip"
           tabindex="-1"
@@ -1723,8 +1804,13 @@ onUnmounted(() => {
               'tab--active': liveOpenState.currentTabGroupIndex === tab.groupIndex,
               'tab--pinned': isTabPinned(tab.id),
               'tab--drag-over': tabDragOver === tab.groupIndex,
+              'tab--drop-before':
+                tabDragOver === tab.groupIndex && tabDropEdge === 'before',
+              'tab--drop-after':
+                tabDragOver === tab.groupIndex && tabDropEdge === 'after',
               'tab--file-drop': tabFileDropOver === tab.groupIndex,
               'tab--dragging': tabDragFrom === tab.groupIndex && tabDragMoved,
+              'tab--landed': tabLandedId === tab.id,
             }"
             role="tab"
             :data-tab-group-index="tab.groupIndex"
@@ -2189,6 +2275,29 @@ onUnmounted(() => {
           </div>
         </form>
 
+        <Teleport to="body">
+          <div
+            v-if="tabDragPreview && tabDragMoved"
+            class="tab-drag-ghost"
+            :class="{ 'tab-drag-ghost--pinned': tabDragPreview.pinned }"
+            :style="{
+              width: `${tabDragPreview.width}px`,
+              height: `${tabDragPreview.height}px`,
+              transform: `translate3d(${tabDragPreview.x - tabDragPreview.offsetX}px, ${tabDragPreview.y - tabDragPreview.offsetY - 6}px, 0) scale(1.04)`,
+            }"
+            aria-hidden="true"
+          >
+            <span
+              v-if="tabDragPreview.pinned"
+              class="tab-pin"
+              aria-hidden="true"
+            >
+              <FluentIcon name="pin" size="sm" aria-hidden="true" />
+            </span>
+            <FluentIcon name="folder" size="sm" class="tab-icon" aria-hidden="true" />
+            <span class="tab-label">{{ tabDragPreview.label }}</span>
+          </div>
+        </Teleport>
         <Teleport to="body">
           <div
             v-if="tabContextGroupIndex !== null"
@@ -2870,7 +2979,13 @@ onUnmounted(() => {
   app-region: no-drag;
 }
 
+.tabstrip--reordering,
+.tabstrip--reordering .tab {
+  cursor: grabbing;
+}
+
 .tab {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: var(--fluent-space-xs);
@@ -2927,8 +3042,30 @@ onUnmounted(() => {
 }
 
 .tab--drag-over {
-  outline: 2px solid var(--fluent-color-stroke-accent-soft, var(--fluent-color-fill-accent));
-  outline-offset: -2px;
+  background: color-mix(in srgb, var(--fluent-color-fill-selected) 70%, transparent);
+}
+
+.tab--drop-before::before,
+.tab--drop-after::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  bottom: 2px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--fluent-color-fill-accent);
+  box-shadow: 0 0 0 1px
+    color-mix(in srgb, var(--fluent-color-fill-accent) 35%, transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.tab--drop-before::before {
+  left: -3px;
+}
+
+.tab--drop-after::after {
+  right: -3px;
 }
 
 .tab--file-drop {
@@ -2938,11 +3075,69 @@ onUnmounted(() => {
 }
 
 .tab--dragging {
-  opacity: 0.55;
+  opacity: 0.4;
+  color: transparent;
+  background: color-mix(in srgb, var(--fluent-color-fill-subtle-secondary) 80%, transparent);
+  border-color: var(--fluent-color-stroke-divider);
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.tab--dragging .tab-pin,
+.tab--dragging .tab-icon,
+.tab--dragging .tab-label,
+.tab--dragging .tab-close {
+  visibility: hidden;
+}
+
+.tab--landed {
+  animation: tab-land 280ms ease-out;
+}
+
+@keyframes tab-land {
+  0% {
+    transform: translateY(-3px) scale(1.03);
+  }
+  100% {
+    transform: none;
+  }
 }
 
 .tab:active {
   cursor: grabbing;
+}
+
+.tab-drag-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 10000;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fluent-space-xs);
+  max-width: 14rem;
+  padding: 0 var(--fluent-space-sm) 0 var(--fluent-space-md);
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: var(--fluent-radius-sm) var(--fluent-radius-sm) 0 0;
+  background: var(--fluent-color-fill-control);
+  color: var(--fluent-color-text-primary);
+  font: inherit;
+  font-weight: var(--fluent-font-weight-semibold);
+  box-shadow: var(--fluent-shadow-flyout);
+  opacity: 0.96;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.tab-drag-ghost--pinned {
+  border-left: 3px solid var(--fluent-color-fill-accent);
+  padding-left: calc(var(--fluent-space-md) - 2px);
+}
+
+.tab-drag-ghost .tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 已固定标签的状态图标（不可点击；未固定时不展示） */
