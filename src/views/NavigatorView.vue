@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   bootstrapNavigatorOpenState,
+  bumpFolderTreeRevision,
   closeNavigatorTab,
   currentPath,
   listing,
@@ -14,6 +15,7 @@ import {
   navigateTo,
   openEntry,
   refreshActiveListing,
+  removePathsFromListings,
   switchNavigatorTab,
   type NavigatorEntry,
 } from "../state/navigatorBrowse";
@@ -1560,6 +1562,15 @@ async function shortcutNewFile() {
   }
 }
 
+async function afterShortcutDelete(paths: string[], notice: string) {
+  clearSelection();
+  clearClipboard();
+  removePathsFromListings(paths);
+  bumpFolderTreeRevision();
+  onNotice(notice);
+  await refreshListing();
+}
+
 async function shortcutDelete(permanent = false) {
   const paths = selectionPaths();
   if (!paths.length) return;
@@ -1579,23 +1590,26 @@ async function shortcutDelete(permanent = false) {
       if (!ok) return;
       const recyclable = permanent ? [] : paths.filter((path) => !blocked.includes(path));
       const doomed = permanent ? paths : blocked;
+      const done: string[] = [];
       if (recyclable.length) {
         const recycled = await deleteEntries(recyclable, false);
         if (!recycled.ok) {
-          onNotice(recycled.error ?? t("contextMenu.opFailed"));
+          onNotice(recycled.error ?? t("contextMenu.opFailed"), "error");
+          await refreshListing();
           return;
         }
         recordDeleteUndo(recyclable);
+        done.push(...recyclable);
       }
       const result = await deleteEntries(doomed, true);
       if (!result.ok) {
-        onNotice(result.error ?? t("contextMenu.opFailed"));
+        if (done.length) removePathsFromListings(done);
+        onNotice(result.error ?? t("contextMenu.opFailed"), "error");
+        await refreshListing();
         return;
       }
-      onNotice(t("contextMenu.deletedPermanent"));
-      clearSelection();
-      clearClipboard();
-      await refreshListing();
+      done.push(...doomed);
+      await afterShortcutDelete(done, t("contextMenu.deletedPermanent"));
       return;
     }
     const ok = await confirmDeleteIfNeeded({
@@ -1607,16 +1621,14 @@ async function shortcutDelete(permanent = false) {
     if (!ok) return;
     const result = await deleteEntries(paths);
     if (!result.ok) {
-      onNotice(result.error ?? t("contextMenu.opFailed"));
+      onNotice(result.error ?? t("contextMenu.opFailed"), "error");
       return;
     }
     recordDeleteUndo(paths);
-    onNotice(t("contextMenu.deleted"));
-    clearSelection();
-    clearClipboard();
-    await refreshListing();
+    await afterShortcutDelete(paths, t("contextMenu.deleted"));
   } catch (err) {
-    onNotice(err instanceof Error ? err.message : String(err));
+    onNotice(err instanceof Error ? err.message : String(err), "error");
+    await refreshListing();
   }
 }
 

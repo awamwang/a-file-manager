@@ -7,6 +7,7 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { NavigatorEntry, UserWorkGroupsDoc } from "../../state/navigatorBrowse";
 import {
   activeWorkGroupId,
+  bumpFolderTreeRevision,
   currentPath,
   hydrateWorkGroups,
   listing,
@@ -14,12 +15,14 @@ import {
   newNavigatorTab,
   openEntry,
   rememberHydratedWorkGroups,
+  removePathsFromListings,
   restoreWorkGroupOpenState,
   snapshotLiveOpenState,
 } from "../../state/navigatorBrowse";
 import { workGroupDisplayName } from "../../state/workGroup";
 import type { WorkGroupOpenState } from "../../state/openState";
 import {
+  clearClipboard,
   clipboardMode,
   clipboardPaths,
   createFile,
@@ -31,6 +34,7 @@ import {
   refreshClipboardFromSystem,
   setClipboard,
 } from "../../state/fileClipboard";
+import { clearSelection } from "../../state/navigatorSelection";
 import {
   recordCopyUndo,
   recordCreateUndo,
@@ -508,6 +512,15 @@ async function runAddToWorkGroup(workGroupId: string, entry: NavigatorEntry) {
   }
 }
 
+async function afterDeleteSuccess(paths: string[], notice: string) {
+  clearSelection();
+  clearClipboard();
+  removePathsFromListings(paths);
+  bumpFolderTreeRevision();
+  emit("notice", notice);
+  await refreshListing();
+}
+
 async function runDelete(entry: NavigatorEntry) {
   const paths = pathsForClipboard(entry);
   try {
@@ -525,21 +538,26 @@ async function runDelete(entry: NavigatorEntry) {
       });
       if (!ok) return;
       const recyclable = paths.filter((path) => !blocked.includes(path));
+      const done: string[] = [];
       if (recyclable.length) {
         const recycled = await deleteEntries(recyclable, false);
         if (!recycled.ok) {
           emit("notice", recycled.error ?? t("contextMenu.opFailed"));
+          await refreshListing();
           return;
         }
         recordDeleteUndo(recyclable);
+        done.push(...recyclable);
       }
       const removed = await deleteEntries(blocked, true);
       if (!removed.ok) {
+        if (done.length) removePathsFromListings(done);
         emit("notice", removed.error ?? t("contextMenu.opFailed"));
+        await refreshListing();
         return;
       }
-      emit("notice", t("contextMenu.deletedPermanent"));
-      await refreshListing();
+      done.push(...blocked);
+      await afterDeleteSuccess(done, t("contextMenu.deletedPermanent"));
       return;
     }
     const ok = await confirmDeleteIfNeeded({
@@ -555,10 +573,10 @@ async function runDelete(entry: NavigatorEntry) {
       return;
     }
     recordDeleteUndo(paths);
-    emit("notice", t("contextMenu.deleted"));
-    await refreshListing();
+    await afterDeleteSuccess(paths, t("contextMenu.deleted"));
   } catch (err) {
     emit("notice", err instanceof Error ? err.message : String(err));
+    await refreshListing();
   }
 }
 

@@ -30,6 +30,23 @@ assert.ok(rust.includes("create_empty_file"));
 assert.ok(rust.includes("delete_to_recycle"));
 assert.ok(rust.includes("path_can_use_recycle_bin"));
 assert.ok(rust.includes("trash::delete"));
+// 大目录删除/复制/移动不得同步阻塞 UI 线程。
+for (const name of [
+  "file_ops_delete",
+  "file_ops_delete_permanent",
+  "file_ops_copy",
+  "file_ops_move",
+]) {
+  const re = new RegExp(
+    String.raw`#\[tauri::command\][\s\S]*?pub async fn ${name}[\s\S]*?spawn_blocking`,
+  );
+  assert.ok(re.test(rust), `${name} must be async and use spawn_blocking`);
+}
+const browse = readFileSync(join(root, "src/state/navigatorBrowse.ts"), "utf8");
+assert.ok(browse.includes("removePathsFromListings"));
+assert.ok(browse.includes("bumpFolderTreeRevision"));
+assert.ok(menu.includes("removePathsFromListings"));
+assert.ok(menu.includes("bumpFolderTreeRevision"));
 assert.ok(clip.includes("file_ops_copy"));
 assert.ok(clip.includes("file_ops_move"));
 assert.ok(clip.includes("file_ops_clipboard_set"));
@@ -76,6 +93,8 @@ const navigatorView = readFileSync(
   join(root, "src/views/NavigatorView.vue"),
   "utf8",
 );
+assert.ok(navigatorView.includes("removePathsFromListings"));
+assert.ok(navigatorView.includes("bumpFolderTreeRevision"));
 assert.ok(clip.includes("isClipboardCutPath"));
 assert.ok(clip.includes('clipboardMode.value !== "cut"'));
 assert.ok(navigatorView.includes("isClipboardCutPath"));

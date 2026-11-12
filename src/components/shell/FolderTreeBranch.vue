@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import FluentIcon from "../icons/FluentIcon.vue";
 import {
   currentPath,
+  folderTreeRevision,
   hydrateNavigatorListing,
   navigateTo,
   type NavigatorListing,
@@ -162,6 +163,11 @@ watch(
   },
   { immediate: true },
 );
+
+watch(folderTreeRevision, () => {
+  if (!expanded.value || children.value === null) return;
+  void loadChildren();
+});
 
 onUnmounted(() => {
   hoverExpand.clear();

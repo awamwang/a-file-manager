@@ -239,6 +239,42 @@ export function refreshActiveListing(): void {
   });
 }
 
+/**
+ * 删除成功后先从当前 listing 去掉条目，避免大目录删除阻塞期间界面仍显示旧项。
+ * 随后仍应调用 refreshListing / navigateTo 与磁盘对齐。
+ */
+export function removePathsFromListings(paths: string[]): void {
+  const doomed = new Set(
+    paths.map((path) => normalizePathKey(path)).filter((key) => key.length > 0),
+  );
+  if (!doomed.size) return;
+
+  const strip = (current: NavigatorListing | null): NavigatorListing | null => {
+    if (!current) return current;
+    const entries = current.entries.filter(
+      (entry) => !doomed.has(normalizePathKey(entry.path)),
+    );
+    if (entries.length === current.entries.length) return current;
+    let dirCount = 0;
+    let fileCount = 0;
+    for (const entry of entries) {
+      if (entry.kind === "dir") dirCount += 1;
+      else fileCount += 1;
+    }
+    return { ...current, entries, dirCount, fileCount };
+  };
+
+  listing.value = strip(listing.value);
+  secondaryListing.value = strip(secondaryListing.value);
+}
+
+/** 侧栏目录树在文件变更后递增，展开节点会重新拉取子项。 */
+export const folderTreeRevision = ref(0);
+
+export function bumpFolderTreeRevision(): void {
+  folderTreeRevision.value += 1;
+}
+
 /** 副窗格 listing 导航（不写主 Open State / 历史栈）。 */
 export async function navigateSecondary(path: string): Promise<void> {
   const trimmed = path.trim();

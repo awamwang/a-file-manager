@@ -327,27 +327,37 @@ pub fn file_ops_name_exists(dest_dir: String, name: String) -> Result<bool, Stri
     Ok(dest.join(file_name).exists())
 }
 
+/// 大目录复制不得占用 Tauri 同步命令线程。
 #[tauri::command]
-pub fn file_ops_copy(
+pub async fn file_ops_copy(
     sources: Vec<String>,
     dest_dir: String,
     conflict: Option<String>,
 ) -> FileOpsResult {
-    match copy_paths(&sources, &dest_dir, parse_name_conflict(conflict.as_deref())) {
-        Ok(paths) => ok_paths(paths),
-        Err(error) => err_msg(error),
+    let mode = parse_name_conflict(conflict.as_deref());
+    match tauri::async_runtime::spawn_blocking(move || copy_paths(&sources, &dest_dir, mode))
+        .await
+    {
+        Ok(Ok(paths)) => ok_paths(paths),
+        Ok(Err(error)) => err_msg(error),
+        Err(error) => err_msg(format!("file_ops_copy worker failed: {error}")),
     }
 }
 
+/// 大目录移动不得占用 Tauri 同步命令线程。
 #[tauri::command]
-pub fn file_ops_move(
+pub async fn file_ops_move(
     sources: Vec<String>,
     dest_dir: String,
     conflict: Option<String>,
 ) -> FileOpsResult {
-    match move_paths(&sources, &dest_dir, parse_name_conflict(conflict.as_deref())) {
-        Ok(paths) => ok_paths(paths),
-        Err(error) => err_msg(error),
+    let mode = parse_name_conflict(conflict.as_deref());
+    match tauri::async_runtime::spawn_blocking(move || move_paths(&sources, &dest_dir, mode))
+        .await
+    {
+        Ok(Ok(paths)) => ok_paths(paths),
+        Ok(Err(error)) => err_msg(error),
+        Err(error) => err_msg(format!("file_ops_move worker failed: {error}")),
     }
 }
 
@@ -375,19 +385,23 @@ pub fn file_ops_create_file(parent: String, name: String) -> FileOpsResult {
     }
 }
 
+/// 多子文件目录移入回收站不得占用 Tauri 同步命令线程。
 #[tauri::command]
-pub fn file_ops_delete(paths: Vec<String>) -> FileOpsResult {
-    match delete_paths(&paths) {
-        Ok(paths) => ok_paths(paths),
-        Err(error) => err_msg(error),
+pub async fn file_ops_delete(paths: Vec<String>) -> FileOpsResult {
+    match tauri::async_runtime::spawn_blocking(move || delete_paths(&paths)).await {
+        Ok(Ok(paths)) => ok_paths(paths),
+        Ok(Err(error)) => err_msg(error),
+        Err(error) => err_msg(format!("file_ops_delete worker failed: {error}")),
     }
 }
 
+/// 永久删除大目录不得占用 Tauri 同步命令线程。
 #[tauri::command]
-pub fn file_ops_delete_permanent(paths: Vec<String>) -> FileOpsResult {
-    match delete_permanent_paths(&paths) {
-        Ok(paths) => ok_paths(paths),
-        Err(error) => err_msg(error),
+pub async fn file_ops_delete_permanent(paths: Vec<String>) -> FileOpsResult {
+    match tauri::async_runtime::spawn_blocking(move || delete_permanent_paths(&paths)).await {
+        Ok(Ok(paths)) => ok_paths(paths),
+        Ok(Err(error)) => err_msg(error),
+        Err(error) => err_msg(format!("file_ops_delete_permanent worker failed: {error}")),
     }
 }
 
