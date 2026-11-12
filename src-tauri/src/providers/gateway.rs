@@ -13,7 +13,11 @@ use std::time::{Duration, Instant};
 use ureq::Agent;
 
 pub const DEFAULT_BASE_URL: &str = "http://127.0.0.1:18787";
-const HTTP_TIMEOUT: Duration = Duration::from_millis(800);
+/// 存活探测：只打 `/health`，不跑各适配器健康检查。
+const HEALTH_TIMEOUT: Duration = Duration::from_secs(2);
+/// `/api/backends` 与 list/stat/resolve 会触及适配器探测（qBittorrent/docker 等），
+/// 本机实测常需数秒；过短会误判网关离线并回退到内置列表。
+const HTTP_TIMEOUT: Duration = Duration::from_secs(15);
 const PROBE_TTL: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -43,16 +47,20 @@ pub fn gateway_base_url() -> String {
         .to_string()
 }
 
-fn agent() -> Agent {
+fn agent(timeout: Duration) -> Agent {
     Agent::config_builder()
-        .timeout_global(Some(HTTP_TIMEOUT))
+        .timeout_global(Some(timeout))
         .build()
         .into()
 }
 
-fn get_json(base_url: &str, path_and_query: &str) -> Result<serde_json::Value, String> {
+fn get_json(
+    base_url: &str,
+    path_and_query: &str,
+    timeout: Duration,
+) -> Result<serde_json::Value, String> {
     let url = format!("{base_url}{path_and_query}");
-    let mut response = agent()
+    let mut response = agent(timeout)
         .get(&url)
         .call()
         .map_err(|err| format!("awam-file gateway request failed ({url}): {err}"))?;
@@ -85,13 +93,13 @@ pub fn status() -> GatewayStatus {
     }
 
     match probe_now(&base_url) {
-        Ok(count) => {
-            store_probe(true, None, Some(count));
+        Ok(()) => {
+            store_probe(true, None, None);
             GatewayStatus {
                 online: true,
                 base_url,
                 detail: None,
-                backend_count: Some(count),
+                backend_count: None,
             }
         }
         Err(err) => {
@@ -121,12 +129,15 @@ fn store_probe(online: bool, detail: Option<String>, backend_count: Option<usize
     }
 }
 
-fn probe_now(base_url: &str) -> Result<usize, String> {
-    // Prefer /api/backends so a healthy process with a broken health route still works,
-    // and we learn the discovered backend count in one round-trip.
-    let value = get_json(base_url, "/api/backends")?;
-    let backends = parse_backends_json(&value)?;
-    Ok(backends.len())
+fn probe_now(base_url: &str) -> Result<(), String> {
+    // `/health` 轻量存活检查；后端数量由 fetch_backends / Providers 列表填充。
+    let value = get_json(base_url, "/health", HEALTH_TIMEOUT)?;
+    if value.get("ok").and_then(|v| v.as_bool()) != Some(true) {
+        return Err(format!(
+            "awam-file gateway /health unexpected payload: {value}"
+        ));
+    }
+    Ok(())
 }
 
 #[derive(Debug, Deserialize)]
@@ -238,7 +249,7 @@ fn map_entry(entry: GatewayEntry) -> ProviderEntry {
 /// Discovered backends from the live gateway (excludes `local`).
 pub fn fetch_backends() -> Result<Vec<BackendInfo>, String> {
     let base_url = gateway_base_url();
-    let value = get_json(&base_url, "/api/backends").map_err(|err| {
+    let value = get_json(&base_url, "/api/backends", HTTP_TIMEOUT).map_err(|err| {
         store_probe(false, Some(err.clone()), None);
         err
     })?;
@@ -274,7 +285,7 @@ fn encode_uri_query(uri: &str) -> String {
 pub fn list(uri: &str) -> Result<DirListing, String> {
     let base_url = gateway_base_url();
     let path = format!("/api/list?uri={}", encode_uri_query(uri));
-    let value = get_json(&base_url, &path).map_err(|err| {
+    let value = get_json(&base_url, &path, HTTP_TIMEOUT).map_err(|err| {
         invalidate_probe_cache();
         err
     })?;
@@ -301,7 +312,7 @@ pub fn list(uri: &str) -> Result<DirListing, String> {
 pub fn stat(uri: &str) -> Result<StatResult, String> {
     let base_url = gateway_base_url();
     let path = format!("/api/stat?uri={}", encode_uri_query(uri));
-    let value = get_json(&base_url, &path).map_err(|err| {
+    let value = get_json(&base_url, &path, HTTP_TIMEOUT).map_err(|err| {
         invalidate_probe_cache();
         err
     })?;
@@ -316,7 +327,7 @@ pub fn stat(uri: &str) -> Result<StatResult, String> {
 pub fn resolve(uri: &str) -> Result<ResolveResult, String> {
     let base_url = gateway_base_url();
     let path = format!("/api/resolve?uri={}", encode_uri_query(uri));
-    let value = get_json(&base_url, &path).map_err(|err| {
+    let value = get_json(&base_url, &path, HTTP_TIMEOUT).map_err(|err| {
         invalidate_probe_cache();
         err
     })?;
