@@ -20,6 +20,7 @@
     "commandsTitle": "Befehlspalette (Ctrl+Shift+P)",
     "forward": "Vorwärts",
     "go": "Los",
+    "providerQueryApply": "Anwenden",
     "healthError": "health: Fehler",
     "healthOk": "health: ok · v{version}",
     "healthPending": "health: …",
@@ -588,7 +589,8 @@
     "title": "Anbieter",
     "uriPlaceholder": "Anbieterpfad einfügen (z. B. Cloud- oder Wissenswurzel)",
     "openUnsupported": "Dieser Eintrag lässt sich aus Anbietern noch nicht öffnen.",
-    "openInExplorer": "Im Explorer oeffnen"
+    "openInExplorer": "Im Explorer oeffnen",
+    "searchBlocked": "Everything ist über die Suche verfügbar. Das search-Anbieter-Backend ist hier deaktiviert."
   },
   "settings": {
     "fields": {

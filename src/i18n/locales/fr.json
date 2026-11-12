@@ -20,6 +20,7 @@
     "commandsTitle": "Palette de commandes (Ctrl+Shift+P)",
     "forward": "Avancer",
     "go": "Aller",
+    "providerQueryApply": "Appliquer",
     "healthError": "santé : erreur",
     "healthOk": "santé : ok · v{version}",
     "healthPending": "santé : …",
@@ -588,7 +589,8 @@
     "title": "Fournisseurs",
     "uriPlaceholder": "Collez un chemin de fournisseur (ex. racine cloud ou connaissances)",
     "openUnsupported": "Cet élément ne peut pas encore être ouvert depuis Fournisseurs.",
-    "openInExplorer": "Ouvrir dans l'Explorateur"
+    "openInExplorer": "Ouvrir dans l'Explorateur",
+    "searchBlocked": "Everything est disponible via la Recherche. Le backend search du fournisseur est désactivé ici."
   },
   "settings": {
     "fields": {

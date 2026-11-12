@@ -74,6 +74,7 @@ impl Provider for InterfaceOnlyProvider {
                 "Provider '{}' is interface-only and not implemented yet",
                 self.id
             )),
+            required_query: None,
         }
     }
 

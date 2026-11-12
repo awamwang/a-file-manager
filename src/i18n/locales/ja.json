@@ -20,6 +20,7 @@
     "commandsTitle": "コマンドパネル (Ctrl+Shift+P)",
     "forward": "進む",
     "go": "移動",
+    "providerQueryApply": "適用",
     "healthError": "ヘルス: エラー",
     "healthOk": "ヘルス: 正常 · v{version}",
     "healthPending": "ヘルス: …",
@@ -588,7 +589,8 @@
     "title": "プロバイダー",
     "uriPlaceholder": "プロバイダーのパスを貼り付け（クラウドやナレッジのルートなど）",
     "openUnsupported": "この項目はプロバイダーからまだ開けません。",
-    "openInExplorer": "エクスプローラーで開く"
+    "openInExplorer": "エクスプローラーで開く",
+    "searchBlocked": "Everything は「検索」から利用できます。プロバイダーの search バックエンドはここでは無効です。"
   },
   "settings": {
     "fields": {

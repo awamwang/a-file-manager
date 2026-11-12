@@ -65,6 +65,7 @@
     "path": "路径",
     "pathPlaceholder": "本机路径（内核）— 按 Enter 前往",
     "go": "前往",
+    "providerQueryApply": "查询",
     "tabs": "标签页",
     "newTab": "新建标签",
     "newTabLater": "新建标签稍后提供",
@@ -764,7 +765,8 @@
     "folder": "文件夹",
     "file": "文件",
     "openUnsupported": "此项目暂时无法从提供程序打开。",
-    "openInExplorer": "在资源管理器中打开"
+    "openInExplorer": "在资源管理器中打开",
+    "searchBlocked": "Everything 已接入「搜索」，请使用搜索页，而不是提供程序中的 search 后端。"
   },
   "workGroups": {
     "title": "工作组",

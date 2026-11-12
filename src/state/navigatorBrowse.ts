@@ -36,10 +36,12 @@ import { navigableParentPath, recordNavHistory } from "./navHistory";
 import { GUIDE_PATH, isGuidePath } from "./guide";
 import { isRecyclePath, openRecycleBinInSystem } from "./recycle";
 import {
+  isBlockedSearchProvider,
   isProviderPath,
   loadProviderListing,
   openProviderEntry,
   toProviderUri,
+  type ProviderQueryParam,
 } from "./provider";
 import { readNewTabBehavior } from "./newTabBehavior";
 import { hydrateSettings } from "./settingsHydrate";
@@ -79,6 +81,8 @@ export type NavigatorListing = {
   entries: NavigatorEntry[];
   dirCount: number;
   fileCount: number;
+  requiredQuery?: ProviderQueryParam[] | null;
+  error?: string | null;
 };
 
 /** Wire shape: `path` may be omitted when equal to join(listing.path, name). */
@@ -109,6 +113,8 @@ export function hydrateNavigatorListing(listing: NavigatorListingWire): Navigato
     path: listing.path,
     dirCount: listing.dirCount,
     fileCount: listing.fileCount,
+    requiredQuery: listing.requiredQuery,
+    error: listing.error,
     entries: listing.entries.map((entry) => {
       const trimmed = entry.path?.trim() ?? "";
       return {
@@ -278,6 +284,11 @@ export function bumpFolderTreeRevision(): void {
 /** 副窗格 listing 导航（不写主 Open State / 历史栈）。 */
 export async function navigateSecondary(path: string): Promise<void> {
   const trimmed = path.trim();
+  if (isProviderPath(trimmed) && isBlockedSearchProvider(trimmed)) {
+    secondaryLoading.value = false;
+    secondaryError.value = "PROVIDER_SEARCH_BLOCKED";
+    return;
+  }
   const previous = secondaryPath.value;
   secondaryLoading.value = true;
   secondaryError.value = null;
@@ -303,6 +314,7 @@ export async function navigateSecondary(path: string): Promise<void> {
     );
     secondaryListing.value = result;
     secondaryPath.value = result.path;
+    secondaryError.value = result.error?.trim() ? result.error : null;
     if (normalizeBrowseKey(previous) !== normalizeBrowseKey(result.path)) {
       clearNavigatorFilter();
     }
@@ -329,6 +341,11 @@ export async function navigateTo(
   // Tab switch / bootstrap pass syncOpenState:false — don't pollute back stack.
   const recordHistory = options?.recordHistory ?? syncOpenState;
   const recordVisit = options?.recordVisit !== false;
+  if (isProviderPath(trimmed) && isBlockedSearchProvider(trimmed)) {
+    listLoading.value = false;
+    listError.value = "PROVIDER_SEARCH_BLOCKED";
+    return;
+  }
   const previous = currentPath.value;
   const pathChanged = normalizeBrowseKey(previous) !== normalizeBrowseKey(trimmed);
   const epoch = ++browseEpoch;
@@ -388,6 +405,7 @@ export async function navigateTo(
       const result = await loadProviderListing(target);
       if (epoch !== browseEpoch) return;
       listing.value = result;
+      listError.value = result.error?.trim() ? result.error : null;
       currentPath.value = result.path;
       if (pathChanged) clearNavigatorFilter();
       if (recordVisit) {

@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use super::provider::Provider;
-use super::types::{AwamUri, BackendInfo, DirListing, ProviderEntry, ResolveResult, StatResult};
+use super::types::{
+    is_hidden_provider_backend, AwamUri, BackendInfo, DirListing, ProviderEntry, ResolveResult,
+    StatResult,
+};
 use super::uri::parse_awam_uri;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -72,6 +75,7 @@ impl ProviderRegistry {
                     "awam://local is not a built-in extension backend; use NavigatorService for OS paths (ADR 0001/0003)"
                         .to_string(),
                 ),
+                required_query: None,
             });
         }
         let provider = self.get_provider(&uri.backend)?;
@@ -91,6 +95,7 @@ impl ProviderRegistry {
                     modified_time: 0,
                     local_path: None,
                     extra: HashMap::new(),
+                    required_query: None,
                 }),
                 error: None,
             });
@@ -126,12 +131,10 @@ impl ProviderRegistry {
         let backends = self.backends()?;
         let entries = backends
             .into_iter()
+            .filter(|info| !is_hidden_provider_backend(&info.id))
             .map(|info| {
                 let mut extra = HashMap::new();
-                extra.insert(
-                    "healthy".to_string(),
-                    serde_json::Value::Bool(info.healthy),
-                );
+                extra.insert("healthy".to_string(), serde_json::Value::Bool(info.healthy));
                 if info.interface_only {
                     extra.insert("interfaceOnly".to_string(), serde_json::Value::Bool(true));
                 }
@@ -147,6 +150,7 @@ impl ProviderRegistry {
                     modified_time: 0,
                     local_path: None,
                     extra,
+                    required_query: None,
                 }
             })
             .collect();
@@ -155,6 +159,7 @@ impl ProviderRegistry {
             backend: "root".to_string(),
             entries,
             error: None,
+            required_query: None,
         })
     }
 }
@@ -199,6 +204,7 @@ mod tests {
                 backend: self.id.to_string(),
                 entries: Vec::new(),
                 error: None,
+                required_query: None,
             }
         }
     }
@@ -232,5 +238,22 @@ mod tests {
         let registry = ProviderRegistry::new();
         let listing = registry.list("awam://local/G:/temp").unwrap();
         assert!(listing.error.as_ref().unwrap().contains("NavigatorService"));
+    }
+
+    #[test]
+    fn root_list_filters_search_backend() {
+        let registry = ProviderRegistry::new();
+        registry
+            .register(Arc::new(DummyProvider { id: "rclone" }))
+            .unwrap();
+        registry
+            .register(Arc::new(DummyProvider { id: "search" }))
+            .unwrap();
+        let root = registry.list("awam://root/").unwrap();
+        assert!(root
+            .entries
+            .iter()
+            .all(|e| !e.name.eq_ignore_ascii_case("search")));
+        assert!(root.entries.iter().any(|e| e.name == "rclone"));
     }
 }

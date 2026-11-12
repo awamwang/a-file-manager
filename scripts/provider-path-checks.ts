@@ -1,15 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import assert from "node:assert/strict";
 import {
+  getProviderQuery,
+  isBlockedSearchProvider,
   isProviderPath,
   PROVIDER_ROOT,
+  providerBackendId,
   providerLeafName,
   providerParentPath,
   toProviderUri,
+  withProviderQuery,
 } from "../src/state/provider/path.ts";
 import {
+  isSoftProviderQueryAwaiting,
   providerListingFromDir,
   providerRootEntriesFromBackends,
+  shouldThrowProviderListError,
 } from "../src/state/provider/listing.ts";
 import {
   buildNavigatorBreadcrumbs,
@@ -39,6 +45,23 @@ assert.equal(
 assert.notEqual(
   toProviderUri("awam://browser/edge/Profile%201"),
   "awam://browser/edge/profile%201",
+);
+assert.equal(
+  toProviderUri("awam://prowlarr/search?q=ubuntu"),
+  "awam://prowlarr/search?q=ubuntu",
+);
+assert.equal(providerBackendId("awam://Search/everything?q=a"), "search");
+assert.equal(isBlockedSearchProvider("awam://search/everything?q=a"), true);
+assert.equal(isBlockedSearchProvider("awam://prowlarr/search?q=a"), false);
+assert.deepEqual(getProviderQuery("awam://prowlarr?q=ubuntu"), { q: "ubuntu" });
+assert.equal(providerParentPath("awam://hf/remote?q=bert"), "awam://hf");
+assert.equal(
+  withProviderQuery("awam://hf/remote", { q: "bert" }),
+  "awam://hf/remote?q=bert",
+);
+assert.equal(
+  withProviderQuery("awam://hf/remote?q=bert", { q: null }),
+  "awam://hf/remote",
 );
 assert.equal(providerParentPath(PROVIDER_ROOT), null);
 assert.equal(providerParentPath("awam://rclone"), PROVIDER_ROOT);
@@ -72,6 +95,56 @@ assert.equal(listing.dirCount, 1);
 assert.equal(listing.fileCount, 1);
 assert.equal(listing.entries[0]?.path, "awam://rclone/mysftp");
 assert.equal(listing.entries[1]?.kind, "file");
+
+const soft = providerListingFromDir({
+  uri: "awam://hf/remote",
+  backend: "hf",
+  entries: [],
+  requiredQuery: [{ key: "q", label: "Query", required: true }],
+});
+assert.deepEqual(soft.requiredQuery?.[0]?.key, "q");
+assert.equal(soft.entries.length, 0);
+assert.equal(soft.error, null);
+
+const engineDown = providerListingFromDir({
+  uri: "awam://prowlarr/search",
+  backend: "prowlarr",
+  entries: [],
+  error: "backend_unavailable: x",
+  requiredQuery: [{ key: "q" }],
+});
+assert.equal(engineDown.error, "backend_unavailable: x");
+assert.equal(engineDown.requiredQuery?.[0]?.key, "q");
+assert.equal(
+  shouldThrowProviderListError({
+    error: "backend_unavailable: x",
+    requiredQuery: [{ key: "q" }],
+  }),
+  false,
+);
+assert.equal(
+  shouldThrowProviderListError({ error: "backend_unavailable: x" }),
+  true,
+);
+assert.equal(
+  isSoftProviderQueryAwaiting("Missing query parameter q", [
+    { key: "q", required: true },
+  ]),
+  true,
+);
+assert.equal(
+  isSoftProviderQueryAwaiting("backend_unavailable: x", [{ key: "q" }]),
+  false,
+);
+const legacyMissing = providerListingFromDir({
+  uri: "awam://hf/remote",
+  backend: "hf",
+  entries: [],
+  error: "Missing query parameter q",
+  requiredQuery: [{ key: "q", label: "Query", required: true }],
+});
+assert.equal(legacyMissing.error, null);
+assert.equal(legacyMissing.requiredQuery?.[0]?.key, "q");
 
 const roots = providerRootEntriesFromBackends([
   {

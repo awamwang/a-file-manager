@@ -192,6 +192,12 @@ defineOptions({ name: "NavigatorView" });
 
 const { t } = useI18n();
 
+/** 将列表错误码映射为界面文案。 */
+function formatListError(error: string | null | undefined): string {
+  if (error === "PROVIDER_SEARCH_BLOCKED") return t("providers.searchBlocked");
+  return error ?? "";
+}
+
 const menuOpen = ref(false);
 const menuEntry = ref<NavigatorEntry | null>(null);
 const menuEmpty = ref(false);
@@ -1913,7 +1919,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
     />
     <div v-if="listSurfaceMounted" v-show="!showingGuide" class="pane-list-surface">
     <p class="pane-path" :title="currentPath">{{ currentPath || t("navigator.noPath") }}</p>
-    <p v-if="listError && !listLoading" class="fluent-banner fluent-banner--error">{{ listError }}</p>
+    <p v-if="listError && !listLoading" class="fluent-banner fluent-banner--error">{{ formatListError(listError) }}</p>
     <p v-else-if="folderSearchActive && primarySearchLoading" class="fluent-banner">
       {{ t("navigator.filterSearching") }}
     </p>
@@ -2150,7 +2156,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         v-if="secondaryError && !secondaryLoading"
         class="fluent-banner fluent-banner--error"
       >
-        {{ secondaryError }}
+        {{ formatListError(secondaryError) }}
       </p>
       <div
         v-if="secondaryListing || secondaryLoading"
