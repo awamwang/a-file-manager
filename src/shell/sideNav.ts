@@ -3,12 +3,15 @@
 
 import { AI_ADDON_ENABLED } from "../config/flavor";
 import { NAV_ICON_BY_ID, type FluentGlyphId } from "../components/icons/glyphs";
+import { getSideNavExtras } from "../state/featurePack/contributions";
 
 export type SideNavItem = {
   id: string;
   labelKey: string;
   to?: string;
   later?: boolean;
+  /** Feature Pack 侧栏插入顺序；内置项按 IA 位置换算。 */
+  order?: number;
 };
 
 /**
@@ -26,9 +29,35 @@ const SIDE_NAV_ALL: SideNavItem[] = [
   { id: "settings", labelKey: "nav.settings", to: "/settings" },
 ];
 
-export const SIDE_NAV_ITEMS: SideNavItem[] = AI_ADDON_ENABLED
-  ? SIDE_NAV_ALL
-  : SIDE_NAV_ALL.filter((item) => item.id !== "ai");
+function builtinSideNavItems(): SideNavItem[] {
+  return AI_ADDON_ENABLED
+    ? SIDE_NAV_ALL
+    : SIDE_NAV_ALL.filter((item) => item.id !== "ai");
+}
+
+function builtinNavOrder(id: string): number {
+  const index = SIDE_NAV_ALL.findIndex((item) => item.id === id);
+  return index < 0 ? 0 : index * 10;
+}
+
+/** 内置侧栏；hydrate 后含已启用 Feature Pack 贡献。 */
+export const SIDE_NAV_ITEMS: SideNavItem[] = [...builtinSideNavItems()];
+
+/** 按 `order` 合并 Pack 侧栏贡献，同 id 保留内置项。 */
+export function applyFeaturePackSideNav(): void {
+  const builtin = builtinSideNavItems();
+  const builtinIds = new Set(builtin.map((item) => item.id));
+  const extras = getSideNavExtras().filter((item) => !builtinIds.has(item.id));
+  const ranked = [
+    ...builtin.map((item) => ({ item, order: builtinNavOrder(item.id) })),
+    ...extras.map((item) => ({
+      item,
+      order: item.order ?? Number.MAX_SAFE_INTEGER,
+    })),
+  ];
+  ranked.sort((a, b) => a.order - b.order || a.item.id.localeCompare(b.item.id));
+  SIDE_NAV_ITEMS.splice(0, SIDE_NAV_ITEMS.length, ...ranked.map((entry) => entry.item));
+}
 
 export function sideNavIcon(id: string): FluentGlyphId {
   return NAV_ICON_BY_ID[id] ?? "folder";

@@ -6,6 +6,7 @@ import router from "./router";
 import { applyAppLocaleFromValues, i18n } from "./i18n";
 import { applySessionSettingsFromValues } from "./state/applySessionSettings";
 import { revealMainWindowAfterReady } from "./state/revealMainWindow";
+import { hydrateFeaturePackContributions } from "./state/featurePack/contributions";
 import { hydrateSettings } from "./state/settingsHydrate";
 import { startupMark } from "./state/startupTiming";
 import { applyUiChromeFromValues } from "./state/uiChrome";
@@ -46,6 +47,12 @@ async function bootstrap(): Promise<void> {
   applyUiChromeFromValues(values);
   applyAppLocaleFromValues(values);
   applySessionSettingsFromValues(values);
+
+  try {
+    await hydrateFeaturePackContributions();
+  } catch {
+    // IPC unavailable (vite-only): keep built-in side nav / routes / commands.
+  }
 
   createApp(App).use(router).use(i18n).mount("#app");
   startupMark("bootstrap:mounted");
