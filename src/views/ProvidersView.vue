@@ -1,13 +1,22 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import { entryKindIcon } from "../components/icons/glyphs";
-import { preloadProviderCache } from "../state/providerCache";
+import {
+  ensureProviderSession,
+  preloadProviderCache,
+  providerBackends,
+  providerGateway,
+  providerRootListing,
+  providerSessionError,
+  providerSessionHydrating,
+  refreshProviderSession,
+} from "../state/providerCache";
 import { navigateTo } from "../state/navigatorBrowse";
 import { PROVIDER_ROOT } from "../state/provider";
 import {
@@ -21,24 +30,6 @@ const router = useRouter();
 
 const GATEWAY_URL_SETTING_KEY = "power.awamGatewayUrl";
 const DEFAULT_GATEWAY_URL = "http://127.0.0.1:18787";
-
-type BackendInfo = {
-  id: string;
-  name: string;
-  description: string;
-  healthy: boolean;
-  capabilities: string[];
-  detail?: string | null;
-  interfaceOnly?: boolean;
-  source?: string | null;
-};
-
-type GatewayStatus = {
-  online: boolean;
-  baseUrl: string;
-  detail?: string | null;
-  backendCount?: number | null;
-};
 
 type ProviderEntry = {
   name: string;
@@ -65,15 +56,25 @@ type ResolveResult = {
   error?: string | null;
 };
 
-const backends = ref<BackendInfo[]>([]);
-const gateway = ref<GatewayStatus | null>(null);
+const backends = providerBackends;
+const gateway = providerGateway;
 const gatewayUrlDraft = ref(DEFAULT_GATEWAY_URL);
 const gatewayUrlSaving = ref(false);
 const refreshing = ref(false);
-const uri = ref("awam://root");
-const listing = ref<DirListing | null>(null);
+const uri = ref(PROVIDER_ROOT);
+const listing = ref<DirListing | null>(providerRootListing.value);
 const loading = ref(false);
 const error = ref<string | null>(null);
+
+watch(providerRootListing, (next) => {
+  if (uri.value === PROVIDER_ROOT || !uri.value.trim()) {
+    listing.value = next;
+  }
+});
+
+watch(providerSessionError, (next) => {
+  if (next) error.value = next;
+});
 
 function normalizeGatewayUrlInput(raw: string): string {
   return raw.trim().replace(/\/+$/, "");
@@ -95,19 +96,6 @@ async function loadGatewayUrlFromSettings() {
   }
 }
 
-async function loadBackends() {
-  // AIA-226: 优先 awam-file 网关发现；离线时回退本机内置提供方。
-  const [status, list] = await Promise.all([
-    invoke<GatewayStatus>("provider_gateway_status"),
-    invoke<BackendInfo[]>("provider_backends"),
-  ]);
-  gateway.value = status;
-  backends.value = list;
-  if (!gatewayUrlDraft.value.trim() && status.baseUrl) {
-    gatewayUrlDraft.value = status.baseUrl;
-  }
-}
-
 /** 保存网关地址到设置并重新发现后端。 */
 async function saveGatewayUrl() {
   const next = normalizeGatewayUrlInput(gatewayUrlDraft.value) || DEFAULT_GATEWAY_URL;
@@ -119,8 +107,9 @@ async function saveGatewayUrl() {
       patch: { [GATEWAY_URL_SETTING_KEY]: next },
     });
     rememberSettingsDocument(doc);
-    await loadBackends();
-    await listUri(PROVIDER_ROOT);
+    await refreshProviderSession();
+    uri.value = PROVIDER_ROOT;
+    listing.value = providerRootListing.value;
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
@@ -131,14 +120,25 @@ async function saveGatewayUrl() {
 async function listUri(target?: string) {
   loading.value = true;
   error.value = null;
-  listing.value = null;
   try {
     if (target) uri.value = target;
+    // 根目录优先复用会话缓存；其它 URI 走 provider_list（depth-1 仍可命中 Rust 缓存）。
+    if (uri.value === PROVIDER_ROOT && providerRootListing.value && !refreshing.value) {
+      listing.value = providerRootListing.value;
+      if (listing.value.error) {
+        error.value = listing.value.error;
+      }
+      return;
+    }
     listing.value = await invoke<DirListing>("provider_list", { uri: uri.value });
+    if (uri.value === PROVIDER_ROOT) {
+      providerRootListing.value = listing.value;
+    }
     if (listing.value.error) {
       error.value = listing.value.error;
     }
   } catch (err) {
+    listing.value = null;
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
     loading.value = false;
@@ -203,8 +203,16 @@ async function refreshStatus() {
   refreshing.value = true;
   error.value = null;
   try {
-    await loadBackends();
-    await listUri(uri.value.trim() || PROVIDER_ROOT);
+    await refreshProviderSession();
+    if (gateway.value?.baseUrl) {
+      gatewayUrlDraft.value = gateway.value.baseUrl;
+    }
+    const target = uri.value.trim() || PROVIDER_ROOT;
+    if (target === PROVIDER_ROOT) {
+      listing.value = providerRootListing.value;
+    } else {
+      await listUri(target);
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
@@ -216,8 +224,16 @@ onMounted(() => {
   // AIA-181: if idle preload has not finished (or was deferred), warm on first visit.
   void preloadProviderCache();
   void loadGatewayUrlFromSettings()
-    .then(() => loadBackends())
-    .then(() => listUri(PROVIDER_ROOT))
+    .then(() => ensureProviderSession())
+    .then(() => {
+      if (gateway.value?.baseUrl && gatewayUrlDraft.value === DEFAULT_GATEWAY_URL) {
+        gatewayUrlDraft.value = gateway.value.baseUrl;
+      }
+      listing.value = providerRootListing.value;
+      if (providerRootListing.value?.error) {
+        error.value = providerRootListing.value.error;
+      }
+    })
     .catch((err) => {
       error.value = err instanceof Error ? err.message : String(err);
     });
@@ -226,22 +242,9 @@ onMounted(() => {
 
 <template>
   <section class="fluent-page">
-    <header class="fluent-page-header providers-header">
-      <div class="providers-header-text">
-        <h1 class="fluent-page-title">{{ t("providers.title") }}</h1>
-        <p class="fluent-page-meta">{{ t("providers.meta") }}</p>
-      </div>
-      <button
-        class="fluent-control"
-        type="button"
-        :disabled="refreshing || gatewayUrlSaving"
-        :title="t('providers.refresh')"
-        :aria-label="t('providers.refresh')"
-        @click="refreshStatus"
-      >
-        <FluentIcon name="refresh" size="sm" />
-        {{ refreshing ? t("providers.refreshing") : t("providers.refresh") }}
-      </button>
+    <header class="fluent-page-header">
+      <h1 class="fluent-page-title">{{ t("providers.title") }}</h1>
+      <p class="fluent-page-meta">{{ t("providers.meta") }}</p>
     </header>
 
     <p
@@ -281,6 +284,17 @@ onMounted(() => {
         :disabled="gatewayUrlSaving"
       >
         {{ gatewayUrlSaving ? t("providers.gatewayUrlSaving") : t("providers.gatewayUrlSave") }}
+      </button>
+      <button
+        class="fluent-control gateway-refresh"
+        type="button"
+        :disabled="refreshing || gatewayUrlSaving || providerSessionHydrating"
+        :title="t('providers.refresh')"
+        :aria-label="t('providers.refresh')"
+        @click="refreshStatus"
+      >
+        <FluentIcon name="refresh" size="sm" />
+        {{ refreshing ? t("providers.refreshing") : t("providers.refresh") }}
       </button>
     </form>
 
@@ -379,25 +393,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.providers-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--fluent-space-md);
-}
-
-.providers-header-text {
-  min-width: 0;
-  flex: 1;
-}
-
-.providers-header .fluent-control {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--fluent-space-xs);
-  flex: 0 0 auto;
-}
-
 .backends {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
@@ -473,6 +468,13 @@ onMounted(() => {
   flex: 0 0 auto;
   font-size: var(--fluent-font-size-caption);
   color: var(--fluent-color-text-secondary);
+}
+
+.gateway-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fluent-space-xs);
+  flex: 0 0 auto;
 }
 
 .list {

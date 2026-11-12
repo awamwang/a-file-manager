@@ -11,10 +11,10 @@ use super::types::{AwamUri, DirListing};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-/// Successful depth-1 listings stay warm this long.
-pub const TTL_OK: Duration = Duration::from_secs(60);
+/// 成功的 depth-1 列表缓存时长；手动刷新或改网关地址时会主动失效。
+pub const TTL_OK: Duration = Duration::from_secs(600);
 /// Failed / error listings expire sooner so remotes can recover.
-pub const TTL_ERR: Duration = Duration::from_secs(15);
+pub const TTL_ERR: Duration = Duration::from_secs(30);
 
 #[derive(Debug, Clone)]
 struct CacheEntry {

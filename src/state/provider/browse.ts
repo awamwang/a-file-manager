@@ -4,6 +4,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
+  ensureProviderSession,
+  providerBackends,
+} from "../providerCache";
+import {
   providerListingFromDir,
   type ProviderBackendInfo,
   type ProviderDirListingWire,
@@ -21,14 +25,17 @@ export type ProviderResolveResult = {
 
 export type { ProviderBackendInfo };
 
+/** 复用会话发现缓存；预加载完成后几乎不再打 `/api/backends`。 */
 export async function listProviderBackends(): Promise<ProviderBackendInfo[]> {
-  return invoke<ProviderBackendInfo[]>("provider_backends");
+  await ensureProviderSession();
+  return providerBackends.value as ProviderBackendInfo[];
 }
 
 export async function loadProviderListing(
   uri: string,
 ): Promise<ProviderNavigatorListing> {
   const target = toProviderUri(uri) || PROVIDER_ROOT;
+  // depth-1（协议根）命中 Rust 列表缓存；更深路径仍即时拉取。
   const listing = await invoke<ProviderDirListingWire>("provider_list", {
     uri: target,
   });

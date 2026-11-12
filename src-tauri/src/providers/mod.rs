@@ -6,6 +6,8 @@
 //! AIA-76: depth-1 listing cache + `provider_preload` (warm on app start).
 //! AIA-226: prefer live awam-file gateway discovery (`/api/backends`); fall back to
 //! builtin registry when the gateway is offline.
+//! 后端发现结果亦做会话级缓存，避免每次进入 Providers / 路径栏访问协议根时重复打
+//! `/api/backends`；刷新或改网关地址时主动失效。
 
 mod browser;
 mod cache;
@@ -29,7 +31,7 @@ use factory::build_builtin_registry;
 use registry::ProviderRegistry;
 use serde::Serialize;
 use std::sync::{LazyLock, Mutex};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tauri::AppHandle;
 use types::{BackendInfo, DirListing, ResolveResult, StatResult};
 use uri::parse_awam_uri;
@@ -37,6 +39,18 @@ use uri::parse_awam_uri;
 static REGISTRY: LazyLock<ProviderRegistry> = LazyLock::new(build_builtin_registry);
 static LISTING_CACHE: LazyLock<Mutex<ListingCache>> =
     LazyLock::new(|| Mutex::new(ListingCache::new()));
+
+/// `/api/backends` 探测较慢；会话内复用，直到刷新或网关地址变更。
+const BACKENDS_TTL: Duration = Duration::from_secs(600);
+
+#[derive(Debug, Clone)]
+struct BackendsCacheEntry {
+    backends: Vec<BackendInfo>,
+    fetched_at: Instant,
+}
+
+static BACKENDS_CACHE: LazyLock<Mutex<Option<BackendsCacheEntry>>> =
+    LazyLock::new(|| Mutex::new(None));
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -69,12 +83,44 @@ fn local_rejected_listing(uri: &str) -> DirListing {
     }
 }
 
-/// Prefer gateway discovery; keep builtins when gateway is down.
-fn discover_backends() -> Result<Vec<BackendInfo>, String> {
-    match gateway::fetch_backends() {
-        Ok(backends) => Ok(backends),
-        Err(_) => builtin_backends(),
+/// 清空后端发现缓存（改网关地址 / 手动刷新时调用）。
+pub fn invalidate_backends_cache() {
+    if let Ok(mut guard) = BACKENDS_CACHE.lock() {
+        *guard = None;
     }
+}
+
+/// 清空探测、后端发现与 depth-1 列表缓存。
+pub fn invalidate_provider_session() {
+    gateway::invalidate_probe_cache();
+    invalidate_backends_cache();
+    if let Ok(mut cache) = LISTING_CACHE.lock() {
+        cache.invalidate_all();
+    }
+}
+
+/// Prefer gateway discovery; keep builtins when gateway is down.
+/// 命中会话缓存时直接返回，避免重复请求 `/api/backends`。
+fn discover_backends() -> Result<Vec<BackendInfo>, String> {
+    if let Ok(guard) = BACKENDS_CACHE.lock() {
+        if let Some(entry) = guard.as_ref() {
+            if entry.fetched_at.elapsed() < BACKENDS_TTL {
+                return Ok(entry.backends.clone());
+            }
+        }
+    }
+
+    let backends = match gateway::fetch_backends() {
+        Ok(list) => list,
+        Err(_) => builtin_backends()?,
+    };
+    if let Ok(mut guard) = BACKENDS_CACHE.lock() {
+        *guard = Some(BackendsCacheEntry {
+            backends: backends.clone(),
+            fetched_at: Instant::now(),
+        });
+    }
+    Ok(backends)
 }
 
 fn list_dispatch(uri_str: &str) -> Result<DirListing, String> {
@@ -207,21 +253,24 @@ pub async fn provider_preload(app: AppHandle) -> Result<PreloadReport, String> {
     .map_err(|err| format!("provider_preload worker failed: {err}"))?
 }
 
-/// Invalidate depth-1 cache. Omit `uri` (or pass empty) to clear all.
+/// Invalidate depth-1 cache. Omit `uri` (or pass empty) to clear all（同时清后端发现缓存）。
 #[tauri::command]
 pub async fn provider_cache_invalidate(uri: Option<String>) -> Result<usize, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let mut cache = LISTING_CACHE.lock().map_err(|err| err.to_string())?;
         match uri.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
             None => {
-                let n = cache.len();
-                cache.invalidate_all();
+                let n = LISTING_CACHE
+                    .lock()
+                    .map(|cache| cache.len())
+                    .unwrap_or(0);
+                invalidate_provider_session();
                 Ok(n)
             }
             Some(raw) => {
                 let parsed = parse_awam_uri(raw)?;
                 let key = depth1_cache_key(&parsed)
                     .ok_or_else(|| format!("Not a depth-1 URI (nothing to invalidate): {raw}"))?;
+                let mut cache = LISTING_CACHE.lock().map_err(|err| err.to_string())?;
                 Ok(usize::from(cache.invalidate_key(&key)))
             }
         }

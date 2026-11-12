@@ -95,6 +95,8 @@ pub fn settings_set(
     }
     if sync_gateway_url {
         crate::providers::gateway::set_configured_gateway_url(gateway_url_patch.as_deref());
+        // 网关地址变更后清空发现/列表会话缓存，下次进入 Providers 时重新探测。
+        crate::providers::invalidate_provider_session();
     }
     Ok(document)
 }
