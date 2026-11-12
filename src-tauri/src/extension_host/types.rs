@@ -216,3 +216,78 @@ pub struct FeaturePackManifest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub gateway_compat: Option<GatewayCompat>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn feature_pack_manifest_json_round_trip_camel_case() {
+        let json = r#"{
+            "id": "demo.pack",
+            "name": "Demo",
+            "version": "1.0.0",
+            "apiVersion": "feature-pack.1",
+            "description": "round-trip",
+            "permissions": ["spawnSidecar", "uiCommands"],
+            "contributions": {
+                "sideNav": [
+                    {
+                        "id": "nav-tools",
+                        "labelKey": "nav.tools",
+                        "to": "/tools",
+                        "order": 10
+                    }
+                ],
+                "routes": [
+                    {
+                        "path": "/tools",
+                        "name": "tools",
+                        "entry": "builtin:tool-runtime"
+                    }
+                ],
+                "commands": [
+                    {
+                        "id": "open-tools",
+                        "labelKey": "cmd.openTools",
+                        "route": "/tools"
+                    }
+                ],
+                "sidecars": [
+                    {
+                        "id": "tool-sidecar",
+                        "command": "node",
+                        "args": ["server.js"],
+                        "workingDirRel": "sidecar"
+                    }
+                ]
+            },
+            "gatewayCompat": {
+                "minVersion": "0.9.0",
+                "maxVersion": "1.0.0"
+            }
+        }"#;
+
+        let parsed: FeaturePackManifest =
+            serde_json::from_str(json).expect("deserialize FeaturePackManifest");
+        let re_json = serde_json::to_string(&parsed).expect("serialize FeaturePackManifest");
+        let round_trip: FeaturePackManifest =
+            serde_json::from_str(&re_json).expect("re-deserialize FeaturePackManifest");
+
+        assert_eq!(parsed, round_trip);
+        assert_eq!(parsed.api_version, FEATURE_PACK_API_VERSION);
+        assert_eq!(parsed.contributions.side_nav[0].label_key, "nav.tools");
+        assert_eq!(
+            parsed.contributions.sidecars[0].working_dir_rel.as_deref(),
+            Some("sidecar")
+        );
+        assert_eq!(
+            parsed.gateway_compat.as_ref().map(|g| g.min_version.as_str()),
+            Some("0.9.0")
+        );
+        assert!(re_json.contains("\"sideNav\""));
+        assert!(re_json.contains("\"labelKey\""));
+        assert!(re_json.contains("\"workingDirRel\""));
+        assert!(re_json.contains("\"gatewayCompat\""));
+    }
+}

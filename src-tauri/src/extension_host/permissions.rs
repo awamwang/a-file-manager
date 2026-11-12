@@ -43,6 +43,10 @@ mod tests {
             ExtensionPermission::parse("spawnSidecar"),
             Some(ExtensionPermission::SpawnSidecar)
         );
+        assert_eq!(
+            ExtensionPermission::parse("spawn_sidecar"),
+            Some(ExtensionPermission::SpawnSidecar)
+        );
     }
 
     #[test]
@@ -51,8 +55,9 @@ mod tests {
             "uiCommands".to_string(),
             "fsProvider".to_string(),
             "network".to_string(),
+            "spawnSidecar".to_string(),
         ])
         .unwrap();
-        assert_eq!(parsed.len(), 3);
+        assert_eq!(parsed.len(), 4);
     }
 }
