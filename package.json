@@ -1,7 +1,7 @@
 {
   "name": "a-file-manager",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "A File Manager — Windows-first file manager (Tauri 2 + Vue 3)",
   "license": "GPL-3.0-or-later",
