@@ -12,6 +12,8 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
+    "sync-version": "node scripts/sync-version.mjs",
+    "prepare-release": "node scripts/prepare-release.mjs",
     "build:ai": "node scripts/build-flavor.mjs ai",
     "build:core": "node scripts/build-flavor.mjs core",
     "dev:ai": "node scripts/build-flavor.mjs ai --dev",

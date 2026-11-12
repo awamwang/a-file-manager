@@ -22,8 +22,15 @@ dist-ssr
 *.sln
 *.sw?
 
+# 本机 Cursor / MCP 配置（含绝对路径，不随仓库发布）
+.cursor/
+
 .scratch/
 
 # Local perf baseline fixtures (thousands of tiny files)
 .perf-fixtures/
+
+# 发布前检查产物
+publish-check-report.md
+publish-check-report.json
 

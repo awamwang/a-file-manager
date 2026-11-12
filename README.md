@@ -35,22 +35,27 @@ npm run test:rust
 
 ## Release
 
-Version sources (keep in sync): `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`.
+发版由 **Git tag** 指定版本并触发打包。推送 `v*` 标签后，[`.github/workflows/release.yml`](.github/workflows/release.yml) 会：
 
-Pushing a `v*` tag (for example `v0.1.0`) runs [`.github/workflows/release.yml`](.github/workflows/release.yml):
+1. 按 tag 同步版本到 `package.json` / `src-tauri/tauri.conf.json` / `src-tauri/Cargo.toml`
+2. 用 GitHub `generate-notes`（失败则回退 `git log`）写发版说明
+3. 在 `windows-latest` 打 Windows NSIS 安装包
+4. 创建 / 更新对应 GitHub Release，并上传 `.exe` 产物
 
-1. Generates release notes (GitHub auto notes, with `git log` fallback since the previous tag)
-2. Builds the Windows NSIS installer on `windows-latest`
-3. Creates / updates the matching GitHub Release
-4. Uploads the installer as a release asset on that tag
+版本号含 `-`（如 `v0.2.0-rc.1`）会标为 prerelease。
 
 ```bash
-# after bumping version fields and committing to the default branch
-git tag v0.1.0
-git push origin v0.1.0
+# 推荐：同步版本、提交、打 annotated tag（不推送）
+npm run prepare-release -- 0.2.0 --commit
+
+# 推送提交与 tag → 触发 Actions
+git push origin HEAD && git push origin v0.2.0
+
+# 一步推送
+npm run prepare-release -- 0.2.0 --commit --push
 ```
 
-You can also trigger **Actions → Release → Run workflow** manually (`workflow_dispatch`); that path uses `v` + `package.json` version as the release tag name.
+也可在 **Actions → Release → Run workflow** 手动跑；可填版本号，留空则用当前 `package.json` 的 version。
 
 ## License
 
