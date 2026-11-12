@@ -150,6 +150,18 @@ pub fn run() {
                 providers::gateway::set_configured_gateway_url(Some(url.as_str()));
             }
 
+            // 从 APPDATA 加载本机 Feature Pack。
+            match app.path().app_config_dir() {
+                Ok(dir) => {
+                    if let Err(err) = extension_host::load_from_disk(&dir) {
+                        eprintln!("extension host load_from_disk failed: {err}");
+                    }
+                }
+                Err(err) => {
+                    eprintln!("extension host: failed to resolve app config dir: {err}");
+                }
+            }
+
             if let Some(path) = add_favorite_path.clone() {
                 match favorites::apply_add_favorite_cli(app.handle(), &path) {
                     Ok(added) => eprintln!(
@@ -336,6 +348,11 @@ health_get,
                     extension_host::extension_host_dispatch_ui_command,
                     extension_host::extension_host_list_fs_provider_hooks,
                     extension_host::extension_host_register_fs_provider_hook,
+                    extension_host::extension_host_install_pack,
+                    extension_host::extension_host_list_packs,
+                    extension_host::extension_host_set_pack_enabled,
+                    extension_host::extension_host_uninstall_pack,
+                    extension_host::extension_host_list_contributions,
                     shell_menu::shell_show_context_menu,
                     shell_menu::shell_get_context_menu,
                     shell_menu::shell_invoke_context_menu_item,

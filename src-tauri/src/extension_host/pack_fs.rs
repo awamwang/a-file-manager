@@ -3,8 +3,10 @@
 use super::types::{FeaturePackManifest, FEATURE_PACK_API_VERSION};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::fs::{self, File};
+use std::io;
+use std::path::{Component, Path, PathBuf};
+use zip::ZipArchive;
 
 const STATE_FILE_NAME: &str = "state.json";
 const PACK_MANIFEST_FILE: &str = "pack.json";
@@ -80,6 +82,80 @@ pub fn install_from_directory(
         return Err(err);
     }
     read_pack_json(&dest)
+}
+
+/// 将 zip 安全解压到目标目录（拒绝 zip-slip）。
+pub fn extract_pack_zip(zip_path: &Path, dest_dir: &Path) -> Result<(), String> {
+    fs::create_dir_all(dest_dir)
+        .map_err(|err| format!("Failed to create zip extract directory: {err}"))?;
+    let file = File::open(zip_path)
+        .map_err(|err| format!("Failed to open zip {}: {err}", zip_path.display()))?;
+    let mut archive = ZipArchive::new(file)
+        .map_err(|err| format!("Invalid Feature Pack zip {}: {err}", zip_path.display()))?;
+    for i in 0..archive.len() {
+        let mut entry = archive
+            .by_index(i)
+            .map_err(|err| format!("Failed to read zip entry {i}: {err}"))?;
+        let raw_name = entry.name().to_string();
+        let Some(rel) = sanitize_zip_entry_path(&raw_name) else {
+            return Err(format!("Unsafe zip entry path: {raw_name}"));
+        };
+        let out_path = dest_dir.join(&rel);
+        if entry.is_dir() || raw_name.ends_with('/') || raw_name.ends_with('\\') {
+            fs::create_dir_all(&out_path)
+                .map_err(|err| format!("Failed to create zip dir {}: {err}", out_path.display()))?;
+            continue;
+        }
+        if let Some(parent) = out_path.parent() {
+            fs::create_dir_all(parent).map_err(|err| {
+                format!("Failed to create zip parent {}: {err}", parent.display())
+            })?;
+        }
+        let mut outfile = File::create(&out_path)
+            .map_err(|err| format!("Failed to create {}: {err}", out_path.display()))?;
+        io::copy(&mut entry, &mut outfile)
+            .map_err(|err| format!("Failed to extract {}: {err}", out_path.display()))?;
+    }
+    Ok(())
+}
+
+/// 定位解压目录中的 `pack.json` 根（支持 zip 内单层包裹目录）。
+pub fn find_pack_root(extracted: &Path) -> Result<PathBuf, String> {
+    if extracted.join(PACK_MANIFEST_FILE).is_file() {
+        return Ok(extracted.to_path_buf());
+    }
+    let mut found = Vec::new();
+    let entries = fs::read_dir(extracted)
+        .map_err(|err| format!("Failed to read extracted pack: {err}"))?;
+    for entry in entries {
+        let entry = entry.map_err(|err| format!("Failed to read extracted entry: {err}"))?;
+        let path = entry.path();
+        if path.is_dir() && path.join(PACK_MANIFEST_FILE).is_file() {
+            found.push(path);
+        }
+    }
+    match found.len() {
+        1 => Ok(found.remove(0)),
+        0 => Err("pack.json not found in zip".to_string()),
+        _ => Err("zip contains multiple pack.json roots".to_string()),
+    }
+}
+
+fn sanitize_zip_entry_path(name: &str) -> Option<PathBuf> {
+    let path = Path::new(name);
+    let mut out = PathBuf::new();
+    for comp in path.components() {
+        match comp {
+            Component::Normal(s) => out.push(s),
+            Component::CurDir => {}
+            Component::ParentDir | Component::RootDir | Component::Prefix(_) => return None,
+        }
+    }
+    if out.as_os_str().is_empty() {
+        None
+    } else {
+        Some(out)
+    }
 }
 
 /// 删除本机 Pack 目录并清除启用状态。
@@ -401,5 +477,50 @@ mod tests {
         assert!(pack_dir(&packs_root(&app), "demo.pack")
             .join("pack.json")
             .is_file());
+    }
+
+    fn write_pack_zip(path: &Path, json: &str, nested_dir: Option<&str>) {
+        use std::io::Write;
+        use zip::write::SimpleFileOptions;
+        use zip::CompressionMethod;
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        let file = File::create(path).unwrap();
+        let mut zip = zip::ZipWriter::new(file);
+        let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
+        let entry_name = match nested_dir {
+            Some(dir) => format!("{dir}/{PACK_MANIFEST_FILE}"),
+            None => PACK_MANIFEST_FILE.to_string(),
+        };
+        zip.start_file(entry_name, options).unwrap();
+        zip.write_all(json.as_bytes()).unwrap();
+        zip.finish().unwrap();
+    }
+
+    #[test]
+    fn extract_nested_zip_then_install_from_directory() {
+        let tmp = tempfile::tempdir().unwrap();
+        let zip_path = tmp.path().join("demo.zip");
+        write_pack_zip(
+            &zip_path,
+            r#"{"id":"demo.pack","name":"Demo","version":"0.1.0","apiVersion":"feature-pack.1","permissions":[],"contributions":{}}"#,
+            Some("demo.pack"),
+        );
+        let extracted = tmp.path().join("extracted");
+        extract_pack_zip(&zip_path, &extracted).unwrap();
+        let pack_root = find_pack_root(&extracted).unwrap();
+        let app = tmp.path().join("appdata");
+        let man = install_from_directory(&app, &pack_root).unwrap();
+        assert_eq!(man.id, "demo.pack");
+        assert!(pack_dir(&packs_root(&app), "demo.pack")
+            .join("pack.json")
+            .is_file());
+    }
+
+    #[test]
+    fn extract_pack_zip_rejects_zip_slip() {
+        assert!(sanitize_zip_entry_path("../evil.txt").is_none());
+        assert!(sanitize_zip_entry_path("ok/a.txt").is_some());
     }
 }

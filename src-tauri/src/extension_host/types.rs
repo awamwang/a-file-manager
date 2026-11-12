@@ -217,6 +217,43 @@ pub struct FeaturePackManifest {
     pub gateway_compat: Option<GatewayCompat>,
 }
 
+/// 已安装 Feature Pack 记录。
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct InstalledPackRecord {
+    pub id: String,
+    pub name: String,
+    pub version: String,
+    pub state: ExtensionRuntimeState,
+    pub permissions: Vec<ExtensionPermission>,
+    pub install_path: String,
+    #[serde(default)]
+    pub last_error: Option<String>,
+}
+
+/// 启用态 Feature Pack 的聚合贡献。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AggregatedContributions {
+    #[serde(default)]
+    pub side_nav: Vec<SideNavContribution>,
+    #[serde(default)]
+    pub routes: Vec<RouteContribution>,
+    #[serde(default)]
+    pub commands: Vec<CommandContribution>,
+    #[serde(default)]
+    pub sidecars: Vec<SidecarContribution>,
+}
+
+/// Feature Pack 安装结果（与扩展 `InstallResult` 分离，避免依赖 `InstalledExtensionRecord`）。
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PackInstallResult {
+    pub success: bool,
+    pub pack: Option<InstalledPackRecord>,
+    pub error: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

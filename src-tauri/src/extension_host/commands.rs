@@ -2,9 +2,11 @@
 
 use super::host::ExtensionHost;
 use super::types::{
-    ExtensionHostStatus, ExtensionManifestVNext, FsProviderContribution, InstallResult,
-    InstalledExtensionRecord, MarketplaceCatalog, UiCommandRequest, UiCommandResult,
+    AggregatedContributions, ExtensionHostStatus, ExtensionManifestVNext, FsProviderContribution,
+    InstallResult, InstalledExtensionRecord, InstalledPackRecord, MarketplaceCatalog,
+    PackInstallResult, UiCommandRequest, UiCommandResult,
 };
+use std::path::Path;
 use std::sync::OnceLock;
 
 fn host() -> &'static ExtensionHost {
@@ -63,4 +65,34 @@ pub fn extension_host_register_fs_provider_hook(
     backend_id: String,
 ) -> Result<FsProviderContribution, String> {
     host().register_fs_provider_hook(&extension_id, &backend_id)
+}
+
+/// 启动时从 APPDATA 加载本机 Feature Pack。
+pub fn load_from_disk(app_data_dir: &Path) -> Result<(), String> {
+    host().load_from_disk(app_data_dir)
+}
+
+#[tauri::command]
+pub fn extension_host_install_pack(source_path: String) -> Result<PackInstallResult, String> {
+    Ok(host().install_pack(Path::new(&source_path)))
+}
+
+#[tauri::command]
+pub fn extension_host_list_packs() -> Result<Vec<InstalledPackRecord>, String> {
+    host().list_packs()
+}
+
+#[tauri::command]
+pub fn extension_host_set_pack_enabled(id: String, enabled: bool) -> Result<(), String> {
+    host().set_pack_enabled(&id, enabled)
+}
+
+#[tauri::command]
+pub fn extension_host_uninstall_pack(id: String) -> Result<(), String> {
+    host().uninstall_pack(&id)
+}
+
+#[tauri::command]
+pub fn extension_host_list_contributions() -> Result<AggregatedContributions, String> {
+    host().list_contributions()
 }
