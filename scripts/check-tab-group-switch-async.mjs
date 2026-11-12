@@ -29,15 +29,16 @@ assert.ok(
   browse.includes("cancelOpenStatePersist"),
   "AIA-259: must cancel debounced persist before silent switch owns the write",
 );
-assert.ok(
-  /listing\.value\s*=\s*null/.test(
-    browse.slice(
-      browse.indexOf("function revealPathNonBlocking"),
-      browse.indexOf("\nexport ", browse.indexOf("function revealPathNonBlocking")),
-    ),
-  ),
-  "AIA-259: revealPathNonBlocking must clear stale listing on path change",
-);
+{
+  const start = browse.indexOf("function revealPathAsync");
+  assert.ok(start >= 0, "missing revealPathAsync");
+  const next = browse.indexOf("\nexport ", start + 1);
+  const body = browse.slice(start, next > start ? next : browse.length);
+  assert.ok(
+    /listing\.value\s*=\s*null/.test(body) || body.includes("getCachedListing"),
+    "AIA-259/FIL-58: revealPathAsync clears stale listing or paints from listing cache",
+  );
+}
 
 function fnBody(name) {
   const start = browse.indexOf(`export async function ${name}`);
@@ -55,7 +56,7 @@ for (const name of [
 ]) {
   const body = fnBody(name);
   assert.ok(
-    body.includes("revealPathNonBlocking"),
+    body.includes("revealPathNonBlocking") || body.includes("revealPathForTabSwitch"),
     `${name} must reveal path without blocking on listing`,
   );
   assert.ok(

@@ -28,8 +28,12 @@ assert.ok(view.includes("list--virt-flat"));
 assert.ok(view.includes("list_window"));
 assert.ok(view.includes("virt-spacer") || view.includes("offsetBeforePx"));
 assert.ok(
-  view.includes("isGridIconOrTilesMode"),
-  "icon/tiles grid must skip virtualization (avoids thin-strip thumbs)",
+  view.includes("gridVirtualPaddingStyle"),
+  "FIL-58: icon/tiles virtualize via padding offsets (not in-grid spacers)",
+);
+assert.ok(
+  !view.includes("isGridIconOrTilesMode"),
+  "FIL-58: icon/tiles must not force-disable list virtualization",
 );
 assert.ok(view.includes("@scroll"), "list surfaces must track scroll for the virtual window");
 assert.ok(!view.includes("groupedVisibleEntries"), "grouped path must use flattened virt items");

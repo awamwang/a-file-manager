@@ -12,13 +12,15 @@ Follows the performance-optimization skill: measure → identify → fix → ver
 | Group-by-type flattened virt items + variable-height window | grouped path used to mount all rows; now same ≥80 window | **kept** | `listVirtItems` + `computeVariableListVirtualWindow`; icons/tiles use `list--virt-flat` column flow while windowed |
 | `sortedEntries` identity cache + `list_sort` / `list_window` probes | re-sort every computed tick → cache hit | **kept** | `afm.perfProbe=1` logs `[AFM_perf] list_sort` / `list_window` |
 | Soft near-transparent icon slot → final image | Fluent glyph → shell/thumb morph | **kept** | `shell-icon-slot` until one-shot resolve; no shell→thumb two-phase paint |
-| Icon/tiles list virtualization | large dirs thumbs squashed to thin strips | **disabled** | CSS grid window offsets unreliable; list/details still windowed |
+| Icon/tiles list virtualization | large dirs thumbs squashed to thin strips | **re-enabled (FIL-58)** | padding offsets + fixed row height + `content-visibility`; no in-grid spacers |
+| Session listing LRU (12 / 45s fresh) | tab switch re-listed 5k every time | **kept (FIL-58)** | paint cache first; fresh hit skips `navigator_list`; F5 bypasses |
 | Batch-parallel `IShellItemImageFactory` (4 workers) | bench faster; live SageThumbs slower/flaky | **reverted** | Shell thumbnail handlers need serial COM |
 | Fix `guide/index.ts` dynamic import path | build failed → resolves | **kept** | Unblocks production `vite build` (correctness, not a micro-opt) |
 
 ## Budgets / guards
 
 - `npm run test:list-virtual` — window math（含变高/分组展平）+ sort 缓存 + Navigator wiring
+- `npm run test:navigator-listing-cache` — FIL-58 listing LRU + icon virt wiring
 - Existing: `test:ui-perf`, `test:shell-icon-*`, `test:startup-async`, `test:list-placeholders`
 
 ## How to re-measure listing

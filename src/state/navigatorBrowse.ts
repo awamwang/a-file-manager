@@ -52,6 +52,13 @@ import { forgetPinnedTabs, pinnedIdSet } from "./tabPins";
 import { clearSelection } from "./navigatorSelection";
 import { normalizePathKey, toNativeFsPath } from "./pathKey";
 import { perfSpan } from "./perfProbe";
+import {
+  getCachedListing,
+  invalidateListingCache,
+  isListingCacheFresh,
+  listingCacheKey,
+  putCachedListing,
+} from "./navigatorListingCache";
 
 export {
   activeWorkGroupId,
@@ -207,10 +214,20 @@ function revealPathAsync(path: string): Promise<void> {
   }
   const priorKey = normalizeBrowseKey(listing.value?.path ?? currentPath.value);
   currentPath.value = trimmed;
-  listLoading.value = true;
   listError.value = null;
-  if (priorKey !== normalizeBrowseKey(trimmed)) {
-    listing.value = null;
+  const cacheKey = listingCacheKey(trimmed, showHiddenItems.value);
+  const cached = !isGuidePath(trimmed) && !isProviderPath(trimmed)
+    ? getCachedListing<NavigatorListing>(cacheKey)
+    : null;
+  if (cached) {
+    // FIL-58：切标签先粉缓存，避免大目录空白等待。
+    listing.value = cached;
+    listLoading.value = !isListingCacheFresh(cacheKey);
+  } else {
+    listLoading.value = true;
+    if (priorKey !== normalizeBrowseKey(trimmed)) {
+      listing.value = null;
+    }
   }
   if (isGuidePath(trimmed)) {
     // Guide has no async list — apply fully via navigateTo without blocking callers.
@@ -238,10 +255,12 @@ function revealPathForTabSwitch(path: string): void {
 export function refreshActiveListing(): void {
   const path = currentPath.value.trim();
   if (!path) return;
+  invalidateListingCache(path);
   void navigateTo(path, {
     syncOpenState: false,
     recordHistory: false,
     recordVisit: false,
+    bypassListingCache: true,
   });
 }
 
@@ -272,6 +291,18 @@ export function removePathsFromListings(paths: string[]): void {
 
   listing.value = strip(listing.value);
   secondaryListing.value = strip(secondaryListing.value);
+  if (listing.value) {
+    putCachedListing(
+      listingCacheKey(listing.value.path, showHiddenItems.value),
+      listing.value,
+    );
+  }
+  if (secondaryListing.value) {
+    putCachedListing(
+      listingCacheKey(secondaryListing.value.path, showHiddenItems.value),
+      secondaryListing.value,
+    );
+  }
 }
 
 /** 侧栏目录树在文件变更后递增，展开节点会重新拉取子项。 */
@@ -313,6 +344,9 @@ export async function navigateSecondary(path: string): Promise<void> {
       () => ({ path: trimmed, n: entryCount, pane: "secondary" }),
     );
     secondaryListing.value = result;
+    if (!isProviderPath(result.path)) {
+      putCachedListing(listingCacheKey(result.path, showHiddenItems.value), result);
+    }
     secondaryPath.value = result.path;
     secondaryError.value = result.error?.trim() ? result.error : null;
     if (normalizeBrowseKey(previous) !== normalizeBrowseKey(result.path)) {
@@ -334,6 +368,8 @@ export async function navigateTo(
     recordHistory?: boolean;
     /** Default true. Focus/F5 refresh passes false so revisit stats stay clean (AIA-238). */
     recordVisit?: boolean;
+    /** F5 / 焦点刷新时跳过新鲜缓存短路。 */
+    bypassListingCache?: boolean;
   },
 ): Promise<void> {
   const trimmed = path.trim();
@@ -341,6 +377,7 @@ export async function navigateTo(
   // Tab switch / bootstrap pass syncOpenState:false — don't pollute back stack.
   const recordHistory = options?.recordHistory ?? syncOpenState;
   const recordVisit = options?.recordVisit !== false;
+  const bypassListingCache = options?.bypassListingCache === true;
   if (isProviderPath(trimmed) && isBlockedSearchProvider(trimmed)) {
     listLoading.value = false;
     listError.value = "PROVIDER_SEARCH_BLOCKED";
@@ -444,8 +481,33 @@ export async function navigateTo(
     return;
   }
 
-  listLoading.value = true;
   listError.value = null;
+  const diskCacheKey = listingCacheKey(trimmed, showHiddenItems.value);
+  const warm = !bypassListingCache
+    ? getCachedListing<NavigatorListing>(diskCacheKey)
+    : null;
+  if (warm) {
+    listing.value = warm;
+    currentPath.value = warm.path;
+    if (pathChanged) clearNavigatorFilter();
+    if (isListingCacheFresh(diskCacheKey)) {
+      // FIL-58：新鲜缓存命中则跳过 IPC，切标签不阻塞。
+      listLoading.value = false;
+      if (recordVisit) {
+        void recordPathVisit(warm.path, true);
+      }
+      if (recordHistory) {
+        recordNavHistory(previous, warm.path);
+      }
+      if (syncOpenState) {
+        liveOpenState.value = openStateAfterNavigate(liveOpenState.value, warm.path);
+        scheduleOpenStatePersist(false);
+      }
+      return;
+    }
+  }
+
+  listLoading.value = true;
   try {
     let entryCount = 0;
     const result = await perfSpan(
@@ -463,6 +525,7 @@ export async function navigateTo(
     );
     if (epoch !== browseEpoch) return;
     listing.value = result;
+    putCachedListing(listingCacheKey(result.path, showHiddenItems.value), result);
     currentPath.value = result.path;
     if (normalizeBrowseKey(previous) !== normalizeBrowseKey(result.path)) {
       clearNavigatorFilter();
@@ -480,7 +543,9 @@ export async function navigateTo(
     }
   } catch (err) {
     if (epoch !== browseEpoch) return;
-    listing.value = null;
+    if (!listing.value) {
+      listing.value = null;
+    }
     listError.value = err instanceof Error ? err.message : String(err);
     currentPath.value = trimmed;
     if (pathChanged) clearNavigatorFilter();

@@ -9,6 +9,7 @@ import {
   type SettingsDocument,
 } from "../settingsHydrate";
 import { readShowHidden } from "./flag";
+import { clearListingCache } from "../navigatorListingCache";
 
 export { readShowHidden };
 
@@ -16,7 +17,11 @@ export const showHiddenItems = ref(false);
 
 /** Sync apply from already-hydrated settings (cold-start critical path). */
 export function applyShowHiddenFromValues(values: Record<string, unknown>): void {
-  showHiddenItems.value = readShowHidden(values);
+  const next = readShowHidden(values);
+  if (next !== showHiddenItems.value) {
+    clearListingCache();
+  }
+  showHiddenItems.value = next;
 }
 
 export async function loadShowHidden(): Promise<boolean> {
@@ -30,5 +35,8 @@ export async function setShowHidden(next: boolean): Promise<void> {
     patch: { "core.showHidden": next },
   });
   rememberSettingsDocument(doc);
+  if (readShowHidden(doc.values) !== showHiddenItems.value) {
+    clearListingCache();
+  }
   showHiddenItems.value = readShowHidden(doc.values);
 }

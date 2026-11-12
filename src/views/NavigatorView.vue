@@ -670,38 +670,35 @@ const primaryVirtItems = computed((): ListVirtItem[] => {
   return flattenEntryItems(entries);
 });
 
-function inactiveVirtualWindow(total: number): ListVirtualWindow {
-  return {
-    active: false,
-    startIndex: 0,
-    endIndex: total,
-    offsetBeforePx: 0,
-    offsetAfterPx: 0,
-  };
-}
-
-/** 图标/平铺为 CSS grid：窗口化（含 padding 偏移）仍会压扁格子，一律关闭。 */
-function isGridIconOrTilesMode(mode: string): boolean {
-  return mode.startsWith("icons") || mode === "tiles";
-}
-
+/**
+ * FIL-58：图标/平铺重新窗口化。
+ * 用容器 padding 承担前后偏移（见 gridVirtualPaddingStyle），避免 grid 内插
+ * virt-spacer 把缩略图压成细条的老问题。
+ */
 const primaryVirtual = computed((): ListVirtualWindow => {
   const items = primaryVirtItems.value;
   const mode = navigatorViewMode.value as PlaceholderViewMode;
-  if (isGridIconOrTilesMode(mode)) {
-    return inactiveVirtualWindow(items.length);
-  }
   const viewportHeight = listViewportHeightPx(listViewport.value);
   const rowHeight = resolveListRowHeightPx(mode, isCompactListDensity());
   const grouped = navigatorGroupByType.value;
   let win: ListVirtualWindow;
-  if (grouped) {
+  if (grouped && !(mode.startsWith("icons") || mode === "tiles")) {
     // 组头变高：按项高前缀和窗口化（仅纵向列表视图）。
     const heights = items.map((item) => virtItemHeightPx(item, rowHeight));
     win = computeVariableListVirtualWindow({
       heights,
       scrollTop: primaryScrollTop.value,
       viewportHeight,
+    });
+  } else if (grouped && (mode.startsWith("icons") || mode === "tiles")) {
+    // 分组图标/平铺走 flatten + 定高窗口（list--virt-flat）。
+    win = computeListVirtualWindow({
+      total: items.length,
+      scrollTop: primaryScrollTop.value,
+      viewportHeight,
+      rowHeight,
+      columns: 1,
+      mode: "list",
     });
   } else {
     win = computeListVirtualWindow({
@@ -720,9 +717,6 @@ const primaryVirtual = computed((): ListVirtualWindow => {
 const secondaryVirtual = computed((): ListVirtualWindow => {
   const total = secondaryEntries.value.length;
   const mode = navigatorViewMode.value as PlaceholderViewMode;
-  if (isGridIconOrTilesMode(mode)) {
-    return inactiveVirtualWindow(total);
-  }
   return computeListVirtualWindow({
     total,
     scrollTop: secondaryScrollTop.value,
@@ -2483,11 +2477,16 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   min-width: 0;
   height: calc(var(--nav-icon-size, 16px) + var(--nav-icon-caption-extra, 64px));
   min-height: calc(var(--nav-icon-size, 16px) + var(--nav-icon-caption-extra, 64px));
+  /* 窗口化 padding 偏移时禁止格子被压缩成细条。 */
+  flex-shrink: 0;
+  align-self: start;
   padding: var(--fluent-space-sm);
   border-bottom: 0;
   border-radius: var(--fluent-radius-md);
   text-align: center;
   overflow: hidden;
+  content-visibility: auto;
+  contain-intrinsic-size: auto calc(var(--nav-icon-size, 16px) + var(--nav-icon-caption-extra, 64px));
 }
 
 .list--icons .row--icon .name-block {

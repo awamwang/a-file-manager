@@ -249,6 +249,27 @@ cargo test --manifest-path src-tauri/Cargo.toml --lib shell_icons::tests::bench_
 }
 ```
 
+## Run #5（FIL-58：大目录进入 + 切标签）
+
+- **日期**：2026-11-12
+- **慢路径分析**：默认图标视图曾关闭窗口化 → 5k 全量 DOM；切标签每次 `navigator_list` + hydrate；主线程卡顿主要在 FE 挂载而非 Rust list（~12ms）。
+- **改动**：图标/平铺用 `gridVirtualPaddingStyle` 恢复窗口化 + `content-visibility`；会话 listing LRU（12 条 / 45s 新鲜短路）；F5 `bypassListingCache`；`showHidden` 变更清缓存；`browseEpoch` 仍作废过期请求。
+- **成功标准**：`.perf-fixtures/large` 进入不冻 UI；两标签间切换在新鲜缓存内跳过 IPC；守卫 `test:navigator-listing-cache` + `test:list-virtual` + `test:tab-group-switch-async`。
+- **说明**：图标窗口化依赖定高格子；分组图标走 `list--virt-flat` 单列窗口。补测开 `afm.perfProbe` 看 `tab_switch` / `navigator_list` / `list_window`。
+
+```json
+{
+  "run": 5,
+  "date": "2026-11-12",
+  "git_sha": "fil-58",
+  "machine": { "os": "Windows 11", "build": "debug", "notes": "FIL-58 listing cache + icon virt" },
+  "samples": [
+    { "scenario": "S3", "op": "icon_virt_window", "notes": "padding offsets; fixed row height; content-visibility" },
+    { "scenario": "S5", "op": "tab_switch_cache", "notes": "LRU paint + 45s fresh short-circuit" }
+  ]
+}
+```
+
 ## 下一阶段候选（按数据排序）
 
 1. **侧栏树祖先列举** — 进深路径多次 `navigator_list`；非关键但争用 IO/IPC。
