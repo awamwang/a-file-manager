@@ -13,6 +13,7 @@ import {
   ensureGateway,
   formatPayload,
   gatewayStatus,
+  getConfig,
   invokeErrorMessage,
   isDestructiveBlocked,
   isToolRuntimeDisabled,
@@ -20,13 +21,17 @@ import {
   listTools,
   parseCapabilityList,
   parseToolList,
+  setConfig,
   type GatewayStatus,
   type JsonSchema,
   type RuntimeCapability,
   type RuntimeTool,
+  type ToolRuntimeConfig,
 } from "./client";
 
 const { t } = useI18n();
+
+const DEFAULT_BASE_URL = "http://127.0.0.1:8766";
 
 const status = ref<GatewayStatus | null>(null);
 const tools = ref<RuntimeTool[]>([]);
@@ -44,6 +49,9 @@ const attaching = ref(false);
 const previewPayload = ref<unknown>(null);
 const resultPayload = ref<unknown>(null);
 const awaitingExecute = ref(false);
+const runtimeConfig = ref<ToolRuntimeConfig | null>(null);
+const baseUrlDraft = ref(DEFAULT_BASE_URL);
+const savingBaseUrl = ref(false);
 
 const selectedTool = computed(
   () => tools.value.find((item) => item.id === selectedToolId.value) ?? null,
@@ -67,8 +75,44 @@ const statusVersion = computed(() => {
 });
 
 onMounted(() => {
-  void refreshStatus({ loadToolsIfReachable: true });
+  void (async () => {
+    await loadConfig();
+    await refreshStatus({ loadToolsIfReachable: true });
+  })();
 });
+
+async function loadConfig(): Promise<void> {
+  try {
+    runtimeConfig.value = await getConfig();
+    baseUrlDraft.value = runtimeConfig.value.baseUrl || DEFAULT_BASE_URL;
+  } catch (err) {
+    error.value = friendlyError(err);
+  }
+}
+
+async function saveBaseUrl(): Promise<void> {
+  const current = runtimeConfig.value ?? {
+    baseUrl: DEFAULT_BASE_URL,
+    preferAttach: true,
+    autoStartSidecar: false,
+    lastSidecarPid: null,
+  };
+  savingBaseUrl.value = true;
+  error.value = null;
+  try {
+    runtimeConfig.value = await setConfig({
+      ...current,
+      baseUrl: baseUrlDraft.value.trim() || DEFAULT_BASE_URL,
+    });
+    baseUrlDraft.value = runtimeConfig.value.baseUrl;
+    toastSuccess(t("toolRuntime.gatewayUrlSaved"));
+    await refreshStatus({ loadToolsIfReachable: true });
+  } catch (err) {
+    error.value = friendlyError(err);
+  } finally {
+    savingBaseUrl.value = false;
+  }
+}
 
 async function refreshStatus(options?: { loadToolsIfReachable?: boolean }): Promise<void> {
   loadingStatus.value = true;
@@ -334,6 +378,34 @@ function riskChipClass(risk: string): string {
         }}
       </p>
       <p v-else-if="loadingStatus" class="fluent-banner">{{ t("common.loading") }}</p>
+      <div class="gateway-url-row">
+        <label class="gateway-url-label" for="tool-runtime-base-url">{{
+          t("toolRuntime.gatewayUrlLabel")
+        }}</label>
+        <input
+          id="tool-runtime-base-url"
+          v-model="baseUrlDraft"
+          class="fluent-control gateway-url-input"
+          type="text"
+          spellcheck="false"
+          autocomplete="off"
+          :disabled="savingBaseUrl"
+          :placeholder="t('toolRuntime.gatewayUrlPlaceholder')"
+          @keydown.enter.prevent="saveBaseUrl"
+        />
+        <button
+          class="fluent-control fluent-control--accent"
+          type="button"
+          :disabled="savingBaseUrl"
+          @click="saveBaseUrl"
+        >
+          {{
+            savingBaseUrl
+              ? t("toolRuntime.gatewayUrlSaving")
+              : t("toolRuntime.gatewayUrlSave")
+          }}
+        </button>
+      </div>
     </div>
 
     <p v-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
@@ -362,7 +434,7 @@ function riskChipClass(risk: string): string {
             v-for="tool in filteredTools"
             :key="tool.id"
             type="button"
-            class="fluent-list-row fluent-list-row--density row"
+            class="fluent-list-row row"
             :class="{ 'row--active': tool.id === selectedToolId }"
             @click="selectTool(tool)"
           >
@@ -399,7 +471,7 @@ function riskChipClass(risk: string): string {
             v-for="capability in capabilities"
             :key="capability.capabilityId"
             type="button"
-            class="fluent-list-row fluent-list-row--density row"
+            class="fluent-list-row row"
             :class="{ 'row--active': capability.capabilityId === selectedCapabilityId }"
             @click="selectCapability(capability)"
           >
@@ -497,6 +569,24 @@ function riskChipClass(risk: string): string {
   pointer-events: none;
   cursor: default;
   font-size: var(--fluent-font-size-caption);
+}
+
+.gateway-url-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fluent-space-sm);
+  align-items: center;
+}
+
+.gateway-url-label {
+  flex: 0 0 auto;
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+}
+
+.gateway-url-input {
+  flex: 1 1 16rem;
+  min-width: 12rem;
 }
 
 .layout {

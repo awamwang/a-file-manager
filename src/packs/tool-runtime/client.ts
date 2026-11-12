@@ -51,6 +51,13 @@ export type CallCapabilityArgs = {
   allowDestructive?: boolean;
 };
 
+export type ToolRuntimeConfig = {
+  baseUrl: string;
+  preferAttach: boolean;
+  autoStartSidecar: boolean;
+  lastSidecarPid: number | null;
+};
+
 export function invokeErrorMessage(err: unknown): string {
   if (typeof err === "string") return err;
   if (err instanceof Error) return err.message;
@@ -123,6 +130,14 @@ export function parseCapabilityList(payload: unknown): RuntimeCapability[] {
     });
   }
   return rows;
+}
+
+export function getConfig(): Promise<ToolRuntimeConfig> {
+  return invoke<ToolRuntimeConfig>("tool_runtime_get_config");
+}
+
+export function setConfig(config: ToolRuntimeConfig): Promise<ToolRuntimeConfig> {
+  return invoke<ToolRuntimeConfig>("tool_runtime_set_config", { config });
 }
 
 export function gatewayStatus(): Promise<GatewayStatus> {

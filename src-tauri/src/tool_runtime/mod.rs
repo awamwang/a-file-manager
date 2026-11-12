@@ -23,6 +23,57 @@ use serde_json::Value;
 use std::path::Path;
 use tauri::{AppHandle, Manager};
 
+/// 读取 Pack 私有配置（含网关 baseUrl）。
+#[tauri::command]
+pub async fn tool_runtime_get_config(app: AppHandle) -> Result<ToolRuntimeConfig, String> {
+    let dir = app_config_dir(&app)?;
+    tauri::async_runtime::spawn_blocking(move || load_from_path(&dir))
+        .await
+        .map_err(|err| format!("tool_runtime_get_config worker failed: {err}"))?
+}
+
+/// 保存 Pack 私有配置（目前 UI 主要用于改 baseUrl）。
+#[tauri::command]
+pub async fn tool_runtime_set_config(
+    app: AppHandle,
+    config: ToolRuntimeConfig,
+) -> Result<ToolRuntimeConfig, String> {
+    let dir = app_config_dir(&app)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut next = config;
+        next.base_url = normalize_base_url(&next.base_url)?;
+        save_to_path(&dir, &next)?;
+        Ok(next)
+    })
+    .await
+    .map_err(|err| format!("tool_runtime_set_config worker failed: {err}"))?
+}
+
+fn normalize_base_url(raw: &str) -> Result<String, String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Ok(DEFAULT_BASE_URL.to_string());
+    }
+    let with_scheme = if trimmed.contains("://") {
+        trimmed.to_string()
+    } else {
+        format!("http://{trimmed}")
+    };
+    let lower = with_scheme.to_ascii_lowercase();
+    if !(lower.starts_with("http://") || lower.starts_with("https://")) {
+        return Err("invalid gateway baseUrl: only http/https supported".to_string());
+    }
+    let after_scheme = with_scheme
+        .split_once("://")
+        .map(|(_, rest)| rest)
+        .unwrap_or("");
+    if after_scheme.trim().is_empty() || after_scheme.starts_with('/') {
+        return Err("invalid gateway baseUrl: missing host".to_string());
+    }
+    // 去掉末尾多余斜杠，避免 /mcp 拼接出错。
+    Ok(with_scheme.trim_end_matches('/').to_string())
+}
+
 /// 查询工具管理网关附着状态（网络 I/O 在 blocking 线程）。
 #[tauri::command]
 pub async fn tool_runtime_gateway_status(app: AppHandle) -> GatewayStatus {
@@ -214,5 +265,19 @@ mod tests {
         let err = assert_gateway_compat(Some("2.0.0"), Some(&compat)).unwrap_err();
         assert!(err.contains("gatewayCompat mismatch"), "{err}");
         assert!(err.contains("2.0.0"), "{err}");
+    }
+
+    #[test]
+    fn normalize_base_url_accepts_host_port_and_trims_slash() {
+        assert_eq!(
+            normalize_base_url("127.0.0.1:8767").unwrap(),
+            "http://127.0.0.1:8767"
+        );
+        assert_eq!(
+            normalize_base_url("http://127.0.0.1:8767/").unwrap(),
+            "http://127.0.0.1:8767"
+        );
+        assert!(normalize_base_url("ftp://127.0.0.1:8767").is_err());
+        assert!(normalize_base_url("http://").is_err());
     }
 }
