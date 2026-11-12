@@ -28,6 +28,7 @@ import { reloadWindow } from "../../state/uiReload";
 import { requestGlobalSearchFocus } from "../../state/globalSearch";
 import {
   dispatchShortcutEvent,
+  formatChordLabel,
   registerShortcutHandler,
   unregisterShortcutHandler,
 } from "../../shortcuts/index.ts";
@@ -485,6 +486,20 @@ async function onSilentSwitchWorkGroup(targetId: string) {
   }
 }
 
+/** 按当前列表排序切换工作组（1-based；超出范围则忽略）。 */
+async function onSilentSwitchWorkGroupByIndex(index1Based: number) {
+  const groups = workGroupsDoc.value?.workGroups ?? [];
+  const target = groups[index1Based - 1];
+  if (!target) return;
+  if (target.id === workGroupsDoc.value?.activeWorkGroupId) return;
+  await onSilentSwitchWorkGroup(target.id);
+}
+
+function workGroupChordLabel(index0Based: number): string | null {
+  if (index0Based < 0 || index0Based >= 9) return null;
+  return formatChordLabel({ alt: true, key: String(index0Based + 1) });
+}
+
 async function onSaveMembersFromTabs() {
   closeWorkGroupMenu();
   await saveActiveMembersFromTabsHard();
@@ -771,6 +786,12 @@ function registerShellShortcuts() {
   registerShortcutHandler("view.work-groups", () => {
     void openWorkGroupsPage();
   });
+  for (let workGroupNumber = 1; workGroupNumber <= 9; workGroupNumber += 1) {
+    const n = workGroupNumber;
+    registerShortcutHandler(`workGroup.switch${n}`, () => {
+      void onSilentSwitchWorkGroupByIndex(n);
+    });
+  }
 }
 
 function unregisterShellShortcuts() {
@@ -797,6 +818,15 @@ function unregisterShellShortcuts() {
     "view.settings",
     "view.shortcuts",
     "view.work-groups",
+    "workGroup.switch1",
+    "workGroup.switch2",
+    "workGroup.switch3",
+    "workGroup.switch4",
+    "workGroup.switch5",
+    "workGroup.switch6",
+    "workGroup.switch7",
+    "workGroup.switch8",
+    "workGroup.switch9",
   ]) {
     unregisterShortcutHandler(id);
   }
@@ -1902,18 +1932,28 @@ onUnmounted(() => {
             >
               <p class="places-heading">{{ t("chrome.workGroupSwitch") }}</p>
               <button
-                v-for="group in workGroupsDoc?.workGroups ?? []"
+                v-for="(group, groupIndex) in workGroupsDoc?.workGroups ?? []"
                 :key="'wg-' + group.id"
                 type="button"
                 class="fluent-list-row places-item"
                 :class="{ 'places-item--active': group.id === workGroupsDoc?.activeWorkGroupId }"
                 role="menuitem"
                 :disabled="workGroupChromeBusy || group.id === workGroupsDoc?.activeWorkGroupId"
-                :title="group.id"
+                :title="
+                  workGroupChordLabel(groupIndex)
+                    ? `${workGroupDisplayName(group, t('workGroups.defaultName'))} (${workGroupChordLabel(groupIndex)})`
+                    : group.id
+                "
                 @click="onSilentSwitchWorkGroup(group.id)"
               >
                 <FluentIcon :name="group.isDefault ? 'home' : 'viewAll'" size="sm" />
-                <span>{{ workGroupDisplayName(group, t("workGroups.defaultName")) }}</span>
+                <span class="places-item-label">{{
+                  workGroupDisplayName(group, t("workGroups.defaultName"))
+                }}</span>
+                <span
+                  v-if="workGroupChordLabel(groupIndex)"
+                  class="places-item-chord"
+                >{{ workGroupChordLabel(groupIndex) }}</span>
               </button>
               <p v-if="!(workGroupsDoc?.workGroups.length)" class="places-empty">
                 {{ t("chrome.workGroupEmpty") }}
@@ -2699,6 +2739,20 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.places-item-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.places-item-chord {
+  flex-shrink: 0;
+  margin-left: auto;
+  overflow: visible;
+  color: var(--fluent-color-text-secondary);
+  font-size: var(--fluent-font-size-caption);
+  font-variant-numeric: tabular-nums;
 }
 
 .places-empty {

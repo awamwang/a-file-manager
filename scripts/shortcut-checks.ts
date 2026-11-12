@@ -71,6 +71,14 @@ assert.equal(
   "view.work-groups",
 );
 assert.equal(
+  winners.get(chordKey({ alt: true, key: "1" }))?.id,
+  "workGroup.switch1",
+);
+assert.equal(
+  winners.get(chordKey({ alt: true, key: "9" }))?.id,
+  "workGroup.switch9",
+);
+assert.equal(
   winners.get(chordKey({ key: "space" }))?.id,
   "navigator.previewBridge",
 );

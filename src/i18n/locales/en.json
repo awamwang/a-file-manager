@@ -974,6 +974,15 @@
       "openSettings": "Open Settings",
       "openShortcutList": "Open shortcut list",
       "openWorkGroups": "Open Work Groups",
+      "workGroupSwitch1": "Switch to work group 1",
+      "workGroupSwitch2": "Switch to work group 2",
+      "workGroupSwitch3": "Switch to work group 3",
+      "workGroupSwitch4": "Switch to work group 4",
+      "workGroupSwitch5": "Switch to work group 5",
+      "workGroupSwitch6": "Switch to work group 6",
+      "workGroupSwitch7": "Switch to work group 7",
+      "workGroupSwitch8": "Switch to work group 8",
+      "workGroupSwitch9": "Switch to work group 9",
       "navigatorCopyPath": "Copy path of selected item"
     }
   },

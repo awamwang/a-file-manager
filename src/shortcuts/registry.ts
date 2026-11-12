@@ -272,6 +272,16 @@ for (let tabNumber = 1; tabNumber <= 9; tabNumber += 1) {
   });
 }
 
+/** Alt+1…9：按当前排序切换到对应工作组（超出列表长度时忽略）。 */
+for (let workGroupNumber = 1; workGroupNumber <= 9; workGroupNumber += 1) {
+  BUILTIN_SHORTCUTS.push({
+    id: `workGroup.switch${workGroupNumber}`,
+    labelKey: `shortcuts.items.workGroupSwitch${workGroupNumber}`,
+    chord: { alt: true, key: String(workGroupNumber) },
+    scope: "global",
+  });
+}
+
 export function findShortcutConflicts(
   defs: ShortcutDefinition[] = BUILTIN_SHORTCUTS,
 ): ShortcutConflict[] {

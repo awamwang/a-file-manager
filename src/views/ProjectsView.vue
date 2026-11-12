@@ -1085,11 +1085,6 @@ onUnmounted(() => {
           </button>
         </div>
 
-        <ProjectAiPanel
-          v-if="aiAddonEnabled && selected.path"
-          :workspace-path="selected.path"
-        />
-
         <h3>{{ t("projects.sessionBinding") }}</h3>
         <p class="fluent-page-meta">
           {{
@@ -1288,6 +1283,11 @@ onUnmounted(() => {
             </p>
           </section>
         </div>
+
+        <ProjectAiPanel
+          v-if="aiAddonEnabled && selected.path"
+          :workspace-path="selected.path"
+        />
       </div>
 
       <div v-else class="fluent-surface detail detail--empty">
