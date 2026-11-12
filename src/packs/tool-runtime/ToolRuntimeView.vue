@@ -442,7 +442,7 @@ function riskChipClass(risk: string): string {
             v-for="tool in filteredTools"
             :key="tool.id"
             type="button"
-            class="fluent-list-row row"
+            class="row"
             :class="{ 'row--active': tool.id === selectedToolId }"
             @click="selectTool(tool)"
           >
@@ -483,7 +483,7 @@ function riskChipClass(risk: string): string {
             v-for="capability in capabilities"
             :key="capability.capabilityId"
             type="button"
-            class="fluent-list-row row"
+            class="row"
             :class="{ 'row--active': capability.capabilityId === selectedCapabilityId }"
             @click="selectCapability(capability)"
           >
@@ -708,17 +708,24 @@ function riskChipClass(risk: string): string {
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  justify-content: flex-start;
   gap: var(--fluent-space-xs);
   width: 100%;
+  height: auto;
   min-width: 0;
+  /* 覆盖 fluent-list-row 的单行高度，避免说明文字被压扁 */
+  min-height: auto;
   padding: var(--fluent-space-sm) var(--fluent-space-md);
   border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   border-radius: var(--fluent-radius-md);
   background: var(--fluent-color-fill-control);
   color: inherit;
   font: inherit;
+  line-height: 1.35;
   text-align: left;
   cursor: pointer;
+  overflow: visible;
+  flex-shrink: 0;
 }
 
 .row--active {
@@ -732,6 +739,15 @@ function riskChipClass(risk: string): string {
   align-items: center;
   gap: var(--fluent-space-sm);
   min-width: 0;
+  flex: 0 0 auto;
+}
+
+.row .status-chip {
+  /* 列表卡片内用紧凑芯片，避免占满整行高度挤掉说明 */
+  min-height: calc(var(--fluent-font-size-caption) * 1.35 + 2 * var(--fluent-space-xs));
+  padding-block: var(--fluent-space-xs);
+  padding-inline: var(--fluent-space-sm);
+  line-height: 1.35;
 }
 
 .name,
@@ -741,15 +757,24 @@ function riskChipClass(risk: string): string {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.35;
 }
 
 .detail {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  flex: 0 0 auto;
+  min-height: calc(var(--fluent-font-size-caption) * 1.35);
+  max-width: 100%;
   font-size: var(--fluent-font-size-caption);
+  line-height: 1.35;
   color: var(--fluent-color-text-secondary);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .result {
