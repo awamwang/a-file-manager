@@ -34,3 +34,8 @@ dist-ssr
 publish-check-report.md
 publish-check-report.json
 
+
+# Isolated git worktrees / SDD scratch
+.worktrees/
+.superpowers/
+
