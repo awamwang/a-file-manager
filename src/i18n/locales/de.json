@@ -464,7 +464,11 @@
     "projects": "Projekte",
     "providers": "Anbieter",
     "settings": "Einstellungen",
+    "toolRuntime": "Tool-Laufzeit",
     "workGroups": "Arbeitsgruppen"
+  },
+  "cmd": {
+    "toolRuntimeOpen": "Tool-Laufzeit öffnen"
   },
   "navigator": {
     "empty": "Dieser Ordner ist leer.",
@@ -1081,6 +1085,38 @@
     "subtitle": "Geloeschte Elemente anzeigen und wiederherstellen",
     "restore": "Wiederherstellen",
     "restored": "{count} Element(e) wiederhergestellt"
+  },
+  "toolRuntime": {
+    "title": "Tool-Laufzeit",
+    "meta": "Fähigkeiten über das lokale Tool-Manager-Gateway auflisten und aufrufen",
+    "statusReachable": "Gateway verbunden{version}",
+    "statusUnreachable": "Gateway nicht erreichbar: {detail}",
+    "attachStart": "Anhängen / starten",
+    "attaching": "Wird angehängt…",
+    "attached": "An vorhandenes Gateway angehängt",
+    "spawned": "Sidecar gestartet (pid {pid})",
+    "tools": "Tools",
+    "filterPlaceholder": "Tools filtern…",
+    "noTools": "Keine Tools",
+    "capabilities": "Fähigkeiten",
+    "noCapabilities": "Keine Fähigkeiten",
+    "selectTool": "Links ein Tool wählen, um Fähigkeiten zu sehen",
+    "selectCapability": "Eine Fähigkeit wählen, um Argumente einzugeben",
+    "preview": "Vorschau",
+    "execute": "Ausführen",
+    "confirmExecute": "Ausführung bestätigen",
+    "previewHeading": "Vorschauergebnis",
+    "resultHeading": "Ausführungsergebnis",
+    "destructiveTitle": "Destruktive Aktion bestätigen",
+    "destructiveMessage": "Diese Fähigkeit ist als destruktiv markiert. Bestätigen Sie die Ausführung.",
+    "jsonFallback": "Argumente (JSON)",
+    "jsonInvalid": "Ungültiges JSON",
+    "refreshCapabilities": "Fähigkeiten aktualisieren",
+    "disabled": "Tool-Laufzeit-Pack ist nicht aktiviert",
+    "emptySchema": "Diese Fähigkeit hat keine Argumente",
+    "riskRead": "Nur lesen",
+    "riskWrite": "Schreiben",
+    "riskDestructive": "Destruktiv"
   },
   "shellPlaces": {
     "onedrive": "OneDrive",

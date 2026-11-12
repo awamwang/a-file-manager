@@ -19,6 +19,7 @@
 | `/discovery` | 全局搜索 |
 | `/providers` | 虚拟 FS 后端 |
 | `/extensions` | 扩展宿主 |
+| `/tools` | 工具管理运行时（Feature Pack `awam.tool-runtime`，启用 Pack 后注入侧栏） |
 | `/settings*` | 设置 / 健康 / 快捷键 / 收藏 hook |
 
 ## 差异化与缺口

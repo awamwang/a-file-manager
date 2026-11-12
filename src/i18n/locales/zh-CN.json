@@ -123,7 +123,11 @@
     "ai": "AI",
     "extensions": "扩展",
     "settings": "设置",
-    "health": "健康"
+    "health": "健康",
+    "toolRuntime": "工具运行时"
+  },
+  "cmd": {
+    "toolRuntimeOpen": "打开工具运行时"
   },
   "commands": {
     "groups": {
@@ -1142,6 +1146,38 @@
     "subtitle": "浏览并还原已删除的项目",
     "restore": "还原",
     "restored": "已还原 {count} 项"
+  },
+  "toolRuntime": {
+    "title": "工具运行时",
+    "meta": "经本机工具管理网关列出能力并调用",
+    "statusReachable": "网关已连接{version}",
+    "statusUnreachable": "网关未连接：{detail}",
+    "attachStart": "附着/启动",
+    "attaching": "正在附着…",
+    "attached": "已附着现有网关",
+    "spawned": "已启动 sidecar（pid {pid}）",
+    "tools": "工具",
+    "filterPlaceholder": "筛选工具…",
+    "noTools": "没有工具",
+    "capabilities": "能力",
+    "noCapabilities": "没有能力",
+    "selectTool": "选择左侧工具以查看能力",
+    "selectCapability": "选择一项能力以填写参数",
+    "preview": "预览",
+    "execute": "执行",
+    "confirmExecute": "确认执行",
+    "previewHeading": "预览结果",
+    "resultHeading": "执行结果",
+    "destructiveTitle": "破坏性操作确认",
+    "destructiveMessage": "此能力被标记为破坏性，确认后才会真正执行。",
+    "jsonFallback": "参数（JSON）",
+    "jsonInvalid": "JSON 无效",
+    "refreshCapabilities": "刷新能力",
+    "disabled": "工具运行时 Pack 未启用",
+    "emptySchema": "此能力无需参数",
+    "riskRead": "只读",
+    "riskWrite": "写入",
+    "riskDestructive": "破坏性"
   },
   "shellPlaces": {
     "onedrive": "OneDrive",
