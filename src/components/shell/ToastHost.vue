@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
 import { useI18n } from "vue-i18n";
-import { dismissToast, toasts } from "../../state/toast";
+import { dismissToast, pauseToast, resumeToast, toasts } from "../../state/toast";
 
 const { t } = useI18n();
 </script>
@@ -14,8 +14,10 @@ const { t } = useI18n();
       class="toast"
       :class="`toast--${item.kind}`"
       role="status"
+      @mouseenter="pauseToast(item.id)"
+      @mouseleave="resumeToast(item.id)"
     >
-      <span class="toast-message">{{ item.message }}</span>
+      <span class="toast-message fluent-text-selectable">{{ item.message }}</span>
       <button
         type="button"
         class="toast-dismiss"
@@ -77,6 +79,9 @@ const { t } = useI18n();
   flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
 }
 
 .toast-dismiss {
@@ -88,5 +93,7 @@ const { t } = useI18n();
   font: inherit;
   line-height: 1;
   padding: 0 0.15rem;
+  -webkit-user-select: none;
+  user-select: none;
 }
 </style>

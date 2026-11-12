@@ -550,6 +550,8 @@ function onOpen(path: string) {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .guide-capacity {
@@ -596,6 +598,8 @@ function onOpen(path: string) {
   margin: 0;
   color: var(--fluent-color-text-secondary);
   font-size: 0.875rem;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .guide-card--home {

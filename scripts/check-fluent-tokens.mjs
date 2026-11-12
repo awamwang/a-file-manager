@@ -51,6 +51,7 @@ const required = [
   ".fluent-banner--info",
   ".fluent-banner--warning",
   ".fluent-banner--success",
+  ".fluent-text-selectable",
   ".fluent-accent-edge",
   ".fluent-accent-edge--ok",
   ".fluent-status-text--ok",
@@ -91,6 +92,16 @@ if (familyBlock) {
     );
     process.exit(1);
   }
+}
+
+// 展示性文字（含报错横幅）可直接选中复制。
+if (!/\.fluent-banner\s*\{[^}]*user-select:\s*text/s.test(css)) {
+  console.error("Fluent banner missing user-select: text (copyable display text)");
+  process.exit(1);
+}
+if (!/\.fluent-text-selectable\s*\{[^}]*user-select:\s*text/s.test(css)) {
+  console.error("Fluent .fluent-text-selectable missing user-select: text");
+  process.exit(1);
 }
 
 console.log(`Fluent token presence OK (${required.length} checks).`);

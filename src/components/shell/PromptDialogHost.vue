@@ -150,6 +150,8 @@ watch(promptDialogOpen, async (open) => {
   color: var(--fluent-color-text-secondary);
   line-height: 1.45;
   overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .prompt-dialog-field {

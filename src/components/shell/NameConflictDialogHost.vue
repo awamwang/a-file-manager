@@ -119,6 +119,8 @@ onUnmounted(() => {
   margin: 0 0 var(--fluent-space-xs);
   color: var(--fluent-color-text-secondary);
   line-height: 1.45;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .conflict-remember {

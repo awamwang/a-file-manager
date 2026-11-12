@@ -19,11 +19,17 @@ const en = JSON.parse(readFileSync(join(root, "src/i18n/locales/en.json"), "utf8
 
 assert.ok(toast.includes("showToast"));
 assert.ok(toast.includes("toastSuccess"));
+assert.ok(toast.includes("pauseToast"));
+assert.ok(toast.includes("resumeToast"));
+assert.ok(toast.includes("ERROR_MS"));
 assert.ok(host.includes("position: fixed"));
 assert.ok(host.includes("toast-host"));
 assert.ok(host.includes("bottom:"));
 assert.ok(host.includes("right:"));
 assert.ok(host.includes("common.dismiss"));
+assert.ok(host.includes("pauseToast"));
+assert.ok(host.includes("resumeToast"));
+assert.ok(host.includes("user-select: text"));
 assert.ok(!host.includes(":aria-label=\"'Dismiss'\""));
 assert.ok(shell.includes("ToastHost"));
 assert.ok(shell.includes('id="afm-toast-host"') || host.includes('id="afm-toast-host"'));

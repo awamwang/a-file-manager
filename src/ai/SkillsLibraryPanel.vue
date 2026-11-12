@@ -497,6 +497,8 @@ onMounted(() => {
   margin: 0;
   color: var(--fluent-color-text-secondary);
   font-size: var(--fluent-font-size-caption);
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .skills-tools {

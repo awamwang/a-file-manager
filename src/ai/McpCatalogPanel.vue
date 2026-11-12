@@ -579,6 +579,8 @@ onMounted(() => {
 .mcp-meta {
   color: var(--fluent-color-text-secondary);
   font-size: var(--fluent-font-size-caption);
+  -webkit-user-select: text;
+  user-select: text;
 }
 .mcp-subhead {
   font-size: var(--fluent-font-size-body);

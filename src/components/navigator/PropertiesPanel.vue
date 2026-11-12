@@ -283,6 +283,8 @@ watch(
   margin: 0;
   overflow-wrap: anywhere;
   font-size: var(--fluent-font-size-body);
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .mono {

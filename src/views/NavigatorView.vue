@@ -2357,6 +2357,8 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .list {

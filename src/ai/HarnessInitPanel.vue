@@ -104,6 +104,8 @@ async function runInit() {
   margin: 0 0 var(--fluent-space-sm);
   opacity: 0.85;
   font-size: 0.9rem;
+  -webkit-user-select: text;
+  user-select: text;
 }
 .harness-hint.subtle {
   margin-top: calc(var(--fluent-space-xs) * -1);

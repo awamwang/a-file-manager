@@ -468,6 +468,8 @@ onMounted(() => {
 .agents-list-meta {
   color: var(--fluent-color-text-secondary);
   font-size: var(--fluent-font-size-caption);
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .agents-list-toggles {
@@ -512,6 +514,8 @@ onMounted(() => {
 .agents-hint {
   font-size: var(--fluent-font-size-caption);
   opacity: 0.85;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .agents-row-actions {

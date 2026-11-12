@@ -2891,6 +2891,8 @@ onUnmounted(() => {
 }
 
 .crumb-menu-status {
+  -webkit-user-select: text;
+  user-select: text;
   margin: 0;
   padding: var(--fluent-space-sm);
   color: var(--fluent-color-text-secondary);
@@ -3386,6 +3388,8 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .status-primary {
@@ -3404,6 +3408,8 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 28ch;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .status-refresh {
@@ -3448,6 +3454,8 @@ onUnmounted(() => {
   margin: 0;
   color: var(--fluent-color-text-secondary);
   line-height: 1.45;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .close-confirm-remember {

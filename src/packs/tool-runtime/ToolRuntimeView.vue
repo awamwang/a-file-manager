@@ -661,6 +661,8 @@ function riskChipClass(risk: string): string {
   font-size: var(--fluent-font-size-caption);
   white-space: pre-wrap;
   word-break: break-word;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 @media (max-width: 800px) {
