@@ -476,7 +476,7 @@
         },
         "defaultLocation": {
           "title": "默认位置",
-          "description": "资源管理器默认打开的操作系统路径（空 = USERPROFILE）"
+          "description": "主页按钮打开的操作系统路径（空 = USERPROFILE）"
         },
         "projectsRoot": {
           "title": "项目根目录",
@@ -879,9 +879,12 @@
     "renamed": "项目已重命名",
     "renameHint": "双击可改名",
     "dragReorderHint": "拖动可调整顺序",
+    "openDirectory": "打开目录",
     "openWorkspaceFolder": "打开工作区文件夹",
-    "openWorkspaceFolderHint": "在资源管理器中打开本 Project Workspace 目录",
-    "noticeOpenedWorkspace": "已打开工作区文件夹",
+    "openWorkspaceFolderHint": "在本软件资源管理器（Navigator）中打开本 Project Workspace 目录",
+    "openWorkspaceInSystemExplorerHint": "在系统资源管理器中打开本 Project Workspace 目录",
+    "noticeOpenedWorkspace": "已在 Navigator 中打开工作区文件夹",
+    "noticeOpenedInSystemExplorer": "已在系统资源管理器中打开",
     "openWorkspaceFailed": "无法打开工作区文件夹",
     "openInCursor": "在 Cursor 中打开",
     "openInCursorHint": "在 Cursor 中打开本 Project Workspace 目录",

@@ -596,7 +596,7 @@
     "fields": {
       "core": {
         "defaultLocation": {
-          "description": "Standard-OS-Pfad im Explorer (leer = USERPROFILE)",
+          "description": "OS-Pfad der Schaltfläche „Home“ (leer = USERPROFILE)",
           "title": "Standardort"
         },
         "projectsRoot": {

@@ -53,7 +53,7 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             "core.defaultLocation",
             SettingsTier::Core,
             "Default location",
-            "Default OS path opened in Explorer (empty = USERPROFILE)",
+            "OS path opened by the Home button (empty = USERPROFILE)",
             SettingValueKind::String,
             None,
             json!(""),

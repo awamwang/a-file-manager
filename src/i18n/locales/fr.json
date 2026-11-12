@@ -596,7 +596,7 @@
     "fields": {
       "core": {
         "defaultLocation": {
-          "description": "Chemin OS ouvert par défaut dans l’Explorateur (vide = USERPROFILE)",
+          "description": "Chemin OS ouvert par le bouton Accueil (vide = USERPROFILE)",
           "title": "Emplacement par défaut"
         },
         "projectsRoot": {

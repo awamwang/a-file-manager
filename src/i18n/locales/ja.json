@@ -596,7 +596,7 @@
     "fields": {
       "core": {
         "defaultLocation": {
-          "description": "エクスプローラーで開く既定の OS パス（空 = USERPROFILE）",
+          "description": "ホームボタンで開く OS パス（空 = USERPROFILE）",
           "title": "既定の場所"
         },
         "projectsRoot": {
