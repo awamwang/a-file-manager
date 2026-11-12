@@ -65,6 +65,7 @@
     "path": "路径",
     "pathPlaceholder": "本机路径（内核）— 按 Enter 前往",
     "go": "前往",
+    "providerQueryApply": "查询",
     "tabs": "标签页",
     "newTab": "新建标签",
     "newTabLater": "新建标签稍后提供",

@@ -13,6 +13,9 @@ const guide = readFileSync(
 );
 const providers = readFileSync(join(root, "src/views/ProvidersView.vue"), "utf8");
 const history = readFileSync(join(root, "src/state/navHistory.ts"), "utf8");
+const shell = readFileSync(join(root, "src/components/shell/AppShell.vue"), "utf8");
+const navigatorView = readFileSync(join(root, "src/views/NavigatorView.vue"), "utf8");
+const zh = JSON.parse(readFileSync(join(root, "src/i18n/locales/zh-CN.json"), "utf8"));
 const en = JSON.parse(readFileSync(join(root, "src/i18n/locales/en.json"), "utf8"));
 const registerUrl = pathToFileURL(join(root, "scripts/register-ts-resolve.mjs")).href;
 
@@ -32,6 +35,14 @@ assert.equal(
   en.providers.searchBlocked,
   "Everything is available via Search. The search provider backend is disabled here.",
 );
+assert.equal(en.chrome.providerQueryApply, "Apply");
+assert.equal(zh.chrome.providerQueryApply, "查询");
+assert.ok(shell.includes("provider-query-bar"));
+assert.ok(shell.includes("submitProviderQuery"));
+assert.ok(shell.includes("withProviderQuery"));
+assert.ok(shell.includes("getProviderQuery"));
+assert.ok(navigatorView.includes("providers.searchBlocked"));
+assert.ok(navigatorView.includes("PROVIDER_SEARCH_BLOCKED"));
 
 const result = spawnSync(
   process.execPath,

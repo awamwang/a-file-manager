@@ -20,6 +20,7 @@
     "commandsTitle": "Befehlspalette (Ctrl+Shift+P)",
     "forward": "Vorwärts",
     "go": "Los",
+    "providerQueryApply": "Anwenden",
     "healthError": "health: Fehler",
     "healthOk": "health: ok · v{version}",
     "healthPending": "health: …",

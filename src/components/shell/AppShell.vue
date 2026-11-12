@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, nextTick, onBeforeMount, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeMount, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
@@ -81,7 +81,13 @@ import {
   resolveHomePath,
 } from "../../state/guide";
 import { isRecyclePath, RECYCLE_PATH } from "../../state/recycle";
-import { isProviderPath, providerLeafName, PROVIDER_ROOT } from "../../state/provider";
+import {
+  getProviderQuery,
+  isProviderPath,
+  providerLeafName,
+  PROVIDER_ROOT,
+  withProviderQuery,
+} from "../../state/provider";
 import { selectedPaths } from "../../state/navigatorSelection";
 import { formatBytes, selectionByteSize } from "../../state/formatBytes";
 import {
@@ -196,6 +202,32 @@ const isNavigatorRoute = computed(
   () => route.path === "/navigator" || route.path === "/",
 );
 const showingGuide = computed(() => isGuidePath(currentPath.value));
+const providerQueryDrafts = reactive<Record<string, string>>({});
+const providerQueryParams = computed(() => {
+  if (!isProviderPath(currentPath.value)) return [];
+  return listing.value?.requiredQuery ?? [];
+});
+
+/** 用当前路径上的 query 重置 Provider 查询条草稿。 */
+function syncProviderQueryDrafts(path: string) {
+  const next = getProviderQuery(path);
+  for (const key of Object.keys(providerQueryDrafts)) {
+    delete providerQueryDrafts[key];
+  }
+  Object.assign(providerQueryDrafts, next);
+}
+
+async function submitProviderQuery() {
+  const params = providerQueryParams.value;
+  if (!params.length) return;
+  const patch: Record<string, string | null> = {};
+  for (const param of params) {
+    const value = (providerQueryDrafts[param.key] ?? "").trim();
+    patch[param.key] = value ? value : null;
+  }
+  await ensureNavigatorRoute();
+  await navigateTo(withProviderQuery(currentPath.value, patch));
+}
 
 function togglePlacesMenu() {
   workGroupMenuOpen.value = false;
@@ -808,6 +840,7 @@ watch(
   currentPath,
   (path) => {
     addressDraft.value = path;
+    syncProviderQueryDrafts(path);
   },
   { immediate: true },
 );
@@ -907,6 +940,9 @@ const browseStatusText = computed(() => {
   }
   if (showingGuide.value) return t("guide.status");
   if (listLoading.value) return t("chrome.navigatorLoading");
+  if (listError.value === "PROVIDER_SEARCH_BLOCKED") {
+    return t("providers.searchBlocked");
+  }
   if (listError.value) return t("chrome.navigatorError");
   if (listing.value) {
     const parts = [
@@ -2244,6 +2280,25 @@ onUnmounted(() => {
             {{ t("chrome.go") }}
           </button>
 
+          <form
+            v-if="providerQueryParams.length"
+            class="provider-query-bar"
+            @submit.prevent.stop="submitProviderQuery"
+          >
+            <input
+              v-for="param in providerQueryParams"
+              :key="param.key"
+              v-model="providerQueryDrafts[param.key]"
+              class="fluent-control provider-query-input"
+              type="search"
+              :placeholder="param.label || param.key"
+              :aria-label="param.label || param.key"
+            />
+            <button type="submit" class="fluent-control">
+              {{ t("chrome.providerQueryApply") }}
+            </button>
+          </form>
+
           <div
             id="navigator-filter-bar"
             class="navigator-filter-inline"
@@ -2964,6 +3019,22 @@ onUnmounted(() => {
 }
 
 .address-go {
+  height: var(--fluent-control-height-standard);
+  min-height: var(--fluent-control-height-standard);
+}
+
+.provider-query-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-xs);
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.provider-query-input {
+  width: 9rem;
+  min-width: 6rem;
+  max-width: 12rem;
   height: var(--fluent-control-height-standard);
   min-height: var(--fluent-control-height-standard);
 }

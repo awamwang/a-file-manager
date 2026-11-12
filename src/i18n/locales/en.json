@@ -65,6 +65,7 @@
     "path": "Path",
     "pathPlaceholder": "Native OS path (Kernel) — Enter to go",
     "go": "Go",
+    "providerQueryApply": "Apply",
     "tabs": "Tabs",
     "newTab": "New tab",
     "newTabLater": "New tab later",

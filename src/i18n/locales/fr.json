@@ -20,6 +20,7 @@
     "commandsTitle": "Palette de commandes (Ctrl+Shift+P)",
     "forward": "Avancer",
     "go": "Aller",
+    "providerQueryApply": "Appliquer",
     "healthError": "santé : erreur",
     "healthOk": "santé : ok · v{version}",
     "healthPending": "santé : …",
