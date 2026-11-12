@@ -461,7 +461,7 @@ function onOpen(path: string) {
       color-mix(in srgb, var(--fluent-color-stroke-focus) 14%, transparent),
       transparent 60%
     ),
-    var(--fluent-color-layer-default, transparent);
+    transparent;
 }
 
 .guide-header {
@@ -599,84 +599,84 @@ function onOpen(path: string) {
 }
 
 .guide-card--home {
-  --guide-tone: #005fb8;
-  --guide-tone-wash: color-mix(in srgb, #005fb8 14%, transparent);
+  --guide-tone: var(--fluent-guide-tone-home);
+  --guide-tone-wash: color-mix(in srgb, var(--fluent-guide-tone-home) 14%, transparent);
 }
 .guide-card--desktop {
-  --guide-tone: #0f7b7b;
-  --guide-tone-wash: color-mix(in srgb, #0f7b7b 14%, transparent);
+  --guide-tone: var(--fluent-guide-tone-desktop);
+  --guide-tone-wash: color-mix(in srgb, var(--fluent-guide-tone-desktop) 14%, transparent);
 }
 .guide-card--documents {
-  --guide-tone: #2b6cb0;
-  --guide-tone-wash: color-mix(in srgb, #2b6cb0 14%, transparent);
+  --guide-tone: var(--fluent-guide-tone-documents);
+  --guide-tone-wash: color-mix(in srgb, var(--fluent-guide-tone-documents) 14%, transparent);
 }
 .guide-card--downloads {
-  --guide-tone: #0f7b0f;
-  --guide-tone-wash: color-mix(in srgb, #0f7b0f 14%, transparent);
+  --guide-tone: var(--fluent-guide-tone-downloads);
+  --guide-tone-wash: color-mix(in srgb, var(--fluent-guide-tone-downloads) 14%, transparent);
 }
 .guide-card--pictures {
-  --guide-tone: #c45c26;
-  --guide-tone-wash: color-mix(in srgb, #c45c26 14%, transparent);
+  --guide-tone: var(--fluent-guide-tone-pictures);
+  --guide-tone-wash: color-mix(in srgb, var(--fluent-guide-tone-pictures) 14%, transparent);
 }
 .guide-card--music {
-  --guide-tone: #b23a6d;
-  --guide-tone-wash: color-mix(in srgb, #b23a6d 14%, transparent);
+  --guide-tone: var(--fluent-guide-tone-music);
+  --guide-tone-wash: color-mix(in srgb, var(--fluent-guide-tone-music) 14%, transparent);
 }
 .guide-card--videos {
-  --guide-tone: #1f5f8b;
-  --guide-tone-wash: color-mix(in srgb, #1f5f8b 14%, transparent);
+  --guide-tone: var(--fluent-guide-tone-videos);
+  --guide-tone-wash: color-mix(in srgb, var(--fluent-guide-tone-videos) 14%, transparent);
 }
 .guide-card--recent {
-  --guide-tone: #9d5d00;
-  --guide-tone-wash: color-mix(in srgb, #9d5d00 14%, transparent);
+  --guide-tone: var(--fluent-guide-tone-recent);
+  --guide-tone-wash: color-mix(in srgb, var(--fluent-guide-tone-recent) 14%, transparent);
 }
 .guide-card--favorites {
-  --guide-tone: #b8860b;
-  --guide-tone-wash: color-mix(in srgb, #b8860b 14%, transparent);
+  --guide-tone: var(--fluent-guide-tone-favorites);
+  --guide-tone-wash: color-mix(in srgb, var(--fluent-guide-tone-favorites) 14%, transparent);
 }
 .guide-card--drive-fixed {
-  --guide-tone: #005fb8;
-  --guide-tone-wash: color-mix(in srgb, #005fb8 14%, transparent);
+  --guide-tone: var(--fluent-guide-tone-drive-fixed);
+  --guide-tone-wash: color-mix(in srgb, var(--fluent-guide-tone-drive-fixed) 14%, transparent);
 }
 .guide-card--drive-removable {
-  --guide-tone: #0f7b0f;
-  --guide-tone-wash: color-mix(in srgb, #0f7b0f 14%, transparent);
+  --guide-tone: var(--fluent-guide-tone-drive-removable);
+  --guide-tone-wash: color-mix(in srgb, var(--fluent-guide-tone-drive-removable) 14%, transparent);
 }
 .guide-card--drive-remote {
-  --guide-tone: #0078d4;
-  --guide-tone-wash: color-mix(in srgb, #0078d4 14%, transparent);
+  --guide-tone: var(--fluent-guide-tone-drive-remote);
+  --guide-tone-wash: color-mix(in srgb, var(--fluent-guide-tone-drive-remote) 14%, transparent);
 }
 .guide-card--drive-cdrom {
-  --guide-tone: #5d6b7a;
-  --guide-tone-wash: color-mix(in srgb, #5d6b7a 14%, transparent);
+  --guide-tone: var(--fluent-guide-tone-drive-cdrom);
+  --guide-tone-wash: color-mix(in srgb, var(--fluent-guide-tone-drive-cdrom) 14%, transparent);
 }
 .guide-card--drive-ramdisk {
-  --guide-tone: #0f7b7b;
-  --guide-tone-wash: color-mix(in srgb, #0f7b7b 14%, transparent);
+  --guide-tone: var(--fluent-guide-tone-drive-ramdisk);
+  --guide-tone-wash: color-mix(in srgb, var(--fluent-guide-tone-drive-ramdisk) 14%, transparent);
 }
 .guide-card--drive-unknown {
-  --guide-tone: #5d5d5d;
-  --guide-tone-wash: color-mix(in srgb, #5d5d5d 14%, transparent);
+  --guide-tone: var(--fluent-guide-tone-drive-unknown);
+  --guide-tone-wash: color-mix(in srgb, var(--fluent-guide-tone-drive-unknown) 14%, transparent);
 }
 .guide-card--recycle {
-  --guide-tone: #c42b1c;
-  --guide-tone-wash: color-mix(in srgb, #c42b1c 12%, transparent);
+  --guide-tone: var(--fluent-guide-tone-recycle);
+  --guide-tone-wash: color-mix(in srgb, var(--fluent-guide-tone-recycle) 12%, transparent);
 }
 .guide-card--providers {
-  --guide-tone: #0078d4;
-  --guide-tone-wash: color-mix(in srgb, #0078d4 14%, transparent);
+  --guide-tone: var(--fluent-guide-tone-providers);
+  --guide-tone-wash: color-mix(in srgb, var(--fluent-guide-tone-providers) 14%, transparent);
 }
 .guide-card--onedrive {
-  --guide-tone: #094ab2;
-  --guide-tone-wash: color-mix(in srgb, #094ab2 14%, transparent);
+  --guide-tone: var(--fluent-guide-tone-onedrive);
+  --guide-tone-wash: color-mix(in srgb, var(--fluent-guide-tone-onedrive) 14%, transparent);
 }
 .guide-card--libraries {
-  --guide-tone: #486581;
-  --guide-tone-wash: color-mix(in srgb, #486581 14%, transparent);
+  --guide-tone: var(--fluent-guide-tone-libraries);
+  --guide-tone-wash: color-mix(in srgb, var(--fluent-guide-tone-libraries) 14%, transparent);
 }
 .guide-card--network {
-  --guide-tone: #0f6e56;
-  --guide-tone-wash: color-mix(in srgb, #0f6e56 14%, transparent);
+  --guide-tone: var(--fluent-guide-tone-network);
+  --guide-tone-wash: color-mix(in srgb, var(--fluent-guide-tone-network) 14%, transparent);
 }
 
 @media (max-width: 640px) {

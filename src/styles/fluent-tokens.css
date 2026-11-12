@@ -88,6 +88,28 @@
   --fluent-color-chip-stub: #5d5d5d;
   --fluent-color-chip-stub-bg: #f0f0f0;
   --fluent-color-icon-wash: #eef3f9;
+
+  /* NavigatorGuide card tones (light); dark overrides below. */
+  --fluent-guide-tone-home: var(--fluent-color-fill-accent);
+  --fluent-guide-tone-desktop: #0f7b7b;
+  --fluent-guide-tone-documents: #2b6cb0;
+  --fluent-guide-tone-downloads: var(--fluent-color-status-success);
+  --fluent-guide-tone-pictures: #c45c26;
+  --fluent-guide-tone-music: #b23a6d;
+  --fluent-guide-tone-videos: #1f5f8b;
+  --fluent-guide-tone-recent: var(--fluent-color-status-warning);
+  --fluent-guide-tone-favorites: #b8860b;
+  --fluent-guide-tone-drive-fixed: var(--fluent-color-fill-accent);
+  --fluent-guide-tone-drive-removable: var(--fluent-color-status-success);
+  --fluent-guide-tone-drive-remote: #0078d4;
+  --fluent-guide-tone-drive-cdrom: #5d6b7a;
+  --fluent-guide-tone-drive-ramdisk: #0f7b7b;
+  --fluent-guide-tone-drive-unknown: var(--fluent-color-text-secondary);
+  --fluent-guide-tone-recycle: var(--fluent-color-status-danger);
+  --fluent-guide-tone-providers: #0078d4;
+  --fluent-guide-tone-onedrive: #094ab2;
+  --fluent-guide-tone-libraries: #486581;
+  --fluent-guide-tone-network: #0f6e56;
 }
 
 /* Locale-aware CJK preference (html[lang] set by applyAppLocale). */
@@ -169,6 +191,19 @@ html[data-theme="light"] {
     --fluent-color-chip-stub-bg: #333333;
     --fluent-color-icon-wash: #243447;
     --fluent-shadow-flyout: 0 8px 24px rgba(0, 0, 0, 0.45);
+    --fluent-guide-tone-desktop: #3dcdc0;
+    --fluent-guide-tone-documents: #6cb6ff;
+    --fluent-guide-tone-pictures: #ff9a5c;
+    --fluent-guide-tone-music: #f070a0;
+    --fluent-guide-tone-videos: #5eb3e8;
+    --fluent-guide-tone-favorites: #e6c35c;
+    --fluent-guide-tone-drive-remote: #60cdff;
+    --fluent-guide-tone-drive-cdrom: #a0aab8;
+    --fluent-guide-tone-drive-ramdisk: #3dcdc0;
+    --fluent-guide-tone-providers: #60cdff;
+    --fluent-guide-tone-onedrive: #6b9fff;
+    --fluent-guide-tone-libraries: #8fa3b8;
+    --fluent-guide-tone-network: #3dcea0;
   }
 }
 
@@ -205,6 +240,19 @@ html[data-theme="dark"] {
   --fluent-color-chip-stub-bg: #333333;
   --fluent-color-icon-wash: #243447;
   --fluent-shadow-flyout: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --fluent-guide-tone-desktop: #3dcdc0;
+  --fluent-guide-tone-documents: #6cb6ff;
+  --fluent-guide-tone-pictures: #ff9a5c;
+  --fluent-guide-tone-music: #f070a0;
+  --fluent-guide-tone-videos: #5eb3e8;
+  --fluent-guide-tone-favorites: #e6c35c;
+  --fluent-guide-tone-drive-remote: #60cdff;
+  --fluent-guide-tone-drive-cdrom: #a0aab8;
+  --fluent-guide-tone-drive-ramdisk: #3dcdc0;
+  --fluent-guide-tone-providers: #60cdff;
+  --fluent-guide-tone-onedrive: #6b9fff;
+  --fluent-guide-tone-libraries: #8fa3b8;
+  --fluent-guide-tone-network: #3dcea0;
 }
 
 html[data-theme="light"] {
@@ -240,6 +288,19 @@ html[data-theme="light"] {
   --fluent-color-chip-stub-bg: #f0f0f0;
   --fluent-color-icon-wash: #eef3f9;
   --fluent-shadow-flyout: 0 8px 24px rgba(0, 0, 0, 0.18);
+  --fluent-guide-tone-desktop: #0f7b7b;
+  --fluent-guide-tone-documents: #2b6cb0;
+  --fluent-guide-tone-pictures: #c45c26;
+  --fluent-guide-tone-music: #b23a6d;
+  --fluent-guide-tone-videos: #1f5f8b;
+  --fluent-guide-tone-favorites: #b8860b;
+  --fluent-guide-tone-drive-remote: #0078d4;
+  --fluent-guide-tone-drive-cdrom: #5d6b7a;
+  --fluent-guide-tone-drive-ramdisk: #0f7b7b;
+  --fluent-guide-tone-providers: #0078d4;
+  --fluent-guide-tone-onedrive: #094ab2;
+  --fluent-guide-tone-libraries: #486581;
+  --fluent-guide-tone-network: #0f6e56;
 }
 
 /* ---- Chrome utility classes (extend; do not fork) ---- */

@@ -65,6 +65,18 @@ assert.ok(guideVue.includes("listProviderBackends"), "guide loads provider backe
 assert.ok(guideVue.includes("guide-card-icon"), "guide cards use toned icon wash");
 assert.ok(guideVue.includes("guide-card--drive-fixed"), "fixed drives get distinct tone");
 assert.ok(guideVue.includes("guide-card--drive-removable"), "removable drives get distinct tone");
+assert.ok(
+  guideVue.includes("var(--fluent-guide-tone-home)"),
+  "guide tones must use Fluent guide tokens",
+);
+assert.ok(
+  !/--guide-tone:\s*#[0-9a-fA-F]{3,8}/.test(guideVue),
+  "guide card tones must not hardcode hex",
+);
+assert.ok(
+  !guideVue.includes("text-tertiary"),
+  "guide must not reference undefined text-tertiary",
+);
 assert.ok(guideVue.includes("guide-capacity"), "drive cards render capacity UI");
 assert.ok(guideVue.includes("guide-capacity-fill"), "capacity bar fill present");
 assert.ok(guideVue.includes("fetchDriveSpaces"), "guide loads real disk space asynchronously");
