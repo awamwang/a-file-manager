@@ -570,9 +570,11 @@ function riskChipClass(risk: string): string {
 
 <style scoped>
 .runtime {
+  height: 100%;
   min-height: 0;
   min-width: 0;
   gap: var(--fluent-space-lg);
+  overflow: auto;
 }
 
 .card {
@@ -582,6 +584,10 @@ function riskChipClass(risk: string): string {
   padding: var(--fluent-space-lg);
   min-width: 0;
   overflow: visible;
+}
+
+.status-card {
+  flex: 0 0 auto;
 }
 
 .section-title {
@@ -681,6 +687,7 @@ function riskChipClass(risk: string): string {
   display: grid;
   grid-template-columns: minmax(12rem, 18rem) minmax(12rem, 18rem) minmax(0, 1fr);
   gap: var(--fluent-space-md);
+  flex: 1;
   min-height: 0;
   min-width: 0;
   align-items: stretch;
@@ -689,19 +696,22 @@ function riskChipClass(risk: string): string {
 .pane {
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
 }
 
 .pane--invoke {
   gap: var(--fluent-space-md);
+  overflow: auto;
 }
 
 .list {
   display: flex;
   flex-direction: column;
   gap: var(--fluent-space-xs);
-  max-height: min(28rem, 55vh);
-  overflow: auto;
+  flex: 1;
+  min-height: 0;
   min-width: 0;
+  overflow: auto;
 }
 
 .row {
