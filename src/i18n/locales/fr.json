@@ -365,7 +365,32 @@
     "runHello": "Exécuter hello",
     "title": "Extensions",
     "uninstall": "Désinstaller",
-    "unknownError": "inconnu"
+    "unknownError": "inconnu",
+    "packsTitle": "Feature Packs",
+    "packsMeta": "Installation locale uniquement des Feature Packs. Ce n’est ni une marketplace ni une boutique.",
+    "packsLocalOnly": "Installation depuis un dossier ou un zip sur cet ordinateur. Aucun catalogue, marketplace ou boutique distant n’est contacté.",
+    "installFromFolder": "Installer depuis un dossier ou un zip",
+    "installPathTitle": "Installer un Feature Pack",
+    "installPathLabel": "Chemin de dossier ou de .zip local",
+    "installPathHint": "Saisissez un dossier de pack (avec pack.json) ou un .zip sur cet ordinateur. Pas une boutique.",
+    "installPathPlaceholder": "C:\\\\path\\\\to\\\\pack ou pack.zip",
+    "noPacks": "Aucun Feature Pack installé.",
+    "packEnable": "Activé",
+    "packState": {
+      "installed": "installé",
+      "enabled": "activé",
+      "disabled": "désactivé",
+      "crashed": "planté"
+    },
+    "uninstallPackTitle": "Désinstaller le Feature Pack",
+    "uninstallPackMessage": "Désinstaller {name} ({id}) de cet ordinateur ?",
+    "noticePackInstalled": "{id} installé depuis cet ordinateur. Rechargez la fenêtre si la barre latérale doit se mettre à jour.",
+    "noticePackEnabled": "{id} activé. Rechargez la fenêtre pour actualiser la barre latérale.",
+    "noticePackDisabled": "{id} désactivé. Rechargez la fenêtre pour actualiser la barre latérale.",
+    "noticePackUninstalled": "{id} désinstallé. Rechargez la fenêtre pour actualiser la barre latérale.",
+    "reloadHint": "La barre latérale des packs activés apparaît après « Recharger la fenêtre ».",
+    "demoTitle": "Extensions démo vNext",
+    "demoMeta": "Hôte démo en mémoire — distinct des Feature Packs. Pas une boutique."
   },
   "health": {
     "failed": "Échec de santé : {error}",
