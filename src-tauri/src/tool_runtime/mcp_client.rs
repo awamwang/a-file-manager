@@ -381,23 +381,24 @@ mod tests {
 
     fn spawn_fixture_gateway() -> (String, String) {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        listener.set_nonblocking(true).unwrap();
+        // 阻塞 accept，避免非阻塞轮询下客户端连入被对端中止（Windows 10053）。
+        listener.set_nonblocking(false).unwrap();
         let addr = listener.local_addr().unwrap();
         let token = "fixture-token";
         thread::spawn(move || {
-            let deadline = Instant::now() + Duration::from_secs(4);
-            while Instant::now() < deadline {
+            // 短生命周期 fixture：处理若干连接后随测试进程结束。
+            for _ in 0..16 {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
+                        let _ = stream.set_nodelay(true);
                         let _ = handle_fixture_conn(&mut stream, token);
-                    }
-                    Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {
-                        thread::sleep(Duration::from_millis(15));
                     }
                     Err(_) => break,
                 }
             }
         });
+        // 给监听线程一点启动时间，降低首连竞态。
+        thread::sleep(Duration::from_millis(20));
         (format!("http://{addr}"), token.to_string())
     }
 
