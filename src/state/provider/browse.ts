@@ -9,6 +9,7 @@ import {
 } from "../providerCache";
 import {
   providerListingFromDir,
+  shouldThrowProviderListError,
   type ProviderBackendInfo,
   type ProviderDirListingWire,
   type ProviderNavigatorListing,
@@ -39,10 +40,9 @@ export async function loadProviderListing(
   const listing = await invoke<ProviderDirListingWire>("provider_list", {
     uri: target,
   });
-  // error == null：成功（含待查询软空列表）。有 requiredQuery 时吞掉旧网关 Missing query。
-  const awaitingQuery = Boolean(listing.requiredQuery?.length);
-  if (listing.error && !awaitingQuery) {
-    throw new Error(listing.error);
+  // 待查询软空不抛；真实失败无 requiredQuery 才硬失败。有查询条时带上 error 保留列表。
+  if (shouldThrowProviderListError(listing)) {
+    throw new Error(listing.error ?? "provider_list failed");
   }
   return providerListingFromDir(listing);
 }

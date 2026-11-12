@@ -12,8 +12,10 @@ import {
   withProviderQuery,
 } from "../src/state/provider/path.ts";
 import {
+  isSoftProviderQueryAwaiting,
   providerListingFromDir,
   providerRootEntriesFromBackends,
+  shouldThrowProviderListError,
 } from "../src/state/provider/listing.ts";
 import {
   buildNavigatorBreadcrumbs,
@@ -102,6 +104,47 @@ const soft = providerListingFromDir({
 });
 assert.deepEqual(soft.requiredQuery?.[0]?.key, "q");
 assert.equal(soft.entries.length, 0);
+assert.equal(soft.error, null);
+
+const engineDown = providerListingFromDir({
+  uri: "awam://prowlarr/search",
+  backend: "prowlarr",
+  entries: [],
+  error: "backend_unavailable: x",
+  requiredQuery: [{ key: "q" }],
+});
+assert.equal(engineDown.error, "backend_unavailable: x");
+assert.equal(engineDown.requiredQuery?.[0]?.key, "q");
+assert.equal(
+  shouldThrowProviderListError({
+    error: "backend_unavailable: x",
+    requiredQuery: [{ key: "q" }],
+  }),
+  false,
+);
+assert.equal(
+  shouldThrowProviderListError({ error: "backend_unavailable: x" }),
+  true,
+);
+assert.equal(
+  isSoftProviderQueryAwaiting("Missing query parameter q", [
+    { key: "q", required: true },
+  ]),
+  true,
+);
+assert.equal(
+  isSoftProviderQueryAwaiting("backend_unavailable: x", [{ key: "q" }]),
+  false,
+);
+const legacyMissing = providerListingFromDir({
+  uri: "awam://hf/remote",
+  backend: "hf",
+  entries: [],
+  error: "Missing query parameter q",
+  requiredQuery: [{ key: "q", label: "Query", required: true }],
+});
+assert.equal(legacyMissing.error, null);
+assert.equal(legacyMissing.requiredQuery?.[0]?.key, "q");
 
 const roots = providerRootEntriesFromBackends([
   {

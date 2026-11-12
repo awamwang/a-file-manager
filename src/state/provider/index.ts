@@ -15,8 +15,10 @@ export {
   withProviderQuery,
 } from "./path";
 export {
+  isSoftProviderQueryAwaiting,
   providerListingFromDir,
   providerRootEntriesFromBackends,
+  shouldThrowProviderListError,
   type ProviderBackendInfo,
   type ProviderDirListingWire,
   type ProviderEntryWire,
