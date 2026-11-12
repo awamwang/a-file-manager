@@ -7,6 +7,7 @@
 
 mod commands;
 mod host;
+mod pack_fs;
 mod permissions;
 pub mod types;
 

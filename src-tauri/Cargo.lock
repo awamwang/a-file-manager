@@ -18,6 +18,7 @@ dependencies = [
  "tauri-plugin-drag",
  "tauri-plugin-frame",
  "tauri-plugin-opener",
+ "tempfile",
  "trash",
  "ureq",
  "walkdir",
