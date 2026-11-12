@@ -860,25 +860,50 @@ async function openAllLinks() {
 }
 
 /**
- * AIA-253 — open the Project Workspace folder on disk (OS Explorer).
- * Prefer `open_path_default` over plugin-opener for arbitrary FS paths (ACL).
+ * FIL-64 — 默认在本软件 Navigator 中打开 Project Workspace 目录
+ *（与成员路径 openLink / openOrFocus 习惯一致）。
  */
 async function openWorkspaceFolder() {
   if (!selected.value?.path) return;
   error.value = null;
   try {
+    await openLink(selected.value.path);
+    toastSuccess(t("projects.noticeOpenedWorkspace"));
+  } catch (err) {
+    error.value = mapProjectError(err);
+  }
+}
+
+/** 次要动作：在系统资源管理器中打开 Workspace 目录。 */
+async function openWorkspaceFolderInSystemExplorer() {
+  if (!selected.value?.path) return;
+  await openPathInSystemExplorer(selected.value.path);
+}
+
+/** 在系统资源管理器中打开路径（次要；不阻塞 UI）。 */
+async function openPathInSystemExplorer(path: string) {
+  pathMenuPath.value = null;
+  const text = path.trim();
+  if (!text) return;
+  error.value = null;
+  try {
     const result = await invoke<{ success: boolean; error: string | null }>(
       "open_path_default",
-      { path: selected.value.path },
+      { path: text },
     );
     if (!result.success) {
       error.value = result.error || t("projects.openWorkspaceFailed");
       return;
     }
-    toastSuccess(t("projects.noticeOpenedWorkspace"));
+    toastSuccess(t("projects.noticeOpenedInSystemExplorer"));
   } catch (err) {
     error.value = mapProjectError(err);
   }
+}
+
+async function openPathMenuInNavigator(path: string) {
+  pathMenuPath.value = null;
+  await openLink(path);
 }
 
 /** AIA-221 / A8 — Cursor opens Workspace dir; Qoder opens CONTEXT.md. */
@@ -1082,6 +1107,15 @@ onUnmounted(() => {
             @click="openWorkspaceFolder"
           >
             {{ t("projects.openWorkspaceFolder") }}
+          </button>
+          <button
+            v-if="selected.path"
+            class="fluent-control"
+            type="button"
+            :title="t('projects.openWorkspaceInSystemExplorerHint')"
+            @click="openWorkspaceFolderInSystemExplorer"
+          >
+            {{ t("contextMenu.openWithExplorer") }}
           </button>
           <button
             v-if="selected.path"
@@ -1430,6 +1464,22 @@ onUnmounted(() => {
         :style="pathMenuStyle"
         @click.stop
       >
+        <button
+          type="button"
+          class="more-item"
+          role="menuitem"
+          @click="openPathMenuInNavigator(pathMenuPath)"
+        >
+          {{ t("projects.openDirectory") }}
+        </button>
+        <button
+          type="button"
+          class="more-item"
+          role="menuitem"
+          @click="openPathInSystemExplorer(pathMenuPath)"
+        >
+          {{ t("contextMenu.openWithExplorer") }}
+        </button>
         <button
           type="button"
           class="more-item"

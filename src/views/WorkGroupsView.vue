@@ -73,8 +73,33 @@ function pathLabel(path: string): string {
 }
 
 async function openPathInNavigator(path: string) {
+  pathMenuPath.value = null;
   await openOrFocusNavigatorTab(path);
   await router.push("/navigator");
+}
+
+/** 次要动作：在系统资源管理器中打开路径（不阻塞 UI）。 */
+async function openPathInSystemExplorer(path: string) {
+  pathMenuPath.value = null;
+  const text = path.trim();
+  if (!text) return;
+  try {
+    const result = await invoke<{ success: boolean; error: string | null }>(
+      "open_path_default",
+      { path: text },
+    );
+    if (!result.success) {
+      const msg = result.error || t("contextMenu.opFailed");
+      error.value = msg;
+      toastError(msg);
+      return;
+    }
+    toastSuccess(t("projects.noticeOpenedInSystemExplorer"));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    error.value = msg;
+    toastError(msg);
+  }
 }
 
 /** AIA-276: paint from chrome hydrate cache, then reconcile. */
@@ -961,6 +986,22 @@ onUnmounted(() => {
         :style="pathMenuStyle"
         @click.stop
       >
+        <button
+          type="button"
+          class="more-item"
+          role="menuitem"
+          @click="openPathInNavigator(pathMenuPath)"
+        >
+          {{ t("projects.openDirectory") }}
+        </button>
+        <button
+          type="button"
+          class="more-item"
+          role="menuitem"
+          @click="openPathInSystemExplorer(pathMenuPath)"
+        >
+          {{ t("contextMenu.openWithExplorer") }}
+        </button>
         <button
           type="button"
           class="more-item"
