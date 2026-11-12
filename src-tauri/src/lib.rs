@@ -26,9 +26,10 @@ mod system_tray;
 mod terminal;
 mod tool_runtime;
 pub use tool_runtime::{
-    config_file_path, health_check, load_from_path, query_gateway_status, read_http_token,
-    resolve_runtime_dir, save_to_path, version_in_range, GatewayStatus, HealthOk, ToolRuntimeConfig,
-    CONFIG_FILE_NAME, DEFAULT_BASE_URL, RUNTIME_DIR_ENV, TOKEN_FILE_NAME, TOOL_RUNTIME_PACK_ID,
+    config_file_path, ensure_gateway, health_check, load_from_path, query_gateway_status,
+    read_http_token, resolve_runtime_dir, save_to_path, start_sidecar, version_in_range,
+    EnsureGatewayResult, GatewayStatus, HealthOk, ToolRuntimeConfig, CONFIG_FILE_NAME,
+    DEFAULT_BASE_URL, RUNTIME_DIR_ENV, TOKEN_FILE_NAME, TOOL_RUNTIME_PACK_ID,
 };
 mod snap_chrome;
 #[cfg(windows)]
@@ -237,6 +238,7 @@ health_get,
                     providers::provider_backends,
                     providers::provider_gateway_status,
                     tool_runtime::tool_runtime_gateway_status,
+                    tool_runtime::tool_runtime_ensure_gateway,
                     providers::provider_list,
                     providers::provider_stat,
                     providers::provider_resolve,
