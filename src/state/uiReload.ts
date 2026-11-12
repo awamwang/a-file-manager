@@ -46,6 +46,17 @@ export async function reloadWindow(): Promise<void> {
     // IPC unavailable: keep prior side nav / routes / commands.
   }
 
+  // Pack 禁用/卸载后当前路径可能已从路由表移除，回退到扩展页避免空白。
+  try {
+    const { default: router } = await import("../router");
+    const path = router.currentRoute.value.path;
+    if (router.resolve(path).matched.length === 0) {
+      await router.replace("/extensions");
+    }
+  } catch {
+    // 路由不可用时仍继续 remount。
+  }
+
   shellRemountKey.value += 1;
   await nextTick();
   // Re-bind listing after remount without wiping open paths.

@@ -15,6 +15,7 @@ const router = read("src/router/index.ts");
 const registry = read("src/commands/registry.ts");
 const main = read("src/main.ts");
 const reload = read("src/state/uiReload.ts");
+const extensionsView = read("src/views/ExtensionsView.vue");
 
 assert.ok(
   sideNav.includes("getSideNavExtras"),
@@ -90,6 +91,26 @@ assert.ok(
   assert.ok(
     remountIdx > hydrateIdx,
     "reloadWindow must hydrate Feature Pack contributions before remount",
+  );
+  assert.ok(
+    fn.includes('replace("/extensions")') || fn.includes("replace('/extensions')"),
+    "reloadWindow must fall back when pack route is removed",
+  );
+}
+assert.ok(
+  extensionsView.includes("reloadWindow"),
+  "ExtensionsView must Soft Reload after pack enable/disable",
+);
+{
+  const enableFnStart = extensionsView.indexOf("async function setPackEnabled");
+  assert.ok(enableFnStart >= 0, "ExtensionsView must define setPackEnabled");
+  const enableFn = extensionsView.slice(
+    enableFnStart,
+    extensionsView.indexOf("function onPackEnabledChange", enableFnStart),
+  );
+  assert.ok(
+    enableFn.includes("reloadWindow"),
+    "setPackEnabled must call reloadWindow so side nav toggles with pack state",
   );
 }
 assert.ok(

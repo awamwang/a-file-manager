@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { openConfirmDialog } from "../state/confirmDialog";
 import { openPromptDialog } from "../state/promptDialog";
 import { toastInfo, toastSuccess } from "../state/toast";
+import { reloadWindow } from "../state/uiReload";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 
 const { t } = useI18n();
@@ -186,6 +187,8 @@ async function installPackFromLocalPath() {
       t("extensions.noticePackInstalled", { id: result.pack?.id ?? "" }),
     );
     await refresh();
+    // 重装已启用 Pack 时贡献可能变化，自动 Soft Reload 合并侧栏/路由。
+    await reloadWindow();
   } catch (err) {
     error.value = invokeErrorMessage(err);
   } finally {
@@ -204,11 +207,13 @@ async function setPackEnabled(id: string, enabled: boolean) {
         ? t("extensions.noticePackEnabled", { id })
         : t("extensions.noticePackDisabled", { id }),
     );
+    await refresh();
+    // 启用态变更后立即重新 hydrate 贡献并 remount，使侧栏菜单项显隐同步。
+    await reloadWindow();
   } catch (err) {
     error.value = invokeErrorMessage(err);
   } finally {
     packBusy.value = false;
-    await refresh();
   }
 }
 
@@ -235,11 +240,13 @@ async function uninstallPack(pack: InstalledPack) {
   try {
     await invoke("extension_host_uninstall_pack", { id: pack.id });
     toastSuccess(t("extensions.noticePackUninstalled", { id: pack.id }));
+    await refresh();
+    // 卸载后清除侧栏/路由贡献。
+    await reloadWindow();
   } catch (err) {
     error.value = invokeErrorMessage(err);
   } finally {
     packBusy.value = false;
-    await refresh();
   }
 }
 
