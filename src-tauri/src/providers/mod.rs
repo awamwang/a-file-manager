@@ -94,6 +94,23 @@ fn search_blocked_listing(uri: &str) -> DirListing {
     }
 }
 
+fn search_blocked_stat() -> StatResult {
+    StatResult {
+        entry: None,
+        error: Some("PROVIDER_SEARCH_BLOCKED".into()),
+    }
+}
+
+fn search_blocked_resolve(uri: &str) -> ResolveResult {
+    ResolveResult {
+        uri: uri.to_string(),
+        local_path: None,
+        action: None,
+        action_args: Default::default(),
+        error: Some("PROVIDER_SEARCH_BLOCKED".into()),
+    }
+}
+
 /// 清空后端发现缓存（改网关地址 / 手动刷新时调用）。
 pub fn invalidate_backends_cache() {
     if let Ok(mut guard) = BACKENDS_CACHE.lock() {
@@ -174,6 +191,9 @@ fn stat_dispatch(uri_str: &str) -> Result<StatResult, String> {
             ),
         });
     }
+    if is_hidden_provider_backend(&parsed.backend) {
+        return Ok(search_blocked_stat());
+    }
     if gateway::is_online() {
         match gateway::stat(uri_str) {
             Ok(result) => Ok(result),
@@ -200,6 +220,9 @@ fn resolve_dispatch(uri_str: &str) -> Result<ResolveResult, String> {
                     .to_string(),
             ),
         });
+    }
+    if is_hidden_provider_backend(&parsed.backend) {
+        return Ok(search_blocked_resolve(uri_str));
     }
     if gateway::is_online() {
         match gateway::resolve(uri_str) {
@@ -608,5 +631,14 @@ mod tests {
     fn search_uri_is_blocked_case_insensitively() {
         let listing = list_dispatch("awam://SEARCH/everything?q=a").unwrap();
         assert_eq!(listing.error.as_deref(), Some("PROVIDER_SEARCH_BLOCKED"));
+    }
+
+    #[test]
+    fn search_uri_stat_and_resolve_blocked() {
+        let stat = stat_dispatch("awam://search/everything").unwrap();
+        assert_eq!(stat.error.as_deref(), Some("PROVIDER_SEARCH_BLOCKED"));
+        assert!(stat.entry.is_none());
+        let resolve = resolve_dispatch("awam://search").unwrap();
+        assert_eq!(resolve.error.as_deref(), Some("PROVIDER_SEARCH_BLOCKED"));
     }
 }

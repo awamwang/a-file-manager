@@ -8,6 +8,7 @@ use super::types::{
     is_hidden_provider_backend, BackendInfo, DirListing, ProviderEntry, QueryParam, ResolveResult,
     StatResult,
 };
+use super::uri::parse_awam_uri;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -254,6 +255,19 @@ fn is_local_backend(id: &str) -> bool {
     id.eq_ignore_ascii_case("local")
 }
 
+/// 网关 list 条目：按 URI 后端过滤 `search`（不误伤 `awam://prowlarr/search` 或 `awam://searching`）。
+fn exclude_gateway_list_entry(uri: &str, name: &str) -> bool {
+    if uri.to_ascii_lowercase().starts_with("awam://local")
+        || name.eq_ignore_ascii_case("local")
+    {
+        return true;
+    }
+    match parse_awam_uri(uri) {
+        Ok(parsed) => is_hidden_provider_backend(&parsed.backend),
+        Err(_) => false,
+    }
+}
+
 fn map_backend(info: GatewayBackendInfo) -> BackendInfo {
     BackendInfo {
         id: info.id,
@@ -334,13 +348,7 @@ pub fn list(uri: &str) -> Result<DirListing, String> {
     let entries = listing
         .entries
         .into_iter()
-        .filter(|e| {
-            // Root roster may include awam://local — keep Navigator-only.
-            !e.uri.to_ascii_lowercase().starts_with("awam://local")
-                && !e.name.eq_ignore_ascii_case("local")
-                && !e.uri.to_ascii_lowercase().starts_with("awam://search")
-                && !is_hidden_provider_backend(&e.name)
-        })
+        .filter(|e| !exclude_gateway_list_entry(&e.uri, &e.name))
         .map(map_entry)
         .collect();
     Ok(DirListing {
@@ -525,6 +533,22 @@ mod tests {
             .collect();
         assert!(mapped.iter().all(|b| !b.id.eq_ignore_ascii_case("search")));
         assert!(mapped.iter().any(|b| b.id == "hf"));
+    }
+
+    #[test]
+    fn list_entry_filter_uri_backend_not_display_name() {
+        assert!(
+            !exclude_gateway_list_entry("awam://prowlarr/search", "search"),
+            "prowlarr 路径段 search 不应因展示名被隐藏"
+        );
+        assert!(
+            exclude_gateway_list_entry("awam://search/everything", "everything"),
+            "awam://search 后端条目应被过滤"
+        );
+        assert!(
+            !exclude_gateway_list_entry("awam://searching/item", "item"),
+            "awam://searching 不得误匹配 search 前缀"
+        );
     }
 
     #[test]
