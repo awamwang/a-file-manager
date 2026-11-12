@@ -1,0 +1,20 @@
+{
+  "id": "awam.tool-runtime",
+  "name": "工具管理运行时",
+  "version": "0.1.0",
+  "apiVersion": "feature-pack.1",
+  "description": "本机工具管理网关薄客户端。Sidecar 启动行与 awam-tool-manager README 一致：python server.py --transport http。workingDirRel sidecar 需为该仓库 src（或安装后改成本机路径）；不要使用占位模块 awam_tool_manager_placeholder。",
+  "permissions": ["network", "spawnSidecar"],
+  "gatewayCompat": { "minVersion": "0.1.0", "maxVersion": "1.0.0" },
+  "contributions": {
+    "sideNav": [{ "id": "tool-runtime", "labelKey": "nav.toolRuntime", "to": "/tools", "order": 45 }],
+    "routes": [{ "path": "/tools", "name": "tool-runtime", "entry": "builtin:tool-runtime" }],
+    "commands": [{ "id": "tool-runtime.open", "labelKey": "cmd.toolRuntimeOpen", "route": "/tools" }],
+    "sidecars": [{
+      "id": "awam-tool-manager",
+      "command": "python",
+      "args": ["server.py", "--transport", "http"],
+      "workingDirRel": "sidecar"
+    }]
+  }
+}

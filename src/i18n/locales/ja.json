@@ -464,7 +464,11 @@
     "projects": "プロジェクト",
     "providers": "プロバイダー",
     "settings": "設定",
+    "toolRuntime": "ツールランタイム",
     "workGroups": "ワークグループ"
+  },
+  "cmd": {
+    "toolRuntimeOpen": "ツールランタイムを開く"
   },
   "navigator": {
     "empty": "このフォルダーは空です。",
@@ -1081,6 +1085,38 @@
     "subtitle": "削除した項目を表示して元に戻す",
     "restore": "元に戻す",
     "restored": "{count} 項目を元に戻しました"
+  },
+  "toolRuntime": {
+    "title": "ツールランタイム",
+    "meta": "ローカルのツール管理ゲートウェイ経由で能力を一覧・呼び出し",
+    "statusReachable": "ゲートウェイ接続済み{version}",
+    "statusUnreachable": "ゲートウェイ未接続：{detail}",
+    "attachStart": "接続 / 起動",
+    "attaching": "接続中…",
+    "attached": "既存ゲートウェイに接続しました",
+    "spawned": "sidecar を起動しました（pid {pid}）",
+    "tools": "ツール",
+    "filterPlaceholder": "ツールを絞り込む…",
+    "noTools": "ツールがありません",
+    "capabilities": "能力",
+    "noCapabilities": "能力がありません",
+    "selectTool": "左側のツールを選ぶと能力が表示されます",
+    "selectCapability": "能力を選んで引数を入力してください",
+    "preview": "プレビュー",
+    "execute": "実行",
+    "confirmExecute": "実行を確認",
+    "previewHeading": "プレビュー結果",
+    "resultHeading": "実行結果",
+    "destructiveTitle": "破壊的操作の確認",
+    "destructiveMessage": "この能力は破壊的とマークされています。実行するには確認が必要です。",
+    "jsonFallback": "引数（JSON）",
+    "jsonInvalid": "JSON が無効です",
+    "refreshCapabilities": "能力を更新",
+    "disabled": "ツールランタイム Pack が有効ではありません",
+    "emptySchema": "この能力に引数はありません",
+    "riskRead": "読み取り専用",
+    "riskWrite": "書き込み",
+    "riskDestructive": "破壊的"
   },
   "shellPlaces": {
     "onedrive": "OneDrive",

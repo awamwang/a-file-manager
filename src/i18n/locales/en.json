@@ -123,7 +123,11 @@
     "ai": "AI",
     "extensions": "Extensions",
     "settings": "Settings",
-    "health": "Health"
+    "health": "Health",
+    "toolRuntime": "Tool Runtime"
+  },
+  "cmd": {
+    "toolRuntimeOpen": "Open Tool Runtime"
   },
   "commands": {
     "groups": {
@@ -1142,6 +1146,38 @@
     "subtitle": "Browse and restore deleted items",
     "restore": "Restore",
     "restored": "Restored {count} item(s)"
+  },
+  "toolRuntime": {
+    "title": "Tool Runtime",
+    "meta": "List and call capabilities through the local tool-manager gateway",
+    "statusReachable": "Gateway connected{version}",
+    "statusUnreachable": "Gateway unreachable: {detail}",
+    "attachStart": "Attach / start",
+    "attaching": "Attaching…",
+    "attached": "Attached to existing gateway",
+    "spawned": "Started sidecar (pid {pid})",
+    "tools": "Tools",
+    "filterPlaceholder": "Filter tools…",
+    "noTools": "No tools",
+    "capabilities": "Capabilities",
+    "noCapabilities": "No capabilities",
+    "selectTool": "Select a tool on the left to view capabilities",
+    "selectCapability": "Select a capability to fill in arguments",
+    "preview": "Preview",
+    "execute": "Execute",
+    "confirmExecute": "Confirm execute",
+    "previewHeading": "Preview result",
+    "resultHeading": "Execution result",
+    "destructiveTitle": "Confirm destructive action",
+    "destructiveMessage": "This capability is marked destructive. Confirm to execute it.",
+    "jsonFallback": "Arguments (JSON)",
+    "jsonInvalid": "Invalid JSON",
+    "refreshCapabilities": "Refresh capabilities",
+    "disabled": "Tool Runtime pack is not enabled",
+    "emptySchema": "This capability takes no arguments",
+    "riskRead": "Read-only",
+    "riskWrite": "Write",
+    "riskDestructive": "Destructive"
   },
   "shellPlaces": {
     "onedrive": "OneDrive",

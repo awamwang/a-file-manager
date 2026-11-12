@@ -464,7 +464,11 @@
     "projects": "Projets",
     "providers": "Fournisseurs",
     "settings": "Paramètres",
+    "toolRuntime": "Runtime d’outils",
     "workGroups": "Groupes de travail"
+  },
+  "cmd": {
+    "toolRuntimeOpen": "Ouvrir le runtime d’outils"
   },
   "navigator": {
     "empty": "Ce dossier est vide.",
@@ -1081,6 +1085,38 @@
     "subtitle": "Parcourir et restaurer les elements supprimes",
     "restore": "Restaurer",
     "restored": "{count} element(s) restaure(s)"
+  },
+  "toolRuntime": {
+    "title": "Runtime d’outils",
+    "meta": "Lister et appeler les capacités via la passerelle locale de gestion d’outils",
+    "statusReachable": "Passerelle connectée{version}",
+    "statusUnreachable": "Passerelle injoignable : {detail}",
+    "attachStart": "Attacher / démarrer",
+    "attaching": "Attachement…",
+    "attached": "Attaché à la passerelle existante",
+    "spawned": "Sidecar démarré (pid {pid})",
+    "tools": "Outils",
+    "filterPlaceholder": "Filtrer les outils…",
+    "noTools": "Aucun outil",
+    "capabilities": "Capacités",
+    "noCapabilities": "Aucune capacité",
+    "selectTool": "Sélectionnez un outil à gauche pour voir les capacités",
+    "selectCapability": "Sélectionnez une capacité pour saisir les arguments",
+    "preview": "Aperçu",
+    "execute": "Exécuter",
+    "confirmExecute": "Confirmer l’exécution",
+    "previewHeading": "Résultat de l’aperçu",
+    "resultHeading": "Résultat de l’exécution",
+    "destructiveTitle": "Confirmer l’action destructive",
+    "destructiveMessage": "Cette capacité est marquée comme destructive. Confirmez pour l’exécuter.",
+    "jsonFallback": "Arguments (JSON)",
+    "jsonInvalid": "JSON invalide",
+    "refreshCapabilities": "Actualiser les capacités",
+    "disabled": "Le pack Runtime d’outils n’est pas activé",
+    "emptySchema": "Cette capacité n’accepte aucun argument",
+    "riskRead": "Lecture seule",
+    "riskWrite": "Écriture",
+    "riskDestructive": "Destructive"
   },
   "shellPlaces": {
     "onedrive": "OneDrive",
