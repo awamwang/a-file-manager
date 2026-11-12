@@ -34,9 +34,36 @@ assert.ok(
   "pending queue items must not reshuffle on every viewport sync",
 );
 assert.ok(
-  view.includes("preferThumbnail: iconView && entry.kind !== \"dir\"") ||
-    view.includes("preferThumbnail: iconView && entry.kind !== 'dir'"),
-  "icon view: directories request shell icons only (no thumbnail)",
+  view.includes("entryWantsContentThumbnail"),
+  "icon view: content-thumbnail policy (not only dirs)",
+);
+const thumbPolicy = readFileSync(
+  join(root, "src/state/shellIconThumbPolicy.ts"),
+  "utf8",
+);
+assert.ok(
+  /entryWantsContentThumbnail/.test(thumbPolicy),
+  "thumb policy helper exported",
+);
+assert.ok(
+  /VIDEO_THUMB_EXTS|IMAGE_THUMB_EXTS/.test(thumbPolicy),
+  "thumb policy lists media extensions for slow path",
+);
+assert.ok(
+  /kind === "dir"/.test(thumbPolicy),
+  "dirs never request content thumbnails",
+);
+assert.ok(
+  /CONTENT_THUMB_FLING_PX_PER_MS|CONTENT_THUMB_SETTLE_MS/.test(thumbPolicy),
+  "scroll fling/settle gate constants",
+);
+assert.ok(
+  state.includes("suspendQueuedContentThumbnails"),
+  "fling suspends queued content thumbnails",
+);
+assert.ok(
+  view.includes("noteIconScrollSample") && view.includes("contentThumbnailsAllowed"),
+  "Navigator wires scroll-velocity content-thumb gate",
 );
 
 // --- Contract: Navigator wires folder / scroll cancel ---
@@ -311,6 +338,24 @@ function simulate() {
   assert.deepEqual(
     thumbNext.map((q) => q.path),
     ["video-a", "video-b"],
+  );
+
+  // Fling: drop queued content thumbs, keep shell-icon rows.
+  clear();
+  cache.clear();
+  request("folder-1", 96, false, false);
+  request("video-a", 96, false, true);
+  request("video-b", 96, false, true);
+  for (let i = queue.length - 1; i >= 0; i -= 1) {
+    if (queue[i].preferThumbnail === true) {
+      const [row] = queue.splice(i, 1);
+      settle(key(row.path, row.size));
+    }
+  }
+  assert.deepEqual(
+    queue.map((q) => q.path),
+    ["folder-1"],
+    "suspend content thumbs leaves fast-path icons queued",
   );
 
   return true;

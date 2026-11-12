@@ -31,7 +31,13 @@ import {
   cancelShellIconRequests,
   clearShellIconQueue,
   requestShellIcons,
+  suspendQueuedContentThumbnails,
 } from "../state/shellIcons";
+import {
+  CONTENT_THUMB_FLING_PX_PER_MS,
+  CONTENT_THUMB_SETTLE_MS,
+  entryWantsContentThumbnail,
+} from "../state/shellIconThumbPolicy";
 import { loadFavorites, loadFavoritesOsHookStatus } from "../state/favorites";
 import { scheduleAfterPaint, scheduleIdle } from "../state/scheduleIdle";
 import { startupMark } from "../state/startupTiming";
@@ -725,6 +731,7 @@ const secondaryWindowedEntries = computed(() => {
 function onPrimaryListScroll(event: Event) {
   const el = event.target;
   if (!(el instanceof HTMLElement)) return;
+  noteIconScrollSample(el.scrollTop);
   primaryScrollTop.value = el.scrollTop;
   scheduleViewportIconObservers();
 }
@@ -732,6 +739,7 @@ function onPrimaryListScroll(event: Event) {
 function onSecondaryListScroll(event: Event) {
   const el = event.target;
   if (!(el instanceof HTMLElement)) return;
+  noteIconScrollSample(el.scrollTop);
   secondaryScrollTop.value = el.scrollTop;
   scheduleViewportIconObservers();
 }
@@ -746,31 +754,83 @@ watch(secondaryPath, () => {
   if (secondaryListRoot.value) secondaryListRoot.value.scrollTop = 0;
 });
 
+/** 内容缩略图是否允许入队（甩动或视口未量到时为 false）。 */
+let contentThumbnailsAllowed = true;
+let iconScrollSample = { t: 0, top: 0 };
+let contentThumbSettleTimer: ReturnType<typeof setTimeout> | null = null;
+
+function resetContentThumbScrollGate() {
+  contentThumbnailsAllowed = true;
+  iconScrollSample = { t: 0, top: 0 };
+  if (contentThumbSettleTimer != null) {
+    clearTimeout(contentThumbSettleTimer);
+    contentThumbSettleTimer = null;
+  }
+}
+
+function noteIconScrollSample(scrollTop: number) {
+  const now =
+    typeof performance !== "undefined" && typeof performance.now === "function"
+      ? performance.now()
+      : Date.now();
+  const dt = now - iconScrollSample.t;
+  const dy = Math.abs(scrollTop - iconScrollSample.top);
+  iconScrollSample = { t: now, top: scrollTop };
+  if (dt > 0 && dt < 120 && dy / dt >= CONTENT_THUMB_FLING_PX_PER_MS) {
+    if (contentThumbnailsAllowed) {
+      contentThumbnailsAllowed = false;
+      suspendQueuedContentThumbnails();
+    }
+  }
+  if (contentThumbSettleTimer != null) clearTimeout(contentThumbSettleTimer);
+  contentThumbSettleTimer = setTimeout(() => {
+    contentThumbSettleTimer = null;
+    if (!contentThumbnailsAllowed) {
+      contentThumbnailsAllowed = true;
+      scheduleViewportIconObservers();
+    }
+  }, CONTENT_THUMB_SETTLE_MS);
+}
+
 function requestIconsFor(
   entries: { path: string; kind?: string }[],
   priority = false,
+  options?: { allowContentThumbnails?: boolean },
 ) {
   // Provider URI 无本地 shell 图标；走 Fluent 回退即可。
   const localEntries = entries.filter((entry) => !isProviderPath(entry.path));
   if (!localEntries.length) return;
   const size = VIEW_ICON_SIZE[navigatorViewMode.value];
   const iconView = isIconView.value;
-  // 图标视图：文件走系统缩略图；目录只请求壳图标（快），避免与视频缩略图抢同一慢队列。
-  requestShellIcons(
-    localEntries.map((entry) => ({
+  const allowContent =
+    iconView &&
+    options?.allowContentThumbnails !== false &&
+    contentThumbnailsAllowed;
+  // 图标视图：仅图像/视频等走内容缩略图；目录与公共壳图标类型走快通道。
+  // 不做壳图标→缩略图两阶段跳变：媒体在挂起时保持占位，停稳后再请求缩略图。
+  const requests: { path: string; preferThumbnail: boolean }[] = [];
+  for (const entry of localEntries) {
+    const wantsContent =
+      iconView && entryWantsContentThumbnail(entry.kind, entry.path);
+    if (wantsContent && !allowContent) continue;
+    requests.push({
       path: entry.path,
-      preferThumbnail: iconView && entry.kind !== "dir",
-    })),
-    size,
-    iconView,
-    { priority },
-  );
+      preferThumbnail: Boolean(wantsContent && allowContent),
+    });
+  }
+  if (!requests.length) return;
+  if (iconView) {
+    // 快通道在前（稳定相对序），再排内容缩略图。
+    requests.sort((a, b) => Number(a.preferThumbnail) - Number(b.preferThumbnail));
+  }
+  requestShellIcons(requests, size, iconView, { priority });
 }
 
 /**
  * AIA-182 / AIA-278 / FIL-50：按滚动几何请求缩略图（整屏 + 行高 overscan）。
  * 不用 IntersectionObserver 重绑：图标格全量 DOM 时每次滚动 disconnect/observe
  * 会把慢速外部缩略图器进行中的视口排队项 leave/cancel，最终只剩约一批（≈两行）。
+ * 策略见 docs/shell-icon-thumbnail-loading.md。
  */
 let iconRequestSyncTimer: ReturnType<typeof requestAnimationFrame> | null = null;
 /** 当前缩略图请求窗内的路径；离开窗口时 diff cancel（FIL-33）。 */
@@ -841,7 +901,15 @@ function refreshViewportIconRequests() {
   secondaryThumbPaths = secondary.paths;
   // 主栏在前、副栏在后，合并为一次优先窗，避免后同步的一栏把第一屏挤到队尾。
   const combined = [...primary.entries, ...secondary.entries];
-  if (combined.length) requestIconsFor(combined, true);
+  // 视口高度未量到：只跑快通道，避免兜底大窗先吞内容缩略图。
+  const viewportReady =
+    listViewportHeightPx(listViewport.value) > 0 ||
+    listViewportHeightPx(secondaryViewport.value) > 0;
+  if (combined.length) {
+    requestIconsFor(combined, true, {
+      allowContentThumbnails: viewportReady && contentThumbnailsAllowed,
+    });
+  }
 }
 
 function scheduleViewportIconObservers() {
@@ -932,6 +1000,7 @@ onUnmounted(() => {
   clearPendingNameRename();
   disarmRenameOutsideListener();
   resetThumbRequestWindows();
+  resetContentThumbScrollGate();
   if (iconRequestSyncTimer != null) {
     cancelAnimationFrame(iconRequestSyncTimer);
     iconRequestSyncTimer = null;
@@ -953,17 +1022,20 @@ onUnmounted(() => {
 
 watch(currentPath, () => {
   // AIA-278: abandon prior-folder thumb IPC before the new listing paints.
+  resetContentThumbScrollGate();
   clearShellIconQueue();
   if (renamingPath.value) cancelInlineRename();
 });
 
 watch(secondaryPath, (next, prev) => {
   if (next === prev) return;
+  resetContentThumbScrollGate();
   clearShellIconQueue();
 });
 
 watch(navigatorViewMode, () => {
   // Size-keyed cache; drop prior-size queue so scroll does not wait on stale work.
+  resetContentThumbScrollGate();
   clearShellIconQueue();
 });
 

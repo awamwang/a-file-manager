@@ -25,7 +25,7 @@ export type RequestShellIconsOptions = {
   priority?: boolean;
 };
 
-/** 单条壳图标请求；可按条目关闭缩略图（目录只走壳图标）。 */
+/** 单条壳图标请求；可按条目关闭缩略图（目录/公共壳图标走快通道）。 */
 export type ShellIconRequest = {
   path: string;
   preferThumbnail?: boolean;
@@ -319,6 +319,19 @@ function forgetPendingKey(key: string): void {
   attemptByKey.delete(key);
 }
 
+/**
+ * 甩动滚动时挂起未开始的内容缩略图：从队列摘掉 preferThumbnail 项并清 pending，
+ * 便于停稳后按当前视口重新排队。进行中的 IPC 批仍会结束，但结果可被新 attempt 取代。
+ */
+export function suspendQueuedContentThumbnails(): void {
+  for (let i = queue.length - 1; i >= 0; i -= 1) {
+    const item = queue[i]!;
+    if (item.preferThumbnail !== true) continue;
+    queue.splice(i, 1);
+    forgetPendingKey(cacheKey(item.path, item.size));
+  }
+}
+
 /** Remove paths that left the viewport so they cannot starve visible work. */
 export function cancelShellIconRequests(paths: string[], size?: number): void {
   if (!paths.length) return;
@@ -388,7 +401,7 @@ export function requestShellIcon(
 
 /**
  * 批量请求壳图标。priority 时整窗按传入顺序置于队头（上→下），
- * 且可按条目设置 preferThumbnail（目录应关闭缩略图）。
+ * 且可按条目设置 preferThumbnail（无内容缩略图/公共壳图标应关闭）。
  */
 export function requestShellIcons(
   paths: string[] | ShellIconRequest[],

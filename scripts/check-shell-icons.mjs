@@ -52,11 +52,25 @@ assert.ok(view.includes("ShellIconImg"), "per-row icon isolate");
 assert.ok(view.includes("clearShellIconQueue"));
 assert.ok(view.includes("cancelShellIconRequests"));
 assert.ok(
-  view.includes("preferThumbnail") && view.includes('entry.kind !== "dir"'),
-  "icon view: directories skip thumbnail prefer",
+  view.includes("preferThumbnail") && view.includes("entryWantsContentThumbnail"),
+  "icon view: only media types prefer content thumbnails",
 );
+const thumbPolicy = readFileSync(
+  join(root, "src/state/shellIconThumbPolicy.ts"),
+  "utf8",
+);
+assert.ok(thumbPolicy.includes("entryWantsContentThumbnail"));
+assert.ok(thumbPolicy.includes("mp4") && thumbPolicy.includes("png"));
 assert.ok(state.includes("promotePriorityWindow"), "stable top-to-bottom priority window");
 assert.ok(state.includes("takeNextBatch"), "folder/icon-first batch drain");
+assert.ok(
+  state.includes("suspendQueuedContentThumbnails"),
+  "scroll fling can drop queued content thumbs",
+);
+assert.ok(
+  view.includes("allowContentThumbnails") || view.includes("contentThumbnailsAllowed"),
+  "viewport/scroll gate for content thumbnails",
+);
 assert.ok(
   view.includes("computeThumbRequestWindow") && view.includes("syncThumbRequestsForPane"),
   "FIL-50: viewport geometry thumb window (full screen + row overscan)",
