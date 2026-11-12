@@ -34,10 +34,10 @@ pub struct BackendInfo {
     pub healthy: bool,
     pub capabilities: Vec<String>,
     pub detail: Option<String>,
-    /// True when Day-1 ships only a reserved slot (ADR 0003 interface-only).
+    /// 仅占位、尚无本机实现（ADR 0003 interface-only）。
     #[serde(default)]
     pub interface_only: bool,
-    /// `"gateway"` when discovered from awam-file HTTP; `"builtin"` for in-process Day-1.
+    /// `"gateway"` 来自 awam-file HTTP；`"builtin"` 为本进程内置。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
 }

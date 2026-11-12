@@ -491,7 +491,7 @@
     "emptyListing": "Cet emplacement ne contient aucun élément.",
     "file": "Fichier",
     "folder": "Dossier",
-    "gatewayOffline": "Passerelle awam-file hors ligne — fournisseurs Day-1 intégrés (rclone / knowledge / stubs).",
+    "gatewayOffline": "Passerelle awam-file hors ligne — fournisseurs intégrés (rclone / favoris du navigateur).",
     "gatewayOnline": "Passerelle awam-file en ligne — {count} backends via {url}",
     "interfaceOnly": "interface seule",
     "list": "Lister",

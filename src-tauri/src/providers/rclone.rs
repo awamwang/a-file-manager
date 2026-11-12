@@ -8,6 +8,7 @@ use crate::win_process;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::io::Read;
+use std::path::PathBuf;
 use std::process::{Child, Stdio};
 use std::sync::mpsc;
 use std::sync::Arc;
@@ -39,18 +40,99 @@ pub trait RcloneRunner: Send + Sync {
 }
 
 /// rclone CLI runner (no mount / no VFS). Honors `timeout` by killing the child tree.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct BlockingRcloneRunner {
-    pub exe: String,
+    /// 已解析的可执行文件绝对路径；未安装时为 `None`，避免盲目 spawn。
+    pub exe: Option<PathBuf>,
+    /// 探测失败时的用户可读说明（健康检查 / 列表直接展示）。
+    pub missing_message: Option<String>,
+}
+
+impl Default for BlockingRcloneRunner {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl BlockingRcloneRunner {
     pub fn new() -> Self {
-        Self {
-            exe: std::env::var("AWAM_RCLONE_EXE")
-                .or_else(|_| std::env::var("RCLONE_EXE"))
-                .unwrap_or_else(|_| "rclone".to_string()),
+        match resolve_rclone_executable() {
+            Ok(exe) => Self {
+                exe: Some(exe),
+                missing_message: None,
+            },
+            Err(message) => Self {
+                exe: None,
+                missing_message: Some(message),
+            },
         }
+    }
+}
+
+/// 按平台解析 rclone 可执行文件：环境变量优先，再 PATH（Windows 含 `.exe`）。
+fn resolve_rclone_executable() -> Result<PathBuf, String> {
+    let explicit = std::env::var("AWAM_RCLONE_EXE")
+        .or_else(|_| std::env::var("RCLONE_EXE"))
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
+
+    if let Some(candidate) = explicit {
+        let as_path = PathBuf::from(&candidate);
+        if as_path.is_file() {
+            return Ok(as_path);
+        }
+        if let Some(found) = win_process::resolve_on_path(&candidate) {
+            return Ok(found);
+        }
+        return Err(rclone_missing_message(Some(&candidate)));
+    }
+
+    for name in rclone_path_candidates() {
+        if let Some(found) = win_process::resolve_on_path(name) {
+            return Ok(found);
+        }
+    }
+    Err(rclone_missing_message(None))
+}
+
+fn rclone_path_candidates() -> &'static [&'static str] {
+    #[cfg(windows)]
+    {
+        &["rclone.exe", "rclone"]
+    }
+    #[cfg(not(windows))]
+    {
+        &["rclone"]
+    }
+}
+
+fn rclone_missing_message(configured: Option<&str>) -> String {
+    let hint = rclone_install_hint();
+    match configured {
+        Some(path) => format!(
+            "未找到 rclone（已配置：{path}）。请确认路径有效，或安装后加入 PATH。{hint}"
+        ),
+        None => format!("未检测到 rclone。云盘 / SFTP / WebDAV 等需先安装 rclone。{hint}"),
+    }
+}
+
+fn rclone_install_hint() -> &'static str {
+    #[cfg(windows)]
+    {
+        " Windows：从 https://rclone.org/downloads/ 安装，或 `winget install Rclone.Rclone`，也可设置 AWAM_RCLONE_EXE 指向 rclone.exe。"
+    }
+    #[cfg(target_os = "macos")]
+    {
+        " macOS：可用 `brew install rclone`，或设置 AWAM_RCLONE_EXE。"
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        " Linux：用发行版包管理器安装，或从 https://rclone.org/downloads/ 获取，也可设置 AWAM_RCLONE_EXE。"
+    }
+    #[cfg(all(not(windows), not(unix)))]
+    {
+        " 详见 https://rclone.org/downloads/ ，或设置 AWAM_RCLONE_EXE。"
     }
 }
 
@@ -77,10 +159,15 @@ fn terminate_child_tree(child: &mut Child) {
 
 impl RcloneRunner for BlockingRcloneRunner {
     fn run(&self, args: &[&str], timeout: Duration) -> Result<CommandOutput, String> {
+        let exe = self.exe.as_ref().ok_or_else(|| {
+            self.missing_message
+                .clone()
+                .unwrap_or_else(|| rclone_missing_message(None))
+        })?;
         // rclone is a console binary; CREATE_NO_WINDOW prevents flash on GUI builds
         // (provider_preload / health / listremotes at app start and on Providers refresh).
         // RCLONE_ASK_PASSWORD=false：禁止交互式要密码把管道挂死。
-        let mut child = win_process::command(&self.exe)
+        let mut child = win_process::command(exe)
             .args(args)
             .env("RCLONE_ASK_PASSWORD", "false")
             .stdout(Stdio::piped())
@@ -88,9 +175,9 @@ impl RcloneRunner for BlockingRcloneRunner {
             .spawn()
             .map_err(|err| {
                 if err.kind() == std::io::ErrorKind::NotFound {
-                    "rclone not found on PATH".to_string()
+                    rclone_missing_message(Some(&exe.display().to_string()))
                 } else {
-                    format!("Failed to run rclone: {err}")
+                    format!("无法启动 rclone：{err}")
                 }
             })?;
 
@@ -220,7 +307,7 @@ impl Provider for RcloneProvider {
         "rclone"
     }
     fn description(&self) -> &str {
-        "Cloud / SFTP / WebDAV via rclone CLI (no mount)"
+        "云盘 / SFTP / WebDAV（本机 rclone，无需挂载）"
     }
     fn capabilities(&self) -> &[ProviderCapability] {
         CAPABILITIES
@@ -238,9 +325,9 @@ impl Provider for RcloneProvider {
                     .map(|capability| capability.as_str().to_string())
                     .collect(),
                 detail: Some(if remotes.is_empty() {
-                    "No remotes configured (rclone config)".to_string()
+                    "尚未配置 remote，可在终端运行 rclone config".to_string()
                 } else {
-                    format!("{} remote(s)", remotes.len())
+                    format!("已配置 {} 个 remote", remotes.len())
                 }),
                 interface_only: false,
                 source: Some("builtin".to_string()),
@@ -268,7 +355,10 @@ impl Provider for RcloneProvider {
                     uri: uri.to_string_uri(),
                     backend: "rclone".to_string(),
                     entries: Vec::new(),
-                    error: Some("No rclone remotes. Run: rclone config".to_string()),
+                    error: Some(
+                        "尚未配置 rclone remote。请在终端运行 rclone config 添加后再试。"
+                            .to_string(),
+                    ),
                 },
                 Ok(remotes) => {
                     let entries = remotes
@@ -592,5 +682,22 @@ mod tests {
         });
         let buf = join_bytes_with_timeout(handle, Duration::from_millis(50));
         assert!(buf.is_empty());
+    }
+
+    #[test]
+    fn missing_rclone_message_is_user_facing() {
+        let msg = rclone_missing_message(None);
+        assert!(msg.contains("rclone"), "{msg}");
+        assert!(!msg.contains("Day-1"), "{msg}");
+        let configured = rclone_missing_message(Some(r"Z:\missing\rclone.exe"));
+        assert!(configured.contains("Z:\\missing\\rclone.exe"), "{configured}");
+    }
+
+    #[test]
+    fn path_candidates_include_platform_exe() {
+        let names = rclone_path_candidates();
+        assert!(names.contains(&"rclone"));
+        #[cfg(windows)]
+        assert!(names.contains(&"rclone.exe"));
     }
 }

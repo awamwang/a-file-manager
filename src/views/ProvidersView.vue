@@ -65,7 +65,7 @@ const loading = ref(false);
 const error = ref<string | null>(null);
 
 async function loadBackends() {
-  // AIA-226: prefer live awam-file gateway discovery; Day-1 builtins when offline.
+  // AIA-226: 优先 awam-file 网关发现；离线时回退本机内置提供方。
   const [status, list] = await Promise.all([
     invoke<GatewayStatus>("provider_gateway_status"),
     invoke<BackendInfo[]>("provider_backends"),

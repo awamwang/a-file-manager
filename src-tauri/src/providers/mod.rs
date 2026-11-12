@@ -1,26 +1,31 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! ProviderRegistry — awam extension layer (ADR 0001 + 0003).
-//! Day-1 builtin: rclone (CLI, no mount) + knowledge + stubs. No `awam://local`.
+//! 内置：rclone（CLI，不挂载）+ browser。不含 `awam://local`。
+//! knowledge / downloads / prowlarr 等由在线网关动态发现。
 //!
 //! AIA-76: depth-1 listing cache + `provider_preload` (warm on app start).
 //! AIA-226: prefer live awam-file gateway discovery (`/api/backends`); fall back to
-//! builtin Day-1 registry when the gateway is offline.
+//! builtin registry when the gateway is offline.
 
 mod browser;
 mod cache;
 mod factory;
 mod gateway;
+/// 网关离线时不再注册；保留实现供网关在线代理与后续扩展。
+#[allow(dead_code)]
 mod knowledge;
 mod provider;
 mod rclone;
 mod registry;
+/// 占位提供方；内置列表不再展示，保留类型定义。
+#[allow(dead_code)]
 mod stubs;
 mod types;
 mod uri;
 mod util;
 
 use cache::{depth1_cache_key, ListingCache};
-use factory::build_day1_registry;
+use factory::build_builtin_registry;
 use registry::ProviderRegistry;
 use serde::Serialize;
 use std::sync::{LazyLock, Mutex};
@@ -29,7 +34,7 @@ use tauri::AppHandle;
 use types::{BackendInfo, DirListing, ResolveResult, StatResult};
 use uri::parse_awam_uri;
 
-static REGISTRY: LazyLock<ProviderRegistry> = LazyLock::new(build_day1_registry);
+static REGISTRY: LazyLock<ProviderRegistry> = LazyLock::new(build_builtin_registry);
 static LISTING_CACHE: LazyLock<Mutex<ListingCache>> =
     LazyLock::new(|| Mutex::new(ListingCache::new()));
 
@@ -64,7 +69,7 @@ fn local_rejected_listing(uri: &str) -> DirListing {
     }
 }
 
-/// Prefer gateway discovery; keep Day-1 builtins when gateway is down.
+/// Prefer gateway discovery; keep builtins when gateway is down.
 fn discover_backends() -> Result<Vec<BackendInfo>, String> {
     match gateway::fetch_backends() {
         Ok(backends) => Ok(backends),
@@ -81,7 +86,7 @@ fn list_dispatch(uri_str: &str) -> Result<DirListing, String> {
         match gateway::list(uri_str) {
             Ok(listing) => Ok(listing),
             Err(err) => {
-                // Mid-flight outage: degrade to builtin for known Day-1 ids / root.
+                // Mid-flight outage: degrade to builtin for known ids / root.
                 if parsed.backend == "root"
                     || REGISTRY.contains(&parsed.backend)
                 {
@@ -465,12 +470,12 @@ mod tests {
         let registry = ProviderRegistry::new();
         registry
             .register(Arc::new(CountingProvider {
-                id: "knowledge",
+                id: "rclone",
                 hits: hits.clone(),
             }))
             .unwrap();
         registry
-            .register(Arc::new(StubOnly { id: "downloads" }))
+            .register(Arc::new(StubOnly { id: "stub-only" }))
             .unwrap();
         let cache = Mutex::new(ListingCache::new());
         let list_fn = |uri: &str| registry.list(uri);
@@ -478,17 +483,17 @@ mod tests {
 
         let report = preload_depth1_using(&cache, true, backends_fn, list_fn).unwrap();
         assert!(report.uris.iter().any(|u| u == "awam://root"));
-        assert!(report.uris.iter().any(|u| u.contains("knowledge")));
+        assert!(report.uris.iter().any(|u| u.contains("rclone")));
         assert!(report
             .skipped
             .iter()
-            .any(|s| s.contains("downloads") && s.contains("interface-only")));
+            .any(|s| s.contains("stub-only") && s.contains("interface-only")));
         assert!(report.cached >= 2);
-        // root does not call CountingProvider; knowledge listed once
+        // root does not call CountingProvider; rclone listed once
         assert_eq!(hits.load(Ordering::SeqCst), 1);
 
         // Second list hits cache
-        let _ = list_with_cache_using(&cache, "awam://knowledge", list_fn).unwrap();
+        let _ = list_with_cache_using(&cache, "awam://rclone", list_fn).unwrap();
         assert_eq!(hits.load(Ordering::SeqCst), 1);
     }
 

@@ -1,31 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use super::browser::BrowserProvider;
-use super::knowledge::KnowledgeProvider;
 use super::rclone::RcloneProvider;
 use super::registry::ProviderRegistry;
-use super::stubs::InterfaceOnlyProvider;
 use std::sync::Arc;
 
-/// Day-1 registry: rclone + knowledge + browser; downloads/prowlarr interface-only.
-/// Does **not** register `local` (ADR 0001/0003).
-pub fn build_day1_registry() -> ProviderRegistry {
+/// 内置 registry：rclone + browser。不注册 `local`（本机仍走 Navigator）。
+/// knowledge / downloads / prowlarr 仅在 awam-file 网关在线时由网关发现。
+pub fn build_builtin_registry() -> ProviderRegistry {
     let registry = ProviderRegistry::new();
     registry
         .register(Arc::new(RcloneProvider::system_default()))
         .expect("register rclone");
     registry
-        .register(Arc::new(KnowledgeProvider::from_env_or_default()))
-        .expect("register knowledge");
-    registry
         .register(Arc::new(BrowserProvider::system_default()))
         .expect("register browser");
-    registry
-        .register(Arc::new(InterfaceOnlyProvider::downloads()))
-        .expect("register downloads stub");
-    registry
-        .register(Arc::new(InterfaceOnlyProvider::prowlarr()))
-        .expect("register prowlarr stub");
     registry
 }
 
@@ -34,7 +23,6 @@ mod tests {
     use super::*;
     use crate::providers::browser::BrowserProvider;
     use crate::providers::rclone::{CommandOutput, RcloneProvider, RcloneRunner};
-    use std::path::PathBuf;
     use std::time::Duration;
 
     struct EmptyRclone;
@@ -57,7 +45,7 @@ mod tests {
     }
 
     #[test]
-    fn day1_has_rclone_knowledge_browser_stubs_not_local() {
+    fn builtin_has_rclone_browser_not_local_or_gateway_only() {
         let dir = std::env::temp_dir().join(format!(
             "a-file-manager-providers-{}",
             std::process::id()
@@ -70,33 +58,22 @@ mod tests {
             .register(Arc::new(RcloneProvider::new(Arc::new(EmptyRclone))))
             .unwrap();
         registry
-            .register(Arc::new(KnowledgeProvider::new(PathBuf::from(&dir))))
-            .unwrap();
-        registry
             .register(Arc::new(BrowserProvider::with_user_data_roots(
                 dir.join("edge-missing"),
                 dir.join("chrome-missing"),
             )))
             .unwrap();
-        registry
-            .register(Arc::new(InterfaceOnlyProvider::downloads()))
-            .unwrap();
-        registry
-            .register(Arc::new(InterfaceOnlyProvider::prowlarr()))
-            .unwrap();
 
         assert!(registry.contains("rclone"));
-        assert!(registry.contains("knowledge"));
         assert!(registry.contains("browser"));
-        assert!(registry.contains("downloads"));
-        assert!(registry.contains("prowlarr"));
         assert!(!registry.contains("local"));
+        assert!(!registry.contains("knowledge"));
+        assert!(!registry.contains("downloads"));
+        assert!(!registry.contains("prowlarr"));
 
         let backends = registry.backends().unwrap();
-        assert!(backends
-            .iter()
-            .any(|b| b.id == "downloads" && b.interface_only));
         assert!(backends.iter().any(|b| b.id == "rclone" && !b.interface_only));
+        assert_eq!(backends.len(), 2);
 
         let _ = std::fs::remove_dir_all(&dir);
     }

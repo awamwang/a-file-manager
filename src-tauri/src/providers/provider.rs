@@ -11,7 +11,7 @@ pub trait Provider: Send + Sync {
     fn description(&self) -> &str;
     #[allow(dead_code)]
     fn capabilities(&self) -> &[ProviderCapability];
-    /// Reserved slot with no Day-1 implementation (ADR 0003).
+    /// 仅占位、尚无本机实现（ADR 0003）。
     #[allow(dead_code)]
     fn interface_only(&self) -> bool {
         false

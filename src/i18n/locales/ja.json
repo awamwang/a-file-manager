@@ -491,7 +491,7 @@
     "emptyListing": "この場所には項目がありません。",
     "file": "ファイル",
     "folder": "フォルダー",
-    "gatewayOffline": "awam-file ゲートウェイオフライン — 内蔵 Day-1 プロバイダーを表示（rclone / knowledge / stubs）。",
+    "gatewayOffline": "awam-file ゲートウェイオフライン — 内蔵プロバイダーを表示（rclone / ブラウザのブックマーク）。",
     "gatewayOnline": "awam-file ゲートウェイオンライン — {url} 経由で {count} バックエンド",
     "interfaceOnly": "インターフェースのみ",
     "list": "一覧",

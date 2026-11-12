@@ -69,7 +69,7 @@ impl ProviderRegistry {
                 backend: "local".to_string(),
                 entries: Vec::new(),
                 error: Some(
-                    "awam://local is not a Day-1 extension backend; use NavigatorService for OS paths (ADR 0001/0003)"
+                    "awam://local is not a built-in extension backend; use NavigatorService for OS paths (ADR 0001/0003)"
                         .to_string(),
                 ),
             });
