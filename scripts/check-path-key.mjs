@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -36,8 +36,8 @@ const lib = read("src-tauri/src/lib.rs");
 assert.ok(pathKey.includes("export function toNativeFsPath"));
 assert.ok(pathKey.includes("export function normalizePathKey"));
 assert.ok(pathKey.includes("export function normalizeTreePathKey"));
-assert.ok(model.includes('from "../pathKey"'));
-assert.ok(browse.includes('from "./pathKey"'));
+assert.ok(model.includes('from "../pathKey.ts"'));
+assert.ok(browse.includes('from "./pathKey.ts"'));
 assert.ok(tree.includes("normalizeTreePathKey"));
 assert.ok(lib.includes("mod paths;"));
 assert.ok(rustPaths.includes("pub fn to_native_fs_path"));

@@ -99,7 +99,10 @@ assert.ok(
 {
   const bootStart = browse.indexOf("export function bootstrapNavigatorOpenState");
   assert.ok(bootStart >= 0, "bootstrapNavigatorOpenState must exist");
-  const bootEnd = browse.indexOf("\nexport async function navigateTo", bootStart);
+  // 只切 bootstrap 函数本体（到下一个顶层 export 为止）：
+  // 后续插入的私有/导出函数（如 reloadListingAfterMutation）也含
+  // `await navigateTo(`，旧边界（navigateTo 定义处）会跨函数误报。
+  const bootEnd = browse.indexOf("\nexport ", bootStart + 1);
   const boot = browse.slice(bootStart, bootEnd > bootStart ? bootEnd : browse.length);
   assert.ok(
     /listLoading\.value\s*=\s*true/.test(boot),

@@ -3,8 +3,8 @@
 
 import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { resolveNameConflictChoice } from "./nameConflict";
-import { normalizePathKey } from "./pathKey";
+import { resolveNameConflictChoice } from "./nameConflict.ts";
+import { normalizePathKey } from "./pathKey.ts";
 
 export type ClipboardMode = "copy" | "cut";
 

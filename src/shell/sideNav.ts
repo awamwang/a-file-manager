@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /** Primary side-nav model — kept out of AppShell to shrink chrome surface. */
 
-import { AI_ADDON_ENABLED } from "../config/flavor";
-import { NAV_ICON_BY_ID, type FluentGlyphId } from "../components/icons/glyphs";
-import { getSideNavExtras } from "../state/featurePack/contributions";
+import { AI_ADDON_ENABLED } from "../config/flavor.ts";
+import { NAV_ICON_BY_ID, type FluentGlyphId } from "../components/icons/glyphs.ts";
+import { getSideNavExtras } from "../state/featurePack/contributions.ts";
 
 export type SideNavItem = {
   id: string;

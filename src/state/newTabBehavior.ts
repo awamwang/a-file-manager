@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /** Settings `core.newTabBehavior`: guide page vs duplicate active tab (AIA-148). */
 
-import { hydrateSettings } from "./settingsHydrate";
+import { hydrateSettings } from "./settingsHydrate.ts";
 
 export const NEW_TAB_BEHAVIOR_SETTING_KEY = "core.newTabBehavior";
 

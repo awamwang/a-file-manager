@@ -82,9 +82,22 @@ for (const token of [
     console.error("switchNavigatorTab must not await navigateTo (AIA-225)");
     process.exit(1);
   }
-  if (!switchBody.includes("revealPathNonBlocking")) {
-    console.error("switchNavigatorTab must use revealPathNonBlocking (AIA-225)");
+  if (!switchBody.includes("revealPathForTabSwitch")) {
+    console.error("switchNavigatorTab must use revealPathForTabSwitch (AIA-225)");
     process.exit(1);
+  }
+  // AIA-225：包装器内部仍必须 fire-and-forget（不得 await listing）。
+  {
+    const wrapStart = browse.indexOf("function revealPathForTabSwitch");
+    const wrapBody = browse.slice(wrapStart, wrapStart + 400);
+    if (/await\s+revealPathAsync\(|await\s+navigateTo\(/.test(wrapBody)) {
+      console.error("revealPathForTabSwitch must not await listing (AIA-225)");
+      process.exit(1);
+    }
+    if (!wrapBody.includes("revealPathAsync")) {
+      console.error("revealPathForTabSwitch must delegate to revealPathAsync (AIA-225)");
+      process.exit(1);
+    }
   }
 }
 

@@ -108,7 +108,8 @@ assert.ok(panel.includes("agents-list-item--active"), "agent row selected class"
 assert.ok(panel.includes("fluent-color-fill-selected"), "agent selected uses Fluent fill");
 assert.ok(skillsPanel.includes("aiSkillsImport"));
 assert.ok(skillsPanel.includes("aiSkillsDeploy"));
-assert.ok(skillsPanel.includes("aiSkillsSearchProject"));
+// 3aa2fb8：面板改为单项目选择，项目搜索保留在 typed client 边界。
+assert.ok(index.includes("aiSkillsSearchProject"));
 assert.ok(skillsPanel.includes("skills-list-item--active"), "skill row selected class");
 assert.ok(skillsPanel.includes("fluent-color-fill-selected"), "skill selected uses Fluent fill");
 const mcpRs = read("src-tauri/src/ai/mcp.rs");

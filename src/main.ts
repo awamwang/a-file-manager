@@ -2,14 +2,14 @@
 
 import { createApp } from "vue";
 import App from "./App.vue";
-import router from "./router";
-import { applyAppLocaleFromValues, i18n } from "./i18n";
-import { applySessionSettingsFromValues } from "./state/applySessionSettings";
-import { revealMainWindowAfterReady } from "./state/revealMainWindow";
-import { hydrateFeaturePackContributions } from "./state/featurePack/contributions";
-import { hydrateSettings } from "./state/settingsHydrate";
-import { startupMark } from "./state/startupTiming";
-import { applyUiChromeFromValues } from "./state/uiChrome";
+import router from "./router/index.ts";
+import { applyAppLocaleFromValues, i18n } from "./i18n/index.ts";
+import { applySessionSettingsFromValues } from "./state/applySessionSettings.ts";
+import { revealMainWindowAfterReady } from "./state/revealMainWindow.ts";
+import { hydrateFeaturePackContributions } from "./state/featurePack/contributions.ts";
+import { hydrateSettings } from "./state/settingsHydrate.ts";
+import { startupMark } from "./state/startupTiming.ts";
+import { applyUiChromeFromValues } from "./state/uiChrome.ts";
 import "./styles/fluent-tokens.css";
 import "./styles/base.css";
 import "./styles/path-cards.css";

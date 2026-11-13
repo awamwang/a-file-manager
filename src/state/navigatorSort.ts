@@ -2,7 +2,7 @@
 /** Client-side Navigator list sort (AIA-64). */
 
 import { ref } from "vue";
-import type { NavigatorEntry } from "./navigatorBrowse";
+import type { NavigatorEntry } from "./navigatorBrowse.ts";
 import { entryTypeKey } from "./entryType.ts";
 
 export type SortColumn = "name" | "size" | "modified" | "type";

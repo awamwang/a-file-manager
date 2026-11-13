@@ -2,7 +2,7 @@
 /** Request a folder-entry context menu (breadcrumb / background) outside the list rows. */
 
 import { ref } from "vue";
-import type { NavigatorEntry } from "./navigatorBrowse";
+import type { NavigatorEntry } from "./navigatorBrowse.ts";
 
 export type FolderContextMenuRequest = {
   entry: NavigatorEntry;

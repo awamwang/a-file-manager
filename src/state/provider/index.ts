@@ -13,7 +13,7 @@ export {
   providerParentPath,
   providerLeafName,
   withProviderQuery,
-} from "./path";
+} from "./path.ts";
 export {
   isSoftProviderQueryAwaiting,
   providerListingFromDir,
@@ -24,10 +24,10 @@ export {
   type ProviderEntryWire,
   type ProviderNavigatorEntry,
   type ProviderNavigatorListing,
-} from "./listing";
+} from "./listing.ts";
 export {
   listProviderBackends,
   loadProviderListing,
   openProviderEntry,
   type ProviderResolveResult,
-} from "./browse";
+} from "./browse.ts";

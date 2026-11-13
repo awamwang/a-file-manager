@@ -5,9 +5,9 @@
  * close behavior do not await another settings round-trip on the critical path.
  */
 
-import { applyCloseBehaviorFromValues } from "./closeBehavior";
-import { applyNavigatorViewModeFromValues } from "./navigatorViewMode";
-import { applyShowHiddenFromValues } from "./showHidden";
+import { applyCloseBehaviorFromValues } from "./closeBehavior.ts";
+import { applyNavigatorViewModeFromValues } from "./navigatorViewMode.ts";
+import { applyShowHiddenFromValues } from "./showHidden/index.ts";
 
 /** Sync-apply listing/chrome settings that affect first interactive UI. */
 export function applySessionSettingsFromValues(values: Record<string, unknown>): void {

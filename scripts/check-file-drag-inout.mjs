@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // AIA-240: bidirectional drag with Explorer + Link + dual-pane surfaces.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -34,7 +34,7 @@ assert.ok(
   nav.includes("dataTransferLooksExternal") || nav.includes("previewDropMode"),
   "external vs in-app detection (direct or shared preview)",
 );
-assert.ok(nav.includes("armNativeFileDragOut"), "keeps OLE drag-out");
+assert.ok(nav.includes("startNativeFileDragOut"), "keeps OLE drag-out (FIL-45)");
 assert.ok(
   nav.includes("linkedInto") || nav.includes("noticeKeyForDropMode"),
   "link drop notice",

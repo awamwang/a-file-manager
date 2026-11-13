@@ -31,10 +31,10 @@ import {
   type SwitchAdjacentDirection,
   type UserWorkGroupsDoc,
   type WorkGroupOpenState,
-} from "./openState";
-import { navigableParentPath, recordNavHistory } from "./navHistory";
-import { GUIDE_PATH, isGuidePath } from "./guide";
-import { isRecyclePath, openRecycleBinInSystem } from "./recycle";
+} from "./openState/index.ts";
+import { navigableParentPath, recordNavHistory } from "./navHistory.ts";
+import { GUIDE_PATH, isGuidePath } from "./guide/index.ts";
+import { isRecyclePath, openRecycleBinInSystem } from "./recycle/index.ts";
 import {
   isBlockedSearchProvider,
   isProviderPath,
@@ -42,23 +42,23 @@ import {
   openProviderEntry,
   toProviderUri,
   type ProviderQueryParam,
-} from "./provider";
-import { readNewTabBehavior } from "./newTabBehavior";
-import { hydrateSettings } from "./settingsHydrate";
-import { recordPathVisit } from "./visitStats";
-import { clearNavigatorFilter } from "./navigatorFilter";
-import { showHiddenItems } from "./showHidden";
-import { forgetPinnedTabs, pinnedIdSet } from "./tabPins";
-import { clearSelection } from "./navigatorSelection";
-import { normalizePathKey, toNativeFsPath } from "./pathKey";
-import { perfSpan } from "./perfProbe";
+} from "./provider/index.ts";
+import { readNewTabBehavior } from "./newTabBehavior.ts";
+import { hydrateSettings } from "./settingsHydrate.ts";
+import { recordPathVisit } from "./visitStats.ts";
+import { clearNavigatorFilter } from "./navigatorFilter.ts";
+import { showHiddenItems } from "./showHidden/index.ts";
+import { forgetPinnedTabs, pinnedIdSet } from "./tabPins.ts";
+import { clearSelection } from "./navigatorSelection.ts";
+import { normalizePathKey, toNativeFsPath } from "./pathKey.ts";
+import { perfSpan } from "./perfProbe.ts";
 import {
   getCachedListing,
   invalidateListingCache,
   isListingCacheFresh,
   listingCacheKey,
   putCachedListing,
-} from "./navigatorListingCache";
+} from "./navigatorListingCache.ts";
 
 export {
   activeWorkGroupId,
@@ -72,7 +72,7 @@ export {
   snapshotLiveOpenState,
   stripTabs,
   type UserWorkGroupsDoc,
-} from "./openState";
+} from "./openState/index.ts";
 
 export type NavigatorEntry = {
   name: string;

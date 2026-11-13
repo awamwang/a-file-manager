@@ -29,9 +29,9 @@ assert.ok(undo.includes("undoLast") && undo.includes("recordCopyUndo"));
 
 const dragOut = read("src/state/dnd/dragOut.ts");
 assert.ok(
-  !dragOut.includes("export function disarmNativeFileDragOut"),
-  "disarmNativeFileDragOut stays private",
+  !dragOut.includes("export function clearHostOutboundPaths"),
+  "clearHostOutboundPaths stays private (FIL-45 拆分后的 disarm 助手)",
 );
-assert.ok(dragOut.includes("function disarmNativeFileDragOut"));
+assert.ok(dragOut.includes("function clearHostOutboundPaths"));
 
 console.log("Dead-code cleanup checks OK (AIA-270).");

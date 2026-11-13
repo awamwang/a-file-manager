@@ -12,6 +12,7 @@ const modRs = readFileSync(join(root, "src-tauri/src/discovery/mod.rs"), "utf8")
 const defaults = readFileSync(join(root, "src-tauri/src/settings/defaults.rs"), "utf8");
 const view = readFileSync(join(root, "src/views/DiscoveryView.vue"), "utf8");
 const settingsView = readFileSync(join(root, "src/views/SettingsView.vue"), "utf8");
+const settingsUi = readFileSync(join(root, "src/state/settingsUi.ts"), "utf8");
 const fields = readFileSync(join(root, "src/i18n/settingsFields.ts"), "utf8");
 const en = JSON.parse(readFileSync(join(root, "src/i18n/locales/en.json"), "utf8"));
 const zh = JSON.parse(readFileSync(join(root, "src/i18n/locales/zh-CN.json"), "utf8"));
@@ -39,7 +40,9 @@ assert.ok(view.includes("selectEngineCard"));
 assert.ok(view.includes("data-engine-config"));
 assert.ok(!view.includes("status.detail"), "Discovery must not show raw status.detail");
 assert.ok(!/engine-chip[\s\S]*activeEngine/.test(view), "no raw activeEngine chip");
-assert.ok(settingsView.includes('def.key !== "core.discoveryBlacklist"'));
+// FIL-59/65：通用设置页的隐藏键改由 settingsUi.ts 集中声明（黑名单仅在 Discovery 页编辑）。
+assert.ok(settingsUi.includes('"core.discoveryBlacklist"'));
+assert.ok(settingsView.includes("isSettingsUiHiddenKey"));
 assert.equal(en.discovery.engines.everything, "Everything");
 assert.equal(zh.discovery.engines.fallback, "备用搜索");
 assert.equal(zh.discovery.blacklistTitle, "排除文件夹");

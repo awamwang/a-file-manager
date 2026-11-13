@@ -13,7 +13,7 @@
 
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { PROVIDER_ROOT, type ProviderQueryParam } from "./provider/path";
+import { PROVIDER_ROOT, type ProviderQueryParam } from "./provider/path.ts";
 
 export type PreloadReport = {
   uris: string[];

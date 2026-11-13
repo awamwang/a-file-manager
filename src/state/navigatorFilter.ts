@@ -3,9 +3,9 @@
 
 import { ref, shallowRef } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { isGuidePath } from "./guide/path";
-import type { NavigatorEntry } from "./navigatorBrowse";
-import { showHiddenItems } from "./showHidden";
+import { isGuidePath } from "./guide/path.ts";
+import type { NavigatorEntry } from "./navigatorBrowse.ts";
+import { showHiddenItems } from "./showHidden/index.ts";
 
 export const navigatorFilterQuery = ref("");
 

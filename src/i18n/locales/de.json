@@ -167,7 +167,10 @@
       "errorNameEmpty": "Anzeigename darf nicht leer sein",
       "errorUnknown": "Unbekanntes Agent Target",
       "errorBuiltinRemove": "Integrierte Agent Targets können nicht entfernt werden",
-      "errorIdConflict": "Diese Id kollidiert mit einem integrierten Agent Target"
+      "errorIdConflict": "Diese Id kollidiert mit einem integrierten Agent Target",
+      "defaultInProjectsHint": "Der Projektstandard befüllt die Agent-Sätze neuer Projekte vor; „Aktiviert“ steuert die globale Verteilung.",
+      "defaultInProjectsOff": "Projektstandard: aus",
+      "defaultInProjectsOn": "Projektstandard: ein"
     },
     "skills": {
       "libraryRoot": "Bibliotheksstamm",
@@ -203,7 +206,26 @@
       "noticeUndeployed": "{count} Junction(s) entfernt",
       "errorDeployNoEnabled": "Vor dem Deploy mindestens ein Agent Target aktivieren",
       "errorDeployConflict": "Deploy-Ziel existiert bereits und ist nicht diese Skill-Junction",
-      "errorDeployProject": "Project-Workspace-Pfad muss ein vorhandenes Verzeichnis sein"
+      "errorDeployProject": "Project-Workspace-Pfad muss ein vorhandenes Verzeichnis sein",
+      "addToProject": "Zum ausgewählten Projekt hinzufügen",
+      "confirmRemoveMessage": "Löscht „{name}“ unterhalb des Bibliotheks-Roots dauerhaft. Zeigt der Root auf einen freigegebenen externen Ordner, werden diese Dateien ebenfalls gelöscht.",
+      "confirmRemoveTitle": "Skill aus der Bibliothek entfernen?",
+      "deployGlobal": "Global bereitstellen",
+      "deployMode": "Skill-Bereitstellungsmodus",
+      "deployModeCopy": "Kopieren",
+      "deployModeHint": "Globale Voreinstellung, die auf alle folgenden Skill-Bereitstellungen angewendet wird.",
+      "deployModeJunction": "Junction (Verknüpfung, Standard)",
+      "errorPickProject": "Zuerst ein Zielprojekt auswählen",
+      "filterPlaceholder": "Skills filtern…",
+      "hideTools": "Tools ausblenden",
+      "noticeDeployModeSaved": "Skill-Bereitstellungsmodus gespeichert",
+      "noticeDeployedToProject": "Zu „{project}“ hinzugefügt · {count} Ort(e) · {skipped} übersprungen",
+      "pickProject": "Projekt auswählen…",
+      "projectDefaultHint": "Projekte starten ohne Skills; erst ein Projekt wählen, dann hinzufügen.",
+      "removeFromProject": "Aus dem ausgewählten Projekt entfernen",
+      "selectHint": "Links einen Skill auswählen",
+      "showTools": "Bibliothek / Import",
+      "targetProject": "Zielprojekt"
     },
     "mcp": {
       "mergeHint": "Katalog nur in APPDATA. Deploy mergt afm__<id> in aktivierte Agent-MCP-JSON-Dateien.",
@@ -228,7 +250,20 @@
       "errorUnknown": "Unbekannter MCP-Katalogeintrag",
       "errorDeployNoEnabled": "Vor MCP-Deploy mindestens ein Agent Target aktivieren",
       "errorTargetInvalid": "MCP-Zielpfad / JSON ungültig",
-      "errorImportInvalid": "MCP-Importdatei fehlt oder ungültig (mcpServers-Objekt nötig)"
+      "errorImportInvalid": "MCP-Importdatei fehlt oder ungültig (mcpServers-Objekt nötig)",
+      "addToProject": "Zum ausgewählten Projekt hinzufügen",
+      "confirmRemoveMessage": "Entfernt „{name}“ aus dem zentralen Katalog. Bereits an Agents geschriebene afm__*-Schlüssel werden nicht automatisch bereinigt.",
+      "confirmRemoveTitle": "MCP aus dem Katalog entfernen?",
+      "deployGlobal": "Global bereitstellen",
+      "errorPickProject": "Zuerst ein Zielprojekt auswählen",
+      "filterPlaceholder": "MCP filtern…",
+      "hideTools": "Tools ausblenden",
+      "noticeDeployedToProject": "Zu „{project}“ hinzugefügt · {count} Datei(en) · {skipped} übersprungen",
+      "pickProject": "Projekt auswählen…",
+      "projectDefaultHint": "Projekte starten ohne MCP; erst ein Projekt wählen, dann hinzufügen.",
+      "removeFromProject": "Aus dem ausgewählten Projekt entfernen",
+      "showTools": "Import / Einsammlung",
+      "targetProject": "Zielprojekt"
     },
     "harness": {
       "title": "Initialize Harness / Superpower",
@@ -270,6 +305,32 @@
       "errorUnknown": "Unknown provider",
       "errorBuiltinRemove": "Preset providers cannot be removed",
       "errorIdConflict": "That id conflicts with a preset provider"
+    },
+    "harvest": {
+      "alreadyIn": "bereits im Katalog",
+      "errorAgentUnknown": "Unbekanntes Agent-Ziel",
+      "errorPath": "Globaler Agent-Pfad fehlt oder ist ungültig",
+      "importSelected": "Auswahl importieren ({count})",
+      "mcpHint": "Scannt das globale MCP-JSON des gewählten Agents; markierte Einträge werden in den Katalog übernommen (bestehende IDs übersprungen).",
+      "mcpTitle": "MCP aus Agent einsammeln",
+      "noticeMcpImported": "MCP-Einsammlung: {added} hinzugefügt · {skipped} übersprungen",
+      "noticeSkillsImported": "Skills-Einsammlung: {added} hinzugefügt · {skipped} übersprungen",
+      "scan": "Scannen",
+      "skillsHint": "Scannt das globale Skills-Verzeichnis des gewählten Agents; markierte Skills werden in die Bibliothek übernommen (bestehende Namen übersprungen).",
+      "skillsTitle": "Skills aus Agent einsammeln"
+    },
+    "project": {
+      "agentsHint": "Nur markierte Agents erhalten Bereitstellungen für dieses Projekt.",
+      "agentsTitle": "Agent-Aktivierung des Projekts",
+      "catalogHint": "Aus dem zentralen Katalog zu diesem Projekt hinzufügen (nichts wird automatisch aktiviert).",
+      "deploy": "Im Projekt bereitstellen",
+      "hint": "Projekte starten ohne Skills / MCP; nur für dieses Projekt explizit aus dem Katalog hinzufügen.",
+      "mcpTitle": "MCP → dieses Projekt",
+      "noticeAgentsSaved": "Agent-Aktivierung des Projekts gespeichert",
+      "skillsDefaultHint": "Standardmäßig keine Skills; „Im Projekt bereitstellen“ schreibt sie.",
+      "skillsTitle": "Skills → dieses Projekt",
+      "title": "Projekt-KI (MCP / Skills)",
+      "undeploy": "Aus dem Projekt entfernen"
     }
   },
   "common": {

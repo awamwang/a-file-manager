@@ -4,7 +4,7 @@
  * 切标签/回访同路径时先粉缓存，避免大目录重复 IPC + hydrate 卡顿。
  */
 
-import { normalizePathKey } from "./pathKey";
+import { normalizePathKey } from "./pathKey.ts";
 
 /** 热路径条数上限；超出按插入序淘汰最旧项。 */
 export const LISTING_CACHE_MAX_ENTRIES = 12;

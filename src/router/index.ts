@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
-import { AI_ADDON_ENABLED } from "../config/flavor";
-import { applyFeaturePackRoutes } from "../state/featurePack/contributions";
+import { AI_ADDON_ENABLED } from "../config/flavor.ts";
+import { applyFeaturePackRoutes } from "../state/featurePack/contributions.ts";
 // Default startup page stays eager; other routes are lazy (AIA-182).
 import NavigatorView from "../views/NavigatorView.vue";
 

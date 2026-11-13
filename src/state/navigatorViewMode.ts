@@ -3,11 +3,11 @@
 
 import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { hydrateSettings, rememberSettingsDocument } from "./settingsHydrate";
+import { hydrateSettings, rememberSettingsDocument } from "./settingsHydrate.ts";
 import {
   ICON_VIEW_ZOOM_ORDER,
   nudgeIconViewMode as nudgeIconViewModePure,
-} from "./iconViewZoom";
+} from "./iconViewZoom.ts";
 
 export type NavigatorViewMode =
   | "iconsExtraLarge"

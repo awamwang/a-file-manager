@@ -22,7 +22,10 @@ assert.ok(view.includes("onColumnResizeStart"));
 assert.ok(view.includes("list--tiles"));
 assert.ok(view.includes("list--content"));
 assert.ok(view.includes("list--icons-extra-large"), "AIA-233 CSS class");
-assert.ok(view.includes("groupedVisibleEntries"));
+// 9723a38 窗口化重构：groupedVisibleEntries 改名为 primaryVirtItems
+// （分组时经 flattenGroupedItems 打平），契约改为守护新的打平数据源。
+assert.ok(view.includes("primaryVirtItems"));
+assert.ok(view.includes("flattenGroupedItems"));
 assert.ok(view.includes("onListWheel"), "AIA-232: Ctrl+wheel must be wired on the file list");
 assert.ok(view.includes("nudgeIconViewMode"), "AIA-232: wheel uses icon zoom ladder");
 assert.ok(mode.includes("ICON_VIEW_ZOOM_ORDER"));

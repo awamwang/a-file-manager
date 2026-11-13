@@ -3,7 +3,7 @@
 
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { GUIDE_PATH, isGuidePath, normalizeGuideKey } from "./path";
+import { GUIDE_PATH, isGuidePath, normalizeGuideKey } from "./path.ts";
 
 export { GUIDE_PATH, isGuidePath, normalizeGuideKey };
 
@@ -141,7 +141,7 @@ export function userFolderItems(folders: UserFolders | null): UserFolderItem[] {
 
 export async function resolveHomePath(): Promise<string> {
   try {
-    const { hydrateSettings } = await import("../settingsHydrate");
+    const { hydrateSettings } = await import("../settingsHydrate.ts");
     const doc = await hydrateSettings();
     const configured = String(doc.values?.["core.defaultLocation"] ?? "").trim();
     if (configured) return configured;

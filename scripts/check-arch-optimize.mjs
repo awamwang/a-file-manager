@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 /** Arch extract invariants: side nav module + shared path-cards CSS. */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -27,7 +27,7 @@ assert.ok(pathCards.includes(".path-card--with-action"));
 
 const model = read("src/state/openState/model.ts");
 const pathKey = read("src/state/pathKey.ts");
-assert.match(model, /export \{ toNativeFsPath, normalizePathKey \} from "\.\.\/pathKey"/);
+assert.match(model, /export \{ toNativeFsPath, normalizePathKey \} from "\.\.\/pathKey\.ts"/);
 assert.match(pathKey, /export function toNativeFsPath/);
 assert.match(pathKey, /export function normalizePathKey/);
 assert.match(pathKey, /replace\(\/\\\/\/g,\s*"\\\\"\)/);

@@ -4,7 +4,7 @@
 
 import { reactive } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { perfSpan } from "./perfProbe";
+import { perfSpan } from "./perfProbe.ts";
 
 export type ShellIconResult = {
   path: string;

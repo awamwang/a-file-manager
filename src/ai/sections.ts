@@ -3,7 +3,7 @@
  * AI main-menu section model (AIA-214 / A1 · AIA-263).
  * Order matches Rust `AI_MENU_SECTION_IDS` — keep in sync.
  */
-import type { AiMenuSectionDef } from "./types";
+import type { AiMenuSectionDef } from "./types.ts";
 
 export const AI_MENU_SECTIONS: readonly AiMenuSectionDef[] = [
   {

@@ -3,12 +3,12 @@
 
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { openConfirmDialog } from "./confirmDialog";
+import { openConfirmDialog } from "./confirmDialog.ts";
 import {
   hydrateSettings,
   rememberSettingsDocument,
   type SettingsDocument,
-} from "./settingsHydrate";
+} from "./settingsHydrate.ts";
 
 export const CONFIRM_BEFORE_DELETE_KEY = "power.confirmBeforeDelete";
 

@@ -7,7 +7,7 @@ import {
   navigateSecondary,
   navigateTo,
   secondaryPath,
-} from "../navigatorBrowse";
+} from "../navigatorBrowse.ts";
 
 export type PaneId = "primary" | "secondary";
 
@@ -19,7 +19,7 @@ export {
   DUAL_PANE_WINDOW_MIN_WIDTH_PX,
   dualPaneFitsInnerWidth,
   windowMinWidthForDualPane,
-} from "./layout";
+} from "./layout.ts";
 
 export {
   secondaryPath,
@@ -27,7 +27,7 @@ export {
   secondaryError,
   secondaryLoading,
   navigateSecondary,
-} from "../navigatorBrowse";
+} from "../navigatorBrowse.ts";
 
 export const dualPaneEnabled = ref(false);
 export const activePane = ref<PaneId>("primary");

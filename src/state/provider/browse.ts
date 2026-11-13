@@ -6,15 +6,15 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   ensureProviderSession,
   providerBackends,
-} from "../providerCache";
+} from "../providerCache.ts";
 import {
   providerListingFromDir,
   shouldThrowProviderListError,
   type ProviderBackendInfo,
   type ProviderDirListingWire,
   type ProviderNavigatorListing,
-} from "./listing";
-import { PROVIDER_ROOT, toProviderUri } from "./path";
+} from "./listing.ts";
+import { PROVIDER_ROOT, toProviderUri } from "./path.ts";
 
 export type ProviderResolveResult = {
   uri: string;

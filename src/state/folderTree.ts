@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /** Pure helpers for the navigator folder tree (dirs only, path highlight). */
 
-import { normalizeTreePathKey } from "./pathKey";
+import { normalizeTreePathKey } from "./pathKey.ts";
 
 export type FolderTreeChild = {
   name: string;

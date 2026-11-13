@@ -8,7 +8,7 @@ import {
   renameEntry,
   transferEntries,
   type FileOpsResult,
-} from "../fileClipboard";
+} from "../fileClipboard.ts";
 import {
   dirsAffectedByUndo,
   moveUndoRecord,
@@ -16,7 +16,7 @@ import {
   pushRecord,
   renameUndoRecord,
   type UndoRecord,
-} from "./stack";
+} from "./stack.ts";
 
 export type { UndoRecord };
 export { dirsAffectedByUndo };

@@ -7,9 +7,9 @@ import {
   hydrateSettings,
   rememberSettingsDocument,
   type SettingsDocument,
-} from "../settingsHydrate";
-import { readShowHidden } from "./flag";
-import { clearListingCache } from "../navigatorListingCache";
+} from "../settingsHydrate.ts";
+import { readShowHidden } from "./flag.ts";
+import { clearListingCache } from "../navigatorListingCache.ts";
 
 export { readShowHidden };
 

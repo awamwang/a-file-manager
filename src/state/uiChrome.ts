@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { hydrateSettings } from "./settingsHydrate";
+import { hydrateSettings } from "./settingsHydrate.ts";
 
 export type UiTheme = "light" | "dark" | "system";
 export type ListDensity = "standard" | "compact";

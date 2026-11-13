@@ -167,7 +167,10 @@
       "errorNameEmpty": "Le nom affiché ne peut pas être vide",
       "errorUnknown": "Cible Agent inconnue",
       "errorBuiltinRemove": "Les cibles Agent intégrées ne peuvent pas être supprimées",
-      "errorIdConflict": "Cet id entre en conflit avec une cible Agent intégrée"
+      "errorIdConflict": "Cet id entre en conflit avec une cible Agent intégrée",
+      "defaultInProjectsHint": "La valeur par défaut du projet préremplit les ensembles d'agents des nouveaux projets ; « Activé » contrôle la distribution globale.",
+      "defaultInProjectsOff": "Valeur par défaut du projet : désactivée",
+      "defaultInProjectsOn": "Valeur par défaut du projet : activée"
     },
     "skills": {
       "libraryRoot": "Racine de la bibliothèque",
@@ -203,7 +206,26 @@
       "noticeUndeployed": "{count} junction(s) supprimée(s)",
       "errorDeployNoEnabled": "Activez au moins une cible Agent avant de déployer",
       "errorDeployConflict": "La cible de déploiement existe déjà et n’est pas cette junction de skill",
-      "errorDeployProject": "Le chemin Project Workspace doit être un répertoire existant"
+      "errorDeployProject": "Le chemin Project Workspace doit être un répertoire existant",
+      "addToProject": "Ajouter au projet sélectionné",
+      "confirmRemoveMessage": "Supprime définitivement « {name} » sous la racine de la bibliothèque. Si la racine pointe vers un dossier externe partagé, ces fichiers seront également supprimés.",
+      "confirmRemoveTitle": "Retirer le skill de la bibliothèque ?",
+      "deployGlobal": "Déployer globalement",
+      "deployMode": "Mode de déploiement des skills",
+      "deployModeCopy": "Copier",
+      "deployModeHint": "Préférence globale appliquée à tous les déploiements de skills suivants.",
+      "deployModeJunction": "Junction (lien, par défaut)",
+      "errorPickProject": "Choisissez d'abord un projet cible",
+      "filterPlaceholder": "Filtrer les skills…",
+      "hideTools": "Masquer les outils",
+      "noticeDeployModeSaved": "Mode de déploiement des skills enregistré",
+      "noticeDeployedToProject": "Ajouté à « {project} » · {count} emplacement(s) · {skipped} ignoré(s)",
+      "pickProject": "Choisir un projet…",
+      "projectDefaultHint": "Les projets démarrent sans skills ; choisissez un projet, puis ajoutez.",
+      "removeFromProject": "Retirer du projet sélectionné",
+      "selectHint": "Sélectionnez un skill à gauche",
+      "showTools": "Bibliothèque / import",
+      "targetProject": "Projet cible"
     },
     "mcp": {
       "mergeHint": "Catalogue APPDATA uniquement. Le déploiement fusionne afm__<id> dans les JSON MCP des Agents activés.",
@@ -228,7 +250,20 @@
       "errorUnknown": "Entrée catalogue MCP inconnue",
       "errorDeployNoEnabled": "Activez au moins une cible Agent avant le déploiement MCP",
       "errorTargetInvalid": "Chemin / JSON MCP cible invalide",
-      "errorImportInvalid": "Fichier d’import MCP manquant ou invalide (objet mcpServers requis)"
+      "errorImportInvalid": "Fichier d’import MCP manquant ou invalide (objet mcpServers requis)",
+      "addToProject": "Ajouter au projet sélectionné",
+      "confirmRemoveMessage": "Retire « {name} » du catalogue central. Les clés afm__* déjà écrites vers les agents ne sont pas nettoyées automatiquement.",
+      "confirmRemoveTitle": "Retirer le MCP du catalogue ?",
+      "deployGlobal": "Déployer globalement",
+      "errorPickProject": "Choisissez d'abord un projet cible",
+      "filterPlaceholder": "Filtrer les MCP…",
+      "hideTools": "Masquer les outils",
+      "noticeDeployedToProject": "Ajouté à « {project} » · {count} fichier(s) · {skipped} ignoré(s)",
+      "pickProject": "Choisir un projet…",
+      "projectDefaultHint": "Les projets démarrent sans MCP ; choisissez un projet, puis ajoutez.",
+      "removeFromProject": "Retirer du projet sélectionné",
+      "showTools": "Importer / récupérer",
+      "targetProject": "Projet cible"
     },
     "harness": {
       "title": "Initialize Harness / Superpower",
@@ -270,6 +305,32 @@
       "errorUnknown": "Unknown provider",
       "errorBuiltinRemove": "Preset providers cannot be removed",
       "errorIdConflict": "That id conflicts with a preset provider"
+    },
+    "harvest": {
+      "alreadyIn": "déjà dans le catalogue",
+      "errorAgentUnknown": "Cible d'agent inconnue",
+      "errorPath": "Chemin global de l'agent manquant ou invalide",
+      "importSelected": "Importer la sélection ({count})",
+      "mcpHint": "Analyse le JSON MCP global de l'agent sélectionné ; les entrées cochées sont capturées dans le catalogue (identifiants existants ignorés).",
+      "mcpTitle": "Récupérer le MCP de l'agent",
+      "noticeMcpImported": "Récupération MCP : {added} ajouté(s) · {skipped} ignoré(s)",
+      "noticeSkillsImported": "Récupération de skills : {added} ajouté(s) · {skipped} ignoré(s)",
+      "scan": "Analyser",
+      "skillsHint": "Analyse le répertoire Skills global de l'agent sélectionné ; les skills cochés sont capturés dans la bibliothèque (noms existants ignorés).",
+      "skillsTitle": "Récupérer les skills de l'agent"
+    },
+    "project": {
+      "agentsHint": "Seuls les agents cochés reçoivent les déploiements pour ce projet.",
+      "agentsTitle": "Activation des agents du projet",
+      "catalogHint": "Ajouter depuis le catalogue central à ce projet (rien n'est activé automatiquement).",
+      "deploy": "Déployer vers le projet",
+      "hint": "Les projets démarrent sans Skills / MCP ; ajoutez explicitement depuis le catalogue, pour ce projet uniquement.",
+      "mcpTitle": "MCP → ce projet",
+      "noticeAgentsSaved": "Activation des agents du projet enregistrée",
+      "skillsDefaultHint": "Aucun skill par défaut ; « Déployer vers le projet » les écrit.",
+      "skillsTitle": "Skills → ce projet",
+      "title": "IA du projet (MCP / Skills)",
+      "undeploy": "Retirer du projet"
     }
   },
   "common": {

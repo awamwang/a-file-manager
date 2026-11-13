@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AppCommand, RankedCommand } from "./types";
+import type { AppCommand, RankedCommand } from "./types.ts";
 
 /**
  * Case-insensitive subsequence fuzzy score.

@@ -21,7 +21,7 @@ import type {
   ProjectSkillHit,
   SkillDeployReport,
   SkillsLibraryStatus,
-} from "./types";
+} from "./types.ts";
 
 export function aiAddonStatus(): Promise<AiAddonStatus> {
   return invoke<AiAddonStatus>("ai_addon_status");

@@ -12,7 +12,7 @@ import {
   SUPPORTED_LOCALES,
   isAppLocale,
   htmlLangForLocale,
-} from "./locale";
+} from "./locale.ts";
 
 export {
   SUPPORTED_LOCALES,

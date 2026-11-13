@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /** Pure Navigator context-menu item model (labels supplied by caller / i18n). */
 
-import type { FluentGlyphId } from "../icons/glyphs";
-import type { NavigatorEntry } from "../../state/navigatorBrowse";
+import type { FluentGlyphId } from "../icons/glyphs.ts";
+import type { NavigatorEntry } from "../../state/navigatorBrowse.ts";
 
 export type ContextMenuActionId =
   | "open"

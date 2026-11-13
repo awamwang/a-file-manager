@@ -5,7 +5,7 @@
  * Import AI UI/state from here — not from Core FM modules (`projects`, `work_groups`,
  * Navigator). Keeps the Add-on boundary discoverable for A3+.
  */
-export { AI_MENU_SECTION_IDS, AI_MENU_SECTIONS } from "./sections";
+export { AI_MENU_SECTION_IDS, AI_MENU_SECTIONS } from "./sections.ts";
 export {
   aiAddonStatus,
   aiAgentTargetsDiscover,
@@ -42,7 +42,7 @@ export {
   aiSkillsRemove,
   aiSkillsSearchProject,
   aiSkillsUndeploy,
-} from "./client";
+} from "./client.ts";
 export type {
   AgentTarget,
   AgentTargetPatch,
@@ -69,4 +69,4 @@ export type {
   SkillDeployMode,
   SkillDeployReport,
   SkillsLibraryStatus,
-} from "./types";
+} from "./types.ts";

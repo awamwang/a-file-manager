@@ -7,12 +7,12 @@
 import {
   dataTransferLooksExternal,
   pathsFromDataTransfer,
-} from "./paths";
-import { dropTransferMode, type DropMode } from "./mode";
-import { transferEntries } from "../fileClipboard";
-import { recordCopyUndo, recordMoveUndo } from "../fileUndo";
-import { clearSelection, selectedPaths } from "../navigatorSelection";
-import { afterFileMutation } from "../fileMutation";
+} from "./paths.ts";
+import { dropTransferMode, type DropMode } from "./mode.ts";
+import { transferEntries } from "../fileClipboard.ts";
+import { recordCopyUndo, recordMoveUndo } from "../fileUndo/index.ts";
+import { clearSelection, selectedPaths } from "../navigatorSelection.ts";
+import { afterFileMutation } from "../fileMutation.ts";
 
 export type FolderDropCommit = {
   ok: boolean;

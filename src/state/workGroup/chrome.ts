@@ -9,13 +9,13 @@ import {
   rememberHydratedWorkGroups,
   snapshotLiveOpenState,
   type UserWorkGroupsDoc,
-} from "../openState";
+} from "../openState/index.ts";
 import {
   openMembersIntoOpenState,
   silentSwitchWorkGroup as runSilentWorkGroupSwitch,
   type SilentSwitchResult,
   type SoftSyncNotice,
-} from "../navigatorBrowse";
+} from "../navigatorBrowse.ts";
 
 export type WorkGroupSummary = UserWorkGroupsDoc["workGroups"][number];
 

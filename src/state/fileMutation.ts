@@ -7,9 +7,9 @@
 import {
   invalidateListingParents,
   reloadListingAfterMutation,
-} from "./navigatorBrowse";
-import { invalidateListingCache } from "./navigatorListingCache";
-import { dirsAffectedByUndo, type UndoRecord } from "./fileUndo/stack";
+} from "./navigatorBrowse.ts";
+import { invalidateListingCache } from "./navigatorListingCache.ts";
+import { dirsAffectedByUndo, type UndoRecord } from "./fileUndo/stack.ts";
 
 export type FileMutationRefreshOptions = {
   /** 条目路径：作废其父目录缓存（剪切源等）。 */

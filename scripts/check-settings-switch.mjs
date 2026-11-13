@@ -64,12 +64,12 @@ assert.ok(
   assert.ok(mountStart >= 0);
   const mountBody = settings.slice(mountStart, mountStart + 600);
   assert.ok(
-    mountBody.includes('activeSection.value === "favorites"'),
-    "OS-hook status must be gated to Favorites section",
+    mountBody.includes('activeSection.value === "power"'),
+    "OS-hook status must be gated to Power section (FIL-65)",
   );
   assert.ok(
     !/onMounted\(\(\) => \{[\s\S]*void loadFavoritesOsHookStatus\(\)/.test(mountBody) ||
-      mountBody.includes('activeSection.value === "favorites"'),
+      mountBody.includes('activeSection.value === "power"'),
     "must not unconditionally load favorites OS hook on every Settings open",
   );
 }

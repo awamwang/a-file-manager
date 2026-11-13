@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -15,7 +15,7 @@ const tauri = JSON.parse(readFileSync(join(root, "src-tauri/tauri.conf.json"), "
 
 assert.ok(state.includes("toggleDualPane"));
 assert.ok(state.includes("navigateSecondary"));
-assert.ok(state.includes('from "./layout"'), "re-exports layout clamp helpers");
+assert.ok(state.includes('from "./layout.ts"'), "re-exports layout clamp helpers");
 assert.ok(layout.includes("DUAL_PANE_MIN_PANE_PX = 240"));
 assert.ok(layout.includes("DUAL_PANE_WINDOW_MIN_WIDTH_PX"));
 assert.ok(layout.includes("windowMinWidthForDualPane"));

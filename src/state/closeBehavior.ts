@@ -8,7 +8,7 @@ import {
   hydrateSettings,
   rememberSettingsDocument,
   type SettingsDocument,
-} from "./settingsHydrate";
+} from "./settingsHydrate.ts";
 
 export type CloseBehavior = "ask" | "tray" | "quit";
 

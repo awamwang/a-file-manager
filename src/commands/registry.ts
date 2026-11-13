@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { Router } from "vue-router";
-import { AI_ADDON_ENABLED } from "../config/flavor";
-import { getCommandExtras } from "../state/featurePack/contributions";
-import type { AppCommand } from "./types";
+import { AI_ADDON_ENABLED } from "../config/flavor.ts";
+import { getCommandExtras } from "../state/featurePack/contributions.ts";
+import type { AppCommand } from "./types.ts";
 
 export type TranslateFn = (key: string) => string;
 

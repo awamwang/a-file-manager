@@ -167,7 +167,10 @@
       "errorNameEmpty": "表示名は空にできません",
       "errorUnknown": "不明な Agent Target",
       "errorBuiltinRemove": "組み込み Agent Target は削除できません",
-      "errorIdConflict": "その id は組み込み Agent Target と衝突します"
+      "errorIdConflict": "その id は組み込み Agent Target と衝突します",
+      "defaultInProjectsHint": "プロジェクトの既定値は新規プロジェクトのエージェント設定を事前入力します。有効にするとグローバル配布の範囲を制御します。",
+      "defaultInProjectsOff": "プロジェクトの既定値：オフ",
+      "defaultInProjectsOn": "プロジェクトの既定値：オン"
     },
     "skills": {
       "libraryRoot": "ライブラリ根",
@@ -203,7 +206,26 @@
       "noticeUndeployed": "Junction {count} 件を削除",
       "errorDeployNoEnabled": "配備前に Agent Target を1つ以上有効化してください",
       "errorDeployConflict": "配備先が既に存在し、この skill の Junction ではありません",
-      "errorDeployProject": "Project Workspace は既存ディレクトリである必要があります"
+      "errorDeployProject": "Project Workspace は既存ディレクトリである必要があります",
+      "addToProject": "選択したプロジェクトに追加",
+      "confirmRemoveMessage": "ライブラリルート配下の「{name}」を完全に削除します。ルートが共有の外部フォルダーを指している場合、それらのファイルも削除されます。",
+      "confirmRemoveTitle": "ライブラリからスキルを削除しますか？",
+      "deployGlobal": "グローバルに配布",
+      "deployMode": "スキル配布モード",
+      "deployModeCopy": "コピー",
+      "deployModeHint": "以降のすべてのスキル配布に適用されるグローバル設定です。",
+      "deployModeJunction": "ジャンクション（リンク、既定）",
+      "errorPickProject": "先に対象プロジェクトを選択してください",
+      "filterPlaceholder": "スキルをフィルター…",
+      "hideTools": "ツールを隠す",
+      "noticeDeployModeSaved": "スキル配布モードを保存しました",
+      "noticeDeployedToProject": "「{project}」に追加 · {count} か所 · {skipped} スキップ",
+      "pickProject": "プロジェクトを選択…",
+      "projectDefaultHint": "プロジェクトは最初スキルを持ちません。プロジェクトを 1 つ選んでから追加してください。",
+      "removeFromProject": "選択したプロジェクトから削除",
+      "selectHint": "左側でスキルを選択してください",
+      "showTools": "ライブラリ / インポート",
+      "targetProject": "対象プロジェクト"
     },
     "mcp": {
       "mergeHint": "カタログは APPDATA のみ。有効な Agent の MCP JSON に afm__<id> をマージします。",
@@ -228,7 +250,20 @@
       "errorUnknown": "不明な MCP 項目",
       "errorDeployNoEnabled": "MCP 配備前に Agent Target を有効化してください",
       "errorTargetInvalid": "MCP 対象パス / JSON が無効",
-      "errorImportInvalid": "MCP インポートファイルが無い、または無効（mcpServers オブジェクトが必要）"
+      "errorImportInvalid": "MCP インポートファイルが無い、または無効（mcpServers オブジェクトが必要）",
+      "addToProject": "選択したプロジェクトに追加",
+      "confirmRemoveMessage": "中央カタログから「{name}」を削除します。エージェントへ書き込み済みの afm__* キーは自動的にクリーンアップされません。",
+      "confirmRemoveTitle": "カタログから MCP を削除しますか？",
+      "deployGlobal": "グローバルに配布",
+      "errorPickProject": "先に対象プロジェクトを選択してください",
+      "filterPlaceholder": "MCP をフィルター…",
+      "hideTools": "ツールを隠す",
+      "noticeDeployedToProject": "「{project}」に追加 · {count} ファイル · {skipped} スキップ",
+      "pickProject": "プロジェクトを選択…",
+      "projectDefaultHint": "プロジェクトは最初 MCP を持ちません。プロジェクトを 1 つ選んでから追加してください。",
+      "removeFromProject": "選択したプロジェクトから削除",
+      "showTools": "インポート / 収集",
+      "targetProject": "対象プロジェクト"
     },
     "harness": {
       "title": "Initialize Harness / Superpower",
@@ -270,6 +305,32 @@
       "errorUnknown": "Unknown provider",
       "errorBuiltinRemove": "Preset providers cannot be removed",
       "errorIdConflict": "That id conflicts with a preset provider"
+    },
+    "harvest": {
+      "alreadyIn": "カタログに登録済み",
+      "errorAgentUnknown": "不明なエージェントターゲット",
+      "errorPath": "エージェントのグローバルパスが存在しないか無効です",
+      "importSelected": "選択項目をインポート（{count}）",
+      "mcpHint": "選択したエージェントのグローバル MCP JSON をスキャンし、チェックしたエントリをカタログへ取り込みます（既存の ID はスキップ）。",
+      "mcpTitle": "エージェントから MCP を収集",
+      "noticeMcpImported": "MCP 収集：追加 {added} · スキップ {skipped}",
+      "noticeSkillsImported": "スキル収集：追加 {added} · スキップ {skipped}",
+      "scan": "スキャン",
+      "skillsHint": "選択したエージェントのグローバル Skills ディレクトリをスキャンし、チェックしたスキルをライブラリへ取り込みます（既存の名前はスキップ）。",
+      "skillsTitle": "エージェントからスキルを収集"
+    },
+    "project": {
+      "agentsHint": "チェックしたエージェントのみがこのプロジェクトへの配布を受け取ります。",
+      "agentsTitle": "プロジェクトのエージェント有効化",
+      "catalogHint": "中央カタログからこのプロジェクトへ追加します（自動的には有効化されません）。",
+      "deploy": "プロジェクトに配布",
+      "hint": "プロジェクトは最初 Skills / MCP を持ちません。カタログからこのプロジェクトに対してのみ明示的に追加してください。",
+      "mcpTitle": "MCP → このプロジェクト",
+      "noticeAgentsSaved": "プロジェクトのエージェント有効化を保存しました",
+      "skillsDefaultHint": "既定ではスキルなし。「プロジェクトに配布」で書き込まれます。",
+      "skillsTitle": "Skills → このプロジェクト",
+      "title": "プロジェクト AI（MCP / Skills）",
+      "undeploy": "プロジェクトから削除"
     }
   },
   "common": {

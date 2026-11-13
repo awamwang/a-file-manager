@@ -5,10 +5,10 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import type { RouteRecordRaw, Router } from "vue-router";
-import type { AppCommand } from "../../commands/types";
-import type { SideNavItem } from "../../shell/sideNav";
-import { AI_ADDON_ENABLED } from "../../config/flavor";
-import { builtinEntries } from "./builtinEntries";
+import type { AppCommand } from "../../commands/types.ts";
+import type { SideNavItem } from "../../shell/sideNav.ts";
+import { AI_ADDON_ENABLED } from "../../config/flavor.ts";
+import { builtinEntries } from "./builtinEntries.ts";
 
 export type FeaturePackSideNavContribution = {
   id: string;
@@ -198,8 +198,8 @@ export async function hydrateFeaturePackContributions(): Promise<void> {
   } catch {
     // 拉取失败时保留上次贡献，避免 Soft Reload 清空已合并项。
   }
-  const { applyFeaturePackSideNav } = await import("../../shell/sideNav");
+  const { applyFeaturePackSideNav } = await import("../../shell/sideNav.ts");
   applyFeaturePackSideNav();
-  const { registerFeaturePackRoutes } = await import("../../router");
+  const { registerFeaturePackRoutes } = await import("../../router/index.ts");
   registerFeaturePackRoutes();
 }

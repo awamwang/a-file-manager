@@ -10,8 +10,8 @@ import {
   openStateWithoutPinned,
   stripTabsFromOpenState,
   type WorkGroupOpenState,
-} from "./model";
-import { pinnedIdSet } from "../tabPins";
+} from "./model.ts";
+import { pinnedIdSet } from "../tabPins.ts";
 
 export type UserWorkGroupsDoc = {
   workGroups: Array<{

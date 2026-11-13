@@ -2,7 +2,7 @@
 /** Navigator selection set with multi-select helpers (AIA-64). */
 
 import { computed, ref } from "vue";
-import type { NavigatorEntry } from "./navigatorBrowse";
+import type { NavigatorEntry } from "./navigatorBrowse.ts";
 
 export const selectedPaths = ref<string[]>([]);
 /** Anchor path for Shift+click ranges. */

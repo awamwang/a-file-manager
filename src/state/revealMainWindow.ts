@@ -6,7 +6,7 @@
  */
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { startupMark } from "./startupTiming";
+import { startupMark } from "./startupTiming.ts";
 
 function afterNextPaint(): Promise<void> {
   return new Promise((resolve) => {
