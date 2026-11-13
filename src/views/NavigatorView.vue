@@ -46,6 +46,7 @@ import {
   cancelShellIconRequests,
   clearShellIconQueue,
   requestShellIcons,
+  setShellIconPinnedPaths,
   suspendQueuedContentThumbnails,
 } from "../state/shellIcons";
 import {
@@ -865,6 +866,7 @@ function pathsLeavingWindow(prev: Set<string>, next: Iterable<string>): string[]
 function resetThumbRequestWindows() {
   primaryThumbPaths = new Set();
   secondaryThumbPaths = new Set();
+  setShellIconPinnedPaths([]);
 }
 
 function syncThumbRequestsForPane(
@@ -915,6 +917,9 @@ function refreshViewportIconRequests() {
   );
   primaryThumbPaths = primary.paths;
   secondaryThumbPaths = secondary.paths;
+  // FIL-68：固定当前缩略图请求窗，LRU/字节预算淘汰时最后考虑，
+  // 防止可见缩略图被新到结果挤掉后回落成占位图并反复震荡。
+  setShellIconPinnedPaths([...primaryThumbPaths, ...secondaryThumbPaths]);
   // 主栏在前、副栏在后，合并为一次优先窗，避免后同步的一栏把第一屏挤到队尾。
   const combined = [...primary.entries, ...secondary.entries];
   // 视口高度未量到：只跑快通道，避免兜底大窗先吞内容缩略图。

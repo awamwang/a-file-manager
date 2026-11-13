@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const state = readFileSync(join(root, "src/state/shellIcons.ts"), "utf8");
+const view = readFileSync(join(root, "src/views/NavigatorView.vue"), "utf8");
 const rust = readFileSync(join(root, "src-tauri/src/shell_icons/mod.rs"), "utf8");
 const pkg = readFileSync(join(root, "package.json"), "utf8");
 
@@ -25,6 +26,24 @@ assert.ok(/shellIconPutForTests/.test(state));
 assert.ok(/requestAnimationFrame/.test(state));
 assert.ok(/BATCH_THUMB\s*=\s*8/.test(state));
 
+// --- Contract: viewport pinning (FIL-68) ---
+assert.ok(
+  /export function setShellIconPinnedPaths/.test(state),
+  "FIL-68: viewport pin API exported",
+);
+assert.ok(
+  /function isPinnedKey/.test(state),
+  "FIL-68: eviction must consider viewport pins",
+);
+assert.ok(
+  /pinnedPaths\.clear\(\)/.test(state),
+  "FIL-68: folder/size change clears stale pins",
+);
+assert.ok(
+  view.includes("setShellIconPinnedPaths"),
+  "FIL-68: Navigator pins the current thumb request window",
+);
+
 assert.ok(/MAX_ICON_CACHE_ENTRIES:\s*usize\s*=\s*384/.test(rust));
 assert.ok(/struct BoundedIconCache/.test(rust));
 assert.ok(/bounded_icon_cache_evicts_oldest/.test(rust));
@@ -34,30 +53,50 @@ assert.ok(pkg.includes("test:shell-icon-budget"));
 const MAX_ENTRIES = 512;
 const MAX_BYTES = 48 * 1024 * 1024;
 
-function simulate() {
-  /** @type {Map<string, true>} */
-  const lru = new Map();
-  /** @type {Map<string, { bytes: number, soft: boolean }>} */
-  const meta = new Map();
-  /** @type {Record<string, string>} */
-  const store = {};
-  let liveBytes = 0;
+  function simulate() {
+    /** @type {Map<string, true>} */
+    const lru = new Map();
+    /** @type {Map<string, { bytes: number, soft: boolean }>} */
+    const meta = new Map();
+    /** @type {Record<string, string>} */
+    const store = {};
+    /** @type {Set<string>} */
+    const pinned = new Set();
+    let liveBytes = 0;
 
-  function drop(key) {
-    const m = meta.get(key);
-    if (m) liveBytes = Math.max(0, liveBytes - m.bytes);
-    meta.delete(key);
-    lru.delete(key);
-    delete store[key];
-  }
-
-  function pickVictim() {
-    for (const [key] of lru) {
-      if (meta.get(key)?.soft) return key;
+    function drop(key) {
+      const m = meta.get(key);
+      if (m) liveBytes = Math.max(0, liveBytes - m.bytes);
+      meta.delete(key);
+      lru.delete(key);
+      delete store[key];
     }
-    const first = lru.keys().next();
-    return first.done ? null : first.value;
-  }
+
+    function keyPathOf(key) {
+      return key.slice(key.indexOf("|") + 1);
+    }
+
+    // FIL-68 mirror: pinned (viewport) entries are evicted last.
+    function pickVictim() {
+      let softPinned = null;
+      let hardPinned = null;
+      for (const [key] of lru) {
+        const isPinned = pinned.has(keyPathOf(key));
+        if (!isPinned) {
+          if (meta.get(key)?.soft) return key;
+          continue;
+        }
+        if (meta.get(key)?.soft) {
+          if (softPinned == null) softPinned = key;
+        } else if (hardPinned == null) {
+          hardPinned = key;
+        }
+      }
+      for (const [key] of lru) {
+        if (!pinned.has(keyPathOf(key))) return key;
+      }
+      return softPinned ?? hardPinned;
+    }
 
   function trim() {
     while (lru.size > MAX_ENTRIES || liveBytes > MAX_BYTES) {
@@ -125,6 +164,36 @@ function simulate() {
   assert.ok(store["96|/huge"], "newest huge entry retained");
   assert.equal(store["96|/small1"], undefined);
   assert.equal(store["96|/small2"], undefined);
+
+  // FIL-68: pinned viewport entries survive entry-cap pressure while unpinned exist.
+  for (const key of [...lru.keys()]) drop(key);
+  pinned.clear();
+  put("96|/visible", "v");
+  pinned.add("/visible");
+  for (let i = 0; i < MAX_ENTRIES + 5; i += 1) {
+    put(`96|/off-${i}`, "o");
+  }
+  assert.equal(lru.size, MAX_ENTRIES);
+  assert.ok(
+    store["96|/visible"],
+    "FIL-68: pinned viewport entry must not be evicted under normal pressure",
+  );
+  assert.equal(store["96|/off-0"], undefined, "unpinned offscreen evicted first");
+
+  // FIL-68: true pressure (only pinned left) evicts soft-pinned before hard-pinned.
+  for (const key of [...lru.keys()]) drop(key);
+  pinned.clear();
+  put("96|/p-soft", "a");
+  put("96|/p-hard", "b");
+  pinned.add("/p-soft");
+  pinned.add("/p-hard");
+  markSoft("96|/p-soft");
+  while (lru.size > 1) {
+    const v = pickVictim();
+    assert.equal(v, "96|/p-soft", "soft pinned evicted before hard pinned");
+    drop(v);
+  }
+  assert.ok(store["96|/p-hard"]);
 
   return true;
 }

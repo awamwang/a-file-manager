@@ -106,12 +106,44 @@ function markSoftKey(key: string): void {
   if (meta) meta.soft = true;
 }
 
+/** 当前视口请求窗路径（主+副栏）。FIL-68：这些条目淘汰时最后考虑。 */
+const pinnedPaths = new Set<string>();
+
+function keyPathOf(key: string): string {
+  return key.slice(key.indexOf("|") + 1);
+}
+
+function isPinnedKey(key: string): boolean {
+  return pinnedPaths.has(keyPathOf(key));
+}
+
+/**
+ * 淘汰优先级（FIL-68）：
+ * 1. 软标记且未固定（上一屏 / 上一目录残留）
+ * 2. 未固定的 LRU 最旧
+ * 3. 固定但被标软
+ * 4. 固定的 LRU 最旧（真超预算时的最后手段）
+ * 固定 = 当前视口：普通压力下绝不能淘汰，否则可见缩略图会回落成
+ * 半透明占位图，并在占位/缩略图之间反复震荡。
+ */
 function pickVictim(): string | null {
+  let softPinned: string | null = null;
+  let pinned: string | null = null;
   for (const [key] of lruOrder) {
-    if (cacheMeta.get(key)?.soft) return key;
+    if (!isPinnedKey(key)) {
+      if (cacheMeta.get(key)?.soft) return key;
+      continue;
+    }
+    if (cacheMeta.get(key)?.soft) {
+      if (softPinned == null) softPinned = key;
+    } else if (pinned == null) {
+      pinned = key;
+    }
   }
-  const first = lruOrder.keys().next();
-  return first.done ? null : first.value;
+  for (const [key] of lruOrder) {
+    if (!isPinnedKey(key)) return key;
+  }
+  return softPinned ?? pinned;
 }
 
 function trimToBudget(): void {
@@ -302,6 +334,8 @@ export function clearShellIconQueue(): void {
   pending.clear();
   attemptByKey.clear();
   pendingApplies.length = 0;
+  // 换目录/换尺寸后旧视口固定失效；下一次视口同步会重新固定（FIL-68）。
+  pinnedPaths.clear();
   if (flushTimer) {
     clearTimeout(flushTimer);
     flushTimer = null;
@@ -460,6 +494,18 @@ export function iconUrlFor(path: string, size = 20): string | null {
   const url = iconByPath[key] || null;
   if (url) touchKey(key);
   return url;
+}
+
+/**
+ * 整体替换「当前视口」固定路径集合（FIL-68）。固定路径的缓存条目在
+ * LRU / 字节预算淘汰时最后考虑，避免可见缩略图被挤掉后回落成占位图。
+ */
+export function setShellIconPinnedPaths(paths: Iterable<string>): void {
+  pinnedPaths.clear();
+  for (const raw of paths) {
+    const p = raw.trim();
+    if (p) pinnedPaths.add(p);
+  }
 }
 
 /** Test/debug helpers. */
