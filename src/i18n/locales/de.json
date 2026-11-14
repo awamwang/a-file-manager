@@ -532,6 +532,27 @@
   "cmd": {
     "toolRuntimeOpen": "Tool-Laufzeit öffnen"
   },
+  "taskCenter": {
+    "title": "Aufgaben",
+    "expandTitle": "Aufgabenliste anzeigen",
+    "collapse": "Einklappen",
+    "settings": "Einstellungen der Aufgabenliste",
+    "kindCopy": "Kopieren",
+    "kindMove": "Verschieben",
+    "statusRunning": "Läuft",
+    "statusCompleted": "Abgeschlossen",
+    "statusFailed": "Fehlgeschlagen",
+    "statusInterrupted": "Unterbrochen",
+    "runningSummary": "{count} aktiv",
+    "recentSummary": "{count} Einträge",
+    "clearFinished": "Abgeschlossene entfernen",
+    "retentionDays": "Aufbewahrung (Tage)",
+    "retentionDaysHint": "Abgeschlossene Einträge werden nach dieser Anzahl Tagen automatisch entfernt (Standard 7 Tage).",
+    "maxRecords": "Maximale Einträge",
+    "maxRecordsHint": "Bei Überschreitung werden zuerst die ältesten abgeschlossenen Einträge entfernt.",
+    "empty": "Keine Aufgabeneinträge",
+    "more": "+{count} weitere"
+  },
   "navigator": {
     "empty": "Dieser Ordner ist leer.",
     "file": "Datei",

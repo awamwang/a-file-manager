@@ -34,7 +34,11 @@ const { t } = useI18n();
 .toast-host {
   position: fixed;
   right: var(--fluent-space-lg);
-  bottom: calc(var(--fluent-statusbar-height, 2rem) + var(--fluent-space-md));
+  /* FIL-70：右下角长任务状态条可见时整体上移，避免遮挡。 */
+  bottom: calc(
+    var(--fluent-statusbar-height, 2rem) + var(--fluent-space-md) +
+      var(--fluent-taskbar-inset, 0px)
+  );
   z-index: 90;
   display: flex;
   flex-direction: column-reverse;

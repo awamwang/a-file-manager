@@ -140,11 +140,64 @@ pub fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
     }
 }
 
+/// AIA-272 + FIL-72: show the main window and *activate* it from the host.
+///
+/// On a fresh install the process is launched by the NSIS installer and WebView2
+/// cold-start takes seconds. By the time the frontend reveals the window the
+/// process has lost Windows' startup foreground allowance, so a plain
+/// `set_focus()` is refused: the maximized window appears but stays behind the
+/// shell until the user clicks the taskbar icon again. Attaching to the current
+/// foreground thread, with a transient topmost toggle as fallback, makes the
+/// reveal land in the foreground. FIL-47 forbids raising *other* apps during
+/// drag — this only ever raises our own main window.
+#[cfg(windows)]
+fn force_main_window_foreground(hwnd: windows::Win32::Foundation::HWND) {
+    use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
+    use windows::Win32::UI::WindowsAndMessaging::{
+        BringWindowToTop, GetForegroundWindow, GetWindowThreadProcessId,
+        SetForegroundWindow, SetWindowPos, HWND_NOTOPMOST, HWND_TOPMOST, SWP_NOMOVE,
+        SWP_NOSIZE, SWP_SHOWWINDOW,
+    };
+
+    unsafe {
+        let fg = GetForegroundWindow();
+        let fg_tid = GetWindowThreadProcessId(fg, None);
+        let our_tid = GetCurrentThreadId();
+        let attached = fg_tid != 0
+            && fg_tid != our_tid
+            && AttachThreadInput(our_tid, fg_tid, true).as_bool();
+
+        let _ = BringWindowToTop(hwnd);
+        let _ = SetForegroundWindow(hwnd);
+        if GetForegroundWindow() != hwnd {
+            let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW;
+            let _ = SetWindowPos(hwnd, Some(HWND_TOPMOST), 0, 0, 0, 0, flags);
+            let _ = SetWindowPos(hwnd, Some(HWND_NOTOPMOST), 0, 0, 0, 0, flags);
+            let _ = SetForegroundWindow(hwnd);
+        }
+        if attached {
+            let _ = AttachThreadInput(our_tid, fg_tid, false);
+        }
+    }
+}
+
+/// Startup reveal (FIL-72): one atomic host-side show + foreground raise.
+#[tauri::command]
+pub fn afm_reveal_main_window(app: AppHandle) {
+    show_main_window(&app);
+}
+
 pub fn show_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
+        #[cfg(windows)]
+        crate::drag_focus::begin_forced_activation();
         let _ = window.show();
         let _ = window.unminimize();
         let _ = window.set_focus();
+        #[cfg(windows)]
+        if let Ok(hwnd) = window.hwnd() {
+            force_main_window_foreground(hwnd);
+        }
     }
 }
 

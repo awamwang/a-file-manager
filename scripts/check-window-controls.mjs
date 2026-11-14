@@ -73,14 +73,14 @@ if (!mainTs.includes("revealMainWindowAfterReady")) {
 }
 if (
   !reveal.includes("afm_startup_should_reveal") ||
-  !reveal.includes(".show()") ||
+  !reveal.includes("afm_reveal_main_window") ||
   !reveal.includes(".maximize()")
 ) {
-  console.error("revealMainWindow must gate on afm_startup_should_reveal then maximize/show");
+  console.error("revealMainWindow must gate on afm_startup_should_reveal, maximize, then host reveal");
   process.exit(1);
 }
-if (!libRs.includes("afm_startup_should_reveal") || !libRs.includes("StartupReveal")) {
-  console.error("lib.rs must register StartupReveal + afm_startup_should_reveal (AIA-272)");
+if (!libRs.includes("afm_startup_should_reveal") || !libRs.includes("afm_reveal_main_window") || !libRs.includes("StartupReveal")) {
+  console.error("lib.rs must register StartupReveal + both startup reveal commands (AIA-272/FIL-72)");
   process.exit(1);
 }
 if (!indexHtml.includes('style="background:#f3f3f3"')) {

@@ -532,6 +532,27 @@
   "cmd": {
     "toolRuntimeOpen": "ツールランタイムを開く"
   },
+  "taskCenter": {
+    "title": "タスク",
+    "expandTitle": "タスク一覧を開く",
+    "collapse": "折りたたむ",
+    "settings": "タスク一覧の設定",
+    "kindCopy": "コピー",
+    "kindMove": "移動",
+    "statusRunning": "実行中",
+    "statusCompleted": "完了",
+    "statusFailed": "失敗",
+    "statusInterrupted": "中断",
+    "runningSummary": "{count} 件実行中",
+    "recentSummary": "{count} 件の記録",
+    "clearFinished": "完了をクリア",
+    "retentionDays": "保持日数",
+    "retentionDaysHint": "完了した記録はこの日数を過ぎると自動的に削除されます（既定 7 日）。",
+    "maxRecords": "最大記録数",
+    "maxRecordsHint": "上限を超えると古い完了記録から削除されます。",
+    "empty": "タスク記録はありません",
+    "more": "他 {count} 件"
+  },
   "navigator": {
     "empty": "このフォルダーは空です。",
     "file": "ファイル",

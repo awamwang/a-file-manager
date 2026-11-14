@@ -378,6 +378,27 @@
       "errorIdConflict": "该 id 与预设 Provider 冲突"
     }
   },
+  "taskCenter": {
+    "title": "任务",
+    "expandTitle": "展开任务列表",
+    "collapse": "折叠",
+    "settings": "任务列表设置",
+    "kindCopy": "复制",
+    "kindMove": "移动",
+    "statusRunning": "进行中",
+    "statusCompleted": "已完成",
+    "statusFailed": "失败",
+    "statusInterrupted": "已中断",
+    "runningSummary": "{count} 个任务进行中",
+    "recentSummary": "{count} 条任务记录",
+    "clearFinished": "清除已完成",
+    "retentionDays": "保留天数",
+    "retentionDaysHint": "完成记录超过该天数后自动清理（默认 7 天，七日一清）。",
+    "maxRecords": "最多保留条数",
+    "maxRecordsHint": "超出上限时从最旧的完成记录开始移除。",
+    "empty": "暂无任务记录",
+    "more": "等 {count} 项"
+  },
   "navigator": {
     "title": "资源管理器",
     "metaConnected": "内核磁盘浏览 · {dirs} 个文件夹 · {files} 个文件",

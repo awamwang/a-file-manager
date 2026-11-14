@@ -14,6 +14,7 @@ const libRs = read("src-tauri/src/lib.rs");
 const tray = read("src-tauri/src/system_tray.rs");
 const mainTs = read("src/main.ts");
 const reveal = read("src/state/revealMainWindow.ts");
+const dragFocus = read("src-tauri/src/drag_focus.rs");
 const indexHtml = read("index.html");
 const caps = read("src-tauri/capabilities/default.json");
 
@@ -38,8 +39,17 @@ assert.ok(mainTs.includes("revealMainWindowAfterReady"));
 assert.ok(reveal.includes("afm_startup_should_reveal"));
 assert.ok(reveal.includes("requestAnimationFrame"));
 assert.ok(reveal.includes(".maximize()"));
-assert.ok(reveal.includes(".show()"));
-assert.ok(reveal.includes(".setFocus()"));
+// FIL-72: show + foreground raise must be one host-side command. A JS-side
+// show()/setFocus() pair is refused by Windows on a cold first run.
+assert.ok(reveal.includes("afm_reveal_main_window"));
+assert.ok(!reveal.includes(".setFocus()"), "startup reveal must not use JS setFocus");
+assert.ok(libRs.includes("system_tray::afm_reveal_main_window"));
+assert.ok(tray.includes("fn force_main_window_foreground"));
+assert.ok(tray.includes("force_main_window_foreground(hwnd)"));
+assert.ok(
+  dragFocus.includes("begin_forced_activation") && dragFocus.includes("IsWindowVisible"),
+  "startup must not pre-arm WS_EX_NOACTIVATE while the window is hidden",
+);
 
 assert.ok(caps.includes("core:window:allow-show"));
 assert.ok(caps.includes("core:window:allow-maximize"));
