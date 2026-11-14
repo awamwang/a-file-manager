@@ -267,7 +267,9 @@ pub fn load_from_path(config_dir: &Path, configured_root: &str) -> Result<Projec
         .map_err(|err| format!("Failed to parse projects index JSON: {err}"))?;
     document.schema_version = INDEX_SCHEMA_VERSION;
 
-    if document.projects_root.replace('/', "\\") != root_str {
+    if crate::paths::normalize_path_for_comparison(&document.projects_root)
+        != crate::paths::normalize_path_for_comparison(&root_str)
+    {
         document.projects_root = root_str.clone();
         if let Some(ref active) = document.active_project {
             if !active_still_under_root(active, Path::new(&root_str)) {

@@ -51,34 +51,58 @@ pub fn same_volume(a: &Path, b: &Path) -> bool {
 }
 
 pub fn refuse_volume_root(path: &Path) -> Result<(), String> {
-    let parent = path.parent();
-    if parent.map(|item| item.as_os_str().is_empty()).unwrap_or(true) {
+    if is_volume_root(path) {
         return Err(format!(
             "Refusing destructive op on a volume root: {}",
             display_path(path)
         ));
-    }
-    // `C:\` style after normalize — also catch paths whose components are only a prefix root.
-    let comps: Vec<_> = path.components().collect();
-    if comps.len() <= 1 {
-        return Err(format!(
-            "Refusing destructive op on a volume root: {}",
-            display_path(path)
-        ));
-    }
-    if comps.len() == 2 {
-        if let (Component::Prefix(_), Component::RootDir) = (&comps[0], &comps[1]) {
-            return Err(format!(
-                "Refusing destructive op on a volume root: {}",
-                display_path(path)
-            ));
-        }
     }
     Ok(())
 }
 
+#[cfg(windows)]
+fn is_volume_root(path: &Path) -> bool {
+    let parent = path.parent();
+    if parent.map(|item| item.as_os_str().is_empty()).unwrap_or(true) {
+        return true;
+    }
+    // `C:\` style after normalize — also catch paths whose components are only a prefix root.
+    let comps: Vec<_> = path.components().collect();
+    if comps.len() <= 1 {
+        return true;
+    }
+    if comps.len() == 2 {
+        if let (Component::Prefix(_), Component::RootDir) = (&comps[0], &comps[1]) {
+            return true;
+        }
+    }
+    false
+}
+
+/// POSIX has no drive letters: `/` and the root of each mounted volume
+/// (`/Volumes/<name>` on macOS) are the destructive-op boundaries.
+/// `sysinfo::Disks` lists mounted volumes, it does not decide whether a
+/// *given path* is a volume root, so this stays a small local predicate.
+#[cfg(not(windows))]
+fn is_volume_root(path: &Path) -> bool {
+    let comps: Vec<_> = path.components().collect();
+    if comps.len() == 1 && comps.first() == Some(&Component::RootDir) {
+        return true;
+    }
+    if comps.len() == 3 {
+        if let (Component::RootDir, Component::Normal(first), Component::Normal(_)) =
+            (&comps[0], &comps[1], &comps[2])
+        {
+            if first.to_string_lossy() == "Volumes" {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 fn display_path(path: &Path) -> String {
-    path.to_string_lossy().replace('/', "\\")
+    crate::paths::display_path(path)
 }
 
 pub fn remove_path(path: &Path) -> Result<(), String> {
@@ -408,11 +432,21 @@ mod tests {
         assert!(!same_volume(Path::new(r"C:\a"), Path::new(r"D:\b")));
     }
 
+    #[cfg(windows)]
     #[test]
     fn refuse_volume_roots() {
         assert!(refuse_volume_root(Path::new(r"C:\")).is_err());
         assert!(refuse_volume_root(Path::new(r"D:\")).is_err());
         assert!(refuse_volume_root(Path::new(r"C:\Users")).is_ok());
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn refuse_volume_roots() {
+        assert!(refuse_volume_root(Path::new("/")).is_err());
+        assert!(refuse_volume_root(Path::new("/Volumes/External")).is_err());
+        assert!(refuse_volume_root(Path::new("/Users")).is_ok());
+        assert!(refuse_volume_root(&std::env::temp_dir()).is_ok());
     }
 
     #[test]

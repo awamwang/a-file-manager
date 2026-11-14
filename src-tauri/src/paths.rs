@@ -18,6 +18,22 @@ pub fn display_path(path: &std::path::Path) -> String {
     to_native_fs_path(path.to_string_lossy().as_ref())
 }
 
+/// Join a config-supplied relative path (may contain `/` or `\`) onto a root.
+/// Replaces the per-module `rel.replace('/', "\\")` copies that turn POSIX
+/// absolute paths into relative ones outside Windows.
+// Only the AI addon consumes this today; Core builds drop those modules.
+#[cfg_attr(not(feature = "ai-addon"), allow(dead_code))]
+pub fn join_relative(root: &std::path::Path, rel: &str) -> std::path::PathBuf {
+    let mut out = root.to_path_buf();
+    for part in rel.split(['/', '\\']) {
+        if part.is_empty() || part == "." {
+            continue;
+        }
+        out.push(part);
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

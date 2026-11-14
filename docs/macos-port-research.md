@@ -397,7 +397,7 @@
 0. **先过门禁**：把 7.5 的 17 个失败按 6.4 矩阵逐项标记 `复用 / 引入 / 自写 / 降级`，再动手；只有 Junction → symlink 这类确实无库可代劳的才自写。
 1. 前端接入 `platform_capabilities()`：显隐 Windows 专属菜单/设置项、快捷键标签 Ctrl→⌘（复用 `src/shortcuts/`）；顺带把 `open_with` 非 Windows 分支换成已注册的 `tauri-plugin-opener`，消掉手写 `open` / `xdg-open`。**（`open_with` 部分 7.7 已完成；前端能力层与快捷键部分 7.8 已完成）**
 2. `tauri.conf.json`：`targets` 加 `app`/`dmg`、`bundle.macOS`、`bundle.resources`、`titleBarStyle: Overlay`（P0-6）。**（bundle 三项 7.9 已完成；`titleBarStyle` 需 GUI 实机验证后再动，理由见 7.9）**
-3. 消失败用例时优先复用现成实现：`directories::UserDirs` 处理 5 个特殊文件夹 / `%USERPROFILE%` 夹具、`sysinfo::Disks` 处理 3 个卷根判定、核实 `trash::os_limited` 后决定废纸篓权限用例走修复还是降级；7 个 Junction 用例确认无 crate 覆盖后用 Unix symlink。
+3. 消失败用例时优先复用现成实现：`directories::UserDirs` 处理 5 个特殊文件夹 / `%USERPROFILE%` 夹具、`sysinfo::Disks` 处理 3 个卷根判定、核实 `trash::os_limited` 后决定废纸篓权限用例走修复还是降级；7 个 Junction 用例确认无 crate 覆盖后用 Unix symlink。**（7.10 已完成，16 个失败归零；门禁复核后 `sysinfo::Disks` 不适用于「给定路径是否为卷根」的判定，改由 platform 分支自写，Disks 仍留给 `list_drives` / `disk_space` 的真实缺口）**
 4. `tauri dev` 实机验证窗口/图标/路径/打开方式，再谈 CI 双平台矩阵与签名公证（P3）。
 5. 按 6.5 第 3–5 条推进 P2 插件复核、能力层从静态 bool 升级为适配器回报、以及 `tauri-specta` 的做/不做决策。
 
@@ -479,6 +479,37 @@
 - `Contents/Resources/icons/32x32.png`（1.1 KiB）确实随包分发 → `resolveResource` 的拖影图标在 release 包里不再缺失，这是 `bundle.resources` 的直接验收。
 - `npx tauri build --debug --bundles dmg` 的编译与 `.app` 阶段都成功，最后 `bundle_dmg.sh` 调 `hdiutil create` 报 `操作不被允许`；日志末尾的沙箱提示显示被拒的是 `/Volumes/A File Manager/...` 挂载卷里的 file-delete。这是**本会话沙箱对 dmg 挂载卷的限制**，不是 Tauri 配置错误；在普通终端重跑该命令应能产出 `.dmg`。签名/公证仍属 P3，未配置 `signingIdentity`，当前为 ad-hoc 签名。
 - 仍未启动 GUI：WKWebView 渲染、交通灯位置、拖放、TCC 弹窗都未实机看窗口，7.6 第 4 步的 `tauri dev` 验证依旧待办。
+
+### 7.10 第五轮：消掉 16 个 P1 失败用例（`mac` 分支，7.6 第 3 步）
+
+复现基线 `280 passed / 16 failed / 1 ignored`。按 6.5 门禁逐组标记 `复用 / 引入 / 自写 / 降级`，**未引入任何新依赖**，`Cargo.lock` 不变。
+
+| 组 | 数量 | 门禁决策 | 证据 |
+|---|---|---|---|
+| 路径归一化 / `%USERPROFILE%` 夹具 | 5 | **复用** | `crate::paths::to_native_fs_path`、`platform::home_dir()`、`directories::BaseDirs` 都已在依赖里；根因是三个模块各自复制了一份 `replace('/', "\\")`，把 `/var/folders/...` 变成相对路径 `\var\folders\...` |
+| Junction `mklink /J` | 7 | **自写（标准库）** | 无 crate 覆盖「创建 / 删除目录链接」；`std::os::unix::fs::symlink` + `remove_file` 即可，Windows 分支的 `cmd /C mklink /J` 一字未改 |
+| 卷根判定 | 3 | **自写** | `sysinfo::Disks` 只列已挂载卷与剩余空间，**不判定给定路径是否为卷根**；它属于 `list_drives` / `disk_space` 的缺口，不该为一条安全护栏引入重依赖。理由已写进代码注释 |
+| 废纸篓 TCC(-10004) | 1 | **降级** | `trash 5.2` 在 macOS 走 Finder AppleScript，需要 TCC Automation 授权；7.7 已核实 `os_limited` 排除 macOS，授权不是代码能代劳的 |
+
+**改动**（9 个 Rust 文件，+182/−39）：
+
+- 路径入口：`paths.rs` 新增 `join_relative(root, rel)`；`ai/{deploy,skills,mcp}.rs` 三份私有归一化副本委托 `crate::paths`；`projects/index.rs` 的 `projects_root` 比较改用 `normalize_path_for_comparison`（这个隐藏 bug 会让每次 load 都判定 root 变化、清掉 `active_project`）；`file_ops/safe_io.rs` 的 `display_path` 也收敛到 `crate::paths`。
+- `ai/agents.rs::expand_agent_path`：Windows 仍优先读 env var；macOS 用 `platform::home_dir()` + `directories::BaseDirs` 兜底 `%USERPROFILE%` / `%APPDATA%` / `%LOCALAPPDATA%`，`~` 用平台分隔符拼接，末尾统一 `to_native_fs_path`。
+- Junction：`projects/members.rs` 与 `ai/deploy.rs` 的 create / remove 拆 `#[cfg(windows)]`（`mklink /J` + `remove_dir`）/ `#[cfg(not(windows))]`（symlink + `remove_file`）。静态契约要求的 `mklink` 字符串保留在 Windows 分支里。
+- 卷根：`safe_io::is_volume_root` 按平台分支 —— Windows 保持原 `Prefix`/`RootDir` 判定，Unix 认 `/` 与 `/Volumes/<name>`；`refuse_volume_root` 的错误文案不变，因此 `file_ops/mod.rs` 的字符串替换键无需同步。3 个测试改用当前平台的真实卷根 / 目标目录，不再写死 `C:\`。
+- 废纸篓：`delete_to_recycle_local_file` 在 macOS 只接受 `Failed to move to Recycle Bin` 的**明确失败**（TCC 未授权），绝不接受「静默成功但文件还在」；Windows 仍断言真删成功，`trash::delete` 调用保留。
+
+**验证**：
+
+| 项目 | 结果 |
+|---|---|
+| `cargo test --lib` | ✅ **296 passed / 0 failed / 1 ignored**（原 280 / 16 / 1） |
+| `cargo check --no-default-features`（Core） | ✅ 通过，警告数维持 14 条基线（`join_relative` 在 Core 下用 `cfg_attr(not(feature="ai-addon"), allow(dead_code))` 豁免） |
+| `npm run build` | ✅ 通过（vue-tsc + vite，18.46s，仅既有 chunk 提示） |
+| 16 个相关静态契约脚本（含 5 个会派生 `cargo test` 的） | ✅ 全通过：`ai-addon-shell` / `fil30-skill-open-freeze` / `file-ops` / `file-undo` / `deps-surface` / `status-extras` / `address-env` / `shell-places` / `path-key` / `wg-promote-jump` / `wg-project-copy` / `projects-ops-cleanup` / `navigator-nonblocking` / `autostart` / `recycle-bin` / `macos-bundle` |
+| 历史残留 | 旧归一化在 `src-tauri/` 下产生的 11 个 `\var\folders\...` 怪目录 / 文件已移到 `/tmp/afm-test-leftovers/`（**只移不删**）；修复后测试不再产生 |
+
+**仍未解决（别误判为已完成）**：① macOS 上「删除到废纸篓」需要用户在系统设置里授予 Automation/Finder 权限，或改用不依赖 Finder 的 `~/.Trash` 移动实现；② `sysinfo::Disks` 对应的真实卷列表 / 磁盘空间（当前 `list_drives` 非 Windows 返回空、`disk_space` 非 Windows 返回 Err）；③ 7.6 第 4 步的 GUI 实机验证（WKWebView、交通灯、拖放、TCC 弹窗）。
 
 ---
 

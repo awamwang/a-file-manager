@@ -287,20 +287,36 @@ fn write_text_atomic(path: &Path, text: &str) -> Result<(), String> {
     }
 }
 
-/// Expand `%USERPROFILE%` / `%APPDATA%` / `%LOCALAPPDATA%` (Windows-oriented).
+/// Expand `%USERPROFILE%` / `%APPDATA%` / `%LOCALAPPDATA%` / `~`.
+///
+/// Windows keeps the original env-var semantics. On macOS/Linux those vars do
+/// not exist, so fall back to `platform::home_dir()` and `directories::BaseDirs`
+/// instead of leaving the token (or worse, turning `/Users/...` into `\Users\...`).
 pub fn expand_agent_path(raw: &str) -> String {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
         return String::new();
     }
     let mut out = trimmed.to_string();
-    for (key, fallback_env) in [
-        ("%USERPROFILE%", "USERPROFILE"),
-        ("%APPDATA%", "APPDATA"),
-        ("%LOCALAPPDATA%", "LOCALAPPDATA"),
+    let home = crate::platform::home_dir().map(|p| p.to_string_lossy().into_owned());
+    let base = directories::BaseDirs::new();
+    for (key, env_key, fallback) in [
+        ("%USERPROFILE%", "USERPROFILE", home.clone()),
+        (
+            "%APPDATA%",
+            "APPDATA",
+            base.as_ref()
+                .map(|b| b.config_dir().to_string_lossy().into_owned()),
+        ),
+        (
+            "%LOCALAPPDATA%",
+            "LOCALAPPDATA",
+            base.as_ref()
+                .map(|b| b.cache_dir().to_string_lossy().into_owned()),
+        ),
     ] {
         if out.to_ascii_uppercase().contains(&key.to_ascii_uppercase()) {
-            if let Ok(val) = std::env::var(fallback_env) {
+            if let Some(val) = std::env::var(env_key).ok().or(fallback) {
                 // Case-insensitive replace of the token.
                 let lower = out.to_ascii_lowercase();
                 let token = key.to_ascii_lowercase();
@@ -311,16 +327,18 @@ pub fn expand_agent_path(raw: &str) -> String {
         }
     }
     if let Some(rest) = out.strip_prefix('~') {
-        if let Ok(home) = std::env::var("USERPROFILE") {
+        if let Some(home) = home.as_ref() {
             let rest = rest.trim_start_matches(['/', '\\']);
-            out = if rest.is_empty() {
-                home
+            let sep = crate::platform::current().path_separator();
+            let expanded = if rest.is_empty() {
+                home.clone()
             } else {
-                format!("{home}\\{rest}")
+                format!("{home}{sep}{rest}")
             };
+            out = expanded;
         }
     }
-    out.replace('/', "\\")
+    crate::paths::to_native_fs_path(&out)
 }
 
 pub fn path_exists_expanded(raw: &str) -> bool {

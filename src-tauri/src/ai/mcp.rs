@@ -363,7 +363,7 @@ pub fn deploy_entry(
                 skipped.push(format!("{}: empty project MCP path", agent.id));
                 continue;
             }
-            let path = ws_path.join(rel.replace('/', "\\"));
+            let path = crate::paths::join_relative(&ws_path, rel);
             match merge_into_file(&path, &key, &server, false) {
                 Ok(()) => written.push(normalize(&path)),
                 Err(err) => skipped.push(format!("{}@project: {err}", agent.id)),
@@ -444,7 +444,7 @@ pub fn undeploy_entry(
 }
 
 fn normalize(path: &Path) -> String {
-    path.to_string_lossy().replace('/', "\\")
+    crate::paths::to_native_fs_path(&path.to_string_lossy())
 }
 
 #[cfg(test)]

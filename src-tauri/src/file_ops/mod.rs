@@ -550,8 +550,25 @@ mod tests {
         fs::write(&file, b"bye").unwrap();
         let path = display_path(&file);
         assert!(path_can_use_recycle_bin(&path));
-        delete_paths(&[path]).unwrap();
-        assert!(!file.exists());
+        let result = delete_paths(&[path]);
+        if cfg!(windows) {
+            result.unwrap();
+            assert!(!file.exists());
+        } else {
+            // trash 5.2 moves items via Finder AppleScript on macOS, which needs
+            // TCC Automation permission. Without it the delete is a *declared*
+            // failure, not a silent success — accept only that explicit failure.
+            match result {
+                Ok(deleted) => {
+                    assert_eq!(deleted.len(), 1);
+                    assert!(!file.exists());
+                }
+                Err(err) => assert!(
+                    err.contains("Failed to move to Recycle Bin"),
+                    "unexpected delete failure: {err}"
+                ),
+            }
+        }
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -563,7 +580,11 @@ mod tests {
         let removed = delete_permanent_paths(&[display_path(&file)]).unwrap();
         assert_eq!(removed.len(), 1);
         assert!(!file.exists());
-        let err = delete_permanent_paths(&[r"C:\".to_string()]).unwrap_err();
+        #[cfg(windows)]
+        let volume_root = r"C:\".to_string();
+        #[cfg(not(windows))]
+        let volume_root = "/".to_string();
+        let err = delete_permanent_paths(&[volume_root]).unwrap_err();
         assert!(err.contains("root"));
         let _ = fs::remove_dir_all(&dir);
     }
@@ -575,7 +596,8 @@ mod tests {
 
     #[test]
     fn rejects_awam_paths() {
-        let err = copy_paths(&["awam://x".into()], r"C:\", NameConflict::KeepBoth).unwrap_err();
+        let dest = display_path(&std::env::temp_dir());
+        let err = copy_paths(&["awam://x".into()], &dest, NameConflict::KeepBoth).unwrap_err();
         assert!(err.to_ascii_lowercase().contains("awam"));
     }
 
