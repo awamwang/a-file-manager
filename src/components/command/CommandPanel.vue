@@ -13,6 +13,7 @@ import {
 } from "../../state/commandPanel";
 import FluentIcon from "../icons/FluentIcon.vue";
 import { commandGroupIcon } from "../icons/glyphs";
+import { platformShortcutLabel } from "../../config/platform.ts";
 
 const { t } = useI18n();
 
@@ -192,7 +193,7 @@ function flatIndexFor(commandId: string): number {
           </template>
           <p v-else class="cmd-empty">{{ t("commands.empty") }}</p>
         </div>
-        <p class="cmd-hint">{{ t("commands.hint") }}</p>
+        <p class="cmd-hint">{{ platformShortcutLabel(String(t("commands.hint"))) }}</p>
       </div>
     </div>
   </Teleport>

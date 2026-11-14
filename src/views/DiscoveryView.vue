@@ -15,6 +15,7 @@ import FluentIcon from "../components/icons/FluentIcon.vue";
 import NavigatorContextMenu from "../components/navigator/NavigatorContextMenu.vue";
 import { entryKindIcon } from "../components/icons/glyphs";
 import { toastError, toastSuccess } from "../state/toast";
+import { platformAriaKeys } from "../config/platform.ts";
 
 type DiscoveryEngine = "everything" | "fallback" | "unavailable";
 type DiscoveryIndexState = "ready" | "degraded" | "unavailable";
@@ -329,7 +330,7 @@ onMounted(() => {
         type="search"
         :placeholder="t('discovery.placeholder')"
         spellcheck="false"
-        aria-keyshortcuts="Control+Shift+F"
+        :aria-keyshortcuts="platformAriaKeys('Control+Shift+F')"
       />
       <button class="fluent-control fluent-control--accent" type="submit" :disabled="loading">
         {{ loading ? t("discovery.searching") : t("discovery.search") }}

@@ -317,7 +317,7 @@
 
 **结构性缺口**：`PlatformCapabilities` 的 24 个字段目前是静态 bool（macOS 侧仅 4 项为 `true`），`Platform` trait 只有路径 / 比较 / home / 能力 4 个方法；图标、废纸篓、剪贴板、拖放、搜索仍散落在各自模块的 `#[cfg]` 里。5.6 承诺的「一层 trait 包住现成 crate」尚未排期，所以当前的能力协商只能用于 UI 显隐，还不能用来绑定或替换实现。
 
-> 表中 ⚠️ / ❌ 是复盘当时的状态；其中 3 项代码级浪费已在第二轮（7.7）回收，最新状态以 7.7 为准，社区插件与 `sysinfo` 等排期仍按 6.5 执行。
+> 表中 ⚠️ / ❌ 是复盘当时的状态；其中 3 项代码级浪费已在第二轮（7.7）回收，最新状态以 7.7 为准。第三轮（7.8）把能力层的**前端契约**接上，并用静态断言守住 TS/Rust 字段同步；社区插件与 `sysinfo` 等排期仍按 6.5 执行。
 
 ### 6.5 修正后的选型门禁与排期
 
@@ -395,7 +395,7 @@
 ### 7.6 下一步（按性价比，已按 6.5 选型门禁修订）
 
 0. **先过门禁**：把 7.5 的 17 个失败按 6.4 矩阵逐项标记 `复用 / 引入 / 自写 / 降级`，再动手；只有 Junction → symlink 这类确实无库可代劳的才自写。
-1. 前端接入 `platform_capabilities()`：显隐 Windows 专属菜单/设置项、快捷键标签 Ctrl→⌘（复用 `src/shortcuts/`）；顺带把 `open_with` 非 Windows 分支换成已注册的 `tauri-plugin-opener`，消掉手写 `open` / `xdg-open`。
+1. 前端接入 `platform_capabilities()`：显隐 Windows 专属菜单/设置项、快捷键标签 Ctrl→⌘（复用 `src/shortcuts/`）；顺带把 `open_with` 非 Windows 分支换成已注册的 `tauri-plugin-opener`，消掉手写 `open` / `xdg-open`。**（`open_with` 部分 7.7 已完成；前端能力层与快捷键部分 7.8 已完成）**
 2. `tauri.conf.json`：`targets` 加 `app`/`dmg`、`bundle.macOS`、`bundle.resources`、`titleBarStyle: Overlay`（P0-6）。
 3. 消失败用例时优先复用现成实现：`directories::UserDirs` 处理 5 个特殊文件夹 / `%USERPROFILE%` 夹具、`sysinfo::Disks` 处理 3 个卷根判定、核实 `trash::os_limited` 后决定废纸篓权限用例走修复还是降级；7 个 Junction 用例确认无 crate 覆盖后用 Unix symlink。
 4. `tauri dev` 实机验证窗口/图标/路径/打开方式，再谈 CI 双平台矩阵与签名公证（P3）。
@@ -424,7 +424,33 @@
 
 **验证环境的本机事实**：`check-shell-places.mjs` / `check-address-env.mjs` 内部 `spawnSync("cargo", ...)` 不会继承命令行的 `--config`，会直连 crates.io 稀疏索引（本机 ~56 KB/s）而长时间挂起；在项目根放一份临时 `.cargo/config.toml` 指向镜像即可跑通，验证后配置已删除。`CARGO_NET_OFFLINE=true` 不可用——它会让 `[patch.crates-io]` 的 `drag` 依赖解析失败；`CARGO_SOURCE_*` 环境变量对 `[source]` 表也不生效。
 
-⚠️ 仍未执行 `tauri dev` / 打包：`open_path` 在本机的实际 GUI 行为、`~/.Trash` 不存在时的错误提示、WKWebView 渲染与拖放都未做运行时验证。本轮改动尚未提交，与 `405c3be` 分开。
+⚠️ 本轮执行时仍未启动 `tauri dev` / 打包：`open_path` 的实际 GUI 行为、`~/.Trash` 不存在时的错误提示、WKWebView 渲染与拖放都未做运行时验证。本轮改动已提交为 `a76dd4c`，与 `405c3be` 分开。
+
+### 7.8 第三轮：前端接入能力层（`mac` 分支，7.6 第 1 步）
+
+分支整理后（本地领先的 2 个提交迁到 `mac`，`master` 回到 `origin/master`），按 6.5 门禁处理 7.6 第 1 步。**选型结论：这一层无库可代劳**——Tauri 官方插件只覆盖能力级（窗口 / 对话框 / OS 信息），跨平台浏览器的「中立契约 + 能力协商」在 Tauri 应用里必须由应用自建；因此复用的是第 4 节的架构思想与项目已有的 IPC command，不引入新依赖。
+
+| 文件 | 改动 |
+|---|---|
+| `src/config/platform.ts`（新增） | 定义与 Rust `PlatformCapabilities` 一一对应的 TS 类型；`NEUTRAL_PLATFORM`（`os: ""` 作为「未知」哨兵）；`hydratePlatform()` 单次 IPC 且永不 reject；`isMacPlatform()`（caps 权威 + UA 冷启动兜底）；`platformShortcutLabel()` / `platformAriaKeys()`。**不静态 import `@tauri-apps/api` 或 Vue**，否则 `scripts/shortcut-checks.ts` 在 Node 里会加载浏览器模块 |
+| `src/shortcuts/chord.ts` | 注册表继续 Windows-first（`ctrl: true`），`eventMatchesChord` 在 macOS 交换 `ctrl`/`meta`；`formatChordLabel` 显示 ⌘/⌥/⇧。**`chordKey` 刻意保持平台无关**，因为 `resolveDispatchMap`、冲突检测、`chordKeyForId` 都以它为键 |
+| `src/main.ts` | bootstrap 起始处 `void hydratePlatform()` 与 settings 水合并行预热，不增加串行 IPC |
+| `src/views/SettingsView.vue` | `platformCaps` 为响应式 ref，`onMounted` 再取一次保证冷启动后的行显隐会重算；`visibleDefs` 过滤平台不支持的设置；收藏夹 OS verb 开关按 `osShellVerb` 隐藏 |
+| `src/state/settingsUi.ts` | 新增纯函数 `isPlatformUnsupportedSetting(key, caps)`：`launchAtStartup` 系列依据 `nativeAutostart/registryAutostart`、`everythingPreferred` 依据 `globalSearch`；`os === ""` 或 `windows` 时一律不隐藏，schema/document 键不删 |
+| `AppShell.vue` / `DiscoveryView.vue` / `CommandPanel.vue` | 命令按钮 title、命令面板 hint、`aria-keyshortcuts` 走运行时文案转换（⌘ / Meta），**5 语言 locale 文件不改**，避免重复翻译与遗漏 |
+
+**契约闭环**：`scripts/shortcut-checks.ts` 新增两组断言——① 模拟 WKWebView UA 后验证 `Cmd+C` 命中 `ctrl`-注册的和弦、物理 Ctrl 不命中、`Cmd+Shift+P` 仍开命令面板、`chordKey` 不变；② 解析 Rust `pub struct PlatformCapabilities` 的字段并与 `Object.keys(NEUTRAL_PLATFORM)` 深度比对，防止后端加字段前端漏同步。这是 6.5 第 5 条「`tauri-specta` 做/不做」的轻量替代：**当前决定不引入 `tauri-specta`**，用静态契约守住这唯一一处手写类型，等 command 数量增长或出现第二个手写契约时再评估。
+
+**实机验证**（macOS 15.8.3 / rustc 1.100.0）：
+
+| 项目 | 结果 |
+|---|---|
+| `npm run build`（`vue-tsc --noEmit` + `vite build`） | ✅ 通过，无类型错误；仅既有的 chunk 大小 / 动态导入提示 |
+| `npm run test:shortcuts` | ✅ 通过（58 builtins + macOS 主修饰键 + 能力字段同步） |
+| 相关静态契约脚本 | ✅ 14 个全通过（含 `test:tokens`、`test:command-panel`、`test:settings-ui-regroup`、`test:i18n`、`test:startup-async`、`test:window-controls` 等） |
+| `cargo check` / `cargo test --lib` | ⏸ 本轮 **Rust 零改动**，沿用 7.7 的 280 passed / 16 failed 基准；执行时本机另一个 `tauri dev` 持有 cargo 包缓存锁，未重复跑以免干扰 |
+
+**尚未覆盖**（仍属 P2，别误判为已完成）：`Delete`/`Backspace` 语义、`Cmd+Backspace` 移废纸篓、`Cmd+I` 属性、`Option` 与 `Alt` 的冲突、F 键被媒体键占用、i18n 中「此电脑 / 回收站 / 资源管理器」等 Windows 名词、交通灯标题栏与原生菜单栏；`platform_capabilities()` 的 24 字段仍是静态 bool，尚未升级为「由适配器回报」。另外本轮只做了**代码与构建验证，未启动 GUI**，上述 UI 行为仍是推断。
 
 ---
 
@@ -440,6 +466,7 @@
 | 构建发布 | `.github/workflows/ci.yml`；`.github/workflows/release.yml`；`scripts/release-assets.mjs`；`scripts/build-flavor.mjs`；`scripts/build-release-artifacts.mjs`；`scripts/check-*.mjs`；`.cursor/skills/afm-multi-pack-release/SKILL.md:86` |
 | 可复用资产 | `src-tauri/patches/drag/Cargo.toml:61-131`；`patches/drag/src/platform_impl/macos/mod.rs`；`src-tauri/src/extension_host/pack_fs.rs:61-159`；`src/state/shellIcons.ts:34-348` |
 | PoC 平台层（新增） | `src-tauri/src/platform/{mod,windows,macos}.rs`；`src-tauri/Cargo.toml` 的 `[target.'cfg(windows)'.dependencies]`；`src-tauri/src/lib.rs` 的 `mod platform;` 与两个 command |
+| 前端能力层（7.8） | `src/config/platform.ts`；`src/shortcuts/chord.ts`；`src/main.ts`；`src/views/SettingsView.vue`；`src/state/settingsUi.ts`；`scripts/shortcut-checks.ts` |
 
 ## 附录 B · 参考资源
 
@@ -460,3 +487,4 @@
 - 第 2 节 P0 的编译阻塞判断最初是静态推断，现已由 macOS 实机 `cargo check`（两种 feature）+ `cargo test --lib` + `npm run build` 验证，详见 7.4；**仍未执行 `tauri dev` / 打包 / 签名**，因此运行时行为（窗口、WKWebView、图标、拖放、权限）仍是推断。
 - 工作量是粗估，不含证书申请、Apple 审核/公证排队与前端大规模视觉重构；第 7 节 PoC 实际耗时约 1 小时（含工具链升级与依赖下载），7.7 的第二轮复用改造约半小时。
 - 第二轮（7.7）修正了一条环境结论：`test:address-env` 的挂起不是沙箱限制，而是脚本内部 `cargo test` 的网络路径问题（详见 7.7）；该脚本现已通过。
+- 第三轮（7.8）只改前端，Rust 侧零改动，因此未重复跑 `cargo check` / `cargo test --lib`；执行验证时本机已有另一个 `tauri dev` 持有 cargo 包缓存锁（1420 端口有 vite），为不干扰该进程而跳过。前端的 ⌘ 行为由 Node 静态断言模拟 UA 验证，**真实 WKWebView 的按键、窗口与菜单行为仍未实机确认**。

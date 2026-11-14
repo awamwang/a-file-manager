@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import assert from "node:assert/strict";
-import { chordKey, eventMatchesChord, hasDomTextSelection } from "../src/shortcuts/chord.ts";
+import {
+  chordKey,
+  eventMatchesChord,
+  formatChordLabel,
+  hasDomTextSelection,
+} from "../src/shortcuts/chord.ts";
+import { NEUTRAL_PLATFORM, platformAriaKeys } from "../src/config/platform.ts";
 import {
   BUILTIN_SHORTCUTS,
   findShortcutConflicts,
@@ -275,6 +281,81 @@ assert.ok(
 );
 assert.ok(runtimeSrc.includes("YIELD_TO_DOM_TEXT_SELECTION"));
 
+/**
+ * macOS port: the registry stays Windows-first (`ctrl: true`), but a Cmd keydown
+ * must match it and labels must read ⌘. Simulate the WKWebView user agent;
+ * `platform_capabilities` has not answered in this Node process, so the
+ * synchronous UA fallback is what we are testing here.
+ */
+const savedNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+Object.defineProperty(globalThis, "navigator", {
+  value: {
+    userAgent:
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_8_3) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+  },
+  configurable: true,
+});
+try {
+  assert.equal(
+    eventMatchesChord(keyEvent({ metaKey: true, key: "c" }), {
+      ctrl: true,
+      key: "c",
+    }),
+    true,
+    "Cmd+C must match a ctrl-registered copy chord on macOS",
+  );
+  assert.equal(
+    eventMatchesChord(keyEvent({ ctrlKey: true, key: "c" }), {
+      ctrl: true,
+      key: "c",
+    }),
+    false,
+    "physical Ctrl must not fire a Cmd chord on macOS",
+  );
+  assert.equal(
+    eventMatchesChord(keyEvent({ metaKey: true, shiftKey: true, key: "P" }), {
+      ctrl: true,
+      shift: true,
+      key: "p",
+    }),
+    true,
+    "Cmd+Shift+P must still open the Command Panel on macOS",
+  );
+  assert.equal(formatChordLabel({ ctrl: true, shift: true, key: "p" }), "⌘+⇧+P");
+  assert.equal(platformAriaKeys("Control+Shift+P"), "Meta+Shift+P");
+  // chordKey must stay platform-neutral: dispatch maps and conflict checks
+  // are keyed by it and must not change when the host switches to ⌘.
+  assert.equal(chordKey({ ctrl: true, shift: true, key: "p" }), "Ctrl+Shift+P");
+} finally {
+  if (savedNavigator) {
+    Object.defineProperty(globalThis, "navigator", savedNavigator);
+  } else {
+    delete (globalThis as { navigator?: unknown }).navigator;
+  }
+}
+
+/**
+ * Contract sync: `PlatformCapabilities` is serialized with camelCase, so the
+ * TS shape must have exactly the fields declared in the Rust struct. This is
+ * the lightweight stand-in for a generated IPC schema (see research doc 6.5).
+ */
+const platformSrc = readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), "../src-tauri/src/platform/mod.rs"),
+  "utf8",
+);
+const structBody = platformSrc
+  .split("pub struct PlatformCapabilities {")[1]
+  ?.split("\n}")[0];
+assert.ok(structBody, "Rust PlatformCapabilities struct not found");
+const rustFields = [...structBody.matchAll(/pub (\w+):/g)]
+  .map((match) => match[1].replace(/_([a-z])/g, (_, c: string) => c.toUpperCase()))
+  .sort();
+assert.deepEqual(
+  Object.keys(NEUTRAL_PLATFORM).sort(),
+  rustFields,
+  "TS PlatformCapabilities must mirror the Rust struct exactly",
+);
+
 console.log(
-  `Shortcut registry checks OK (${BUILTIN_SHORTCUTS.length} builtins, conflict + match).`,
+  `Shortcut registry checks OK (${BUILTIN_SHORTCUTS.length} builtins, conflict + match, macOS primary modifier, capability contract).`,
 );

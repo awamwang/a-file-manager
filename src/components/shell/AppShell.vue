@@ -32,6 +32,7 @@ import {
   registerShortcutHandler,
   unregisterShortcutHandler,
 } from "../../shortcuts/index.ts";
+import { platformAriaKeys, platformShortcutLabel } from "../../config/platform.ts";
 import {
   FOCUS_CYCLE_ATTR,
   focusRegionElement,
@@ -1812,9 +1813,9 @@ onUnmounted(() => {
         <button
           type="button"
           class="fluent-control titlebar-action"
-          :title="t('chrome.commandsTitle')"
+          :title="platformShortcutLabel(String(t('chrome.commandsTitle')))"
           :aria-label="t('chrome.commands')"
-          aria-keyshortcuts="Control+Shift+P"
+          :aria-keyshortcuts="platformAriaKeys('Control+Shift+P')"
           @click="toggleCommandPanel"
         >
           <FluentIcon name="commands" size="sm" />

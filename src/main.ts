@@ -10,6 +10,7 @@ import { hydrateFeaturePackContributions } from "./state/featurePack/contributio
 import { hydrateSettings } from "./state/settingsHydrate.ts";
 import { startupMark } from "./state/startupTiming.ts";
 import { applyUiChromeFromValues } from "./state/uiChrome.ts";
+import { hydratePlatform } from "./config/platform.ts";
 import "./styles/fluent-tokens.css";
 import "./styles/base.css";
 import "./styles/path-cards.css";
@@ -36,6 +37,10 @@ document.addEventListener(
  */
 async function bootstrap(): Promise<void> {
   startupMark("bootstrap:start");
+  // Warm the platform capability contract in parallel with settings hydration:
+  // shortcut matching and capability-gated settings read it synchronously.
+  // Fire-and-forget is safe (UA fallback covers the first few keystrokes).
+  void hydratePlatform();
   let values: Record<string, unknown> = {};
   try {
     const doc = await hydrateSettings();
