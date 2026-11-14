@@ -128,6 +128,15 @@ pub fn run() {
             #[cfg(windows)]
             drag_focus::install_for_main_window(app.handle());
 
+            // macOS: the Windows-only Fluent overlay titlebar (`tauri-plugin-frame`) is a
+            // no-op here, so a `decorations:false` window would be borderless with no title
+            // bar — undraggable and with no traffic lights. Restore the native macOS title
+            // bar so the window is usable. Windows is unaffected (decorations:false + Fluent bar).
+            #[cfg(target_os = "macos")]
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_decorations(true);
+            }
+
             // Only the primary instance owns the tray icon.
             if primary_instance {
                 if let Err(err) = system_tray::setup_system_tray(app.handle()) {

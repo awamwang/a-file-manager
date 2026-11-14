@@ -528,6 +528,29 @@
 
 **验证**：`cargo check`（默认）0 警告 · `cargo check --no-default-features`（Core）0 警告 · `cargo test --lib` 296 passed / 0 failed / 1 ignored · `npm run build` ✅。
 
+### 7.12 GUI 实机验证：窗口终于在 macOS 上显示（第 7 轮）
+
+`tauri dev` 在 macOS 上能编译、能跑（Dock 有图标），但**窗口始终不显示**。`lsappinfo` 在本机对**任何** app 都返回 `Windows=[NULL]`，是无效探测手段；最终用 `screencapture` 截图 + 视觉确认才定位真相。
+
+**根因（两层叠加）**：
+
+1. **WKWebView 隐藏时 rAF 节流导致 reveal 死锁**（`src/state/revealMainWindow.ts`）。
+   `afterNextPaint()` 连等两帧 `requestAnimationFrame`。窗口 `visible:false` 时 WKWebView 会**暂停/节流 rAF**，于是 rAF 永不触发 → `win.show()` 永远不被调用 → 窗口永远隐藏。Windows 的 WebView2 在隐藏态 rAF 仍会跑，所以 Windows 没事、macOS 卡死。这是 7.6 第 4 步一直没过的最关键坑。
+2. **macOS borderless 窗口上 `maximize()` 抛错**（`revealMainWindow.ts` 的 Windows 专属 maximize 舞步）。
+   原逻辑对 borderless 的 `visible:false` 窗口调 `win.maximize()` 会抛错，被外层 `try/catch` 吞掉，`win.show()` 没执行到。
+
+**修复**：
+
+- `src/state/revealMainWindow.ts`：
+  - `afterNextPaint()` 增加 `setTimeout(resolve, 100)` 兜底，避免隐藏态 rAF 节流造成的死锁（`win.show()` 必定被调用）。
+  - 用 `navigator.userAgent` 判定 macOS，**跳过** `isMaximized()/maximize()` 舞步（该舞步只为 Windows `decorations:false` 的 DWM 几何闪屏），并把它包进 `try/catch` 兜底；paint 后直接 `win.show()` + `setFocus()`。
+- `src-tauri/src/lib.rs`（setup）：macOS 上 `window.set_decorations(true)`，恢复原生标题栏。因为 Windows-only 的 `tauri-plugin-frame` Fluent 覆盖标题栏在 macOS 是 no-op，`decorations:false` 会变成无边框、无标题栏、不可拖动的窗口。该 `#[cfg(target_os = "macos")]` 分支不影响 Windows。
+- `src-tauri/tauri.conf.json`：维持原设计 `visible:false` + `decorations:false` + `maximized:true`（reveal 机制现在可用，无需降级为 `visible:true`）。
+
+**验证（截图实机确认）**：`tauri dev`（ai-addon flavor）启动后，窗口**完整显示**——原生交通灯（红/黄/绿）、可拖动标题栏、完整文件管理器 UI（侧边栏、标签页、`此电脑`、`主文件夹/桌面/下载` 文件列表），确实在屏幕上而非仅 Dock。`npm run build` ✓ · `test:macos-bundle` ✓ · 4 个读取 `tauri.conf.json` 的静态脚本全 OK · `cargo check` 0 警告。
+
+**仍待 GUI 实机确认（非本任务范围）**：拖放（`tauri-plugin-drag`）、Finder/TCC 废纸篓授权、原生菜单、i18n 里的 Windows 名词、标题栏与前端 Fluent 栏的叠放关系。窗口显示这一最大阻塞已解除。
+
 ---
 
 ## 附录 A · 关键证据索引（便于复核）
@@ -560,7 +583,7 @@
 
 - 调研阶段为三路并行只读排查（Rust 后端 / 前端 / 构建发布），逐文件核对 `cfg`、`windows::`、路径处理、快捷键、CI 与发版脚本；PoC 阶段按第 7 节修改了源码。
 - 第二轮（跨平台内核机制）与第三轮（开源供给）通过公开资料检索完成，**插件与 crate 的版本/维护状态需在实际引入前重新核实**。
-- 第 2 节 P0 的编译阻塞判断最初是静态推断，现已由 macOS 实机 `cargo check`（两种 feature）+ `cargo test --lib` + `npm run build` 验证，详见 7.4；**仍未执行 `tauri dev` / 打包 / 签名**，因此运行时行为（窗口、WKWebView、图标、拖放、权限）仍是推断。
+- 第 2 节 P0 的编译阻塞判断最初是静态推断，现已由 macOS 实机 `cargo check`（两种 feature）+ `cargo test --lib` + `npm run build` 验证，详见 7.4；**`tauri dev` 的 GUI 验证已在 7.12 完成（窗口正常显示）**，但拖放、TCC 授权、原生菜单等运行时行为仍未逐一确认。
 - 工作量是粗估，不含证书申请、Apple 审核/公证排队与前端大规模视觉重构；第 7 节 PoC 实际耗时约 1 小时（含工具链升级与依赖下载），7.7 的第二轮复用改造约半小时。
 - 第二轮（7.7）修正了一条环境结论：`test:address-env` 的挂起不是沙箱限制，而是脚本内部 `cargo test` 的网络路径问题（详见 7.7）；该脚本现已通过。
 - 第三轮（7.8）只改前端，Rust 侧零改动，因此未重复跑 `cargo check` / `cargo test --lib`；执行验证时本机已有另一个 `tauri dev` 持有 cargo 包缓存锁（1420 端口有 vite），为不干扰该进程而跳过。前端的 ⌘ 行为由 Node 静态断言模拟 UA 验证，**真实 WKWebView 的按键、窗口与菜单行为仍未实机确认**。
