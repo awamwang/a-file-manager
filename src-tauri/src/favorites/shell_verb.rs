@@ -3,12 +3,17 @@
 //! Static registry command (not an in-proc COM IContextMenu DLL).
 
 use serde::Serialize;
+#[cfg(windows)]
 use std::ffi::OsStr;
+#[cfg(windows)]
 use std::os::windows::ffi::OsStrExt;
+#[cfg(windows)]
 use std::path::PathBuf;
 
 pub const AFM_ADD_FAVORITE_FLAG: &str = "--afm-add-favorite";
+#[cfg(windows)]
 const VERB_KEY: &str = "AFileManager.AddFavorite";
+#[cfg(windows)]
 const VERB_LABEL: &str = "Add to AFM favorites";
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -18,6 +23,7 @@ pub struct ShellVerbStatus {
     pub note: String,
 }
 
+#[cfg(windows)]
 fn to_wide(value: &str) -> Vec<u16> {
     OsStr::new(value)
         .encode_wide()
@@ -25,10 +31,12 @@ fn to_wide(value: &str) -> Vec<u16> {
         .collect()
 }
 
+#[cfg(windows)]
 fn current_exe() -> Result<PathBuf, String> {
     std::env::current_exe().map_err(|err| format!("Failed to resolve exe: {err}"))
 }
 
+#[cfg(any(windows, test))]
 fn command_line(exe: &std::path::Path) -> String {
     format!("\"{}\" {} \"%1\"", exe.display(), AFM_ADD_FAVORITE_FLAG)
 }

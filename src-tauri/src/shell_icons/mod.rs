@@ -12,19 +12,24 @@ use image::{ColorType, ImageEncoder};
 use once_cell::sync::Lazy;
 use serde::Serialize;
 use std::collections::{HashMap, VecDeque};
+#[cfg(windows)]
 use std::ffi::c_void;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use windows::core::HSTRING;
-use windows::Win32::Foundation::SIZE;
-use windows::Win32::Graphics::Gdi::{
-    CreateCompatibleDC, DeleteDC, DeleteObject, GetDIBits, GetObjectW, BI_RGB, BITMAP, BITMAPINFO,
-    BITMAPINFOHEADER, DIB_RGB_COLORS, HBITMAP,
-};
-use windows::Win32::System::Com::{CoInitializeEx, COINIT_APARTMENTTHREADED};
-use windows::Win32::UI::Shell::{
-    IShellItemImageFactory, SHCreateItemFromParsingName, SIIGBF_BIGGERSIZEOK, SIIGBF_INCACHEONLY,
-    SIIGBF_RESIZETOFIT, SIIGBF_THUMBNAILONLY,
+// Win32 bindings are compiled only on Windows; `windows` is an empty crate elsewhere.
+#[cfg(windows)]
+use windows::{
+    core::HSTRING,
+    Win32::Foundation::SIZE,
+    Win32::Graphics::Gdi::{
+        CreateCompatibleDC, DeleteDC, DeleteObject, GetDIBits, GetObjectW, BI_RGB, BITMAP,
+        BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, HBITMAP,
+    },
+    Win32::System::Com::{CoInitializeEx, COINIT_APARTMENTTHREADED},
+    Win32::UI::Shell::{
+        IShellItemImageFactory, SHCreateItemFromParsingName, SIIGBF_BIGGERSIZEOK,
+        SIIGBF_INCACHEONLY, SIIGBF_RESIZETOFIT, SIIGBF_THUMBNAILONLY,
+    },
 };
 
 /// Bound process-side Shell results so extreme folders cannot retain every PNG data URL (AIA-279).
@@ -121,9 +126,15 @@ fn type_icon_cache_key(path: &Path, size: u16) -> String {
     }
 }
 
+#[cfg(windows)]
 fn ensure_com_sta() {
     // Ensure COM for this thread; do not CoUninitialize (host may own it).
     let _ = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
+}
+
+#[cfg(not(windows))]
+fn ensure_com_sta() {
+    // WKWebView / NSWorkspace need no COM apartment.
 }
 
 fn shell_icon_data_url(path: &Path, size: u16) -> Result<String, String> {
@@ -132,6 +143,7 @@ fn shell_icon_data_url(path: &Path, size: u16) -> Result<String, String> {
     encode_rgba_png_data_url(icon.width, icon.height, &icon.pixels)
 }
 
+#[cfg(windows)]
 fn hbitmap_to_rgba(hbitmap: HBITMAP) -> Option<(u32, u32, Vec<u8>)> {
     unsafe {
         let mut bmp: BITMAP = std::mem::zeroed();
@@ -191,6 +203,7 @@ fn hbitmap_to_rgba(hbitmap: HBITMAP) -> Option<(u32, u32, Vec<u8>)> {
 
 /// Probe Shell thumbnail cache / handlers via `IShellItemImageFactory`.
 /// Tries cache-only first, then allows handlers to produce a thumbnail.
+#[cfg(windows)]
 fn system_thumbnail_data_url(path: &Path, size: u16) -> Result<String, String> {
     let hstring = HSTRING::from(path.as_os_str());
     let edge = i32::from(size);
@@ -226,9 +239,17 @@ fn system_thumbnail_data_url(path: &Path, size: u16) -> Result<String, String> {
     }
 }
 
+/// No Win32 Shell thumbnail handler on other platforms. `file_icon_provider`
+/// still supplies the type icon, so callers degrade instead of failing.
+#[cfg(not(windows))]
+fn system_thumbnail_data_url(_path: &Path, _size: u16) -> Result<String, String> {
+    Err("System thumbnails are Windows-only".to_string())
+}
+
 pub fn resolve_icon(path: &str, size: u16, prefer_thumbnail: bool) -> ShellIconResult {
     let trimmed = path.trim();
-    let pb = PathBuf::from(trimmed.replace('/', "\\"));
+    // Single platform-aware normalizer (see `platform::fs`), not a hardcoded `\`.
+    let pb = PathBuf::from(crate::paths::to_native_fs_path(trimmed));
     let size = size.clamp(8, 256);
     let want_thumb = prefer_thumbnail && pb.is_file();
     let kind = if want_thumb { "thumbnail" } else { "icon" };

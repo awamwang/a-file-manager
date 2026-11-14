@@ -31,6 +31,7 @@ pub fn unique_member_paths(paths: &[String]) -> Vec<String> {
 mod tests {
     use super::*;
 
+    #[cfg(windows)]
     #[test]
     fn unique_and_exact_match_use_backslash() {
         let paths = vec![
@@ -44,6 +45,23 @@ mod tests {
         assert_eq!(unique[1], r"D:\Other");
         assert!(is_exact_member_path(r"D:\Projects", &unique));
         assert!(is_exact_member_path("d:/projects", &unique));
+    }
+
+    /// POSIX sibling: separators stay `/` and comparison is case-sensitive.
+    #[cfg(not(windows))]
+    #[test]
+    fn unique_and_exact_match_use_posix_paths() {
+        let paths = vec![
+            "/Users/wangmeng/Projects".to_string(),
+            "/Users/wangmeng/Projects/".to_string(),
+            "/Users/wangmeng/Other".to_string(),
+        ];
+        let unique = unique_member_paths(&paths);
+        assert_eq!(unique.len(), 2);
+        assert_eq!(unique[0], "/Users/wangmeng/Projects");
+        assert_eq!(unique[1], "/Users/wangmeng/Other");
+        assert!(is_exact_member_path("/Users/wangmeng/Projects/", &unique));
+        assert!(!is_exact_member_path("/users/wangmeng/projects", &unique));
     }
 
     #[test]

@@ -61,6 +61,7 @@ fn item(
     }
 }
 
+#[cfg_attr(not(windows), allow(dead_code))]
 fn webview2_installed() -> bool {
     #[cfg(windows)]
     {
@@ -468,24 +469,39 @@ fn ide_status() -> DependencyItem {
 pub fn probe_dependencies() -> DependencyReport {
     let mut items = Vec::new();
 
-    // 必装：WebView2（安装包会自动拉起 bootstrapper；此处供体检页）
-    if webview2_installed() {
+    // 必装：Windows 的 WebView2（安装包会自动拉起 bootstrapper）；
+    // macOS 用系统自带 WKWebView，不能把这个 Windows 专属项永远报成「缺失」。
+    #[cfg(windows)]
+    {
+        if webview2_installed() {
+            items.push(item(
+                "webview2",
+                "required",
+                "ok",
+                "WebView2 Runtime",
+                "已检测到 Microsoft Edge WebView2 Runtime。",
+                "无需处理。NSIS 安装包在缺失时会自动运行官方 bootstrapper。",
+            ));
+        } else {
+            items.push(item(
+                "webview2",
+                "required",
+                "missing",
+                "WebView2 Runtime",
+                "未检测到 WebView2 Runtime；界面宿主不可用。",
+                "重新运行安装包（会自动安装），或手动安装 Evergreen WebView2 Runtime：https://developer.microsoft.com/microsoft-edge/webview2/",
+            ));
+        }
+    }
+    #[cfg(not(windows))]
+    {
         items.push(item(
-            "webview2",
+            "webview",
             "required",
             "ok",
-            "WebView2 Runtime",
-            "已检测到 Microsoft Edge WebView2 Runtime。",
-            "无需处理。NSIS 安装包在缺失时会自动运行官方 bootstrapper。",
-        ));
-    } else {
-        items.push(item(
-            "webview2",
-            "required",
-            "missing",
-            "WebView2 Runtime",
-            "未检测到 WebView2 Runtime；界面宿主不可用。",
-            "重新运行安装包（会自动安装），或手动安装 Evergreen WebView2 Runtime：https://developer.microsoft.com/microsoft-edge/webview2/",
+            "系统 WebView",
+            "WKWebView 由 macOS 系统提供，无需额外安装运行时。",
+            "无需处理。",
         ));
     }
 
@@ -549,7 +565,10 @@ mod tests {
     fn probe_returns_webview_and_optionals() {
         let report = probe_dependencies();
         assert!(!report.items.is_empty());
+        #[cfg(windows)]
         assert!(report.items.iter().any(|i| i.id == "webview2"));
+        #[cfg(not(windows))]
+        assert!(report.items.iter().any(|i| i.id == "webview"));
         assert!(report.items.iter().any(|i| i.id == "rclone"));
         assert!(report.items.iter().any(|i| i.id == "awam_gateway"));
         assert!(report.items.iter().any(|i| i.id == "knowledge_root"));

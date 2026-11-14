@@ -13,6 +13,7 @@ mod file_ops;
 mod navigator;
 mod perf_log;
 mod paths;
+mod platform;
 mod preview;
 mod preview_bridge;
 mod shell_icons;
@@ -190,7 +191,9 @@ pub fn run() {
             system_tray::handle_menu_event(app, event);
         })
         .invoke_handler(tauri::generate_handler![
-health_get,
+                    health_get,
+                    platform::platform_capabilities,
+                    platform::platform_home_dir,
                     deps_probe::deps_probe_get,
                     app_quit,
                     system_tray::afm_startup_should_reveal,

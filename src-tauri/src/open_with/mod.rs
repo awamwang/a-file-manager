@@ -49,9 +49,18 @@ fn open_path_default_inner(path: String) -> OpenWithResult {
     }
     #[cfg(not(windows))]
     {
-        OpenWithResult {
-            success: false,
-            error: Some("open_path_default is only supported on Windows".to_string()),
+        // No ShellExecute / plugin-opener AppHandle here: use the system opener.
+        // `open` (macOS) and `xdg-open` (Linux) both handle files and folders.
+        let program = if cfg!(target_os = "macos") { "open" } else { "xdg-open" };
+        match std::process::Command::new(program).arg(p).spawn() {
+            Ok(_) => OpenWithResult {
+                success: true,
+                error: None,
+            },
+            Err(err) => OpenWithResult {
+                success: false,
+                error: Some(format!("Failed to open path: {err}")),
+            },
         }
     }
 }
@@ -65,9 +74,23 @@ pub fn open_recycle_bin_system() -> OpenWithResult {
     }
     #[cfg(not(windows))]
     {
-        OpenWithResult {
-            success: false,
-            error: Some("Recycle Bin shell open is only supported on Windows".to_string()),
+        // macOS has no `shell:RecycleBinFolder`; open the user's Trash folder.
+        let Some(trash) = crate::platform::home_dir().map(|home| home.join(".Trash")) else {
+            return OpenWithResult {
+                success: false,
+                error: Some("Could not resolve the Trash folder".to_string()),
+            };
+        };
+        let program = if cfg!(target_os = "macos") { "open" } else { "xdg-open" };
+        match std::process::Command::new(program).arg(&trash).spawn() {
+            Ok(_) => OpenWithResult {
+                success: true,
+                error: None,
+            },
+            Err(err) => OpenWithResult {
+                success: false,
+                error: Some(format!("Failed to open Trash: {err}")),
+            },
         }
     }
 }
