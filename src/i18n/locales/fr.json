@@ -532,6 +532,27 @@
   "cmd": {
     "toolRuntimeOpen": "Ouvrir le runtime d’outils"
   },
+  "taskCenter": {
+    "title": "Tâches",
+    "expandTitle": "Afficher la liste des tâches",
+    "collapse": "Réduire",
+    "settings": "Paramètres de la liste des tâches",
+    "kindCopy": "Copier",
+    "kindMove": "Déplacer",
+    "statusRunning": "En cours",
+    "statusCompleted": "Terminé",
+    "statusFailed": "Échec",
+    "statusInterrupted": "Interrompu",
+    "runningSummary": "{count} en cours",
+    "recentSummary": "{count} entrées",
+    "clearFinished": "Effacer les tâches terminées",
+    "retentionDays": "Conservation (jours)",
+    "retentionDaysHint": "Les entrées terminées sont automatiquement supprimées après ce nombre de jours (7 jours par défaut).",
+    "maxRecords": "Entrées maximales",
+    "maxRecordsHint": "Au-delà de la limite, les entrées terminées les plus anciennes sont supprimées en premier.",
+    "empty": "Aucune entrée de tâche",
+    "more": "+{count} autres"
+  },
   "navigator": {
     "empty": "Ce dossier est vide.",
     "file": "Fichier",

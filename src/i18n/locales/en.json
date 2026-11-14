@@ -378,6 +378,27 @@
       "errorIdConflict": "That id conflicts with a preset provider"
     }
   },
+  "taskCenter": {
+    "title": "Tasks",
+    "expandTitle": "Show task list",
+    "collapse": "Collapse",
+    "settings": "Task list settings",
+    "kindCopy": "Copy",
+    "kindMove": "Move",
+    "statusRunning": "Running",
+    "statusCompleted": "Completed",
+    "statusFailed": "Failed",
+    "statusInterrupted": "Interrupted",
+    "runningSummary": "{count} running",
+    "recentSummary": "{count} records",
+    "clearFinished": "Clear finished",
+    "retentionDays": "Keep records (days)",
+    "retentionDaysHint": "Finished records are pruned automatically after this many days (default 7).",
+    "maxRecords": "Max records",
+    "maxRecordsHint": "Oldest finished records are removed first when the limit is exceeded.",
+    "empty": "No task records",
+    "more": "+{count} more"
+  },
   "navigator": {
     "title": "Explorer",
     "metaConnected": "Kernel OS browse · {dirs} folders · {files} files",

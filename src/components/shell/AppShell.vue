@@ -9,12 +9,14 @@ import { LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import CommandPanel from "../command/CommandPanel.vue";
 import ToastHost from "./ToastHost.vue";
+import TaskCenterHost from "./TaskCenterHost.vue";
 import ConfirmDialogHost from "./ConfirmDialogHost.vue";
 import NameConflictDialogHost from "./NameConflictDialogHost.vue";
 import PromptDialogHost from "./PromptDialogHost.vue";
 import FluentIcon from "../icons/FluentIcon.vue";
 import FolderTree from "./FolderTree.vue";
 import { toastError, toastInfo, toastSuccess } from "../../state/toast";
+import { initTaskCenter } from "../../state/taskCenter";
 import {
   acceptFolderDragOver,
   commitFolderDrop,
@@ -1670,6 +1672,8 @@ async function onNewNavigatorTab() {
 
 onBeforeMount(() => {
   reclaimFluentTitlebar();
+  // FIL-70：长任务中心 — 载入持久化任务记录 + 订阅复制/移动进度事件（幂等）。
+  initTaskCenter();
 });
 
 function onVisibilityFlush() {
@@ -2623,6 +2627,7 @@ onUnmounted(() => {
     <NameConflictDialogHost />
     <PromptDialogHost />
     <ToastHost />
+    <TaskCenterHost />
     <CommandPanel :commands="panelCommands" />
   </div>
 </template>

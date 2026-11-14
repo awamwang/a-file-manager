@@ -8,10 +8,17 @@
 //! - On interrupt/failure before commit: leave source intact; scrub staging.
 
 use std::fs;
+use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use walkdir::WalkDir;
+
+/// 每块回调一次的已复制字节数（长任务进度上报）。
+pub type BytesCallback<'a> = Option<&'a (dyn Fn(u64) + Send + Sync)>;
+
+/// 分块复制的缓冲区大小（1 MiB，兼顾进度粒度与吞吐）。
+const COPY_CHUNK_BYTES: usize = 1024 * 1024;
 
 static STAGING_SEQ: AtomicU64 = AtomicU64::new(1);
 
@@ -104,26 +111,68 @@ pub fn staging_path(parent: &Path, final_name: &str) -> PathBuf {
     ))
 }
 
-pub fn copy_entry(src: &Path, dest: &Path) -> Result<(), String> {
+/// 带进度回调的复制：文件按 1 MiB 分块，每块完成后上报增量字节。
+pub fn copy_entry_with_progress(
+    src: &Path,
+    dest: &Path,
+    on_bytes: BytesCallback,
+) -> Result<(), String> {
     if src.is_dir() {
-        copy_dir_recursive(src, dest)
+        copy_dir_recursive_with_progress(src, dest, on_bytes)
     } else {
         if let Some(parent) = dest.parent() {
             fs::create_dir_all(parent)
                 .map_err(|err| format!("Failed to create parent directory: {err}"))?;
         }
-        fs::copy(src, dest).map_err(|err| format!("Failed to copy file: {err}"))?;
+        copy_file_with_progress(src, dest, on_bytes)?;
+        // 与 fs::copy 对齐：尽力保留只读等属性位。
+        if let Ok(meta) = fs::metadata(src) {
+            let _ = fs::set_permissions(dest, meta.permissions());
+        }
         Ok(())
     }
 }
 
-fn copy_dir_recursive(src: &Path, dest: &Path) -> Result<(), String> {
+fn copy_file_with_progress(src: &Path, dest: &Path, on_bytes: BytesCallback) -> Result<(), String> {
+    if on_bytes.is_none() {
+        fs::copy(src, dest).map_err(|err| format!("Failed to copy file: {err}"))?;
+        return Ok(());
+    }
+    let mut reader =
+        fs::File::open(src).map_err(|err| format!("Failed to open source file: {err}"))?;
+    let mut writer =
+        fs::File::create(dest).map_err(|err| format!("Failed to create destination file: {err}"))?;
+    let mut buffer = vec![0u8; COPY_CHUNK_BYTES];
+    loop {
+        let read = reader
+            .read(&mut buffer)
+            .map_err(|err| format!("Failed to read source file: {err}"))?;
+        if read == 0 {
+            break;
+        }
+        writer
+            .write_all(&buffer[..read])
+            .map_err(|err| format!("Failed to write destination file: {err}"))?;
+        if let Some(report) = on_bytes {
+            report(read as u64);
+        }
+    }
+    writer
+        .flush()
+        .map_err(|err| format!("Failed to flush destination file: {err}"))
+}
+
+fn copy_dir_recursive_with_progress(
+    src: &Path,
+    dest: &Path,
+    on_bytes: BytesCallback,
+) -> Result<(), String> {
     fs::create_dir_all(dest).map_err(|err| format!("Failed to create directory: {err}"))?;
     for item in fs::read_dir(src).map_err(|err| format!("Failed to read directory: {err}"))? {
         let entry = item.map_err(|err| format!("Failed to read entry: {err}"))?;
         let from = entry.path();
         let to = dest.join(entry.file_name());
-        copy_entry(&from, &to)?;
+        copy_entry_with_progress(&from, &to, on_bytes)?;
     }
     Ok(())
 }
@@ -281,11 +330,12 @@ pub enum CrossVolumeStop {
     AfterCommit,
 }
 
-pub fn cross_volume_move(
+pub fn cross_volume_move_with_progress(
     src: &Path,
     dest: &Path,
     replace: bool,
     stop: CrossVolumeStop,
+    on_bytes: BytesCallback,
 ) -> Result<(), String> {
     let parent = dest
         .parent()
@@ -300,7 +350,7 @@ pub fn cross_volume_move(
         remove_path(&staging)?;
     }
 
-    if let Err(err) = copy_entry(src, &staging) {
+    if let Err(err) = copy_entry_with_progress(src, &staging, on_bytes) {
         let _ = remove_path(&staging);
         return Err(err);
     }
@@ -325,6 +375,15 @@ pub fn cross_volume_move(
 }
 
 pub fn safe_move_entry(src: &Path, dest: &Path, replace: bool) -> Result<(), String> {
+    safe_move_entry_with_progress(src, dest, replace, None)
+}
+
+pub fn safe_move_entry_with_progress(
+    src: &Path,
+    dest: &Path,
+    replace: bool,
+    on_bytes: BytesCallback,
+) -> Result<(), String> {
     if src == dest {
         return Ok(());
     }
@@ -332,10 +391,16 @@ pub fn safe_move_entry(src: &Path, dest: &Path, replace: bool) -> Result<(), Str
     refuse_volume_root(dest)?;
 
     if same_volume(src, dest) {
+        // 同卷 rename 瞬时完成，无进度可报；失败回退走 staging 复制时仍上报。
         match same_volume_move(src, dest, replace) {
             Ok(()) => Ok(()),
-            // Rename can still fail on same volume (locks, permissions) — fall back safely.
-            Err(_) => cross_volume_move(src, dest, replace, CrossVolumeStop::None),
+            Err(_) => cross_volume_move_with_progress(
+                src,
+                dest,
+                replace,
+                CrossVolumeStop::None,
+                on_bytes,
+            ),
         }
     } else {
         // Different / unknown volumes: try rename once, then staging copy+verify.
@@ -347,12 +412,27 @@ pub fn safe_move_entry(src: &Path, dest: &Path, replace: bool) -> Result<(), Str
         }
         match fs::rename(src, dest) {
             Ok(()) => Ok(()),
-            Err(_) => cross_volume_move(src, dest, replace, CrossVolumeStop::None),
+            Err(_) => cross_volume_move_with_progress(
+                src,
+                dest,
+                replace,
+                CrossVolumeStop::None,
+                on_bytes,
+            ),
         }
     }
 }
 
 pub fn safe_copy_entry(src: &Path, dest: &Path, replace: bool) -> Result<(), String> {
+    safe_copy_entry_with_progress(src, dest, replace, None)
+}
+
+pub fn safe_copy_entry_with_progress(
+    src: &Path,
+    dest: &Path,
+    replace: bool,
+    on_bytes: BytesCallback,
+) -> Result<(), String> {
     if src == dest {
         return Ok(());
     }
@@ -369,7 +449,7 @@ pub fn safe_copy_entry(src: &Path, dest: &Path, replace: bool) -> Result<(), Str
     if staging.exists() {
         remove_path(&staging)?;
     }
-    if let Err(err) = copy_entry(src, &staging) {
+    if let Err(err) = copy_entry_with_progress(src, &staging, on_bytes) {
         let _ = remove_path(&staging);
         return Err(err);
     }
@@ -443,7 +523,14 @@ mod tests {
         fs::write(src.join("nested").join("x.bin"), b"payload").unwrap();
         let dest = b.join("tree");
 
-        let err = cross_volume_move(&src, &dest, false, CrossVolumeStop::AfterVerify).unwrap_err();
+        let err = cross_volume_move_with_progress(
+            &src,
+            &dest,
+            false,
+            CrossVolumeStop::AfterVerify,
+            None,
+        )
+        .unwrap_err();
         assert!(err.contains("Interrupted"));
         assert!(src.exists(), "source must survive interrupt");
         assert!(src.join("nested").join("x.bin").is_file());
@@ -475,7 +562,14 @@ mod tests {
         drop(f);
         let dest = b.join("file.dat");
 
-        let err = cross_volume_move(&src, &dest, false, CrossVolumeStop::AfterCommit).unwrap_err();
+        let err = cross_volume_move_with_progress(
+            &src,
+            &dest,
+            false,
+            CrossVolumeStop::AfterCommit,
+            None,
+        )
+        .unwrap_err();
         assert!(err.contains("Interrupted"));
         assert!(src.exists(), "source retained when delete skipped");
         assert!(dest.is_file(), "destination durable before source delete");

@@ -5,6 +5,7 @@
 
 pub(crate) mod clipboard;
 pub(crate) mod new_templates;
+pub(crate) mod progress;
 pub(crate) mod recycle;
 pub(crate) mod safe_io;
 pub(crate) mod shortcut;
@@ -13,6 +14,7 @@ use crate::navigator::path_guard::assert_os_path;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -189,6 +191,25 @@ pub fn copy_paths(
     dest_dir: &str,
     conflict: NameConflict,
 ) -> Result<Vec<String>, String> {
+    copy_paths_inner(sources, dest_dir, conflict, None)
+}
+
+/// 带 taskId 时按进度发射器复制（长任务右下角进度条数据源）。
+pub fn copy_paths_tracked(
+    sources: &[String],
+    dest_dir: &str,
+    conflict: NameConflict,
+    emitter: &progress::ProgressEmitter,
+) -> Result<Vec<String>, String> {
+    copy_paths_inner(sources, dest_dir, conflict, Some(emitter))
+}
+
+fn copy_paths_inner(
+    sources: &[String],
+    dest_dir: &str,
+    conflict: NameConflict,
+    emitter: Option<&progress::ProgressEmitter>,
+) -> Result<Vec<String>, String> {
     let dest = ensure_dir(dest_dir)?;
     let mut out = Vec::new();
     for source in sources {
@@ -207,16 +228,72 @@ pub fn copy_paths(
         let Some(plan) = place_dest(&dest, &name, &src, conflict)? else {
             continue;
         };
-        safe_io::safe_copy_entry(&src, &plan.path, plan.replace)?;
+        match emitter {
+            Some(emitter) => safe_io::safe_copy_entry_with_progress(
+                &src,
+                &plan.path,
+                plan.replace,
+                Some(&|count| emitter.on_bytes(count)),
+            )?,
+            None => safe_io::safe_copy_entry(&src, &plan.path, plan.replace)?,
+        }
         out.push(display_path(&plan.path));
     }
     Ok(out)
+}
+
+/// 待复制/移动的总字节数（目录递归求和；失败按 0 计，前端显示为不确定进度）。
+pub fn total_transfer_bytes(sources: &[String]) -> u64 {
+    let mut total = 0u64;
+    for source in sources {
+        let trimmed = source.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let path = PathBuf::from(trimmed);
+        if !path.exists() {
+            continue;
+        }
+        if path.is_file() {
+            total += fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+            continue;
+        }
+        for entry in WalkDir::new(&path)
+            .follow_links(false)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if entry.file_type().is_file() {
+                total += entry.metadata().map(|m| m.len()).unwrap_or(0);
+            }
+        }
+    }
+    total
 }
 
 pub fn move_paths(
     sources: &[String],
     dest_dir: &str,
     conflict: NameConflict,
+) -> Result<Vec<String>, String> {
+    move_paths_inner(sources, dest_dir, conflict, None)
+}
+
+/// 带 taskId 时上报进度的移动（跨卷 staging 复制阶段才有字节进度）。
+pub fn move_paths_tracked(
+    sources: &[String],
+    dest_dir: &str,
+    conflict: NameConflict,
+    emitter: &progress::ProgressEmitter,
+) -> Result<Vec<String>, String> {
+    move_paths_inner(sources, dest_dir, conflict, Some(emitter))
+}
+
+fn move_paths_inner(
+    sources: &[String],
+    dest_dir: &str,
+    conflict: NameConflict,
+    emitter: Option<&progress::ProgressEmitter>,
 ) -> Result<Vec<String>, String> {
     let dest = ensure_dir(dest_dir)?;
     let mut out = Vec::new();
@@ -242,7 +319,15 @@ pub fn move_paths(
         let Some(plan) = place_dest(&dest, &name, &src, conflict)? else {
             continue;
         };
-        safe_io::safe_move_entry(&src, &plan.path, plan.replace)?;
+        match emitter {
+            Some(emitter) => safe_io::safe_move_entry_with_progress(
+                &src,
+                &plan.path,
+                plan.replace,
+                Some(&|count| emitter.on_bytes(count)),
+            )?,
+            None => safe_io::safe_move_entry(&src, &plan.path, plan.replace)?,
+        }
         out.push(display_path(&plan.path));
     }
     Ok(out)
@@ -328,15 +413,38 @@ pub fn file_ops_name_exists(dest_dir: String, name: String) -> Result<bool, Stri
 }
 
 /// 大目录复制不得占用 Tauri 同步命令线程。
+/// 传 taskId 时按字节进度发射 `file-ops-progress` 事件（右下角任务列表条）。
 #[tauri::command]
 pub async fn file_ops_copy(
+    app: tauri::AppHandle,
     sources: Vec<String>,
     dest_dir: String,
     conflict: Option<String>,
+    task_id: Option<String>,
 ) -> FileOpsResult {
     let mode = parse_name_conflict(conflict.as_deref());
-    match tauri::async_runtime::spawn_blocking(move || copy_paths(&sources, &dest_dir, mode))
-        .await
+    let tracked_task_id = task_id
+        .map(|id| id.trim().to_string())
+        .filter(|id| !id.is_empty());
+    match tauri::async_runtime::spawn_blocking(move || {
+        match tracked_task_id {
+            Some(task_id) => {
+                let total = total_transfer_bytes(&sources);
+                let emitter =
+                    progress::ProgressEmitter::new(app, task_id, total);
+                emitter.emit_start();
+                let result =
+                    copy_paths_tracked(&sources, &dest_dir, mode, &emitter);
+                match &result {
+                    Ok(_) => emitter.emit_done(true, None),
+                    Err(error) => emitter.emit_done(false, Some(error.clone())),
+                }
+                result
+            }
+            None => copy_paths(&sources, &dest_dir, mode),
+        }
+    })
+    .await
     {
         Ok(Ok(paths)) => ok_paths(paths),
         Ok(Err(error)) => err_msg(error),
@@ -345,15 +453,38 @@ pub async fn file_ops_copy(
 }
 
 /// 大目录移动不得占用 Tauri 同步命令线程。
+/// 传 taskId 时上报进度（同卷 rename 瞬时完成，跨卷复制阶段有字节进度）。
 #[tauri::command]
 pub async fn file_ops_move(
+    app: tauri::AppHandle,
     sources: Vec<String>,
     dest_dir: String,
     conflict: Option<String>,
+    task_id: Option<String>,
 ) -> FileOpsResult {
     let mode = parse_name_conflict(conflict.as_deref());
-    match tauri::async_runtime::spawn_blocking(move || move_paths(&sources, &dest_dir, mode))
-        .await
+    let tracked_task_id = task_id
+        .map(|id| id.trim().to_string())
+        .filter(|id| !id.is_empty());
+    match tauri::async_runtime::spawn_blocking(move || {
+        match tracked_task_id {
+            Some(task_id) => {
+                let total = total_transfer_bytes(&sources);
+                let emitter =
+                    progress::ProgressEmitter::new(app, task_id, total);
+                emitter.emit_start();
+                let result =
+                    move_paths_tracked(&sources, &dest_dir, mode, &emitter);
+                match &result {
+                    Ok(_) => emitter.emit_done(true, None),
+                    Err(error) => emitter.emit_done(false, Some(error.clone())),
+                }
+                result
+            }
+            None => move_paths(&sources, &dest_dir, mode),
+        }
+    })
+    .await
     {
         Ok(Ok(paths)) => ok_paths(paths),
         Ok(Err(error)) => err_msg(error),

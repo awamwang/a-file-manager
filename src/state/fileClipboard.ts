@@ -5,6 +5,7 @@ import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { resolveNameConflictChoice } from "./nameConflict.ts";
 import { normalizePathKey } from "./pathKey.ts";
+import { beginLongTask, finishLongTask, type LongTaskKind } from "./taskCenter.ts";
 
 export type ClipboardMode = "copy" | "cut";
 
@@ -99,6 +100,13 @@ export async function transferEntries(
       : mode === "move"
         ? "file_ops_move"
         : "file_ops_create_shortcuts";
+  // 复制/移动属于长任务：进入右下角任务列表并上报进度（FIL-70）。
+  const trackedKind: LongTaskKind | null = mode === "copy" || mode === "move" ? mode : null;
+  const taskId =
+    trackedKind && sources.length ? beginLongTask(trackedKind, sources, destDir) : null;
+  const finish = (ok: boolean, error: string | null, count: number): void => {
+    if (taskId) finishLongTask(taskId, ok, error, count);
+  };
   const transferred: string[] = [];
   for (const source of sources) {
     const name =
@@ -112,6 +120,7 @@ export async function transferEntries(
       if (exists) {
         const choice = await resolveNameConflictChoice(name);
         if (choice === "cancel") {
+          finish(false, "Cancelled", transferred.length);
           return { ok: false, paths: transferred, error: "Cancelled" };
         }
         conflict = choice;
@@ -121,10 +130,15 @@ export async function transferEntries(
       sources: [source],
       destDir,
       conflict,
+      taskId,
     });
-    if (!result.ok) return result;
+    if (!result.ok) {
+      finish(false, result.error, transferred.length);
+      return result;
+    }
     transferred.push(...result.paths);
   }
+  finish(true, null, transferred.length);
   return { ok: true, paths: transferred, error: null };
 }
 
