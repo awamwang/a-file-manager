@@ -675,56 +675,6 @@ function probeListWindow(win: ListVirtualWindow, total: number, grouped: boolean
   }
 }
 
-/**
- * Scroll oscillation probe (diagnostics, 2026-11-14). Enable in DevTools:
- *   localStorage.setItem("afm.scrollProbe", "1")
- * Logs one line per changed state (rAF loop) covering: list geometry, virtual
- * window, computed padding, inner/outer scrollHeight, document scroll —
- * enough to identify which element's scrollbar oscillates and between what.
- */
-let scrollProbeFrame: number | null = null;
-let scrollProbeLastKey = "";
-
-function scrollProbeSnapshot(): Record<string, string | number> {
-  const el = listRoot.value;
-  const win = primaryVirtual.value;
-  const geom = primaryGridGeometry.value;
-  const main = el?.closest("main.content") ?? null;
-  const doc = document.documentElement;
-  return {
-    t: Math.round(performance.now()),
-    mode: navigatorViewMode.value,
-    total: primaryVirtItems.value.length,
-    loading: listLoading.value ? 1 : 0,
-    geom: `${geom.columns}x${geom.rowHeight}`,
-    win: win.active
-      ? `${win.startIndex}-${win.endIndex}+${Math.round(win.offsetBeforePx)}+${Math.round(win.offsetAfterPx)}`
-      : "inactive",
-    list: el
-      ? `sh${el.scrollHeight}/ch${el.clientHeight}/cw${el.clientWidth}/st${Math.round(el.scrollTop)}/sb${el.offsetWidth - el.clientWidth}`
-      : "null",
-    display: el ? getComputedStyle(el).display : "-",
-    pad: el ? `${getComputedStyle(el).paddingTop}|${getComputedStyle(el).paddingBottom}` : "-",
-    outer: main ? `sh${main.scrollHeight}/ch${main.clientHeight}` : "-",
-    docEl: `sh${doc.scrollHeight}/ch${doc.clientHeight}`,
-  };
-}
-
-function scrollProbeTick(): void {
-  scrollProbeFrame = requestAnimationFrame(scrollProbeTick);
-  try {
-    if (globalThis.localStorage?.getItem("afm.scrollProbe") !== "1") return;
-    const snapshot = scrollProbeSnapshot();
-    // Dedupe on state WITHOUT the timestamp, so only real changes log.
-    const key = JSON.stringify({ ...snapshot, t: 0 });
-    if (key === scrollProbeLastKey) return;
-    scrollProbeLastKey = key;
-    console.info("[AFM_scroll]", JSON.stringify(snapshot));
-  } catch {
-    // ignore
-  }
-}
-
 const primaryVirtItems = computed((): ListVirtItem[] => {
   const entries = visibleEntries.value;
   if (navigatorGroupByType.value) {
@@ -1167,7 +1117,6 @@ onMounted(() => {
     void loadNewFileTemplates();
     void loadFavoritesOsHookStatus().catch(() => undefined);
   }, 3000);
-  scrollProbeFrame = requestAnimationFrame(scrollProbeTick);
 });
 
 onUnmounted(() => {
@@ -1178,10 +1127,6 @@ onUnmounted(() => {
   if (iconRequestSyncTimer != null) {
     cancelAnimationFrame(iconRequestSyncTimer);
     iconRequestSyncTimer = null;
-  }
-  if (scrollProbeFrame != null) {
-    cancelAnimationFrame(scrollProbeFrame);
-    scrollProbeFrame = null;
   }
   clearShellIconQueue();
   listSizeObserver?.disconnect();
