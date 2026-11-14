@@ -27,6 +27,7 @@
     "test:packaging-flavors": "node scripts/check-packaging-flavors.mjs",
     "test:multi-pack-release": "node scripts/check-multi-pack-release.mjs",
     "test:deps-surface": "node scripts/check-deps-surface.mjs",
+    "test:macos-bundle": "node scripts/check-macos-bundle.mjs",
     "test:projects-ops-cleanup": "node scripts/check-projects-ops-cleanup.mjs",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
     "test:tokens": "node scripts/check-fluent-tokens.mjs",

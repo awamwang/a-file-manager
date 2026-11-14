@@ -396,7 +396,7 @@
 
 0. **先过门禁**：把 7.5 的 17 个失败按 6.4 矩阵逐项标记 `复用 / 引入 / 自写 / 降级`，再动手；只有 Junction → symlink 这类确实无库可代劳的才自写。
 1. 前端接入 `platform_capabilities()`：显隐 Windows 专属菜单/设置项、快捷键标签 Ctrl→⌘（复用 `src/shortcuts/`）；顺带把 `open_with` 非 Windows 分支换成已注册的 `tauri-plugin-opener`，消掉手写 `open` / `xdg-open`。**（`open_with` 部分 7.7 已完成；前端能力层与快捷键部分 7.8 已完成）**
-2. `tauri.conf.json`：`targets` 加 `app`/`dmg`、`bundle.macOS`、`bundle.resources`、`titleBarStyle: Overlay`（P0-6）。
+2. `tauri.conf.json`：`targets` 加 `app`/`dmg`、`bundle.macOS`、`bundle.resources`、`titleBarStyle: Overlay`（P0-6）。**（bundle 三项 7.9 已完成；`titleBarStyle` 需 GUI 实机验证后再动，理由见 7.9）**
 3. 消失败用例时优先复用现成实现：`directories::UserDirs` 处理 5 个特殊文件夹 / `%USERPROFILE%` 夹具、`sysinfo::Disks` 处理 3 个卷根判定、核实 `trash::os_limited` 后决定废纸篓权限用例走修复还是降级；7 个 Junction 用例确认无 crate 覆盖后用 Unix symlink。
 4. `tauri dev` 实机验证窗口/图标/路径/打开方式，再谈 CI 双平台矩阵与签名公证（P3）。
 5. 按 6.5 第 3–5 条推进 P2 插件复核、能力层从静态 bool 升级为适配器回报、以及 `tauri-specta` 的做/不做决策。
@@ -451,6 +451,34 @@
 | `cargo check` / `cargo test --lib` | ⏸ 本轮 **Rust 零改动**，沿用 7.7 的 280 passed / 16 failed 基准；执行时本机另一个 `tauri dev` 持有 cargo 包缓存锁，未重复跑以免干扰 |
 
 **尚未覆盖**（仍属 P2，别误判为已完成）：`Delete`/`Backspace` 语义、`Cmd+Backspace` 移废纸篓、`Cmd+I` 属性、`Option` 与 `Alt` 的冲突、F 键被媒体键占用、i18n 中「此电脑 / 回收站 / 资源管理器」等 Windows 名词、交通灯标题栏与原生菜单栏；`platform_capabilities()` 的 24 字段仍是静态 bool，尚未升级为「由适配器回报」。另外本轮只做了**代码与构建验证，未启动 GUI**，上述 UI 行为仍是推断。
+
+### 7.9 第四轮：macOS 打包配置与静态契约（`mac` 分支，7.6 第 2 步）
+
+**门禁结论**（6.5 第 1 条）：P0-6 属「配置声明」缺口，没有第三方库可代劳；可复用的是 Tauri CLI 自带的 `node_modules/@tauri-apps/cli/config.schema.json`，用它核实字段而不是凭记忆写。已确认存在 `BundleConfig.targets / resources / macOS`、`MacConfig.minimumSystemVersion / dmg`、`WindowConfig.titleBarStyle / hiddenTitle / trafficLightPosition`。本轮**不引入新依赖**。
+
+| 文件 | 改动 |
+|---|---|
+| `src-tauri/tauri.conf.json` | `bundle.targets: ["nsis"] → ["nsis","app","dmg"]`（nsis 保留，Windows 发布流程不受影响）；新增 `bundle.resources: ["icons/32x32.png"]`，使 `src/state/dnd/dragOut.ts:21` 的 `resolveResource("icons/32x32.png")` 在打包后不再缺拖影；新增 `bundle.macOS.minimumSystemVersion: "10.15"`（Tauri 默认 10.13，显式钉到 Tauri 2 / WKWebView 的实际下限）。`bundle.windows.webviewInstallMode` 与 `app.windows` 一字未改 |
+| `scripts/check-macos-bundle.mjs`（新增） | 静态契约：三个 target 齐备；资源路径与 `resolveResource` 实参一致且文件存在；`icon.icns` 存在；`minimumSystemVersion` 不被回退；Windows 的 `embedBootstrapper`、`decorations:false` 不被破坏；发布脚本仍显式 `--bundles nsis` |
+| `package.json` | 注册 `test:macos-bundle` |
+
+**刻意推迟的一项**：7.6 第 2 步里的 `titleBarStyle: Overlay` / `hiddenTitle`。当前窗口是 `decorations: false` + 前端自绘 Fluent 标题栏（3 个静态脚本对该字段有硬断言），macOS 交通灯是否显示、落点是否遮挡前端控件都必须实机看窗口才能定；纯配置改动不该代替 GUI 验证。该字段仅 macOS 生效，留给 7.6 第 4 步一起处理。签名公证（`signingIdentity`）、CI `macos-latest` matrix、`rust-toolchain.toml` 的 apple targets 仍属 P3。
+
+**验证**（macOS 15.8.3 / rustc 1.100.0）：
+
+| 项目 | 结果 |
+|---|---|
+| `cargo check`（`tauri-build` 会解析 config，等价于 schema 合法性校验） | ✅ 通过，2.97s，14 条警告与 7.7 一致，均为既有 Windows 代码的 unused / dead_code |
+| `npm run build`（`vue-tsc --noEmit` + vite） | ✅ 通过，17.32s，仅既有 chunk 大小提示 |
+| `test:macos-bundle` + 8 个读取 `tauri.conf.json` 的既有静态脚本 | ✅ 全通过：`deps-surface` / `startup-window-flash` / `window-controls` / `dual-pane` / `file-drag-out` / `packaging-flavors` / `multi-pack-release` / `shortcuts` |
+| `npx tauri build --debug --bundles app` | ✅ exit 0，产出 53.99 MiB 的 `A File Manager.app` |
+
+**实机打包验证**（把 P0-6 从「配置写了」推进到「包里确实有」）：
+
+- `.app/Contents/Info.plist`：`LSMinimumSystemVersion = 10.15`、`CFBundleIdentifier = com.a-file-manager.app`、`CFBundleIconFile = icon.icns`；`Contents/MacOS/a-file-manager` 为 54 MiB 可执行文件。
+- `Contents/Resources/icons/32x32.png`（1.1 KiB）确实随包分发 → `resolveResource` 的拖影图标在 release 包里不再缺失，这是 `bundle.resources` 的直接验收。
+- `npx tauri build --debug --bundles dmg` 的编译与 `.app` 阶段都成功，最后 `bundle_dmg.sh` 调 `hdiutil create` 报 `操作不被允许`；日志末尾的沙箱提示显示被拒的是 `/Volumes/A File Manager/...` 挂载卷里的 file-delete。这是**本会话沙箱对 dmg 挂载卷的限制**，不是 Tauri 配置错误；在普通终端重跑该命令应能产出 `.dmg`。签名/公证仍属 P3，未配置 `signingIdentity`，当前为 ad-hoc 签名。
+- 仍未启动 GUI：WKWebView 渲染、交通灯位置、拖放、TCC 弹窗都未实机看窗口，7.6 第 4 步的 `tauri dev` 验证依旧待办。
 
 ---
 
