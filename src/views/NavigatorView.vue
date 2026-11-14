@@ -174,6 +174,7 @@ import {
   previewSourcePaths,
   startNativeFileDragOut,
 } from "../state/dnd";
+import { isMacPlatform } from "../config/platform.ts";
 import {
   dismissPreviewBridge,
   invokePreviewBridge,
@@ -1931,12 +1932,28 @@ function hitTestRows(x: number, y: number, w: number, h: number): string[] {
 
 /* —— Drag in (AFM + Explorer/external) · drag out (OLE / CF_HDROP + link) —— */
 function onDragStart(event: DragEvent, entry: NavigatorEntry) {
-  // FIL-45: 取消 HTML5 出站，跨应用只走 OLE（避免 Sublime 粘路径 / 播放器空拖）。
-  event.preventDefault();
   if (!isSelected(entry.path)) {
     selectOnly(entry.path);
   }
   const paths = selectionPaths();
+
+  // macOS: the OLE plugin (`tauri-plugin-drag`) aborts the process here, so we
+  // skip it and let the WebView perform a native HTML5 file drag-out by attaching
+  // file URIs. Do NOT preventDefault — the browser must carry the drag itself.
+  if (isMacPlatform()) {
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = "copyMove";
+      event.dataTransfer.setData(
+        "text/uri-list",
+        paths.map((p) => `file://${p}`).join("\r\n"),
+      );
+    }
+    return;
+  }
+
+  // FIL-45: Windows-only OLE. Cancel HTML5 outbound so cross-app drags go through
+  // OLE only (avoids Sublime pasting paths / media players receiving an empty drag).
+  event.preventDefault();
   armOutboundPathsForPress(paths);
   // 宿主可能已在阈值处直启 OLE；此处幂等补启。
   void startNativeFileDragOut(paths);

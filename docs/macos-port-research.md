@@ -553,6 +553,25 @@
 
 ---
 
+### 7.13 GUI 实机验证：macOS 上 `tauri-plugin-drag` 的 `RecvError` 崩溃（第 8 轮）
+
+**症状**：`npm run dev:ai` 启动、窗口能显示后，进程随即被 `abort`——日志末尾 `thread 'tokio-rt-worker' panicked at .../tauri-plugin-drag-2.1.1/src/commands.rs:162 ... called Result::unwrap() on an Err value: RecvError` / `fatal runtime error: Rust cannot catch foreign exceptions, aborting`。Dock 图标随之消失。
+
+**根因**：`tauri-plugin-drag` 2.1.1 的 `start_dragging` 命令用 `std::sync::mpsc` 在「主线程闭包」与「调用方」之间传递结果：闭包内 `tx.send(r).unwrap()`，调用方 `rx.recv().unwrap()`。`run_on_main_thread` 一旦没能把闭包真正排上主线程（app 重建/teardown，或 macOS 该路径异常），`tx` 随闭包被丢弃，`rx.recv()` 拿到 `RecvError` → `unwrap()` panic → 整个进程 `abort`。该命令**只在文件出站拖拽时**被调用（`src/state/dnd/dragOut.ts` 的 `startNativeFileDragOut` → `startDrag`）。macOS 上任意一次文件拖出都会触发；且 `tauri-plugin-drag` 是 Windows OLE 专属机制——能力层 `nativeDragOut` 在 macOS 本就是 `false`。
+
+**关键约束**：`capabilities/default.json` 引用了 `drag:default` 权限（由 `tauri-plugin-drag` 提供）。若直接把 `.plugin(tauri_plugin_drag::init())` 用 `#[cfg(windows)]` 排除，macOS 构建期 `tauri-build` 会报 `Permission drag:default not found`（权限解析失败），牵动 capability 体系，风险高。**因此保留插件在 macOS 注册**，仅靠前端门控确保 `start_dragging` 永不在 macOS 被调用。
+
+**修复**：
+- `src/state/dnd/dragOut.ts`：`startNativeFileDragOut` 入口 `if (isMacPlatform()) return;` 提前返回（OLE 通道在 macOS 不存在/会崩），绝不触达崩溃的 `startDrag` 命令；`armHostOutboundPaths` 同理在 macOS 提前返回（`dnd_arm_outbound_paths` 命令本就是 `#[cfg(windows)]`，调用只会走 catch 被忽略）。
+- `src/views/NavigatorView.vue` 的 `onDragStart`：
+  - **macOS 分支**：不 `preventDefault`、不调用 OLE；改为在 `dataTransfer` 上挂 `text/uri-list`（`file://` 路径），由 WebView 原生 HTML5 文件拖出承担跨应用拖出，`effectAllowed = "copyMove"`。
+  - **Windows 分支**：维持原 OLE 行为（`preventDefault` + `armOutboundPathsForPress` + `startNativeFileDragOut`），契约字面量 `startNativeFileDragOut(paths)` / `armOutboundPathsForPress` 均保留以满足静态脚本。
+- `isMacPlatform()` 取自 `src/config/platform.ts`（同步：缓存能力优先、UA 兜底），与 `revealMainWindow.ts` 判定方式一致。
+
+**验证**：`cargo check` 0 警告 · `npm run build` ✓ · `test:file-drag-out` ✓ · `test:cross-app-dnd` ✓；`test:file-drag-inout` 失败是**既存 macOS 失败用例**（`pathToFileURL("C:\\Temp\\x")` 在 macOS 按 POSIX 解析返回 `null`，仅 Windows 可过），与本次改动无关（`git stash` 已证实改动前同样失败）。`tauri dev` 重启后进程**不再 abort**，日志无 `RecvError` panic。`lsappinfo` 在本沙箱无法确认窗口可见性；窗口显示本身与 7.12 一致（reveal 逻辑未改动）。**拖放真实交互（拖文件到 Finder）仍需本机桌面实机确认**——代码层已证明 `start_dragging` 在 macOS 永不被调用，崩溃路径已切断。
+
+---
+
 ## 附录 A · 关键证据索引（便于复核）
 
 | 主题 | 文件 |
