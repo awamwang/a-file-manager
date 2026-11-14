@@ -24,8 +24,9 @@
 #![cfg(windows)]
 
 use std::collections::HashSet;
-use std::sync::atomic::{AtomicBool, AtomicI32, AtomicIsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicIsize, AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 use windows::core::BOOL;
@@ -35,11 +36,11 @@ use windows::Win32::UI::Shell::{DefSubclassProc, SetWindowSubclass};
 use windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, EnumChildWindows, GetAncestor, GetClassNameW, GetCursorPos,
     GetForegroundWindow, GetSystemMetrics, GetWindowLongPtrW, GetWindowRect,
-    GetWindowThreadProcessId, IsChild, KillTimer, SetForegroundWindow, SetTimer,
-    SetWindowLongPtrW, SetWindowsHookExW, UnhookWindowsHookEx, WindowFromPoint, GA_ROOT,
-    GWL_EXSTYLE, HHOOK, MA_NOACTIVATE, MSLLHOOKSTRUCT, SM_CXDRAG, SM_CYDRAG, WA_INACTIVE,
-    WH_MOUSE_LL, WM_ACTIVATE, WM_CREATE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEACTIVATE,
-    WM_PARENTNOTIFY, WM_TIMER, WS_EX_NOACTIVATE,
+    GetWindowThreadProcessId, IsChild, IsWindowVisible, KillTimer, SetForegroundWindow,
+    SetTimer, SetWindowLongPtrW, SetWindowsHookExW, UnhookWindowsHookEx, WindowFromPoint,
+    GA_ROOT, GWL_EXSTYLE, HHOOK, MA_NOACTIVATE, MSLLHOOKSTRUCT, SM_CXDRAG, SM_CYDRAG,
+    WA_INACTIVE, WH_MOUSE_LL, WM_ACTIVATE, WM_CREATE, WM_LBUTTONDOWN, WM_LBUTTONUP,
+    WM_MOUSEACTIVATE, WM_PARENTNOTIFY, WM_TIMER, WS_EX_NOACTIVATE,
 };
 
 const SUBCLASS_ID: usize = 0xA_F1_26_01; // AFM + AIA-261（主窗）
@@ -59,6 +60,12 @@ static PROMOTE_EMITTED: AtomicBool = AtomicBool::new(false);
 static ROOT_HWND: AtomicIsize = AtomicIsize::new(0);
 static FIND_TICKS: AtomicI32 = AtomicI32::new(0);
 static TEMP_NOACTIVATE: AtomicBool = AtomicBool::new(false);
+/// FIL-72: deadline (unix ms) until which a deliberate show-and-activate
+/// (startup reveal / tray restore) must not be blocked by WS_EX_NOACTIVATE.
+/// A cold first run keeps the window hidden for seconds; the focus hooks used
+/// to pre-arm NOACTIVATE during that hidden phase, which made ShowWindow +
+/// SetForegroundWindow no-ops and left the maximized window behind the shell.
+static FORCED_ACTIVATION_UNTIL_MS: AtomicU64 = AtomicU64::new(0);
 /// 最近一次「非我们」的前台窗（失焦时记录），最大化抢前台时作 prior 兜底。
 static LAST_OTHER_FG: AtomicIsize = AtomicIsize::new(0);
 static MOUSE_HOOK: AtomicIsize = AtomicIsize::new(0);
@@ -148,8 +155,33 @@ fn restore_press_prior_if_we_raised(our_root: HWND) {
     drag::restore_press_prior_foreground(hwnd_to_isize(our_root));
 }
 
+fn now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+fn forced_activation_active() -> bool {
+    now_ms() < FORCED_ACTIVATION_UNTIL_MS.load(Ordering::SeqCst)
+}
+
+/// FIL-72: let the host show + activate the main window (startup reveal / tray
+/// restore) without the FIL-46 background-drag hooks re-arming NOACTIVATE on
+/// the WA_INACTIVE that arrives while the window is being raised.
+/// The grace is short (1.5s) so normal background drag behaviour is unchanged.
+pub fn begin_forced_activation() {
+    FORCED_ACTIVATION_UNTIL_MS.store(now_ms() + 1500, Ordering::SeqCst);
+    let root = root_hwnd();
+    disable_temp_noactivate(root);
+    LAST_OTHER_FG.store(0, Ordering::SeqCst);
+}
+
 /// 后台期间挂临时 WS_EX_NOACTIVATE（失焦即挂；单击激活 / OLE 结束时清除）。
 fn enable_temp_noactivate(root: HWND) {
+    if forced_activation_active() {
+        return;
+    }
     if root.0.is_null() {
         return;
     }
@@ -164,9 +196,9 @@ fn enable_temp_noactivate(root: HWND) {
 }
 
 fn disable_temp_noactivate(root: HWND) {
-    if !TEMP_NOACTIVATE.swap(false, Ordering::SeqCst) {
-        return;
-    }
+    // Always clear the style bit, not just the flag: a stale style bit is enough
+    // to keep ShowWindow/SetForegroundWindow from activating the window.
+    TEMP_NOACTIVATE.store(false, Ordering::SeqCst);
     if root.0.is_null() {
         return;
     }
@@ -575,10 +607,16 @@ pub fn install_for_main_window<R: Runtime>(app: &AppHandle<R>) {
     arm_find_timer(hwnd);
     install_mouse_ll_hook();
     // 启动时若已在后台，预先挂 noactivate，避免第一次点击才武装。
-    let fg = unsafe { GetForegroundWindow() };
-    if !hwnd_is_ours(hwnd, fg) {
-        remember_other_foreground(hwnd);
-        enable_temp_noactivate(hwnd);
+    // FIL-72: the window is still `visible: false` here, so GetForegroundWindow()
+    // is never ours — pre-arming would leave WS_EX_NOACTIVATE on the HWND and
+    // block the startup reveal from ever taking the foreground. WA_INACTIVE
+    // (or note_press) still arms it once the window is actually visible.
+    if unsafe { IsWindowVisible(hwnd) }.as_bool() {
+        let fg = unsafe { GetForegroundWindow() };
+        if !hwnd_is_ours(hwnd, fg) {
+            remember_other_foreground(hwnd);
+            enable_temp_noactivate(hwnd);
+        }
     }
 }
 
