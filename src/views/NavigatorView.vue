@@ -675,6 +675,56 @@ function probeListWindow(win: ListVirtualWindow, total: number, grouped: boolean
   }
 }
 
+/**
+ * Scroll oscillation probe (diagnostics, 2026-11-14). Enable in DevTools:
+ *   localStorage.setItem("afm.scrollProbe", "1")
+ * Logs one line per changed state (rAF loop) covering: list geometry, virtual
+ * window, computed padding, inner/outer scrollHeight, document scroll —
+ * enough to identify which element's scrollbar oscillates and between what.
+ */
+let scrollProbeFrame: number | null = null;
+let scrollProbeLastKey = "";
+
+function scrollProbeSnapshot(): Record<string, string | number> {
+  const el = listRoot.value;
+  const win = primaryVirtual.value;
+  const geom = primaryGridGeometry.value;
+  const main = el?.closest("main.content") ?? null;
+  const doc = document.documentElement;
+  return {
+    t: Math.round(performance.now()),
+    mode: navigatorViewMode.value,
+    total: primaryVirtItems.value.length,
+    loading: listLoading.value ? 1 : 0,
+    geom: `${geom.columns}x${geom.rowHeight}`,
+    win: win.active
+      ? `${win.startIndex}-${win.endIndex}+${Math.round(win.offsetBeforePx)}+${Math.round(win.offsetAfterPx)}`
+      : "inactive",
+    list: el
+      ? `sh${el.scrollHeight}/ch${el.clientHeight}/cw${el.clientWidth}/st${Math.round(el.scrollTop)}/sb${el.offsetWidth - el.clientWidth}`
+      : "null",
+    display: el ? getComputedStyle(el).display : "-",
+    pad: el ? `${getComputedStyle(el).paddingTop}|${getComputedStyle(el).paddingBottom}` : "-",
+    outer: main ? `sh${main.scrollHeight}/ch${main.clientHeight}` : "-",
+    docEl: `sh${doc.scrollHeight}/ch${doc.clientHeight}`,
+  };
+}
+
+function scrollProbeTick(): void {
+  scrollProbeFrame = requestAnimationFrame(scrollProbeTick);
+  try {
+    if (globalThis.localStorage?.getItem("afm.scrollProbe") !== "1") return;
+    const snapshot = scrollProbeSnapshot();
+    // Dedupe on state WITHOUT the timestamp, so only real changes log.
+    const key = JSON.stringify({ ...snapshot, t: 0 });
+    if (key === scrollProbeLastKey) return;
+    scrollProbeLastKey = key;
+    console.info("[AFM_scroll]", JSON.stringify(snapshot));
+  } catch {
+    // ignore
+  }
+}
+
 const primaryVirtItems = computed((): ListVirtItem[] => {
   const entries = visibleEntries.value;
   if (navigatorGroupByType.value) {
@@ -692,8 +742,11 @@ function measureGridColumns(el: HTMLElement | null): number {
   if (!el) return 0;
   const mode = navigatorViewMode.value;
   if (!mode.startsWith("icons") && mode !== "tiles") return 1;
+  // FIL-71：网格轨道已挪到 .list__canvas；非网格视图它 display:contents，
+  // computed 为 none 会自然落到下面的 DOM 探测，行为与原先一致。
+  const gridEl = el.querySelector<HTMLElement>(".list__canvas") ?? el;
   try {
-    const tracks = getComputedStyle(el).gridTemplateColumns;
+    const tracks = getComputedStyle(gridEl).gridTemplateColumns;
     if (tracks && tracks !== "none") {
       const count = tracks.trim().split(/\s+/).length;
       if (count >= 1) return count;
@@ -701,7 +754,7 @@ function measureGridColumns(el: HTMLElement | null): number {
   } catch {
     // 开发环境样式未就绪等场景：落到 DOM 探测。
   }
-  const rows = el.querySelectorAll<HTMLElement>(".row--icon, .row--tile");
+  const rows = gridEl.querySelectorAll<HTMLElement>(".row--icon, .row--tile");
   const first = rows[0];
   if (!first) return 0;
   const top = first.offsetTop;
@@ -1114,6 +1167,7 @@ onMounted(() => {
     void loadNewFileTemplates();
     void loadFavoritesOsHookStatus().catch(() => undefined);
   }, 3000);
+  scrollProbeFrame = requestAnimationFrame(scrollProbeTick);
 });
 
 onUnmounted(() => {
@@ -1124,6 +1178,10 @@ onUnmounted(() => {
   if (iconRequestSyncTimer != null) {
     cancelAnimationFrame(iconRequestSyncTimer);
     iconRequestSyncTimer = null;
+  }
+  if (scrollProbeFrame != null) {
+    cancelAnimationFrame(scrollProbeFrame);
+    scrollProbeFrame = null;
   }
   clearShellIconQueue();
   listSizeObserver?.disconnect();
@@ -1270,6 +1328,12 @@ const iconPixelSize = computed(() => VIEW_ICON_SIZE[navigatorViewMode.value]);
 /**
  * 图标/平铺为 CSS grid：用 padding 承担窗口化前后偏移。
  * grid 内再插 virt-spacer 会挤乱行高，大目录缩略图会被压成细条。
+ *
+ * FIL-71：这段 padding 必须挂在 .list__canvas，不能挂在滚动容器 .list 上。
+ * .list 是 flex:1 / min-height:0 的受限高元素，超大 padding-bottom 无法被
+ * 压缩（border-box 也会被撑到 padding 之和），会让 main.content 冒出外层
+ * 滚动条；ResizeObserver 又读到被撑高的 clientHeight，窗口重算后 padding
+ * 缩小、容器恢复……形成「外层滚动条出现/消失」的往返震荡。
  */
 function gridVirtualPaddingStyle(win: ListVirtualWindow): Record<string, string> {
   if (!win.active) return {};
@@ -1294,14 +1358,16 @@ function usesVirtSpacers(win: ListVirtualWindow): boolean {
 const primaryListStyle = computed(() => ({
   "--nav-icon-size": iconSlotCssSize(navigatorViewMode.value),
   "--nav-icon-caption-extra": `${ICON_CAPTION_EXTRA_PX}px`,
-  ...gridVirtualPaddingStyle(primaryVirtual.value),
 }));
 
 const secondaryListStyle = computed(() => ({
   "--nav-icon-size": iconSlotCssSize(navigatorViewMode.value),
   "--nav-icon-caption-extra": `${ICON_CAPTION_EXTRA_PX}px`,
-  ...gridVirtualPaddingStyle(secondaryVirtual.value),
 }));
+
+// 窗口化偏移只作用于内层 canvas，.list 自身的高度不再随内容变化（FIL-71）。
+const primaryCanvasStyle = computed(() => gridVirtualPaddingStyle(primaryVirtual.value));
+const secondaryCanvasStyle = computed(() => gridVirtualPaddingStyle(secondaryVirtual.value));
 
 const showPrimaryVirtSpacers = computed(() => usesVirtSpacers(primaryVirtual.value));
 const showSecondaryVirtSpacers = computed(() => usesVirtSpacers(secondaryVirtual.value));
@@ -2069,6 +2135,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         'list--content': isContentView,
         'list--grouped': navigatorGroupByType,
         'list--virt-flat': navigatorGroupByType && primaryVirtual.active,
+        'list--canvas': (isIconView || isTilesView) && !navigatorGroupByType,
         'list--drop': dragOverPath === currentPath,
       }"
       :style="primaryListStyle"
@@ -2087,6 +2154,13 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
       @dragleave="onListDragLeave($event, currentPath)"
       @drop="onListDrop($event, currentPath)"
     >
+      <!-- FIL-71: 窗口化偏移挂在内层 canvas，.list 只做受限高的滚动容器。 -->
+      <div
+        class="list__canvas"
+        :style="primaryCanvasStyle"
+        @mousedown.self="onListMouseDown($event)"
+        @click.self="clearSelection()"
+      >
       <div
         v-if="isDetailsView"
         class="list-header"
@@ -2253,6 +2327,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           height: `${marquee.h}px`,
         }"
       />
+      </div>
     </div>
     </div>
     </div>
@@ -2286,6 +2361,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           'list--icons-small': navigatorViewMode === 'iconsSmall',
           'list--tiles': isTilesView,
           'list--content': isContentView,
+          'list--canvas': (isIconView || isTilesView) && !navigatorGroupByType,
           'list--drop': dragOverPath === secondaryPath,
         }"
         :style="secondaryListStyle"
@@ -2298,6 +2374,8 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         @dragleave="onListDragLeave($event, secondaryPath)"
         @drop="onListDrop($event, secondaryPath)"
       >
+        <!-- FIL-71: 同主栏，窗口化偏移挂在内层 canvas。 -->
+        <div class="list__canvas" :style="secondaryCanvasStyle">
         <template v-if="showSecondaryPlaceholders">
           <div
             v-for="index in secondaryPlaceholderIndices"
@@ -2383,6 +2461,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           :style="{ height: `${secondaryVirtual.offsetAfterPx}px` }"
         />
         </template>
+        </div>
       </div>
     </div>
     </div>
@@ -2523,12 +2602,50 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   grid-template-columns: 2rem minmax(0, 1fr) 7.5rem 5.5rem 9.5rem;
 }
 
-.list--tiles {
+/**
+ * FIL-71：网格轨道与窗口化 padding 都挂在内层 canvas。
+ * 非网格视图用 display:contents，让 children 仍直接参与 .list 的 flex 布局，
+ * 保持列表/详细信息/内容视图与分组图标视图的原有行为不变。
+ */
+.list__canvas {
+  display: contents;
+}
+
+.list--canvas .list__canvas {
   display: grid;
   align-content: start;
-  gap: var(--fluent-space-sm);
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 100%;
   padding: var(--fluent-space-sm);
+}
+
+.list--canvas.list--icons .list__canvas {
+  /* 列间保留间距；行间无纯空白条，行高由格子自身占满。 */
+  column-gap: var(--fluent-space-sm);
+  row-gap: 0;
+}
+
+.list--canvas.list--tiles .list__canvas {
+  gap: var(--fluent-space-sm);
   grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+}
+
+.list--canvas.list--icons-extra-large .list__canvas {
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+}
+
+.list--canvas.list--icons-large .list__canvas {
+  grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+}
+
+.list--canvas.list--icons-medium .list__canvas {
+  grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));
+}
+
+.list--canvas.list--icons-small .list__canvas {
+  grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
 }
 
 .list--content {
@@ -2561,31 +2678,6 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
 
 .list-group-count {
   color: var(--fluent-color-text-secondary);
-}
-
-.list--icons {
-  display: grid;
-  align-content: start;
-  /* 列间保留间距；行间无纯空白条，行高由格子自身占满。 */
-  column-gap: var(--fluent-space-sm);
-  row-gap: 0;
-  padding: var(--fluent-space-sm);
-}
-
-.list--icons-extra-large {
-  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
-}
-
-.list--icons-large {
-  grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
-}
-
-.list--icons-medium {
-  grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));
-}
-
-.list--icons-small {
-  grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
 }
 
 .list--icons .row--icon {
