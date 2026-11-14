@@ -64,16 +64,18 @@ pub struct ShellPlaces {
     pub network: Vec<NetworkPlace>,
 }
 
-fn display_path(path: &Path) -> String {
-    path.to_string_lossy().replace('/', "\\")
-}
-
 fn existing_dir(path: PathBuf) -> Option<String> {
     if path.is_dir() {
-        Some(display_path(&path))
+        Some(crate::paths::display_path(&path))
     } else {
         None
     }
+}
+
+/// `directories::UserDirs` returns `Option<&Path>`; only keep folders that exist.
+#[cfg(not(windows))]
+fn existing_opt_dir(path: Option<&Path>) -> Option<String> {
+    path.and_then(|p| existing_dir(p.to_path_buf()))
 }
 
 fn resolve_onedrive(home_path: &Path) -> Option<String> {
@@ -90,20 +92,52 @@ fn resolve_onedrive(home_path: &Path) -> Option<String> {
     existing_dir(home_path.join("OneDrive"))
 }
 
-/// Resolve USERPROFILE (or fallback) and common child folders when they exist.
+/// Resolve the home directory and common child folders when they exist.
+///
+/// Windows keeps the original USERPROFILE-relative layout (including the
+/// OneDrive env vars). Other platforms use `directories::UserDirs`, which is
+/// locale-aware and follows the OS special-folder rules instead of guessing
+/// English child names under `$HOME`.
 pub fn user_folders() -> Result<UserFolders, String> {
     let home = super::list::default_path()?;
     let home_path = PathBuf::from(&home);
-    Ok(UserFolders {
-        home: home.clone(),
-        desktop: existing_dir(home_path.join("Desktop")),
-        documents: existing_dir(home_path.join("Documents")),
-        downloads: existing_dir(home_path.join("Downloads")),
-        pictures: existing_dir(home_path.join("Pictures")),
-        music: existing_dir(home_path.join("Music")),
-        videos: existing_dir(home_path.join("Videos")),
-        onedrive: resolve_onedrive(&home_path),
-    })
+
+    #[cfg(windows)]
+    {
+        Ok(UserFolders {
+            home: home.clone(),
+            desktop: existing_dir(home_path.join("Desktop")),
+            documents: existing_dir(home_path.join("Documents")),
+            downloads: existing_dir(home_path.join("Downloads")),
+            pictures: existing_dir(home_path.join("Pictures")),
+            music: existing_dir(home_path.join("Music")),
+            videos: existing_dir(home_path.join("Videos")),
+            onedrive: resolve_onedrive(&home_path),
+        })
+    }
+
+    #[cfg(not(windows))]
+    {
+        let dirs = directories::UserDirs::new();
+        Ok(UserFolders {
+            home,
+            desktop: dirs
+                .as_ref()
+                .and_then(|d| existing_opt_dir(d.desktop_dir())),
+            documents: dirs
+                .as_ref()
+                .and_then(|d| existing_opt_dir(d.document_dir())),
+            downloads: dirs
+                .as_ref()
+                .and_then(|d| existing_opt_dir(d.download_dir())),
+            pictures: dirs
+                .as_ref()
+                .and_then(|d| existing_opt_dir(d.picture_dir())),
+            music: dirs.as_ref().and_then(|d| existing_opt_dir(d.audio_dir())),
+            videos: dirs.as_ref().and_then(|d| existing_opt_dir(d.video_dir())),
+            onedrive: resolve_onedrive(&home_path),
+        })
+    }
 }
 
 /// Libraries / OneDrive / mapped network shares for Guide + Places.
@@ -132,39 +166,49 @@ pub fn shell_places() -> Result<ShellPlaces, String> {
 }
 
 fn list_network_places() -> Vec<NetworkPlace> {
-    let output = std::process::Command::new("cmd")
-        .args(["/C", "net use"])
-        .output();
-    let Ok(output) = output else {
-        return Vec::new();
-    };
-    if !output.status.success() {
+    #[cfg(not(windows))]
+    {
+        // No `net use` on macOS. Mounted shares live under /Volumes and belong
+        // to the P1 `sysinfo::Disks` volume work, not to network-place enumeration.
         return Vec::new();
     }
-    let text = String::from_utf8_lossy(&output.stdout);
-    let mut places = Vec::new();
-    for line in text.lines() {
-        // Typical: OK  Z:  \\server\share  Microsoft Windows Network
-        let trimmed = line.trim();
-        if !trimmed.contains("\\\\") {
-            continue;
-        }
-        let parts: Vec<&str> = trimmed.split_whitespace().collect();
-        let unc = parts.iter().find(|part| part.starts_with(r"\\"));
-        let Some(unc) = unc else { continue };
-        let letter = parts
-            .iter()
-            .find(|part| part.len() == 2 && part.ends_with(':'))
-            .copied();
-        let name = letter.unwrap_or(*unc).to_string();
-        let path = if let Some(letter) = letter {
-            format!("{letter}\\")
-        } else {
-            (*unc).to_string()
+
+    #[cfg(windows)]
+    {
+        let output = std::process::Command::new("cmd")
+            .args(["/C", "net use"])
+            .output();
+        let Ok(output) = output else {
+            return Vec::new();
         };
-        places.push(NetworkPlace { name, path });
+        if !output.status.success() {
+            return Vec::new();
+        }
+        let text = String::from_utf8_lossy(&output.stdout);
+        let mut places = Vec::new();
+        for line in text.lines() {
+            // Typical: OK  Z:  \\server\share  Microsoft Windows Network
+            let trimmed = line.trim();
+            if !trimmed.contains("\\\\") {
+                continue;
+            }
+            let parts: Vec<&str> = trimmed.split_whitespace().collect();
+            let unc = parts.iter().find(|part| part.starts_with(r"\\"));
+            let Some(unc) = unc else { continue };
+            let letter = parts
+                .iter()
+                .find(|part| part.len() == 2 && part.ends_with(':'))
+                .copied();
+            let name = letter.unwrap_or(*unc).to_string();
+            let path = if let Some(letter) = letter {
+                format!("{letter}\\")
+            } else {
+                (*unc).to_string()
+            };
+            places.push(NetworkPlace { name, path });
+        }
+        places
     }
-    places
 }
 
 #[cfg(windows)]
@@ -194,11 +238,6 @@ fn drive_kind_for_root(path: &str) -> DriveKind {
     }
 }
 
-#[cfg(not(windows))]
-fn drive_kind_for_root(_path: &str) -> DriveKind {
-    DriveKind::Unknown
-}
-
 #[cfg(windows)]
 fn volume_label_for_root(path: &str) -> String {
     use std::os::windows::ffi::OsStrExt;
@@ -225,11 +264,6 @@ fn volume_label_for_root(path: &str) -> String {
     }
     let end = name.iter().position(|&c| c == 0).unwrap_or(name.len());
     String::from_utf16_lossy(&name[..end]).trim().to_string()
-}
-
-#[cfg(not(windows))]
-fn volume_label_for_root(_path: &str) -> String {
-    String::new()
 }
 
 /// Enumerate mounted drive roots (`A:\` … `Z:\`).
@@ -274,24 +308,10 @@ pub fn list_drives() -> Result<Vec<DriveInfo>, String> {
 
     #[cfg(not(windows))]
     {
-        let mut drives = Vec::new();
-        for code in b'A'..=b'Z' {
-            let letter = (code as char).to_string();
-            let path = format!("{letter}:\\");
-            let root = Path::new(&path);
-            if !root.is_dir() {
-                continue;
-            }
-            let kind = drive_kind_for_root(&path);
-            let label = volume_label_for_root(&path);
-            drives.push(DriveInfo {
-                letter: letter.clone(),
-                path,
-                label,
-                kind,
-            });
-        }
-        Ok(drives)
+        // Drive letters are a Windows concept: `A:\`…`Z:\` are never real dirs
+        // here, so this loop only cost 26 pointless stat calls. Real volumes
+        // (`/Volumes`) and free space come with the P1 `sysinfo::Disks` work.
+        Ok(Vec::new())
     }
 }
 

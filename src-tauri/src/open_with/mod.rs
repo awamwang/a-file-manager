@@ -12,7 +12,8 @@ pub struct OpenWithResult {
 }
 
 /// Open a file/folder with the OS default association (ShellExecute "open").
-/// Prefer this over `plugin-opener` for arbitrary FS paths (opener path ACL).
+/// Windows keeps its ShellExecute/explorer helpers (opener path ACL, FIL-30);
+/// other platforms reuse the already-registered `tauri-plugin-opener`.
 /// 文件夹走 explorer 直启；整体放阻塞线程，避免与 Skill 导入等 FS 重活互相卡住 UI（FIL-30）。
 #[tauri::command]
 pub async fn open_path_default(path: String) -> OpenWithResult {
@@ -49,11 +50,12 @@ fn open_path_default_inner(path: String) -> OpenWithResult {
     }
     #[cfg(not(windows))]
     {
-        // No ShellExecute / plugin-opener AppHandle here: use the system opener.
-        // `open` (macOS) and `xdg-open` (Linux) both handle files and folders.
-        let program = if cfg!(target_os = "macos") { "open" } else { "xdg-open" };
-        match std::process::Command::new(program).arg(p).spawn() {
-            Ok(_) => OpenWithResult {
+        // `tauri-plugin-opener` is registered in lib.rs and already used by the
+        // frontend. Its `open_path` free function wraps the platform opener
+        // (`open` on macOS / `xdg-open` on Linux) behind one cross-platform API,
+        // so there is no reason to spawn a shell command by hand here.
+        match tauri_plugin_opener::open_path(p, None::<&str>) {
+            Ok(()) => OpenWithResult {
                 success: true,
                 error: None,
             },
@@ -81,9 +83,8 @@ pub fn open_recycle_bin_system() -> OpenWithResult {
                 error: Some("Could not resolve the Trash folder".to_string()),
             };
         };
-        let program = if cfg!(target_os = "macos") { "open" } else { "xdg-open" };
-        match std::process::Command::new(program).arg(&trash).spawn() {
-            Ok(_) => OpenWithResult {
+        match tauri_plugin_opener::open_path(&trash, None::<&str>) {
+            Ok(()) => OpenWithResult {
                 success: true,
                 error: None,
             },
@@ -295,9 +296,7 @@ mod tests {
 
     #[test]
     fn missing_path_fails() {
-        let result = open_native_open_with_dialog(
-            "Z:/missing-afm-open-with-xyz.bin".to_string(),
-        );
+        let result = open_native_open_with_dialog("Z:/missing-afm-open-with-xyz.bin".to_string());
         assert!(!result.success);
     }
 

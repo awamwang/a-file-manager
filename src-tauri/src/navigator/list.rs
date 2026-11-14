@@ -148,7 +148,7 @@ pub fn parent_path(path: &str) -> Result<Option<String>, String> {
 }
 
 pub(crate) fn display_path(path: &Path) -> String {
-    crate::paths::to_native_fs_path(path.to_string_lossy().as_ref())
+    crate::paths::display_path(path)
 }
 
 fn display_paths_equal(left: &str, right: &str) -> bool {

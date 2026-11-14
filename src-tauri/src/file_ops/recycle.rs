@@ -1,7 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Recycle Bin list / restore via Shell.Application (Windows).
+//! Recycle Bin list / restore via Shell.Application (Windows only).
+//!
+//! macOS has no equivalent here: `trash 5.2` deliberately excludes macOS from
+//! `os_limited` (its list/restore/purge APIs are Windows + freedesktop only),
+//! and Finder automation would require TCC automation permission. The platform
+//! capability bit `trashListRestore` stays false, so the UI must hide these
+//! commands and offer `open_recycle_bin_system()` (`~/.Trash` in Finder).
 
 use serde::Serialize;
+#[cfg(windows)]
 use std::process::Command;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -13,6 +20,7 @@ pub struct RecycleBinItem {
     pub recycle_path: String,
 }
 
+#[cfg(any(windows, test))]
 fn normalize_path(path: &str) -> String {
     path.trim()
         .replace('/', "\\")
@@ -22,7 +30,18 @@ fn normalize_path(path: &str) -> String {
 
 /// List Recycle Bin entries (name + original path).
 pub fn list_recycle_bin() -> Result<Vec<RecycleBinItem>, String> {
-    let script = r#"
+    #[cfg(not(windows))]
+    {
+        // `trash::os_limited` excludes macOS; no list/restore API to reuse.
+        return Err(
+            "Recycle Bin listing is unavailable on macOS; open ~/.Trash in Finder instead"
+                .to_string(),
+        );
+    }
+
+    #[cfg(windows)]
+    {
+        let script = r#"
 $ErrorActionPreference = 'Stop'
 $shell = New-Object -ComObject Shell.Application
 $bin = $shell.NameSpace(10)
@@ -41,10 +60,12 @@ foreach ($item in $bin.Items()) {
 }
 $items | ConvertTo-Json -Compress -Depth 3
 "#;
-    let output = run_powershell(script)?;
-    parse_recycle_json(&output)
+        let output = run_powershell(script)?;
+        parse_recycle_json(&output)
+    }
 }
 
+#[cfg(any(windows, test))]
 fn parse_recycle_json(raw: &str) -> Result<Vec<RecycleBinItem>, String> {
     let trimmed = raw.trim();
     if trimmed.is_empty() || trimmed == "null" {
@@ -87,6 +108,7 @@ fn parse_recycle_json(raw: &str) -> Result<Vec<RecycleBinItem>, String> {
     Ok(out)
 }
 
+#[cfg(windows)]
 fn run_powershell(script: &str) -> Result<String, String> {
     let output = Command::new("powershell")
         .args(["-NoProfile", "-NonInteractive", "-Command", script])
@@ -101,26 +123,38 @@ fn run_powershell(script: &str) -> Result<String, String> {
 
 /// Restore Recycle Bin items whose original path matches any of `original_paths`.
 pub fn restore_original_paths(original_paths: &[String]) -> Result<Vec<String>, String> {
-    if original_paths.is_empty() {
-        return Ok(Vec::new());
+    #[cfg(not(windows))]
+    {
+        let _ = original_paths;
+        return Err(
+            "Recycle Bin restore is unavailable on macOS; use Finder's Trash instead".to_string(),
+        );
     }
-    let wanted: Vec<String> = original_paths.iter().map(|p| normalize_path(p)).collect();
-    let items = list_recycle_bin()?;
-    let mut restored = Vec::new();
-    for item in items {
-        let key = normalize_path(&item.original_path);
-        if !wanted.iter().any(|w| w == &key) {
-            continue;
+
+    #[cfg(windows)]
+    {
+        if original_paths.is_empty() {
+            return Ok(Vec::new());
         }
-        restore_recycle_item(&item.recycle_path)?;
-        restored.push(item.original_path);
+        let wanted: Vec<String> = original_paths.iter().map(|p| normalize_path(p)).collect();
+        let items = list_recycle_bin()?;
+        let mut restored = Vec::new();
+        for item in items {
+            let key = normalize_path(&item.original_path);
+            if !wanted.iter().any(|w| w == &key) {
+                continue;
+            }
+            restore_recycle_item(&item.recycle_path)?;
+            restored.push(item.original_path);
+        }
+        if restored.is_empty() {
+            return Err("No matching items found in Recycle Bin".to_string());
+        }
+        Ok(restored)
     }
-    if restored.is_empty() {
-        return Err("No matching items found in Recycle Bin".to_string());
-    }
-    Ok(restored)
 }
 
+#[cfg(windows)]
 fn restore_recycle_item(recycle_path: &str) -> Result<(), String> {
     let escaped = recycle_path.replace('\'', "''");
     let script = format!(

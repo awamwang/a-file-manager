@@ -76,7 +76,13 @@ impl Platform for MacosPlatform {
         caps.case_insensitive_paths = self.case_insensitive_paths();
         // Already available through existing cross-platform crates / plugins.
         caps.shell_icons = true; // file_icon_provider (NSWorkspace)
-        caps.trash_delete = true; // trash 5.2
+                                 // trash 5.2 moves items via Finder automation on macOS; it needs the
+                                 // app to hold Automation/Finder TCC permission (see research doc 7.5).
+        caps.trash_delete = true;
+        // trash::os_limited (list/restore/purge) is Windows + freedesktop only;
+        // macOS is explicitly excluded by the crate, so keep this off and let
+        // the UI offer `open_recycle_bin_system()` (`~/.Trash`) instead.
+        caps.trash_list_restore = false;
         caps.native_drag_out = true; // patches/drag AppKit implementation
         caps.system_tray = true; // Tauri TrayIconBuilder → NSStatusItem
                                  // Deliberately false until implemented: see docs/macos-port-research.md.
@@ -108,6 +114,7 @@ mod tests {
         let caps = MacosPlatform.capabilities();
         assert!(!caps.registry_autostart);
         assert!(!caps.os_shell_verb);
+        assert!(!caps.trash_list_restore);
         assert!(!caps.system_thumbnails);
         assert!(!caps.webview2_required);
         assert_eq!(caps.path_separator, "/");

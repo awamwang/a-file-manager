@@ -317,6 +317,8 @@
 
 **结构性缺口**：`PlatformCapabilities` 的 24 个字段目前是静态 bool（macOS 侧仅 4 项为 `true`），`Platform` trait 只有路径 / 比较 / home / 能力 4 个方法；图标、废纸篓、剪贴板、拖放、搜索仍散落在各自模块的 `#[cfg]` 里。5.6 承诺的「一层 trait 包住现成 crate」尚未排期，所以当前的能力协商只能用于 UI 显隐，还不能用来绑定或替换实现。
 
+> 表中 ⚠️ / ❌ 是复盘当时的状态；其中 3 项代码级浪费已在第二轮（7.7）回收，最新状态以 7.7 为准，社区插件与 `sysinfo` 等排期仍按 6.5 执行。
+
 ### 6.5 修正后的选型门禁与排期
 
 1. **门禁**：每处理一个 P1/P2 缺口，先在 6.4 矩阵标出 `复用 / 引入 / 自写 / 降级` 四选一，默认禁止直接自写；自写必须写明「哪个库不覆盖」的证据。
@@ -371,14 +373,14 @@
 | `cargo test --lib` | **279 passed / 17 failed / 1 ignored**（详见 7.5） |
 | `npm ci` + `npm run build` | ✅ 通过 |
 | 12 个受影响的静态契约脚本 | ✅ 全通过（`test:autostart` / `shell-icons` / `favorites-shell-verb` / `path-key` / `arch-optimize` / `deps-surface` / `fil30-skill-open-freeze` / `recycle-bin` / `context-menu` / `open-project-folder` / `navigator-nonblocking` / `no-console-flash`） |
-| `test:address-env` | ⚠️ 单独执行被沙箱 SIGTERM(137)、无输出；相关文件本次未改，属环境限制 |
+| `test:address-env` | ⚠️ 曾判为「沙箱 SIGTERM(137)」；7.7 复查确认根因是脚本内部派生的 `cargo test` 直连 crates.io 稀疏索引过慢，加临时镜像配置后 ✅ 通过（该 Rust 文件本轮未改） |
 | 编译警告 | 14 条，均为既有 Windows 代码在非 Windows 下的 unused import / dead_code，不阻塞 |
 
 **调研结论的实证更新**：第 2 节 P0-1 的「3 处编译阻塞」已由静态推断变为**实机确认并修复**；`tauri-plugin-frame`（含 `create_overlay_titlebar_with_height`）、`patches/drag` 的 AppKit 实现、`trash`、`file_icon_provider` 在 macOS 均编译通过，不需要额外 cfg 化。
 
 ⚠️ **能编译 ≠ 能启动、能跑**：尚未执行 `tauri dev` / 打包，窗口交通灯、WKWebView 实际渲染、图标缩略图、跨应用拖放、废纸篓权限等运行时行为未验证。
 
-### 7.5 剩余 17 个失败用例 = P1 功能缺口清单
+### 7.5 剩余 17 个失败用例 = P1 功能缺口清单（PoC 时的历史快照；第二轮后为 16 个，见 7.7）
 
 | 类别 | 数量 | 用例（模块） | 对应缺口 |
 |---|---|---|---|
@@ -398,6 +400,31 @@
 3. 消失败用例时优先复用现成实现：`directories::UserDirs` 处理 5 个特殊文件夹 / `%USERPROFILE%` 夹具、`sysinfo::Disks` 处理 3 个卷根判定、核实 `trash::os_limited` 后决定废纸篓权限用例走修复还是降级；7 个 Junction 用例确认无 crate 覆盖后用 Unix symlink。
 4. `tauri dev` 实机验证窗口/图标/路径/打开方式，再谈 CI 双平台矩阵与签名公证（P3）。
 5. 按 6.5 第 3–5 条推进 P2 插件复核、能力层从静态 bool 升级为适配器回报、以及 `tauri-specta` 的做/不做决策。
+
+### 7.7 第二轮：回收已查到的开源实现（提交 `405c3be` 之后）
+
+6.4 复盘指出的「已装却手写绕过」与「未核实的降级」逐项落地：
+
+| 6.4 的问题 | 本轮处理 | 结果 |
+|---|---|---|
+| `tauri-plugin-opener` 被手写 `open` / `xdg-open` 绕过 | `open_with/mod.rs` 两个非 Windows 分支改用 `tauri_plugin_opener::open_path(path, None::<&str>)`（2.7.2 提供的自由函数，无需 `AppHandle`；内部走 `open::that_detached` 并校验路径存在） | ✅ 删掉全部手写 `Command::new` 与 `cfg!(target_os)`；Windows 的 ShellExecute / explorer 与 FIL-30 契约未动 |
+| `directories` 只用了 `home_dir()` | `navigator/places.rs` 非 Windows 分支改用 `UserDirs` 的 `desktop_dir` / `document_dir` / `download_dir` / `picture_dir` / `audio_dir` / `video_dir`；新增 `paths::display_path` 作为统一显示路径入口（由 platform 层决定分隔符） | ✅ 消掉 7.5 的 `navigator::places::shell_places_libraries_come_from_user_folders` 失败 |
+| `trash::os_limited` 未核实 | 查 `trash-5.2.9/src/lib.rs:346-349`：`os_limited` 的 cfg 是 `windows` 或 `unix && !macos`，**macOS 被明确排除**，list / restore / purge 无现成实现 | ✅ 结论是降级而非接入：`file_ops/recycle.rs` 两个 pub fn 在非 Windows 返回明确错误、PowerShell 实现整体 `#[cfg(windows)]` 化；`platform/macos.rs` 显式 `trash_list_restore = false` 并加注释与单测断言 |
+
+顺带清理同一模块的两处无意义 OS 调用：`list_network_places()` 非 Windows 直接返回空（原先会 spawn `cmd /C net use` 再失败）；`list_drives()` 非 Windows 直接返回空（原先 26 次 `A:\`…`Z:\` stat 永远为空），并移除两个不再被非 Windows 引用的 stub。真实卷列表 / 磁盘空间仍按 6.5 留给 P1 的 `sysinfo::Disks`；**本轮未引入新依赖**，`Cargo.lock` 不变。
+
+**实机验证**（macOS 15.8.3 / rustc 1.100.0）：
+
+| 项目 | 结果 |
+|---|---|
+| `cargo check`（默认 `ai-addon`） | ✅ 通过；14 条警告与改动前一致，均为既有 Windows 代码在非 Windows 下的 unused / dead_code |
+| `cargo check --no-default-features`（Core） | ✅ 通过 |
+| `cargo test --lib` | **280 passed / 16 failed / 1 ignored**（上一轮 279 / 17）；新增通过的是 `shell_places_libraries_come_from_user_folders`，剩余 16 个仍是 7.5 的 P1 缺口，无回归 |
+| 静态契约脚本 | ✅ **19 个全通过**（12 个常规 + 5 个导航/发布契约 + `test:shell-places` / `test:address-env` 两个会派生 `cargo test` 的脚本）；后两者需临时镜像配置，见下方说明 |
+
+**验证环境的本机事实**：`check-shell-places.mjs` / `check-address-env.mjs` 内部 `spawnSync("cargo", ...)` 不会继承命令行的 `--config`，会直连 crates.io 稀疏索引（本机 ~56 KB/s）而长时间挂起；在项目根放一份临时 `.cargo/config.toml` 指向镜像即可跑通，验证后配置已删除。`CARGO_NET_OFFLINE=true` 不可用——它会让 `[patch.crates-io]` 的 `drag` 依赖解析失败；`CARGO_SOURCE_*` 环境变量对 `[source]` 表也不生效。
+
+⚠️ 仍未执行 `tauri dev` / 打包：`open_path` 在本机的实际 GUI 行为、`~/.Trash` 不存在时的错误提示、WKWebView 渲染与拖放都未做运行时验证。本轮改动尚未提交，与 `405c3be` 分开。
 
 ---
 
@@ -431,4 +458,5 @@
 - 调研阶段为三路并行只读排查（Rust 后端 / 前端 / 构建发布），逐文件核对 `cfg`、`windows::`、路径处理、快捷键、CI 与发版脚本；PoC 阶段按第 7 节修改了源码。
 - 第二轮（跨平台内核机制）与第三轮（开源供给）通过公开资料检索完成，**插件与 crate 的版本/维护状态需在实际引入前重新核实**。
 - 第 2 节 P0 的编译阻塞判断最初是静态推断，现已由 macOS 实机 `cargo check`（两种 feature）+ `cargo test --lib` + `npm run build` 验证，详见 7.4；**仍未执行 `tauri dev` / 打包 / 签名**，因此运行时行为（窗口、WKWebView、图标、拖放、权限）仍是推断。
-- 工作量是粗估，不含证书申请、Apple 审核/公证排队与前端大规模视觉重构；第 7 节 PoC 实际耗时约 1 小时（含工具链升级与依赖下载）。
+- 工作量是粗估，不含证书申请、Apple 审核/公证排队与前端大规模视觉重构；第 7 节 PoC 实际耗时约 1 小时（含工具链升级与依赖下载），7.7 的第二轮复用改造约半小时。
+- 第二轮（7.7）修正了一条环境结论：`test:address-env` 的挂起不是沙箱限制，而是脚本内部 `cargo test` 的网络路径问题（详见 7.7）；该脚本现已通过。

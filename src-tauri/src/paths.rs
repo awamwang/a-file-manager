@@ -12,6 +12,12 @@ pub fn normalize_path_for_comparison(path: &str) -> String {
     crate::platform::normalize_for_comparison(path)
 }
 
+/// Render a `Path` for the frontend using the host OS separator.
+/// Single entry point: both `navigator::list` and `navigator::places` use it.
+pub fn display_path(path: &std::path::Path) -> String {
+    to_native_fs_path(path.to_string_lossy().as_ref())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
