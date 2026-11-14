@@ -7,7 +7,9 @@
 
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Command;
+#[cfg(windows)]
+use std::process::Stdio;
 
 /// `CREATE_NO_WINDOW` — hide the console for helper/CLI child processes.
 #[cfg(windows)]
@@ -15,6 +17,7 @@ pub const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 /// Build a `Command` that will not flash a console window on Windows GUI builds.
 pub fn command(program: impl AsRef<OsStr>) -> Command {
+    #[cfg_attr(not(windows), allow(unused_mut))]
     let mut cmd = Command::new(program);
     #[cfg(windows)]
     {

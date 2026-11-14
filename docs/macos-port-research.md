@@ -374,7 +374,7 @@
 | `npm ci` + `npm run build` | ✅ 通过 |
 | 12 个受影响的静态契约脚本 | ✅ 全通过（`test:autostart` / `shell-icons` / `favorites-shell-verb` / `path-key` / `arch-optimize` / `deps-surface` / `fil30-skill-open-freeze` / `recycle-bin` / `context-menu` / `open-project-folder` / `navigator-nonblocking` / `no-console-flash`） |
 | `test:address-env` | ⚠️ 曾判为「沙箱 SIGTERM(137)」；7.7 复查确认根因是脚本内部派生的 `cargo test` 直连 crates.io 稀疏索引过慢，加临时镜像配置后 ✅ 通过（该 Rust 文件本轮未改） |
-| 编译警告 | 14 条，均为既有 Windows 代码在非 Windows 下的 unused import / dead_code，不阻塞 |
+| 编译警告 | ✅ 已清零（14 → 0）；原 14 条均为 Windows-only 代码在 macOS 下的 unused import / dead_code，第 6 轮用 `#[cfg(windows)]` / `#[allow(dead_code)]` 收口（见 7.11） |
 
 **调研结论的实证更新**：第 2 节 P0-1 的「3 处编译阻塞」已由静态推断变为**实机确认并修复**；`tauri-plugin-frame`（含 `create_overlay_titlebar_with_height`）、`patches/drag` 的 AppKit 实现、`trash`、`file_icon_provider` 在 macOS 均编译通过，不需要额外 cfg 化。
 
@@ -510,6 +510,23 @@
 | 历史残留 | 旧归一化在 `src-tauri/` 下产生的 11 个 `\var\folders\...` 怪目录 / 文件已移到 `/tmp/afm-test-leftovers/`（**只移不删**）；修复后测试不再产生 |
 
 **仍未解决（别误判为已完成）**：① macOS 上「删除到废纸篓」需要用户在系统设置里授予 Automation/Finder 权限，或改用不依赖 Finder 的 `~/.Trash` 移动实现；② `sysinfo::Disks` 对应的真实卷列表 / 磁盘空间（当前 `list_drives` 非 Windows 返回空、`disk_space` 非 Windows 返回 Err）；③ 7.6 第 4 步的 GUI 实机验证（WKWebView、交通灯、拖放、TCC 弹窗）。
+
+### 7.11 编译警告清零（14 → 0，第 6 轮）
+
+构建日志里的 14 条警告**全部是 Windows-only 代码在 macOS 构建下被 `#[cfg(windows)]` 剔除后产生的 unused import / dead_code**，与功能无关，正属于平台抽象应收口的部分。逐一定位并修复：
+
+| 文件 | 警告 | 修复 |
+|---|---|---|
+| `discovery/everything_ipc.rs` | `DiscoveryHit` 未用导入（仅被 `#[cfg(windows)] mod win` 使用） | `DiscoveryHit` 改 `#[cfg(windows)] use`，保留 `EverythingProbe`/`EverythingQueryResult` 跨平台 |
+| `preview_bridge/mod.rs` | `std::process::Command` 未用 | 导入改为 `#[cfg(windows)]`（`Command` 仅用于 Windows Peek 分支） |
+| `win_process.rs` | `Stdio` 未用 + `let mut cmd` 未变 | `Stdio` 改 `#[cfg(windows)] use`；`mut` 加 `#[cfg_attr(not(windows), allow(unused_mut))]` |
+| `file_ops/clipboard.rs` | `DROPEFFECT_*`、`encode/decode_hdrop`、`*_list`、`mode/effect_to_mode` 死代码 | HDROP 字节编解码与 mode↔effect 是**跨平台契约**（前端 IPC + 测试用），保留并加 `#[cfg_attr(not(test), allow(dead_code))`；`DROPEFFECT_*` 因被引用自然不再死代码 |
+| `navigator/attrs.rs` | `merge_attribute_bits` 死代码 | 纯位运算、被跨平台测试调用，加 `#[cfg_attr(not(test), allow(dead_code))]` |
+| `navigator/places.rs` | `DriveKind` 六个变体从不构造 | 枚举是**前端 specta 契约类型**（不能 gate，否则 macOS 丢失 TS 类型），加 `#[allow(dead_code)]` |
+
+**关键约束**：`DriveKind` 与 HDROP 编解码函数**不能**用 `#[cfg(windows)]` 整段剔除——前者是前端类型契约、后者是跨端 IPC 字节格式；只在 lib 非测试构建下静默 dead_code，测试构建仍全平台运行（含 `hdrop_roundtrip_preserves_paths`、`cut_effect_is_move`）。
+
+**验证**：`cargo check`（默认）0 警告 · `cargo check --no-default-features`（Core）0 警告 · `cargo test --lib` 296 passed / 0 failed / 1 ignored · `npm run build` ✅。
 
 ---
 

@@ -14,6 +14,9 @@ pub struct ShellClipboard {
     pub mode: Option<String>,
 }
 
+// Cross-platform HDROP byte contract (used by tests + Windows clipboard paths);
+// only dead in non-test lib builds on non-Windows targets.
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn encode_hdrop(paths: &[String]) -> Vec<u8> {
     let mut body = Vec::new();
     for path in paths {
@@ -38,6 +41,7 @@ pub fn encode_hdrop(paths: &[String]) -> Vec<u8> {
     out
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn decode_hdrop(bytes: &[u8]) -> Vec<String> {
     if bytes.len() < 20 {
         return Vec::new();
@@ -55,6 +59,7 @@ pub fn decode_hdrop(bytes: &[u8]) -> Vec<String> {
     }
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 fn decode_wide_list(payload: &[u8]) -> Vec<String> {
     let mut units = Vec::with_capacity(payload.len() / 2);
     let mut i = 0;
@@ -82,6 +87,7 @@ fn decode_wide_list(payload: &[u8]) -> Vec<String> {
     paths
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 fn decode_ansi_list(payload: &[u8]) -> Vec<String> {
     let mut paths = Vec::new();
     let mut start = 0;
@@ -102,6 +108,7 @@ fn decode_ansi_list(payload: &[u8]) -> Vec<String> {
     paths
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn mode_to_effect(mode: &str) -> u32 {
     if mode == "cut" {
         DROPEFFECT_MOVE
@@ -110,6 +117,7 @@ pub fn mode_to_effect(mode: &str) -> u32 {
     }
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn effect_to_mode(effect: u32) -> String {
     if effect & DROPEFFECT_MOVE != 0 && effect & DROPEFFECT_COPY == 0 {
         "cut".to_string()

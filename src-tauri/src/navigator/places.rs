@@ -5,6 +5,10 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 
 /// Logical drive kind from `GetDriveTypeW` (guide / This PC visuals).
+// Variants are constructed only on Windows (`list_drives`); the enum itself is a
+// cross-platform contract type consumed by the frontend, so it must stay present
+// on every target even when no variant is ever built there.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum DriveKind {

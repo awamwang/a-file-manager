@@ -88,6 +88,7 @@ pub fn set_attributes(path: &str, next: EntryAttributes) -> Result<EntryAttribut
 }
 
 /// Pure helper for tests: merge attribute flags without touching the filesystem.
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn merge_attribute_bits(current: u32, next: &EntryAttributes) -> u32 {
     let mut attrs = current;
     const READONLY: u32 = 0x1;

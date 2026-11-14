@@ -3,7 +3,9 @@
 //! Does **not** shell `es.exe`. Adapted for greenfield a-file-manager (S4).
 
 use super::backend::EverythingBackend;
-use super::types::{DiscoveryHit, EverythingProbe, EverythingQueryResult};
+use super::types::{EverythingProbe, EverythingQueryResult};
+#[cfg(windows)]
+use super::types::DiscoveryHit;
 
 #[cfg(windows)]
 mod win {
