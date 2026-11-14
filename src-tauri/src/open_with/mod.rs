@@ -118,17 +118,37 @@ mod windows_impl {
     };
     use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 
+    #[cfg(test)]
+    thread_local! {
+        /// 单元测试记录目录分支命中次数，验证分支时无需真的启动 Explorer。
+        pub(crate) static EXPLORER_OPEN_CALLS: std::cell::Cell<usize> = std::cell::Cell::new(0);
+    }
+
     pub fn open_folder_in_explorer(path: &str) -> OpenWithResult {
-        let absolute = path.replace('/', "\\");
-        match win_process::command("explorer.exe").arg(&absolute).spawn() {
-            Ok(_) => OpenWithResult {
+        // 单元测试只验证「目录走 explorer 分支」，不启动真实进程：否则每次
+        // cargo test 都会用 std::env::temp_dir() 弹出 %TEMP% 资源管理器窗口。
+        #[cfg(test)]
+        {
+            let _ = path;
+            EXPLORER_OPEN_CALLS.with(|calls| calls.set(calls.get() + 1));
+            return OpenWithResult {
                 success: true,
                 error: None,
-            },
-            Err(err) => OpenWithResult {
-                success: false,
-                error: Some(format!("Failed to open folder: {err}")),
-            },
+            };
+        }
+        #[cfg(not(test))]
+        {
+            let absolute = path.replace('/', "\\");
+            match win_process::command("explorer.exe").arg(&absolute).spawn() {
+                Ok(_) => OpenWithResult {
+                    success: true,
+                    error: None,
+                },
+                Err(err) => OpenWithResult {
+                    success: false,
+                    error: Some(format!("Failed to open folder: {err}")),
+                },
+            }
         }
     }
 
@@ -264,10 +284,17 @@ mod tests {
 
     #[cfg(windows)]
     #[test]
-    fn open_path_default_directory_uses_explorer_spawn() {
+    fn open_path_default_directory_uses_explorer_branch() {
+        use super::windows_impl::EXPLORER_OPEN_CALLS;
+        let before = EXPLORER_OPEN_CALLS.with(|calls| calls.get());
         let dir = std::env::temp_dir();
         let result = open_path_default_inner(dir.to_string_lossy().into_owned());
         assert!(result.success);
+        assert_eq!(
+            EXPLORER_OPEN_CALLS.with(|calls| calls.get()),
+            before + 1,
+            "directory must take the explorer branch without spawning a window",
+        );
     }
 
     #[test]
@@ -280,10 +307,19 @@ mod tests {
 
     #[test]
     fn directory_accepted_on_windows() {
+        #[cfg(windows)]
+        let before = super::windows_impl::EXPLORER_OPEN_CALLS.with(|calls| calls.get());
         let dir = std::env::temp_dir();
         let result = open_native_open_with_dialog(dir.to_string_lossy().into_owned());
         #[cfg(windows)]
-        assert!(result.success);
+        {
+            assert!(result.success);
+            assert_eq!(
+                super::windows_impl::EXPLORER_OPEN_CALLS.with(|calls| calls.get()),
+                before + 1,
+                "directory must take the explorer branch without spawning a window",
+            );
+        }
         #[cfg(not(windows))]
         assert!(!result.success);
     }
