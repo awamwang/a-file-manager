@@ -43,14 +43,8 @@ const VIDEO_THUMB_EXTS = new Set([
   "3g2",
 ]);
 
-/**
- * 超过该滚动速度（px/ms）视为甩动，挂起内容缩略图排队。
- * 4.0：普通滚轮单格（~100px/40ms ≈ 2.5px/ms）不再触发挂起，滚动中照常
- * 加载（对齐 Windows Explorer）；仅触摸板/拖滚动条的快速甩动才挂起，
- * 停稳 CONTENT_THUMB_SETTLE_MS 后重排整窗。旧值 1.25 会让常规滚动清空
- * 排队，只剩 in-flight 一批（约 1-2 行），表现为"只加载一两行"。
- */
-export const CONTENT_THUMB_FLING_PX_PER_MS = 4.0;
+/** 超过该滚动速度（px/ms）视为甩动，挂起内容缩略图排队。 */
+export const CONTENT_THUMB_FLING_PX_PER_MS = 1.25;
 /** 滚动停稳后再补内容缩略图的等待时间。 */
 export const CONTENT_THUMB_SETTLE_MS = 140;
 

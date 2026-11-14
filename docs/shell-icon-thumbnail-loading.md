@@ -64,9 +64,8 @@ NavigatorView
 | 条件 | 行为 |
 |------|------|
 | `viewportHeight ≤ 0` | 只请求快通道；不排队内容缩略图 |
-| 滚动速度 ≥ `CONTENT_THUMB_FLING_PX_PER_MS`（4 px/ms，真甩动） | 挂起：从队列摘掉未开始的 content-thumb 项；本轮只请求快通道 |
-| 普通滚轮/触摸板慢速滚动（< 4 px/ms） | **不挂起**：照常加载，对齐 Windows Explorer |
-| 滚动停稳（`CONTENT_THUMB_SETTLE_MS`=140ms） | 恢复：对当前窗完整请求（含内容缩略图） |
+| 滚动速度 ≥ 阈值（甩动） | 挂起：从队列摘掉未开始的 content-thumb 项；本轮只请求快通道 |
+| 滚动停稳（settle 定时） | 恢复：对当前窗完整请求（含内容缩略图） |
 | 路径离开请求窗 | `cancelShellIconRequests`（FIL-33） |
 | 换目录 / 换图标尺寸 | `clearShellIconQueue` |
 
@@ -82,26 +81,9 @@ NavigatorView
 | 不确定 | 策略 |
 |--------|------|
 | 条目数 | 永不按全量 listing 请求；只跟几何窗走 |
-| 行高/列数 | **动态实测优先**（见 5.1）；未测到才回退估算 |
+| 行高/列数 | 用当前视图估算行高与列数算窗；ResizeObserver 更新后重同步 |
 | 窗口大小 | `h≤0` 小兜底行数 + 仅快通道；量到高度后再上内容缩略图 |
-| 滚动 | 速度门控（阈值 4 px/ms，仅真甩动挂起）+ 停稳补齐；离开 cancel |
-
-### 5.1 动态几何发现（不预设一屏数目）
-
-请求窗与 DOM 虚拟窗的行↔索引换算必须与 CSS 实际布局一致，否则窗口会随滚动
-深度漂移，指向不可见条目（表现为「只加载一两行 / 加载区漂移 / 永远不满一屏」）。
-估算 `floor(width/列宽)` 与 `repeat(auto-fill, minmax(...))`（含 column-gap、
-padding、滚动条）存在系统性偏差，因此以实测为准：
-
-- **列数** `measureGridColumns`：优先读 listRoot 的 computed
-  `grid-template-columns`（Chromium 将 auto-fill 解析为真实像素轨道，天然含
-  gap/padding/滚动条）；不可用时回退统计首行同 `offsetTop` 的格子数。
-- **行高** `measureRowHeight`：实测首行 `offsetHeight`。
-- **测量时机**：`ResizeObserver` 回调（尺寸/列数变化）+ 每次 rAF 视口同步
-  （`refreshViewportIconRequests` 开头）+ 视图模式切换时先重置再测。
-- **回退**：实测为 0（首帧、样式未就绪）时用 `estimateListColumns` /
-  `resolveListRowHeightPx` 估算兜底，量到即切换。
-- 估算公式保留的意义从「主路径」降级为「首帧兜底」；契约脚本仍断言其存在。
+| 滚动 | 速度门控 + 停稳补齐；离开 cancel |
 
 ## 6. 明确不做
 
