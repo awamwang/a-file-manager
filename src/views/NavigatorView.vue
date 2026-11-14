@@ -100,7 +100,6 @@ import {
 } from "../state/navigatorSelection";
 import {
   arrowDirectionFromKey,
-  estimateIconColumns,
   moveSelectionByArrow,
 } from "../state/navigatorKeyboardNav";
 import {
@@ -352,6 +351,15 @@ const secondaryViewport = ref({ w: 0, h: 0 });
 /** 大目录窗口化：跟踪滚动位置以切片挂载行。 */
 const primaryScrollTop = ref(0);
 const secondaryScrollTop = ref(0);
+/**
+ * 实测网格几何（动态发现，不预设一屏数目）：
+ * columns = grid auto-fill 按容器宽度解析后的真实轨道数；rowHeight = 首行真实高度。
+ * 0 表示尚未测到，调用方回退估算（estimateListColumns / resolveListRowHeightPx）。
+ * 估算列数与 CSS auto-fill（含 column-gap/padding/滚动条）不一致时，行↔索引
+ * 换算会随滚动深度漂移，请求窗指向不可见条目——缩略图"只加载一两行"的直接根因。
+ */
+const primaryGridGeometry = ref({ columns: 0, rowHeight: 0 });
+const secondaryGridGeometry = ref({ columns: 0, rowHeight: 0 });
 let listSizeObserver: ResizeObserver | null = null;
 let secondarySizeObserver: ResizeObserver | null = null;
 const marquee = ref<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -676,6 +684,78 @@ const primaryVirtItems = computed((): ListVirtItem[] => {
 });
 
 /**
+ * 实测 grid 列数：优先读 computed `grid-template-columns`（auto-fill 已按
+ * 容器宽度解析为真实轨道数，天然含 gap/padding/滚动条影响）；样式不可用时
+ * 回退统计首行同 offsetTop 的格子数。非网格视图恒为 1。返回 0 表示未测到。
+ */
+function measureGridColumns(el: HTMLElement | null): number {
+  if (!el) return 0;
+  const mode = navigatorViewMode.value;
+  if (!mode.startsWith("icons") && mode !== "tiles") return 1;
+  try {
+    const tracks = getComputedStyle(el).gridTemplateColumns;
+    if (tracks && tracks !== "none") {
+      const count = tracks.trim().split(/\s+/).length;
+      if (count >= 1) return count;
+    }
+  } catch {
+    // 开发环境样式未就绪等场景：落到 DOM 探测。
+  }
+  const rows = el.querySelectorAll<HTMLElement>(".row--icon, .row--tile");
+  const first = rows[0];
+  if (!first) return 0;
+  const top = first.offsetTop;
+  let count = 0;
+  for (const row of rows) {
+    if (row.offsetTop !== top) break;
+    count += 1;
+  }
+  return count;
+}
+
+/** 实测当前视图首行高度（px）；未测到返回 0。 */
+function measureRowHeight(el: HTMLElement | null): number {
+  if (!el) return 0;
+  const mode = navigatorViewMode.value;
+  const selector =
+    mode.startsWith("icons") || mode === "tiles"
+      ? ".row--icon, .row--tile"
+      : ".fluent-list-row";
+  const row = el.querySelector<HTMLElement>(selector);
+  return row ? row.offsetHeight : 0;
+}
+
+/** 读取并写回实测几何；仅在数值变化时触发响应式更新。 */
+function measurePaneGeometry(
+  el: HTMLElement | null,
+  geom: typeof primaryGridGeometry,
+): void {
+  const columns = measureGridColumns(el);
+  const rowHeight = measureRowHeight(el);
+  const prev = geom.value;
+  if (prev.columns === columns && prev.rowHeight === rowHeight) return;
+  geom.value = { columns, rowHeight };
+}
+
+/** 列数：实测优先，未测到回退估算。 */
+function paneColumns(
+  containerWidth: number,
+  geom: { columns: number; rowHeight: number },
+): number {
+  if (geom.columns >= 1) return geom.columns;
+  return estimateListColumns(navigatorViewMode.value, containerWidth);
+}
+
+/** 行高：实测优先，未测到回退估算。 */
+function paneRowHeight(geom: { columns: number; rowHeight: number }): number {
+  if (geom.rowHeight > 0) return geom.rowHeight;
+  return resolveListRowHeightPx(
+    navigatorViewMode.value as PlaceholderViewMode,
+    isCompactListDensity(),
+  );
+}
+
+/**
  * FIL-58：图标/平铺重新窗口化。
  * 用容器 padding 承担前后偏移（见 gridVirtualPaddingStyle），避免 grid 内插
  * virt-spacer 把缩略图压成细条的老问题。
@@ -684,7 +764,7 @@ const primaryVirtual = computed((): ListVirtualWindow => {
   const items = primaryVirtItems.value;
   const mode = navigatorViewMode.value as PlaceholderViewMode;
   const viewportHeight = listViewportHeightPx(listViewport.value);
-  const rowHeight = resolveListRowHeightPx(mode, isCompactListDensity());
+  const rowHeight = paneRowHeight(primaryGridGeometry.value);
   const grouped = navigatorGroupByType.value;
   let win: ListVirtualWindow;
   if (grouped && !(mode.startsWith("icons") || mode === "tiles")) {
@@ -711,7 +791,7 @@ const primaryVirtual = computed((): ListVirtualWindow => {
       scrollTop: primaryScrollTop.value,
       viewportHeight,
       rowHeight,
-      columns: estimateListColumns(mode, listViewport.value.w),
+      columns: paneColumns(listViewport.value.w, primaryGridGeometry.value),
       mode,
     });
   }
@@ -726,8 +806,8 @@ const secondaryVirtual = computed((): ListVirtualWindow => {
     total,
     scrollTop: secondaryScrollTop.value,
     viewportHeight: listViewportHeightPx(secondaryViewport.value),
-    rowHeight: resolveListRowHeightPx(mode, isCompactListDensity()),
-    columns: estimateListColumns(mode, secondaryViewport.value.w),
+    rowHeight: paneRowHeight(secondaryGridGeometry.value),
+    columns: paneColumns(secondaryViewport.value.w, secondaryGridGeometry.value),
     mode,
   });
 });
@@ -874,14 +954,20 @@ function syncThumbRequestsForPane(
   scrollTop: number,
   viewport: { w: number; h: number },
   previousPaths: Set<string>,
+  geom: { columns: number; rowHeight: number },
 ): { paths: Set<string>; entries: { path: string; kind?: string }[] } {
   const mode = navigatorViewMode.value;
   const size = VIEW_ICON_SIZE[mode];
-  const columns = estimateListColumns(mode, viewport.w);
-  const rowHeight = resolveListRowHeightPx(
-    mode as PlaceholderViewMode,
-    isCompactListDensity(),
-  );
+  // 动态发现：实测列数/行高优先，未测到回退估算。
+  const columns = geom.columns >= 1
+    ? geom.columns
+    : estimateListColumns(mode, viewport.w);
+  const rowHeight = geom.rowHeight > 0
+    ? geom.rowHeight
+    : resolveListRowHeightPx(
+        mode as PlaceholderViewMode,
+        isCompactListDensity(),
+      );
   const win = computeThumbRequestWindow({
     total: entries.length,
     scrollTop,
@@ -903,17 +989,22 @@ function syncThumbRequestsForPane(
 }
 
 function refreshViewportIconRequests() {
+  // 每次同步前实测几何：滚动中若列数/行高因滚动条出现等变化，窗口立刻跟随。
+  measurePaneGeometry(listRoot.value, primaryGridGeometry);
+  measurePaneGeometry(secondaryListRoot.value, secondaryGridGeometry);
   const primary = syncThumbRequestsForPane(
     visibleEntries.value,
     primaryScrollTop.value,
     listViewport.value,
     primaryThumbPaths,
+    primaryGridGeometry.value,
   );
   const secondary = syncThumbRequestsForPane(
     secondaryEntries.value,
     secondaryScrollTop.value,
     secondaryViewport.value,
     secondaryThumbPaths,
+    secondaryGridGeometry.value,
   );
   primaryThumbPaths = primary.paths;
   secondaryThumbPaths = secondary.paths;
@@ -1066,6 +1157,9 @@ watch(navigatorViewMode, () => {
   // Size-keyed cache; drop prior-size queue so scroll does not wait on stale work.
   resetContentThumbScrollGate();
   clearShellIconQueue();
+  // 实测几何按视图模式而异：重置后首帧回退估算，下一帧 rAF 重新实测。
+  primaryGridGeometry.value = { columns: 0, rowHeight: 0 };
+  secondaryGridGeometry.value = { columns: 0, rowHeight: 0 };
 });
 
 function formatSize(entry: NavigatorEntry): string {
@@ -1242,23 +1336,27 @@ const secondaryPlaceholderIndices = computed(() =>
 function syncListViewport(
   el: HTMLElement | null,
   target: typeof listViewport,
+  geom: typeof primaryGridGeometry,
 ): void {
   if (!el) {
     target.value = { w: 0, h: 0 };
+    measurePaneGeometry(null, geom);
     return;
   }
   target.value = { w: el.clientWidth, h: el.clientHeight };
+  measurePaneGeometry(el, geom);
 }
 
 function bindListSizeObserver(
   el: HTMLElement | null,
   previous: ResizeObserver | null,
   target: typeof listViewport,
+  geom: typeof primaryGridGeometry,
 ): ResizeObserver | null {
   previous?.disconnect();
-  syncListViewport(el, target);
+  syncListViewport(el, target, geom);
   if (!el || typeof ResizeObserver === "undefined") return null;
-  const observer = new ResizeObserver(() => syncListViewport(el, target));
+  const observer = new ResizeObserver(() => syncListViewport(el, target, geom));
   observer.observe(el);
   return observer;
 }
@@ -1268,11 +1366,13 @@ watch([listRoot, secondaryListRoot], () => {
     listRoot.value,
     listSizeObserver,
     listViewport,
+    primaryGridGeometry,
   );
   secondarySizeObserver = bindListSizeObserver(
     secondaryListRoot.value,
     secondarySizeObserver,
     secondaryViewport,
+    secondaryGridGeometry,
   );
 });
 
@@ -1344,7 +1444,7 @@ function onListKeyDown(event: KeyboardEvent) {
   const direction = arrowDirectionFromKey(event.key);
   if (!direction) return;
   const columns = isIconView.value
-    ? estimateIconColumns(listRoot.value?.clientWidth ?? 0, navigatorViewMode.value)
+    ? paneColumns(listViewport.value.w, primaryGridGeometry.value)
     : 1;
   const moved = moveSelectionByArrow(
     orderedPaths.value,
