@@ -394,10 +394,16 @@ function cancelInlineRename() {
   renameDraft.value = "";
 }
 
+/**
+ * Brief focus loss (window switch / focus stolen) must not exit rename; refocus.
+ * Real exits: Enter commits / Esc cancels / pointerdown outside cancels.
+ */
 function onRenameBlur() {
-  // Defer so Enter-commit can clear `renaming` first in the same turn.
   queueMicrotask(() => {
-    if (renaming.value) cancelInlineRename();
+    if (!renaming.value) return;
+    const input = renameInputEl.value;
+    if (!input || window.document.activeElement === input) return;
+    input.focus({ preventScroll: true });
   });
 }
 
@@ -458,9 +464,16 @@ function cancelListRename() {
   listRenameDraft.value = "";
 }
 
+/**
+ * Brief focus loss (window switch / focus stolen) must not exit list rename; refocus.
+ * Real exits: Enter commits / Esc cancels / pointerdown outside cancels.
+ */
 function onListRenameBlur() {
   queueMicrotask(() => {
-    if (listRenamingId.value) cancelListRename();
+    if (!listRenamingId.value) return;
+    const input = listRenameInputEl.value;
+    if (!input || window.document.activeElement === input) return;
+    input.focus({ preventScroll: true });
   });
 }
 

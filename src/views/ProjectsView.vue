@@ -459,10 +459,16 @@ function cancelProjectInlineRename() {
   projectRenameDraft.value = "";
 }
 
+/**
+ * Brief focus loss (window switch / focus stolen) must not exit rename; refocus.
+ * Real exits: Enter commits / Esc cancels / pointerdown outside cancels.
+ */
 function onProjectRenameBlur() {
-  // Defer so Enter-commit can clear `renamingProject` first in the same turn.
   queueMicrotask(() => {
-    if (renamingProject.value) cancelProjectInlineRename();
+    if (!renamingProject.value) return;
+    const input = projectRenameInputEl.value;
+    if (!input || window.document.activeElement === input) return;
+    input.focus({ preventScroll: true });
   });
 }
 
@@ -529,9 +535,16 @@ function cancelListRename() {
   listRenameDraft.value = "";
 }
 
+/**
+ * Brief focus loss (window switch / focus stolen) must not exit list rename; refocus.
+ * Real exits: Enter commits / Esc cancels / pointerdown outside cancels.
+ */
 function onListRenameBlur() {
   queueMicrotask(() => {
-    if (listRenamingId.value) cancelListRename();
+    if (!listRenamingId.value) return;
+    const input = listRenameInputEl.value;
+    if (!input || window.document.activeElement === input) return;
+    input.focus({ preventScroll: true });
   });
 }
 

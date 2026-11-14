@@ -594,9 +594,45 @@ const panelCommands = computed(() => {
   });
 });
 
+/** 地址栏编辑期间监听框外 pointerdown；仅点击/快捷键结束，失焦不退出。 */
+let addressOutsideListening = false;
+
+function armAddressOutsideListener() {
+  if (addressOutsideListening) return;
+  addressOutsideListening = true;
+  window.addEventListener("pointerdown", onAddressOutsidePointerDown, true);
+}
+
+function disarmAddressOutsideListener() {
+  if (!addressOutsideListening) return;
+  addressOutsideListening = false;
+  window.removeEventListener("pointerdown", onAddressOutsidePointerDown, true);
+}
+
+function exitAddressEditing() {
+  disarmAddressOutsideListener();
+  addressEditing.value = false;
+  addressDraft.value = currentPath.value;
+}
+
+/**
+ * 地址栏：在输入框外按下才结束编辑（还原草稿）；Go 按钮交给表单提交；
+ * 鼠标移出或短暂失焦不结束。
+ */
+function onAddressOutsidePointerDown(event: PointerEvent) {
+  if (!addressEditing.value) return;
+  const target = event.target;
+  if (!(target instanceof Node)) return;
+  const input = document.getElementById("address-input");
+  const goButton = document.querySelector(".navigator-chrome .address-go");
+  if (input?.contains(target) || goButton?.contains(target)) return;
+  exitAddressEditing();
+}
+
 function focusAddressBar() {
   addressEditing.value = true;
   addressDraft.value = currentPath.value;
+  armAddressOutsideListener();
   requestAnimationFrame(() => {
     const input = document.getElementById("address-input");
     if (input instanceof HTMLInputElement) {
@@ -1016,6 +1052,7 @@ async function loadHealth() {
 }
 
 async function submitAddress() {
+  disarmAddressOutsideListener();
   addressEditing.value = false;
   if (route.path !== "/navigator") {
     await router.push("/navigator");
@@ -1031,13 +1068,19 @@ async function submitAddress() {
   await navigateTo(target);
 }
 
+/**
+ * 短暂失焦（窗口切换/焦点被抢走）不退出地址编辑；拉回焦点。
+ * 正式退出：Enter 提交 / Esc 取消 / 框外 pointerdown 还原。
+ */
 function onAddressBlur() {
-  // Defer so click on Go / breadcrumb can run first.
-  window.setTimeout(() => {
-    if (document.activeElement?.id === "address-input") return;
-    addressEditing.value = false;
-    addressDraft.value = currentPath.value;
-  }, 120);
+  queueMicrotask(() => {
+    if (!addressEditing.value) return;
+    const input = document.getElementById("address-input");
+    if (!(input instanceof HTMLInputElement) || document.activeElement === input) {
+      return;
+    }
+    input.focus({ preventScroll: true });
+  });
 }
 
 function onRefreshListing() {
@@ -1701,6 +1744,7 @@ onUnmounted(() => {
   window.removeEventListener("keydown", onGlobalKeydown);
   document.removeEventListener("pointerdown", onDocumentPointerDown, true);
   document.removeEventListener("visibilitychange", onVisibilityFlush);
+  disarmAddressOutsideListener();
   onSidenavResizeEnd();
   clearTabFileDropHover();
   clearPlacesFileDropHover();
@@ -2314,7 +2358,7 @@ onUnmounted(() => {
             autocomplete="off"
             :placeholder="t('chrome.pathPlaceholder')"
             @blur="onAddressBlur"
-            @keydown.escape.prevent="addressEditing = false"
+            @keydown.escape.prevent="exitAddressEditing"
           />
           <button type="submit" class="fluent-control address-go" :title="t('chrome.go')">
             {{ t("chrome.go") }}
