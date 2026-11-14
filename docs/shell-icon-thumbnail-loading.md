@@ -64,8 +64,8 @@ NavigatorView
 | 条件 | 行为 |
 |------|------|
 | `viewportHeight ≤ 0` | 只请求快通道；不排队内容缩略图 |
-| 滚动速度 ≥ `CONTENT_THUMB_FLING_PX_PER_MS`（4 px/ms，真甩动） | 挂起：从队列摘掉未开始的 content-thumb 项；本轮只请求快通道 |
-| 普通滚轮/触摸板慢速滚动（< 4 px/ms） | **不挂起**：照常加载，对齐 Windows Explorer |
+| 滚动速度 ≥ `CONTENT_THUMB_FLING_PX_PER_MS`（1.25 px/ms） | 挂起：从队列摘掉未开始的 content-thumb 项；本轮只请求快通道。**该阈值是内存安全阀**：调高会让常规滚动速度带内形成 IPC→解码分配洪峰，renderer 内存失控（2026-11-14 事故，详见 §7） |
+| 普通慢速滚动（< 1.25 px/ms） | 照常加载 |
 | 滚动停稳（`CONTENT_THUMB_SETTLE_MS`=140ms） | 恢复：对当前窗完整请求（含内容缩略图） |
 | 路径离开请求窗 | `cancelShellIconRequests`（FIL-33） |
 | 换目录 / 换图标尺寸 | `clearShellIconQueue` |
@@ -84,7 +84,7 @@ NavigatorView
 | 条目数 | 永不按全量 listing 请求；只跟几何窗走 |
 | 行高/列数 | **动态实测优先**（见 5.1）；未测到才回退估算 |
 | 窗口大小 | `h≤0` 小兜底行数 + 仅快通道；量到高度后再上内容缩略图 |
-| 滚动 | 速度门控（阈值 4 px/ms，仅真甩动挂起）+ 停稳补齐；离开 cancel |
+| 滚动 | 速度门控（阈值 1.25 px/ms，**内存安全阀不可调高**）+ 停稳补齐；离开 cancel |
 
 ### 5.1 动态几何发现（不预设一屏数目）
 
@@ -110,7 +110,16 @@ padding、滚动条）存在系统性偏差，因此以实测为准：
 - 批内并行 Shell COM（破坏 SageThumbs 等 handler）。
 - 内容缩略图与壳图标混用同一大 batch 且无 cancel 粒度。
 
-## 7. 验收标准
+## 7. 事故记录：fling 阈值调高导致内存失控（2026-11-14）
+
+- **改动**：`CONTENT_THUMB_FLING_PX_PER_MS` 1.25 → 4.0，意图"对齐 Explorer 滚动中加载"。
+- **结果**：1.25–4.0 px/ms 是滚轮/触摸板常规滚动速度带。阈值调高后，该速度带内每帧窗口推进的条目都真实走完 Rust COM 提取 → base64 过 IPC → `<img>` 解码全链路，形成每秒数十张的持续分配洪峰；GC 回收速度追不上分配速度，renderer 工作集以约 90MB/min 持续攀升，极端情况下瞬间吃满系统剩余内存（实测 9GB+）。回退到 1.25 后同一使用模式稳定在 ~570MB。
+- **教训**：
+  1. `CONTENT_THUMB_FLING_PX_PER_MS` 是内存安全阀而非体验参数——Explorer 走 OS 级缩略图缓存与独立进程，本应用在 renderer GC 堆内全链路解码，二者没有可比性。
+  2. 滚动中的缩略图体验应靠「停稳后整窗补齐 + 窗口几何对得准」保证，而不是放开速度门控。
+  3. 调整该阈值前必须先用 `mem-monitor` 采样脚本做 A/B 内存验证。
+
+## 8. 验收标准
 
 1. 进入含文件夹 + 视频的目录：文件夹图标先于视频缩略图稳定出现。
 2. 多屏目录：第一屏内容缩略图不晚于第二屏；无自下而上「扫描推进」感。
@@ -119,7 +128,7 @@ padding、滚动条）存在系统性偏差，因此以实测为准：
 5. 大目录滚动停止后，可见缩略图不回落成占位图，也不在占位/缩略图间反复震荡（FIL-68 视口固定）。
 6. 契约脚本：`scripts/check-shell-icons.mjs`、`check-shell-icon-queue.mjs`、`check-shell-icon-budget.mjs` 通过。
 
-## 8. 参考
+## 9. 参考
 
 - [Dropbox Carousel：滚动速度与两档缩略图](https://dropbox.tech/mobile/building-carousel-part-iii-drawing-images-on-screen)
 - [web.dev：首屏不要 lazy](https://web.dev/articles/browser-level-image-lazy-loading)

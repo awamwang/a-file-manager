@@ -45,12 +45,15 @@ const VIDEO_THUMB_EXTS = new Set([
 
 /**
  * 超过该滚动速度（px/ms）视为甩动，挂起内容缩略图排队。
- * 4.0：普通滚轮单格（~100px/40ms ≈ 2.5px/ms）不再触发挂起，滚动中照常
- * 加载（对齐 Windows Explorer）；仅触摸板/拖滚动条的快速甩动才挂起，
- * 停稳 CONTENT_THUMB_SETTLE_MS 后重排整窗。旧值 1.25 会让常规滚动清空
- * 排队，只剩 in-flight 一批（约 1-2 行），表现为"只加载一两行"。
+ * 1.25 是内存安全阀，不可调高（2026-11-14 事故：曾试 4.0 以"对齐
+ * Explorer 滚动中加载"，结果 1.25–4.0 的常规滚动速度带内每帧窗口推进
+ * 都真实走 IPC→base64→解码全链路，形成每秒数十张的分配洪峰，GC 追不上，
+ * renderer 瞬间吃满系统内存至 9GB+）。Explorer 走 OS 级缩略图缓存与独立
+ * 进程，本应用在 renderer GC 堆内全链路解码，二者不可比。
+ * 滚动中的体验由停稳 CONTENT_THUMB_SETTLE_MS 后整窗补齐保证；
+ * 窗口对得准（几何实测）比滚动中流式加载更重要。
  */
-export const CONTENT_THUMB_FLING_PX_PER_MS = 4.0;
+export const CONTENT_THUMB_FLING_PX_PER_MS = 1.25;
 /** 滚动停稳后再补内容缩略图的等待时间。 */
 export const CONTENT_THUMB_SETTLE_MS = 140;
 
