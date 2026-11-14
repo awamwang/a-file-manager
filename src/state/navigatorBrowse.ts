@@ -48,7 +48,12 @@ import { hydrateSettings } from "./settingsHydrate.ts";
 import { recordPathVisit } from "./visitStats.ts";
 import { clearNavigatorFilter } from "./navigatorFilter.ts";
 import { showHiddenItems } from "./showHidden/index.ts";
-import { forgetPinnedTabs, pinnedIdSet } from "./tabPins.ts";
+import {
+  commitPinnedPersistence,
+  forgetPinnedTabs,
+  hydratePersistedPins,
+  pinnedIdSet,
+} from "./tabPins.ts";
 import { clearSelection } from "./navigatorSelection.ts";
 import { normalizePathKey, toNativeFsPath } from "./pathKey.ts";
 import { perfSpan } from "./perfProbe.ts";
@@ -164,7 +169,11 @@ export function bootstrapNavigatorOpenState(): Promise<void> {
         const doc = await hydrateWorkGroups();
         activeWorkGroupId.value = doc.activeWorkGroupId;
         const active = doc.workGroups.find((g) => g.id === doc.activeWorkGroupId);
-        applyLiveOpenState(active?.openState ?? null);
+        // FIL-68：固定标签按路径持久化，冷启动合并进 strip（不写入各 WG 硬状态）。
+        const hydrated = hydratePersistedPins(
+          normalizeRestoredOpenState(active?.openState ?? null),
+        );
+        applyLiveOpenState(hydrated.state);
         const activeTab = activeStripTab(liveOpenState.value);
         if (activeTab?.path) {
           // Show restored path + loading skeleton; do not block bootstrap on listing.
@@ -826,6 +835,8 @@ export async function restoreWorkGroupOpenState(
   activeWorkGroupId.value = workGroupId;
   // Strip restores synchronously; directory listing must not block WG switch UI.
   applyLiveOpenState(merged);
+  // FIL-68：切换/新建工作组后同步固定标签快照（路径与 strip 位置）。
+  commitPinnedPersistence(liveOpenState.value);
   clearSelection();
   const active = activeStripTab(liveOpenState.value);
   if (active?.path) {

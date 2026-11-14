@@ -79,6 +79,23 @@ if (
   console.error("tabPins must enforce single-pin toggle (AIA-260)");
   process.exit(1);
 }
+// FIL-68：固定标签按路径持久化，冷启动 hydrate，并在 Open State 落盘时同步。
+if (
+  !pins.includes("afm.pinnedTabs.v1") ||
+  !pins.includes("hydratePersistedPins") ||
+  !pins.includes("commitPinnedPersistence") ||
+  !pins.includes("readPinnedSnapshots")
+) {
+  console.error("tabPins must persist pin snapshots across restart (FIL-68)");
+  process.exit(1);
+}
+if (
+  !browse.includes("hydratePersistedPins(") ||
+  !session.includes("commitPinnedPersistence(liveOpenState.value)")
+) {
+  console.error("bootstrap/persist must hydrate and commit pinned tab snapshots");
+  process.exit(1);
+}
 if (!model.includes("collapsePinnedIds") || !browse.includes("pinnedIdSet(")) {
   console.error("OpenState pin merge/persist must collapse to a single pin id");
   process.exit(1);

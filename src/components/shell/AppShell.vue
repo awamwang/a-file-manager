@@ -148,7 +148,11 @@ import {
   setSidenavWidth,
   sidenavWidth,
 } from "../../state/sidenavWidth";
-import { isTabPinned, togglePinnedTab } from "../../state/tabPins";
+import {
+  commitPinnedPersistence,
+  isTabPinned,
+  togglePinnedTab,
+} from "../../state/tabPins";
 import { workGroupDisplayName } from "../../state/workGroup";
 import { scheduleAfterPaint, scheduleIdle } from "../../state/scheduleIdle";
 import { startupMark } from "../../state/startupTiming";
@@ -1555,6 +1559,8 @@ async function onTabClick(groupIndex: number) {
 
 function onToggleTabPin(tabId: string) {
   togglePinnedTab(tabId);
+  // FIL-68：固定身份按路径写入 localStorage，重启后可恢复并带入新工作组。
+  commitPinnedPersistence(liveOpenState.value);
 }
 
 const tabContextGroupIndex = ref<number | null>(null);

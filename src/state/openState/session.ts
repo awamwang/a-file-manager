@@ -11,7 +11,7 @@ import {
   stripTabsFromOpenState,
   type WorkGroupOpenState,
 } from "./model.ts";
-import { pinnedIdSet } from "../tabPins.ts";
+import { commitPinnedPersistence, pinnedIdSet } from "../tabPins.ts";
 
 export type UserWorkGroupsDoc = {
   workGroups: Array<{
@@ -63,6 +63,8 @@ export function cancelOpenStatePersist(): void {
 export async function persistOpenStateNow(): Promise<void> {
   if (!activeWorkGroupId.value) return;
   try {
+    // FIL-68：固定身份按路径另存；WG openState 仍剥离 pin（AIA-245）。
+    commitPinnedPersistence(liveOpenState.value);
     // AIA-245: never persist session pins onto the active WG (same strip as silent switch).
     await invoke<UserWorkGroupsDoc>("work_groups_save_open_state", {
       workGroupId: activeWorkGroupId.value,

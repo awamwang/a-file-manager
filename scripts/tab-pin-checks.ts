@@ -13,13 +13,35 @@ import {
   type WorkGroupOpenStateTab,
 } from "../src/state/openState/model.ts";
 import {
+  commitPinnedPersistence,
   ensureSinglePinnedTab,
+  hydratePersistedPins,
   isTabPinned,
   pickSinglePinnedId,
   pinnedTabIds,
+  readPinnedSnapshots,
   togglePinnedTab,
+  writePinnedSnapshots,
 } from "../src/state/tabPins.ts";
 import { workGroupDisplayName } from "../src/state/workGroup/name.ts";
+
+const memoryStore = new Map<string, string>();
+const localStorageStub = {
+  getItem(key: string) {
+    return memoryStore.has(key) ? memoryStore.get(key)! : null;
+  },
+  setItem(key: string, value: string) {
+    memoryStore.set(key, String(value));
+  },
+  removeItem(key: string) {
+    memoryStore.delete(key);
+  },
+};
+Object.defineProperty(globalThis, "localStorage", {
+  value: localStorageStub,
+  configurable: true,
+});
+memoryStore.clear();
 
 function tab(id: string, path: string): WorkGroupOpenStateTab {
   return { id, name: id, path, type: "directory" };
@@ -237,5 +259,54 @@ const ipcPayload = JSON.parse(JSON.stringify(leavingAfterActivePin));
 assert.equal(typeof ipcPayload.currentTabGroupIndex, "number");
 assert.ok(ipcPayload.currentTabGroupIndex >= 0);
 assert.notEqual(ipcPayload.currentTabGroupIndex, null);
+
+// FIL-68：固定标签按路径持久化，冷启动可恢复并带入空工作组 strip。
+memoryStore.clear();
+pinnedTabIds.value = [];
+writePinnedSnapshots([]);
+assert.deepEqual(readPinnedSnapshots(), []);
+
+const persistLive = state(
+  [
+    [tab("keep", "C:\\Temp\\afm-fixture\\keep")],
+    [tab("pin", "C:\\Temp\\afm-fixture\\pinned")],
+  ],
+  0,
+);
+pinnedTabIds.value = ["pin"];
+commitPinnedPersistence(persistLive);
+assert.deepEqual(readPinnedSnapshots(), [
+  {
+    path: "C:\\Temp\\afm-fixture\\pinned",
+    type: "directory",
+    name: "pin",
+    stripIndex: 1,
+  },
+]);
+
+pinnedTabIds.value = [];
+const coldRestored = state(
+  [[tab("wg", "D:\\Temp\\afm-fixture\\wg-only")]],
+  0,
+);
+const hydrated = hydratePersistedPins(coldRestored);
+assert.deepEqual(
+  hydrated.state.tabGroups.map((group) => group[0]?.path),
+  ["D:\\Temp\\afm-fixture\\wg-only", "C:\\Temp\\afm-fixture\\pinned"],
+);
+assert.equal(hydrated.state.currentTabGroupIndex, 0);
+assert.equal(hydrated.pinnedIds.length, 1);
+assert.equal(isTabPinned(hydrated.pinnedIds[0]!), true);
+
+const emptyHydrated = hydratePersistedPins(createEmptyOpenState());
+assert.equal(emptyHydrated.state.tabGroups.length, 1);
+assert.equal(
+  emptyHydrated.state.tabGroups[0]?.[0]?.path,
+  "C:\\Temp\\afm-fixture\\pinned",
+);
+assert.equal(isTabPinned(emptyHydrated.pinnedIds[0]!), true);
+
+togglePinnedTab(emptyHydrated.pinnedIds[0]!);
+assert.deepEqual(readPinnedSnapshots(), []);
 
 console.log("tab-pin checks OK.");
