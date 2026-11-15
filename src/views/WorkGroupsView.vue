@@ -10,7 +10,6 @@ import {
   closeAllNavigatorTabs,
   hydrateWorkGroups,
   liveOpenState,
-  openMembersIntoOpenState,
   openOrFocusNavigatorTab,
   rememberHydratedWorkGroups,
   restoreWorkGroupOpenState,
@@ -576,20 +575,6 @@ async function deleteActiveGroup() {
   await deleteGroup(active.value);
 }
 
-async function openMembersIntoRuntime() {
-  if (!active.value?.memberPaths.length) {
-    toastInfo(t("workGroups.openMembersEmpty"));
-    return;
-  }
-  const opened = await openMembersIntoOpenState(active.value.memberPaths);
-  if (opened.length) {
-    toastSuccess(t("workGroups.openMembersDone", { count: opened.length }));
-    await router.push("/navigator");
-  } else {
-    toastInfo(t("workGroups.openMembersNone"));
-  }
-}
-
 /** 关闭运行时：把当前实时 Open State（标签条）整体关闭，并同步落盘。 */
 async function closeRuntimeOpenState() {
   if (!liveTabs.value.length) return;
@@ -875,10 +860,9 @@ onUnmounted(() => {
           <button
             class="fluent-control fluent-control--accent"
             type="button"
-            :disabled="!active.memberPaths.length"
-            @click="openMembersIntoRuntime"
+            @click="saveMembersFromTabs"
           >
-            {{ t("workGroups.openMembersIntoOpenState") }}
+            {{ t("workGroups.tabsToMembersConfig") }}
           </button>
           <button
             class="fluent-control"
@@ -887,9 +871,6 @@ onUnmounted(() => {
             @click="closeRuntimeOpenState"
           >
             {{ t("workGroups.closeRuntimeOpenState") }}
-          </button>
-          <button class="fluent-control" type="button" @click="saveMembersFromTabs">
-            {{ t("workGroups.saveMembersFromTabs") }}
           </button>
           <button
             v-if="!active.isDefault"

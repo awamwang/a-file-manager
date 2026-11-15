@@ -161,19 +161,21 @@ const wg = readFileSync(join(root, "src/views/WorkGroupsView.vue"), "utf8");
 if (
   !wg.includes("restoreWorkGroupOpenState") ||
   !wg.includes("snapshotLiveOpenState") ||
-  !wg.includes("openMembersIntoOpenState") ||
-  !wg.includes("openMembersIntoRuntime")
+  !wg.includes("work_groups_save_members_from_open_state") ||
+  !wg.includes("tabsToMembersConfig")
 ) {
-  console.error("WorkGroupsView not wired to shared Open State / open-members");
+  console.error("WorkGroupsView not wired to shared Open State / tab-to-members save");
   process.exit(1);
 }
 
 const projects = readFileSync(join(root, "src/views/ProjectsView.vue"), "utf8");
 if (
-  !projects.includes("openMembersIntoOpenState") ||
-  !projects.includes("openBoundMembersIntoRuntime")
+  !projects.includes("syncMembersFromWorkGroup") ||
+  !projects.includes("createProjectFromWorkGroup") ||
+  !projects.includes('@change="bindSelectedWorkGroup"') ||
+  !projects.includes("sidePanelOpen")
 ) {
-  console.error("ProjectsView missing open-members into Open State");
+  console.error("ProjectsView missing WG sync / create / instant bind / side panel");
   process.exit(1);
 }
 
