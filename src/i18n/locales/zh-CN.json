@@ -190,7 +190,8 @@
       "openProjects": "打开项目页",
       "workGroupsUnavailable": "工作组源暂不可用",
       "toolsUnavailable": "工具源暂不可用",
-      "openToolRuntime": "打开工具运行时"
+      "openToolRuntime": "打开工具运行时",
+      "extensionsUnavailable": "扩展源暂不可用"
     }
   },
   "ai": {

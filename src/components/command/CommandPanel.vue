@@ -38,6 +38,7 @@ const { t } = useI18n();
 const sources = buildSearchSources({
   router,
   commands: () => props.commands,
+  t: (key) => t(key),
 });
 
 const {

@@ -145,7 +145,8 @@
       "openProjects": "Projekte öffnen",
       "workGroupsUnavailable": "Arbeitsgruppenquelle nicht verfügbar",
       "toolsUnavailable": "Werkzeugquelle nicht verfügbar",
-      "openToolRuntime": "Tool-Laufzeit öffnen"
+      "openToolRuntime": "Tool-Laufzeit öffnen",
+      "extensionsUnavailable": "Erweiterungsquelle nicht verfügbar"
     }
   },
   "ai": {

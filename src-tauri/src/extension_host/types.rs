@@ -186,6 +186,21 @@ pub struct SidecarContribution {
     pub working_dir_rel: Option<String>,
 }
 
+/// 搜索面板静态条目贡献项；聚合时宿主写入 `packId` / `packName`（清单内声明无效）。
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchEntryContribution {
+    pub id: String,
+    pub label_key: String,
+    #[serde(default)]
+    pub keywords: Vec<String>,
+    pub route: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pack_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pack_name: Option<String>,
+}
+
 /// Feature Pack 贡献聚合。
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -198,6 +213,8 @@ pub struct FeaturePackContributions {
     pub commands: Vec<CommandContribution>,
     #[serde(default)]
     pub sidecars: Vec<SidecarContribution>,
+    #[serde(default)]
+    pub search: Vec<SearchEntryContribution>,
 }
 
 /// Feature Pack 安装清单（`apiVersion` 为 `feature-pack.1`）。
@@ -243,6 +260,8 @@ pub struct AggregatedContributions {
     pub commands: Vec<CommandContribution>,
     #[serde(default)]
     pub sidecars: Vec<SidecarContribution>,
+    #[serde(default)]
+    pub search: Vec<SearchEntryContribution>,
 }
 
 /// Feature Pack 安装结果（与扩展 `InstallResult` 分离，避免依赖 `InstalledExtensionRecord`）。
@@ -297,6 +316,14 @@ mod tests {
                         "args": ["server.js"],
                         "workingDirRel": "sidecar"
                     }
+                ],
+                "search": [
+                    {
+                        "id": "open-demo",
+                        "labelKey": "demo.openEntry",
+                        "keywords": ["demo", "entry"],
+                        "route": "/tools"
+                    }
                 ]
             },
             "gatewayCompat": {
@@ -318,6 +345,12 @@ mod tests {
             parsed.contributions.sidecars[0].working_dir_rel.as_deref(),
             Some("sidecar")
         );
+        assert_eq!(
+            parsed.contributions.search[0].label_key,
+            "demo.openEntry"
+        );
+        assert_eq!(parsed.contributions.search[0].keywords.len(), 2);
+        assert_eq!(parsed.contributions.search[0].pack_id, None);
         assert_eq!(
             parsed.gateway_compat.as_ref().map(|g| g.min_version.as_str()),
             Some("0.9.0")

@@ -145,7 +145,8 @@
       "openProjects": "Ouvrir les Projets",
       "workGroupsUnavailable": "Source Groupes de travail indisponible",
       "toolsUnavailable": "Source Outils indisponible",
-      "openToolRuntime": "Ouvrir le runtime d’outils"
+      "openToolRuntime": "Ouvrir le runtime d’outils",
+      "extensionsUnavailable": "Source Extensions indisponible"
     }
   },
   "ai": {

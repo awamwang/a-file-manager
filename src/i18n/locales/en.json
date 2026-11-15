@@ -190,7 +190,8 @@
       "openProjects": "Open Projects",
       "workGroupsUnavailable": "Work Groups unavailable",
       "toolsUnavailable": "Tools unavailable",
-      "openToolRuntime": "Open Tool Runtime"
+      "openToolRuntime": "Open Tool Runtime",
+      "extensionsUnavailable": "Extensions unavailable"
     }
   },
   "ai": {

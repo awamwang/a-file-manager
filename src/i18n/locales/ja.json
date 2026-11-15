@@ -145,7 +145,8 @@
       "openProjects": "プロジェクトを開く",
       "workGroupsUnavailable": "ワークグループソースは利用できません",
       "toolsUnavailable": "ツールソースは利用できません",
-      "openToolRuntime": "ツールランタイムを開く"
+      "openToolRuntime": "ツールランタイムを開く",
+      "extensionsUnavailable": "拡張機能ソースは利用できません"
     }
   },
   "ai": {
