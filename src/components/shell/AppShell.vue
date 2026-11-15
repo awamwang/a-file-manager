@@ -101,6 +101,7 @@ import {
   DEFAULT_WINDOW_MIN_HEIGHT_PX,
   dualPaneEnabled,
   navigateSecondary,
+  openInSecondPane,
   secondaryPath,
   toggleDualPane,
   windowMinWidthForDualPane,
@@ -1587,7 +1588,8 @@ const tabContextCanCloseRight = computed(() => {
   return idx != null && idx < stripTabs.value.length - 1;
 });
 
-const tabContextCanDuplicate = computed(() => {
+/** 「复制标签」与「在第二窗口打开」都需要目标标签有真实路径（FIL-74）。 */
+const tabContextHasPath = computed(() => {
   const idx = tabContextGroupIndex.value;
   if (idx == null) return false;
   const tab = stripTabs.value.find((item) => item.groupIndex === idx);
@@ -1606,7 +1608,8 @@ function onTabContextMenu(event: MouseEvent, groupIndex: number) {
   if (!Number.isInteger(groupIndex) || groupIndex < 0) return;
   tabContextGroupIndex.value = groupIndex;
   const menuWidth = Math.min(220, window.innerWidth * 0.7);
-  const menuHeight = 220;
+  // 6 项（复制 / 在第二窗口打开 / 关闭 ×4）留出完整的点击高度。
+  const menuHeight = 260;
   let left = event.clientX;
   if (left + menuWidth > window.innerWidth - 8) {
     left = Math.max(8, window.innerWidth - menuWidth - 8);
@@ -1633,6 +1636,19 @@ async function onDuplicateTabFromContext() {
   if (!path) return;
   await ensureNavigatorRoute();
   await newNavigatorTab(path);
+}
+
+/** FIL-74: 标签右键 → 在第二窗口（双栏副栏）打开该标签的目录。 */
+async function onOpenTabInSecondPane() {
+  const idx = tabContextGroupIndex.value;
+  const path =
+    idx != null
+      ? stripTabs.value.find((item) => item.groupIndex === idx)?.path?.trim()
+      : "";
+  closeTabContextMenu();
+  if (!path) return;
+  await ensureNavigatorRoute();
+  await openInSecondPane(path);
 }
 
 async function onCloseTabFromContext() {
@@ -2481,10 +2497,19 @@ onUnmounted(() => {
               type="button"
               class="tab-context-item"
               role="menuitem"
-              :disabled="!tabContextCanDuplicate"
+              :disabled="!tabContextHasPath"
               @click="onDuplicateTabFromContext"
             >
               {{ t("chrome.duplicateTab") }}
+            </button>
+            <button
+              type="button"
+              class="tab-context-item"
+              role="menuitem"
+              :disabled="!tabContextHasPath"
+              @click="onOpenTabInSecondPane"
+            >
+              {{ t("chrome.openInSecondPane") }}
             </button>
             <button
               type="button"

@@ -7,6 +7,7 @@ import type { NavigatorEntry } from "../../state/navigatorBrowse.ts";
 export type ContextMenuActionId =
   | "open"
   | "openInNewTab"
+  | "openInSecondPane"
   | "openWithNative"
   | "openWithSystemDefault"
   | "openWithIde"
@@ -196,6 +197,19 @@ export function buildContextMenuItems(
     });
   }
 
+  // FIL-74: 目录专属「在第二窗口打开」。双栏未开则开启并导航副栏；
+  // 已开则只替换副栏路径。文件、空白区、回收站菜单都不出现。
+  const secondPaneItems: ContextMenuItemDef[] = isDir
+    ? [
+        {
+          id: "openInSecondPane",
+          labelKey: "contextMenu.openInSecondPane",
+          enabled: true,
+          icon: "dualPane",
+        },
+      ]
+    : [];
+
   return [
     {
       id: "openWith",
@@ -204,6 +218,7 @@ export function buildContextMenuItems(
       icon: "view",
       children: openWithChildren,
     },
+    ...secondPaneItems,
     {
       id: "openInTerminal",
       labelKey: "contextMenu.openInTerminal",
@@ -391,5 +406,10 @@ function isZipEntry(entry: NavigatorEntry): boolean {
 
 /** True when Open in new tab should run (directory selection only). */
 export function canOpenInNewTab(entry: NavigatorEntry | null): boolean {
+  return entry?.kind === "dir";
+}
+
+/** FIL-74: 「在第二窗口打开」也只对目录可用。 */
+export function canOpenInSecondPane(entry: NavigatorEntry | null): boolean {
   return entry?.kind === "dir";
 }

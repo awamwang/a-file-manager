@@ -57,3 +57,19 @@ export async function navigateActivePane(path: string): Promise<void> {
     await navigateTo(path);
   }
 }
+
+/**
+ * 右键「在第二窗口打开」（FIL-74）：把指定目录送进副栏。
+ *
+ * - 非双栏状态：先置 `dualPaneEnabled = true` 打开双栏（AppShell 的
+ *   `watch(dualPaneEnabled)` 会同步抬高 OS 窗口最小宽度），再导航副栏。
+ * - 已是双栏状态：只替换副栏路径，主栏路径 / 标签页 / 导航历史都不动。
+ *
+ * 与 `toggleDualPane()` 的区别：这里永远只开不关，不会误把已开的双栏关掉。
+ */
+export async function openInSecondPane(path: string): Promise<void> {
+  const target = path.trim();
+  if (!target) return;
+  dualPaneEnabled.value = true;
+  await navigateSecondary(target);
+}

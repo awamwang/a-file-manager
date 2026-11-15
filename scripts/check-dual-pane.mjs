@@ -15,6 +15,10 @@ const tauri = JSON.parse(readFileSync(join(root, "src-tauri/tauri.conf.json"), "
 
 assert.ok(state.includes("toggleDualPane"));
 assert.ok(state.includes("navigateSecondary"));
+assert.ok(
+  state.includes("openInSecondPane"),
+  "FIL-74: shared open-in-second-pane helper",
+);
 assert.ok(state.includes('from "./layout.ts"'), "re-exports layout clamp helpers");
 assert.ok(layout.includes("DUAL_PANE_MIN_PANE_PX = 240"));
 assert.ok(layout.includes("DUAL_PANE_WINDOW_MIN_WIDTH_PX"));

@@ -20,7 +20,7 @@ import {
   snapshotLiveOpenState,
 } from "../../state/navigatorBrowse";
 import { afterFileMutation } from "../../state/fileMutation";
-import { dualPaneEnabled } from "../../state/dualPane";
+import { dualPaneEnabled, openInSecondPane } from "../../state/dualPane";
 import { workGroupDisplayName } from "../../state/workGroup";
 import type { WorkGroupOpenState } from "../../state/openState";
 import {
@@ -65,6 +65,7 @@ import {
   buildContextMenuItems,
   buildContextToolbarItems,
   canOpenInNewTab,
+  canOpenInSecondPane,
 } from "./contextMenuModel";
 import {
   beginShellMenuGuard,
@@ -703,6 +704,12 @@ async function run(id: string) {
       // Always append a new page group (even if path already has a tab).
       if (entry && canOpenInNewTab(entry)) {
         await newNavigatorTab(entry.path);
+      }
+      break;
+    case "openInSecondPane":
+      // FIL-74: 双栏未开则开启，已开则只替换副栏路径。
+      if (entry && canOpenInSecondPane(entry)) {
+        await openInSecondPane(entry.path);
       }
       break;
     case "openWithSystemDefault":
