@@ -148,6 +148,12 @@ export type AiProjectDocument = {
   updatedAt: number;
 };
 
+/** 项目内已写入的托管 MCP / Skill（只读扫描结果）。 */
+export type AiProjectDeployments = {
+  mcpIds: string[];
+  skillNames: string[];
+};
+
 export type HarvestMcpCandidate = {
   id: string;
   displayName: string;

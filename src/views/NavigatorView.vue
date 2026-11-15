@@ -32,6 +32,7 @@ import {
   afterFileMutation,
   afterUndoMutation,
 } from "../state/fileMutation";
+import { revealItemsInNavigator } from "../state/revealInNavigator";
 import {
   dirEntryFromPath,
   folderContextMenuRequest,
@@ -169,9 +170,11 @@ import {
   armOutboundPathsForPress,
   clearOutboundPathsForPress,
   commitFolderDrop,
+  hideDropHint,
   noticeKeyForDropMode,
-  previewDropMode,
   previewSourcePaths,
+  resolveFolderDrop,
+  showDropHint,
   startNativeFileDragOut,
 } from "../state/dnd";
 import { isMacPlatform } from "../config/platform.ts";
@@ -1609,13 +1612,14 @@ async function shortcutPaste() {
     }
     if (wasCut) {
       recordMoveUndo(sources, result.paths);
-      onNotice(t("contextMenu.pasted", { count: result.paths.length }));
       await refreshListing({ invalidateEntryPaths: sources });
     } else {
       recordCopyUndo(result.paths);
-      onNotice(t("contextMenu.pasted", { count: result.paths.length }));
       await refreshListing();
     }
+    onNotice(t("contextMenu.pasted", { count: result.paths.length }));
+    // Explorer 式反馈：粘贴完成后选中新粘贴的条目并滚动到可见。
+    await revealItemsInNavigator(result.paths);
   } catch (err) {
     onNotice(err instanceof Error ? err.message : String(err));
   }
@@ -1974,11 +1978,15 @@ function onDragOver(event: DragEvent, entry: NavigatorEntry) {
   if (entry.kind !== "dir") return;
   if (isProviderPath(entry.path) || isProviderPath(currentPath.value)) return;
   const mode = acceptFolderDragOver(event, entry.path, { rejectIfSelected: true });
-  if (mode == null) return;
+  if (mode == null) {
+    if (dragOverPath.value === entry.path) dragOverPath.value = null;
+    return;
+  }
   dragOverPath.value = entry.path;
 }
 
 function onDragLeave(entry: NavigatorEntry) {
+  hideDropHint(entry.path);
   if (dragOverPath.value === entry.path) {
     dragOverPath.value = null;
   }
@@ -1988,10 +1996,20 @@ function onListDragOver(event: DragEvent, destPath: string | null | undefined) {
   if (!destPath || isGuidePath(destPath) || isRecyclePath(destPath) || isProviderPath(destPath)) {
     return;
   }
+  const { blocked, mode } = resolveFolderDrop(event, destPath, previewSourcePaths(event));
+  const label = destPath.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || destPath;
+  if (blocked) {
+    // 源已在此目录：不 preventDefault、不提示、不高亮，浏览器也不会派发 drop。
+    event.stopPropagation();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "none";
+    hideDropHint(destPath);
+    if (dragOverPath.value === destPath) dragOverPath.value = null;
+    return;
+  }
   // Row handlers stopPropagation when targeting a folder; background accepts drops.
   event.preventDefault();
-  const mode = previewDropMode(event, destPath, previewSourcePaths(event));
   if (event.dataTransfer) event.dataTransfer.dropEffect = mode;
+  showDropHint(event, mode, label, destPath);
   if (!dragOverPath.value) dragOverPath.value = destPath;
 }
 
@@ -2000,6 +2018,7 @@ function onListDragLeave(event: DragEvent, destPath: string | null | undefined) 
   const related = event.relatedTarget as Node | null;
   const root = event.currentTarget as HTMLElement | null;
   if (root && related && root.contains(related)) return;
+  hideDropHint(destPath);
   if (dragOverPath.value === destPath) dragOverPath.value = null;
 }
 

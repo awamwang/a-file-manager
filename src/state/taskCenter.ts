@@ -27,6 +27,8 @@ export type LongTask = {
   endedAt: number | null;
   error: string | null;
   resultCount: number;
+  /** 完成后的目标条目全路径（点击任务行可跳转选中；FIL-70 扩展）。 */
+  resultPaths: string[];
 };
 
 export type TaskCenterConfig = {
@@ -196,7 +198,22 @@ export function loadTaskCenter(): void {
         endedAt: typeof task.endedAt === "number" ? task.endedAt : null,
         error: task.error ?? null,
         resultCount: Math.max(0, Number(task.resultCount) || 0),
+        resultPaths: Array.isArray(task.resultPaths)
+          ? task.resultPaths.filter(
+              (p): p is string => typeof p === "string" && p.trim().length > 0,
+            )
+          : [],
       }));
+    // 历史数据迁移：旧记录无 resultPaths（FIL-70 扩展前），
+    // 按「目标目录 + 首个来源名」一次性回填，随下方 persistTasks 落盘，
+    // 点击任务行即可直接精确选中，无需在点击链路里做兼容猜测。
+    for (const task of tasks.value) {
+      if (task.resultPaths.length || task.status !== "completed") continue;
+      const destDir = task.destDir.trim();
+      const firstName = task.firstSourceName.trim();
+      if (!destDir || !firstName) continue;
+      task.resultPaths = [`${destDir.replace(/[\\/]+$/, "")}\\${firstName}`];
+    }
   }
   pruneTasks(now);
   persistTasks();
@@ -251,6 +268,7 @@ export function beginLongTask(
     endedAt: null,
     error: null,
     resultCount: 0,
+    resultPaths: [],
   };
   segmentBases.set(id, { base: 0 });
   tasks.value = [task, ...tasks.value];
@@ -264,6 +282,7 @@ export function finishLongTask(
   ok: boolean,
   error: string | null,
   resultCount: number,
+  resultPaths?: string[],
 ): void {
   const task = tasks.value.find((item) => item.id === id);
   if (!task) return;
@@ -272,6 +291,9 @@ export function finishLongTask(
   task.endedAt = Date.now();
   task.error = error;
   task.resultCount = resultCount;
+  if (resultPaths?.length) {
+    task.resultPaths = resultPaths.filter((path) => path.trim().length > 0);
+  }
   if (ok) {
     // 跳过冲突等场景下事件不会走满；完成时以总量收口到 100%。
     if (task.bytesTotal > 0) task.bytesDone = task.bytesTotal;

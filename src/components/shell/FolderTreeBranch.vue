@@ -23,6 +23,7 @@ import {
   acceptFolderDragOver,
   commitFolderDrop,
   createDropHoverScheduler,
+  hideDropHint,
   noticeKeyForDropMode,
 } from "../../state/dnd";
 import { toastError, toastSuccess } from "../../state/toast";
@@ -122,6 +123,7 @@ function onTreeDragLeave(event: DragEvent) {
   const related = event.relatedTarget as Node | null;
   const root = event.currentTarget as HTMLElement | null;
   if (root && related && root.contains(related)) return;
+  hideDropHint(props.path);
   dropOver.value = false;
   hoverExpand.clear();
 }

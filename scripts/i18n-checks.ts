@@ -98,6 +98,35 @@ assert.notEqual(
   "fr core.showHidden.title must be localized",
 );
 
+// Project side panel: CONTEXT is the thing itself, not "notes / 备注 / メモ / Notizen".
+const notesWording: Record<string, string> = {
+  en: "notes",
+  "zh-CN": "备注",
+  ja: "メモ",
+  de: "notizen",
+  fr: "notes",
+};
+for (const localeName of localeIds) {
+  const messages = catalogs[localeName] as Record<string, unknown>;
+  assert.equal(
+    lookup(messages, "projects.context"),
+    "CONTEXT",
+    `${localeName} projects.context must be uppercase CONTEXT`,
+  );
+  for (const key of ["sidePanelTitle", "toggleSidePanel"] as const) {
+    const value = String(lookup(messages, `projects.${key}`) ?? "");
+    assert.ok(
+      value.includes("CONTEXT"),
+      `${localeName} projects.${key} must name CONTEXT explicitly`,
+    );
+    assert.ok(
+      !value.toLowerCase().includes(notesWording[localeName].toLowerCase()),
+      `${localeName} projects.${key} still uses notes wording: ${value}`,
+    );
+  }
+}
+console.log("i18n project CONTEXT wording OK (5 locales: section + side panel title).");
+
 console.log(
   `i18n settings field overlay OK (${SCHEMA_SETTING_KEYS.length} schema keys × title/description × ${localeIds.length} locales).`,
 );

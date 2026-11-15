@@ -31,8 +31,10 @@ assert.ok(
 );
 assert.ok(nav.includes("onListDrop"), "list background accepts drops");
 assert.ok(
-  nav.includes("dataTransferLooksExternal") || nav.includes("previewDropMode"),
-  "external vs in-app detection (direct or shared preview)",
+  nav.includes("dataTransferLooksExternal") ||
+    nav.includes("previewDropMode") ||
+    nav.includes("resolveFolderDrop"),
+  "external vs in-app detection (direct or shared surface)",
 );
 assert.ok(nav.includes("startNativeFileDragOut"), "keeps OLE drag-out (FIL-45)");
 assert.ok(

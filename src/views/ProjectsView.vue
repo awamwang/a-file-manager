@@ -10,13 +10,14 @@ import { useRoute, useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
 import {
   applyProjectSilentSwitch,
-  openMembersIntoOpenState,
-  openOrFocusNavigatorTab,
+  closeAllNavigatorTabs,
+  liveOpenState,
   openPathsAsNavigatorTabs,
   snapshotLeavingOpenState,
-  snapshotLiveOpenState,
   type SilentSwitchResult,
 } from "../state/navigatorBrowse";
+import { normalizePathKey } from "../state/pathKey";
+import { ensureWorkGroupActive, openWorkGroupMemberTab } from "../state/workGroup";
 import { openConfirmDialog } from "../state/confirmDialog";
 import { toastError, toastInfo, toastSuccess } from "../state/toast";
 import { createListPointerReorder } from "../state/listPointerReorder";
@@ -64,7 +65,7 @@ type UserProject = {
   workGroupId?: string | null;
   workspaceLinks: WorkspaceLink[];
   tasks: ProjectTask[];
-  contextNotes: string;
+  context: string;
   createdAt: number;
   updatedAt: number;
   path: string;
@@ -134,6 +135,14 @@ function mapProjectError(err: unknown): string {
   return raw;
 }
 
+/** 打开成员标签前的工作组切换失败：不跳转，给出可见提示。 */
+function reportWorkGroupSwitch(code: string): void {
+  const msg =
+    code === "REQUIRE_SAVE_PROMPT" ? t("workGroups.errorSavePrompt") : code;
+  error.value = msg;
+  toastError(msg);
+}
+
 const STATUS_LABEL_KEYS = {
   backlog: "projects.statusBacklog",
   doing: "projects.statusDoing",
@@ -159,6 +168,10 @@ const loading = ref(false);
 
 const newName = ref("");
 const bindWorkGroupId = ref("");
+const createFromWorkGroupId = ref("");
+const creatingFromWorkGroup = ref(false);
+const syncingMembers = ref(false);
+const sidePanelOpen = ref(true);
 const linkPath = ref("");
 const taskTitle = ref("");
 const contextDraft = ref("");
@@ -190,7 +203,7 @@ function tasksForStatus(statusId: string): ProjectTask[] {
 
 function mapListItem(
   item: WorkspaceListResult["workspaces"][0],
-  extras?: Partial<Pick<UserProject, "workspaceLinks" | "tasks" | "contextNotes">>,
+  extras?: Partial<Pick<UserProject, "workspaceLinks" | "tasks" | "context">>,
 ): UserProject {
   const p = item.project;
   return {
@@ -200,7 +213,7 @@ function mapListItem(
     workGroupId: p.boundWorkGroupId ?? null,
     workspaceLinks: extras?.workspaceLinks ?? [],
     tasks: extras?.tasks ?? [],
-    contextNotes: extras?.contextNotes ?? "",
+    context: extras?.context ?? "",
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
     path: item.path,
@@ -220,9 +233,9 @@ function membersToLinks(members: WorkspaceMember[]): WorkspaceLink[] {
 async function loadProjectDetails(slug: string): Promise<{
   workspaceLinks: WorkspaceLink[];
   tasks: ProjectTask[];
-  contextNotes: string;
+  context: string;
 }> {
-  const [members, board, contextNotes] = await Promise.all([
+  const [members, board, context] = await Promise.all([
     invoke<WorkspaceMember[]>("projects_workspace_member_list", { slug }),
     invoke<WorkspaceBoard>("projects_workspace_board_get", { slug }),
     invoke<string>("projects_workspace_context_get", { slug }),
@@ -230,7 +243,7 @@ async function loadProjectDetails(slug: string): Promise<{
   return {
     workspaceLinks: membersToLinks(members),
     tasks: board.tasks ?? [],
-    contextNotes,
+    context,
   };
 }
 
@@ -278,7 +291,7 @@ async function refresh(preferSlug?: string | null) {
 }
 
 function syncContextDraft() {
-  contextDraft.value = selected.value?.contextNotes ?? "";
+  contextDraft.value = selected.value?.context ?? "";
 }
 
 function syncBindDraft() {
@@ -326,7 +339,7 @@ async function reorderProjects(fromId: string, toId: string) {
           ? {
               workspaceLinks: old.workspaceLinks,
               tasks: old.tasks,
-              contextNotes: old.contextNotes,
+              context: old.context,
             }
           : undefined,
       );
@@ -360,11 +373,11 @@ const {
       label: project.name,
       meta: project.workGroupId
         ? t("projects.listSummaryBound", {
-            links: project.workspaceLinks.length,
+            members: project.workspaceLinks.length,
             open: project.tasks.filter((task) => task.statusId !== "done").length,
           })
         : t("projects.listSummary", {
-            links: project.workspaceLinks.length,
+            members: project.workspaceLinks.length,
             open: project.tasks.filter((task) => task.statusId !== "done").length,
           }),
     };
@@ -392,6 +405,33 @@ async function createProject() {
     await selectProject(slug);
   } catch (err) {
     error.value = mapProjectError(err);
+  }
+}
+
+type PromoteWorkspaceResult = {
+  workspace: { project: { slug: string; displayName: string }; path: string };
+};
+
+/** 从工作组创建项目：同一工作组可重复创建（后端每次分配新的唯一 slug）。 */
+async function createProjectFromWorkGroup() {
+  const groupId = createFromWorkGroupId.value.trim();
+  if (!groupId || creatingFromWorkGroup.value) return;
+  error.value = null;
+  creatingFromWorkGroup.value = true;
+  const groupName = workGroups.value.find((group) => group.id === groupId)?.name ?? groupId;
+  try {
+    const result = await invoke<PromoteWorkspaceResult>(
+      "projects_workspace_promote_from_work_group",
+      { workGroupId: groupId },
+    );
+    const slug = result.workspace.project.slug;
+    await focusProjectWithoutActivate(slug);
+    toastSuccess(t("projects.createFromWorkGroupDone", { name: groupName }));
+  } catch (err) {
+    error.value = mapProjectError(err);
+    toastError(error.value);
+  } finally {
+    creatingFromWorkGroup.value = false;
   }
 }
 
@@ -626,49 +666,74 @@ async function bindSelectedWorkGroup() {
   }
 }
 
-async function saveMembersFromTabs() {
-  if (!selected.value?.workGroupId) {
-    error.value = t("projects.errorUnbound");
-    return;
-  }
-  error.value = null;
-  try {
-    // Session members still live on the bound Work Group (not projects.json).
-    await invoke("work_groups_save_members_from_open_state", {
-      workGroupId: selected.value.workGroupId,
-      liveOpenState: snapshotLiveOpenState(),
-    });
-    toastSuccess(t("projects.noticeMembersSaved"));
-    await refresh(selected.value.id);
-  } catch (err) {
-    error.value = mapProjectError(err);
-  }
-}
-
 const boundMemberPaths = computed(() => {
   const id = selected.value?.workGroupId;
   if (!id) return [] as string[];
   return workGroups.value.find((group) => group.id === id)?.memberPaths ?? [];
 });
 
-async function openBoundMembersIntoRuntime() {
+const hasOpenTabs = computed(() => liveOpenState.value.tabGroups.length > 0);
+
+/** 把绑定工作组的成员同步为项目成员（members/ junction），已存在的跳过。 */
+async function syncMembersFromWorkGroup() {
   if (!selected.value?.workGroupId) {
-    error.value = t("projects.errorUnbound");
+    toastInfo(t("projects.errorUnbound"));
     return;
   }
+  if (syncingMembers.value) return;
   error.value = null;
+  const slug = selected.value.id;
   const paths = boundMemberPaths.value;
   if (!paths.length) {
-    toastInfo(t("workGroups.openMembersEmpty"));
+    toastInfo(t("projects.syncMembersEmpty"));
     return;
   }
-  const opened = await openMembersIntoOpenState(paths);
-  if (opened.length) {
-    toastSuccess(t("workGroups.openMembersDone", { count: opened.length }));
-    await router.push("/navigator");
-  } else {
-    toastInfo(t("workGroups.openMembersNone"));
+  const existing = new Set(
+    selected.value.workspaceLinks.map((link) => normalizePathKey(link.path)),
+  );
+  const pending = paths.filter((path) => {
+    const key = normalizePathKey(path);
+    if (!key || existing.has(key)) return false;
+    existing.add(key);
+    return true;
+  });
+  if (!pending.length) {
+    toastInfo(t("projects.syncMembersNone"));
+    return;
   }
+  syncingMembers.value = true;
+  let added = 0;
+  try {
+    for (const targetPath of pending) {
+      try {
+        await invoke("projects_workspace_member_add", {
+          slug,
+          targetPath,
+          linkName: null,
+        });
+        added += 1;
+      } catch (err) {
+        const raw = err instanceof Error ? err.message : String(err);
+        // 同名 junction 视为已同步，不阻断其余成员。
+        if (raw.includes("PROJECT_MEMBER_EXISTS")) continue;
+        throw err;
+      }
+    }
+    toastSuccess(t("projects.syncMembersDone", { count: added }));
+  } catch (err) {
+    error.value = mapProjectError(err);
+    toastError(error.value);
+  } finally {
+    await patchSelectedDetails(slug);
+    syncingMembers.value = false;
+  }
+}
+
+/** 关闭运行时：把当前实时 Open State（标签条）整体关闭，并同步落盘。 */
+async function closeRuntimeOpenState() {
+  if (!hasOpenTabs.value) return;
+  await closeAllNavigatorTabs();
+  toastInfo(t("projects.runtimeClosed"));
 }
 
 async function copyProject(project: UserProject) {
@@ -794,7 +859,7 @@ async function saveContext() {
       slug: selected.value.id,
       content: contextDraft.value,
     });
-    selected.value.contextNotes = contextDraft.value;
+    selected.value.context = contextDraft.value;
     toastSuccess(t("projects.noticeContextSaved"));
   } catch (err) {
     error.value = mapProjectError(err);
@@ -862,6 +927,12 @@ async function openAllLinks() {
     const paths = members.map((m) => m.openPath);
     if (!paths.length) {
       toastInfo(t("projects.noticeNoLinks"));
+      return;
+    }
+    // 会话标签属于项目绑定的工作组，先在那个组里落地。
+    const switchCode = await ensureWorkGroupActive(selected.value?.workGroupId ?? null);
+    if (switchCode) {
+      reportWorkGroupSwitch(switchCode);
       return;
     }
     await openPathsAsNavigatorTabs(paths);
@@ -941,8 +1012,15 @@ async function openInEditor(ideId: "cursor" | "qoder") {
 }
 
 async function openLink(path: string) {
-  // Sigma openOrFocusTabGroup: select existing page group or append one.
-  await openOrFocusNavigatorTab(path);
+  // 先切到项目绑定的工作组，再跳到该组已打开的成员标签；没有则新建（Sigma openOrFocusTabGroup）。
+  const switchCode = await openWorkGroupMemberTab(
+    selected.value?.workGroupId ?? null,
+    path,
+  );
+  if (switchCode) {
+    reportWorkGroupSwitch(switchCode);
+    return;
+  }
   await router.push("/navigator");
 }
 
@@ -1049,11 +1127,11 @@ onUnmounted(() => {
             <span class="fluent-page-meta">{{
               project.workGroupId
                 ? t("projects.listSummaryBound", {
-                    links: project.workspaceLinks.length,
+                    members: project.workspaceLinks.length,
                     open: project.tasks.filter((task) => task.statusId !== "done").length,
                   })
                 : t("projects.listSummary", {
-                    links: project.workspaceLinks.length,
+                    members: project.workspaceLinks.length,
                     open: project.tasks.filter((task) => task.statusId !== "done").length,
                   })
             }}</span>
@@ -1068,6 +1146,30 @@ onUnmounted(() => {
           />
           <button class="fluent-control fluent-control--accent" type="submit">
             {{ t("common.create") }}
+          </button>
+        </form>
+        <form class="create" @submit.prevent="createProjectFromWorkGroup">
+          <select
+            v-model="createFromWorkGroupId"
+            class="fluent-control"
+            :aria-label="t('projects.createFromWorkGroup')"
+            :title="t('projects.createFromWorkGroupHint')"
+          >
+            <option value="">{{ t("projects.createFromWorkGroupNone") }}</option>
+            <option
+              v-for="group in bindableWorkGroups"
+              :key="group.id"
+              :value="group.id"
+            >
+              {{ group.name }}
+            </option>
+          </select>
+          <button
+            class="fluent-control"
+            type="submit"
+            :disabled="!createFromWorkGroupId || creatingFromWorkGroup"
+          >
+            {{ t("projects.createFromWorkGroup") }}
           </button>
         </form>
       </aside>
@@ -1091,278 +1193,328 @@ onUnmounted(() => {
           >
             {{ selected.name }}
           </h2>
-          <div class="more-menu">
+          <div class="detail-header-actions">
             <button
-              ref="projectMoreTriggerEl"
               type="button"
-              class="fluent-control more-trigger"
-              :aria-expanded="projectMoreOpen"
-              aria-haspopup="menu"
-              :title="t('common.more')"
-              @click="toggleProjectDetailMore"
+              class="fluent-control panel-toggle"
+              :class="{ 'panel-toggle--collapsed': !sidePanelOpen }"
+              :aria-expanded="sidePanelOpen"
+              :aria-label="t('projects.toggleSidePanel')"
+              :title="t('projects.toggleSidePanel')"
+              @click="sidePanelOpen = !sidePanelOpen"
             >
-              ···
+              <svg viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+                <rect
+                  x="1.5"
+                  y="3"
+                  width="15"
+                  height="12"
+                  rx="2.5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.3"
+                />
+                <path
+                  d="M11.5 3.5 V14.5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.3"
+                />
+                <rect
+                  x="12.4"
+                  y="4.4"
+                  width="3.2"
+                  height="9.2"
+                  rx="0.9"
+                  fill="currentColor"
+                  :opacity="sidePanelOpen ? 0.3 : 0"
+                />
+              </svg>
             </button>
+            <div class="more-menu">
+              <button
+                ref="projectMoreTriggerEl"
+                type="button"
+                class="fluent-control more-trigger"
+                :aria-expanded="projectMoreOpen"
+                aria-haspopup="menu"
+                :title="t('common.more')"
+                @click="toggleProjectDetailMore"
+              >
+                ···
+              </button>
+            </div>
           </div>
         </div>
         <p class="fluent-page-meta">
           {{ selected.description || t("projects.noDescription") }} ·
           {{ t("projects.openTasks", { count: openTaskCount }) }}
         </p>
-        <div class="actions">
-          <button class="fluent-control fluent-control--accent" type="button" @click="openAllLinks">
-            {{ t("projects.openAllLinks") }}
-          </button>
-          <button
-            class="fluent-control"
-            type="button"
-            :title="selected.path || t('projects.openWorkspaceFolderHint')"
-            @click="openWorkspaceFolder"
-          >
-            {{ t("projects.openWorkspaceFolder") }}
-          </button>
-          <button
-            v-if="selected.path"
-            class="fluent-control"
-            type="button"
-            :title="t('projects.openWorkspaceInSystemExplorerHint')"
-            @click="openWorkspaceFolderInSystemExplorer"
-          >
-            {{ t("contextMenu.openWithExplorer") }}
-          </button>
-          <button
-            v-if="selected.path"
-            class="fluent-control"
-            type="button"
-            :title="t('contextMenu.copyPath')"
-            :aria-label="t('contextMenu.copyPath')"
-            @click="copyLinkPath(selected.path)"
-          >
-            {{ t("contextMenu.copyPath") }}
-          </button>
-          <button
-            v-if="aiAddonEnabled"
-            class="fluent-control"
-            type="button"
-            :title="t('projects.openInCursorHint')"
-            @click="openInEditor('cursor')"
-          >
-            {{ t("projects.openInCursor") }}
-          </button>
-          <button
-            v-if="aiAddonEnabled"
-            class="fluent-control"
-            type="button"
-            :title="t('projects.openInQoderHint')"
-            @click="openInEditor('qoder')"
-          >
-            {{ t("projects.openInQoder") }}
-          </button>
-        </div>
-
-        <h3>{{ t("projects.sessionBinding") }}</h3>
-        <p class="fluent-page-meta">
-          {{
-            boundWorkGroupName
-              ? t("projects.boundTo", { name: boundWorkGroupName })
-              : t("projects.unbound")
-          }}
-        </p>
-        <form class="row" @submit.prevent="bindSelectedWorkGroup">
-          <select v-model="bindWorkGroupId" class="fluent-control">
-            <option value="">{{ t("projects.bindNone") }}</option>
-            <option
-              v-for="group in bindableWorkGroups"
-              :key="group.id"
-              :value="group.id"
-            >
-              {{ group.name }}
-            </option>
-          </select>
-          <button class="fluent-control fluent-control--accent" type="submit">
-            {{ t("projects.bindSave") }}
-          </button>
-          <button
-            v-if="selected.workGroupId"
-            class="fluent-control fluent-control--accent"
-            type="button"
-            :disabled="!boundMemberPaths.length"
-            @click="openBoundMembersIntoRuntime"
-          >
-            {{ t("projects.openMembersIntoOpenState") }}
-          </button>
-          <button
-            v-if="selected.workGroupId"
-            class="fluent-control"
-            type="button"
-            @click="saveMembersFromTabs"
-          >
-            {{ t("projects.saveMembersFromTabs") }}
-          </button>
-        </form>
-
-        <h3>{{ t("projects.workspaceLinks") }}</h3>
-        <div v-if="selected.workspaceLinks.length" class="path-card-grid">
-          <div
-            v-for="link in selected.workspaceLinks"
-            :key="link.id"
-            class="fluent-surface path-card path-card--with-action"
-            @contextmenu="openPathMenu($event, link.path)"
-          >
-            <button
-              type="button"
-              class="path-card-main"
-              :title="link.path"
-              @click="openLink(link.path)"
-            >
-              <span class="fluent-icon-wash">
-                <FluentIcon name="folder" size="md" />
-              </span>
-              <span class="path-card-body">
-                <span class="path-card-name">{{ link.label || link.path }}</span>
-                <span class="fluent-page-meta path-card-path">{{ link.path }}</span>
-              </span>
-            </button>
-            <div class="path-card-actions">
+        <div class="detail-split" :class="{ 'detail-split--collapsed': !sidePanelOpen }">
+          <div class="detail-main">
+            <div class="actions">
+              <button class="fluent-control fluent-control--accent" type="button" @click="openAllLinks">
+                {{ t("projects.openAllLinks") }}
+              </button>
               <button
+                class="fluent-control"
                 type="button"
-                class="fluent-control path-card-copy"
+                :title="selected.path || t('projects.openWorkspaceFolderHint')"
+                @click="openWorkspaceFolder"
+              >
+                {{ t("projects.openWorkspaceFolder") }}
+              </button>
+              <button
+                v-if="selected.path"
+                class="fluent-control"
+                type="button"
+                :title="t('projects.openWorkspaceInSystemExplorerHint')"
+                @click="openWorkspaceFolderInSystemExplorer"
+              >
+                {{ t("contextMenu.openWithExplorer") }}
+              </button>
+              <button
+                v-if="selected.path"
+                class="fluent-control"
+                type="button"
                 :title="t('contextMenu.copyPath')"
                 :aria-label="t('contextMenu.copyPath')"
-                @click.stop="copyLinkPath(link.path)"
+                @click="copyLinkPath(selected.path)"
               >
-                <FluentIcon name="copy" size="sm" />
+                {{ t("contextMenu.copyPath") }}
               </button>
               <button
+                v-if="aiAddonEnabled"
+                class="fluent-control"
                 type="button"
-                class="fluent-control path-card-remove"
-                :title="t('common.remove')"
-                :aria-label="t('common.remove')"
-                @click.stop="removeLink(link.id)"
+                :title="t('projects.openInCursorHint')"
+                @click="openInEditor('cursor')"
               >
-                <FluentIcon name="close" size="sm" />
+                {{ t("projects.openInCursor") }}
+              </button>
+              <button
+                v-if="aiAddonEnabled"
+                class="fluent-control"
+                type="button"
+                :title="t('projects.openInQoderHint')"
+                @click="openInEditor('qoder')"
+              >
+                {{ t("projects.openInQoder") }}
               </button>
             </div>
-          </div>
-        </div>
-        <p v-else class="fluent-page-meta">{{ t("projects.noFolderLinks") }}</p>
-        <form class="row" @submit.prevent="addLink">
-          <input
-            v-model="linkPath"
-            class="fluent-control"
-            :placeholder="t('projects.addLinkPlaceholder')"
-          />
-          <button class="fluent-control fluent-control--accent" type="submit">
-            {{ t("projects.addLink") }}
-          </button>
-        </form>
 
-        <h3>{{ t("projects.contextNotes") }}</h3>
-        <textarea
-          v-model="contextDraft"
-          class="fluent-control context"
-          rows="4"
-          :placeholder="t('projects.contextPlaceholder')"
-        />
-        <button class="fluent-control" type="button" @click="saveContext">
-          {{ t("projects.saveContext") }}
-        </button>
-
-        <div class="section-title-row">
-          <h3>{{ t("projects.outcomes") }}</h3>
-          <div class="toggle" role="group" :aria-label="t('projects.viewMode')">
-            <button
-              type="button"
-              class="fluent-control"
-              :class="{ 'fluent-control--accent': viewMode === 'list' }"
-              @click="viewMode = 'list'"
-            >
-              {{ t("projects.list") }}
-            </button>
-            <button
-              type="button"
-              class="fluent-control"
-              :class="{ 'fluent-control--accent': viewMode === 'board' }"
-              @click="viewMode = 'board'"
-            >
-              {{ t("projects.board") }}
-            </button>
-          </div>
-        </div>
-        <form class="row" @submit.prevent="addTask">
-          <input
-            v-model="taskTitle"
-            class="fluent-control"
-            :placeholder="t('projects.addOutcomePlaceholder')"
-          />
-          <button class="fluent-control fluent-control--accent" type="submit">
-            {{ t("projects.addTask") }}
-          </button>
-        </form>
-
-        <div v-if="viewMode === 'list'" class="task-list">
-          <article
-            v-for="task in selected.tasks.slice().sort((a, b) => a.sortKey - b.sortKey)"
-            :key="task.id"
-            class="task-row"
-          >
-            <strong>{{ task.title }}</strong>
-            <select
-              class="fluent-control"
-              :value="task.statusId"
-              @change="moveTask(task, ($event.target as HTMLSelectElement).value)"
-            >
-              <option v-for="status in STATUSES" :key="status.id" :value="status.id">
-                {{ status.label }}
-              </option>
-            </select>
-            <button type="button" class="linkish danger" @click="deleteTask(task.id)">
-              {{ t("common.delete") }}
-            </button>
-          </article>
-          <p v-if="!selected.tasks.length" class="fluent-page-meta">{{ t("projects.noOutcomes") }}</p>
-        </div>
-
-        <div v-else class="board">
-          <section
-            v-for="status in STATUSES"
-            :key="status.id"
-            class="column"
-            :class="`column--${status.id}`"
-          >
-            <h4 class="column-title">
-              <FluentIcon :name="STATUS_ICONS[status.id] ?? 'board'" size="sm" />
-              {{ status.label }}
-            </h4>
-            <article
-              v-for="task in tasksForStatus(status.id)"
-              :key="task.id"
-              class="fluent-surface card"
-            >
-              <strong>{{ task.title }}</strong>
-              <div class="card-actions">
-                <select
-                  class="fluent-control"
-                  :value="task.statusId"
-                  @change="moveTask(task, ($event.target as HTMLSelectElement).value)"
-                >
-                  <option v-for="s in STATUSES" :key="s.id" :value="s.id">{{ s.label }}</option>
-                </select>
-                <button type="button" class="linkish danger" @click="deleteTask(task.id)">
-                  {{ t("common.delete") }}
-                </button>
-              </div>
-            </article>
-            <p v-if="!tasksForStatus(status.id).length" class="fluent-page-meta empty">
-              {{ t("common.empty") }}
+            <h3>{{ t("projects.sessionBinding") }}</h3>
+            <p class="fluent-page-meta">
+              {{
+                boundWorkGroupName
+                  ? t("projects.boundTo", { name: boundWorkGroupName })
+                  : t("projects.unbound")
+              }}
             </p>
-          </section>
-        </div>
+            <div class="row">
+              <select
+                v-model="bindWorkGroupId"
+                class="fluent-control"
+                @change="bindSelectedWorkGroup"
+              >
+                <option value="">{{ t("projects.bindNone") }}</option>
+                <option
+                  v-for="group in bindableWorkGroups"
+                  :key="group.id"
+                  :value="group.id"
+                >
+                  {{ group.name }}
+                </option>
+              </select>
+              <button
+                class="fluent-control"
+                type="button"
+                :disabled="!selected.workGroupId || syncingMembers"
+                @click="syncMembersFromWorkGroup"
+              >
+                {{ t("projects.syncMembersFromWorkGroup") }}
+              </button>
+              <button
+                class="fluent-control"
+                type="button"
+                :disabled="!hasOpenTabs"
+                @click="closeRuntimeOpenState"
+              >
+                {{ t("projects.closeRuntimeOpenState") }}
+              </button>
+            </div>
 
-        <ProjectAiPanel
-          v-if="aiAddonEnabled && selected.path"
-          :workspace-path="selected.path"
-        />
+            <h3>{{ t("projects.workspaceLinks") }}</h3>
+            <div v-if="selected.workspaceLinks.length" class="path-card-grid">
+              <div
+                v-for="link in selected.workspaceLinks"
+                :key="link.id"
+                class="fluent-surface path-card path-card--with-action"
+                @contextmenu="openPathMenu($event, link.path)"
+              >
+                <button
+                  type="button"
+                  class="path-card-main"
+                  :title="link.path"
+                  @click="openLink(link.path)"
+                >
+                  <span class="fluent-icon-wash">
+                    <FluentIcon name="folder" size="md" />
+                  </span>
+                  <span class="path-card-body">
+                    <span class="path-card-name">{{ link.label || link.path }}</span>
+                    <span class="fluent-page-meta path-card-path">{{ link.path }}</span>
+                  </span>
+                </button>
+                <div class="path-card-actions">
+                  <button
+                    type="button"
+                    class="fluent-control path-card-copy"
+                    :title="t('contextMenu.copyPath')"
+                    :aria-label="t('contextMenu.copyPath')"
+                    @click.stop="copyLinkPath(link.path)"
+                  >
+                    <FluentIcon name="copy" size="sm" />
+                  </button>
+                  <button
+                    type="button"
+                    class="fluent-control path-card-remove"
+                    :title="t('common.remove')"
+                    :aria-label="t('common.remove')"
+                    @click.stop="removeLink(link.id)"
+                  >
+                    <FluentIcon name="close" size="sm" />
+                  </button>
+                </div>
+              </div>
+            </div>
+            <p v-else class="fluent-page-meta">{{ t("projects.noFolderLinks") }}</p>
+            <form class="row" @submit.prevent="addLink">
+              <input
+                v-model="linkPath"
+                class="fluent-control"
+                :placeholder="t('projects.addLinkPlaceholder')"
+              />
+              <button class="fluent-control fluent-control--accent" type="submit">
+                {{ t("projects.addLink") }}
+              </button>
+            </form>
+
+            <ProjectAiPanel
+              v-if="aiAddonEnabled && selected.path"
+              :workspace-path="selected.path"
+            />
+          </div>
+
+          <aside v-if="sidePanelOpen" class="side-panel">
+            <h3>{{ t("projects.sidePanelTitle") }}</h3>
+            <div class="side-panel-section">
+              <h4>{{ t("projects.context") }}</h4>
+              <textarea
+                v-model="contextDraft"
+                class="fluent-control context"
+                rows="4"
+                :placeholder="t('projects.contextPlaceholder')"
+              />
+              <button class="fluent-control" type="button" @click="saveContext">
+                {{ t("projects.saveContext") }}
+              </button>
+            </div>
+
+            <div class="side-panel-section">
+              <div class="section-title-row">
+                <h4>{{ t("projects.outcomes") }}</h4>
+                <div class="toggle" role="group" :aria-label="t('projects.viewMode')">
+                  <button
+                    type="button"
+                    class="fluent-control"
+                    :class="{ 'fluent-control--accent': viewMode === 'list' }"
+                    @click="viewMode = 'list'"
+                  >
+                    {{ t("projects.list") }}
+                  </button>
+                  <button
+                    type="button"
+                    class="fluent-control"
+                    :class="{ 'fluent-control--accent': viewMode === 'board' }"
+                    @click="viewMode = 'board'"
+                  >
+                    {{ t("projects.board") }}
+                  </button>
+                </div>
+              </div>
+              <form class="row" @submit.prevent="addTask">
+                <input
+                  v-model="taskTitle"
+                  class="fluent-control"
+                  :placeholder="t('projects.addOutcomePlaceholder')"
+                />
+                <button class="fluent-control fluent-control--accent" type="submit">
+                  {{ t("projects.addTask") }}
+                </button>
+              </form>
+
+              <div v-if="viewMode === 'list'" class="task-list">
+                <article
+                  v-for="task in selected.tasks.slice().sort((a, b) => a.sortKey - b.sortKey)"
+                  :key="task.id"
+                  class="task-row"
+                >
+                  <strong>{{ task.title }}</strong>
+                  <select
+                    class="fluent-control"
+                    :value="task.statusId"
+                    @change="moveTask(task, ($event.target as HTMLSelectElement).value)"
+                  >
+                    <option v-for="status in STATUSES" :key="status.id" :value="status.id">
+                      {{ status.label }}
+                    </option>
+                  </select>
+                  <button type="button" class="linkish danger" @click="deleteTask(task.id)">
+                    {{ t("common.delete") }}
+                  </button>
+                </article>
+                <p v-if="!selected.tasks.length" class="fluent-page-meta">{{ t("projects.noOutcomes") }}</p>
+              </div>
+
+              <div v-else class="board">
+                <section
+                  v-for="status in STATUSES"
+                  :key="status.id"
+                  class="column"
+                  :class="`column--${status.id}`"
+                >
+                  <h4 class="column-title">
+                    <FluentIcon :name="STATUS_ICONS[status.id] ?? 'board'" size="sm" />
+                    {{ status.label }}
+                  </h4>
+                  <article
+                    v-for="task in tasksForStatus(status.id)"
+                    :key="task.id"
+                    class="fluent-surface card"
+                  >
+                    <strong>{{ task.title }}</strong>
+                    <div class="card-actions">
+                      <select
+                        class="fluent-control"
+                        :value="task.statusId"
+                        @change="moveTask(task, ($event.target as HTMLSelectElement).value)"
+                      >
+                        <option v-for="s in STATUSES" :key="s.id" :value="s.id">{{ s.label }}</option>
+                      </select>
+                      <button type="button" class="linkish danger" @click="deleteTask(task.id)">
+                        {{ t("common.delete") }}
+                      </button>
+                    </div>
+                  </article>
+                  <p v-if="!tasksForStatus(status.id).length" class="fluent-page-meta empty">
+                    {{ t("common.empty") }}
+                  </p>
+                </section>
+              </div>
+            </div>
+          </aside>
+        </div>
       </div>
 
       <div v-else class="fluent-surface detail detail--empty">
@@ -1743,13 +1895,82 @@ onUnmounted(() => {
   gap: var(--fluent-space-md);
   padding: var(--fluent-space-lg);
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .detail--empty {
   align-items: center;
   justify-content: center;
   min-height: 12rem;
+}
+
+.detail-split {
+  display: flex;
+  gap: var(--fluent-space-lg);
+  flex: 1;
+  min-height: 0;
+}
+
+.detail-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-md);
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding-inline-end: 2px;
+}
+
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-md);
+  flex: 0 0 min(26rem, 42%);
+  min-width: 0;
+  overflow-y: auto;
+  padding-inline-start: var(--fluent-space-lg);
+  border-inline-start: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+}
+
+.side-panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-sm);
+}
+
+.side-panel .board {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--fluent-space-sm);
+}
+
+.side-panel .column {
+  min-height: 8rem;
+}
+
+.detail-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  margin-inline-start: auto;
+  flex-shrink: 0;
+}
+
+.detail-header-actions .more-menu {
+  margin-inline-start: 0;
+}
+
+.panel-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  padding-inline: var(--fluent-space-sm);
+}
+
+.panel-toggle svg {
+  display: block;
+  width: 16px;
+  height: 16px;
 }
 
 .detail-title-row {
@@ -1920,6 +2141,29 @@ onUnmounted(() => {
 
   .master-list {
     max-height: min(40vh, 20rem);
+  }
+
+  .detail {
+    overflow: auto;
+  }
+
+  .detail-split {
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  .detail-main {
+    overflow: visible;
+  }
+
+  .side-panel {
+    flex: none;
+    width: 100%;
+    overflow: visible;
+    padding-inline-start: 0;
+    padding-block-start: var(--fluent-space-md);
+    border-inline-start: 0;
+    border-block-start: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   }
 
   .board {

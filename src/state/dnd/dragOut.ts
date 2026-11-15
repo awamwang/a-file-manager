@@ -13,6 +13,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import { resolveResource } from "@tauri-apps/api/path";
 import { isMacPlatform } from "../../config/platform";
+import { beginDragSources, endDragSession } from "./session.ts";
 
 let outboundBusy = false;
 let cachedDragIconPath: string | null = null;
@@ -43,12 +44,15 @@ function clearHostOutboundPaths(): void {
 export function armOutboundPathsForPress(paths: string[]): void {
   const cleaned = paths.map((p) => p.trim()).filter(Boolean);
   if (!cleaned.length) return;
+  // 同一份源路径也供 dragover 预览使用：hover 切标签会清空选中项。
+  beginDragSources(cleaned);
   armHostOutboundPaths(cleaned);
   void dragIconPath();
 }
 
 /** 单击（无拖势）结束时清空登记，避免下次误启 OLE。 */
 export function clearOutboundPathsForPress(): void {
+  endDragSession();
   clearHostOutboundPaths();
 }
 

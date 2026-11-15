@@ -11,6 +11,10 @@ import { useI18n } from "vue-i18n";
 import FluentIcon from "../icons/FluentIcon.vue";
 import { formatBytes } from "../../state/formatBytes";
 import {
+  openDirInNavigator,
+  revealItemsInNavigator,
+} from "../../state/revealInNavigator";
+import {
   clampMaxRecords,
   clampRetentionDays,
   clearFinishedTasks,
@@ -218,6 +222,18 @@ function taskProgressText(task: LongTask): string {
   return `${percent}% · ${formatBytes(task.bytesDone)} / ${formatBytes(task.bytesTotal)}`;
 }
 
+/** 点击任务行：跳到目标位置并选中结果条目（历史记录已在 loadTaskCenter 迁移回填）。 */
+async function revealTaskLocation(task: LongTask): Promise<void> {
+  if (task.resultPaths.length) {
+    await revealItemsInNavigator(task.resultPaths);
+  } else if (task.destDir.trim()) {
+    await openDirInNavigator(task.destDir);
+  } else {
+    return;
+  }
+  collapseNow();
+}
+
 /** Toast 在任务条可见时整体上移，避免右下角互相遮挡。 */
 function syncToastInset(): void {
   const inset = showPill.value
@@ -344,15 +360,22 @@ watch(hovered, (value) => {
             <FluentIcon v-else :name="statusIcon(task.status)" size="sm" />
           </span>
           <div class="task-row-main">
-            <div class="task-row-line">
-              <span class="task-row-title" :title="taskTitleText(task)">
-                {{ taskTitleText(task) }}
+            <button
+              type="button"
+              class="task-row-reveal"
+              :title="t('taskCenter.revealHint')"
+              @click="revealTaskLocation(task)"
+            >
+              <span class="task-row-line">
+                <span class="task-row-title" :title="taskTitleText(task)">
+                  {{ taskTitleText(task) }}
+                </span>
+                <span class="task-row-time">{{ taskTimeText(task) }}</span>
               </span>
-              <span class="task-row-time">{{ taskTimeText(task) }}</span>
-            </div>
-            <div class="task-row-detail" :title="task.error ?? task.destDir">
-              {{ task.error ? task.error : `→ ${task.destDir}` }}
-            </div>
+              <span class="task-row-detail" :title="task.error ?? task.destDir">
+                {{ task.error ? task.error : `→ ${task.destDir}` }}
+              </span>
+            </button>
             <div v-if="task.status === 'running'" class="task-row-progress">
               <span class="task-progress-track" aria-hidden="true">
                 <span
@@ -583,6 +606,23 @@ watch(hovered, (value) => {
 .task-row-main {
   flex: 1;
   min-width: 0;
+}
+
+.task-row-reveal {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: var(--fluent-radius-sm, 4px);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.task-row-reveal:hover .task-row-title,
+.task-row-reveal:focus-visible .task-row-title {
+  text-decoration: underline;
 }
 
 .task-row-line {

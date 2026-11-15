@@ -6,6 +6,7 @@ import type {
   AgentTargetPatch,
   AiAddonStatus,
   AiConfigDocument,
+  AiProjectDeployments,
   AiProjectDocument,
   AiProjectOpenEditorReport,
   AiProviderPatch,
@@ -189,6 +190,13 @@ export function aiProjectAiSetEnabledAgents(
     workspacePath,
     enabledAgentIds,
   });
+}
+
+/** 只读：本项目已添加的 MCP / Skill（勾选态的数据源）。 */
+export function aiProjectDeployments(
+  workspacePath: string,
+): Promise<AiProjectDeployments> {
+  return invoke<AiProjectDeployments>("ai_project_deployments", { workspacePath });
 }
 
 export function aiProvidersList(): Promise<AiConfigDocument> {

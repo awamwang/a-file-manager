@@ -9,14 +9,26 @@ export {
   pathsFromDataTransfer,
   setOutboundPathPayload,
 } from "./paths.ts";
-export { createDropHoverScheduler, DROP_HOVER_MS } from "./hover.ts";
+export { createDropHoverScheduler, DROP_HOVER_MS, TAB_DROP_HOVER_MS } from "./hover.ts";
+export {
+  activeDragSources,
+  beginDragSources,
+  dropHint,
+  endDragSession,
+  hideDropHint,
+  showDropHint,
+  DRAG_SESSION_TTL_MS,
+  type DropHint,
+} from "./session.ts";
 export {
   acceptFolderDragOver,
   commitFolderDrop,
   noticeKeyForDropMode,
   previewDropMode,
   previewSourcePaths,
+  resolveFolderDrop,
   type FolderDropCommit,
+  type FolderDropResolution,
 } from "./surface.ts";
 export {
   armNativeFileDragOut,

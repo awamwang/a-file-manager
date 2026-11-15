@@ -65,13 +65,16 @@ if (chrome.includes('invoke<SilentSwitchResult>("work_groups_silent_switch"')) {
   process.exit(1);
 }
 
-if (!wgView.includes("openMembersIntoRuntime") || !wgView.includes("openMembersIntoOpenState")) {
-  console.error("WorkGroupsView missing open-members into Open State");
+if (
+  !wgView.includes("work_groups_save_members_from_open_state") ||
+  !wgView.includes("tabsToMembersConfig")
+) {
+  console.error("WorkGroupsView missing tab-to-members config action");
   process.exit(1);
 }
 
-if (!en.workGroups?.openMembersIntoOpenState) {
-  console.error("en.workGroups.openMembersIntoOpenState missing");
+if (!en.workGroups?.openMembersIntoOpenState || !en.workGroups?.tabsToMembersConfig) {
+  console.error("en.workGroups tab-to-members keys missing");
   process.exit(1);
 }
 

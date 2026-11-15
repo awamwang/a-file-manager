@@ -9,6 +9,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const wg = readFileSync(join(root, "src/views/WorkGroupsView.vue"), "utf8");
 const projects = readFileSync(join(root, "src/views/ProjectsView.vue"), "utf8");
 const pathCards = readFileSync(join(root, "src/styles/path-cards.css"), "utf8");
+const chrome = readFileSync(join(root, "src/state/workGroup/chrome.ts"), "utf8");
 const en = JSON.parse(readFileSync(join(root, "src/i18n/locales/en.json"), "utf8"));
 const zh = JSON.parse(readFileSync(join(root, "src/i18n/locales/zh-CN.json"), "utf8"));
 
@@ -17,6 +18,12 @@ assert.ok(wg.includes("openOrFocusNavigatorTab"));
 assert.ok(wg.includes("workGroups.usageHint"));
 assert.ok(projects.includes("path-card-grid"));
 assert.ok(projects.includes("openLink"));
+// 成员/标签点击：优先切到对应工作组，再聚焦或新建该组标签。
+assert.ok(chrome.includes("ensureWorkGroupActive"), "WG switch helper");
+assert.ok(chrome.includes("openWorkGroupMemberTab"), "member tab helper");
+assert.ok(wg.includes("ensureWorkGroupActive"), "WG view switches before opening a tab");
+assert.ok(projects.includes("openWorkGroupMemberTab"), "project member cards use WG switch");
+assert.ok(projects.includes("ensureWorkGroupActive"), "open-all lands on the bound WG");
 assert.ok(projects.includes("projects.usageHint"));
 assert.ok(en.workGroups.usageHint.length > 10);
 assert.ok(en.projects.usageHint.length > 10);

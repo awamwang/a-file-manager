@@ -12,6 +12,7 @@ import {
 } from "../openState/index.ts";
 import {
   openMembersIntoOpenState,
+  openOrFocusNavigatorTab,
   silentSwitchWorkGroup as runSilentWorkGroupSwitch,
   type SilentSwitchResult,
   type SoftSyncNotice,
@@ -124,6 +125,49 @@ export async function openActiveMembersIntoOpenState(): Promise<string[] | null>
   } finally {
     workGroupChromeBusy.value = false;
   }
+}
+
+/**
+ * 保证目标工作组是当前运行时工作组（点击成员/项目标签前的第一步）。
+ * 以 `activeWorkGroupId`（运行时）为准，先把 chrome 展示缓存对齐，避免
+ * silentSwitchWorkGroup 因缓存过期而误判「已经在目标组」跳过切换。
+ * 返回 null 表示已就绪，否则返回错误码供调用方提示。
+ */
+export async function ensureWorkGroupActive(
+  targetId: string | null | undefined,
+): Promise<string | null> {
+  if (!targetId || targetId === activeWorkGroupId.value) return null;
+  workGroupChromeError.value = null;
+  if (
+    workGroupsDoc.value &&
+    activeWorkGroupId.value &&
+    workGroupsDoc.value.activeWorkGroupId !== activeWorkGroupId.value
+  ) {
+    workGroupsDoc.value = {
+      ...workGroupsDoc.value,
+      activeWorkGroupId: activeWorkGroupId.value,
+    };
+  }
+  const result = await silentSwitchWorkGroup(targetId);
+  if (workGroupChromeError.value) return workGroupChromeError.value;
+  if (result?.requireSavePrompt) return "REQUIRE_SAVE_PROMPT";
+  return activeWorkGroupId.value === targetId ? null : "WORK_GROUP_SWITCH_FAILED";
+}
+
+/**
+ * 项目 / 工作组里的成员标签：先切到对应工作组，再跳到该工作组中已打开的
+ * 同名标签；该成员尚未打开时 openOrFocusNavigatorTab 会新建标签。
+ */
+export async function openWorkGroupMemberTab(
+  targetId: string | null | undefined,
+  path: string,
+): Promise<string | null> {
+  const trimmed = path.trim();
+  if (!trimmed) return null;
+  const error = await ensureWorkGroupActive(targetId);
+  if (error) return error;
+  await openOrFocusNavigatorTab(trimmed);
+  return null;
 }
 
 export function dismissWorkGroupSoftNotice(): void {
