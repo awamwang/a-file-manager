@@ -5,6 +5,8 @@
  */
 
 export const DROP_HOVER_MS = 500;
+/** 标签悬停与目录树 / 收藏夹统一为 500ms；常量单列，便于日后单独调标签节奏。 */
+export const TAB_DROP_HOVER_MS = 500;
 
 /** One pending hover key at a time; reschedule only when the key changes. */
 export function createDropHoverScheduler(delayMs = DROP_HOVER_MS) {

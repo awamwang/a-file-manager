@@ -169,9 +169,11 @@ import {
   armOutboundPathsForPress,
   clearOutboundPathsForPress,
   commitFolderDrop,
+  hideDropHint,
   noticeKeyForDropMode,
   previewDropMode,
   previewSourcePaths,
+  showDropHint,
   startNativeFileDragOut,
 } from "../state/dnd";
 import {
@@ -1962,6 +1964,7 @@ function onDragOver(event: DragEvent, entry: NavigatorEntry) {
 }
 
 function onDragLeave(entry: NavigatorEntry) {
+  hideDropHint(entry.path);
   if (dragOverPath.value === entry.path) {
     dragOverPath.value = null;
   }
@@ -1975,6 +1978,8 @@ function onListDragOver(event: DragEvent, destPath: string | null | undefined) {
   event.preventDefault();
   const mode = previewDropMode(event, destPath, previewSourcePaths(event));
   if (event.dataTransfer) event.dataTransfer.dropEffect = mode;
+  const label = destPath.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || destPath;
+  showDropHint(event, mode, label, destPath);
   if (!dragOverPath.value) dragOverPath.value = destPath;
 }
 
@@ -1983,6 +1988,7 @@ function onListDragLeave(event: DragEvent, destPath: string | null | undefined) 
   const related = event.relatedTarget as Node | null;
   const root = event.currentTarget as HTMLElement | null;
   if (root && related && root.contains(related)) return;
+  hideDropHint(destPath);
   if (dragOverPath.value === destPath) dragOverPath.value = null;
 }
 

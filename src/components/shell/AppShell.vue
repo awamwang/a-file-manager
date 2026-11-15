@@ -21,8 +21,12 @@ import {
   acceptFolderDragOver,
   commitFolderDrop,
   createDropHoverScheduler,
+  endDragSession,
+  hideDropHint,
   noticeKeyForDropMode,
+  TAB_DROP_HOVER_MS,
 } from "../../state/dnd";
+import DropHintOverlay from "./DropHintOverlay.vue";
 import { SIDE_NAV_ITEMS, isSideNavActive, sideNavIcon } from "../../shell/sideNav";
 import { buildAppCommands } from "../../commands/registry";
 import { toggleCommandPanel } from "../../state/commandPanel";
@@ -302,6 +306,7 @@ function onPlacesItemDragLeave(event: DragEvent, path: string) {
   const related = event.relatedTarget as Node | null;
   const root = event.currentTarget as HTMLElement | null;
   if (root && related && root.contains(related)) return;
+  hideDropHint(path);
   if (placesFileDropOver.value === path) {
     placesFileDropOver.value = null;
   }
@@ -1309,8 +1314,8 @@ const tabDragPreview = ref<{
 const tabDropEdge = ref<"before" | "after" | null>(null);
 /** 刚落地的标签 id，用于短促落地动画。 */
 const tabLandedId = ref<string | null>(null);
-/** AIA-242: dwell then activate the hovered tab while file-dragging. */
-const tabHoverActivate = createDropHoverScheduler();
+/** 标签上暂留满 500ms 自动切换，与树/Places 的 Explorer 节奏一致。 */
+const tabHoverActivate = createDropHoverScheduler(TAB_DROP_HOVER_MS);
 
 /** Pointer-based reorder — HTML5 DnD is unreliable in WebView2 chrome areas. */
 const TAB_DRAG_THRESHOLD_PX = 6;
@@ -1341,7 +1346,10 @@ function onTabFileDragOver(event: DragEvent, groupIndex: number) {
   if (tabPointerId != null) return;
   const tab = stripTabs.value.find((item) => item.groupIndex === groupIndex);
   if (!tab || !tabAcceptsFileDrop(tab.path)) return;
-  const mode = acceptFolderDragOver(event, tab.path);
+  const mode = acceptFolderDragOver(event, tab.path, {
+    hintTarget: tab.name || tabLabel(tab.path),
+    hintKey: `tab:${groupIndex}`,
+  });
   if (mode == null) {
     clearTabFileDropHover();
     return;
@@ -1361,6 +1369,7 @@ function onTabFileDragLeave(event: DragEvent, groupIndex: number) {
   const root = event.currentTarget as HTMLElement | null;
   if (root && related && root.contains(related)) return;
   if (tabFileDropOver.value === groupIndex) {
+    hideDropHint(`tab:${groupIndex}`);
     clearTabFileDropHover();
   }
 }
@@ -1682,6 +1691,11 @@ function onVisibilityFlush() {
   }
 }
 
+/** 拖动被取消 / 落空 / 新一轮交互开始：清掉源路径缓存与投放提示。 */
+function onGlobalDragEnd(): void {
+  endDragSession();
+}
+
 onMounted(() => {
   reclaimFluentTitlebar();
   loadSidenavWidth();
@@ -1709,6 +1723,9 @@ onMounted(() => {
   window.addEventListener("keydown", onGlobalKeydown);
   document.addEventListener("pointerdown", onDocumentPointerDown, true);
   document.addEventListener("visibilitychange", onVisibilityFlush);
+  // 拖动取消/落空时收尾；pointerdown 捕获阶段先清旧会话，文件行随后重新登记。
+  window.addEventListener("dragend", onGlobalDragEnd, true);
+  document.addEventListener("pointerdown", onGlobalDragEnd, true);
 
   // Side-nav / chrome IPC off the first navigator_list window.
   scheduleAfterPaint(() => {
@@ -1754,6 +1771,8 @@ onUnmounted(() => {
   window.removeEventListener("keydown", onGlobalKeydown);
   document.removeEventListener("pointerdown", onDocumentPointerDown, true);
   document.removeEventListener("visibilitychange", onVisibilityFlush);
+  window.removeEventListener("dragend", onGlobalDragEnd, true);
+  document.removeEventListener("pointerdown", onGlobalDragEnd, true);
   disarmAddressOutsideListener();
   onSidenavResizeEnd();
   clearTabFileDropHover();
@@ -2424,6 +2443,7 @@ onUnmounted(() => {
           </div>
         </form>
 
+        <DropHintOverlay />
         <Teleport to="body">
           <div
             v-if="tabDragPreview && tabDragMoved"

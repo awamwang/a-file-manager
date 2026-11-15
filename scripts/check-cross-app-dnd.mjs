@@ -14,6 +14,18 @@ const surface = read("src/state/dnd/surface.ts");
 const focus = read("src-tauri/src/drag_focus.rs");
 const design = read("docs/afm-explorer-dnd-interop-design.md");
 const nav = read("src/views/NavigatorView.vue");
+const conf = JSON.parse(read("src-tauri/tauri.conf.json"));
+
+// Tauri 2 默认 dragDropEnabled=true 时会 RevokeDragDrop(WebView2 child) 并换成
+// 只认 CF_HDROP 的宿主 target，DOM dragover/dragenter/drop 一律不派发 →
+// 标签悬停、投放提示、列表投放全部收不到事件。页内/窗内拖放必须显式关掉。
+const mainWindow = conf.app.windows.find((w) => w.label === "main");
+assert.ok(mainWindow, "main window config");
+assert.equal(
+  mainWindow.dragDropEnabled,
+  false,
+  "WebView2 native drag target must stay enabled for DOM drag/drop events",
+);
 const patchWin = join(root, "src-tauri/patches/drag/src/platform_impl/windows/mod.rs");
 
 assert.ok(dragOut.includes("startDrag"), "outbound arms tauri-plugin-drag startDrag");

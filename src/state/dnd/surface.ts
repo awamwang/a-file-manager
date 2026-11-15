@@ -9,6 +9,12 @@ import {
   pathsFromDataTransfer,
 } from "./paths.ts";
 import { dropTransferMode, type DropMode } from "./mode.ts";
+import {
+  activeDragSources,
+  endDragSession,
+  hideDropHint,
+  showDropHint,
+} from "./session.ts";
 import { transferEntries } from "../fileClipboard.ts";
 import { recordCopyUndo, recordMoveUndo } from "../fileUndo/index.ts";
 import { clearSelection, selectedPaths } from "../navigatorSelection.ts";
@@ -40,28 +46,37 @@ export function previewDropMode(
   });
 }
 
-/** Paths used for dragover cursor preview (in-app selection; empty for external). */
+/** Paths used for dragover cursor preview (drag session wins: tab switch clears selection). */
 export function previewSourcePaths(event: DragEvent): string[] {
+  const session = activeDragSources();
+  if (session.length) return session;
   if (dataTransferLooksExternal(event.dataTransfer)) return [];
   return [...selectedPaths.value];
 }
 
 /**
- * Accept a folder drop target: preventDefault, set dropEffect, return mode.
+ * Accept a folder drop target: preventDefault, set dropEffect, show the release hint.
  * Returns null when the destination must not accept (e.g. self-drop on selected row).
  */
 export function acceptFolderDragOver(
   event: DragEvent,
   destPath: string,
-  options: { rejectIfSelected?: boolean } = {},
+  options: {
+    rejectIfSelected?: boolean;
+    hintTarget?: string;
+    hintKey?: string;
+  } = {},
 ): DropMode | null {
+  const hintKey = options.hintKey ?? destPath;
   if (options.rejectIfSelected && selectedPaths.value.includes(destPath)) {
+    hideDropHint(hintKey);
     return null;
   }
   event.preventDefault();
   event.stopPropagation();
   const mode = previewDropMode(event, destPath, previewSourcePaths(event));
   if (event.dataTransfer) event.dataTransfer.dropEffect = mode;
+  showDropHint(event, mode, options.hintTarget ?? destPath, hintKey);
   return mode;
 }
 
@@ -72,8 +87,21 @@ export async function commitFolderDrop(
 ): Promise<FolderDropCommit> {
   event.preventDefault();
   event.stopPropagation();
-  const paths = pathsFromDataTransfer(event.dataTransfer).filter((p) => p !== destPath);
-  if (!paths.length) return { ok: false, error: "empty" };
+  const transferred = pathsFromDataTransfer(event.dataTransfer);
+  // WebView2 原生 OLE 回灌时 dataTransfer 常只有 Files（File.path 可能为空、
+  // 也没有 uri-list）；dragover 拿不到源路径，但按下时登记的会话就是同一次
+  // 拖动的源。会话由 dragend / pointerdown / 本次 drop 清理且有 TTL，
+  // 外部拖入时它为空，因此不会借用上一次的路径。
+  const sessionPaths = activeDragSources();
+  const resolved =
+    transferred.length || !sessionPaths.length
+      ? transferred
+      : sessionPaths.map((p) => p.replace(/\//g, "\\"));
+  const paths = resolved.filter((p) => p !== destPath);
+  if (!paths.length) {
+    endDragSession();
+    return { ok: false, error: "empty" };
+  }
 
   try {
     const mode = previewDropMode(event, destPath, paths);
@@ -97,6 +125,8 @@ export async function commitFolderDrop(
       ok: false,
       error: err instanceof Error ? err.message : String(err),
     };
+  } finally {
+    endDragSession();
   }
 }
 
