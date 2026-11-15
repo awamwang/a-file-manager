@@ -705,6 +705,46 @@
 
 **边界（勿误判为完成）**：43pt 是本机 macOS 15.x 的实机标定值（AppKit 会把按钮在容器内垂直居中，容器增高与按钮下移非线性），换系统版本或窗口缩放需重新标定；全屏进出、窗口 tabbing、标题变化是否重置按钮位置尚未逐个实机验证（目前只覆盖 `Resized`）；窗口顶部 28pt 安全区仍在，但与自绘栏同色且无分隔线，视觉上是一条栏而非双层标题栏。
 
+> **7.18 整体替换**：下面找到了这 28pt 带的真正来源（运行时 `set_decorations(true)` 丢了 `FullSizeContentView`），7.17 的按钮位移属于治标，已连同 `TRAFFIC_LIGHT_INSET_PT` 一起删除；交通灯改回 AppKit 原生位置。
+
+### 7.18 标题栏上移到窗口顶沿（第 13 轮）
+
+**触发**：用户实机反馈「没必要留上面的一条了吧，可以让软件的标题栏位置上移」——7.17 收尾时窗口最上方仍有一条约 28pt 的浅灰空白带（原生标题栏区域），自绘 Fluent 栏被压在它下面，交通灯则被人工下移到自绘栏里。
+
+**定位方式**：在 macOS 适配器里临时注入一段 ObjC 诊断（打印 `window.frame` / `styleMask` / `contentLayoutRect` / `contentView.frame` / `WryWebViewParent.frame` / `safeAreaRect` / 视图层级类名），实机读数：
+
+| 项 | 修复前 | 修复后 |
+|---|---|---|
+| `NSWindow.frame.size.height` | 1175 | 1175 |
+| `styleMask` | **15**（`Titled\|Closable\|Miniaturizable\|Resizable`） | **32783**（含 `FullSizeContentView`） |
+| `titlebarAppearsTransparent` / `titleVisibility` | `true` / `Hidden` | 不变 |
+| `contentView.frame.size.height` | **1147**（比窗口矮 28pt） | **1175**（铺满） |
+| `WryWebViewParent.frame` | 1147 | 1175 |
+| `contentLayoutRect` | 1147 | 1147（相对 contentView 的布局区） |
+
+**根因**：`tao::window::set_decorations(true)` 用 `set_style_mask_async` 以 `Titled|Closable|Miniaturizable|Resizable` **整体重写** styleMask，把窗口创建时 `TitleBarStyle::Overlay` 带上的 `FullSizeContentView` 位清掉了。AppKit 随即把 `contentView` 收矮 28pt，WKWebView 只能从原生标题栏带下方开始绘制 —— 这才是那条空白带的来源，与 7.17 判断的「WKWebView titlebar safe area」不是一回事。运行时 `set_title_bar_style(Overlay)` 虽会调 `set_fullsize_content_view(true)`，但它经 Tauri 事件循环异步投递，最终生效的仍是清位后的 mask。
+
+**采用方案**：让适配层把窗口几何恢复到 Overlay 应有的状态，而不是继续挪按钮。
+
+| 落点 | 内容 |
+|---|---|
+| `platform/macos.rs` | `extend_content_under_titlebar(&WebviewWindow)`：补 `NSWindowStyleMask::FullSizeContentView`、保持 `titlebarAppearsTransparent(true)`，并把 wry 的 parent view `setFrame` 到新的 `contentView.bounds`。**不再触碰任何按钮 frame**，交通灯保持 AppKit 原生位置，此时恰好落在自绘栏中心线上（约 6pt 偏差，肉眼齐平）；删掉 7.17 的 `align_traffic_lights` 与 43pt 标定常量 |
+| `platform/mod.rs` | 单一入口改名 `extend_content_under_titlebar`，非 macOS 空实现 |
+| `lib.rs` | `set_title_bar_style(Overlay)` 之后立即在**同一主线程任务**里调适配层；`Resized` 事件与启动 1.6s 兜底继续幂等重设（AppKit 在 reveal / resize 后会重排 contentView），避免启动瞬间露出空白带 |
+| `AppShell.vue` | 顶部可拖动的原生带消失后，左侧 78px 留白不能变成死区：由 `padding-inline-start` 改为真实的 `mac-traffic-light-gutter` flex 项，带 `data-tauri-drag-region` 与双击最大化；`v-if="isMacPlatform()"`，Windows 不渲染 |
+| 静态契约 | `check-window-controls.mjs` 把 5 条 7.17 断言改为 7.18：委托新入口、适配器必须出现 `FullSizeContentView` / `setTitlebarAppearsTransparent` 且**不得**再出现 `TRAFFIC_LIGHT_INSET_PT`、mod.rs 暴露新入口、AppShell 必须有 78px gutter；config 两字段与 AppKit 依赖 target 门控断言保留 |
+
+**6.5 门禁**：仍属「引入」AppKit（Tauri 运行时无等价 API 可恢复 styleMask），但比 7.17 收窄：只改窗口样式位与 root view frame，不再依赖私有按钮容器布局与本机标定常量；依赖仍按 `cfg(target_os="macos")` 门控，Windows 侧零影响。
+
+| 验证 | 结果 |
+|---|---|
+| 实机截图（窗口单独截 + 顶部放大） | ✅ 浅灰带完全消失，自绘栏贴到窗口圆角内最上沿；交通灯 / 刷新按钮 / 品牌同处一行、无重叠、无裁切 |
+| `cargo check`（默认 / `--no-default-features`） | ✅ 0 警告 |
+| `cargo test --lib` / `npm test` 全量 / `npm run build` | ✅ 299 passed, 0 failed, 1 ignored / exit 0 / OK |
+| `test:window-controls` / `test:macos-bundle` | ✅ |
+
+**边界（勿误判为完成）**：`FullSizeContentView` 与 wry parent view frame 是 AppKit 行为，仍需 macOS 实机；全屏进出、窗口 tabbing、标题变化后 AppKit 是否再次清位只靠 `Resized` + 启动兜底覆盖，未逐个验证；交通灯与自绘栏中心约 6pt 的原生偏差没有再标定；78px gutter 的拖动 / 双击最大化需用户实机确认；Windows 侧未实机编译（`v-if` 不渲染 gutter，但前端构建已过）。
+
 ---
 
 ## 附录 A · 关键证据索引（便于复核）

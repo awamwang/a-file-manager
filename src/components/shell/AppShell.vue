@@ -1803,6 +1803,14 @@ onUnmounted(() => {
     :class="{ 'mac-overlay-titlebar': isMacPlatform() }"
   >
     <header class="titlebar" data-tauri-frame-tb :aria-label="t('chrome.titleBar')">
+      <!-- macOS Overlay: the 78px gutter under the native traffic lights is
+           webview content now, so it needs its own drag region (7.18). -->
+      <div
+        v-if="isMacPlatform()"
+        class="mac-traffic-light-gutter"
+        data-tauri-drag-region
+        @dblclick.prevent="toggleMaximizeWindow"
+      />
       <div
         class="titlebar-leading"
         role="group"
@@ -2680,10 +2688,11 @@ onUnmounted(() => {
 }
 
 /* macOS `TitleBarStyle::Overlay`: the native title bar is transparent and the
-   traffic lights float over the webview content. Reserve room for them and
+   traffic lights float over webview content. Reserve room for them (the gutter
+   doubles as a drag region now that the caption reaches the window top) and
    drop the Win11 caption buttons, which would duplicate the traffic lights. */
-.shell.mac-overlay-titlebar .titlebar {
-  padding-inline-start: 78px;
+.shell.mac-overlay-titlebar .mac-traffic-light-gutter {
+  flex: 0 0 78px;
 }
 
 .shell.mac-overlay-titlebar .window-controls {

@@ -144,20 +144,21 @@ pub fn run() {
                     let _ = window.set_decorations(true);
                     let _ = window.set_title("");
                     // tao rewrites the whole styleMask for `set_decorations(true)`
-                    // on a dispatch_async main-queue task. Queue the Overlay
-                    // switch behind that task so the FullSizeContentView bit is
-                    // not lost to the rewrite.
+                    // on a dispatch_async main-queue task, dropping the
+                    // FullSizeContentView bit. Queue the Overlay switch behind
+                    // that task, then restore the bit in the adapter (7.18):
+                    // without it AppKit keeps contentView 28pt shorter than the
+                    // window and the caption starts below an empty grey band.
                     let overlay_app = app.handle().clone();
                     let _ = window.run_on_main_thread(move || {
                         if let Some(window) = overlay_app.get_webview_window("main") {
                             let _ = window.set_title_bar_style(tauri::TitleBarStyle::Overlay);
+                            crate::platform::extend_content_under_titlebar(&window);
                         }
                     });
-                    // WKWebView keeps a ~28pt safe-area band under the native
-                    // titlebar, so the self-drawn caption row sits ~26pt below
-                    // the traffic lights. Move the native buttons onto that row
-                    // (7.17); AppKit resets their frames on resize, so re-apply
-                    // on the main thread after every size change.
+                    // AppKit re-lays out contentView on resize / after reveal;
+                    // re-apply on the main thread after every size change and
+                    // once at startup for windows revealed without a resize.
                     let chrome_app = app.handle().clone();
                     window.on_window_event(move |event| {
                         if matches!(event, tauri::WindowEvent::Resized(_)) {
@@ -167,7 +168,7 @@ pub fn run() {
                                     if let Some(window) =
                                         main_thread_app.get_webview_window("main")
                                     {
-                                        crate::platform::align_window_chrome(&window);
+                                        crate::platform::extend_content_under_titlebar(&window);
                                     }
                                 });
                             }
@@ -181,7 +182,7 @@ pub fn run() {
                         let align_app = late_app.clone();
                         let _ = late_app.run_on_main_thread(move || {
                             if let Some(window) = align_app.get_webview_window("main") {
-                                crate::platform::align_window_chrome(&window);
+                                crate::platform::extend_content_under_titlebar(&window);
                             }
                         });
                     });

@@ -13,55 +13,44 @@ use std::path::PathBuf;
 
 pub struct MacosPlatform;
 
-/// Calibrated on the running window (7.17): WKWebView starts its content ~28pt
-/// below the window top because of the native titlebar safe area, so the
-/// 40pt Fluent caption sits ~26pt lower than the traffic lights. AppKit
-/// vertically centres the buttons inside their private container; growing that
-/// container by 43pt lands the buttons on the caption's centre line. The value
-/// is a window metric, not a magic layout offset — re-calibrate if a future
-/// macOS changes the titlebar/safe-area metrics.
+/// Restore the native window geometry that `TitleBarStyle::Overlay` implies.
+///
+/// `tao::set_decorations(true)` rewrites the whole `NSWindow.styleMask` on a
+/// dispatch_async task with a plain `Titled|Closable|Miniaturizable|Resizable`
+/// mask. That drops `FullSizeContentView`: AppKit then keeps `contentView`
+/// 28pt shorter than the window, so WKWebView — and with it the self-drawn
+/// Fluent caption — starts below an empty native titlebar band (7.18).
+/// Re-applying the bit grows `contentView` back to the full window frame;
+/// wry's parent view is pinned to the new bounds because it was sized against
+/// the shorter content view.
+///
+/// No button frames are touched: the native traffic lights already sit on the
+/// caption's centre line once the caption reaches the window top. All values
+/// are absolute, so re-applying after a resize (AppKit re-lays out the content
+/// view) is idempotent.
 #[cfg(target_os = "macos")]
-const TRAFFIC_LIGHT_INSET_PT: f64 = 43.0;
-
-/// Shift the native close / minimize / zoom buttons onto the self-drawn caption
-/// row. This mirrors tao's own `inset_traffic_lights`: grow the private titlebar
-/// container instead of moving buttons outside their superview, which AppKit
-/// would simply undo. Every value is absolute, so re-applying after a resize is
-/// idempotent.
-#[cfg(target_os = "macos")]
-pub fn align_traffic_lights(window: &tauri::WebviewWindow) {
-    use objc2_app_kit::{NSView, NSWindow, NSWindowButton};
+pub fn extend_content_under_titlebar(window: &tauri::WebviewWindow) {
+    use objc2_app_kit::{NSView, NSWindow, NSWindowStyleMask};
 
     let Ok(ns_window) = window.ns_window() else {
         return;
     };
     unsafe {
         let w: &NSWindow = &*(ns_window as *const NSWindow);
-        let Some(close) = w.standardWindowButton(NSWindowButton::CloseButton) else {
-            return;
-        };
-        let Some(miniaturize) = w.standardWindowButton(NSWindowButton::MiniaturizeButton) else {
-            return;
-        };
-        let Some(zoom) = w.standardWindowButton(NSWindowButton::ZoomButton) else {
-            return;
-        };
-        let Some(container) = close.superview().and_then(|parent| parent.superview()) else {
-            return;
-        };
-
-        let close_rect = NSView::frame(&close);
-        let spacing = NSView::frame(&miniaturize).origin.x - close_rect.origin.x;
-        let height = close_rect.size.height + TRAFFIC_LIGHT_INSET_PT;
-        let mut container_rect = NSView::frame(&container);
-        container_rect.size.height = height;
-        container_rect.origin.y = w.frame().size.height - height;
-        NSView::setFrame(&container, container_rect);
-
-        for (index, button) in [close, miniaturize, zoom].into_iter().enumerate() {
-            let mut origin = NSView::frame(&button).origin;
-            origin.x = close_rect.origin.x + index as f64 * spacing;
-            NSView::setFrameOrigin(&button, origin);
+        let mask = w.styleMask();
+        if !mask.contains(NSWindowStyleMask::FullSizeContentView) {
+            w.setStyleMask(mask | NSWindowStyleMask::FullSizeContentView);
+        }
+        if !w.titlebarAppearsTransparent() {
+            w.setTitlebarAppearsTransparent(true);
+        }
+        if let (Ok(ns_view), Some(content_view)) = (window.ns_view(), w.contentView()) {
+            let v: &NSView = &*(ns_view as *const NSView);
+            let bounds = NSView::bounds(&content_view);
+            let frame = NSView::frame(v);
+            if frame.size.width != bounds.size.width || frame.size.height != bounds.size.height {
+                NSView::setFrame(v, bounds);
+            }
         }
     }
 }
