@@ -3,6 +3,7 @@
 
 import { computed, ref } from "vue";
 import type { NavigatorEntry } from "./navigatorBrowse.ts";
+import { normalizePathKey } from "./pathKey.ts";
 
 export const selectedPaths = ref<string[]>([]);
 /** Anchor path for Shift+click ranges. */
@@ -68,4 +69,36 @@ export function selectedEntries(
   if (!entries?.length || !selectedPaths.value.length) return [];
   const set = new Set(selectedPaths.value);
   return entries.filter((e) => set.has(e.path));
+}
+
+/**
+ * 删除后保持选中（Explorer 习惯）：
+ * 在可见顺序中定位被删条目的最后一个位置，选中其后的第一个剩余条目；
+ * 已删到列表末尾则回退到剩余最后一项；目录清空或被删路径不在当前
+ * 可见列表（如跨目录操作）时返回 null，由调用方自行清除选中。
+ * 必须在移除 listing 条目之前用删除前的顺序调用。
+ */
+export function nextSelectionAfterRemoval(
+  orderedPaths: string[],
+  removedPaths: string[],
+): string | null {
+  if (!orderedPaths.length || !removedPaths.length) return null;
+  const removed = new Set(
+    removedPaths
+      .map((path) => normalizePathKey(path))
+      .filter((key) => key.length > 0),
+  );
+  if (!removed.size) return null;
+  let lastIndex = -1;
+  for (let i = 0; i < orderedPaths.length; i++) {
+    if (removed.has(normalizePathKey(orderedPaths[i] ?? ""))) lastIndex = i;
+  }
+  if (lastIndex < 0) return null;
+  for (let i = lastIndex + 1; i < orderedPaths.length; i++) {
+    if (!removed.has(normalizePathKey(orderedPaths[i] ?? ""))) return orderedPaths[i];
+  }
+  for (let i = lastIndex - 1; i >= 0; i--) {
+    if (!removed.has(normalizePathKey(orderedPaths[i] ?? ""))) return orderedPaths[i];
+  }
+  return null;
 }

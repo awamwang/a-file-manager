@@ -32,7 +32,7 @@ import {
   afterFileMutation,
   afterUndoMutation,
 } from "../state/fileMutation";
-import { revealItemsInNavigator } from "../state/revealInNavigator";
+import { revealItemsInNavigator, scrollSelectionIntoView } from "../state/revealInNavigator";
 import {
   dirEntryFromPath,
   folderContextMenuRequest,
@@ -92,6 +92,7 @@ import {
 import {
   clearSelection,
   isSelected,
+  nextSelectionAfterRemoval,
   selectOnly,
   selectRange,
   selectionAnchor,
@@ -643,6 +644,13 @@ function entryLocation(path: string): string {
 }
 
 const orderedPaths = computed(() => visibleEntries.value.map((e) => e.path));
+
+/** 删除后保持选中：按活动窗格取可见顺序（键盘删除可能发生在双栏副窗格）。 */
+const activeOrderedPaths = computed(() =>
+  activePane.value === "secondary" && dualPaneEnabled.value
+    ? secondaryEntries.value.map((e) => e.path)
+    : orderedPaths.value,
+);
 
 function isCompactListDensity(): boolean {
   try {
@@ -1717,12 +1725,18 @@ async function shortcutNewFile() {
 }
 
 async function afterShortcutDelete(paths: string[], notice: string) {
+  // 先用删除前的可见顺序算出下一个应选中条目（Explorer 习惯），再清列表。
+  const nextPath = nextSelectionAfterRemoval(activeOrderedPaths.value, paths);
   clearSelection();
   clearClipboard();
   removePathsFromListings(paths);
   bumpFolderTreeRevision();
   onNotice(notice);
   await refreshListing();
+  if (nextPath) {
+    selectOnly(nextPath);
+    scrollSelectionIntoView(nextPath);
+  }
 }
 
 async function shortcutDelete(permanent = false) {
@@ -2449,6 +2463,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
       :empty-area="menuEmpty"
       :x="menuX"
       :y="menuY"
+      :ordered-paths="activeOrderedPaths"
       @close="closeMenu"
       @notice="onNotice"
       @favorites-changed="loadFavorites"

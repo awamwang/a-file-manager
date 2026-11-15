@@ -91,6 +91,7 @@
     "test:search-status-doc": "node scripts/check-search-status-doc.mjs",
     "test:close-confirm": "node scripts/check-close-confirm.mjs",
     "test:delete-confirm": "node scripts/check-delete-confirm.mjs",
+    "test:delete-keep-selection": "node scripts/check-delete-keep-selection.mjs",
     "test:prompt-dialog": "node scripts/check-prompt-dialog.mjs",
     "test:navigator-filter": "node scripts/check-navigator-filter.mjs",
     "test:shell-sidebar-layout": "node scripts/check-shell-sidebar-layout.mjs",
