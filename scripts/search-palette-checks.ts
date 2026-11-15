@@ -19,6 +19,7 @@ import { matchByName } from "../src/search/match.ts";
 import { useSearchPalette } from "../src/search/useSearchPalette.ts";
 import {
   SEARCH_GROUP_LIMIT,
+  SEARCH_RESULT_GROUP_ORDER,
   SEARCH_SOURCE_ORDER,
   type SearchSource,
   type SearchSourceId,
@@ -191,8 +192,13 @@ await nextTick();
 
 assert.deepEqual(
   palette.groups.value.map((group) => group.source.id),
-  [...SEARCH_SOURCE_ORDER],
-  "固定分组顺序：命令→项目→工作组→工具→扩展→文件",
+  [...SEARCH_RESULT_GROUP_ORDER],
+  "结果分组顺序：命令→项目→工作组→工具→扩展→文件（文件组殿后）",
+);
+assert.equal(
+  palette.groups.value[palette.groups.value.length - 1]?.source.id,
+  "files",
+  "文件组必须是结果中的最后一组",
 );
 const commandsGroup = palette.groups.value.find(
   (group) => group.source.id === "commands",
@@ -211,7 +217,12 @@ assert.deepEqual(
 assert.deepEqual(
   palette.scopeChips.value.map((chip) => chip.source.id),
   [...SEARCH_SOURCE_ORDER],
-  "chip 顺序与分组一致",
+  "chip 顺序（配置面）保持：命令→文件→项目→工作组→工具→扩展",
+);
+assert.notDeepEqual(
+  palette.scopeChips.value.map((chip) => chip.source.id),
+  palette.groups.value.map((group) => group.source.id),
+  "chip 与结果分组顺序解耦（文件 chip 不在末位）",
 );
 assert.deepEqual(
   palette.scopeChips.value.map((chip) => chip.index),

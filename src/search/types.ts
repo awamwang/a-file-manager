@@ -12,8 +12,18 @@ export type SearchSourceId =
   | "tools"
   | "extensions";
 
-/** 固定分组顺序：命令 → 项目 → 工作组 → 工具 → 扩展 → 文件（文件组排最后）。 */
+/** 范围 chip / Alt+数字顺序：命令 → 文件 → 项目 → 工作组 → 工具 → 扩展。 */
 export const SEARCH_SOURCE_ORDER: readonly SearchSourceId[] = [
+  "commands",
+  "files",
+  "projects",
+  "workgroups",
+  "tools",
+  "extensions",
+];
+
+/** 结果分组显示顺序：文件组排最后（chip 顺序仍按 SEARCH_SOURCE_ORDER，不受影响）。 */
+export const SEARCH_RESULT_GROUP_ORDER: readonly SearchSourceId[] = [
   "commands",
   "projects",
   "workgroups",

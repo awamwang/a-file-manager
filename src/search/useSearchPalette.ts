@@ -9,6 +9,7 @@ import {
 } from "./scope.ts";
 import {
   SEARCH_GROUP_LIMIT,
+  SEARCH_RESULT_GROUP_ORDER,
   SEARCH_SOURCE_ORDER,
   type SearchSource,
   type SearchSourceId,
@@ -113,12 +114,12 @@ export function useSearchPalette(sources: () => readonly SearchSource[]) {
     }
   }
 
-  /** 固定分组顺序 + 每组上限；ready 且空的分组隐藏。 */
+  /** 结果分组顺序（文件组殿后）+ 每组上限；ready 且空的分组隐藏。 */
   const groups = computed<PaletteGroup[]>(() => {
     const out: PaletteGroup[] = [];
     const active = new Set(activeScopes.value);
     let index = 0;
-    for (const id of SEARCH_SOURCE_ORDER) {
+    for (const id of SEARCH_RESULT_GROUP_ORDER) {
       if (!active.has(id)) continue;
       const source = availableSources.value.find((entry) => entry.id === id);
       const state = sourceStates.value[id];
