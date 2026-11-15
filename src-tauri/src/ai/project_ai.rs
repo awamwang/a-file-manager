@@ -90,6 +90,23 @@ pub fn load_or_init(
     Ok(doc)
 }
 
+/// 只读：项目启用的 Agent id（文件不存在时回落到中央默认集），不创建 ai-project.json。
+pub fn enabled_agent_ids(
+    workspace: &str,
+    central: &AiConfigDocument,
+) -> Result<Vec<String>, String> {
+    let root = require_workspace(workspace)?;
+    let path = ai_project_path(&root);
+    if !path.is_file() {
+        return Ok(default_enabled_ids(central));
+    }
+    let text = fs::read_to_string(&path)
+        .map_err(|err| format!("Failed to read ai-project.json: {err}"))?;
+    let doc: AiProjectDocument = serde_json::from_str(&text)
+        .map_err(|err| format!("Failed to parse ai-project.json: {err}"))?;
+    Ok(normalize_ids(&doc.enabled_agent_ids, &central.agent_targets))
+}
+
 pub fn save(workspace: &str, document: &AiProjectDocument) -> Result<(), String> {
     let root = require_workspace(workspace)?;
     let dir = root.join(AFM_DIR_NAME);

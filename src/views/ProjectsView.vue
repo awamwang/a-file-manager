@@ -12,12 +12,12 @@ import {
   applyProjectSilentSwitch,
   closeAllNavigatorTabs,
   liveOpenState,
-  openOrFocusNavigatorTab,
   openPathsAsNavigatorTabs,
   snapshotLeavingOpenState,
   type SilentSwitchResult,
 } from "../state/navigatorBrowse";
 import { normalizePathKey } from "../state/pathKey";
+import { ensureWorkGroupActive, openWorkGroupMemberTab } from "../state/workGroup";
 import { openConfirmDialog } from "../state/confirmDialog";
 import { toastError, toastInfo, toastSuccess } from "../state/toast";
 import { createListPointerReorder } from "../state/listPointerReorder";
@@ -65,7 +65,7 @@ type UserProject = {
   workGroupId?: string | null;
   workspaceLinks: WorkspaceLink[];
   tasks: ProjectTask[];
-  contextNotes: string;
+  context: string;
   createdAt: number;
   updatedAt: number;
   path: string;
@@ -135,6 +135,14 @@ function mapProjectError(err: unknown): string {
   return raw;
 }
 
+/** 打开成员标签前的工作组切换失败：不跳转，给出可见提示。 */
+function reportWorkGroupSwitch(code: string): void {
+  const msg =
+    code === "REQUIRE_SAVE_PROMPT" ? t("workGroups.errorSavePrompt") : code;
+  error.value = msg;
+  toastError(msg);
+}
+
 const STATUS_LABEL_KEYS = {
   backlog: "projects.statusBacklog",
   doing: "projects.statusDoing",
@@ -195,7 +203,7 @@ function tasksForStatus(statusId: string): ProjectTask[] {
 
 function mapListItem(
   item: WorkspaceListResult["workspaces"][0],
-  extras?: Partial<Pick<UserProject, "workspaceLinks" | "tasks" | "contextNotes">>,
+  extras?: Partial<Pick<UserProject, "workspaceLinks" | "tasks" | "context">>,
 ): UserProject {
   const p = item.project;
   return {
@@ -205,7 +213,7 @@ function mapListItem(
     workGroupId: p.boundWorkGroupId ?? null,
     workspaceLinks: extras?.workspaceLinks ?? [],
     tasks: extras?.tasks ?? [],
-    contextNotes: extras?.contextNotes ?? "",
+    context: extras?.context ?? "",
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
     path: item.path,
@@ -225,9 +233,9 @@ function membersToLinks(members: WorkspaceMember[]): WorkspaceLink[] {
 async function loadProjectDetails(slug: string): Promise<{
   workspaceLinks: WorkspaceLink[];
   tasks: ProjectTask[];
-  contextNotes: string;
+  context: string;
 }> {
-  const [members, board, contextNotes] = await Promise.all([
+  const [members, board, context] = await Promise.all([
     invoke<WorkspaceMember[]>("projects_workspace_member_list", { slug }),
     invoke<WorkspaceBoard>("projects_workspace_board_get", { slug }),
     invoke<string>("projects_workspace_context_get", { slug }),
@@ -235,7 +243,7 @@ async function loadProjectDetails(slug: string): Promise<{
   return {
     workspaceLinks: membersToLinks(members),
     tasks: board.tasks ?? [],
-    contextNotes,
+    context,
   };
 }
 
@@ -283,7 +291,7 @@ async function refresh(preferSlug?: string | null) {
 }
 
 function syncContextDraft() {
-  contextDraft.value = selected.value?.contextNotes ?? "";
+  contextDraft.value = selected.value?.context ?? "";
 }
 
 function syncBindDraft() {
@@ -331,7 +339,7 @@ async function reorderProjects(fromId: string, toId: string) {
           ? {
               workspaceLinks: old.workspaceLinks,
               tasks: old.tasks,
-              contextNotes: old.contextNotes,
+              context: old.context,
             }
           : undefined,
       );
@@ -851,7 +859,7 @@ async function saveContext() {
       slug: selected.value.id,
       content: contextDraft.value,
     });
-    selected.value.contextNotes = contextDraft.value;
+    selected.value.context = contextDraft.value;
     toastSuccess(t("projects.noticeContextSaved"));
   } catch (err) {
     error.value = mapProjectError(err);
@@ -919,6 +927,12 @@ async function openAllLinks() {
     const paths = members.map((m) => m.openPath);
     if (!paths.length) {
       toastInfo(t("projects.noticeNoLinks"));
+      return;
+    }
+    // 会话标签属于项目绑定的工作组，先在那个组里落地。
+    const switchCode = await ensureWorkGroupActive(selected.value?.workGroupId ?? null);
+    if (switchCode) {
+      reportWorkGroupSwitch(switchCode);
       return;
     }
     await openPathsAsNavigatorTabs(paths);
@@ -998,8 +1012,15 @@ async function openInEditor(ideId: "cursor" | "qoder") {
 }
 
 async function openLink(path: string) {
-  // Sigma openOrFocusTabGroup: select existing page group or append one.
-  await openOrFocusNavigatorTab(path);
+  // 先切到项目绑定的工作组，再跳到该组已打开的成员标签；没有则新建（Sigma openOrFocusTabGroup）。
+  const switchCode = await openWorkGroupMemberTab(
+    selected.value?.workGroupId ?? null,
+    path,
+  );
+  if (switchCode) {
+    reportWorkGroupSwitch(switchCode);
+    return;
+  }
   await router.push("/navigator");
 }
 
@@ -1388,7 +1409,7 @@ onUnmounted(() => {
           <aside v-if="sidePanelOpen" class="side-panel">
             <h3>{{ t("projects.sidePanelTitle") }}</h3>
             <div class="side-panel-section">
-              <h4>{{ t("projects.contextNotes") }}</h4>
+              <h4>{{ t("projects.context") }}</h4>
               <textarea
                 v-model="contextDraft"
                 class="fluent-control context"

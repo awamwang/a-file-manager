@@ -323,6 +323,8 @@ health_get,
                     #[cfg(feature = "ai-addon")]
                     ai::ai_project_ai_set_enabled_agents,
                     #[cfg(feature = "ai-addon")]
+                    ai::ai_project_deployments,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_harness_init,
                     #[cfg(feature = "ai-addon")]
                     ai::ai_providers_list,

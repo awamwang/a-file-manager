@@ -276,6 +276,24 @@ fn load_mcp_file(path: &Path) -> Result<Value, String> {
     serde_json::from_str(&text).map_err(|err| format!("Failed to parse MCP JSON: {err}"))
 }
 
+/// 只读：某个 Agent MCP 配置文件里已写入的 AFM 托管条目 id。
+/// 供项目面板标记「已添加 / 未添加」，不改动任何配置文件。
+pub fn managed_ids_in_file(path: &Path) -> Vec<String> {
+    let Ok(root) = load_mcp_file(path) else {
+        return Vec::new();
+    };
+    let Some(servers) = root.get("mcpServers").and_then(Value::as_object) else {
+        return Vec::new();
+    };
+    let mut ids: Vec<String> = servers
+        .keys()
+        .filter_map(|key| key.strip_prefix(AFM_MCP_KEY_PREFIX).map(str::to_string))
+        .collect();
+    ids.sort();
+    ids.dedup();
+    ids
+}
+
 fn mcp_servers_map(root: &mut Value) -> Result<&mut Map<String, Value>, String> {
     if !root.is_object() {
         return Err(ERR_MCP_TARGET_INVALID.to_string());
@@ -515,6 +533,23 @@ mod tests {
         assert!(servers.contains_key("user-tool"));
         assert!(!servers.contains_key("afm__demo"));
 
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn managed_ids_reader_ignores_foreign_keys() {
+        let dir = temp_dir("managed-ids");
+        let mcp_path = dir.join("mcp.json");
+        fs::write(
+            &mcp_path,
+            r#"{ "mcpServers": { "user-tool": {}, "afm__alpha": {}, "afm__beta": {} } }"#,
+        )
+        .unwrap();
+        assert_eq!(
+            managed_ids_in_file(&mcp_path),
+            vec!["alpha".to_string(), "beta".to_string()]
+        );
+        assert!(managed_ids_in_file(&dir.join("missing.json")).is_empty());
         let _ = fs::remove_dir_all(&dir);
     }
 

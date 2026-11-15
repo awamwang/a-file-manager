@@ -414,6 +414,72 @@ pub fn ai_project_ai_set_enabled_agents(
     project_ai::set_enabled_agents(&workspace_path, &doc, enabled_agent_ids)
 }
 
+/// 项目内已写入的 AFM 托管 MCP / Skill（只读扫描，供列表标记「已添加」）。
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct AiProjectDeployments {
+    pub mcp_ids: Vec<String>,
+    pub skill_names: Vec<String>,
+}
+
+#[tauri::command]
+pub fn ai_project_deployments(
+    app: AppHandle,
+    workspace_path: String,
+) -> Result<AiProjectDeployments, String> {
+    use std::collections::BTreeSet;
+    use std::fs;
+    use std::path::PathBuf;
+
+    let empty = AiProjectDeployments {
+        mcp_ids: Vec::new(),
+        skill_names: Vec::new(),
+    };
+    let ws = PathBuf::from(workspace_path.trim());
+    if !ws.is_dir() {
+        return Ok(empty);
+    }
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    let enabled = project_ai::enabled_agent_ids(&workspace_path, &doc)?;
+    let project_agents = doc
+        .agent_targets
+        .iter()
+        .filter(|agent| enabled.iter().any(|id| id == &agent.id));
+
+    let mut mcp_ids = BTreeSet::new();
+    let mut skill_names = BTreeSet::new();
+    for agent in project_agents {
+        let rel = agent.project_mcp_path.trim();
+        if !rel.is_empty() {
+            let file = ws.join(rel.replace('/', "\\"));
+            for id in mcp::managed_ids_in_file(&file) {
+                mcp_ids.insert(id);
+            }
+        }
+        let rel = agent.project_skills_dir.trim();
+        if rel.is_empty() {
+            continue;
+        }
+        let skills_dir = ws.join(rel.replace('/', "\\"));
+        let Ok(entries) = fs::read_dir(&skills_dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            if entry.path().is_dir() {
+                let name = entry.file_name();
+                if let Some(text) = name.to_str() {
+                    skill_names.insert(text.to_string());
+                }
+            }
+        }
+    }
+    Ok(AiProjectDeployments {
+        mcp_ids: mcp_ids.into_iter().collect(),
+        skill_names: skill_names.into_iter().collect(),
+    })
+}
+
 /// Explicit Harness / Superpower init on a Project Workspace (ADR 0008).
 /// `include_sdd` defaults to false. Does not run from Core Project create.
 #[tauri::command]

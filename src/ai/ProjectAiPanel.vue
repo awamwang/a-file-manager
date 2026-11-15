@@ -1,7 +1,9 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
 /**
- * 项目侧 AI 区：横向双栏；默认无 Skill/MCP，需显式添加到本项目。
+ * 项目侧 AI 区：横向双栏；行首复选框即「是否已添加到本项目」的状态开关。
+ * 已添加 / 未添加由后端只读扫描项目内的托管 MCP 键与 Skill 目录得出；
+ * 列表始终把已添加（启用）的项排在前面，组内保持目录原有顺序。
  */
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -13,12 +15,14 @@ import {
   aiMcpUndeploy,
   aiProjectAiGet,
   aiProjectAiSetEnabledAgents,
+  aiProjectDeployments,
   aiSkillsDeploy,
   aiSkillsLibraryGet,
   aiSkillsUndeploy,
 } from "./client";
 import type {
   AgentTarget,
+  AiProjectDeployments,
   AiProjectDocument,
   LibrarySkill,
   McpCatalogEntry,
@@ -38,27 +42,68 @@ const mcpEntries = ref<McpCatalogEntry[]>([]);
 const skills = ref<LibrarySkill[]>([]);
 const mcpFilter = ref("");
 const skillFilter = ref("");
+const deployments = ref<AiProjectDeployments>({ mcpIds: [], skillNames: [] });
+/** 防止同一行在 IPC 未返回时被重复切换。 */
+const pending = ref<Set<string>>(new Set());
 
 const enabledSet = computed(() => new Set(projectAi.value?.enabledAgentIds ?? []));
+const deployedMcpSet = computed(() => new Set(deployments.value.mcpIds));
+const deployedSkillSet = computed(() => new Set(deployments.value.skillNames));
+
+/**
+ * 已添加（启用）优先；用原始下标兜底，避免依赖运行时排序稳定性，
+ * 也保证筛选结果在切换勾选前后只有「上移 / 下移」，组内次序不变。
+ */
+function addedFirst<T>(items: T[], isAdded: (item: T) => boolean): T[] {
+  return items
+    .map((item, index) => ({ item, index, added: isAdded(item) }))
+    .sort((a, b) => Number(b.added) - Number(a.added) || a.index - b.index)
+    .map(({ item }) => item);
+}
 
 const filteredMcp = computed(() => {
   const q = mcpFilter.value.trim().toLowerCase();
-  if (!q) return mcpEntries.value;
-  return mcpEntries.value.filter(
-    (e) => e.id.toLowerCase().includes(q) || e.displayName.toLowerCase().includes(q),
-  );
+  const matched = q
+    ? mcpEntries.value.filter(
+        (e) => e.id.toLowerCase().includes(q) || e.displayName.toLowerCase().includes(q),
+      )
+    : [...mcpEntries.value];
+  return addedFirst(matched, (e) => deployedMcpSet.value.has(e.id));
 });
 
 const filteredSkills = computed(() => {
   const q = skillFilter.value.trim().toLowerCase();
-  if (!q) return skills.value;
-  return skills.value.filter(
-    (s) => s.name.toLowerCase().includes(q) || s.path.toLowerCase().includes(q),
-  );
+  const matched = q
+    ? skills.value.filter(
+        (s) => s.name.toLowerCase().includes(q) || s.path.toLowerCase().includes(q),
+      )
+    : [...skills.value];
+  return addedFirst(matched, (s) => deployedSkillSet.value.has(s.name));
 });
 
 function mapError(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+function isPending(kind: "mcp" | "skill", id: string): boolean {
+  return pending.value.has(`${kind}:${id}`);
+}
+
+function setPending(key: string, value: boolean): void {
+  const next = new Set(pending.value);
+  if (value) next.add(key);
+  else next.delete(key);
+  pending.value = next;
+}
+
+/** 状态查询失败时退化为「全部未添加」，不让面板整体不可用。 */
+async function refreshDeployments(): Promise<void> {
+  if (!props.workspacePath.trim()) return;
+  try {
+    deployments.value = await aiProjectDeployments(props.workspacePath);
+  } catch {
+    deployments.value = { mcpIds: [], skillNames: [] };
+  }
 }
 
 async function refresh() {
@@ -71,6 +116,7 @@ async function refresh() {
       aiAgentTargetsList(),
       aiMcpCatalogList(),
       aiSkillsLibraryGet(),
+      refreshDeployments(),
     ]);
     projectAi.value = aiDoc;
     agents.value = agentDoc.agentTargets;
@@ -100,58 +146,60 @@ async function toggleAgent(id: string) {
   }
 }
 
-async function deployMcp(id: string) {
+/** 行首复选框：勾选 = 添加到本项目，取消勾选 = 从本项目移除。 */
+async function toggleMcp(id: string) {
+  const key = `mcp:${id}`;
+  if (isPending("mcp", id)) return;
+  setPending(key, true);
   error.value = null;
   try {
-    const report = await aiMcpDeploy(id, props.workspacePath);
-    toastSuccess(
-      t("ai.mcp.noticeDeployed", {
-        count: report.written.length,
-        skipped: report.skipped.length,
-      }),
-    );
+    if (deployedMcpSet.value.has(id)) {
+      await aiMcpUndeploy(id, props.workspacePath);
+      toastSuccess(t("ai.project.noticeRemoved", { name: id }));
+    } else {
+      await aiMcpDeploy(id, props.workspacePath);
+      toastSuccess(t("ai.project.noticeAdded", { name: id }));
+    }
+    await refreshDeployments();
   } catch (err) {
     error.value = mapError(err);
+    await refreshDeployments();
+  } finally {
+    setPending(key, false);
   }
 }
 
-async function undeployMcp(id: string) {
+async function toggleSkill(name: string) {
+  const key = `skill:${name}`;
+  if (isPending("skill", name)) return;
+  setPending(key, true);
   error.value = null;
   try {
-    const report = await aiMcpUndeploy(id, props.workspacePath);
-    toastSuccess(t("ai.mcp.noticeUndeployed", { count: report.written.length }));
+    if (deployedSkillSet.value.has(name)) {
+      await aiSkillsUndeploy(name, props.workspacePath);
+      toastSuccess(t("ai.project.noticeRemoved", { name }));
+    } else {
+      await aiSkillsDeploy(name, props.workspacePath);
+      toastSuccess(t("ai.project.noticeAdded", { name }));
+    }
+    await refreshDeployments();
   } catch (err) {
     error.value = mapError(err);
+    await refreshDeployments();
+  } finally {
+    setPending(key, false);
   }
 }
 
-async function deploySkill(name: string) {
-  error.value = null;
-  try {
-    const report = await aiSkillsDeploy(name, props.workspacePath);
-    toastSuccess(
-      t("ai.skills.noticeDeployed", {
-        count: report.deployments.length,
-        skipped: report.skipped.length,
-      }),
-    );
-  } catch (err) {
-    error.value = mapError(err);
+/** 筛选到只剩一个选项时，回车直接切换它的添加状态。 */
+function toggleOnlyFiltered(kind: "mcp" | "skill"): void {
+  if (kind === "mcp") {
+    const only = filteredMcp.value.length === 1 ? filteredMcp.value[0] : null;
+    if (only) void toggleMcp(only.id);
+    return;
   }
-}
-
-async function undeploySkill(name: string) {
-  error.value = null;
-  try {
-    const report = await aiSkillsUndeploy(name, props.workspacePath);
-    toastSuccess(
-      t("ai.skills.noticeUndeployed", {
-        count: report.deployments.length,
-      }),
-    );
-  } catch (err) {
-    error.value = mapError(err);
-  }
+  const only = filteredSkills.value.length === 1 ? filteredSkills.value[0] : null;
+  if (only) void toggleSkill(only.name);
 }
 
 watch(
@@ -205,21 +253,50 @@ onMounted(() => {
           class="fluent-control"
           type="search"
           :placeholder="t('ai.mcp.filterPlaceholder')"
+          @keydown.enter.prevent="toggleOnlyFiltered('mcp')"
         />
+        <p v-if="filteredMcp.length === 1" class="project-ai-enter-hint">
+          {{ t("ai.project.filterEnterHint") }}
+        </p>
         <ul class="project-ai-scroll">
-          <li v-for="entry in filteredMcp" :key="entry.id" class="project-ai-row">
-            <div class="project-ai-main">
-              <strong>{{ entry.displayName }}</strong>
-              <span class="project-ai-meta">{{ entry.id }}</span>
-            </div>
-            <div class="project-ai-actions">
-              <button type="button" class="fluent-control" @click="deployMcp(entry.id)">
-                {{ t("ai.project.deploy") }}
-              </button>
-              <button type="button" class="fluent-control" @click="undeployMcp(entry.id)">
-                {{ t("ai.project.undeploy") }}
-              </button>
-            </div>
+          <li
+            v-for="entry in filteredMcp"
+            :key="entry.id"
+            class="project-ai-row"
+            :class="{ 'project-ai-row--added': deployedMcpSet.has(entry.id) }"
+          >
+            <label class="project-ai-pick">
+              <input
+                type="checkbox"
+                class="project-ai-check"
+                :checked="deployedMcpSet.has(entry.id)"
+                :disabled="isPending('mcp', entry.id)"
+                :title="
+                  deployedMcpSet.has(entry.id)
+                    ? t('ai.project.undeploy')
+                    : t('ai.project.deploy')
+                "
+                @click.prevent="toggleMcp(entry.id)"
+              />
+              <span class="project-ai-main">
+                <strong>{{ entry.displayName }}</strong>
+                <span class="project-ai-meta">{{ entry.id }}</span>
+              </span>
+              <span
+                class="project-ai-state"
+                :class="
+                  deployedMcpSet.has(entry.id)
+                    ? 'project-ai-state--added'
+                    : 'project-ai-state--missing'
+                "
+              >
+                {{
+                  deployedMcpSet.has(entry.id)
+                    ? t("ai.project.added")
+                    : t("ai.project.notAdded")
+                }}
+              </span>
+            </label>
           </li>
           <li v-if="!filteredMcp.length" class="project-ai-meta">{{ t("ai.mcp.empty") }}</li>
         </ul>
@@ -235,20 +312,49 @@ onMounted(() => {
           class="fluent-control"
           type="search"
           :placeholder="t('ai.skills.filterPlaceholder')"
+          @keydown.enter.prevent="toggleOnlyFiltered('skill')"
         />
+        <p v-if="filteredSkills.length === 1" class="project-ai-enter-hint">
+          {{ t("ai.project.filterEnterHint") }}
+        </p>
         <ul class="project-ai-scroll">
-          <li v-for="skill in filteredSkills" :key="skill.name" class="project-ai-row">
-            <div class="project-ai-main">
-              <strong>{{ skill.name }}</strong>
-            </div>
-            <div class="project-ai-actions">
-              <button type="button" class="fluent-control" @click="deploySkill(skill.name)">
-                {{ t("ai.project.deploy") }}
-              </button>
-              <button type="button" class="fluent-control" @click="undeploySkill(skill.name)">
-                {{ t("ai.project.undeploy") }}
-              </button>
-            </div>
+          <li
+            v-for="skill in filteredSkills"
+            :key="skill.name"
+            class="project-ai-row"
+            :class="{ 'project-ai-row--added': deployedSkillSet.has(skill.name) }"
+          >
+            <label class="project-ai-pick">
+              <input
+                type="checkbox"
+                class="project-ai-check"
+                :checked="deployedSkillSet.has(skill.name)"
+                :disabled="isPending('skill', skill.name)"
+                :title="
+                  deployedSkillSet.has(skill.name)
+                    ? t('ai.project.undeploy')
+                    : t('ai.project.deploy')
+                "
+                @click.prevent="toggleSkill(skill.name)"
+              />
+              <span class="project-ai-main">
+                <strong>{{ skill.name }}</strong>
+              </span>
+              <span
+                class="project-ai-state"
+                :class="
+                  deployedSkillSet.has(skill.name)
+                    ? 'project-ai-state--added'
+                    : 'project-ai-state--missing'
+                "
+              >
+                {{
+                  deployedSkillSet.has(skill.name)
+                    ? t("ai.project.added")
+                    : t("ai.project.notAdded")
+                }}
+              </span>
+            </label>
           </li>
           <li v-if="!filteredSkills.length" class="project-ai-meta">{{ t("ai.skills.empty") }}</li>
         </ul>
@@ -278,12 +384,16 @@ onMounted(() => {
   font-size: var(--fluent-font-size-body);
 }
 .project-ai-hint,
-.project-ai-meta {
+.project-ai-meta,
+.project-ai-enter-hint {
   margin: 0;
   color: var(--fluent-color-text-secondary);
   font-size: var(--fluent-font-size-caption);
   -webkit-user-select: text;
   user-select: text;
+}
+.project-ai-enter-hint {
+  color: var(--fluent-color-stroke-accent-soft);
 }
 .project-ai-block {
   padding: var(--fluent-space-md);
@@ -335,10 +445,31 @@ onMounted(() => {
 }
 .project-ai-row {
   display: flex;
+  align-items: stretch;
+  padding: 0 2px;
+  border-radius: var(--fluent-radius-md);
+}
+.project-ai-row:hover {
+  background: var(--fluent-color-fill-subtle);
+}
+.project-ai-row--added {
+  box-shadow: inset 3px 0 0 var(--fluent-color-stroke-accent-soft);
+}
+.project-ai-pick {
+  display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--fluent-space-sm);
-  padding: 4px 0;
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  cursor: pointer;
+}
+.project-ai-check {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
 }
 .project-ai-main {
   display: flex;
@@ -352,9 +483,21 @@ onMounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.project-ai-actions {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
+.project-ai-state {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+  align-self: center;
+  padding: 2px 8px;
+  border-radius: var(--fluent-radius-md);
+  font-size: var(--fluent-font-size-caption);
+  white-space: nowrap;
+}
+.project-ai-state--added {
+  background: var(--fluent-color-fill-selected);
+  color: var(--fluent-color-stroke-accent-soft);
+}
+.project-ai-state--missing {
+  background: var(--fluent-color-fill-subtle);
+  color: var(--fluent-color-text-secondary);
 }
 </style>

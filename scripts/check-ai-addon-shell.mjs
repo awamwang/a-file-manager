@@ -21,6 +21,8 @@ const skillsPanel = read("src/ai/SkillsLibraryPanel.vue");
 const router = read("src/router/index.ts");
 const sideNav = read("src/shell/sideNav.ts");
 const registry = read("src/commands/registry.ts");
+const projectAiPanel = read("src/ai/ProjectAiPanel.vue");
+const projectAiRust = read("src-tauri/src/ai/project_ai.rs");
 
 assert.ok(lib.includes("mod ai;"), "lib.rs must declare AI Add-on module");
 assert.ok(lib.includes("ai::ai_addon_status"), "ai_addon_status must be registered");
@@ -45,6 +47,9 @@ assert.ok(lib.includes("ai::ai_harness_init"), "harness init IPC");
 assert.ok(lib.includes("ai::ai_providers_list"), "providers list IPC");
 assert.ok(lib.includes("ai::ai_providers_upsert_compatible"), "providers compatible IPC");
 assert.ok(lib.includes("ai::ai_project_open_editor"), "project open editor IPC");
+assert.ok(lib.includes("ai::ai_project_deployments"), "project deployments IPC");
+assert.ok(rustAi.includes("managed_ids_in_file"), "read-only MCP status scan");
+assert.ok(projectAiRust.includes("pub fn enabled_agent_ids"), "read-only project agent ids");
 
 assert.ok(
   rustAi.includes("AI Add-on") && rustAi.includes("ADR 0007"),
@@ -115,11 +120,25 @@ assert.ok(skillsPanel.includes("fluent-color-fill-selected"), "skill selected us
 const mcpRs = read("src-tauri/src/ai/mcp.rs");
 assert.ok(mcpRs.includes("afm__"), "managed MCP key prefix");
 assert.ok(mcpRs.includes("mcpServers"), "mcpServers merge target");
+assert.ok(mcpRs.includes("pub fn managed_ids_in_file"), "managed MCP ids reader");
 assert.ok(view.includes("McpCatalogPanel"));
 const mcpPanel = read("src/ai/McpCatalogPanel.vue");
 assert.ok(mcpPanel.includes("aiMcpDeploy"));
 assert.ok(mcpPanel.includes("mcp-list-item--active"), "mcp row selected class");
 assert.ok(mcpPanel.includes("fluent-color-fill-selected"), "mcp selected uses Fluent fill");
+// 项目 MCP / Skills：行首复选框 + 已添加状态 + 筛选唯一项回车切换。
+assert.ok(client.includes('"ai_project_deployments"'), "typed client: deployments");
+assert.ok(projectAiPanel.includes("refreshDeployments"), "deployment status refresh");
+assert.ok(projectAiPanel.includes("project-ai-check"), "row-start checkbox");
+assert.ok(projectAiPanel.includes("ai.project.added"), "added status marker");
+assert.ok(projectAiPanel.includes("ai.project.notAdded"), "not-added status marker");
+assert.ok(projectAiPanel.includes("toggleOnlyFiltered"), "Enter toggles the only filtered row");
+assert.ok(projectAiPanel.includes("@keydown.enter.prevent"), "filter Enter handler");
+assert.ok(
+  projectAiPanel.includes("addedFirst(matched") &&
+    (projectAiPanel.match(/addedFirst\(matched/g) || []).length === 2,
+  "enabled MCP / Skills rows sort first in both columns",
+);
 assert.ok(view.includes("HarnessInitPanel"));
 const harness = read("src-tauri/src/ai/harness.rs");
 assert.ok(harness.includes("AGENTS.md"), "writes AGENTS.md");
