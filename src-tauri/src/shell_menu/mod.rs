@@ -39,6 +39,7 @@ pub struct InvokeShellMenuResult {
 }
 
 /// 原生 Win32 弹出菜单（FIL-53 产品路径）。
+/// `x` / `y` 是触发时固定的屏幕物理坐标，不再读取调用时刻的光标位置。
 #[tauri::command]
 pub fn shell_show_context_menu(path: String, x: i32, y: i32) -> ShellMenuResult {
     #[cfg(windows)]
@@ -113,7 +114,7 @@ mod windows_impl {
         CMINVOKECOMMANDINFOEX, GCS_VERBA,
     };
     use windows::Win32::UI::WindowsAndMessaging::{
-        CreatePopupMenu, DestroyMenu, GetCursorPos, GetForegroundWindow, GetMenuItemCount,
+        CreatePopupMenu, DestroyMenu, GetForegroundWindow, GetMenuItemCount,
         GetMenuItemInfoW, SetForegroundWindow, TrackPopupMenuEx, MENUITEMINFOW, MIIM_ID,
         MIIM_STRING, MIIM_SUBMENU, SW_SHOWNORMAL, TPM_LEFTALIGN, TPM_RETURNCMD, TPM_RIGHTBUTTON,
     };
@@ -544,10 +545,10 @@ mod windows_impl {
         let hwnd = GetForegroundWindow();
         let _ = SetForegroundWindow(hwnd);
 
-        // WebView 传入的是视口坐标；悬停级联时用光标屏幕坐标更稳。
-        let _ = (x, y);
-        let mut point = POINT { x: 0, y: 0 };
-        let _ = GetCursorPos(&mut point);
+        // 前端在触发时已把锚点换算成屏幕物理坐标（shellMenuEmbed.ts）。不再读
+        // GetCursorPos：IPC 往返期间光标可能已移到另一行，读当前光标会把菜单
+        // 挪到「最新鼠标位置」，并让 WebView 的穿透点击改写列表选中。
+        let point = POINT { x, y };
 
         let cmd = TrackPopupMenuEx(
             hmenu,

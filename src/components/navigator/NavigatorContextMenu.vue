@@ -66,7 +66,11 @@ import {
   buildContextToolbarItems,
   canOpenInNewTab,
 } from "./contextMenuModel";
-import { showNativeShellContextMenu } from "./shellMenuEmbed";
+import {
+  beginShellMenuGuard,
+  endShellMenuGuard,
+  showNativeShellContextMenu,
+} from "./shellMenuEmbed";
 import { BUILTIN_SHORTCUTS, formatChordLabel } from "../../shortcuts/index.ts";
 
 const props = defineProps<{
@@ -648,11 +652,18 @@ async function openShellCascadeAt(x: number, y: number) {
   if (!entry || shellCascadeOpening) return;
   shellCascadeOpening = true;
   clearShellCascadeTimer();
+  // 先开守卫：emit("close") 卸载自绘菜单后，光标下方立即变成文件行；
+  // 原生菜单弹出/关闭时 WebView 的穿透点击不能再改写列表选中。
+  beginShellMenuGuard();
   // 先关掉 Vue 菜单，避免盖住 TrackPopupMenu。
   emit("close");
-  const error = await showNativeShellContextMenu(entry.path, x, y);
-  if (error) emit("notice", error);
-  shellCascadeOpening = false;
+  try {
+    const error = await showNativeShellContextMenu(entry.path, x, y);
+    if (error) emit("notice", error);
+  } finally {
+    endShellMenuGuard();
+    shellCascadeOpening = false;
+  }
 }
 
 function openShellCascadeFromAnchor(anchor: HTMLElement, immediate = false) {
