@@ -5,6 +5,9 @@ import { SEARCH_SOURCE_ORDER, type SearchSourceId } from "./types.ts";
 
 export const SEARCH_PALETTE_SCOPES_STORAGE_KEY = "afm.searchPaletteScopes";
 
+/** 「模糊搜索」勾选状态持久化 key。 */
+export const SEARCH_PALETTE_FUZZY_STORAGE_KEY = "afm.searchPaletteFuzzy";
+
 export function isSearchSourceId(value: unknown): value is SearchSourceId {
   return (
     typeof value === "string" &&
@@ -61,4 +64,27 @@ export function toggleScope(
     ? current.filter((scope) => scope !== id)
     : [...current, id];
   return next.length ? next : [...available];
+}
+
+/** 读取「模糊搜索」勾选状态（"1"=勾选；缺失/异常回落不勾选）。 */
+export function loadFuzzy(storage: Storage | undefined): boolean {
+  if (!storage) return false;
+  try {
+    return storage.getItem(SEARCH_PALETTE_FUZZY_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** 持久化「模糊搜索」勾选状态；失败不阻断面板。 */
+export function persistFuzzy(
+  value: boolean,
+  storage: Storage | undefined,
+): void {
+  if (!storage) return;
+  try {
+    storage.setItem(SEARCH_PALETTE_FUZZY_STORAGE_KEY, value ? "1" : "0");
+  } catch {
+    /* 持久化失败不阻断面板。 */
+  }
 }

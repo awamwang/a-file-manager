@@ -3,7 +3,9 @@
 
 import { computed, ref, watch } from "vue";
 import {
+  loadFuzzy,
   loadScopes,
+  persistFuzzy,
   persistScopes,
   toggleScope as applyScopeToggle,
 } from "./scope.ts";
@@ -49,8 +51,8 @@ export function useSearchPalette(sources: () => readonly SearchSource[]) {
 
   const query = ref("");
   const activeIndex = ref(0);
-  /** 模糊搜索勾选（默认不勾选；会话内状态，不持久化）。 */
-  const fuzzy = ref(false);
+  /** 模糊搜索勾选（默认不勾选；状态经 localStorage `afm.searchPaletteFuzzy` 持久化）。 */
+  const fuzzy = ref(loadFuzzy(storage));
   /** null = 未持久化 / 按「全部」处理（全选，不是独立模式）。 */
   const storedScopes = ref<SearchSourceId[] | null>(loadScopes(storage));
   const sourceStates = ref<Partial<Record<SearchSourceId, SearchSourceState>>>(
@@ -165,6 +167,7 @@ export function useSearchPalette(sources: () => readonly SearchSource[]) {
   });
 
   watch(fuzzy, () => {
+    persistFuzzy(fuzzy.value, storage);
     activeIndex.value = 0;
     runSearch();
   });

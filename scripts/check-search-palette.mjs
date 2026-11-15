@@ -26,6 +26,7 @@ for (const [label, text, needle] of [
   ["CommandPanel", commandPanel, "toggleScopeAt("],
   ["CommandPanel", commandPanel, "searchPalette.types."],
   ["scope", scope, "afm.searchPaletteScopes"],
+  ["scope", scope, "afm.searchPaletteFuzzy"],
   ["CommandPanel", commandPanel, "searchPalette.fuzzy"],
   ["CommandPanel", commandPanel, 'v-model="fuzzy"'],
   ["useSearchPalette", palette, "seq !== searchSeq"],

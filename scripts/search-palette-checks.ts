@@ -9,9 +9,12 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { nextTick } from "vue";
 import {
+  loadFuzzy,
   loadScopes,
   normalizePersistedScopes,
+  persistFuzzy,
   persistScopes,
+  SEARCH_PALETTE_FUZZY_STORAGE_KEY,
   SEARCH_PALETTE_SCOPES_STORAGE_KEY,
   toggleScope,
 } from "../src/search/scope.ts";
@@ -97,7 +100,29 @@ assert.deepEqual(
 assert.deepEqual(loadScopes(stored), ["workgroups", "projects"], "roundtrip");
 persistScopes(["files"], undefined); // 无 storage 不抛错
 
+// 模糊勾选持久化：缺失/异常回落不勾选；"1"/"0" 往返。
+assert.equal(loadFuzzy(undefined), false, "无 storage → false");
+assert.equal(loadFuzzy(new MemoryStorage()), false, "缺失 → false");
+const fuzzyStore = new MemoryStorage();
+assert.equal(persistFuzzy(true, fuzzyStore), undefined, "无 storage 不抛错");
+persistFuzzy(true, fuzzyStore);
+assert.equal(
+  fuzzyStore.getItem(SEARCH_PALETTE_FUZZY_STORAGE_KEY),
+  "1",
+  "勾选写 1",
+);
+assert.equal(loadFuzzy(fuzzyStore), true, "勾选 roundtrip");
+persistFuzzy(false, fuzzyStore);
+assert.equal(
+  fuzzyStore.getItem(SEARCH_PALETTE_FUZZY_STORAGE_KEY),
+  "0",
+  "取消写 0",
+);
+assert.equal(loadFuzzy(fuzzyStore), false, "取消 roundtrip");
+persistFuzzy(true, undefined); // 无 storage 不抛错
+
 const all: SearchSourceId[] = [...SEARCH_SOURCE_ORDER];
+
 assert.deepEqual(
   toggleScope(["commands", "files"], all, "files"),
   ["commands"],

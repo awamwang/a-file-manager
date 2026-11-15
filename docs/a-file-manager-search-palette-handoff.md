@@ -19,7 +19,7 @@
 src/search/
   types.ts                 契约：SearchSourceId / SEARCH_SOURCE_ORDER（chip 顺序）/ SEARCH_RESULT_GROUP_ORDER（结果分组顺序，文件殿后）/ SEARCH_GROUP_LIMIT=8
                            / SearchResultItem / SearchSource（enabled、unavailableKey、viewAll）
-  scope.ts                 范围组合：localStorage afm.searchPaletteScopes，归一化/持久化/切换
+  scope.ts                 范围组合：localStorage afm.searchPaletteScopes + afm.searchPaletteFuzzy（模糊勾选），归一化/持久化/切换
   match.ts                 仅名称匹配（项目/工作组/工具）：fuzzyScore 子序列，描述不参与
   useSearchPalette.ts      编排：范围交集、跨源检索（seq 过期丢弃）、固定分组 + 组内上限 8
   registry.ts              buildSearchSources(deps)：六源注册（命令→文件→项目→工作组→工具→扩展）
@@ -55,7 +55,7 @@ src-tauri/src/extension_host/            Pack search 贡献聚合 + uiCommands �
 7. **扩展源**：Pack 声明 `contributions.search` 必须申请 `uiCommands` 权限（Rust 侧校验）；
    缺 id/labelKey/route 或路由不可解析的条目被过滤；禁用 Pack 后条目与 chip 一起消失。
 8. **网关离线**：工具源显示状态行 + 「打开工具运行时」引导；tool-runtime Pack 未启用时源与 chip 一起隐藏。
-9. **模糊搜索勾选**：面板底部勾选框（默认不勾选，会话内状态不持久化）。勾选后
+9. **模糊搜索勾选**：面板底部勾选框（默认不勾选），状态经 localStorage `afm.searchPaletteFuzzy` 持久化。勾选后
    tools/extensions 改子序列匹配（`matchText`），文件源发 Everything `*a*b*c*` 通配符模式
    （limit 32）并按名称 `fuzzyScore` 重排取前 8；commands/projects/workgroups 本就是模糊匹配，不受影响。
 10. **命名不变量**：内部文件名 `CommandPanel.vue` / `state/commandPanel.ts`、快捷键 id
