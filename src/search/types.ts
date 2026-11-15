@@ -12,14 +12,14 @@ export type SearchSourceId =
   | "tools"
   | "extensions";
 
-/** 固定分组顺序：命令 → 文件 → 项目 → 工作组 → 工具 → 扩展。 */
+/** 固定分组顺序：命令 → 项目 → 工作组 → 工具 → 扩展 → 文件（文件组排最后）。 */
 export const SEARCH_SOURCE_ORDER: readonly SearchSourceId[] = [
   "commands",
-  "files",
   "projects",
   "workgroups",
   "tools",
   "extensions",
+  "files",
 ];
 
 /** 每组结果上限。 */

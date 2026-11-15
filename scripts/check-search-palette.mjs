@@ -45,19 +45,19 @@ for (const [label, text, needle] of [
 }
 
 // 固定分组顺序：注册表里六个源的构造调用必须按
-// 命令→文件→项目→工作组→工具→扩展 出现。
+// 命令→项目→工作组→工具→扩展→文件 出现（文件组排最后）。
 const registryOrder = [
   "createCommandsSource(",
-  "createFilesSource(",
   "createProjectsSource(",
   "createWorkgroupsSource(",
   "createToolsSource(",
   "createExtensionsSource(",
+  "createFilesSource(",
 ]
   .map((needle) => registry.indexOf(needle))
   .filter((index) => index >= 0);
 if (registryOrder.length !== 6 || registryOrder.some((v, i) => i && v < registryOrder[i - 1])) {
-  console.error("registry.ts source order must be commands→files→projects→workgroups→tools→extensions");
+  console.error("registry.ts source order must be commands→projects→workgroups→tools→extensions→files");
   process.exit(1);
 }
 

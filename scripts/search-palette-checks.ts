@@ -192,7 +192,7 @@ await nextTick();
 assert.deepEqual(
   palette.groups.value.map((group) => group.source.id),
   [...SEARCH_SOURCE_ORDER],
-  "固定分组顺序：命令→文件→项目→工作组→工具→扩展",
+  "固定分组顺序：命令→项目→工作组→工具→扩展→文件",
 );
 const commandsGroup = palette.groups.value.find(
   (group) => group.source.id === "commands",

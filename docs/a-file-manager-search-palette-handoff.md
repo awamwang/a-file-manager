@@ -22,7 +22,7 @@ src/search/
   scope.ts                 范围组合：localStorage afm.searchPaletteScopes，归一化/持久化/切换
   match.ts                 仅名称匹配（项目/工作组/工具）：fuzzyScore 子序列，描述不参与
   useSearchPalette.ts      编排：范围交集、跨源检索（seq 过期丢弃）、固定分组 + 组内上限 8
-  registry.ts              buildSearchSources(deps)：六源注册（命令→文件→项目→工作组→工具→扩展）
+  registry.ts              buildSearchSources(deps)：六源注册（命令→项目→工作组→工具→扩展→文件，文件组排最后）
   searchPaletteConfig.ts   Core 配置 <appConfigDir>/command-palette.json 加载/归一化（palette_get_config）
   sources/commands.ts      命令源：空 query 返回全量命令
   sources/files.ts         文件源：discovery_search limit 8；组尾「查看全部」→ /discovery?q=…
@@ -41,7 +41,7 @@ src-tauri/src/extension_host/            Pack search 贡献聚合 + uiCommands �
 
 ## 3. 行为契约（改动前先读）
 
-1. **固定分组顺序**：命令 → 文件 → 项目 → 工作组 → 工具 → 扩展；每组上限 8 条（`SEARCH_GROUP_LIMIT`）。
+1. **固定分组顺序**：命令 → 项目 → 工作组 → 工具 → 扩展 → 文件（文件组排最后）；每组上限 8 条（`SEARCH_GROUP_LIMIT`）。
 2. **范围组合**：`afm.searchPaletteScopes` 持久化；空/损坏/含未知 id 一律按「全部」（全选）处理；
    含暂不可用源时保留选择并显示状态行，不自动回退；关掉最后一个源回落「全部」。
 3. **过期结果丢弃**：查询变化即递增 `searchSeq`，慢源返回的旧结果不落状态（`useSearchPalette.ts`）。
