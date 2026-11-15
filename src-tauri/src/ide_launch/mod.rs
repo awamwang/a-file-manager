@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Launch folders/files in preset IDEs/Agents (Sigma-aligned path discovery).
-//! Auto-discover first; fall back to Settings path when discovery fails.
+//! Launch folders/files in preset IDEs/Agents.
+//! Auto-discover first; fall back to the Settings path when discovery fails.
+//!
+//! 7.20: the preset lists and the OS-specific spawn command moved to
+//! `platform/`. This module owns only the wire types, the settings override
+//! policy and the "auto → configured → none" resolution order.
 
-use crate::win_process;
+use crate::platform::{self, LaunchTarget};
 use serde::Serialize;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tauri::AppHandle;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -14,7 +18,7 @@ pub struct IdeAppInfo {
     pub name: String,
     /// User toggle from Settings → Open tools (default on).
     pub enabled: bool,
-    /// True when a launchable executable was resolved (auto or configured).
+    /// True when a launchable application was resolved (auto or configured).
     pub available: bool,
     pub resolved_path: Option<String>,
     /// `auto` | `configured` | `none`
@@ -30,59 +34,6 @@ pub struct IdeLaunchResult {
     pub error: Option<String>,
 }
 
-/// Preset IDE/Agent launchers. Candidates mirror Sigma-style discovery:
-/// PATH shims first, then per-user Local\\Programs, then Program Files.
-/// Qoder CN also accepts Coder CN / Corder CN install-folder spellings.
-const IDE_DEFS: &[(&str, &str, &[&str])] = &[
-    (
-        "vscode",
-        "Visual Studio Code",
-        &[
-            "code.cmd",
-            "code",
-            r"C:\Users\{user}\AppData\Local\Programs\Microsoft VS Code\Code.exe",
-            r"C:\Program Files\Microsoft VS Code\Code.exe",
-        ],
-    ),
-    (
-        "cursor",
-        "Cursor",
-        &[
-            "cursor.cmd",
-            "cursor",
-            r"C:\Users\{user}\AppData\Local\Programs\cursor\Cursor.exe",
-            r"C:\Program Files\Cursor\Cursor.exe",
-        ],
-    ),
-    (
-        "trae",
-        "Trae",
-        &[
-            "trae.cmd",
-            "trae",
-            r"C:\Users\{user}\AppData\Local\Programs\Trae\Trae.exe",
-            r"C:\Program Files\Trae\Trae.exe",
-        ],
-    ),
-    (
-        "qoder",
-        "Qoder CN",
-        &[
-            "qoder.cmd",
-            "qoder",
-            "coder.cmd",
-            "corder.cmd",
-            r"C:\Users\{user}\AppData\Local\Programs\Qoder CN\Qoder CN.exe",
-            r"C:\Users\{user}\AppData\Local\Programs\Coder CN\Coder CN.exe",
-            r"C:\Users\{user}\AppData\Local\Programs\Corder CN\Corder CN.exe",
-            r"C:\Users\{user}\AppData\Local\Programs\Qoder\Qoder.exe",
-            r"C:\Program Files\Qoder CN\Qoder CN.exe",
-            r"C:\Program Files\Coder CN\Coder CN.exe",
-            r"C:\Program Files\Corder CN\Corder CN.exe",
-        ],
-    ),
-];
-
 pub fn ide_setting_enabled_key(id: &str) -> String {
     format!("core.openTool.{id}.enabled")
 }
@@ -91,45 +42,21 @@ pub fn ide_setting_path_key(id: &str) -> String {
     format!("core.openTool.{id}.path")
 }
 
-#[cfg(test)]
-fn ide_ids() -> Vec<&'static str> {
-    IDE_DEFS.iter().map(|(id, _, _)| *id).collect()
-}
-
-fn expand_user(path: &str) -> String {
-    if let Ok(user) = std::env::var("USERNAME") {
-        return path.replace("{user}", &user);
+/// Prefer adapter discovery; a configured override is validated by the same
+/// adapter (a Windows `.exe` is a file, a macOS `.app` is a directory).
+fn resolve_ide(
+    id: &str,
+    configured_path: &str,
+    discovered: &[LaunchTarget],
+) -> (Option<LaunchTarget>, &'static str) {
+    if let Some(target) = discovered
+        .iter()
+        .find(|t| t.id == id && t.resolved_path.is_some())
+    {
+        return (Some(target.clone()), "auto");
     }
-    path.to_string()
-}
-
-fn resolve_candidate(candidate: &str) -> Option<PathBuf> {
-    let expanded = expand_user(candidate);
-    // PATH lookup without spawning where.exe (avoids console flashes on GUI builds).
-    win_process::resolve_on_path(&expanded)
-}
-
-fn resolve_auto(id: &str) -> Option<PathBuf> {
-    let def = IDE_DEFS.iter().find(|(ide_id, _, _)| *ide_id == id)?;
-    for candidate in def.2 {
-        if let Some(path) = resolve_candidate(candidate) {
-            return Some(path);
-        }
-    }
-    None
-}
-
-/// Prefer auto-discovery; if that fails, use a configured absolute path when it exists.
-fn resolve_ide(id: &str, configured_path: &str) -> (Option<PathBuf>, &'static str) {
-    if let Some(auto) = resolve_auto(id) {
-        return (Some(auto), "auto");
-    }
-    let trimmed = configured_path.trim();
-    if !trimmed.is_empty() {
-        let path = PathBuf::from(trimmed);
-        if path.is_file() {
-            return (Some(path), "configured");
-        }
+    if let Some(target) = platform::configured_launch_target(id, configured_path) {
+        return (Some(target), "configured");
     }
     (None, "none")
 }
@@ -145,33 +72,30 @@ fn enabled_for(app: &AppHandle, id: &str) -> bool {
 
 /// 仅自动发现（不读设置覆盖），供依赖体检使用。
 pub fn ide_probe_auto() -> Vec<(String, bool, Option<String>)> {
-    IDE_DEFS
-        .iter()
-        .map(|(id, _name, _)| {
-            let resolved = resolve_auto(id);
-            (
-                (*id).to_string(),
-                resolved.is_some(),
-                resolved.map(|p| p.to_string_lossy().into_owned()),
-            )
+    platform::ide_targets()
+        .into_iter()
+        .map(|target| {
+            let available = target.resolved_path.is_some();
+            (target.id, available, target.resolved_path)
         })
         .collect()
 }
 
 #[tauri::command]
 pub fn ide_list_apps(app: AppHandle) -> Vec<IdeAppInfo> {
-    IDE_DEFS
+    let discovered = platform::ide_targets();
+    discovered
         .iter()
-        .map(|(id, name, _)| {
-            let configured = configured_path_for(&app, id);
-            let enabled = enabled_for(&app, id);
-            let (resolved, resolution) = resolve_ide(id, &configured);
+        .map(|preset| {
+            let configured = configured_path_for(&app, &preset.id);
+            let enabled = enabled_for(&app, &preset.id);
+            let (resolved, resolution) = resolve_ide(&preset.id, &configured, &discovered);
             IdeAppInfo {
-                id: (*id).to_string(),
-                name: (*name).to_string(),
+                id: preset.id.clone(),
+                name: preset.name.clone(),
                 enabled,
                 available: resolved.is_some(),
-                resolved_path: resolved.map(|p| p.to_string_lossy().into_owned()),
+                resolved_path: resolved.and_then(|t| t.resolved_path),
                 resolution: resolution.to_string(),
                 configured_path: configured,
             }
@@ -205,22 +129,22 @@ pub fn ide_open_path(app: AppHandle, ide_id: String, path: String) -> IdeLaunchR
     }
 
     let configured = configured_path_for(&app, id);
-    let Some(exe) = resolve_ide(id, &configured).0 else {
+    let discovered = platform::ide_targets();
+    let Some(launcher) = resolve_ide(id, &configured, &discovered).0 else {
         return IdeLaunchResult {
             success: false,
             error: Some(format!("IDE not found: {id}")),
         };
     };
 
-    // .cmd/.bat shims (code.cmd, cursor.cmd, …) are console hosts — hide them.
-    match win_process::command(&exe).arg(trimmed).spawn() {
-        Ok(_) => IdeLaunchResult {
+    match platform::launch_ide(&launcher, target) {
+        Ok(()) => IdeLaunchResult {
             success: true,
             error: None,
         },
-        Err(err) => IdeLaunchResult {
+        Err(error) => IdeLaunchResult {
             success: false,
-            error: Some(format!("Failed to launch IDE: {err}")),
+            error: Some(error),
         },
     }
 }
@@ -228,55 +152,51 @@ pub fn ide_open_path(app: AppHandle, ide_id: String, path: String) -> IdeLaunchR
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn discovered() -> Vec<LaunchTarget> {
+        platform::ide_targets()
+    }
 
     #[test]
     fn lists_preset_ides_including_qoder() {
-        assert_eq!(ide_ids(), vec!["vscode", "cursor", "trae", "qoder"]);
-        let def = IDE_DEFS.iter().find(|(id, _, _)| *id == "qoder").unwrap();
-        assert_eq!(def.1, "Qoder CN");
+        let ids: Vec<_> = discovered().into_iter().map(|t| t.id).collect();
+        assert_eq!(ids, vec!["vscode", "cursor", "trae", "qoder"]);
+        assert_eq!(
+            discovered().iter().find(|t| t.id == "qoder").unwrap().name,
+            "Qoder CN"
+        );
     }
 
     #[test]
-    fn qoder_candidates_cover_coder_corder_spellings() {
-        let def = IDE_DEFS.iter().find(|(id, _, _)| *id == "qoder").unwrap();
-        let joined = def.2.join("|");
-        assert!(joined.contains("Qoder CN"));
-        assert!(joined.contains("Coder CN"));
-        assert!(joined.contains("Corder CN"));
-    }
-
-    #[test]
-    fn empty_path_fails_without_app_settings() {
-        // resolve_ide without config still works for the empty-path guard in open.
-        let (resolved, resolution) = resolve_ide("vscode", "");
-        let _ = (resolved, resolution);
-        assert!(Path::new("").to_string_lossy().is_empty());
-    }
-
-    #[test]
-    fn configured_path_used_when_auto_missing() {
-        let (resolved, resolution) = resolve_ide("___missing_ide___", "");
+    fn empty_configured_path_never_resolves() {
+        let (resolved, resolution) = resolve_ide("___missing_ide___", "", &discovered());
         assert!(resolved.is_none());
         assert_eq!(resolution, "none");
     }
 
     #[test]
-    fn setting_key_helpers() {
-        assert_eq!(ide_setting_enabled_key("cursor"), "core.openTool.cursor.enabled");
-        assert_eq!(ide_setting_path_key("vscode"), "core.openTool.vscode.path");
+    fn configured_override_is_validated_by_the_adapter() {
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
+        let file = std::env::temp_dir().join(format!("afm-ide-override-{stamp}"));
+        fs::write(&file, b"x").unwrap();
+        let (resolved, resolution) =
+            resolve_ide("___missing_ide___", file.to_str().unwrap(), &discovered());
+        assert_eq!(resolution, "configured");
+        assert_eq!(resolved.unwrap().resolved_path.as_deref(), file.to_str());
+        let _ = fs::remove_file(&file);
     }
 
     #[test]
-    fn qoder_resolves_when_local_install_present() {
-        let local = expand_user(
-            r"C:\Users\{user}\AppData\Local\Programs\Qoder CN\Qoder CN.exe",
+    fn setting_key_helpers() {
+        assert_eq!(
+            ide_setting_enabled_key("cursor"),
+            "core.openTool.cursor.enabled"
         );
-        if !PathBuf::from(&local).is_file() {
-            return;
-        }
-        let (resolved, resolution) = resolve_ide("qoder", "");
-        assert!(resolved.is_some());
-        assert_eq!(resolution, "auto");
-        assert!(resolved.unwrap().to_string_lossy().contains("Qoder CN"));
+        assert_eq!(ide_setting_path_key("vscode"), "core.openTool.vscode.path");
     }
 }

@@ -3,7 +3,8 @@
 //! drive letters / UNC, case-insensitive comparison, HKCU Run, Win32 icons.
 
 use super::{
-    has_uri_scheme, Platform, PlatformCapabilities, Volume, VolumeKind, VolumeSpace, WindowChrome,
+    has_uri_scheme, LaunchTarget, Platform, PlatformCapabilities, Volume, VolumeKind, VolumeSpace,
+    WindowChrome,
 };
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
@@ -173,6 +174,271 @@ impl Platform for WindowsPlatform {
     fn window_chrome(&self) -> WindowChrome {
         WindowChrome::FluentSelfDrawn
     }
+
+    /// Moved from `terminal/mod.rs` (7.20): all five presets are returned so
+    /// the Settings / context menu can still show unavailable rows.
+    fn terminal_targets(&self) -> Vec<LaunchTarget> {
+        TERMINAL_DEFS
+            .iter()
+            .map(|(id, name)| LaunchTarget {
+                id: (*id).to_string(),
+                name: (*name).to_string(),
+                resolved_path: resolve_terminal_exe(id).map(|p| p.to_string_lossy().into_owned()),
+                supports_elevation: true,
+            })
+            .collect()
+    }
+
+    /// Moved from `ide_launch/mod.rs` (7.20).
+    fn ide_targets(&self) -> Vec<LaunchTarget> {
+        IDE_DEFS
+            .iter()
+            .map(|(id, name, _)| LaunchTarget {
+                id: (*id).to_string(),
+                name: (*name).to_string(),
+                resolved_path: resolve_auto(id).map(|p| p.to_string_lossy().into_owned()),
+                supports_elevation: false,
+            })
+            .collect()
+    }
+
+    fn configured_launch_target(&self, id: &str, path: &str) -> Option<LaunchTarget> {
+        let trimmed = path.trim();
+        if trimmed.is_empty() || !Path::new(trimmed).is_file() {
+            return None;
+        }
+        Some(LaunchTarget {
+            id: id.to_string(),
+            name: ide_name(id),
+            resolved_path: Some(trimmed.to_string()),
+            supports_elevation: false,
+        })
+    }
+
+    fn launch_terminal(
+        &self,
+        target: &LaunchTarget,
+        dir: &Path,
+        elevated: bool,
+    ) -> Result<(), String> {
+        let exe = target
+            .resolved_path
+            .as_ref()
+            .map(PathBuf::from)
+            .ok_or_else(|| format!("Terminal not available: {}", target.id))?;
+        let dir_str = dir.to_string_lossy().replace('/', "\\");
+        let args = terminal_args(&target.id, &dir_str);
+        // Terminal UIs must remain visible — do not apply CREATE_NO_WINDOW here.
+        let launched = if elevated {
+            spawn_elevated(&exe, &args, dir)
+        } else {
+            std::process::Command::new(&exe)
+                .args(&args)
+                .current_dir(dir)
+                .spawn()
+                .is_ok()
+        };
+        if launched {
+            Ok(())
+        } else {
+            Err(format!(
+                "Could not launch {} for {}",
+                target.name,
+                dir.display()
+            ))
+        }
+    }
+
+    fn launch_ide(&self, target: &LaunchTarget, path: &Path) -> Result<(), String> {
+        let exe = target
+            .resolved_path
+            .as_ref()
+            .ok_or_else(|| format!("IDE not found: {}", target.id))?;
+        // .cmd/.bat shims (code.cmd, cursor.cmd, …) are console hosts — hide them.
+        crate::win_process::command(exe)
+            .arg(path)
+            .spawn()
+            .map(|_| ())
+            .map_err(|err| format!("Failed to launch IDE: {err}"))
+    }
+}
+
+/// 7.20: moved verbatim from `terminal/mod.rs` / `ide_launch/mod.rs`. No new
+/// Windows behaviour — the business modules now only map neutral targets.
+const TERMINAL_DEFS: &[(&str, &str)] = &[
+    ("wt", "Windows Terminal"),
+    ("powershell", "Windows PowerShell"),
+    ("pwsh", "PowerShell"),
+    ("cmd", "Command Prompt"),
+    ("gitbash", "Git Bash"),
+];
+
+/// Preset IDE/Agent launchers. Candidates mirror Sigma-style discovery:
+/// PATH shims first, then per-user Local\Programs, then Program Files.
+/// Qoder CN also accepts Coder CN / Corder CN install-folder spellings.
+const IDE_DEFS: &[(&str, &str, &[&str])] = &[
+    (
+        "vscode",
+        "Visual Studio Code",
+        &[
+            "code.cmd",
+            "code",
+            r"C:\Users\{user}\AppData\Local\Programs\Microsoft VS Code\Code.exe",
+            r"C:\Program Files\Microsoft VS Code\Code.exe",
+        ],
+    ),
+    (
+        "cursor",
+        "Cursor",
+        &[
+            "cursor.cmd",
+            "cursor",
+            r"C:\Users\{user}\AppData\Local\Programs\cursor\Cursor.exe",
+            r"C:\Program Files\Cursor\Cursor.exe",
+        ],
+    ),
+    (
+        "trae",
+        "Trae",
+        &[
+            "trae.cmd",
+            "trae",
+            r"C:\Users\{user}\AppData\Local\Programs\Trae\Trae.exe",
+            r"C:\Program Files\Trae\Trae.exe",
+        ],
+    ),
+    (
+        "qoder",
+        "Qoder CN",
+        &[
+            "qoder.cmd",
+            "qoder",
+            "coder.cmd",
+            "corder.cmd",
+            r"C:\Users\{user}\AppData\Local\Programs\Qoder CN\Qoder CN.exe",
+            r"C:\Users\{user}\AppData\Local\Programs\Coder CN\Coder CN.exe",
+            r"C:\Users\{user}\AppData\Local\Programs\Corder CN\Corder CN.exe",
+            r"C:\Users\{user}\AppData\Local\Programs\Qoder\Qoder.exe",
+            r"C:\Program Files\Qoder CN\Qoder CN.exe",
+            r"C:\Program Files\Coder CN\Coder CN.exe",
+            r"C:\Program Files\Corder CN\Corder CN.exe",
+        ],
+    ),
+];
+
+fn ide_name(id: &str) -> String {
+    IDE_DEFS
+        .iter()
+        .find(|(ide_id, _, _)| *ide_id == id)
+        .map(|(_, name, _)| (*name).to_string())
+        .unwrap_or_else(|| id.to_string())
+}
+
+fn expand_user(path: &str) -> String {
+    if let Ok(user) = std::env::var("USERNAME") {
+        return path.replace("{user}", &user);
+    }
+    path.to_string()
+}
+
+/// PATH lookup without spawning where.exe (avoids console flashes on GUI builds).
+fn resolve_candidate(candidate: &str) -> Option<PathBuf> {
+    let expanded = expand_user(candidate);
+    crate::win_process::resolve_on_path(&expanded)
+}
+
+fn resolve_terminal_exe(id: &str) -> Option<PathBuf> {
+    match id {
+        "wt" => resolve_candidate("wt.exe").or_else(|| resolve_candidate("wt")),
+        "powershell" => resolve_candidate("powershell.exe"),
+        "pwsh" => resolve_candidate("pwsh.exe").or_else(|| {
+            resolve_candidate(r"C:\Program Files\PowerShell\7\pwsh.exe")
+                .or_else(|| resolve_candidate(r"C:\Program Files\PowerShell\7-preview\pwsh.exe"))
+        }),
+        "cmd" => resolve_candidate("cmd.exe"),
+        "gitbash" => [
+            r"C:\Program Files\Git\git-bash.exe",
+            r"C:\Program Files (x86)\Git\git-bash.exe",
+            r"C:\Users\{user}\AppData\Local\Programs\Git\git-bash.exe",
+        ]
+        .into_iter()
+        .find_map(resolve_candidate),
+        _ => None,
+    }
+}
+
+fn resolve_auto(id: &str) -> Option<PathBuf> {
+    let def = IDE_DEFS.iter().find(|(ide_id, _, _)| *ide_id == id)?;
+    def.2
+        .iter()
+        .find_map(|candidate| resolve_candidate(candidate))
+}
+
+fn terminal_args(terminal_id: &str, dir_str: &str) -> Vec<String> {
+    match terminal_id {
+        "wt" => vec!["-d".into(), dir_str.into()],
+        "powershell" | "pwsh" => vec![
+            "-NoExit".into(),
+            "-Command".into(),
+            format!(
+                "Set-Location -LiteralPath '{}'",
+                dir_str.replace('\'', "''")
+            ),
+        ],
+        "cmd" => vec!["/K".into(), format!("cd /d {dir_str}")],
+        "gitbash" => vec![format!("--cd={dir_str}")],
+        _ => Vec::new(),
+    }
+}
+
+fn spawn_elevated(exe: &Path, args: &[String], dir: &Path) -> bool {
+    use std::ffi::OsStr;
+    use std::os::windows::ffi::OsStrExt;
+    use windows::core::PCWSTR;
+    use windows::Win32::UI::Shell::{ShellExecuteExW, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW};
+    use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+
+    let verb: Vec<u16> = OsStr::new("runas")
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    let file: Vec<u16> = exe
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    let params_owned = args
+        .iter()
+        .map(|a| {
+            if a.contains(' ') {
+                format!("\"{a}\"")
+            } else {
+                a.clone()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+    let params: Vec<u16> = OsStr::new(&params_owned)
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    let dir_wide: Vec<u16> = dir
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+
+    unsafe {
+        let mut sei: SHELLEXECUTEINFOW = std::mem::zeroed();
+        sei.cbSize = std::mem::size_of::<SHELLEXECUTEINFOW>() as u32;
+        sei.lpVerb = PCWSTR(verb.as_ptr());
+        sei.lpFile = PCWSTR(file.as_ptr());
+        sei.lpParameters = PCWSTR(params.as_ptr());
+        sei.lpDirectory = PCWSTR(dir_wide.as_ptr());
+        sei.nShow = SW_SHOWNORMAL.0;
+        sei.fMask = SEE_MASK_NOCLOSEPROCESS;
+        ShellExecuteExW(&mut sei).is_ok()
+    }
 }
 
 fn drive_kind_for_root(path: &str) -> VolumeKind {
@@ -263,7 +529,10 @@ mod tests {
 
     #[test]
     fn volume_root_drive_and_unc() {
-        assert_eq!(volume_root(r"C:\Temp\afm-fixture\a").as_deref(), Some(r"C:\"));
+        assert_eq!(
+            volume_root(r"C:\Temp\afm-fixture\a").as_deref(),
+            Some(r"C:\")
+        );
         assert_eq!(
             volume_root(r"\\server\share\folder").as_deref(),
             Some(r"\\server\share\")

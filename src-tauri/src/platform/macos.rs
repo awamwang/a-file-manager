@@ -6,10 +6,11 @@
 //! `false` so the UI can hide them until a native implementation lands.
 
 use super::{
-    has_uri_scheme, Platform, PlatformCapabilities, Volume, VolumeKind, VolumeSpace, WindowChrome,
+    has_uri_scheme, LaunchTarget, Platform, PlatformCapabilities, Volume, VolumeKind, VolumeSpace,
+    WindowChrome,
 };
 use std::fs::Metadata;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub struct MacosPlatform;
 
@@ -166,10 +167,10 @@ impl Platform for MacosPlatform {
         // the UI offer `open_recycle_bin_system()` (`~/.Trash`) instead.
         caps.trash_list_restore = false;
         caps.system_tray = true; // Tauri TrayIconBuilder → NSStatusItem
-        // 7.13: the AppKit drag-out command in `tauri-plugin-drag` aborts the
-        // process on macOS, so `native_drag_out` stays false. The working
-        // transport is the WebView-native HTML5 `text/uri-list` drag-out
-        // (src/state/dnd/dragOut.ts + NavigatorView.vue).
+                                 // 7.13: the AppKit drag-out command in `tauri-plugin-drag` aborts the
+                                 // process on macOS, so `native_drag_out` stays false. The working
+                                 // transport is the WebView-native HTML5 `text/uri-list` drag-out
+                                 // (src/state/dnd/dragOut.ts + NavigatorView.vue).
         caps.webview_drag_out = true;
         // 7.16: volumes() lists `/` and `/Volumes/*`; there are no drive letters.
         caps.volume_list = true;
@@ -262,6 +263,217 @@ impl Platform for MacosPlatform {
             WindowChrome::FluentSelfDrawn
         }
     }
+
+    /// 7.20: macOS has no `wt` / `cmd`; discover `.app` bundles instead and
+    /// keep the Windows preset ids out of the macOS UI.
+    fn terminal_targets(&self) -> Vec<LaunchTarget> {
+        targets_from(TERMINAL_APPS, false)
+    }
+
+    fn ide_targets(&self) -> Vec<LaunchTarget> {
+        targets_from(IDE_APPS, false)
+    }
+
+    fn configured_launch_target(&self, id: &str, path: &str) -> Option<LaunchTarget> {
+        let trimmed = path.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+        let candidate = Path::new(trimmed);
+        // An `.app` is a directory, not a file — Windows' `is_file()` guard
+        // would reject every manually configured macOS application.
+        #[cfg(target_os = "macos")]
+        let usable = candidate.is_file() || (candidate.is_dir() && trimmed.ends_with(".app"));
+        #[cfg(not(target_os = "macos"))]
+        let usable = candidate.is_file();
+        if !usable {
+            return None;
+        }
+        Some(LaunchTarget {
+            id: id.to_string(),
+            name: ide_name(id),
+            resolved_path: Some(trimmed.to_string()),
+            supports_elevation: false,
+        })
+    }
+
+    fn launch_terminal(
+        &self,
+        target: &LaunchTarget,
+        dir: &Path,
+        _elevated: bool,
+    ) -> Result<(), String> {
+        #[cfg(target_os = "macos")]
+        {
+            let app = target
+                .resolved_path
+                .as_ref()
+                .ok_or_else(|| format!("Terminal not available: {}", target.id))?;
+            // Terminal.app / iTerm2 open a shell at the directory passed to
+            // `open -a`. There is no UAC equivalent on macOS, so `elevated`
+            // is intentionally ignored (supports_elevation = false).
+            std::process::Command::new("/usr/bin/open")
+                .arg("-a")
+                .arg(app)
+                .arg(dir)
+                .spawn()
+                .map(|_| ())
+                .map_err(|err| {
+                    format!(
+                        "Could not launch {} for {}: {err}",
+                        target.name,
+                        dir.display()
+                    )
+                })
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            let _ = (target, dir);
+            Err("Terminal launch is only supported on macOS".to_string())
+        }
+    }
+
+    fn launch_ide(&self, target: &LaunchTarget, path: &Path) -> Result<(), String> {
+        #[cfg(target_os = "macos")]
+        {
+            let exe = target
+                .resolved_path
+                .as_ref()
+                .ok_or_else(|| format!("IDE not found: {}", target.id))?;
+            let mut cmd = if exe.ends_with(".app") {
+                let mut open = std::process::Command::new("/usr/bin/open");
+                open.arg("-a").arg(exe);
+                open
+            } else {
+                // PATH CLI shims (`code`, `cursor`, …) take the path directly.
+                std::process::Command::new(exe)
+            };
+            cmd.arg(path)
+                .spawn()
+                .map(|_| ())
+                .map_err(|err| format!("Failed to launch IDE: {err}"))
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            let _ = (target, path);
+            Err("IDE launch is only supported on macOS".to_string())
+        }
+    }
+}
+
+/// 7.20: macOS launcher presets. `~` is expanded to `$HOME`; bare names are
+/// resolved through `PATH` (the same helper the Windows adapter uses).
+const TERMINAL_APPS: &[(&str, &str, &[&str])] = &[
+    (
+        "terminal",
+        "Terminal",
+        &[
+            "/System/Applications/Utilities/Terminal.app",
+            "/Applications/Utilities/Terminal.app",
+        ],
+    ),
+    (
+        "iterm",
+        "iTerm2",
+        &[
+            "/Applications/iTerm.app",
+            "/Applications/iTerm2.app",
+            "~/Applications/iTerm.app",
+        ],
+    ),
+    (
+        "warp",
+        "Warp",
+        &["/Applications/Warp.app", "~/Applications/Warp.app"],
+    ),
+];
+
+const IDE_APPS: &[(&str, &str, &[&str])] = &[
+    (
+        "vscode",
+        "Visual Studio Code",
+        &[
+            "/Applications/Visual Studio Code.app",
+            "~/Applications/Visual Studio Code.app",
+            "code",
+        ],
+    ),
+    (
+        "cursor",
+        "Cursor",
+        &[
+            "/Applications/Cursor.app",
+            "~/Applications/Cursor.app",
+            "cursor",
+        ],
+    ),
+    (
+        "trae",
+        "Trae",
+        &["/Applications/Trae.app", "~/Applications/Trae.app", "trae"],
+    ),
+    (
+        "qoder",
+        "Qoder CN",
+        &[
+            "/Applications/Qoder CN.app",
+            "/Applications/Coder CN.app",
+            "/Applications/Corder CN.app",
+            "~/Applications/Qoder CN.app",
+            "qoder",
+        ],
+    ),
+];
+
+fn ide_name(id: &str) -> String {
+    IDE_APPS
+        .iter()
+        .find(|(ide_id, _, _)| *ide_id == id)
+        .map(|(_, name, _)| (*name).to_string())
+        .unwrap_or_else(|| id.to_string())
+}
+
+fn targets_from(defs: &[(&str, &str, &[&str])], supports_elevation: bool) -> Vec<LaunchTarget> {
+    defs.iter()
+        .map(|(id, name, candidates)| LaunchTarget {
+            id: (*id).to_string(),
+            name: (*name).to_string(),
+            resolved_path: resolve_candidates(candidates),
+            supports_elevation,
+        })
+        .collect()
+}
+
+#[cfg(target_os = "macos")]
+fn expand_home(value: &str) -> String {
+    if let Some(rest) = value.strip_prefix("~/") {
+        if let Some(home) = std::env::var_os("HOME") {
+            return PathBuf::from(home)
+                .join(rest)
+                .to_string_lossy()
+                .into_owned();
+        }
+    }
+    value.to_string()
+}
+
+#[cfg(target_os = "macos")]
+fn resolve_candidates(candidates: &[&str]) -> Option<String> {
+    candidates.iter().find_map(|candidate| {
+        let expanded = expand_home(candidate);
+        let probe = Path::new(&expanded);
+        if expanded.ends_with(".app") {
+            return probe.is_dir().then_some(expanded);
+        }
+        crate::win_process::resolve_on_path(candidate).map(|p| p.to_string_lossy().into_owned())
+    })
+}
+
+/// Linux reuses this adapter but has no `/usr/bin/open`; report presets as
+/// unavailable instead of pretending the launch would work.
+#[cfg(not(target_os = "macos"))]
+fn resolve_candidates(_candidates: &[&str]) -> Option<String> {
+    None
 }
 
 #[cfg(test)]
@@ -294,5 +506,65 @@ mod tests {
         assert_eq!(caps.path_separator, "/");
         #[cfg(target_os = "macos")]
         assert_eq!(caps.primary_modifier, "cmd");
+    }
+
+    #[test]
+    fn launch_targets_are_neutral_and_elevation_free() {
+        let terminals = MacosPlatform.terminal_targets();
+        assert!(terminals.iter().any(|t| t.id == "terminal"));
+        assert!(terminals.iter().all(|t| !t.supports_elevation));
+        assert!(terminals.iter().all(|t| t
+            .resolved_path
+            .as_deref()
+            .map_or(true, |p| !p.contains(":\\"))));
+
+        let ides = MacosPlatform.ide_targets();
+        let ids: Vec<_> = ides.iter().map(|t| t.id.as_str()).collect();
+        assert_eq!(ids, vec!["vscode", "cursor", "trae", "qoder"]);
+        assert!(ides.iter().all(|t| !t.supports_elevation));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn discovery_only_reports_apps_that_really_exist() {
+        let terminals = MacosPlatform.terminal_targets();
+        assert!(!terminals.iter().any(|t| t.id == "wt" || t.id == "cmd"));
+        if Path::new("/System/Applications/Utilities/Terminal.app").is_dir() {
+            let system_terminal = terminals.iter().find(|t| t.id == "terminal").unwrap();
+            let resolved = system_terminal.resolved_path.as_deref().unwrap();
+            assert!(Path::new(resolved).is_dir());
+            assert!(!resolved.contains('\\'));
+        }
+        for target in MacosPlatform.ide_targets() {
+            if let Some(path) = target.resolved_path.as_deref() {
+                assert!(Path::new(path).exists(), "{} resolved to {path}", target.id);
+                assert!(!path.contains("C:\\"), "Windows preset leaked into macOS");
+            }
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn configured_app_bundle_is_accepted_as_a_directory() {
+        use std::fs;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
+        let app = std::env::temp_dir().join(format!("afm-launch-{stamp}/Fixture.app"));
+        fs::create_dir_all(&app).unwrap();
+        let raw = app.to_str().unwrap();
+
+        let target = MacosPlatform
+            .configured_launch_target("cursor", raw)
+            .expect("an .app bundle is a valid macOS launcher");
+        assert_eq!(target.resolved_path.as_deref(), Some(raw));
+        assert!(MacosPlatform
+            .configured_launch_target("cursor", &format!("{raw}/missing.app"))
+            .is_none());
+
+        let _ = fs::remove_dir_all(std::env::temp_dir().join(format!("afm-launch-{stamp}")));
     }
 }

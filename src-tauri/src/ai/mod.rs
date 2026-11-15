@@ -36,8 +36,7 @@ use tauri::Manager;
 
 /// Stable section ids for the AI main menu shell (UI + future IPC).
 /// Order: Providers → MCP → Skills → Agents → Harness (AIA-263 left nav).
-pub const AI_MENU_SECTION_IDS: &[&str] =
-    &["providers", "mcp", "skills", "agents", "harness"];
+pub const AI_MENU_SECTION_IDS: &[&str] = &["providers", "mcp", "skills", "agents", "harness"];
 
 pub const AI_ADDON_SHELL_VERSION: u32 = 8;
 
@@ -128,10 +127,7 @@ pub fn ai_agent_targets_set_default_in_projects(
 }
 
 #[tauri::command]
-pub fn ai_skill_deploy_mode_set(
-    app: AppHandle,
-    mode: String,
-) -> Result<AiConfigDocument, String> {
+pub fn ai_skill_deploy_mode_set(app: AppHandle, mode: String) -> Result<AiConfigDocument, String> {
     let dir = config_dir(&app)?;
     let current = agents::load_from_path(&dir)?;
     let next = agents::set_skill_deploy_mode(&current, &mode)?;
@@ -181,10 +177,7 @@ pub fn ai_agent_targets_upsert_custom(
 }
 
 #[tauri::command]
-pub fn ai_agent_targets_remove(
-    app: AppHandle,
-    id: String,
-) -> Result<AiConfigDocument, String> {
+pub fn ai_agent_targets_remove(app: AppHandle, id: String) -> Result<AiConfigDocument, String> {
     let dir = config_dir(&app)?;
     let current = agents::load_from_path(&dir)?;
     let next = agents::remove_custom(&current, &id)?;
@@ -231,7 +224,10 @@ pub async fn ai_skills_import(
 }
 
 #[tauri::command]
-pub fn ai_skills_remove(app: AppHandle, name: String) -> Result<skills::SkillsLibraryStatus, String> {
+pub fn ai_skills_remove(
+    app: AppHandle,
+    name: String,
+) -> Result<skills::SkillsLibraryStatus, String> {
     let dir = config_dir(&app)?;
     let doc = agents::load_from_path(&dir)?;
     skills::remove_skill(&dir, &doc, &name)
@@ -247,12 +243,7 @@ pub fn ai_skills_deploy(
 ) -> Result<deploy::DeployReport, String> {
     let dir = config_dir(&app)?;
     let doc = agents::load_from_path(&dir)?;
-    deploy::deploy_skill(
-        &dir,
-        &doc,
-        &skill_name,
-        project_workspace.as_deref(),
-    )
+    deploy::deploy_skill(&dir, &doc, &skill_name, project_workspace.as_deref())
 }
 
 #[tauri::command]
@@ -263,12 +254,7 @@ pub fn ai_skills_undeploy(
 ) -> Result<deploy::DeployReport, String> {
     let dir = config_dir(&app)?;
     let doc = agents::load_from_path(&dir)?;
-    deploy::undeploy_skill(
-        &dir,
-        &doc,
-        &skill_name,
-        project_workspace.as_deref(),
-    )
+    deploy::undeploy_skill(&dir, &doc, &skill_name, project_workspace.as_deref())
 }
 
 /// Search a Project Workspace for folders containing `SKILL.md` (for add-to-library).
@@ -384,8 +370,7 @@ pub fn ai_harvest_skills_import(
 ) -> Result<(skills::SkillsLibraryStatus, Vec<String>, Vec<String>), String> {
     let dir = config_dir(&app)?;
     let doc = agents::load_from_path(&dir)?;
-    let (status, imported, skipped) =
-        harvest::import_skill_candidates(&dir, &doc, &candidates)?;
+    let (status, imported, skipped) = harvest::import_skill_candidates(&dir, &doc, &candidates)?;
     Ok((
         status,
         imported.into_iter().map(|s| s.name).collect(),
@@ -452,7 +437,7 @@ pub fn ai_project_deployments(
     for agent in project_agents {
         let rel = agent.project_mcp_path.trim();
         if !rel.is_empty() {
-            let file = ws.join(rel.replace('/', "\\"));
+            let file = crate::paths::join_relative(&ws, rel);
             for id in mcp::managed_ids_in_file(&file) {
                 mcp_ids.insert(id);
             }
@@ -461,7 +446,7 @@ pub fn ai_project_deployments(
         if rel.is_empty() {
             continue;
         }
-        let skills_dir = ws.join(rel.replace('/', "\\"));
+        let skills_dir = crate::paths::join_relative(&ws, rel);
         let Ok(entries) = fs::read_dir(&skills_dir) else {
             continue;
         };
@@ -538,14 +523,8 @@ pub fn ai_providers_upsert_compatible(
 ) -> Result<AiConfigDocument, String> {
     let dir = config_dir(&app)?;
     let doc = agents::load_from_path(&dir)?;
-    let next = providers::upsert_compatible(
-        &doc,
-        id,
-        display_name,
-        base_url,
-        api_key,
-        default_model,
-    )?;
+    let next =
+        providers::upsert_compatible(&doc, id, display_name, base_url, api_key, default_model)?;
     agents::save_to_path(&dir, &next)?;
     Ok(next)
 }

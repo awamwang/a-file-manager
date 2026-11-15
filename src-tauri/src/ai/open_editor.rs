@@ -55,7 +55,9 @@ pub fn open_project_in_editor(
 ) -> Result<OpenEditorReport, String> {
     let ide = normalize_ide(ide_id.unwrap_or("cursor"))?;
     let (path, mode) = resolve_open_path(workspace_path, &ide)?;
-    let opened = path.to_string_lossy().replace('/', "\\");
+    // This is a real path handed to `ide_open_path`; on macOS a Windows-ified
+    // `\Users\...` string is not a valid launch target (7.20).
+    let opened = crate::paths::to_native_fs_path(&path.to_string_lossy());
     let launch: IdeLaunchResult = ide_open_path(app.clone(), ide.clone(), opened.clone());
     Ok(OpenEditorReport {
         ide_id: ide,
@@ -74,7 +76,8 @@ mod tests {
 
     #[test]
     fn cursor_opens_workspace_dir() {
-        let root = std::env::temp_dir().join(format!("afm-open-ed-{}-{}", "ws", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("afm-open-ed-{}-{}", "ws", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(&root).unwrap();
         let created = create_workspace_at(&root, "Demo", None, Some("demo"), None).unwrap();
@@ -86,7 +89,8 @@ mod tests {
 
     #[test]
     fn qoder_opens_context_md_when_present() {
-        let root = std::env::temp_dir().join(format!("afm-open-ed-{}-{}", "ctx", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("afm-open-ed-{}-{}", "ctx", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(&root).unwrap();
         let created = create_workspace_at(&root, "Demo", None, Some("demo2"), None).unwrap();

@@ -12,6 +12,9 @@ const mainRs = read("src-tauri/src/main.rs");
 const winProcess = read("src-tauri/src/win_process.rs");
 const terminal = read("src-tauri/src/terminal/mod.rs");
 const ide = read("src-tauri/src/ide_launch/mod.rs");
+// 7.20: launcher discovery / spawn moved into the platform adapters.
+const windowsAdapter = read("src-tauri/src/platform/windows.rs");
+const macosAdapter = read("src-tauri/src/platform/macos.rs");
 const rclone = read("src-tauri/src/providers/rclone.rs");
 const openWith = read("src-tauri/src/open_with/mod.rs");
 const menu = read("src/components/navigator/NavigatorContextMenu.vue");
@@ -32,8 +35,13 @@ assert.ok(
   "terminal must not spawn where.exe",
 );
 assert.ok(
-  terminal.includes("win_process::resolve_on_path"),
-  "terminal PATH probe must use win_process",
+  !/Command::new\(\s*"where\.exe"\s*\)/.test(windowsAdapter) &&
+    windowsAdapter.includes("win_process::resolve_on_path"),
+  "Windows launcher PATH probe must use win_process, now in platform/windows.rs (7.20)",
+);
+assert.ok(
+  macosAdapter.includes("win_process::resolve_on_path"),
+  "macOS PATH CLI probe must reuse win_process (7.20)",
 );
 
 assert.ok(
@@ -41,8 +49,12 @@ assert.ok(
   "ide_launch must not spawn where.exe",
 );
 assert.ok(
-  ide.includes("win_process::resolve_on_path") && ide.includes("win_process::command"),
-  "ide_launch must use silent PATH resolve + command",
+  windowsAdapter.includes("win_process::command"),
+  "Windows IDE launch must keep CREATE_NO_WINDOW via win_process::command, now in the adapter",
+);
+assert.ok(
+  ide.includes("platform::launch_ide"),
+  "ide_launch must delegate spawning to the platform adapter (7.20)",
 );
 
 assert.ok(

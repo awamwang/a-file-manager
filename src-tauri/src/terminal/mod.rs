@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Enumerate local terminals and open a path's directory (Sigma-aligned).
+//! Enumerate local terminals and open a path's directory.
+//!
+//! 7.20: OS-specific discovery and spawning now live in `platform/`. This
+//! module is a thin wire adapter: it maps neutral `LaunchTarget`s to the
+//! frontend contract and keeps the directory-resolution rule platform-free.
 
-use crate::win_process;
+use crate::platform;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -20,60 +23,20 @@ pub struct TerminalAppInfo {
 pub struct OpenInTerminalResult {
     pub success: bool,
     pub error: Option<String>,
-    /// Which launcher was used: wt | powershell | pwsh | cmd | gitbash.
+    /// Id of the launcher that succeeded (platform-specific, e.g. `wt` /
+    /// `powershell` on Windows, `terminal` / `iterm` on macOS).
     pub launcher: Option<String>,
-}
-
-const TERMINAL_DEFS: &[(&str, &str)] = &[
-    ("wt", "Windows Terminal"),
-    ("powershell", "Windows PowerShell"),
-    ("pwsh", "PowerShell"),
-    ("cmd", "Command Prompt"),
-    ("gitbash", "Git Bash"),
-];
-
-fn expand_user(path: &str) -> String {
-    if let Ok(user) = std::env::var("USERNAME") {
-        return path.replace("{user}", &user);
-    }
-    path.to_string()
-}
-
-fn path_is_file(candidate: &str) -> Option<PathBuf> {
-    let expanded = expand_user(candidate);
-    // PATH lookup without spawning where.exe (avoids console flashes on GUI builds).
-    win_process::resolve_on_path(&expanded)
-}
-
-fn resolve_terminal_exe(id: &str) -> Option<PathBuf> {
-    match id {
-        "wt" => path_is_file("wt.exe").or_else(|| path_is_file("wt")),
-        "powershell" => path_is_file("powershell.exe"),
-        "pwsh" => path_is_file("pwsh.exe").or_else(|| {
-            path_is_file(r"C:\Program Files\PowerShell\7\pwsh.exe")
-                .or_else(|| path_is_file(r"C:\Program Files\PowerShell\7-preview\pwsh.exe"))
-        }),
-        "cmd" => path_is_file("cmd.exe"),
-        "gitbash" => [
-            r"C:\Program Files\Git\git-bash.exe",
-            r"C:\Program Files (x86)\Git\git-bash.exe",
-            r"C:\Users\{user}\AppData\Local\Programs\Git\git-bash.exe",
-        ]
-        .into_iter()
-        .find_map(path_is_file),
-        _ => None,
-    }
 }
 
 #[tauri::command]
 pub fn terminal_list_apps() -> Vec<TerminalAppInfo> {
-    TERMINAL_DEFS
-        .iter()
-        .map(|(id, name)| TerminalAppInfo {
-            id: (*id).to_string(),
-            name: (*name).to_string(),
-            available: resolve_terminal_exe(id).is_some(),
-            supports_elevation: true,
+    platform::terminal_targets()
+        .into_iter()
+        .map(|target| TerminalAppInfo {
+            id: target.id,
+            name: target.name,
+            available: target.resolved_path.is_some(),
+            supports_elevation: target.supports_elevation,
         })
         .collect()
 }
@@ -84,39 +47,53 @@ pub fn open_in_terminal(
     terminal_id: Option<String>,
     elevated: Option<bool>,
 ) -> OpenInTerminalResult {
-    match resolve_directory(&path) {
-        Ok(dir) => {
-            let elev = elevated.unwrap_or(false);
-            if let Some(id) = terminal_id
-                .as_deref()
-                .map(str::trim)
-                .filter(|s| !s.is_empty())
-            {
-                return spawn_terminal(&dir, id, elev);
-            }
-            for id in ["wt", "powershell", "pwsh", "cmd", "gitbash"] {
-                if resolve_terminal_exe(id).is_none() {
-                    continue;
-                }
-                let result = spawn_terminal(&dir, id, elev);
-                if result.success {
-                    return result;
-                }
-            }
-            OpenInTerminalResult {
+    let dir = match resolve_directory(&path) {
+        Ok(dir) => dir,
+        Err(error) => {
+            return OpenInTerminalResult {
                 success: false,
-                error: Some(format!(
-                    "Could not launch any terminal for {}",
-                    dir.display()
-                )),
+                error: Some(error),
                 launcher: None,
             }
         }
-        Err(error) => OpenInTerminalResult {
-            success: false,
-            error: Some(error),
-            launcher: None,
-        },
+    };
+    let elev = elevated.unwrap_or(false);
+    let requested = terminal_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+
+    let mut last_error: Option<String> = None;
+    for target in platform::terminal_targets() {
+        if target.resolved_path.is_none() {
+            continue;
+        }
+        if requested.is_some_and(|id| id != target.id) {
+            continue;
+        }
+        match platform::launch_terminal(&target, &dir, elev) {
+            Ok(()) => {
+                return OpenInTerminalResult {
+                    success: true,
+                    error: None,
+                    launcher: Some(target.id),
+                }
+            }
+            Err(error) => last_error = Some(error),
+        }
+        if requested.is_some() {
+            break;
+        }
+    }
+
+    OpenInTerminalResult {
+        success: false,
+        error: Some(match requested {
+            Some(id) => last_error.unwrap_or_else(|| format!("Terminal not available: {id}")),
+            None => last_error
+                .unwrap_or_else(|| format!("Could not launch any terminal for {}", dir.display())),
+        }),
+        launcher: None,
     }
 }
 
@@ -133,121 +110,9 @@ fn resolve_directory(path: &str) -> Result<PathBuf, String> {
         return Ok(p.to_path_buf());
     }
     p.parent()
-        .filter(|parent| parent.as_os_str().len() > 0 && parent.exists())
+        .filter(|parent| !parent.as_os_str().is_empty() && parent.exists())
         .map(|parent| parent.to_path_buf())
         .ok_or_else(|| format!("No parent directory for: {trimmed}"))
-}
-
-fn spawn_terminal(dir: &Path, terminal_id: &str, elevated: bool) -> OpenInTerminalResult {
-    let dir_str = dir.to_string_lossy().replace('/', "\\");
-    let Some(exe) = resolve_terminal_exe(terminal_id) else {
-        return OpenInTerminalResult {
-            success: false,
-            error: Some(format!("Terminal not available: {terminal_id}")),
-            launcher: None,
-        };
-    };
-
-    let args = terminal_args(terminal_id, &dir_str);
-    let launched = if elevated {
-        spawn_elevated(&exe, &args, dir)
-    } else {
-        // Terminal UIs must remain visible — do not apply CREATE_NO_WINDOW here.
-        let mut cmd = Command::new(&exe);
-        cmd.args(&args).current_dir(dir);
-        try_spawn(&mut cmd)
-    };
-
-    if launched {
-        OpenInTerminalResult {
-            success: true,
-            error: None,
-            launcher: Some(terminal_id.to_string()),
-        }
-    } else {
-        OpenInTerminalResult {
-            success: false,
-            error: Some(format!(
-                "Could not launch {terminal_id} for {}",
-                dir.display()
-            )),
-            launcher: None,
-        }
-    }
-}
-
-fn terminal_args(terminal_id: &str, dir_str: &str) -> Vec<String> {
-    match terminal_id {
-        "wt" => vec!["-d".into(), dir_str.into()],
-        "powershell" | "pwsh" => vec![
-            "-NoExit".into(),
-            "-Command".into(),
-            format!("Set-Location -LiteralPath '{}'", dir_str.replace('\'', "''")),
-        ],
-        "cmd" => vec!["/K".into(), format!("cd /d {dir_str}")],
-        "gitbash" => vec![format!("--cd={dir_str}")],
-        _ => Vec::new(),
-    }
-}
-
-fn try_spawn(command: &mut Command) -> bool {
-    command.spawn().is_ok()
-}
-
-#[cfg(windows)]
-fn spawn_elevated(exe: &Path, args: &[String], dir: &Path) -> bool {
-    use std::os::windows::ffi::OsStrExt;
-    use std::ffi::OsStr;
-    use windows::core::PCWSTR;
-    use windows::Win32::UI::Shell::{ShellExecuteExW, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW};
-    use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
-
-    let verb: Vec<u16> = OsStr::new("runas")
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect();
-    let file: Vec<u16> = exe
-        .as_os_str()
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect();
-    let params_owned = args
-        .iter()
-        .map(|a| {
-            if a.contains(' ') {
-                format!("\"{a}\"")
-            } else {
-                a.clone()
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(" ");
-    let params: Vec<u16> = OsStr::new(&params_owned)
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect();
-    let dir_wide: Vec<u16> = dir
-        .as_os_str()
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect();
-
-    unsafe {
-        let mut sei: SHELLEXECUTEINFOW = std::mem::zeroed();
-        sei.cbSize = std::mem::size_of::<SHELLEXECUTEINFOW>() as u32;
-        sei.lpVerb = PCWSTR(verb.as_ptr());
-        sei.lpFile = PCWSTR(file.as_ptr());
-        sei.lpParameters = PCWSTR(params.as_ptr());
-        sei.lpDirectory = PCWSTR(dir_wide.as_ptr());
-        sei.nShow = SW_SHOWNORMAL.0;
-        sei.fMask = SEE_MASK_NOCLOSEPROCESS;
-        ShellExecuteExW(&mut sei).is_ok()
-    }
-}
-
-#[cfg(not(windows))]
-fn spawn_elevated(_exe: &Path, _args: &[String], _dir: &Path) -> bool {
-    false
 }
 
 #[cfg(test)]
@@ -292,12 +157,16 @@ mod tests {
     }
 
     #[test]
-    fn list_apps_includes_core_ids() {
+    fn list_apps_maps_the_adapter_targets_without_drift() {
         let apps = terminal_list_apps();
-        let ids: Vec<_> = apps.iter().map(|a| a.id.as_str()).collect();
-        assert!(ids.contains(&"powershell"));
-        assert!(ids.contains(&"cmd"));
-        assert!(ids.contains(&"wt"));
-        assert!(ids.contains(&"gitbash"));
+        let targets = platform::terminal_targets();
+        assert!(!apps.is_empty());
+        assert_eq!(apps.len(), targets.len());
+        for (app, target) in apps.iter().zip(&targets) {
+            assert_eq!(app.id, target.id);
+            assert_eq!(app.name, target.name);
+            assert_eq!(app.available, target.resolved_path.is_some());
+            assert_eq!(app.supports_elevation, target.supports_elevation);
+        }
     }
 }

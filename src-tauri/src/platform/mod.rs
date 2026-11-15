@@ -62,6 +62,20 @@ pub struct VolumeSpace {
     pub total_bytes: u64,
 }
 
+/// Neutral description of a launchable desktop application (terminal / IDE).
+/// `resolved_path` is an absolute executable on Windows and an `.app` bundle
+/// or CLI binary on macOS; `None` means the app is not installed, so the UI
+/// can mark it unavailable without knowing how discovery works (7.20).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LaunchTarget {
+    pub id: String,
+    pub name: String,
+    pub resolved_path: Option<String>,
+    /// Windows UAC elevation; macOS has no equivalent and reports false so
+    /// the "run as administrator" submenu is not rendered.
+    pub supports_elevation: bool,
+}
+
 /// How the main window chrome is composed. The window setup code reads this
 /// instead of hardcoding `#[cfg(target_os = "macos")]` branches (7.16).
 // Some variants are only constructed by the adapter for another target.
@@ -167,6 +181,20 @@ pub trait Platform: Send + Sync {
     fn is_hidden(&self, name: &str, metadata: &std::fs::Metadata) -> bool;
     /// Window chrome composition for the main window.
     fn window_chrome(&self) -> WindowChrome;
+    /// Installed terminals / IDEs. Returns every preset with `resolved_path`
+    /// set only when discovery succeeded, so the UI keeps its unavailable rows.
+    fn terminal_targets(&self) -> Vec<LaunchTarget>;
+    fn ide_targets(&self) -> Vec<LaunchTarget>;
+    /// Validate a user-configured override from Settings → Open tools.
+    fn configured_launch_target(&self, id: &str, path: &str) -> Option<LaunchTarget>;
+    /// Launch a resolved terminal at `dir` / a resolved IDE at `path`.
+    fn launch_terminal(
+        &self,
+        target: &LaunchTarget,
+        dir: &std::path::Path,
+        elevated: bool,
+    ) -> Result<(), String>;
+    fn launch_ide(&self, target: &LaunchTarget, path: &std::path::Path) -> Result<(), String>;
 }
 
 static CURRENT: Lazy<Box<dyn Platform>> = Lazy::new(|| {
@@ -216,6 +244,31 @@ pub fn is_hidden(name: &str, metadata: &std::fs::Metadata) -> bool {
 /// Single entry point for main-window chrome composition.
 pub fn window_chrome() -> WindowChrome {
     current().window_chrome()
+}
+
+/// 7.20: OS-specific launcher discovery / spawning lives only in the adapters.
+pub fn terminal_targets() -> Vec<LaunchTarget> {
+    current().terminal_targets()
+}
+
+pub fn ide_targets() -> Vec<LaunchTarget> {
+    current().ide_targets()
+}
+
+pub fn configured_launch_target(id: &str, path: &str) -> Option<LaunchTarget> {
+    current().configured_launch_target(id, path)
+}
+
+pub fn launch_terminal(
+    target: &LaunchTarget,
+    dir: &std::path::Path,
+    elevated: bool,
+) -> Result<(), String> {
+    current().launch_terminal(target, dir, elevated)
+}
+
+pub fn launch_ide(target: &LaunchTarget, path: &std::path::Path) -> Result<(), String> {
+    current().launch_ide(target, path)
 }
 
 /// macOS-only finishing touch for `WindowChrome::MacOverlay`: let the webview

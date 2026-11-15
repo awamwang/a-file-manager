@@ -98,7 +98,8 @@ fn webview2_registry_present() -> bool {
         RegCloseKey, RegOpenKeyExW, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ,
     };
 
-    const GUID: &str = r"SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BCC-447A6A3E3E1C}";
+    const GUID: &str =
+        r"SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BCC-447A6A3E3E1C}";
     const GUID_WOW: &str =
         r"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BCC-447A6A3E3E1C}";
 
@@ -415,15 +416,21 @@ fn browser_bookmarks_status() -> DependencyItem {
 
 fn terminal_status() -> DependencyItem {
     let apps = terminal::terminal_list_apps();
-    let available: Vec<_> = apps.iter().filter(|a| a.available).map(|a| a.id.as_str()).collect();
+    // 7.20: the preset ids are platform-specific (`wt`/`cmd` vs
+    // `terminal`/`iterm`), so show display names and keep the hint neutral.
+    let available: Vec<_> = apps
+        .iter()
+        .filter(|a| a.available)
+        .map(|a| a.name.as_str())
+        .collect();
     if available.is_empty() {
         item(
             "terminals",
             "optional",
             "warn",
             "Terminals",
-            "未探测到可用终端（异常；Windows 通常至少有 cmd/powershell）。",
-            "确认 cmd.exe / powershell.exe 在系统目录。",
+            "未探测到可用终端。",
+            "确认系统终端应用可用，或在设置页为其配置启动路径。",
         )
     } else {
         item(
@@ -432,7 +439,7 @@ fn terminal_status() -> DependencyItem {
             "ok",
             "Terminals",
             format!("可用：{}", available.join(", ")),
-            "无需处理。可选安装 Windows Terminal / Git Bash。",
+            "无需处理。",
         )
     }
 }

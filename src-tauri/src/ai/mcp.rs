@@ -128,8 +128,11 @@ pub fn upsert_entry(
             updated_at: stamp,
         });
     }
-    next.mcp_catalog
-        .sort_by(|a, b| a.display_name.to_ascii_lowercase().cmp(&b.display_name.to_ascii_lowercase()));
+    next.mcp_catalog.sort_by(|a, b| {
+        a.display_name
+            .to_ascii_lowercase()
+            .cmp(&b.display_name.to_ascii_lowercase())
+    });
     Ok(next)
 }
 
@@ -197,12 +200,12 @@ pub fn import_mcp_servers(
         added.push(id);
     }
 
-    next.mcp_catalog
-        .sort_by(|a, b| a.display_name.to_ascii_lowercase().cmp(&b.display_name.to_ascii_lowercase()));
-    Ok((
-        next,
-        McpImportReport { added, skipped },
-    ))
+    next.mcp_catalog.sort_by(|a, b| {
+        a.display_name
+            .to_ascii_lowercase()
+            .cmp(&b.display_name.to_ascii_lowercase())
+    });
+    Ok((next, McpImportReport { added, skipped }))
 }
 
 /// Parse a Cursor-style MCP JSON document (`{ "mcpServers": { … } }`) and merge.
@@ -210,8 +213,8 @@ pub fn import_from_mcp_json_text(
     document: &AiConfigDocument,
     text: &str,
 ) -> Result<(AiConfigDocument, McpImportReport), String> {
-    let root: Value = serde_json::from_str(text)
-        .map_err(|err| format!("{ERR_MCP_IMPORT_INVALID}: {err}"))?;
+    let root: Value =
+        serde_json::from_str(text).map_err(|err| format!("{ERR_MCP_IMPORT_INVALID}: {err}"))?;
     let servers = root
         .get("mcpServers")
         .and_then(|v| v.as_object())
@@ -224,8 +227,8 @@ pub fn import_from_mcp_json_path(
     document: &AiConfigDocument,
     path: &Path,
 ) -> Result<(AiConfigDocument, McpImportReport), String> {
-    let text = fs::read_to_string(path)
-        .map_err(|err| format!("{ERR_MCP_IMPORT_INVALID}: {err}"))?;
+    let text =
+        fs::read_to_string(path).map_err(|err| format!("{ERR_MCP_IMPORT_INVALID}: {err}"))?;
     import_from_mcp_json_text(document, &text)
 }
 
@@ -260,8 +263,11 @@ pub fn sync_seed_catalog(document: &AiConfigDocument) -> AiConfigDocument {
         return next;
     }
     next.schema_version = AI_CONFIG_SCHEMA_VERSION;
-    next.mcp_catalog
-        .sort_by(|a, b| a.display_name.to_ascii_lowercase().cmp(&b.display_name.to_ascii_lowercase()));
+    next.mcp_catalog.sort_by(|a, b| {
+        a.display_name
+            .to_ascii_lowercase()
+            .cmp(&b.display_name.to_ascii_lowercase())
+    });
     next
 }
 
@@ -430,7 +436,10 @@ pub fn undeploy_entry(
             if rel.is_empty() {
                 continue;
             }
-            let path = PathBuf::from(ws).join(rel.replace('/', "\\"));
+            // Config-supplied relative paths may use `/` or `\` on either OS.
+            // `join_relative` splits on both separators; a Windows-style
+            // rewrite would create one POSIX filename containing backslashes (7.20).
+            let path = crate::paths::join_relative(Path::new(ws), rel);
             if path.exists() {
                 match merge_into_file(&path, &key, &dummy, true) {
                     Ok(()) => written.push(normalize(&path)),
@@ -471,11 +480,7 @@ mod tests {
     use crate::ai::agents::{load_from_path, save_to_path, set_enabled, upsert_custom};
 
     fn temp_dir(tag: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!(
-            "afm-ai-mcp-{}-{}",
-            tag,
-            std::process::id()
-        ));
+        let dir = std::env::temp_dir().join(format!("afm-ai-mcp-{}-{}", tag, std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir

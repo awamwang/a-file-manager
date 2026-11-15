@@ -48,7 +48,8 @@ pub struct HarvestSkillScanReport {
 }
 
 fn normalize(path: &Path) -> String {
-    path.to_string_lossy().replace('/', "\\")
+    // Reports carry a real path; never Windows-ify POSIX separators (7.20).
+    crate::paths::to_native_fs_path(&path.to_string_lossy())
 }
 
 fn require_agent<'a>(
@@ -77,10 +78,10 @@ pub fn scan_mcp_from_agent(
         return Err(ERR_HARVEST_PATH.to_string());
     }
 
-    let text = fs::read_to_string(&path)
-        .map_err(|err| format!("Failed to read MCP file: {err}"))?;
-    let root: Value = serde_json::from_str(&text)
-        .map_err(|err| format!("Invalid MCP JSON: {err}"))?;
+    let text =
+        fs::read_to_string(&path).map_err(|err| format!("Failed to read MCP file: {err}"))?;
+    let root: Value =
+        serde_json::from_str(&text).map_err(|err| format!("Invalid MCP JSON: {err}"))?;
     let servers = root
         .get("mcpServers")
         .and_then(|v| v.as_object())
@@ -145,13 +146,7 @@ pub fn import_mcp_candidates(
             Err(_) => skipped.push(c.id.clone()),
         }
     }
-    Ok((
-        next,
-        McpImportReport {
-            added,
-            skipped,
-        },
-    ))
+    Ok((next, McpImportReport { added, skipped }))
 }
 
 /// 扫描 Agent 全局 Skills 目录（仅一层子目录含 SKILL.md）。

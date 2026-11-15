@@ -318,6 +318,8 @@
 **结构性缺口**（复盘当时）：`PlatformCapabilities` 的 24 个字段是静态 bool（macOS 侧仅 4 项为 `true`），`Platform` trait 只有路径 / 比较 / home / 能力 4 个方法；图标、废纸篓、剪贴板、拖放、搜索仍散落在各自模块的 `#[cfg]` 里。5.6 承诺的「一层 trait 包住现成 crate」尚未排期，所以能力协商只能用于 UI 显隐，不能用来绑定或替换实现。
 
 > **7.16 部分回收**：卷列表 / 磁盘空间 / 隐藏文件 / 窗口 chrome 四项已收进 `Platform` trait（12 个方法、26 个字段），前端真实路径收敛到 `src/state/fsPath.ts`，并补了上一条「架构归位门禁」。图标、废纸篓、剪贴板、搜索仍在各自模块的 `#[cfg]` 里；`PlatformCapabilities` 仍是静态 bool，6.5 第 4 条的「由实现动态回报」与 5.6 第 1 条的 `FsPath` 新类型仍属未做，别误判为已完成。
+>
+> **7.20 再回收一项**：P1 第一行「终端 / IDE」的发现与启动也归位适配层（trait 12 → 17 个方法），macOS 用 `.app` + `/usr/bin/open -a`，Windows 侧逐字搬迁。仍未归位的是图标 / 废纸篓 / 剪贴板 / 搜索四个 provider，以及静态 bool 能力层。
 
 > 表中 ⚠️ / ❌ 是复盘当时的状态；其中 3 项代码级浪费已在第二轮（7.7）回收，最新状态以 7.7 为准。第三轮（7.8）把能力层的**前端契约**接上，并用静态断言守住 TS/Rust 字段同步；社区插件与 `sysinfo` 等排期仍按 6.5 执行。
 
@@ -639,7 +641,7 @@
 
 **仍待用户实机确认**：`set_title("")` 对窗口菜单的影响、「此电脑」卷列表呈现、dot-file 隐藏开关、磁盘空间用量条。交通灯落点与 78px 留白已在 7.17 实机截图验证并补齐：初版只做了水平避让，垂直方向仍错开约 26pt。其余项沙箱内无法截图。
 
-**下一轮候选（按 6.5 门禁逐项判定，勿误判为已完成）**：Rust 侧仍有约 20 处 `replace('/', "\\")` 规范化（`visit_stats` / `projects` / `favorites` / `discovery` / `ai/*` / `file_ops` / `terminal` 等）。多数是比较键 / 缓存键，不产生交给后端的真实路径；但 `terminal/mod.rs:142`、`ai/open_editor.rs:58`、`ai/harness.rs:28`、`file_ops/recycle.rs:26` 疑似产出真实路径，需逐个确认后再平台化。P1 的终端/IDE `open -a`、废纸篓 TCC（或改 `~/.Trash` 移动）、全局搜索 Spotlight、进程树清理，以及 P2 的 i18n Windows 名词 / 原生菜单，仍按原排期。
+**下一轮候选（按 6.5 门禁逐项判定，勿误判为已完成）**：Rust 侧仍有约 20 处 `replace('/', "\\")` 规范化（`visit_stats` / `projects` / `favorites` / `discovery` / `ai/*` / `file_ops` / `terminal` 等）。多数是比较键 / 缓存键，不产生交给后端的真实路径；但 `terminal/mod.rs:142`、`ai/open_editor.rs:58`、`ai/harness.rs:28`、`file_ops/recycle.rs:26` 疑似产出真实路径，需逐个确认后再平台化。P1 的终端/IDE `open -a`、废纸篓 TCC（或改 `~/.Trash` 移动）、全局搜索 Spotlight、进程树清理，以及 P2 的 i18n Windows 名词 / 原生菜单，仍按原排期。**（7.20 已逐个确认并把「真实路径」类收口：终端 / IDE 归位适配层、`ai/*` 与 `open_editor` / `harness` / `visit_stats` / `projects/index` 委托 `crate::paths`；`recycle` / `safe_io` / Windows-only 模块确认为可豁免，见 7.20。废纸篓、全局搜索、进程树、i18n 仍在原排期。）**
 
 ### 7.16 架构收口（第 11 轮）：把第 7~10 轮的旁路压回适配层
 
@@ -777,6 +779,57 @@
 | `test:window-controls`（含新增 7.19 常量同步断言）/ `test:macos-bundle` | ✅ |
 
 **边界**：AppKit 在标题变化 / 全屏进出 / tabbing 后重置按钮 frame 的具体时机未逐个实机验证（`Resized` + `Focused` + 启动兜底覆盖常见路径）；`CAPTION_HEIGHT_PT` 与 CSS 的同步靠静态断言而非运行时读取；Windows 侧不执行该函数（适配层 macOS 门控）。
+
+### 7.20 回到 Mac 适配：终端 / IDE 归位适配层 + 真实路径尾巴（第 15 轮）
+
+**触发**：用户「继续回到 Mac 适配」。回到 7.15 结尾列出的下一轮候选，以及 P1 表第一行「终端 / IDE」——这两项在 macOS 上此前完全不可用：`TERMINAL_DEFS` / `IDE_DEFS` 只有 `wt` / `powershell` / `.cmd` + `C:\Program Files`，`USERNAME` 环境变量在 macOS 也不存在。
+
+**先过 6.5 第 1 / 6 条门禁**：
+
+| 缺口 | 四选一 | 依据 |
+|---|---|---|
+| 终端 / IDE 应用发现与启动 | **自写（标准库 + 系统 `/usr/bin/open`，无新依赖）** | `tauri-plugin-opener` 只负责「用默认程序打开路径」，不覆盖「在指定目录打开指定终端 / 用指定 IDE 打开」；PATH 探测复用 7.10 已有的 `win_process::resolve_on_path`。按第 6 条，平台差异全部放进 `platform/`，业务模块零 `#[cfg]` |
+| 真实路径 Windows 化（P0-3 尾巴） | **复用** | `crate::paths::{join_relative, to_native_fs_path, normalize_path_for_comparison}` 在 7.10 / 7.16 已建好，不再各模块手写 |
+| 静态契约 / 依赖体检文案 | **自写**（项目既有脚本模式） | 无库可代劳 |
+
+**适配层（12 → 17 个 trait 方法）**：`platform/mod.rs` 新增中立类型 `LaunchTarget { id, name, resolved_path, supports_elevation }` 与五组入口 `terminal_targets` / `ide_targets` / `configured_launch_target` / `launch_terminal` / `launch_ide`。`resolved_path = None` 表示未安装，前端继续显示「不可用」行而不必知道发现逻辑。
+
+| 落点 | 内容 |
+|---|---|
+| `platform/windows.rs` | 逐字搬入 `TERMINAL_DEFS` / `IDE_DEFS`（含 Qoder 的 Coder/Corder 拼写）、`expand_user(USERNAME)`、`resolve_candidate`、`terminal_args`、`spawn_elevated`（`ShellExecuteExW` runas）、`win_process::command` 启动 IDE；Windows 行为一字未改 |
+| `platform/macos.rs` | `TERMINAL_APPS`（Terminal / iTerm2 / Warp）与 `IDE_APPS`（VS Code / Cursor / Trae / Qoder）在 `/Applications`、`~/Applications`、系统 Utilities 下探测 `.app`，裸名走 PATH CLI；启动用 `/usr/bin/open -a <.app> <dir>`，CLI 直接 spawn；`supports_elevation = false`（无 UAC，`configured_launch_target` 接受 `.app` **目录**） |
+| `terminal/mod.rs` / `ide_launch/mod.rs` | 只留 wire 类型、目录解析、设置覆盖顺序（auto → configured → none）与 `platform::launch_*` 调用；删除全部 Windows 常量、`USERNAME`、`replace('/', "\\")`、`#[cfg(windows)]` |
+| `deps_probe.rs` | `terminal_status` 改显示适配器给的 `name`，删掉「确认 cmd.exe / powershell.exe」「可选安装 Windows Terminal / Git Bash」两条 Windows 指引 |
+
+**顺带收掉 7.15 遗留的真实路径尾巴**（逐个确认，不是一刀切全替）：
+
+- 真实路径：`ai/open_editor.rs` 的 `opened`（此前会把 POSIX 路径 Windows 化后交给 `ide_open_path`）、`ai/harness.rs` / `ai/harvest.rs` 的报告路径、`ai/mcp.rs` 与 `ai/mod.rs` 两处 `ws.join(rel.replace(...))`、`ai/agents.rs` 四处配置输入改写 → 统一委托 `crate::paths`。
+- **真 bug**：`projects/index.rs::active_still_under_root` 的 `root_norm` 已在 7.10 改为 host 原生路径，`path_norm` 却仍硬编码 `\` + `\` 前缀，macOS 上每次加载都会判定 active project 不在 root 下 → 两侧都走 `normalize_path_for_comparison`，分隔符取 `platform::current().path_separator()`。
+- `visit_stats::normalize_path` 是比较 / 持久化键，改委托 `to_native_fs_path`；原 `C:\Docs` / `C:/Docs` 测试夹具改成 host 分隔符变体（Windows `\` vs `/`，POSIX 尾斜杠），并补一条「POSIX 路径永不变成反斜杠键」断言。
+- **确认后豁免**（6.5 第 6 条）：`open_with/mod.rs` 与 `shell_menu/mod.rs` 的 `replace` 位于整模块 `#[cfg(windows)] mod windows_impl`；`file_ops/recycle.rs::normalize_path` 是 `#[cfg(any(windows, test))]`；`file_ops/safe_io.rs::volume_id` 是纯 Windows 卷标识（POSIX 返回 `None` → 走 copy+verify）；`favorites` / `projects/ops` / `discovery/blacklist` / `providers/util` 四处只作比较 / 缓存键。均不产出交给后端的真实路径，留按 P2 平台化。
+
+**本机实机发现**（`platform/macos.rs` 新增断言直接读磁盘，不是模拟）：
+
+| 目标 | 结果 |
+|---|---|
+| Terminal.app | 存在：`/System/Applications/Utilities/Terminal.app` → `available` |
+| iTerm.app / Visual Studio Code.app / Cursor.app | 存在 → `available` |
+| Warp / Trae / Qoder | 未安装 → `unavailable`（仍返回预设行） |
+| `cursor` CLI | 实测 `/usr/local/bin/cursor` 在 PATH，但 `.app` 候选优先命中 |
+
+**契约**：新增 `scripts/check-launch-targets.mjs`（注册 `test:launch-targets` 并纳入 `npm test`）：断言中立类型与 5 组入口、两端适配器都实现 5 个方法、Windows 预设逐字保留（回收从 `ide_launch` 移走的两条 Rust 测试）、macOS 预设 id 与 `SettingsView` 的 `OPEN_TOOL_IDS` 一致、业务模块不得出现 `USERNAME` / `C:\Program Files` / `win_process` / `#[cfg(windows)]` / 斜杠改写、8 个真实路径生产模块不得再本地改写分隔符、`deps_probe` 文案不得回退。`check-no-console-flash.mjs` 的两条断言按 7.16 惯例改指向适配层（**未放宽**：仍禁止 `where.exe`、仍要求 `win_process::resolve_on_path` / `win_process::command`）。
+
+| 验证 | 结果 |
+|---|---|
+| `cargo check`（默认 / `--no-default-features`） | 通过，均 0 警告 |
+| `cargo test --lib` | 通过，**301 passed / 0 failed / 1 ignored**（原 299；−2 个 Windows-only IDE 夹具测试，+4 个适配层 / 路径断言） |
+| `npm test` 全量 / `npm run build` | exit 0 / 通过 |
+| `test:launch-targets` / `test:window-controls` / `test:macos-bundle` / `git diff --check` | 全通过 |
+| 改动过的 Rust 文件 `rustfmt --check` | exit 0（含 macOS 不编译的 `windows.rs`，至少语法级校验） |
+
+**Windows 侧限制**：本机 `rustup target add x86_64-pc-windows-gnu` 成功，但 `cargo check --target x86_64-pc-windows-gnu` 在 C 依赖的 `cc-rs` 处因缺 `x86_64-w64-mingw32-gcc` 失败（未为此装整套 mingw）。因此 Windows adapter 的**类型检查仍待 Windows CI**；本机只有语法解析 + 静态契约守住调用点，别误判为已编译验证。
+
+**边界（勿误判为完成）**：`/usr/bin/open -a <.app> <dir>` 是否在 iTerm2 / Warp 里也都落到指定目录、右键菜单与设置页「打开工具」的实际展示与点击，仍需用户在 GUI 实机确认（本轮只验证了发现结果与命令构造）；macOS 不再渲染「以管理员身份」子项是预期行为；5 语言 i18n 里的「资源管理器」「可选 Code.exe 路径」等 Windows 名词仍是 P2 遗留，本轮只清了 Rust 里的硬编码文案；`PlatformCapabilities` 仍是静态 bool（6.5 第 4 条）、图标 / 废纸篓 / 剪贴板 / 搜索四个 provider 未归位、`DriveInfo.letter` 等 IPC Windows 名词未清洗。
 
 ---
 
