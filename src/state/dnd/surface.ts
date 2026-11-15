@@ -9,6 +9,7 @@ import {
   pathsFromDataTransfer,
 } from "./paths.ts";
 import { dropTransferMode, type DropMode } from "./mode.ts";
+import { effectiveDropSources } from "./location.ts";
 import {
   activeDragSources,
   endDragSession,
@@ -25,7 +26,34 @@ export type FolderDropCommit = {
   mode?: DropMode;
   count?: number;
   error?: string;
+  /** 静默 no-op：源已在目标目录，调用方不应弹 toast / 切标签 / 刷新。 */
+  noop?: "same-location";
 };
+
+export type FolderDropResolution = {
+  /** 真正需要搬动的路径（已剔除同位置源）。 */
+  sources: string[];
+  mode: DropMode;
+  /** 源全部已在目标目录且当前为 move：Explorer 视为无效操作。 */
+  blocked: boolean;
+};
+
+/**
+ * 一次投放的统一判定。dragover 传拖动会话 / 选中项，drop 传 dataTransfer
+ * 解析出的路径，保证「光标提示」和「实际动作」用同一套规则。
+ */
+export function resolveFolderDrop(
+  event: DragEvent,
+  destPath: string,
+  candidates: string[],
+): FolderDropResolution {
+  const mode = previewDropMode(event, destPath, candidates);
+  if (!candidates.length) return { sources: [], mode, blocked: false };
+  // 显式 Ctrl（复制副本）/ Alt（创建快捷方式）在原目录仍有意义，保持可用。
+  if (mode !== "move") return { sources: candidates, mode, blocked: false };
+  const sources = effectiveDropSources(candidates, destPath);
+  return { sources, mode, blocked: sources.length === 0 };
+}
 
 /** Resolve copy|move|link for dragover / drop (empty external sources → modifiers only). */
 export function previewDropMode(
@@ -56,7 +84,8 @@ export function previewSourcePaths(event: DragEvent): string[] {
 
 /**
  * Accept a folder drop target: preventDefault, set dropEffect, show the release hint.
- * Returns null when the destination must not accept (e.g. self-drop on selected row).
+ * Returns null when the destination must not accept (selected row, or sources that
+ * already live in this folder — an Explorer-style no-op).
  */
 export function acceptFolderDragOver(
   event: DragEvent,
@@ -68,16 +97,23 @@ export function acceptFolderDragOver(
   } = {},
 ): DropMode | null {
   const hintKey = options.hintKey ?? destPath;
-  if (options.rejectIfSelected && selectedPaths.value.includes(destPath)) {
+  const resolution = resolveFolderDrop(event, destPath, previewSourcePaths(event));
+  if (
+    (options.rejectIfSelected && selectedPaths.value.includes(destPath)) ||
+    resolution.blocked
+  ) {
     hideDropHint(hintKey);
+    // 不 preventDefault：浏览器不会派发 drop，也不会出现投放光标。
+    // stopPropagation 防止父级目标抢答后重新显示提示 / 高亮。
+    event.stopPropagation();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "none";
     return null;
   }
   event.preventDefault();
   event.stopPropagation();
-  const mode = previewDropMode(event, destPath, previewSourcePaths(event));
-  if (event.dataTransfer) event.dataTransfer.dropEffect = mode;
-  showDropHint(event, mode, options.hintTarget ?? destPath, hintKey);
-  return mode;
+  if (event.dataTransfer) event.dataTransfer.dropEffect = resolution.mode;
+  showDropHint(event, resolution.mode, options.hintTarget ?? destPath, hintKey);
+  return resolution.mode;
 }
 
 /** Apply inbound / in-app drop into `destPath`; refresh listing + undo bookkeeping. */
@@ -97,14 +133,20 @@ export async function commitFolderDrop(
     transferred.length || !sessionPaths.length
       ? transferred
       : sessionPaths.map((p) => p.replace(/\//g, "\\"));
-  const paths = resolved.filter((p) => p !== destPath);
+  const resolution = resolveFolderDrop(event, destPath, resolved);
+  if (resolution.blocked) {
+    // 拖回原目录：不产生任何文件操作、提示、toast 或标签切换。
+    endDragSession();
+    return { ok: false, noop: "same-location" };
+  }
+  const paths = resolution.sources;
   if (!paths.length) {
     endDragSession();
     return { ok: false, error: "empty" };
   }
 
   try {
-    const mode = previewDropMode(event, destPath, paths);
+    const mode = resolution.mode;
     const result = await transferEntries(paths, destPath, mode);
     if (!result.ok) {
       return { ok: false, mode, error: result.error ?? "failed" };

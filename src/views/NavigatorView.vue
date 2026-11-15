@@ -171,8 +171,8 @@ import {
   commitFolderDrop,
   hideDropHint,
   noticeKeyForDropMode,
-  previewDropMode,
   previewSourcePaths,
+  resolveFolderDrop,
   showDropHint,
   startNativeFileDragOut,
 } from "../state/dnd";
@@ -1959,7 +1959,10 @@ function onDragOver(event: DragEvent, entry: NavigatorEntry) {
   if (entry.kind !== "dir") return;
   if (isProviderPath(entry.path) || isProviderPath(currentPath.value)) return;
   const mode = acceptFolderDragOver(event, entry.path, { rejectIfSelected: true });
-  if (mode == null) return;
+  if (mode == null) {
+    if (dragOverPath.value === entry.path) dragOverPath.value = null;
+    return;
+  }
   dragOverPath.value = entry.path;
 }
 
@@ -1974,11 +1977,19 @@ function onListDragOver(event: DragEvent, destPath: string | null | undefined) {
   if (!destPath || isGuidePath(destPath) || isRecyclePath(destPath) || isProviderPath(destPath)) {
     return;
   }
+  const { blocked, mode } = resolveFolderDrop(event, destPath, previewSourcePaths(event));
+  const label = destPath.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || destPath;
+  if (blocked) {
+    // 源已在此目录：不 preventDefault、不提示、不高亮，浏览器也不会派发 drop。
+    event.stopPropagation();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "none";
+    hideDropHint(destPath);
+    if (dragOverPath.value === destPath) dragOverPath.value = null;
+    return;
+  }
   // Row handlers stopPropagation when targeting a folder; background accepts drops.
   event.preventDefault();
-  const mode = previewDropMode(event, destPath, previewSourcePaths(event));
   if (event.dataTransfer) event.dataTransfer.dropEffect = mode;
-  const label = destPath.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || destPath;
   showDropHint(event, mode, label, destPath);
   if (!dragOverPath.value) dragOverPath.value = destPath;
 }

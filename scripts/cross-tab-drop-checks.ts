@@ -2,6 +2,12 @@
 import assert from "node:assert/strict";
 import { dropTransferMode, volumeKey } from "../src/state/dnd/mode.ts";
 import {
+  effectiveDropSources,
+  isSourceInDest,
+  normalizeDropPath,
+  parentDropDir,
+} from "../src/state/dnd/location.ts";
+import {
   createDropHoverScheduler,
   DROP_HOVER_MS,
   TAB_DROP_HOVER_MS,
@@ -31,6 +37,27 @@ assert.equal(dropTransferMode(["C:\\Src\\a.txt"], "D:\\Dst", { shift: true }), "
 assert.equal(dropTransferMode(["C:\\Src\\a.txt"], "D:\\Dst", { alt: true }), "link");
 assert.equal(volumeKey("d:/Work"), "d");
 assert.equal(volumeKey("\\\\nas\\share"), "unc:nas");
+
+// 同位置投放：大小写 / 正反斜杠 / 尾部反斜杠 / . 与 .. / UNC 都要认出来。
+assert.equal(normalizeDropPath("C:/Src/"), "c:\\src");
+assert.equal(normalizeDropPath("c:\\SRC\\a.txt"), "c:\\src\\a.txt");
+assert.equal(parentDropDir("C:\\Src\\a.txt"), "c:\\src");
+assert.equal(parentDropDir("C:\\a.txt"), "c:");
+assert.equal(isSourceInDest("C:\\Src\\a.txt", "c:/src"), true, "same folder");
+assert.equal(isSourceInDest("C:\\Src\\a.txt", "C:\\Dst"), false, "other folder");
+assert.equal(isSourceInDest("C:\\Src", "C:\\Src"), true, "folder onto itself");
+assert.equal(isSourceInDest("C:\\Src\\..\\Src\\a.txt", "C:\\Src"), true, "dot segments");
+assert.equal(
+  isSourceInDest("\\\\nas\\share\\dir\\a.txt", "\\\\NAS\\share\\dir"),
+  true,
+  "UNC share folder",
+);
+assert.deepEqual(
+  effectiveDropSources(["C:\\Src\\a.txt", "D:\\Other\\b.txt"], "C:\\Src"),
+  ["D:\\Other\\b.txt"],
+  "mixed selection keeps only movable sources",
+);
+assert.deepEqual(effectiveDropSources(["C:\\Src\\a.txt"], "C:\\Src"), [], "all in place");
 
 // The 500ms scheduler must not fire early, and clear() must cancel a pending switch.
 await new Promise<void>((resolve, reject) => {

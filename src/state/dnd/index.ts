@@ -26,7 +26,9 @@ export {
   noticeKeyForDropMode,
   previewDropMode,
   previewSourcePaths,
+  resolveFolderDrop,
   type FolderDropCommit,
+  type FolderDropResolution,
 } from "./surface.ts";
 export {
   armNativeFileDragOut,
