@@ -218,6 +218,18 @@ pub fn window_chrome() -> WindowChrome {
     current().window_chrome()
 }
 
+/// macOS-only finishing touch for `WindowChrome::MacOverlay`: move the native
+/// traffic lights down onto the self-drawn Fluent caption row. WKWebView keeps
+/// a ~28pt safe-area band under the native titlebar, so a plain Overlay leaves
+/// the buttons about 26pt above the caption controls (7.17). No-op elsewhere;
+/// the AppKit details stay inside the macOS adapter.
+pub fn align_window_chrome(window: &tauri::WebviewWindow) {
+    #[cfg(target_os = "macos")]
+    macos::align_traffic_lights(window);
+    #[cfg(not(target_os = "macos"))]
+    let _ = window;
+}
+
 /// True for `afm://guide`, `http://…`, etc. — these are not filesystem paths
 /// and must keep their separators on every OS.
 pub(super) fn has_uri_scheme(value: &str) -> bool {

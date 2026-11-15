@@ -22,6 +22,8 @@
         "maximized": true,
         "fullscreen": false,
         "decorations": false,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
         "visible": false,
         "backgroundColor": "#f3f3f3",
         "dragDropEnabled": false

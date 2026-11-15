@@ -637,7 +637,7 @@
 | **`npm test`（全量前端契约）** | ✅ **exit 0，macOS 上首次全绿**（此前唯一阻塞 `test:file-drag-inout` 已平台化） |
 | 5 个读 `tauri.conf.json` 的静态脚本 + perf/show-hidden/properties/settings 等 | ✅ 全通过 |
 
-**仍待用户实机确认**：Overlay 后交通灯落点与 78px 留白是否合适、`set_title("")` 对窗口菜单的影响、「此电脑」卷列表呈现、dot-file 隐藏开关、磁盘空间用量条。这些在沙箱里无法截图。
+**仍待用户实机确认**：`set_title("")` 对窗口菜单的影响、「此电脑」卷列表呈现、dot-file 隐藏开关、磁盘空间用量条。交通灯落点与 78px 留白已在 7.17 实机截图验证并补齐：初版只做了水平避让，垂直方向仍错开约 26pt。其余项沙箱内无法截图。
 
 **下一轮候选（按 6.5 门禁逐项判定，勿误判为已完成）**：Rust 侧仍有约 20 处 `replace('/', "\\")` 规范化（`visit_stats` / `projects` / `favorites` / `discovery` / `ai/*` / `file_ops` / `terminal` 等）。多数是比较键 / 缓存键，不产生交给后端的真实路径；但 `terminal/mod.rs:142`、`ai/open_editor.rs:58`、`ai/harness.rs:28`、`file_ops/recycle.rs:26` 疑似产出真实路径，需逐个确认后再平台化。P1 的终端/IDE `open -a`、废纸篓 TCC（或改 `~/.Trash` 移动）、全局搜索 Spotlight、进程树清理，以及 P2 的 i18n Windows 名词 / 原生菜单，仍按原排期。
 
@@ -666,6 +666,44 @@
 **Windows 侧限制**：`platform/windows.rs` 的 Win32 代码是逐字搬迁（仅 `DriveKind` → `VolumeKind`），本机 macOS 无法编译 Windows target；静态契约守住了调用点，仍需 Windows CI 实机编译确认。
 
 **效果与边界**：平台 `#[cfg]` 210 → 205（多数是整模块 Windows-only 集成，不算散落，故降幅有限）；真正的变化是 4 项能力的**实现位置**从业务模块移到适配器，trait 8 → 12 个方法。仍未做（勿误判为完成）：6.5 第 4 条的动态能力探测（仍是静态 bool）、5.6 第 1 条的 `FsPath` 新类型（`typed-path` 未回排期）、6.1 第 1 条的 IPC 契约清洗（`DriveInfo.letter` 等 Windows 名词仍在）、图标 / 废纸篓 / 剪贴板 / 搜索四个 provider 仍在各自模块的 `#[cfg]` 里。
+
+### 7.17 交通灯与自绘标题栏真正同一行（第 12 轮）
+
+**触发**：用户实机反馈「红绿灯位置还是单行的」，并追问「在刷新按钮前留出的空白，难道不是为了给红绿灯留出空间从而让红绿灯和我们的标题栏在同一水平吗？」——指出 7.15 的 78px 留白只解决了水平避让，垂直方向没对齐。
+
+**实机测量**（`screencapture -l <windowId>` 单独截窗口 + 像素刻度，Retina 2x）：
+
+| 元素 | 窗口 y（pt） |
+|---|---|
+| 原生交通灯中心 | ~17 |
+| WKWebView 网页内容起点 | ~28（titlebar safe area） |
+| 自绘 Fluent 栏（40pt）内刷新按钮 / 品牌中心 | ~45 |
+
+`NSWindow.styleMask = 32783`（`Titled|Closable|Miniaturizable|Resizable|FullSizeContentView`），`contentLayoutRect` 高度比 `contentView` 少 28pt。即 **Overlay / FullSizeContentView 已生效，但 WKWebView 仍把网页内容限制在安全区内**，而交通灯由 AppKit 画在安全区上方。所以 78px 留白避开了「不存在于同一行」的按钮。
+
+**四试四否**（均有实机截图/诊断数据）：① 运行时把 `set_title_bar_style(Overlay)` 延后到 `set_decorations(true)` 的异步 styleMask 之后 —— mask 本来就对，布局不变；② `tauri.conf.json` 加 `titleBarStyle: "Overlay"` + `hiddenTitle: true` —— 保留（窗口创建时即 Overlay、隐藏原生标题），但不改变 safe area；③ `index.html` 加 `viewport-fit=cover` —— macOS WKWebView 无效，已撤回；④ 前端负 margin / transform 上移 `.shell`，以及原生把 `nsView.frame` 设为 `contentView.bounds` —— 前者把自绘栏推出视口被裁、后者 frame 本来就相等，均已撤回。
+
+**采用方案（AppKit 按钮位移，归位适配层）**：照 tao `inset_traffic_lights` 的思路扩大交通灯私有容器并重置三个按钮的水平位置，把它们下移到自绘栏中心。
+
+| 落点 | 内容 |
+|---|---|
+| `platform/macos.rs` | `align_traffic_lights(&WebviewWindow)` + 标定常量 `TRAFFIC_LIGHT_INSET_PT = 43.0`；所有 `objc2` / AppKit 细节都在 macOS 适配器内，且 `#[cfg(target_os="macos")]` 双层门控（该文件也是 Linux fallback） |
+| `platform/mod.rs` | `align_window_chrome(&WebviewWindow)` 单一入口，非 macOS 为空实现，lib.rs 不再出现 AppKit |
+| `lib.rs` | ① Overlay 设置排到 `set_decorations(true)` 的异步 styleMask 之后；② `on_window_event(Resized)` 主线程重新对齐（AppKit 在 resize / 标题变化后会重置按钮 frame）；③ 启动 1.6s 兜底一次（reveal 无 resize 时），调用幂等 |
+| `Cargo.toml` | macOS-only 引入 `objc2` / `objc2-app-kit`（tao/tauri 已用同版本，Cargo.lock 仅 +2 行） |
+| `tauri.conf.json` | 只**新增** `titleBarStyle` / `hiddenTitle`，`decorations:false` 一字未改（`check-window-controls.mjs` 硬断言） |
+
+**6.5 门禁判定「引入」**：Tauri 2.12.5 的运行时 `WebviewWindow` 没有 `set_traffic_light_position`（只有 builder-only 的 `traffic_light_position`），也没有任何调整 `NSWindow` 标准按钮 frame 的等价 API；这是 macOS 原生窗口按钮定位的唯一途径，且依赖按 target 门控、Windows 不受影响。
+
+**契约**：`check-window-controls.mjs` 新增 5 条断言守住 config 两字段、`lib.rs` 必须委托 `platform::align_window_chrome` 且不得出现 `objc2_app_kit`、适配器必须实现 inset、`platform/mod.rs` 必须暴露入口、AppKit 依赖必须 target-gated。
+
+| 验证 | 结果 |
+|---|---|
+| 实机截图（刻度图） | ✅ 交通灯 / 刷新按钮 / 品牌中心同在 y≈165–175 px（2x），误差 ≤ 5pt，78px 留白无重叠 |
+| `cargo check`（默认 / `--no-default-features`）/ `cargo test --lib` | ✅ 0 警告 / 299 passed, 0 failed, 1 ignored |
+| `npm test` 全量 / `npm run build` / `test:window-controls` / `test:macos-bundle` | ✅ 全通过 |
+
+**边界（勿误判为完成）**：43pt 是本机 macOS 15.x 的实机标定值（AppKit 会把按钮在容器内垂直居中，容器增高与按钮下移非线性），换系统版本或窗口缩放需重新标定；全屏进出、窗口 tabbing、标题变化是否重置按钮位置尚未逐个实机验证（目前只覆盖 `Resized`）；窗口顶部 28pt 安全区仍在，但与自绘栏同色且无分隔线，视觉上是一条栏而非双层标题栏。
 
 ---
 

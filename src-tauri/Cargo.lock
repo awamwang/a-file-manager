@@ -11,6 +11,8 @@ dependencies = [
  "drag",
  "file_icon_provider",
  "image",
+ "objc2",
+ "objc2-app-kit",
  "once_cell",
  "serde",
  "serde_json",

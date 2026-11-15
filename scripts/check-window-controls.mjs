@@ -117,4 +117,33 @@ if (!snap.includes("TITLEBAR_HEIGHT_PX") || !snap.includes("BUTTON_WIDTH_PX")) {
   process.exit(1);
 }
 
+// 7.17: macOS Overlay chrome is composed at window creation and finished in
+// the platform adapter — no AppKit details may leak back into lib.rs.
+const macOsAdapter = readFileSync(join(root, "src-tauri/src/platform/macos.rs"), "utf8");
+const platformMod = readFileSync(join(root, "src-tauri/src/platform/mod.rs"), "utf8");
+const cargoToml = readFileSync(join(root, "src-tauri/Cargo.toml"), "utf8");
+if (mainWindow?.titleBarStyle !== "Overlay" || mainWindow?.hiddenTitle !== true) {
+  console.error("main window needs titleBarStyle:Overlay + hiddenTitle for macOS traffic lights (7.17)");
+  process.exit(1);
+}
+if (!libRs.includes("platform::align_window_chrome") || libRs.includes("objc2_app_kit")) {
+  console.error("traffic-light alignment must delegate to platform adapter, not AppKit in lib.rs (7.17)");
+  process.exit(1);
+}
+if (!macOsAdapter.includes("align_traffic_lights") || !macOsAdapter.includes("TRAFFIC_LIGHT_INSET_PT")) {
+  console.error("macOS adapter must own the traffic-light inset (7.17)");
+  process.exit(1);
+}
+if (!platformMod.includes("pub fn align_window_chrome")) {
+  console.error("platform/mod.rs must expose align_window_chrome (7.17)");
+  process.exit(1);
+}
+if (
+  !cargoToml.includes("[target.'cfg(target_os = \"macos\")'.dependencies]") ||
+  !cargoToml.includes("objc2-app-kit")
+) {
+  console.error("AppKit bindings must stay target-gated in Cargo.toml (7.17)");
+  process.exit(1);
+}
+
 console.log("window-controls: ok");

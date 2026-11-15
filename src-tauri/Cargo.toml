@@ -46,6 +46,21 @@ drag = "2.1.1"
 ureq = { version = "3.5.1", features = ["json"] }
 sysinfo = { version = "0.40.3", default-features = false, features = ["disk"] }
 
+# AppKit bindings are macOS-only; Tauri/tao already pull the same versions.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = [
+  "std",
+  "objc2-core-foundation",
+  "NSApplication",
+  "NSButton",
+  "NSControl",
+  "NSResponder",
+  "NSView",
+  "NSWindow",
+  "NSGraphics",
+] }
+
 # Win32 bindings only exist on Windows: the crate itself is `#![cfg(windows)]`.
 # Keeping this target-gated prevents unresolved imports on macOS/Linux builds.
 [target.'cfg(windows)'.dependencies]

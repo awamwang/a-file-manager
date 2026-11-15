@@ -142,8 +142,49 @@ pub fn run() {
             if crate::platform::window_chrome() == crate::platform::WindowChrome::MacOverlay {
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.set_decorations(true);
-                    let _ = window.set_title_bar_style(tauri::TitleBarStyle::Overlay);
                     let _ = window.set_title("");
+                    // tao rewrites the whole styleMask for `set_decorations(true)`
+                    // on a dispatch_async main-queue task. Queue the Overlay
+                    // switch behind that task so the FullSizeContentView bit is
+                    // not lost to the rewrite.
+                    let overlay_app = app.handle().clone();
+                    let _ = window.run_on_main_thread(move || {
+                        if let Some(window) = overlay_app.get_webview_window("main") {
+                            let _ = window.set_title_bar_style(tauri::TitleBarStyle::Overlay);
+                        }
+                    });
+                    // WKWebView keeps a ~28pt safe-area band under the native
+                    // titlebar, so the self-drawn caption row sits ~26pt below
+                    // the traffic lights. Move the native buttons onto that row
+                    // (7.17); AppKit resets their frames on resize, so re-apply
+                    // on the main thread after every size change.
+                    let chrome_app = app.handle().clone();
+                    window.on_window_event(move |event| {
+                        if matches!(event, tauri::WindowEvent::Resized(_)) {
+                            if let Some(window) = chrome_app.get_webview_window("main") {
+                                let main_thread_app = chrome_app.clone();
+                                let _ = window.run_on_main_thread(move || {
+                                    if let Some(window) =
+                                        main_thread_app.get_webview_window("main")
+                                    {
+                                        crate::platform::align_window_chrome(&window);
+                                    }
+                                });
+                            }
+                        }
+                    });
+                    // Startup fallback: a window revealed without a resize never
+                    // fires Resized. The adapter call is idempotent.
+                    let late_app = app.handle().clone();
+                    std::thread::spawn(move || {
+                        std::thread::sleep(std::time::Duration::from_millis(1600));
+                        let align_app = late_app.clone();
+                        let _ = late_app.run_on_main_thread(move || {
+                            if let Some(window) = align_app.get_webview_window("main") {
+                                crate::platform::align_window_chrome(&window);
+                            }
+                        });
+                    });
                 }
             }
 
