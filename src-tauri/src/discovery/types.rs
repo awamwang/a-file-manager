@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub enum DiscoveryEngine {
     Everything,
+    /// macOS host-wide index via Spotlight (`/usr/bin/mdfind`), 7.21.
+    Spotlight,
     Fallback,
     Unavailable,
 }

@@ -89,6 +89,43 @@ pub enum WindowChrome {
     MacOverlay,
 }
 
+/// Which OS index backs the global search page (7.21). The UI uses this to
+/// label the primary engine card and to hide Windows-only settings; the
+/// discovery service uses it to pick its backend.
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GlobalSearchEngine {
+    /// `Everything` IPC (Windows only).
+    EverythingIpc,
+    /// Spotlight via `/usr/bin/mdfind` (macOS only).
+    Spotlight,
+    /// No host-wide index available (other Unix targets).
+    None,
+}
+
+/// One hit from the host-wide index. Paths are host-native; `is_dir` follows
+/// symlinks so the Navigator can open folders directly.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SearchHit {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SearchQueryResult {
+    /// Total hits the host index reported before paging.
+    pub total_count: u64,
+    pub offset: u64,
+    pub hits: Vec<SearchHit>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SearchProbe {
+    pub available: bool,
+    pub detail: String,
+}
+
 /// Describes which desktop capabilities this build can actually deliver.
 /// The frontend should hide/disable unsupported entries instead of invoking
 /// a command that returns `Err("... only supported on Windows")`.
@@ -111,7 +148,12 @@ pub struct PlatformCapabilities {
     pub registry_autostart: bool,
     pub native_autostart: bool,
     pub single_instance: bool,
+    /// A host-wide index exists (Everything on Windows, Spotlight on macOS).
     pub global_search: bool,
+    /// Which one: "everything" | "spotlight" | "none" (7.21). Kept separate
+    /// from the bool so macOS can hide the "Prefer Everything" setting while
+    /// still reporting a working global search backend.
+    pub global_search_engine: String,
     pub quick_look_preview: bool,
     pub ole_drag_out: bool,
     /// AppKit / native drag-out transport. Off on macOS since 7.13: the
@@ -150,6 +192,7 @@ impl PlatformCapabilities {
             native_autostart: false,
             single_instance: false,
             global_search: false,
+            global_search_engine: "none".to_string(),
             quick_look_preview: false,
             ole_drag_out: false,
             native_drag_out: false,
@@ -195,6 +238,20 @@ pub trait Platform: Send + Sync {
         elevated: bool,
     ) -> Result<(), String>;
     fn launch_ide(&self, target: &LaunchTarget, path: &std::path::Path) -> Result<(), String>;
+    /// Host-wide index selection (7.21). `EverythingIpc` means the discovery
+    /// service keeps its original Windows backend; `Spotlight` means it should
+    /// route queries through `global_search()` instead.
+    fn global_search_engine(&self) -> GlobalSearchEngine;
+    /// Cheap availability probe — must not shell out or run a query.
+    fn probe_global_search(&self) -> SearchProbe;
+    /// Name-based host-wide search with paging. Only called for adapters that
+    /// report a real engine; Windows returns `Err` and uses Everything IPC.
+    fn global_search(
+        &self,
+        query: &str,
+        max_results: u32,
+        offset: u32,
+    ) -> Result<SearchQueryResult, String>;
 }
 
 static CURRENT: Lazy<Box<dyn Platform>> = Lazy::new(|| {
@@ -271,6 +328,24 @@ pub fn launch_ide(target: &LaunchTarget, path: &std::path::Path) -> Result<(), S
     current().launch_ide(target, path)
 }
 
+/// 7.21: host-wide search lives in the adapters; no `mdfind` / `Everything`
+/// IPC details may leak into `discovery/`.
+pub fn global_search_engine() -> GlobalSearchEngine {
+    current().global_search_engine()
+}
+
+pub fn probe_global_search() -> SearchProbe {
+    current().probe_global_search()
+}
+
+pub fn global_search(
+    query: &str,
+    max_results: u32,
+    offset: u32,
+) -> Result<SearchQueryResult, String> {
+    current().global_search(query, max_results, offset)
+}
+
 /// macOS-only finishing touch for `WindowChrome::MacOverlay`: let the webview
 /// content reach the window top. Runtime `set_decorations(true)` drops the
 /// `FullSizeContentView` bit, which leaves a 28pt native titlebar band above
@@ -335,5 +410,19 @@ mod tests {
     #[test]
     fn native_path_keeps_uri_untouched() {
         assert_eq!(to_native_fs_path("afm://guide"), "afm://guide");
+    }
+
+    /// 7.21: the TS field list is checked statically, but the IPC payload is
+    /// produced by serde — make sure the camelCase key really reaches the UI.
+    #[test]
+    fn capabilities_serialize_the_search_engine() {
+        let value = serde_json::to_value(current().capabilities()).unwrap();
+        let engine = value["globalSearchEngine"].as_str().unwrap();
+        #[cfg(target_os = "macos")]
+        assert_eq!(engine, "spotlight");
+        #[cfg(windows)]
+        assert_eq!(engine, "everything");
+        #[cfg(not(any(target_os = "macos", windows)))]
+        assert_eq!(engine, "none");
     }
 }

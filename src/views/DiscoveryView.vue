@@ -16,9 +16,13 @@ import FluentIcon from "../components/icons/FluentIcon.vue";
 import NavigatorContextMenu from "../components/navigator/NavigatorContextMenu.vue";
 import { entryKindIcon } from "../components/icons/glyphs";
 import { toastError, toastSuccess } from "../state/toast";
-import { platformAriaKeys } from "../config/platform.ts";
+import {
+  getCachedPlatformCapabilities,
+  platformAriaKeys,
+} from "../config/platform.ts";
+import { toNativeFsPath } from "../state/fsPath.ts";
 
-type DiscoveryEngine = "everything" | "fallback" | "unavailable";
+type DiscoveryEngine = "everything" | "spotlight" | "fallback" | "unavailable";
 type DiscoveryIndexState = "ready" | "degraded" | "unavailable";
 type EngineCardId = "everything" | "fallback";
 
@@ -77,11 +81,26 @@ const everythingStatusText = computed(() => {
   return t("discovery.everythingOffline");
 });
 
+/** 7.21: label the host index from capabilities (cold start) or live status. */
+const spotlightActive = computed(
+  () =>
+    status.value?.activeEngine === "spotlight" ||
+    (!status.value &&
+      getCachedPlatformCapabilities().globalSearchEngine === "spotlight"),
+);
+const primaryEngineLabel = computed(() =>
+  spotlightActive.value
+    ? t("discovery.engines.spotlight")
+    : t("discovery.engines.everything"),
+);
+const engineArg = computed(() => ({ engine: primaryEngineLabel.value }));
+
 const fallbackStatusText = computed(() => {
   if (!status.value) return "";
-  if (!status.value.fallbackEnabled) return t("discovery.fallbackOff");
-  if (status.value.activeEngine === "fallback") return t("discovery.fallbackActive");
-  return t("discovery.fallbackStandby");
+  if (!status.value.fallbackEnabled) return t("discovery.fallbackOff", engineArg.value);
+  if (status.value.activeEngine === "fallback")
+    return t("discovery.fallbackActive", engineArg.value);
+  return t("discovery.fallbackStandby", engineArg.value);
 });
 
 const resultEngineLabel = computed(() => {
@@ -90,8 +109,9 @@ const resultEngineLabel = computed(() => {
   return t(`discovery.engines.${engine}`);
 });
 
+/** 7.21: host-native path (POSIX must keep `/`), never a Windows rewrite. */
 function normalizeHitPath(path: string): string {
-  return path.replace(/\//g, "\\");
+  return toNativeFsPath(path);
 }
 
 function hitToEntry(hit: DiscoveryHit): NavigatorEntry {
@@ -210,7 +230,7 @@ async function runSearch() {
 }
 
 async function openHit(hit: DiscoveryHit) {
-  const path = hit.path.replace(/\//g, "\\");
+  const path = toNativeFsPath(hit.path);
   if (hit.isDir) {
     await openOrFocusNavigatorTab(path);
     await router.push("/navigator");
@@ -256,7 +276,7 @@ onMounted(() => {
         <span class="engine-card-icon">
           <FluentIcon name="search" size="md" />
         </span>
-        <strong>{{ t("discovery.engines.everything") }}</strong>
+        <strong>{{ primaryEngineLabel }}</strong>
         <span class="engine-card-status">{{ everythingStatusText }}</span>
       </button>
       <button
@@ -280,9 +300,9 @@ onMounted(() => {
       class="fluent-surface config-panel"
       data-engine-config="everything"
     >
-      <h2 class="config-title">{{ t("discovery.everythingConfigTitle") }}</h2>
+      <h2 class="config-title">{{ primaryEngineLabel }}</h2>
       <p class="config-copy">{{ everythingStatusText }}</p>
-      <p class="config-copy">{{ t("discovery.everythingConfigHint") }}</p>
+      <p class="config-copy">{{ t("discovery.everythingConfigHint", engineArg) }}</p>
 
       <h3 class="config-subtitle">{{ t("discovery.blacklistTitle") }}</h3>
       <p class="config-copy">{{ t("discovery.blacklistHint") }}</p>
@@ -315,8 +335,8 @@ onMounted(() => {
     >
       <h2 class="config-title">{{ t("discovery.fallbackConfigTitle") }}</h2>
       <p class="config-copy">{{ fallbackStatusText }}</p>
-      <p class="config-copy">{{ t("discovery.fallbackConfigHint") }}</p>
-      <p class="config-copy">{{ t("discovery.fallbackBlacklistNote") }}</p>
+      <p class="config-copy">{{ t("discovery.fallbackConfigHint", engineArg) }}</p>
+      <p class="config-copy">{{ t("discovery.fallbackBlacklistNote", engineArg) }}</p>
     </div>
 
     <form class="search" @submit.prevent="runSearch">

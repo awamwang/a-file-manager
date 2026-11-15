@@ -32,6 +32,8 @@ export type PlatformCapabilities = {
   nativeAutostart: boolean;
   singleInstance: boolean;
   globalSearch: boolean;
+  /** Host-wide index: "everything" (Windows) | "spotlight" (macOS) | "none". */
+  globalSearchEngine: "everything" | "spotlight" | "none";
   quickLookPreview: boolean;
   oleDragOut: boolean;
   /** AppKit / OS-native drag-out. Off on macOS (7.13 command abort). */
@@ -70,6 +72,7 @@ export const NEUTRAL_PLATFORM: PlatformCapabilities = {
   nativeAutostart: false,
   singleInstance: false,
   globalSearch: false,
+  globalSearchEngine: "none",
   quickLookPreview: false,
   oleDragOut: false,
   nativeDragOut: false,

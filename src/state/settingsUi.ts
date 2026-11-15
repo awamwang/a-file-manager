@@ -111,9 +111,9 @@ export function isPlatformUnsupportedSetting(
     case "core.launchAtStartup":
     case "core.launchAtStartupHidden":
       return !caps.nativeAutostart && !caps.registryAutostart;
-    // "Prefer Everything" is a Windows-only search provider.
+    // "Prefer Everything" is a Windows-only setting; macOS uses Spotlight (7.21).
     case "core.everythingPreferred":
-      return !caps.globalSearch;
+      return caps.globalSearchEngine !== "everything";
     default:
       return false;
   }

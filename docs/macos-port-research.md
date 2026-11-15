@@ -320,6 +320,8 @@
 > **7.16 部分回收**：卷列表 / 磁盘空间 / 隐藏文件 / 窗口 chrome 四项已收进 `Platform` trait（12 个方法、26 个字段），前端真实路径收敛到 `src/state/fsPath.ts`，并补了上一条「架构归位门禁」。图标、废纸篓、剪贴板、搜索仍在各自模块的 `#[cfg]` 里；`PlatformCapabilities` 仍是静态 bool，6.5 第 4 条的「由实现动态回报」与 5.6 第 1 条的 `FsPath` 新类型仍属未做，别误判为已完成。
 >
 > **7.20 再回收一项**：P1 第一行「终端 / IDE」的发现与启动也归位适配层（trait 12 → 17 个方法），macOS 用 `.app` + `/usr/bin/open -a`，Windows 侧逐字搬迁。仍未归位的是图标 / 废纸篓 / 剪贴板 / 搜索四个 provider，以及静态 bool 能力层。
+>
+> **7.21 回收「搜索」**：全局索引后端（Spotlight / Everything）归位适配层（trait 17 → 20 个方法），并新增能力字段 `global_search_engine` 让 UI 按真实引擎出文案——这是 6.5 第 4 条「能力层绑定实现」的第一小步，但字段值仍是静态枚举、**不是**由已注册 provider 动态回报。仍未归位：图标 / 废纸篓 / 剪贴板三个 provider，以及静态 bool 能力层本身。
 
 > 表中 ⚠️ / ❌ 是复盘当时的状态；其中 3 项代码级浪费已在第二轮（7.7）回收，最新状态以 7.7 为准。第三轮（7.8）把能力层的**前端契约**接上，并用静态断言守住 TS/Rust 字段同步；社区插件与 `sysinfo` 等排期仍按 6.5 执行。
 
@@ -641,7 +643,7 @@
 
 **仍待用户实机确认**：`set_title("")` 对窗口菜单的影响、「此电脑」卷列表呈现、dot-file 隐藏开关、磁盘空间用量条。交通灯落点与 78px 留白已在 7.17 实机截图验证并补齐：初版只做了水平避让，垂直方向仍错开约 26pt。其余项沙箱内无法截图。
 
-**下一轮候选（按 6.5 门禁逐项判定，勿误判为已完成）**：Rust 侧仍有约 20 处 `replace('/', "\\")` 规范化（`visit_stats` / `projects` / `favorites` / `discovery` / `ai/*` / `file_ops` / `terminal` 等）。多数是比较键 / 缓存键，不产生交给后端的真实路径；但 `terminal/mod.rs:142`、`ai/open_editor.rs:58`、`ai/harness.rs:28`、`file_ops/recycle.rs:26` 疑似产出真实路径，需逐个确认后再平台化。P1 的终端/IDE `open -a`、废纸篓 TCC（或改 `~/.Trash` 移动）、全局搜索 Spotlight、进程树清理，以及 P2 的 i18n Windows 名词 / 原生菜单，仍按原排期。**（7.20 已逐个确认并把「真实路径」类收口：终端 / IDE 归位适配层、`ai/*` 与 `open_editor` / `harness` / `visit_stats` / `projects/index` 委托 `crate::paths`；`recycle` / `safe_io` / Windows-only 模块确认为可豁免，见 7.20。废纸篓、全局搜索、进程树、i18n 仍在原排期。）**
+**下一轮候选（按 6.5 门禁逐项判定，勿误判为已完成）**：Rust 侧仍有约 20 处 `replace('/', "\\")` 规范化（`visit_stats` / `projects` / `favorites` / `discovery` / `ai/*` / `file_ops` / `terminal` 等）。多数是比较键 / 缓存键，不产生交给后端的真实路径；但 `terminal/mod.rs:142`、`ai/open_editor.rs:58`、`ai/harness.rs:28`、`file_ops/recycle.rs:26` 疑似产出真实路径，需逐个确认后再平台化。P1 的终端/IDE `open -a`、废纸篓 TCC（或改 `~/.Trash` 移动）、全局搜索 Spotlight、进程树清理，以及 P2 的 i18n Windows 名词 / 原生菜单，仍按原排期。**（7.20 已逐个确认并把「真实路径」类收口：终端 / IDE 归位适配层、`ai/*` 与 `open_editor` / `harness` / `visit_stats` / `projects/index` 委托 `crate::paths`；`recycle` / `safe_io` / Windows-only 模块确认为可豁免，见 7.20。7.21 已完成「全局搜索」Spotlight 归位，并纠正了当时把 `discovery/blacklist` 判为「仅比较键」的遗漏——它其实会回显到设置页。**仍未排期：废纸篓 TCC / `~/.Trash` 列表还原、进程树清理、原生菜单与其余 P2 i18n Windows 名词。）**
 
 ### 7.16 架构收口（第 11 轮）：把第 7~10 轮的旁路压回适配层
 
@@ -829,7 +831,56 @@
 
 **Windows 侧限制**：本机 `rustup target add x86_64-pc-windows-gnu` 成功，但 `cargo check --target x86_64-pc-windows-gnu` 在 C 依赖的 `cc-rs` 处因缺 `x86_64-w64-mingw32-gcc` 失败（未为此装整套 mingw）。因此 Windows adapter 的**类型检查仍待 Windows CI**；本机只有语法解析 + 静态契约守住调用点，别误判为已编译验证。
 
-**边界（勿误判为完成）**：`/usr/bin/open -a <.app> <dir>` 是否在 iTerm2 / Warp 里也都落到指定目录、右键菜单与设置页「打开工具」的实际展示与点击，仍需用户在 GUI 实机确认（本轮只验证了发现结果与命令构造）；macOS 不再渲染「以管理员身份」子项是预期行为；5 语言 i18n 里的「资源管理器」「可选 Code.exe 路径」等 Windows 名词仍是 P2 遗留，本轮只清了 Rust 里的硬编码文案；`PlatformCapabilities` 仍是静态 bool（6.5 第 4 条）、图标 / 废纸篓 / 剪贴板 / 搜索四个 provider 未归位、`DriveInfo.letter` 等 IPC Windows 名词未清洗。
+**边界（勿误判为完成）**：`/usr/bin/open -a <.app> <dir>` 是否在 iTerm2 / Warp 里也都落到指定目录、右键菜单与设置页「打开工具」的实际展示与点击，仍需用户在 GUI 实机确认（本轮只验证了发现结果与命令构造）；macOS 不再渲染「以管理员身份」子项是预期行为；5 语言 i18n 里的「资源管理器」「可选 Code.exe 路径」等 Windows 名词仍是 P2 遗留，本轮只清了 Rust 里的硬编码文案；`PlatformCapabilities` 仍是静态 bool（6.5 第 4 条）、图标 / 废纸篓 / 剪贴板 / 搜索四个 provider 未归位、`DriveInfo.letter` 等 IPC Windows 名词未清洗。**（7.21 已回收「搜索」这一项，见下。）**
+
+---
+
+### 7.21 全局搜索归位适配层：Spotlight + 路径 / 文案平台化（第 16 轮）
+
+**触发**：用户「已经有了两种终端，继续推进」——7.20 的终端发现算 GUI 实机确认通过（Terminal / iTerm2 两种）。按 P1 表下一行核对时发现 **Workspace / AI Skills 的链接创建其实早已完成**（`projects/members.rs` / `ai/deploy.rs` 都有 `#[cfg(not(windows))]` 的 `std::os::unix::fs::symlink` + `remove_file`），P1 表该行是初始调研状态、未随实现更新。因此按 7.15 候选清单推进**全局搜索**：`discovery/everything_ipc.rs` 非 Windows 是恒 `Err` 的 stub、`fallback.rs` 恒空结果，macOS 上搜索页**永远没有命中**。
+
+**先过 6.5 第 1 / 6 条门禁**：
+
+| 缺口 | 四选一 | 依据 |
+|---|---|---|
+| 主机级索引 | **复用系统能力**（`/usr/bin/mdfind`，无新依赖） | Spotlight 与 Finder 共用同一索引；`NSMetadataQuery` 需要 AppKit + run loop，覆盖不了更多场景，只会把 objc 细节带进业务层。`mdfind` 是 macOS 自带 CLI，与 7.20 复用 `/usr/bin/open` 同性质 |
+| backend 接入点 | **自写薄适配**（`PlatformSearchBackend`） | `EverythingBackend` 是项目自有 trait，无库可代劳；它只做中立类型映射，零 OS 细节 |
+| 真实路径 / 文案平台化 | **复用** `crate::platform::to_native_fs_path` / `src/state/fsPath.ts` | 7.10 / 7.16 已建好，不再各模块手写 |
+
+**改动**：
+
+| 落点 | 内容 |
+|---|---|
+| `platform/mod.rs` | 新增中立类型 `GlobalSearchEngine` / `SearchHit` / `SearchQueryResult` / `SearchProbe`；trait 17 → **20 个方法**（`global_search_engine` / `probe_global_search` / `global_search`）；能力层加 `global_search_engine: "everything" \| "spotlight" \| "none"` 字段，macOS 的 `global_search` 同步由 `false` 修正为 `true`（现在确实有主机索引） |
+| `platform/macos.rs` | `/usr/bin/mdfind -0 -name '"<literal>"'`：`-0` 用 NUL 分隔避免文件名含换行；整词加引号让 `a(b)!?` 变成字面短语（实测不加引号会匹配到无关文件）；`\`/`"` 转义防止跳出短语；空查询短路（`mdfind -name ""` 会报错却 exit 0）；`probe` 只 stat 二进制，不跑查询；`parse_mdfind_output` 按 skip/take 分页、`Path::is_dir()` 判目录。非 macOS Unix 返回 `None` |
+| `platform/windows.rs` | 只声明 `EverythingIpc`，`global_search()` 返回 `Err`——Windows 仍走原 `everything_ipc.rs`，**未实现第二个索引、行为一字未改** |
+| `discovery/` | `DiscoveryEngine` 加 `Spotlight`；`EverythingBackend` 加默认 `engine()`；新增 `platform_backend.rs` 薄映射；`mod.rs` 按 `platform::global_search_engine()` 选 backend（**零 `#[cfg]`**）；`service.rs` 的 status / search / 结果标签改用 `self.everything.engine()`，Spotlight 跳过 Everything 的空查询 totitems 估算 |
+| `discovery/blacklist.rs` | **纠正 7.20 的「只作比较键」判断**：黑名单值会被持久化并回显到设置页 textarea，是真实路径。改委托 `to_native_fs_path`，前缀匹配按路径边界接受两种分隔符；Windows 夹具改平台感知，新增 POSIX 不产生 `\Users\…` 断言 |
+| `DiscoveryView.vue` | **修两个真 bug**：`normalizeHitPath()` 与 `openHit()` 都无条件 `replace(/\//g, "\\")`，macOS 上即便搜到结果也打不开 → 统一走 `toNativeFsPath`；引擎类型加 `spotlight`，卡片标题 / 状态 / 配置文案按能力字段或 live status 切换 |
+| i18n 5 语言 | `engines.spotlight` 新增；`everythingConfigHint` / `fallback*` / `fallbackBlacklistNote` 改成 `{engine}` 插值；`syntaxHint` 去掉 Everything 专属说法；黑名单 placeholder 补 POSIX 示例。`settingsUi.ts` 的 `core.everythingPreferred` 隐藏条件由 `!caps.globalSearch` 改为 `caps.globalSearchEngine !== "everything"`，避免 macOS 因 `global_search=true` 误显示 Windows 开关 |
+
+**本机实机发现**（`mdfind` 行为逐条实测，不是查文档推断）：
+
+| 探测 | 结果 |
+|---|---|
+| `/usr/bin/mdfind` / `mdutil -s /` | 二进制存在、`Indexing enabled`；`mdfind -name "a-file-manager"` 约 0.95s 返回 |
+| `-name "Info.plist"` / 中文「终端」 | 正常返回绝对路径 |
+| `-name "a(b)!?"` / `"readme*"` | 不加引号被当查询表达式，返回无关结果 / 空 → 采用整词引号字面化 |
+| `-name ""` | 打印 `Failed to create query for ''` 却 exit 0 → 空查询短路 |
+| `-0` | NUL 分隔可用；stderr 的 `[UserQueryParser] Loading keywords…` 是日志，不是错误 |
+
+**契约**：新增 `scripts/check-global-search-provider.mjs`（注册 `test:global-search-provider` 并纳入 `npm test`）：断言中立类型与 3 组入口、两端适配器都声明引擎、macOS 不得声称 Everything、Windows 不得依赖 `mdfind`、`discovery/mod.rs` 必须经适配层选 backend 且不得新开 `#[cfg]`、`platform_backend.rs` 代码行不得出现 OS 集成（注释用 `codeOnly` 排除）、service 必须路由 Spotlight 且跳过空查询估算、黑名单不得再本地改写分隔符、`DiscoveryView` 不得自行 `/\//g → \\`、TS/Rust 能力字段与 5 语言 `{engine}` 插值逐一对齐。
+
+| 验证 | 结果 |
+|---|---|
+| `cargo check`（默认 / `--no-default-features`） | 通过，均 0 警告 |
+| `cargo test --lib` | **310 passed / 0 failed / 2 ignored**（原 301；+9 个 Spotlight / 引擎 / serde / 路径断言） |
+| Spotlight 实机用例 `cargo test --lib live_spotlight_query -- --ignored` | ✅ 真实返回 `Info.plist` 绝对路径 |
+| `npm test` 全量 / `npm run build` | exit 0 / 通过（`vue-tsc` 类型检查通过） |
+| `test:global-search-provider` / `test:i18n` / `test:shortcuts` / `test:discovery-search` / `test:settings-ui-regroup` / `test:fs-path` / `git diff --check` | 全通过 |
+| 改动过的 Rust 文件 `rustfmt --check`（`skip_children=true`） | exit 0；用该配置避免 7.20 的连带格式化无关子模块 |
+
+**边界（勿误判为完成）**：`mdfind` 没有分页参数，实现是把全部结果读进内存再 skip/take，超大结果集（数万条）的内存 / 耗时未压测，也没设查询超时；Spotlight 索引关闭或正在重建时结果可能为空，本轮 `probe` 只检查二进制存在、没查 `mdutil` 状态；`-name` 的整词引号使 `*` 等通配符变成字面量（与 Everything 语义不同，已在 `syntaxHint` 提示）；搜索页的引擎卡片、黑名单回显、结果双击跳转仍需用户在 GUI 实机确认（本轮只跑到 IPC 契约 + 实机 `mdfind`）；`discovery/fallback.rs` 仍是恒空 stub（降级路径未实现）；Windows adapter 的**类型检查仍待 Windows CI**（同 7.20 限制）。仍未归位的是图标 / 废纸篓 / 剪贴板三个 provider、静态 bool 能力层（6.5 第 4 条）、`DriveInfo.letter` 等 IPC Windows 名词、进程树清理、原生菜单与其余 P2 i18n 名词。
 
 ---
 
@@ -846,6 +897,7 @@
 | 可复用资产 | `src-tauri/patches/drag/Cargo.toml:61-131`；`patches/drag/src/platform_impl/macos/mod.rs`；`src-tauri/src/extension_host/pack_fs.rs:61-159`；`src/state/shellIcons.ts:34-348` |
 | PoC 平台层（新增） | `src-tauri/src/platform/{mod,windows,macos}.rs`；`src-tauri/Cargo.toml` 的 `[target.'cfg(windows)'.dependencies]`；`src-tauri/src/lib.rs` 的 `mod platform;` 与两个 command |
 | 前端能力层（7.8） | `src/config/platform.ts`；`src/shortcuts/chord.ts`；`src/main.ts`；`src/views/SettingsView.vue`；`src/state/settingsUi.ts`；`scripts/shortcut-checks.ts` |
+| 全局搜索（7.21） | `src-tauri/src/platform/{mod,macos,windows}.rs`；`src-tauri/src/discovery/{mod,types,backend,service,blacklist,platform_backend}.rs`；`src/views/DiscoveryView.vue`；`scripts/check-global-search-provider.mjs` |
 
 ## 附录 B · 参考资源
 

@@ -5,9 +5,11 @@
 //! Windows-only integrations (Shell verb, Everything, Peek, HKCU Run) stay
 //! `false` so the UI can hide them until a native implementation lands.
 
+#[cfg(target_os = "macos")]
+use super::SearchHit;
 use super::{
-    has_uri_scheme, LaunchTarget, Platform, PlatformCapabilities, Volume, VolumeKind, VolumeSpace,
-    WindowChrome,
+    has_uri_scheme, GlobalSearchEngine, LaunchTarget, Platform, PlatformCapabilities, SearchProbe,
+    SearchQueryResult, Volume, VolumeKind, VolumeSpace, WindowChrome,
 };
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
@@ -174,6 +176,13 @@ impl Platform for MacosPlatform {
         caps.webview_drag_out = true;
         // 7.16: volumes() lists `/` and `/Volumes/*`; there are no drive letters.
         caps.volume_list = true;
+        // 7.21: Spotlight is a host-wide index just like Everything, but it is
+        // macOS-only — Linux must keep reporting "none".
+        #[cfg(target_os = "macos")]
+        {
+            caps.global_search = true;
+            caps.global_search_engine = "spotlight".to_string();
+        }
         // Deliberately false until implemented: see docs/macos-port-research.md.
         caps
     }
@@ -359,6 +368,132 @@ impl Platform for MacosPlatform {
             Err("IDE launch is only supported on macOS".to_string())
         }
     }
+
+    fn global_search_engine(&self) -> GlobalSearchEngine {
+        #[cfg(target_os = "macos")]
+        {
+            GlobalSearchEngine::Spotlight
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            GlobalSearchEngine::None
+        }
+    }
+
+    fn probe_global_search(&self) -> SearchProbe {
+        #[cfg(target_os = "macos")]
+        {
+            let available = Path::new(MDFIND_PATH).is_file();
+            SearchProbe {
+                available,
+                detail: if available {
+                    "Spotlight index available (/usr/bin/mdfind)".to_string()
+                } else {
+                    "Spotlight CLI /usr/bin/mdfind not found".to_string()
+                },
+            }
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            SearchProbe {
+                available: false,
+                detail: "No host-wide index on this Unix target".to_string(),
+            }
+        }
+    }
+
+    fn global_search(
+        &self,
+        query: &str,
+        max_results: u32,
+        offset: u32,
+    ) -> Result<SearchQueryResult, String> {
+        #[cfg(target_os = "macos")]
+        {
+            let query = query.trim();
+            // `mdfind -name ""` prints "Failed to create query for ''" yet
+            // exits 0. The empty query is only used by Everything's totitems
+            // probe; Spotlight has no cheap equivalent, so report zero.
+            if query.is_empty() {
+                return Ok(SearchQueryResult {
+                    total_count: 0,
+                    offset: offset as u64,
+                    hits: Vec::new(),
+                });
+            }
+            let name_query = spotlight_name_query(query);
+            let output = std::process::Command::new(MDFIND_PATH)
+                .arg("-0")
+                .arg("-name")
+                .arg(&name_query)
+                .output()
+                .map_err(|err| format!("Failed to run mdfind: {err}"))?;
+            if !output.status.success() {
+                return Err(format!(
+                    "mdfind failed ({}): {}",
+                    output.status,
+                    String::from_utf8_lossy(&output.stderr).trim()
+                ));
+            }
+            Ok(parse_mdfind_output(&output.stdout, max_results, offset))
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            let _ = (query, max_results, offset);
+            Err("Spotlight search is only supported on macOS".to_string())
+        }
+    }
+}
+
+/// 7.21: `/usr/bin/mdfind` is the command-line front end of the same Spotlight
+/// index Finder uses; `NSMetadataQuery` would need AppKit + a run loop for no
+/// extra coverage here. Reuse the OS index instead of building a self-index.
+#[cfg(target_os = "macos")]
+const MDFIND_PATH: &str = "/usr/bin/mdfind";
+
+/// `-name` still parses its argument as a Spotlight query expression: a bare
+/// `a(b)!?` matches unrelated files. Wrapping the term in quotes makes the
+/// whole user input a literal phrase (verified on macOS 15.x), while escaping
+/// `\` and `"` keeps the user from breaking out of that phrase.
+#[cfg(target_os = "macos")]
+fn spotlight_name_query(query: &str) -> String {
+    let escaped = query.replace('\\', "\\\\").replace('"', "\\\"");
+    format!("\"{escaped}\"")
+}
+
+/// `-0` prints NUL-separated absolute paths, so filenames containing newlines
+/// survive. `mdfind` has no paging flags; slice the full result the same way
+/// Everything's offset/max_results contract does.
+#[cfg(target_os = "macos")]
+fn parse_mdfind_output(raw: &[u8], max_results: u32, offset: u32) -> SearchQueryResult {
+    let paths: Vec<String> = String::from_utf8_lossy(raw)
+        .split('\0')
+        .filter(|entry| !entry.is_empty())
+        .map(str::to_string)
+        .collect();
+    let total_count = paths.len() as u64;
+    let hits: Vec<SearchHit> = paths
+        .into_iter()
+        .skip(offset as usize)
+        .take(max_results as usize)
+        .map(|path| {
+            let entry = Path::new(&path);
+            let name = entry
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| path.clone());
+            SearchHit {
+                name,
+                is_dir: entry.is_dir(),
+                path,
+            }
+        })
+        .collect();
+    SearchQueryResult {
+        total_count,
+        offset: offset as u64,
+        hits,
+    }
 }
 
 /// 7.20: macOS launcher presets. `~` is expanded to `$HOME`; bare names are
@@ -541,6 +676,64 @@ mod tests {
                 assert!(!path.contains("C:\\"), "Windows preset leaked into macOS");
             }
         }
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn spotlight_name_is_a_literal_quoted_phrase() {
+        // A bare `a(b)!?` is parsed by mdfind as query syntax and matches
+        // unrelated files; wrapping it in quotes keeps it literal.
+        assert_eq!(spotlight_name_query("readme"), "\"readme\"");
+        assert_eq!(spotlight_name_query("a(b)!?"), "\"a(b)!?\"");
+        assert_eq!(spotlight_name_query("a\"b"), "\"a\\\"b\"");
+        assert_eq!(spotlight_name_query("a\\b"), "\"a\\\\b\"");
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn spotlight_output_pages_nul_paths_and_detects_directories() {
+        let dir = std::env::temp_dir();
+        let root = dir.to_string_lossy().trim_end_matches('/').to_string();
+        let raw = format!("{root}/a.txt\0{root}\0{root}/b.txt\0");
+        let result = parse_mdfind_output(raw.as_bytes(), 2, 0);
+        assert_eq!(result.total_count, 3);
+        assert_eq!(result.offset, 0);
+        assert_eq!(result.hits.len(), 2);
+        assert_eq!(result.hits[0].name, "a.txt");
+        assert!(result.hits[1].is_dir, "temp dir is a real directory");
+
+        let page = parse_mdfind_output(raw.as_bytes(), 1, 2);
+        assert_eq!(page.offset, 2);
+        assert_eq!(page.hits[0].name, "b.txt");
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn spotlight_probe_and_empty_query_are_safe() {
+        assert!(Path::new(MDFIND_PATH).is_file());
+        assert_eq!(
+            MacosPlatform.global_search_engine(),
+            GlobalSearchEngine::Spotlight
+        );
+        assert!(MacosPlatform.probe_global_search().available);
+        // `mdfind -name ""` fails to create a query yet exits 0; short-circuit.
+        let empty = MacosPlatform.global_search("", 5, 0).unwrap();
+        assert_eq!(empty.total_count, 0);
+        assert!(empty.hits.is_empty());
+    }
+
+    /// Manual live check: `cargo test --lib live_spotlight_query -- --ignored`.
+    #[cfg(target_os = "macos")]
+    #[test]
+    #[ignore = "requires Spotlight indexing enabled on the host"]
+    fn live_spotlight_query_returns_absolute_paths() {
+        let result = MacosPlatform.global_search("Info.plist", 5, 0).unwrap();
+        assert!(
+            !result.hits.is_empty(),
+            "Spotlight returned no Info.plist hits"
+        );
+        assert!(result.hits.iter().all(|hit| hit.path.starts_with('/')));
+        assert_eq!(result.hits[0].name, "Info.plist");
     }
 
     #[cfg(target_os = "macos")]

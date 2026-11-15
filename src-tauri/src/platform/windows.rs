@@ -3,8 +3,8 @@
 //! drive letters / UNC, case-insensitive comparison, HKCU Run, Win32 icons.
 
 use super::{
-    has_uri_scheme, LaunchTarget, Platform, PlatformCapabilities, Volume, VolumeKind, VolumeSpace,
-    WindowChrome,
+    has_uri_scheme, GlobalSearchEngine, LaunchTarget, Platform, PlatformCapabilities, SearchProbe,
+    SearchQueryResult, Volume, VolumeKind, VolumeSpace, WindowChrome,
 };
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
@@ -90,6 +90,7 @@ impl Platform for WindowsPlatform {
         caps.registry_autostart = true;
         caps.single_instance = true;
         caps.global_search = true;
+        caps.global_search_engine = "everything".to_string();
         caps.quick_look_preview = true;
         caps.ole_drag_out = true;
         caps.hidden_file_attributes = true;
@@ -260,6 +261,31 @@ impl Platform for WindowsPlatform {
             .spawn()
             .map(|_| ())
             .map_err(|err| format!("Failed to launch IDE: {err}"))
+    }
+
+    fn global_search_engine(&self) -> GlobalSearchEngine {
+        // Everything IPC stays in `discovery/everything_ipc.rs`; this adapter
+        // only declares the choice, it does not implement a second index.
+        GlobalSearchEngine::EverythingIpc
+    }
+
+    fn probe_global_search(&self) -> SearchProbe {
+        SearchProbe {
+            available: true,
+            detail: "Everything IPC backend (see discovery::everything_ipc)".to_string(),
+        }
+    }
+
+    fn global_search(
+        &self,
+        _query: &str,
+        _max_results: u32,
+        _offset: u32,
+    ) -> Result<SearchQueryResult, String> {
+        Err(
+            "Windows global search goes through Everything IPC, not the platform adapter"
+                .to_string(),
+        )
     }
 }
 
