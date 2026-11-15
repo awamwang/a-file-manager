@@ -17,6 +17,11 @@ for (const [label, text, needle] of [
   ["AppShell", shell, "dispatchShortcutEvent"],
   ["DiscoveryView", discovery, "discovery-global-search"],
   ["DiscoveryView", discovery, "consumeGlobalSearchFocus"],
+  // 搜索面板「查看全部」深链：/discovery?q=… 一次性消费并清除。
+  ["DiscoveryView", discovery, "routeQueryText"],
+  ["DiscoveryView", discovery, "consumeRouteQuery"],
+  ["DiscoveryView", discovery, "route.query.q"],
+  ["DiscoveryView", discovery, "q 参数优先于 Ctrl+Shift+F 焦点 token"],
 ]) {
   if (!text.includes(needle)) {
     console.error(`${label} missing ${needle}`);

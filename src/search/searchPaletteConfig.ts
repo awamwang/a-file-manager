@@ -52,7 +52,8 @@ function normalizeAction(raw: unknown): PaletteToolAction | null {
   return { enter: "navigate" };
 }
 
-function normalizeConfig(raw: unknown): PaletteConfig {
+/** 解析 / 归一化宿主返回的原始配置；供加载与测试消费。 */
+export function normalizeSearchPaletteConfig(raw: unknown): PaletteConfig {
   if (!raw || typeof raw !== "object") return EMPTY_PALETTE_CONFIG;
   const record = raw as Record<string, unknown>;
   const toolActions: Record<string, PaletteToolAction> = {};
@@ -75,7 +76,7 @@ let cache: Promise<PaletteConfig> | null = null;
 /** 读取配置（会话内缓存一次）；IPC 失败回落空配置。 */
 export function loadSearchPaletteConfig(): Promise<PaletteConfig> {
   cache ??= invoke<unknown>("palette_get_config")
-    .then(normalizeConfig)
+    .then(normalizeSearchPaletteConfig)
     .catch(() => EMPTY_PALETTE_CONFIG);
   return cache;
 }

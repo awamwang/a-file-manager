@@ -92,16 +92,22 @@ export type FeaturePackSearchEntry = {
   packName: string;
 };
 
-/** Pack 静态搜索条目（过滤非法/未知路由）；供扩展源与测试消费。 */
-export function getSearchExtras(): FeaturePackSearchEntry[] {
-  return cached.search
+/**
+ * Pack 静态搜索条目 → 扩展源条目（过滤缺 id/labelKey/route 与不可解析路由）；
+ * 供 `getSearchExtras` 与测试消费。
+ */
+export function toFeaturePackSearchEntries(
+  entries: readonly FeaturePackSearchEntryContribution[],
+  isResolvable: (route: string) => boolean,
+): FeaturePackSearchEntry[] {
+  return entries
     .filter(
       (entry) =>
         !!entry &&
         !!entry.id &&
         !!entry.labelKey &&
         !!entry.route &&
-        isResolvableCommandRoute(entry.route),
+        isResolvable(entry.route),
     )
     .map((entry) => ({
       id: entry.id,
@@ -111,6 +117,11 @@ export function getSearchExtras(): FeaturePackSearchEntry[] {
       packId: entry.packId ?? "",
       packName: entry.packName ?? "",
     }));
+}
+
+/** Pack 静态搜索条目（过滤非法/未知路由）；供扩展源与测试消费。 */
+export function getSearchExtras(): FeaturePackSearchEntry[] {
+  return toFeaturePackSearchEntries(cached.search, isResolvableCommandRoute);
 }
 
 function syncSearchExtras(): void {
