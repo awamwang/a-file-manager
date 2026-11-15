@@ -115,6 +115,9 @@
     "workGroupMembers": "keine Mitglieder | 1 Mitglied | {count} Mitglieder",
     "viewAllFiles": "Alle Datei-Ergebnisse anzeigen",
     "openFailed": "Element konnte nicht geöffnet werden",
+    "executedCapability": "Fähigkeit ausgeführt",
+    "destructiveInRuntime": "Destruktive Fähigkeiten müssen in der Tool-Laufzeit bestätigt werden",
+    "capabilityFailed": "Fähigkeitsaufruf fehlgeschlagen",
     "scopes": {
       "commands": "Befehle",
       "files": "Dateien",
@@ -140,7 +143,9 @@
       "openDiscovery": "Suche öffnen",
       "projectsUnavailable": "Projektquelle nicht verfügbar",
       "openProjects": "Projekte öffnen",
-      "workGroupsUnavailable": "Arbeitsgruppenquelle nicht verfügbar"
+      "workGroupsUnavailable": "Arbeitsgruppenquelle nicht verfügbar",
+      "toolsUnavailable": "Werkzeugquelle nicht verfügbar",
+      "openToolRuntime": "Tool-Laufzeit öffnen"
     }
   },
   "ai": {

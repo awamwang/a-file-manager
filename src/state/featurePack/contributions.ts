@@ -4,6 +4,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
+import { ref } from "vue";
 import type { RouteRecordRaw, Router } from "vue-router";
 import type { AppCommand } from "../../commands/types.ts";
 import type { SideNavItem } from "../../shell/sideNav.ts";
@@ -51,6 +52,20 @@ const EMPTY_CONTRIBUTIONS: AggregatedContributions = {
 };
 
 let cached: AggregatedContributions = EMPTY_CONTRIBUTIONS;
+
+/**
+ * 工具运行时路由贡献（entry `builtin:tool-runtime`）。
+ * 响应式：搜索面板工具源据此决定源与 chip 是否参与（Pack 未启用 → null）。
+ */
+export const toolRuntimeRouteContribution = ref<FeaturePackRouteContribution | null>(
+  null,
+);
+
+function syncToolRuntimeRouteContribution(): void {
+  toolRuntimeRouteContribution.value =
+    cached.routes.find((route) => route.entry === "builtin:tool-runtime") ??
+    null;
+}
 
 /** 已通过 addRoute 挂上的 Pack 路由 name，Soft Reload 时卸载不再启用的项。 */
 const registeredPackRouteNames = new Set<string>();
@@ -198,6 +213,7 @@ export async function hydrateFeaturePackContributions(): Promise<void> {
   } catch {
     // 拉取失败时保留上次贡献，避免 Soft Reload 清空已合并项。
   }
+  syncToolRuntimeRouteContribution();
   const { applyFeaturePackSideNav } = await import("../../shell/sideNav.ts");
   applyFeaturePackSideNav();
   const { registerFeaturePackRoutes } = await import("../../router/index.ts");

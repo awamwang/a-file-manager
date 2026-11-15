@@ -115,6 +115,9 @@
     "workGroupMembers": "aucun membre | 1 membre | {count} membres",
     "viewAllFiles": "Voir tous les résultats de fichiers",
     "openFailed": "Impossible d’ouvrir l’élément",
+    "executedCapability": "Capacité exécutée",
+    "destructiveInRuntime": "Les capacités destructives doivent être confirmées dans le runtime d’outils",
+    "capabilityFailed": "Échec de l’appel de la capacité",
     "scopes": {
       "commands": "Commandes",
       "files": "Fichiers",
@@ -140,7 +143,9 @@
       "openDiscovery": "Ouvrir Recherche",
       "projectsUnavailable": "Source Projets indisponible",
       "openProjects": "Ouvrir les Projets",
-      "workGroupsUnavailable": "Source Groupes de travail indisponible"
+      "workGroupsUnavailable": "Source Groupes de travail indisponible",
+      "toolsUnavailable": "Source Outils indisponible",
+      "openToolRuntime": "Ouvrir le runtime d’outils"
     }
   },
   "ai": {

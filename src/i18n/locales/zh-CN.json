@@ -160,6 +160,9 @@
     "workGroupMembers": "{count} 个成员",
     "viewAllFiles": "查看全部文件结果",
     "openFailed": "打开条目失败",
+    "executedCapability": "能力已执行",
+    "destructiveInRuntime": "破坏性能力需在工具运行时中确认",
+    "capabilityFailed": "能力调用失败",
     "scopes": {
       "commands": "命令",
       "files": "文件",
@@ -185,7 +188,9 @@
       "openDiscovery": "打开搜索页",
       "projectsUnavailable": "项目源暂不可用",
       "openProjects": "打开项目页",
-      "workGroupsUnavailable": "工作组源暂不可用"
+      "workGroupsUnavailable": "工作组源暂不可用",
+      "toolsUnavailable": "工具源暂不可用",
+      "openToolRuntime": "打开工具运行时"
     }
   },
   "ai": {

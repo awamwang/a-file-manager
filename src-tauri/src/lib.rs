@@ -18,6 +18,7 @@ mod preview_bridge;
 mod shell_icons;
 mod ide_launch;
 mod open_with;
+mod palette;
 mod projects;
 mod providers;
 mod settings;
@@ -241,6 +242,7 @@ health_get,
                     discovery::discovery_set_fallback_enabled,
                     discovery::discovery_search,
                     discovery::discovery_set_blacklist,
+                    palette::palette_get_config,
                     providers::provider_backends,
                     providers::provider_gateway_status,
                     tool_runtime::tool_runtime_get_config,

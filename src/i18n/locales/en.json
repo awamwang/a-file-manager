@@ -160,6 +160,9 @@
     "workGroupMembers": "no members | 1 member | {count} members",
     "viewAllFiles": "View all file results",
     "openFailed": "Failed to open item",
+    "executedCapability": "Capability executed",
+    "destructiveInRuntime": "Destructive capabilities must be confirmed in the Tool Runtime",
+    "capabilityFailed": "Capability call failed",
     "scopes": {
       "commands": "Commands",
       "files": "Files",
@@ -185,7 +188,9 @@
       "openDiscovery": "Open Search",
       "projectsUnavailable": "Projects unavailable",
       "openProjects": "Open Projects",
-      "workGroupsUnavailable": "Work Groups unavailable"
+      "workGroupsUnavailable": "Work Groups unavailable",
+      "toolsUnavailable": "Tools unavailable",
+      "openToolRuntime": "Open Tool Runtime"
     }
   },
   "ai": {
