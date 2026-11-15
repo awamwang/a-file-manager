@@ -117,12 +117,14 @@ if (!snap.includes("TITLEBAR_HEIGHT_PX") || !snap.includes("BUTTON_WIDTH_PX")) {
   process.exit(1);
 }
 
-// 7.18: macOS Overlay chrome is composed at window creation and finished in
-// the platform adapter — no AppKit details may leak back into lib.rs. The
-// adapter restores FullSizeContentView instead of displacing native buttons.
+// 7.18/7.19: macOS Overlay chrome is composed at window creation and finished
+// in the platform adapter — no AppKit details may leak back into lib.rs. The
+// adapter restores FullSizeContentView and centres the traffic lights from
+// their measured window coordinates instead of a hard-coded inset.
 const macOsAdapter = readFileSync(join(root, "src-tauri/src/platform/macos.rs"), "utf8");
 const platformMod = readFileSync(join(root, "src-tauri/src/platform/mod.rs"), "utf8");
 const cargoToml = readFileSync(join(root, "src-tauri/Cargo.toml"), "utf8");
+const fluentTokens = readFileSync(join(root, "src/styles/fluent-tokens.css"), "utf8");
 if (mainWindow?.titleBarStyle !== "Overlay" || mainWindow?.hiddenTitle !== true) {
   console.error("main window needs titleBarStyle:Overlay + hiddenTitle for macOS traffic lights (7.17)");
   process.exit(1);
@@ -136,7 +138,16 @@ if (
   !macOsAdapter.includes("setTitlebarAppearsTransparent") ||
   macOsAdapter.includes("TRAFFIC_LIGHT_INSET_PT")
 ) {
-  console.error("macOS adapter must restore FullSizeContentView and must not displace traffic lights (7.18)");
+  console.error("macOS adapter must restore FullSizeContentView without the old container inset hack (7.18)");
+  process.exit(1);
+}
+if (
+  !macOsAdapter.includes("center_traffic_lights_on_caption") ||
+  !macOsAdapter.includes("convertRect_toView") ||
+  !macOsAdapter.includes("const CAPTION_HEIGHT_PT: f64 = 40.0") ||
+  !fluentTokens.includes("--fluent-titlebar-height: 40px")
+) {
+  console.error("traffic lights must be centred from window coordinates, with the caption height synced to CSS (7.19)");
   process.exit(1);
 }
 if (!platformMod.includes("pub fn extend_content_under_titlebar")) {

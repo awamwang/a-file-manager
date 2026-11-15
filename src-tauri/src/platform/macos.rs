@@ -13,6 +13,42 @@ use std::path::PathBuf;
 
 pub struct MacosPlatform;
 
+/// Self-drawn caption height, mirrored from `--fluent-titlebar-height` in
+/// `src/styles/fluent-tokens.css`. The native traffic lights are centred on
+/// this row, not on AppKit's 28pt titlebar band (7.19).
+#[cfg(target_os = "macos")]
+const CAPTION_HEIGHT_PT: f64 = 40.0;
+
+/// Vertically centre the three native window buttons on the self-drawn caption.
+/// AppKit leaves them ~6pt above that line. The delta is derived from the
+/// button's current window-relative centre instead of a fixed offset, so the
+/// call converges (idempotent) and keeps working if a future macOS moves the
+/// default buttons. Re-apply after AppKit resets them on resize / title change.
+#[cfg(target_os = "macos")]
+fn center_traffic_lights_on_caption(ns_window: &objc2_app_kit::NSWindow) {
+    use objc2_app_kit::{NSView, NSWindowButton};
+
+    let window_height = ns_window.frame().size.height;
+    for kind in [
+        NSWindowButton::CloseButton,
+        NSWindowButton::MiniaturizeButton,
+        NSWindowButton::ZoomButton,
+    ] {
+        let Some(button) = ns_window.standardWindowButton(kind) else {
+            continue;
+        };
+        let bounds = NSView::bounds(&button);
+        let in_window = NSView::convertRect_toView(&button, bounds, None);
+        let center_from_top = window_height - (in_window.origin.y + in_window.size.height / 2.0);
+        let delta = CAPTION_HEIGHT_PT / 2.0 - center_from_top;
+        if delta.abs() > 0.5 {
+            let mut origin = NSView::frame(&button).origin;
+            origin.y -= delta;
+            NSView::setFrameOrigin(&button, origin);
+        }
+    }
+}
+
 /// Restore the native window geometry that `TitleBarStyle::Overlay` implies.
 ///
 /// `tao::set_decorations(true)` rewrites the whole `NSWindow.styleMask` on a
@@ -24,10 +60,10 @@ pub struct MacosPlatform;
 /// wry's parent view is pinned to the new bounds because it was sized against
 /// the shorter content view.
 ///
-/// No button frames are touched: the native traffic lights already sit on the
-/// caption's centre line once the caption reaches the window top. All values
-/// are absolute, so re-applying after a resize (AppKit re-lays out the content
-/// view) is idempotent.
+/// The traffic lights keep their native horizontal position; a second pass
+/// centres them vertically on the 40pt caption (7.19). All values are absolute
+/// or derived from the current frame, so re-applying after a resize (AppKit
+/// re-lays out the content view and resets the buttons) is idempotent.
 #[cfg(target_os = "macos")]
 pub fn extend_content_under_titlebar(window: &tauri::WebviewWindow) {
     use objc2_app_kit::{NSView, NSWindow, NSWindowStyleMask};
@@ -52,6 +88,7 @@ pub fn extend_content_under_titlebar(window: &tauri::WebviewWindow) {
                 NSView::setFrame(v, bounds);
             }
         }
+        center_traffic_lights_on_caption(w);
     }
 }
 

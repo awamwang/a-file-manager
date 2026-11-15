@@ -743,7 +743,40 @@
 | `cargo test --lib` / `npm test` 全量 / `npm run build` | ✅ 299 passed, 0 failed, 1 ignored / exit 0 / OK |
 | `test:window-controls` / `test:macos-bundle` | ✅ |
 
-**边界（勿误判为完成）**：`FullSizeContentView` 与 wry parent view frame 是 AppKit 行为，仍需 macOS 实机；全屏进出、窗口 tabbing、标题变化后 AppKit 是否再次清位只靠 `Resized` + 启动兜底覆盖，未逐个验证；交通灯与自绘栏中心约 6pt 的原生偏差没有再标定；78px gutter 的拖动 / 双击最大化需用户实机确认；Windows 侧未实机编译（`v-if` 不渲染 gutter，但前端构建已过）。
+**边界（勿误判为完成）**：`FullSizeContentView` 与 wry parent view frame 是 AppKit 行为，仍需 macOS 实机；全屏进出、窗口 tabbing、标题变化后 AppKit 是否再次清位只靠 `Resized` + 启动兜底覆盖，未逐个验证；78px gutter 的拖动 / 双击最大化需用户实机确认；Windows 侧未实机编译（`v-if` 不渲染 gutter，但前端构建已过）。「不再触碰按钮 frame」这句在 7.19 被修正：用户要求交通灯精确纵向居中，改为动态调整按钮 origin。
+
+### 7.19 交通灯在标题行纵向居中（第 14 轮）
+
+**触发**：用户实机反馈「红绿灯下移一些。应该在标题行纵向居中」——7.18 保留的 AppKit 原生位置仍比自绘栏中心高约 6pt。
+
+**精确测量**（把 `screencapture -l` 截图用 ImageMagick 转 P6，再用 Python 标准库按颜色聚类，避免依赖 PIL / 目测读刻度；坐标为 Retina 2x 原图像素）：
+
+| 元素 | 中心 y（原图 px） | 换算 pt |
+|---|---|---|
+| 三个交通灯圆点 | **103.5** | 51.75 |
+| 刷新按钮蓝色边框中心 | **114.5** | 57.25 |
+| 标题栏白区 y=80..155 / 底部分隔线 ~155 | ~116 | ~58 |
+
+即需要下移约 **12px = 6.25pt**。
+
+**先否决配置级方案**：`tauri-utils` 的 `WindowConfig` 确实有 `traffic_light_position`（`trafficLightPosition`），tao 也有 `inset_traffic_lights` / `reapply_traffic_light_inset`（在 `drawRect:` 与窗口 delegate 里自动重设，比手写钩子更可靠）。但该字段文档明确「Requires titleBarStyle: Overlay and **decorations: true**」，而本项目主配置是 `decorations:false`、运行时才改 true；tao 的 `inset_traffic_lights` 对 `standardWindowButton(...)` 直接 `unwrap()`，创建时无按钮会 panic。Tauri 2.12.5 的高层 `WebviewWindow` 也没有运行时 `set_traffic_light_position`（只有 builder-only）。所以不能用配置，也不为此改动跨平台窗口配置。
+
+**采用方案（动态居中，不用标定常量）**：`platform/macos.rs` 新增 `center_traffic_lights_on_caption(&NSWindow)`：
+
+1. 用 `NSView::convertRect_toView(button.bounds, nil)` 把每个按钮转到窗口坐标系，算出它当前中心距窗口顶部的距离；
+2. 与 `CAPTION_HEIGHT_PT / 2 = 20pt` 比较得到 delta，按 delta 调整 `setFrameOrigin`（AppKit y 轴向上，下移即减小 `origin.y`）；
+3. `|delta| <= 0.5pt` 直接跳过 → **幂等**，且每次都从当前实测位置计算，macOS 版本改变原生落点也能自适应；**不动私有容器**，7.17 的 43pt 容器增高 hack 不回来。
+
+`CAPTION_HEIGHT_PT = 40.0` 镜像 `src/styles/fluent-tokens.css` 的 `--fluent-titlebar-height: 40px`，契约脚本同时断言两处，防止 CSS 改高度后 Rust 没跟上。调用点沿用 7.18 的三处幂等钩子（Overlay 主线程任务、`Resized` + 新增 `Focused`、启动 1.6s 兜底），`Focused` 用来兜住 AppKit 在标题变化 / 全屏进出后把按钮重设回默认位置的情况。
+
+| 验证 | 结果 |
+|---|---|
+| 实机像素测量 | ✅ 交通灯中心 115.5px、刷新按钮中心 114.5px，差 1px ≈ **0.5pt**；三个圆点完整无裁切、与刷新按钮无重叠 |
+| `cargo check`（默认 / `--no-default-features`） | ✅ 0 警告 |
+| `cargo test --lib` / `npm test` 全量 / `npm run build` | ✅ 299 passed, 0 failed, 1 ignored / exit 0 / OK |
+| `test:window-controls`（含新增 7.19 常量同步断言）/ `test:macos-bundle` | ✅ |
+
+**边界**：AppKit 在标题变化 / 全屏进出 / tabbing 后重置按钮 frame 的具体时机未逐个实机验证（`Resized` + `Focused` + 启动兜底覆盖常见路径）；`CAPTION_HEIGHT_PT` 与 CSS 的同步靠静态断言而非运行时读取；Windows 侧不执行该函数（适配层 macOS 门控）。
 
 ---
 

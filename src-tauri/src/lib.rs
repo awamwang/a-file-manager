@@ -153,15 +153,20 @@ pub fn run() {
                     let _ = window.run_on_main_thread(move || {
                         if let Some(window) = overlay_app.get_webview_window("main") {
                             let _ = window.set_title_bar_style(tauri::TitleBarStyle::Overlay);
+                            // Also centres the traffic lights on the caption (7.19).
                             crate::platform::extend_content_under_titlebar(&window);
                         }
                     });
-                    // AppKit re-lays out contentView on resize / after reveal;
-                    // re-apply on the main thread after every size change and
-                    // once at startup for windows revealed without a resize.
+                    // AppKit re-lays out contentView and resets button frames on
+                    // resize / focus / after reveal; re-apply on the main thread
+                    // after those events and once at startup for windows
+                    // revealed without a resize.
                     let chrome_app = app.handle().clone();
                     window.on_window_event(move |event| {
-                        if matches!(event, tauri::WindowEvent::Resized(_)) {
+                        if matches!(
+                            event,
+                            tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Focused(_)
+                        ) {
                             if let Some(window) = chrome_app.get_webview_window("main") {
                                 let main_thread_app = chrome_app.clone();
                                 let _ = window.run_on_main_thread(move || {
