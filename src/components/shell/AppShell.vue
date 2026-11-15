@@ -8,6 +8,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import CommandPanel from "../command/CommandPanel.vue";
+import ActionTipHost from "../common/ActionTipHost.vue";
 import ToastHost from "./ToastHost.vue";
 import TaskCenterHost from "./TaskCenterHost.vue";
 import ConfirmDialogHost from "./ConfirmDialogHost.vue";
@@ -33,8 +34,9 @@ import { toggleCommandPanel } from "../../state/commandPanel";
 import { reloadWindow } from "../../state/uiReload";
 import { requestGlobalSearchFocus } from "../../state/globalSearch";
 import {
+  ariaKeyshortcutsForId,
   dispatchShortcutEvent,
-  formatChordLabel,
+  effectiveChordLabelsForId,
   registerShortcutHandler,
   unregisterShortcutHandler,
 } from "../../shortcuts/index.ts";
@@ -539,9 +541,10 @@ async function onSilentSwitchWorkGroupByIndex(index1Based: number) {
   await onSilentSwitchWorkGroup(target.id);
 }
 
+/** Fixed x+N group: still resolved through the registry so it can never go stale. */
 function workGroupChordLabel(index0Based: number): string | null {
   if (index0Based < 0 || index0Based >= 9) return null;
-  return formatChordLabel({ alt: true, key: String(index0Based + 1) });
+  return effectiveChordLabelsForId(`workGroup.switch${index0Based + 1}`)[0] ?? null;
 }
 
 async function onSaveMembersFromTabs() {
@@ -1851,9 +1854,9 @@ onUnmounted(() => {
         <button
           type="button"
           class="fluent-control titlebar-action"
-          :title="t('chrome.commandsTitle')"
+          v-action-tip="{ label: t('chrome.commands'), actionId: 'commandPanel.toggle' }"
           :aria-label="t('chrome.commands')"
-          aria-keyshortcuts="Control+Shift+P"
+          :aria-keyshortcuts="ariaKeyshortcutsForId('commandPanel.toggle')"
           @click="toggleCommandPanel"
         >
           <FluentIcon name="commands" size="sm" />
@@ -2015,7 +2018,7 @@ onUnmounted(() => {
           <button
             type="button"
             class="tab tab--add"
-            :title="t('chrome.newTab')"
+            v-action-tip="{ label: t('chrome.newTab'), actionId: 'navigator.newTab' }"
             :aria-label="t('chrome.newTab')"
             @click="onNewNavigatorTab"
           >
@@ -2064,11 +2067,10 @@ onUnmounted(() => {
                 :class="{ 'places-item--active': group.id === workGroupsDoc?.activeWorkGroupId }"
                 role="menuitem"
                 :disabled="workGroupChromeBusy || group.id === workGroupsDoc?.activeWorkGroupId"
-                :title="
-                  workGroupChordLabel(groupIndex)
-                    ? `${workGroupDisplayName(group, t('workGroups.defaultName'))} (${workGroupChordLabel(groupIndex)})`
-                    : group.id
-                "
+                v-action-tip="{
+                  label: workGroupDisplayName(group, t('workGroups.defaultName')),
+                  actionId: `workGroup.switch${groupIndex + 1}`,
+                }"
                 @click="onSilentSwitchWorkGroup(group.id)"
               >
                 <FluentIcon :name="group.isDefault ? 'home' : 'viewAll'" size="sm" />
@@ -2123,7 +2125,7 @@ onUnmounted(() => {
             type="button"
             class="fluent-control nav-icon-btn"
             :disabled="!canGoBack"
-            :title="t('chrome.back')"
+            v-action-tip="{ label: t('chrome.back'), actionId: 'navigator.back' }"
             :aria-label="t('chrome.back')"
             @click="onGoBack"
           >
@@ -2133,7 +2135,7 @@ onUnmounted(() => {
             type="button"
             class="fluent-control nav-icon-btn"
             :disabled="!canGoForward"
-            :title="t('chrome.forward')"
+            v-action-tip="{ label: t('chrome.forward'), actionId: 'navigator.forward' }"
             :aria-label="t('chrome.forward')"
             @click="onGoForward"
           >
@@ -2142,7 +2144,7 @@ onUnmounted(() => {
           <button
             type="button"
             class="fluent-control nav-icon-btn"
-            :title="t('chrome.upTitle')"
+            v-action-tip="{ label: t('chrome.up'), actionId: 'navigator.goUp' }"
             :aria-label="t('chrome.up')"
             @click="onGoUp"
           >
@@ -2152,7 +2154,7 @@ onUnmounted(() => {
             type="button"
             class="fluent-control nav-icon-btn"
             :disabled="!currentPath"
-            :title="t('chrome.refreshTitle')"
+            v-action-tip="{ label: t('chrome.refresh'), actionId: 'navigator.refresh' }"
             :aria-label="t('chrome.refresh')"
             @click="onRefreshListing"
           >
@@ -2433,6 +2435,7 @@ onUnmounted(() => {
             class="navigator-filter-inline"
             role="search"
             :aria-label="t('navigator.filterToggle')"
+            v-action-tip="{ label: t('navigator.filterToggle'), actionId: 'navigator.folderSearch' }"
           >
             <FluentIcon name="search" size="sm" class="navigator-filter-icon" />
             <input
@@ -2441,7 +2444,6 @@ onUnmounted(() => {
               class="fluent-control navigator-filter-input"
               type="search"
               :placeholder="t('navigator.filterPlaceholder')"
-              :title="t('navigator.filterToggle')"
               spellcheck="false"
               @keydown.enter.prevent
               @keydown.escape.prevent="clearNavigatorFilter"
@@ -2673,6 +2675,7 @@ onUnmounted(() => {
     <PromptDialogHost />
     <ToastHost />
     <TaskCenterHost />
+    <ActionTipHost />
     <CommandPanel :commands="panelCommands" />
   </div>
 </template>

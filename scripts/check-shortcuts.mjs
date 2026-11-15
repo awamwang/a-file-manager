@@ -6,15 +6,34 @@ import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const settings = readFileSync(join(root, "src/views/SettingsView.vue"), "utf8");
-const shell = readFileSync(join(root, "src/components/shell/AppShell.vue"), "utf8");
-const router = readFileSync(join(root, "src/router/index.ts"), "utf8");
+const read = (relative) => readFileSync(join(root, relative), "utf8");
+const settings = read("src/views/SettingsView.vue");
+const shell = read("src/components/shell/AppShell.vue");
+const router = read("src/router/index.ts");
+const main = read("src/main.ts");
+const tipHost = read("src/components/common/ActionTipHost.vue");
+const contextMenu = read("src/components/navigator/NavigatorContextMenu.vue");
 
 assert.ok(settings.includes("sectionShortcuts") || settings.includes("settings.sectionShortcuts"));
 assert.ok(settings.includes("listShortcutsForDisplay"));
 assert.ok(shell.includes("dispatchShortcutEvent"));
 assert.ok(shell.includes("registerShortcutHandler"));
 assert.ok(router.includes('path: "/settings/shortcuts"'));
+
+// Configurable chords + one-to-many recorder in Settings.
+assert.ok(settings.includes("listShortcutActionsForDisplay"));
+assert.ok(settings.includes("setActionChords"));
+assert.ok(settings.includes("chordFromEvent"));
+assert.ok(settings.includes("validateNewChord"));
+
+// Floating hints must resolve FINAL chords and be wired on nav + explorer actions.
+assert.ok(main.includes("vActionTip"), "global v-action-tip directive missing");
+assert.ok(shell.includes("ActionTipHost"));
+assert.ok(shell.includes("v-action-tip"));
+assert.ok(tipHost.includes("effectiveChordLabelsForId"));
+assert.ok(contextMenu.includes("effectiveChordLabelsForId"));
+assert.ok(contextMenu.includes("v-action-tip"));
+assert.ok(!contextMenu.includes("BUILTIN_SHORTCUTS"), "context menu must not read builtins directly");
 
 const result = spawnSync(
   process.execPath,

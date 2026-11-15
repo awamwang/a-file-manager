@@ -1,7 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { chordKey, formatChordLabel } from "./chord.ts";
-import type { ShortcutConflict, ShortcutDefinition } from "./types.ts";
+import {
+  chordKey,
+  chordToAria,
+  formatChordLabel,
+  isReservedBareKey,
+} from "./chord.ts";
+import { getShortcutOverrides, shortcutOverridesVersion } from "./config.ts";
+import type {
+  ShortcutAction,
+  ShortcutActionRow,
+  ShortcutChord,
+  ShortcutConflict,
+  ShortcutDefinition,
+  ShortcutOverrides,
+  ShortcutValidationResult,
+} from "./types.ts";
 
 /**
  * Day-1 built-in global shortcuts (beyond ad-hoc Command Panel / Discovery helpers).
@@ -12,6 +26,13 @@ export const BUILTIN_SHORTCUTS: ShortcutDefinition[] = [
     id: "commandPanel.toggle",
     labelKey: "shortcuts.items.commandPanelToggle",
     chord: { ctrl: true, shift: true, key: "p" },
+    scope: "global",
+  },
+  /** Alias: bare backtick also toggles the Search Palette (one action → many chords). */
+  {
+    id: "commandPanel.toggleBacktick",
+    labelKey: "shortcuts.items.commandPanelToggle",
+    chord: { key: "`" },
     scope: "global",
   },
   {
@@ -328,4 +349,174 @@ export function listShortcutsForDisplay(
       blockedBy: winner && winner.id !== def.id ? winner.id : undefined,
     };
   });
+}
+
+/* -------------------------------------------------------------------------- *
+ * 功能（action）模型：一个功能 → 1..N 个组合键
+ * -------------------------------------------------------------------------- */
+
+/** x+N 键组固定不可配置：Ctrl+1…9 切标签、Alt+1…9 切工作组。 */
+const FIXED_ACTION_ID = /^(?:navigator\.jumpTab[1-9]|workGroup\.switch[1-9])$/;
+
+/**
+ * Legacy alias definitions share a `labelKey`; fold them into one action so the
+ * Settings page and tooltips speak in terms of functions, not chord ids.
+ */
+function buildActions(defs: ShortcutDefinition[]): ShortcutAction[] {
+  const byLabel = new Map<string, ShortcutDefinition[]>();
+  for (const def of defs) {
+    const group = byLabel.get(def.labelKey) ?? [];
+    group.push(def);
+    byLabel.set(def.labelKey, group);
+  }
+  return [...byLabel.values()].map((group) => {
+    const primary = group[0];
+    return {
+      id: primary.id,
+      labelKey: primary.labelKey,
+      aliases: group.slice(1).map((def) => def.id),
+      scope: primary.scope,
+      allowInEditable: primary.allowInEditable,
+      configurable: !FIXED_ACTION_ID.test(primary.id),
+    };
+  });
+}
+
+export const SHORTCUT_ACTIONS: ShortcutAction[] = buildActions(BUILTIN_SHORTCUTS);
+
+/** Every legacy alias id resolves back to its canonical action (and handler) id. */
+const ACTION_ID_BY_DEFINITION_ID = new Map<string, string>();
+for (const action of SHORTCUT_ACTIONS) {
+  ACTION_ID_BY_DEFINITION_ID.set(action.id, action.id);
+  for (const alias of action.aliases) {
+    ACTION_ID_BY_DEFINITION_ID.set(alias, action.id);
+  }
+}
+
+export function actionIdFor(id: string): string {
+  return ACTION_ID_BY_DEFINITION_ID.get(id) ?? id;
+}
+
+export function findShortcutAction(actionId: string): ShortcutAction | null {
+  return SHORTCUT_ACTIONS.find((action) => action.id === actionId) ?? null;
+}
+
+export function defaultChordsForAction(actionId: string): ShortcutChord[] {
+  const action = findShortcutAction(actionId);
+  if (!action) return [];
+  const ids = new Set([action.id, ...action.aliases]);
+  return BUILTIN_SHORTCUTS.filter((def) => ids.has(def.id)).map((def) => def.chord);
+}
+
+/** Chords protected from remapping (the fixed x+N groups). */
+export const FIXED_CHORD_KEYS: ReadonlySet<string> = new Set(
+  SHORTCUT_ACTIONS.filter((action) => !action.configurable).flatMap((action) =>
+    defaultChordsForAction(action.id).map(chordKey),
+  ),
+);
+
+/** The *final* chords of a function, after applying user overrides. */
+export function effectiveChordsForId(
+  id: string,
+  overrides: Readonly<ShortcutOverrides> = getShortcutOverrides(),
+): ShortcutChord[] {
+  // Reading the version ref makes every render-time caller (aria attributes,
+  // tooltips, settings rows) reactive to a remap without extra plumbing.
+  void shortcutOverridesVersion.value;
+  const actionId = actionIdFor(id);
+  const action = findShortcutAction(actionId);
+  if (!action) return [];
+  if (!action.configurable) return defaultChordsForAction(actionId);
+  const stored = overrides[actionId];
+  return stored === undefined ? defaultChordsForAction(actionId) : stored;
+}
+
+/** Final, formatted chord labels — the only source tooltips should display. */
+export function effectiveChordLabelsForId(id: string): string[] {
+  return effectiveChordsForId(id).map(formatChordLabel);
+}
+
+/** ARIA-friendly final chords (space separated, Control+Shift+P grammar). */
+export function ariaKeyshortcutsForId(id: string): string {
+  return effectiveChordsForId(id).map(chordToAria).join(" ");
+}
+
+/**
+ * Flatten actions back into dispatch definitions. With no overrides this is the
+ * untouched builtin table (keeps legacy ids, tests and first-wins behaviour).
+ * Overrides replace *all* chords of an action, so removed aliases stop firing.
+ */
+export function effectiveShortcutDefinitions(
+  overrides: Readonly<ShortcutOverrides> = getShortcutOverrides(),
+): ShortcutDefinition[] {
+  if (Object.keys(overrides).length === 0) return BUILTIN_SHORTCUTS;
+  const result: ShortcutDefinition[] = [];
+  for (const action of SHORTCUT_ACTIONS) {
+    const stored = action.configurable ? overrides[action.id] : undefined;
+    const chords = stored === undefined ? defaultChordsForAction(action.id) : stored;
+    chords.forEach((chord, index) => {
+      result.push({
+        id:
+          index === 0
+            ? action.id
+            : (action.aliases[index - 1] ?? `${action.id}#${index}`),
+        labelKey: action.labelKey,
+        chord,
+        scope: action.scope,
+        allowInEditable: index === 0 ? action.allowInEditable : undefined,
+      });
+    });
+  }
+  return result;
+}
+
+/** One row per function, with every final binding and its conflict owner. */
+export function listShortcutActionsForDisplay(
+  overrides: Readonly<ShortcutOverrides> = getShortcutOverrides(),
+): ShortcutActionRow[] {
+  const winners = resolveDispatchMap(effectiveShortcutDefinitions(overrides));
+  return SHORTCUT_ACTIONS.map((action) => {
+    const stored = action.configurable ? overrides[action.id] : undefined;
+    const chords =
+      stored === undefined ? defaultChordsForAction(action.id) : stored;
+    return {
+      id: action.id,
+      labelKey: action.labelKey,
+      configurable: action.configurable,
+      isOverridden: action.configurable && stored !== undefined,
+      bindings: chords.map((chord) => {
+        const label = formatChordLabel(chord);
+        const winner = winners.get(label);
+        const ownerId = winner ? actionIdFor(winner.id) : undefined;
+        return {
+          chord,
+          label,
+          blockedBy: ownerId && ownerId !== action.id ? ownerId : undefined,
+        };
+      }),
+    };
+  });
+}
+
+/** Reject reserved / duplicate / conflicting chords before persisting them. */
+export function validateNewChord(
+  actionId: string,
+  chord: ShortcutChord,
+  overrides: Readonly<ShortcutOverrides> = getShortcutOverrides(),
+): ShortcutValidationResult {
+  const action = findShortcutAction(actionId);
+  if (!action || !action.configurable) return { ok: false, reason: "unknown" };
+  const key = chordKey(chord);
+  if (FIXED_CHORD_KEYS.has(key) || isReservedBareKey(chord)) {
+    return { ok: false, reason: "reserved" };
+  }
+  if (effectiveChordsForId(actionId, overrides).some((c) => chordKey(c) === key)) {
+    return { ok: false, reason: "duplicate" };
+  }
+  const winner = resolveDispatchMap(effectiveShortcutDefinitions(overrides)).get(key);
+  if (winner) {
+    const ownerId = actionIdFor(winner.id);
+    if (ownerId !== actionId) return { ok: false, reason: "conflict", ownerId };
+  }
+  return { ok: true };
 }

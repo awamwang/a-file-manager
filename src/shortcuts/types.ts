@@ -27,4 +27,50 @@ export type ShortcutConflict = {
   ids: string[];
 };
 
+/**
+ * A user-facing function. Legacy alias definitions that share a `labelKey`
+ * are folded into one action, so one function owns 1..N chords (one-to-many).
+ * `id` is also the canonical handler id registered by AppShell / NavigatorView.
+ */
+export type ShortcutAction = {
+  id: string;
+  labelKey: string;
+  /** Legacy definition ids that are extra default bindings of the same function. */
+  aliases: string[];
+  scope: ShortcutScope;
+  allowInEditable?: boolean;
+  /** x+N groups (Ctrl/Alt + 1…9) are fixed and cannot be remapped. */
+  configurable: boolean;
+};
+
+/** Persisted user bindings, keyed by canonical action id. Empty array = unbound. */
+export type ShortcutOverrides = Record<string, ShortcutChord[]>;
+
+export type ShortcutActionBinding = {
+  chord: ShortcutChord;
+  label: string;
+  /** Set when another action already owns this chord (first registered wins). */
+  blockedBy?: string;
+};
+
+export type ShortcutActionRow = {
+  id: string;
+  labelKey: string;
+  configurable: boolean;
+  isOverridden: boolean;
+  bindings: ShortcutActionBinding[];
+};
+
+export type ShortcutValidationReason =
+  | "reserved"
+  | "duplicate"
+  | "conflict"
+  | "unknown";
+
+export type ShortcutValidationResult = {
+  ok: boolean;
+  reason?: ShortcutValidationReason;
+  ownerId?: string;
+};
+
 export type ShortcutHandler = (event: KeyboardEvent) => void | Promise<void>;
