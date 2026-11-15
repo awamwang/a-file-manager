@@ -1,4 +1,32 @@
 {
+  "platform": {
+    "macos": {
+      "contextMenu.openWithExplorer": "Im Finder öffnen",
+      "contextMenu.reveal": "Im Finder anzeigen",
+      "projects.noticeOpenedInSystemExplorer": "Im Finder geöffnet",
+      "projects.openWorkspaceInSystemExplorerHint": "Öffnet diesen Project-Workspace-Ordner im Finder",
+      "providers.openInExplorer": "Im Finder oeffnen",
+      "settings.fields.core.fileDoubleClickAction.options.reveal": "Im Finder anzeigen",
+      "taskCenter.revealHint": "Klicken, um das Ziel im Finder anzuzeigen",
+      "contextMenu.deleteConfirm": "„{name}“ in den Papierkorb verschieben?",
+      "contextMenu.deleteNoRecycle": "Papierkorb hier nicht verfügbar; endgültiges Löschen ist deaktiviert.",
+      "contextMenu.deleted": "In den Papierkorb verschoben",
+      "recycleBin.section": "Papierkorb",
+      "recycleBin.tabName": "Papierkorb",
+      "shortcuts.items.navigatorDelete": "In den Papierkorb verschieben",
+      "guide.title": "Dieser Mac",
+      "guide.tabName": "Dieser Mac",
+      "guide.rootLabel": "Dieser Mac",
+      "guide.rootTitle": "Leitseite Dieser Mac oeffnen",
+      "ai.skills.libraryRootHint": "Standard: ~/Library/Application Support/com.a-file-manager.app/.agents/skills. Leer / zurücksetzen = Standard.",
+      "chrome.commandsShortcut": "⌘+⇧+P",
+      "chrome.commandsTitle": "Befehlspalette (⌘+⇧+P)",
+      "commands.hint": "↑↓ zum Bewegen · Enter zum Ausführen · Esc zum Schließen · ⌘+⇧+P",
+      "detailsPane.multiHint": "Ein Element für volle Details wählen oder Eigenschaften (⌥+Enter) öffnen.",
+      "discovery.meta": "Diesen Mac nach Name oder Pfad durchsuchen",
+      "discovery.everythingConfigHint": "Nutzt den {engine}-Index dieses Macs. Ordner unten ausschließen, wenn sie nicht in Ergebnissen erscheinen sollen."
+    }
+  },
   "app": {
     "captionMeta": "Standard · i18n",
     "name": "A File Manager"

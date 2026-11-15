@@ -1,4 +1,32 @@
 {
+  "platform": {
+    "macos": {
+      "contextMenu.openWithExplorer": "在访达（Finder）中打开",
+      "contextMenu.reveal": "在访达（Finder）中显示",
+      "projects.noticeOpenedInSystemExplorer": "已在访达（Finder）中打开",
+      "projects.openWorkspaceInSystemExplorerHint": "在访达（Finder）中打开本 Project Workspace 目录",
+      "providers.openInExplorer": "在访达（Finder）中打开",
+      "settings.fields.core.fileDoubleClickAction.options.reveal": "在访达（Finder）中显示",
+      "taskCenter.revealHint": "点击在访达（Finder）中显示目标位置",
+      "contextMenu.deleteConfirm": "将“{name}”移到废纸篓？",
+      "contextMenu.deleteNoRecycle": "此处无法使用废纸篓；未启用永久删除。",
+      "contextMenu.deleted": "已移到废纸篓",
+      "recycleBin.section": "废纸篓",
+      "recycleBin.tabName": "废纸篓",
+      "shortcuts.items.navigatorDelete": "删除到废纸篓",
+      "guide.title": "这台 Mac",
+      "guide.tabName": "这台 Mac",
+      "guide.rootLabel": "这台 Mac",
+      "guide.rootTitle": "打开这台 Mac 引导页",
+      "ai.skills.libraryRootHint": "默认 ~/Library/Application Support/com.a-file-manager.app/.agents/skills。留空/重置即用默认。",
+      "chrome.commandsShortcut": "⌘+⇧+P",
+      "chrome.commandsTitle": "命令面板 (⌘+⇧+P)",
+      "commands.hint": "↑↓ 移动 · Enter 执行 · Esc 关闭 · ⌘+⇧+P",
+      "detailsPane.multiHint": "选中单项可查看完整详细信息，或按 ⌥+Enter 打开属性。",
+      "discovery.meta": "按文件名或路径搜索这台 Mac",
+      "discovery.everythingConfigHint": "使用这台 Mac 的 {engine} 索引服务。不想出现在结果中的文件夹可在下方排除。"
+    }
+  },
   "app": {
     "name": "A File Manager",
     "captionMeta": "标准 · 国际化"

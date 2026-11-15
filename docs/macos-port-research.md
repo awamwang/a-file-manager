@@ -94,7 +94,7 @@
 - **右键 / 属性 / 打开方式**：`TrackPopupMenu` → `NSMenu`/Services 或降级为自绘菜单；`open_native_open_with_dialog` 无等价 API → `open -a` 或降级为默认程序打开；ShellNew 模板、`.lnk`、`- Copy` 命名、UAC 提权项、非法字符表（`file_ops/mod.rs:62-73` 的 Windows 保留字符）统一平台化。
 - **空格预览**：`preview_bridge/mod.rs` 的「QuickLook」其实是 Windows 移植版 QL-Win 命名管道，Peek 是 PowerToys；macOS 用 `qlmanage -p` / `QLPreviewPanel`；好消息是 `auto` 模式已能优雅降级到内置预览面板（`:426-456`）。
 - **剪贴板 / 自启动 / 单实例**：CF_HDROP → NSPasteboard；HKCU Run → `SMAppService` / LaunchAgent / `tauri-plugin-autostart`；`CreateMutexW` → `tauri-plugin-single-instance`。建议先降级禁用并在设置页隐藏。
-- **CSS / 字体 / i18n**：Segoe UI / 微软雅黑 / Consolas 全缺 → SF / PingFang / Menlo；约 50 处 `color-mix()` 在旧版 WKWebView 整条声明失效；5 语言写死 `Ctrl+Shift+P`、`F5`、`Alt+Enter`、`此电脑`、`回收站`、`资源管理器`、`%APPDATA%`、`C:\Windows`、`\\server\share`、`WebView2 Runtime`。
+- **CSS / 字体 / i18n**：Segoe UI / 微软雅黑 / Consolas 全缺 → SF / PingFang / Menlo；约 50 处 `color-mix()` 在旧版 WKWebView 整条声明失效；5 语言写死 `Ctrl+Shift+P`、`F5`、`Alt+Enter`、`此电脑`、`回收站`、`资源管理器`、`%APPDATA%`、`C:\Windows`、`\\server\share`、`WebView2 Runtime`。（**7.22 已让 24 组主文案按宿主切换；`F5` 因 chord 未变有意保留，其余示例路径 / 后端硬编码中文 / 字体仍待办**）
 - **无文件变更刷新**：`drag_focus.rs` 的轮询计时器是 Windows-only，Cargo.lock 无 `notify` → macOS 无实时刷新，需引入 `notify` + FSEvents 或前端定时重列。
 
 ### P3 · 发布就绪（约 5–10 人日）
@@ -136,7 +136,7 @@
 | 6 | 右键 / 双击明显不对 | 原生右键菜单、打开方式对话框、ShellNew 模板、图标与缩略图缺失 | `shellMenuEmbed.ts:13-28`、`navigatorBrowse.ts:1026`、`newFileTemplates.ts`、`shellIcons.ts:280-294` |
 | 7 | 空格预览不符 | QL-Win / Peek 而非系统 Quick Look；设置枚举只有 `peek/quicklook/builtin` | `previewBridge.ts:3-19`、`settingsFields.ts:71-77` |
 | 8 | 跨应用拖放失效 | WKWebView 无 `File.path`；入站只认盘符；修饰键语义相反；出站 OLE | `dnd/paths.ts:9,23-43`、`dnd/surface.ts:30-40`、`dnd/mode.ts`、`dragOut.ts` |
-| 9 | 文案全在说 Windows | 5 语言写死 `Ctrl+Shift/P`、`F5`、`Alt+Enter`、`此电脑`、`回收站`、`资源管理器`、`%APPDATA%`、`C:\Windows`、`\\server\share` | `src/i18n/locales/{en,zh-CN,ja,de,fr}.json`：`commandsShortcut`、`chrome.refreshTitle`、`properties.multiHint`、`guide.rootLabel`/`drive*`、`recycleBin.*`、`libraryRootHint`、`blacklistPlaceholder`、`installPathPlaceholder`、`networkEmpty`、`health.*.webview2`、`osVerb` 等约 20 组字段 |
+| 9 | 文案全在说 Windows | 5 语言写死 `Ctrl+Shift/P`、`F5`、`Alt+Enter`、`此电脑`、`回收站`、`资源管理器`、`%APPDATA%`、`C:\Windows`、`\\server\share` | `src/i18n/locales/{en,zh-CN,ja,de,fr}.json`：`commandsShortcut`、`chrome.refreshTitle`、`properties.multiHint`、`guide.rootLabel`/`drive*`、`recycleBin.*`、`libraryRootHint`、`blacklistPlaceholder`、`installPathPlaceholder`、`networkEmpty`、`health.*.webview2`、`osVerb` 等约 20 组字段（**7.22 已按宿主覆盖其中 24 组主文案，Windows 正文零改动；示例路径与后端硬编码中文仍残留**） |
 | 10 | 整体排版偏移 | Segoe/雅黑字体栈、`font-synthesis:none`、标题栏高度与 snap 插件硬同步 | `fluent-tokens.css:27-49`、`base.css:17-26` |
 | 11 | 设置/健康页误导 | WebView2 检查项、`app-region` CSS、`color-mix()`、托盘文案 | `main.ts:18-28`、`tauri.conf.json:45-49`、约 50 处 `color-mix` |
 | 12 | 细节观感 | 大小写折叠路径键、drive-*/onedrive 色调 token 无用、18px PNG 无 @2x | `pathKey.ts`、`favorites.ts`、`public/app-icon.png` |
@@ -643,7 +643,7 @@
 
 **仍待用户实机确认**：`set_title("")` 对窗口菜单的影响、「此电脑」卷列表呈现、dot-file 隐藏开关、磁盘空间用量条。交通灯落点与 78px 留白已在 7.17 实机截图验证并补齐：初版只做了水平避让，垂直方向仍错开约 26pt。其余项沙箱内无法截图。
 
-**下一轮候选（按 6.5 门禁逐项判定，勿误判为已完成）**：Rust 侧仍有约 20 处 `replace('/', "\\")` 规范化（`visit_stats` / `projects` / `favorites` / `discovery` / `ai/*` / `file_ops` / `terminal` 等）。多数是比较键 / 缓存键，不产生交给后端的真实路径；但 `terminal/mod.rs:142`、`ai/open_editor.rs:58`、`ai/harness.rs:28`、`file_ops/recycle.rs:26` 疑似产出真实路径，需逐个确认后再平台化。P1 的终端/IDE `open -a`、废纸篓 TCC（或改 `~/.Trash` 移动）、全局搜索 Spotlight、进程树清理，以及 P2 的 i18n Windows 名词 / 原生菜单，仍按原排期。**（7.20 已逐个确认并把「真实路径」类收口：终端 / IDE 归位适配层、`ai/*` 与 `open_editor` / `harness` / `visit_stats` / `projects/index` 委托 `crate::paths`；`recycle` / `safe_io` / Windows-only 模块确认为可豁免，见 7.20。7.21 已完成「全局搜索」Spotlight 归位，并纠正了当时把 `discovery/blacklist` 判为「仅比较键」的遗漏——它其实会回显到设置页。**仍未排期：废纸篓 TCC / `~/.Trash` 列表还原、进程树清理、原生菜单与其余 P2 i18n Windows 名词。）**
+**下一轮候选（按 6.5 门禁逐项判定，勿误判为已完成）**：Rust 侧仍有约 20 处 `replace('/', "\\")` 规范化（`visit_stats` / `projects` / `favorites` / `discovery` / `ai/*` / `file_ops` / `terminal` 等）。多数是比较键 / 缓存键，不产生交给后端的真实路径；但 `terminal/mod.rs:142`、`ai/open_editor.rs:58`、`ai/harness.rs:28`、`file_ops/recycle.rs:26` 疑似产出真实路径，需逐个确认后再平台化。P1 的终端/IDE `open -a`、废纸篓 TCC（或改 `~/.Trash` 移动）、全局搜索 Spotlight、进程树清理，以及 P2 的 i18n Windows 名词 / 原生菜单，仍按原排期。**（7.20 已逐个确认并把「真实路径」类收口：终端 / IDE 归位适配层、`ai/*` 与 `open_editor` / `harness` / `visit_stats` / `projects/index` 委托 `crate::paths`；`recycle` / `safe_io` / Windows-only 模块确认为可豁免，见 7.20。7.21 已完成「全局搜索」Spotlight 归位，并纠正了当时把 `discovery/blacklist` 判为「仅比较键」的遗漏——它其实会回显到设置页。**7.22 已回收 24 组主文案的 P2 i18n Windows 名词（系统文件管理器 / 废纸篓 / 此电脑 / 快捷键 / 默认路径），但仍有示例路径、后端硬编码中文等残留，见 7.22 边界。仍未排期：废纸篓 TCC / `~/.Trash` 列表还原、进程树清理、原生菜单。）**
 
 ### 7.16 架构收口（第 11 轮）：把第 7~10 轮的旁路压回适配层
 
@@ -880,7 +880,35 @@
 | `test:global-search-provider` / `test:i18n` / `test:shortcuts` / `test:discovery-search` / `test:settings-ui-regroup` / `test:fs-path` / `git diff --check` | 全通过 |
 | 改动过的 Rust 文件 `rustfmt --check`（`skip_children=true`） | exit 0；用该配置避免 7.20 的连带格式化无关子模块 |
 
-**边界（勿误判为完成）**：`mdfind` 没有分页参数，实现是把全部结果读进内存再 skip/take，超大结果集（数万条）的内存 / 耗时未压测，也没设查询超时；Spotlight 索引关闭或正在重建时结果可能为空，本轮 `probe` 只检查二进制存在、没查 `mdutil` 状态；`-name` 的整词引号使 `*` 等通配符变成字面量（与 Everything 语义不同，已在 `syntaxHint` 提示）；搜索页的引擎卡片、黑名单回显、结果双击跳转仍需用户在 GUI 实机确认（本轮只跑到 IPC 契约 + 实机 `mdfind`）；`discovery/fallback.rs` 仍是恒空 stub（降级路径未实现）；Windows adapter 的**类型检查仍待 Windows CI**（同 7.20 限制）。仍未归位的是图标 / 废纸篓 / 剪贴板三个 provider、静态 bool 能力层（6.5 第 4 条）、`DriveInfo.letter` 等 IPC Windows 名词、进程树清理、原生菜单与其余 P2 i18n 名词。
+**边界（勿误判为完成）**：`mdfind` 没有分页参数，实现是把全部结果读进内存再 skip/take，超大结果集（数万条）的内存 / 耗时未压测，也没设查询超时；Spotlight 索引关闭或正在重建时结果可能为空，本轮 `probe` 只检查二进制存在、没查 `mdutil` 状态；`-name` 的整词引号使 `*` 等通配符变成字面量（与 Everything 语义不同，已在 `syntaxHint` 提示）；搜索页的引擎卡片、黑名单回显、结果双击跳转仍需用户在 GUI 实机确认（本轮只跑到 IPC 契约 + 实机 `mdfind`）；`discovery/fallback.rs` 仍是恒空 stub（降级路径未实现）；Windows adapter 的**类型检查仍待 Windows CI**（同 7.20 限制）。仍未归位的是图标 / 废纸篓 / 剪贴板三个 provider、静态 bool 能力层（6.5 第 4 条）、`DriveInfo.letter` 等 IPC Windows 名词、进程树清理、原生菜单与其余 P2 i18n 名词（**7.22 回收了其中 24 组主文案，但仍有残留，见下**）。
+
+### 7.22 平台名词 / 快捷键文案平台化（第 17 轮）
+
+**触发**：用户在 7.21 之后问「下一步」，并在四个候选中选了「P2 平台名词/快捷键文案」。7.8 只让**动态生成**的快捷键标签走 `platformShortcutLabel`，5 语言 locale 文件里写死的 `Ctrl+Shift+P` / `Alt+Enter` / `此电脑` / `回收站` / `资源管理器` / `%APPDATA%\...` 完全没被覆盖。
+
+**先过 6.5 第 1 / 6 条门禁**：
+
+| 缺口 | 四选一 | 依据 |
+|---|---|---|
+| 平台文案覆盖机制 | **自写薄适配**（`platformTerms.ts` 的纯函数合并） | vue-i18n 的 `messages` 是静态对象，没有「按宿主覆盖部分 key」的内建机制；7.8 的 `platformShortcutLabel` 只能处理运行时拼出的标签，够不到 locale JSON 里的整句文案。无库可代劳，故自写且限定为纯函数 |
+| 快捷键写法 | **复用既有格式约定** `⌘+⇧+P` / `⌥+Enter`，用契约脚本绑定 | locale JSON 不能调函数；契约断言覆盖值含 `⌘` / `⌥` 且不含 `Ctrl+` / `Alt+`，并锁住 `registry.ts` 的刷新 chord |
+| 宿主判断 | **复用** `src/config/platform.ts` 的 `isMacPlatform()` | 6.5 第 6 条：组件层零新增 `isMacPlatform()` 分支，判断只在 `i18n/index.ts` 一处 |
+| 默认路径示例 | **复用** `tauri.conf.json` 的 identifier + `directories::BaseDirs::config_dir()` | macOS 实际为 `~/Library/Application Support/com.a-file-manager.app/.agents/skills`；`ai/agents.rs::expand_agent_path` 已在 7.20 委托 `to_native_fs_path`，文案与运行时一致 |
+
+**设计**：Windows 正文**一字不改**（零回归），每个 locale 顶层新增 `platform.macos`：一张 `dotted.key → macOS 文案` 的扁平表。`i18n/index.ts` 在 `createI18n` 之前调用 `localizeCatalog()` 去掉内部段并按宿主合并；`hydratePlatform()` resolve 后由 `applyPlatformTerms()` 用 `setLocaleMessage` 重合并（响应式，无需 reload）。能力未知时保持 Windows 文案。所有 `t()` 调用点零改动。
+
+| 落点 | 内容 |
+|---|---|
+| 5 语言 `locales/*.json` | 新增 **24 个 key** 的 macOS 覆盖：系统文件管理器 7、废纸篓 6、此电脑 4、Skill 库默认路径 1、快捷键 4、`PC → Mac` 2。中文「资源管理器」→「访达（Finder）」、「回收站」→「废纸篓」、「此电脑」→「这台 Mac」；英文 `Recycle Bin`→`Trash`；日/德/法各自本地化（德语/法语的 Papierkorb / Corbeille 本就跨平台，保留）。法语冠词 `l’Explorateur`→`le Finder`、日语 Finder 与助词间空格、根目录示例换成 `~/Library/Application Support/...` 均逐条处理 |
+| `src/i18n/platformTerms.ts` | `macosOverrides()` / `localizeCatalog()` 纯函数：深拷贝、删内部段、只覆盖**已存在**的字符串叶节点（坏 key 不会凭空造文案）、不改 import 的 JSON 模块 |
+| `src/i18n/index.ts` / `src/main.ts` | 保留 catalog 的推断形状（否则 vue-i18n 会把 `global.locale` 推成 string，`vue-tsc` 报错），导出 `applyPlatformTerms()` 并在 bootstrap 的 `hydratePlatform().then(...)` 调用 |
+| `scripts/check-platform-terms.mjs` + `platform-terms-checks.ts` | 注册 `test:platform-terms` 并纳入 `npm test`。静态断言 24 key 集合 / 5 语言一致 / 每个 key 有正文可覆盖 / macOS 文案无 Windows 残留 / ⌘⇧P 与 ⌥ 写法 / 默认路径 / `chrome.refreshTitle` 有意不覆盖且 chord 仍是 F5 / 合并挂在主链路 / `platformTerms.ts` 不碰 Tauri 与宿主判断 / `platformShortcutLabel` 未被绕过；纯函数单测覆盖 win / mac / 不修改原对象 / 坏 key / 真实 5 语言 catalog 全量合并 |
+
+**有意不改（写清理由，勿误判为遗漏）**：`commands.openNavigator`、`nav.navigator`、`navigator.title`、`startupPage.options.navigator`、`previewPane.description` 等说的是 **AFM 自己的 Navigator 视图**，不是系统文件管理器，改成 Finder 反而错；`favorites.osVerb` / `settings.favoritesMeta` 是 Windows 右键动词，macOS 已由 `SettingsView.vue:70` 的能力门控隐藏；`health.deps.items.webview2.title` 是 Windows-only 依赖（macOS 走 `webview` id + 后端 title）；`chrome.refreshTitle` 的 `F5` 与 `registry.ts` 里真实的 `key: "f5"` 一致，改文案会撒谎。
+
+**验证**：`npm test` 全量 exit 0（含 `test:platform-terms`、Rust **310 passed / 0 failed / 2 ignored**）；`npm run build`（`vue-tsc --noEmit` + vite）通过；`git diff --check` 通过；5 个 locale 各只 +28 行，Windows 正文 diff 为 0。运行时单测 `platform copy merge checks OK`，契约 `24 keys × 5 locales, 108 non-identical`。
+
+**边界（勿误判为完成）**：本轮**未启动 GUI**，macOS 上实际显示的「访达 / 废纸篓 / 这台 Mac / ⌘+⇧+P」需用户实机确认；P2 表第 97 行列的 `C:\Windows`、`\\server\share`、`WebView2 Runtime`、AI 文案里的 `APPDATA` 概念词、`blacklistPlaceholder` / `installPathPlaceholder` / `networkEmpty` 示例路径、extensions 里日语「この PC」仍未平台化；`deps_probe` 后端的依赖标题 / 说明是**硬编码中文**、不走 i18n；F 键被 macOS 媒体键占用、原生菜单栏 / Cmd+Q / Cmd+W、字体与 `color-mix()` 仍按原 P2 排期。7.21 结尾列的废纸篓 TCC / 列表还原、进程树清理、三个 provider 归位、静态 bool 能力层、`DriveInfo.letter` 均**未动**。
 
 ---
 

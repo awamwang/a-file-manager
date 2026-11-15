@@ -1,4 +1,32 @@
 {
+  "platform": {
+    "macos": {
+      "contextMenu.openWithExplorer": "Finder で開く",
+      "contextMenu.reveal": "Finder で表示",
+      "projects.noticeOpenedInSystemExplorer": "Finder で開きました",
+      "projects.openWorkspaceInSystemExplorerHint": "この Project Workspace フォルダーを Finder で開きます",
+      "providers.openInExplorer": "Finder で開く",
+      "settings.fields.core.fileDoubleClickAction.options.reveal": "Finder で表示",
+      "taskCenter.revealHint": "クリックで Finder に表示",
+      "contextMenu.deleteConfirm": "「{name}」をゴミ箱へ移動しますか？",
+      "contextMenu.deleteNoRecycle": "ここではゴミ箱を使えません。完全削除は無効です。",
+      "contextMenu.deleted": "ゴミ箱へ移動しました",
+      "recycleBin.section": "ゴミ箱",
+      "recycleBin.tabName": "ゴミ箱",
+      "shortcuts.items.navigatorDelete": "ゴミ箱へ移動",
+      "guide.title": "この Mac",
+      "guide.tabName": "この Mac",
+      "guide.rootLabel": "この Mac",
+      "guide.rootTitle": "この Mac のガイドを開く",
+      "ai.skills.libraryRootHint": "既定は ~/Library/Application Support/com.a-file-manager.app/.agents/skills。空/リセットで既定。",
+      "chrome.commandsShortcut": "⌘+⇧+P",
+      "chrome.commandsTitle": "コマンドパネル (⌘+⇧+P)",
+      "commands.hint": "↑↓ で移動 · Enter で実行 · Esc で閉じる · ⌘+⇧+P",
+      "detailsPane.multiHint": "1 件選択で詳細を表示、または ⌥+Enter でプロパティを開きます。",
+      "discovery.meta": "名前やパスでこの Mac を検索",
+      "discovery.everythingConfigHint": "この Mac の {engine} 索引を使います。結果に出したくないフォルダーは下で除外できます。"
+    }
+  },
   "app": {
     "captionMeta": "標準 · i18n",
     "name": "A File Manager"

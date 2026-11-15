@@ -1,4 +1,32 @@
 {
+  "platform": {
+    "macos": {
+      "contextMenu.openWithExplorer": "Open in Finder",
+      "contextMenu.reveal": "Reveal in Finder",
+      "projects.noticeOpenedInSystemExplorer": "Opened in Finder",
+      "projects.openWorkspaceInSystemExplorerHint": "Opens this Project Workspace folder in Finder",
+      "providers.openInExplorer": "Open in Finder",
+      "settings.fields.core.fileDoubleClickAction.options.reveal": "Reveal in Finder",
+      "taskCenter.revealHint": "Click to show the destination in Finder",
+      "contextMenu.deleteConfirm": "Move “{name}” to the Trash?",
+      "contextMenu.deleteNoRecycle": "Trash is unavailable here; permanent delete is not enabled.",
+      "contextMenu.deleted": "Moved to Trash",
+      "recycleBin.section": "Trash",
+      "recycleBin.tabName": "Trash",
+      "shortcuts.items.navigatorDelete": "Delete to Trash",
+      "guide.title": "This Mac",
+      "guide.tabName": "This Mac",
+      "guide.rootLabel": "This Mac",
+      "guide.rootTitle": "Open This Mac guide",
+      "ai.skills.libraryRootHint": "Default is ~/Library/Application Support/com.a-file-manager.app/.agents/skills. Leave blank / reset for default.",
+      "chrome.commandsShortcut": "⌘+⇧+P",
+      "chrome.commandsTitle": "Command Panel (⌘+⇧+P)",
+      "commands.hint": "↑↓ to move · Enter to run · Esc to close · ⌘+⇧+P",
+      "detailsPane.multiHint": "Select one item for full details, or open Properties (⌥+Enter).",
+      "discovery.meta": "Search your Mac by name or path",
+      "discovery.everythingConfigHint": "Uses this Mac's {engine} index. Exclude folders below if you do not want them in results."
+    }
+  },
   "app": {
     "name": "A File Manager",
     "captionMeta": "Standard · i18n"

@@ -3,7 +3,7 @@
 import { createApp } from "vue";
 import App from "./App.vue";
 import router from "./router/index.ts";
-import { applyAppLocaleFromValues, i18n } from "./i18n/index.ts";
+import { applyAppLocaleFromValues, applyPlatformTerms, i18n } from "./i18n/index.ts";
 import { applySessionSettingsFromValues } from "./state/applySessionSettings.ts";
 import { revealMainWindowAfterReady } from "./state/revealMainWindow.ts";
 import { hydrateFeaturePackContributions } from "./state/featurePack/contributions.ts";
@@ -39,8 +39,9 @@ async function bootstrap(): Promise<void> {
   startupMark("bootstrap:start");
   // Warm the platform capability contract in parallel with settings hydration:
   // shortcut matching and capability-gated settings read it synchronously.
-  // Fire-and-forget is safe (UA fallback covers the first few keystrokes).
-  void hydratePlatform();
+  // Fire-and-forget is safe (UA fallback covers the first few keystrokes);
+  // the resolved answer then re-merges macOS copy into every locale catalog.
+  void hydratePlatform().then(applyPlatformTerms);
   let values: Record<string, unknown> = {};
   try {
     const doc = await hydrateSettings();

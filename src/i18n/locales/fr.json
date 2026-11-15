@@ -1,4 +1,32 @@
 {
+  "platform": {
+    "macos": {
+      "contextMenu.openWithExplorer": "Ouvrir dans le Finder",
+      "contextMenu.reveal": "Afficher dans le Finder",
+      "projects.noticeOpenedInSystemExplorer": "Ouvert dans le Finder",
+      "projects.openWorkspaceInSystemExplorerHint": "Ouvre ce dossier Project Workspace dans le Finder",
+      "providers.openInExplorer": "Ouvrir dans le Finder",
+      "settings.fields.core.fileDoubleClickAction.options.reveal": "Afficher dans le Finder",
+      "taskCenter.revealHint": "Cliquez pour afficher la destination dans le Finder",
+      "contextMenu.deleteConfirm": "Déplacer « {name} » vers la Corbeille ?",
+      "contextMenu.deleteNoRecycle": "Corbeille indisponible ici ; la suppression définitive est désactivée.",
+      "contextMenu.deleted": "Déplacé vers la Corbeille",
+      "recycleBin.section": "Corbeille",
+      "recycleBin.tabName": "Corbeille",
+      "shortcuts.items.navigatorDelete": "Envoyer vers la Corbeille",
+      "guide.title": "Ce Mac",
+      "guide.tabName": "Ce Mac",
+      "guide.rootLabel": "Ce Mac",
+      "guide.rootTitle": "Ouvrir le guide Ce Mac",
+      "ai.skills.libraryRootHint": "Par défaut ~/Library/Application Support/com.a-file-manager.app/.agents/skills. Vide / réinitialiser = défaut.",
+      "chrome.commandsShortcut": "⌘+⇧+P",
+      "chrome.commandsTitle": "Palette de commandes (⌘+⇧+P)",
+      "commands.hint": "↑↓ pour déplacer · Entrée pour exécuter · Échap pour fermer · ⌘+⇧+P",
+      "detailsPane.multiHint": "Sélectionnez un élément pour les détails complets, ou ouvrez Propriétés (⌥+Entrée).",
+      "discovery.meta": "Rechercher sur ce Mac par nom ou chemin",
+      "discovery.everythingConfigHint": "Utilise l’index {engine} de ce Mac. Excluez ci-dessous les dossiers à ignorer."
+    }
+  },
   "app": {
     "captionMeta": "Standard · i18n",
     "name": "A File Manager"
