@@ -1,63 +1,113 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
+import { nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import type { AppCommand, CommandGroup } from "../../commands/types";
-import {
-  filterCommands,
-  groupRankedCommands,
-} from "../../commands/fuzzyFilter";
+import router from "../../router/index.ts";
+import type { AppCommand } from "../../commands/types.ts";
 import {
   closeCommandPanel,
   commandPanelOpen,
-} from "../../state/commandPanel";
+} from "../../state/commandPanel.ts";
+import { toastError, toastInfo } from "../../state/toast.ts";
+import { buildSearchSources } from "../../search/registry.ts";
+import { useSearchPalette } from "../../search/useSearchPalette.ts";
+import type {
+  SearchActivateNotice,
+  SearchItemType,
+  SearchSource,
+  SearchSourceId,
+  SearchResultItem,
+} from "../../search/types.ts";
 import FluentIcon from "../icons/FluentIcon.vue";
-import { commandGroupIcon } from "../icons/glyphs";
-
-const { t } = useI18n();
-
-const GROUP_LABEL: Record<CommandGroup, string> = {
-  Navigate: "commands.groups.navigate",
-  View: "commands.groups.view",
-  Actions: "commands.groups.actions",
-};
-
-function groupLabel(group: string): string {
-  const key = GROUP_LABEL[group as CommandGroup];
-  return key ? t(key) : group;
-}
+import {
+  commandGroupIcon,
+  type FluentGlyphId,
+} from "../icons/glyphs.ts";
 
 const props = defineProps<{
   commands: AppCommand[];
 }>();
 
-const query = ref("");
-const activeIndex = ref(0);
+const { t } = useI18n();
+
+const sources = buildSearchSources({
+  router,
+  commands: () => props.commands,
+});
+
+const {
+  query,
+  activeIndex,
+  scopeChips,
+  groups,
+  flat,
+  toggleScope,
+  toggleScopeAt,
+  reset,
+  rerun,
+} = useSearchPalette(() => sources);
+
 const inputEl = ref<HTMLInputElement | null>(null);
 const listEl = ref<HTMLElement | null>(null);
 
-const ranked = computed(() => filterCommands(props.commands, query.value));
-const sections = computed(() => groupRankedCommands(ranked.value));
-const flat = computed(() => ranked.value.map((r) => r.command));
+/** 行首图标缺省映射（文件源接入后按条目覆盖）。 */
+const ITEM_TYPE_ICON: Record<SearchItemType, FluentGlyphId> = {
+  command: "commands",
+  file: "document",
+  folder: "folder",
+  project: "board",
+  workgroup: "viewAll",
+  tool: "settings",
+  capability: "flash",
+  extension: "puzzle",
+};
+
+/** 分组图标缺省映射。 */
+const SOURCE_ICON: Record<SearchSourceId, FluentGlyphId> = {
+  commands: "commands",
+  files: "search",
+  projects: "board",
+  workgroups: "viewAll",
+  tools: "settings",
+  extensions: "puzzle",
+};
+
+function itemIcon(item: SearchResultItem): FluentGlyphId {
+  if (item.icon) return item.icon;
+  if (item.type === "command" && item.group) {
+    return commandGroupIcon(item.group);
+  }
+  return ITEM_TYPE_ICON[item.type] ?? "commands";
+}
+
+function itemSubtitle(item: SearchResultItem): string | null {
+  if (item.subtitleKey) return t(item.subtitleKey, item.subtitleParams ?? {});
+  return item.subtitle ?? null;
+}
+
+function itemTypeLabel(item: SearchResultItem): string {
+  return t(`searchPalette.types.${item.type}`);
+}
+
+function statusActionLabel(source: SearchSource): string | null {
+  if (!source.unavailableAction || !source.unavailableActionLabelKey) {
+    return null;
+  }
+  return t(source.unavailableActionLabelKey);
+}
 
 watch(commandPanelOpen, async (open) => {
   if (open) {
-    query.value = "";
-    activeIndex.value = 0;
+    reset();
     await nextTick();
     inputEl.value?.focus();
   }
 });
 
-watch(query, () => {
-  activeIndex.value = 0;
-});
-
-watch(flat, (list) => {
-  if (activeIndex.value >= list.length) {
-    activeIndex.value = Math.max(0, list.length - 1);
-  }
-});
+watch(
+  () => props.commands,
+  () => rerun(),
+);
 
 function onBackdropClick(event: MouseEvent) {
   if (event.target === event.currentTarget) {
@@ -65,14 +115,34 @@ function onBackdropClick(event: MouseEvent) {
   }
 }
 
-async function runCommand(command: AppCommand) {
+async function runItem(
+  item: SearchResultItem,
+  ctrl = false,
+): Promise<void> {
   closeCommandPanel();
-  await command.run();
+  const notice = await item.activate({ ctrl });
+  if (notice) {
+    showNotice(notice);
+  }
 }
 
-async function onEnter() {
-  const command = flat.value[activeIndex.value];
-  if (command) await runCommand(command);
+function showNotice(notice: SearchActivateNotice): void {
+  if (notice.kind === "error") {
+    toastError(t(notice.toastKey));
+  } else {
+    toastInfo(t(notice.toastKey));
+  }
+}
+
+async function onEnter(ctrl: boolean): Promise<void> {
+  const row = flat.value[activeIndex.value];
+  if (row) await runItem(row.item, ctrl);
+}
+
+async function runStatusAction(source: SearchSource): Promise<void> {
+  if (!source.unavailableAction) return;
+  closeCommandPanel();
+  await source.unavailableAction();
 }
 
 function moveActive(delta: number) {
@@ -81,13 +151,26 @@ function moveActive(delta: number) {
   activeIndex.value = (activeIndex.value + delta + len) % len;
   void nextTick(() => {
     const selected = listEl.value?.querySelector<HTMLElement>(
-      `[data-cmd-index="${activeIndex.value}"]`,
+      `[data-palette-index="${activeIndex.value}"]`,
     );
     selected?.scrollIntoView({ block: "nearest" });
   });
 }
 
 function onPanelKeydown(event: KeyboardEvent) {
+  // 面板打开时优先于全局 Alt+数字（工作组切换）。
+  if (
+    event.altKey &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    event.key >= "1" &&
+    event.key <= "9"
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    toggleScopeAt(Number(event.key));
+    return;
+  }
   if (event.key === "Escape") {
     event.preventDefault();
     event.stopPropagation();
@@ -106,12 +189,8 @@ function onPanelKeydown(event: KeyboardEvent) {
   }
   if (event.key === "Enter") {
     event.preventDefault();
-    void onEnter();
+    void onEnter(event.ctrlKey);
   }
-}
-
-function flatIndexFor(commandId: string): number {
-  return flat.value.findIndex((c) => c.id === commandId);
 }
 </script>
 
@@ -128,11 +207,11 @@ function flatIndexFor(commandId: string): number {
         class="cmd-panel"
         role="dialog"
         aria-modal="true"
-        :aria-label="t('commands.panelLabel')"
+        :aria-label="t('searchPalette.title')"
         @mousedown.stop
       >
         <label class="cmd-label" for="command-panel-input">{{
-          t("chrome.commands")
+          t("searchPalette.title")
         }}</label>
         <input
           id="command-panel-input"
@@ -142,57 +221,102 @@ function flatIndexFor(commandId: string): number {
           type="text"
           spellcheck="false"
           autocomplete="off"
-          :placeholder="t('commands.placeholder')"
+          :placeholder="t('searchPalette.placeholder')"
           aria-controls="command-panel-list"
         />
+        <div
+          v-if="scopeChips.length"
+          class="cmd-scopes"
+          role="group"
+          :aria-label="t('searchPalette.scopesLabel')"
+        >
+          <button
+            v-for="chip in scopeChips"
+            :key="chip.source.id"
+            type="button"
+            class="cmd-scope-chip"
+            :class="{ 'cmd-scope-chip--active': chip.active }"
+            :aria-pressed="chip.active"
+            @click="toggleScope(chip.source.id)"
+          >
+            {{ t(chip.source.labelKey) }}
+            <kbd class="cmd-scope-chip-key">Alt+{{ chip.index }}</kbd>
+          </button>
+        </div>
         <div
           id="command-panel-list"
           ref="listEl"
           class="cmd-list"
           role="listbox"
-          :aria-label="t('commands.results')"
+          :aria-label="t('searchPalette.results')"
         >
-          <template v-if="flat.length">
+          <template v-if="groups.length">
             <section
-              v-for="section in sections"
-              :key="section.group"
+              v-for="group in groups"
+              :key="group.source.id"
               class="cmd-section"
             >
               <h2 class="cmd-group">
                 <FluentIcon
-                  :name="commandGroupIcon(section.group)"
+                  :name="SOURCE_ICON[group.source.id] ?? 'commands'"
                   size="sm"
                   class="cmd-group-icon"
                 />
-                {{ groupLabel(section.group) }}
+                {{ t(group.source.labelKey) }}
               </h2>
               <button
-                v-for="item in section.items"
-                :key="item.command.id"
+                v-for="row in group.rows"
+                :key="row.item.key"
                 type="button"
                 role="option"
                 class="cmd-item fluent-list-row"
-                :class="{
-                  'cmd-item--active':
-                    flatIndexFor(item.command.id) === activeIndex,
-                }"
-                :data-cmd-index="flatIndexFor(item.command.id)"
-                :aria-selected="flatIndexFor(item.command.id) === activeIndex"
-                @mouseenter="activeIndex = flatIndexFor(item.command.id)"
-                @click="runCommand(item.command)"
+                :class="{ 'cmd-item--active': row.index === activeIndex }"
+                :data-palette-index="row.index"
+                :aria-selected="row.index === activeIndex"
+                @mouseenter="activeIndex = row.index"
+                @click="runItem(row.item)"
               >
                 <FluentIcon
-                  :name="commandGroupIcon(item.command.group)"
+                  :name="itemIcon(row.item)"
                   size="sm"
                   class="cmd-item-icon"
                 />
-                <span class="cmd-item-title">{{ item.command.title }}</span>
+                <span class="cmd-item-main">
+                  <span class="cmd-item-title">{{ row.item.title }}</span>
+                  <span
+                    v-if="itemSubtitle(row.item)"
+                    class="cmd-item-subtitle"
+                  >{{ itemSubtitle(row.item) }}</span>
+                </span>
+                <span class="cmd-item-type">{{
+                  itemTypeLabel(row.item)
+                }}</span>
               </button>
+              <p
+                v-if="group.state.status === 'loading' && !group.rows.length"
+                class="cmd-source-status"
+              >
+                {{ t("searchPalette.status.loading") }}
+              </p>
+              <p
+                v-else-if="group.state.status === 'unavailable'"
+                class="cmd-source-status"
+              >
+                {{ t(group.source.unavailableKey) }}
+                <button
+                  v-if="statusActionLabel(group.source)"
+                  type="button"
+                  class="cmd-status-action"
+                  @click="runStatusAction(group.source)"
+                >
+                  {{ statusActionLabel(group.source) }}
+                </button>
+              </p>
             </section>
           </template>
-          <p v-else class="cmd-empty">{{ t("commands.empty") }}</p>
+          <p v-else class="cmd-empty">{{ t("searchPalette.empty") }}</p>
         </div>
-        <p class="cmd-hint">{{ t("commands.hint") }}</p>
+        <p class="cmd-hint">{{ t("searchPalette.hint") }}</p>
       </div>
     </div>
   </Teleport>
@@ -212,7 +336,7 @@ function flatIndexFor(commandId: string): number {
 
 .cmd-panel {
   width: min(560px, calc(100vw - 32px));
-  max-height: min(420px, 70vh);
+  max-height: min(460px, 70vh);
   display: flex;
   flex-direction: column;
   border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
@@ -239,7 +363,7 @@ function flatIndexFor(commandId: string): number {
   height: var(--fluent-control-height-comfortable);
   min-height: var(--fluent-control-height-comfortable);
   margin: var(--fluent-space-md);
-  margin-bottom: var(--fluent-space-sm);
+  margin-bottom: var(--fluent-space-xs);
   padding-inline: var(--fluent-space-md);
   border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   border-radius: var(--fluent-radius-md);
@@ -251,6 +375,44 @@ function flatIndexFor(commandId: string): number {
 .cmd-input:focus {
   outline: 2px solid var(--fluent-color-stroke-focus);
   outline-offset: 1px;
+}
+
+.cmd-scopes {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fluent-space-xs);
+  padding: 0 var(--fluent-space-md);
+  margin-bottom: var(--fluent-space-sm);
+}
+
+.cmd-scope-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fluent-space-xs);
+  padding: 2px var(--fluent-space-sm);
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--fluent-color-text-secondary);
+  font-size: var(--fluent-font-size-caption);
+  cursor: pointer;
+}
+
+.cmd-scope-chip:hover {
+  background: var(--fluent-color-fill-control-hover);
+}
+
+.cmd-scope-chip--active {
+  border-color: var(--fluent-color-fill-accent);
+  color: var(--fluent-color-text-primary);
+  background: var(--fluent-color-fill-selected);
+}
+
+.cmd-scope-chip-key {
+  font: inherit;
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
 }
 
 .cmd-list {
@@ -311,8 +473,61 @@ function flatIndexFor(commandId: string): number {
   outline-offset: -1px;
 }
 
+.cmd-item-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
 .cmd-item-title {
   font-size: var(--fluent-font-size-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cmd-item-subtitle {
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cmd-item-type {
+  flex-shrink: 0;
+  align-self: center;
+  padding: 1px var(--fluent-space-xs);
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: 999px;
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+}
+
+.cmd-item--active .cmd-item-type {
+  border-color: var(--fluent-color-fill-accent);
+  color: var(--fluent-color-text-primary);
+}
+
+.cmd-source-status {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  margin: var(--fluent-space-xs) var(--fluent-space-sm);
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+}
+
+.cmd-status-action {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fluent-color-fill-accent);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
 }
 
 .cmd-empty {

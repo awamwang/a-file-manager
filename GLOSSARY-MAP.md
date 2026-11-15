@@ -4,6 +4,7 @@
 
 - [AI Add-on（Skills / MCP）](./GLOSSARY.md)：面向 Agent 的公共库与按项目分发；权威源是 AFM 中央仓库。
 - [Feature Pack / 工具管理运行时](./docs/glossary-feature-pack.md)：可后装产品附加包，以及 AFM 对本机工具网关的薄客户端面。
+- [Core 搜索面板（Search Palette）](./docs/glossary-search-palette.md)：Ctrl+Shift+P 的统一检索入口，按搜索源分组并组合范围。
 
 ## Relationships
 
@@ -13,3 +14,5 @@
 - **工具管理运行时 → 工具管理网关**：运行时是薄客户端；网关可附着已有进程或由 Pack 拉起 sidecar。
 - **Open tool ↔ 工具管理运行时**：长期并存；IDE 预设不迁入网关目录。
 - **ExtensionHost ↔ 工具管理运行时**：前者管 Pack 安装启停；后者是使用面（独立侧栏）。
+- **Core 搜索面板 → 工具管理运行时**：面板只列工具/能力并跳转预选；能力执行与破坏性确认留在工具运行时页面。
+- **Core 搜索面板 → Feature Pack**：Pack 可声明静态条目，统一进「扩展」搜索源；面板不调用 Pack 运行时查询。

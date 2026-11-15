@@ -16,9 +16,9 @@
     "pinTab": "Épingler l’onglet",
     "tabClose": "Fermer",
     "unpinTab": "Désépingler l’onglet",
-    "commands": "Commandes",
+    "commands": "Palette de recherche",
     "commandsShortcut": "Ctrl+Shift+P",
-    "commandsTitle": "Palette de commandes (Ctrl+Shift+P)",
+    "commandsTitle": "Palette de recherche (Ctrl+Shift+P)",
     "forward": "Avancer",
     "go": "Aller",
     "providerQueryApply": "Appliquer",
@@ -87,14 +87,12 @@
     "viewIconsSmall": "Petites icônes"
   },
   "commands": {
-    "empty": "Aucune commande correspondante",
     "goUp": "Remonter d’un dossier",
     "groups": {
       "actions": "Actions",
       "navigate": "Navigation",
       "view": "Affichage"
     },
-    "hint": "↑↓ pour déplacer · Entrée pour exécuter · Échap pour fermer · Ctrl+Shift+P",
     "openDiscovery": "Ouvrir la Recherche",
     "openExtensions": "Ouvrir les Extensions",
     "openHealth": "Ouvrir Paramètres · Santé",
@@ -104,11 +102,42 @@
     "openProviders": "Ouvrir les Fournisseurs",
     "openSettings": "Ouvrir les Paramètres",
     "openWorkGroups": "Ouvrir les Groupes de travail",
-    "panelLabel": "Palette de commandes",
-    "placeholder": "Saisir une commande…",
     "refreshHealth": "Actualiser l’état de santé",
-    "reloadWindow": "Recharger la fenêtre",
-    "results": "Résultats des commandes"
+    "reloadWindow": "Recharger la fenêtre"
+  },
+  "searchPalette": {
+    "title": "Palette de recherche",
+    "placeholder": "Rechercher commandes, projets, groupes de travail…",
+    "results": "Résultats de recherche",
+    "scopesLabel": "Périmètres de recherche",
+    "empty": "Aucun résultat",
+    "hint": "↑↓ déplacer · Entrée ouvrir · Alt+1–9 périmètre · Échap fermer",
+    "workGroupMembers": "aucun membre | 1 membre | {count} membres",
+    "scopes": {
+      "commands": "Commandes",
+      "files": "Fichiers",
+      "projects": "Projets",
+      "workgroups": "Groupes de travail",
+      "tools": "Outils",
+      "extensions": "Extensions"
+    },
+    "types": {
+      "command": "Commande",
+      "file": "Fichier",
+      "folder": "Dossier",
+      "project": "Projet",
+      "workgroup": "Groupe de travail",
+      "tool": "Outil",
+      "capability": "Capacité",
+      "extension": "Extension"
+    },
+    "status": {
+      "loading": "Recherche en cours…",
+      "commandsUnavailable": "Source Commandes indisponible",
+      "projectsUnavailable": "Source Projets indisponible",
+      "openProjects": "Ouvrir les Projets",
+      "workGroupsUnavailable": "Source Groupes de travail indisponible"
+    }
   },
   "ai": {
     "title": "IA",
@@ -997,7 +1026,7 @@
     "conflict": "Accords en conflit : {chords}",
     "blockedBy": "Bloqué par {id}",
     "items": {
-      "commandPanelToggle": "Basculer la palette de commandes",
+      "commandPanelToggle": "Basculer la palette de recherche",
       "discoveryGlobalSearch": "Ouvrir la recherche Discovery",
       "navigatorFolderSearch": "Rechercher dans le dossier actuel",
       "navigatorGoUp": "Remonter d’un dossier",

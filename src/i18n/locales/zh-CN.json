@@ -56,8 +56,8 @@
     "crumbSiblings": "同级文件夹",
     "crumbSiblingsLoading": "正在加载文件夹…",
     "crumbSiblingsEmpty": "此处没有文件夹",
-    "commands": "命令",
-    "commandsTitle": "命令面板 (Ctrl+Shift+P)",
+    "commands": "搜索面板",
+    "commandsTitle": "搜索面板 (Ctrl+Shift+P)",
     "commandsShortcut": "Ctrl+Shift+P",
     "reloadWindow": "重新加载窗口",
     "reloadWindowTitle": "重新加载窗口 — 刷新界面，保留数据",
@@ -148,12 +148,41 @@
     "openSettings": "打开设置",
     "openHealth": "打开设置 · 健康",
     "refreshHealth": "刷新健康状态",
-    "reloadWindow": "重新加载窗口",
-    "panelLabel": "命令面板",
-    "placeholder": "输入命令…",
-    "results": "命令结果",
-    "empty": "无匹配命令",
-    "hint": "↑↓ 移动 · Enter 执行 · Esc 关闭 · Ctrl+Shift+P"
+    "reloadWindow": "重新加载窗口"
+  },
+  "searchPalette": {
+    "title": "搜索面板",
+    "placeholder": "搜索命令、项目、工作组…",
+    "results": "搜索结果",
+    "scopesLabel": "搜索范围",
+    "empty": "无匹配结果",
+    "hint": "↑↓ 移动 · Enter 打开 · Alt+1–9 切换范围 · Esc 关闭",
+    "workGroupMembers": "{count} 个成员",
+    "scopes": {
+      "commands": "命令",
+      "files": "文件",
+      "projects": "项目",
+      "workgroups": "工作组",
+      "tools": "工具",
+      "extensions": "扩展"
+    },
+    "types": {
+      "command": "命令",
+      "file": "文件",
+      "folder": "文件夹",
+      "project": "项目",
+      "workgroup": "工作组",
+      "tool": "工具",
+      "capability": "能力",
+      "extension": "扩展"
+    },
+    "status": {
+      "loading": "正在搜索…",
+      "commandsUnavailable": "命令源暂不可用",
+      "projectsUnavailable": "项目源暂不可用",
+      "openProjects": "打开项目页",
+      "workGroupsUnavailable": "工作组源暂不可用"
+    }
   },
   "ai": {
     "title": "AI",
@@ -997,7 +1026,7 @@
     "conflict": "检测到冲突组合键：{chords}",
     "blockedBy": "被 {id} 占用",
     "items": {
-      "commandPanelToggle": "切换命令面板",
+      "commandPanelToggle": "切换搜索面板",
       "discoveryGlobalSearch": "打开 Discovery 搜索",
       "navigatorFolderSearch": "搜索当前文件夹",
       "navigatorGoUp": "返回上级文件夹",

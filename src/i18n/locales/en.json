@@ -56,8 +56,8 @@
     "crumbSiblings": "Sibling folders",
     "crumbSiblingsLoading": "Loading folders…",
     "crumbSiblingsEmpty": "No folders here",
-    "commands": "Commands",
-    "commandsTitle": "Command Panel (Ctrl+Shift+P)",
+    "commands": "Search Palette",
+    "commandsTitle": "Search Palette (Ctrl+Shift+P)",
     "commandsShortcut": "Ctrl+Shift+P",
     "reloadWindow": "Reload Window",
     "reloadWindowTitle": "Reload Window — refresh UI, keep data",
@@ -148,12 +148,41 @@
     "openSettings": "Open Settings",
     "openHealth": "Open Settings · Health",
     "refreshHealth": "Refresh health status",
-    "reloadWindow": "Reload Window",
-    "panelLabel": "Command Panel",
-    "placeholder": "Type a command…",
-    "results": "Command results",
-    "empty": "No matching commands",
-    "hint": "↑↓ to move · Enter to run · Esc to close · Ctrl+Shift+P"
+    "reloadWindow": "Reload Window"
+  },
+  "searchPalette": {
+    "title": "Search Palette",
+    "placeholder": "Search commands, projects, work groups…",
+    "results": "Search results",
+    "scopesLabel": "Search scopes",
+    "empty": "No matches",
+    "hint": "↑↓ move · Enter open · Alt+1–9 scope · Esc close",
+    "workGroupMembers": "no members | 1 member | {count} members",
+    "scopes": {
+      "commands": "Commands",
+      "files": "Files",
+      "projects": "Projects",
+      "workgroups": "Work Groups",
+      "tools": "Tools",
+      "extensions": "Extensions"
+    },
+    "types": {
+      "command": "Command",
+      "file": "File",
+      "folder": "Folder",
+      "project": "Project",
+      "workgroup": "Work Group",
+      "tool": "Tool",
+      "capability": "Capability",
+      "extension": "Extension"
+    },
+    "status": {
+      "loading": "Searching…",
+      "commandsUnavailable": "Commands unavailable",
+      "projectsUnavailable": "Projects unavailable",
+      "openProjects": "Open Projects",
+      "workGroupsUnavailable": "Work Groups unavailable"
+    }
   },
   "ai": {
     "title": "AI",
@@ -997,7 +1026,7 @@
     "conflict": "Conflicting chords detected: {chords}",
     "blockedBy": "Blocked by {id}",
     "items": {
-      "commandPanelToggle": "Toggle Command Panel",
+      "commandPanelToggle": "Toggle Search Palette",
       "discoveryGlobalSearch": "Open Discovery search",
       "navigatorFolderSearch": "Search current folder",
       "navigatorGoUp": "Go up one folder",

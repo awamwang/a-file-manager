@@ -16,9 +16,9 @@
     "pinTab": "タブをピン留め",
     "tabClose": "閉じる",
     "unpinTab": "ピン留めを解除",
-    "commands": "コマンド",
+    "commands": "検索パレット",
     "commandsShortcut": "Ctrl+Shift+P",
-    "commandsTitle": "コマンドパネル (Ctrl+Shift+P)",
+    "commandsTitle": "検索パレット (Ctrl+Shift+P)",
     "forward": "進む",
     "go": "移動",
     "providerQueryApply": "適用",
@@ -87,14 +87,12 @@
     "viewIconsSmall": "小アイコン"
   },
   "commands": {
-    "empty": "一致するコマンドはありません",
     "goUp": "一つ上のフォルダーへ",
     "groups": {
       "actions": "操作",
       "navigate": "移動",
       "view": "表示"
     },
-    "hint": "↑↓ で移動 · Enter で実行 · Esc で閉じる · Ctrl+Shift+P",
     "openDiscovery": "検索を開く",
     "openExtensions": "拡張機能を開く",
     "openHealth": "設定 · ヘルスを開く",
@@ -104,11 +102,42 @@
     "openProviders": "プロバイダーを開く",
     "openSettings": "設定を開く",
     "openWorkGroups": "ワークグループを開く",
-    "panelLabel": "コマンドパネル",
-    "placeholder": "コマンドを入力…",
     "refreshHealth": "ヘルス状態を更新",
-    "reloadWindow": "ウィンドウの再読み込み",
-    "results": "コマンド結果"
+    "reloadWindow": "ウィンドウの再読み込み"
+  },
+  "searchPalette": {
+    "title": "検索パレット",
+    "placeholder": "コマンド・プロジェクト・ワークグループを検索…",
+    "results": "検索結果",
+    "scopesLabel": "検索スコープ",
+    "empty": "一致なし",
+    "hint": "↑↓ 移動 · Enter 開く · Alt+1–9 スコープ · Esc 閉じる",
+    "workGroupMembers": "メンバーなし | 1 メンバー | {count} メンバー",
+    "scopes": {
+      "commands": "コマンド",
+      "files": "ファイル",
+      "projects": "プロジェクト",
+      "workgroups": "ワークグループ",
+      "tools": "ツール",
+      "extensions": "拡張機能"
+    },
+    "types": {
+      "command": "コマンド",
+      "file": "ファイル",
+      "folder": "フォルダー",
+      "project": "プロジェクト",
+      "workgroup": "ワークグループ",
+      "tool": "ツール",
+      "capability": "機能",
+      "extension": "拡張機能"
+    },
+    "status": {
+      "loading": "検索中…",
+      "commandsUnavailable": "コマンドソースは利用できません",
+      "projectsUnavailable": "プロジェクトソースは利用できません",
+      "openProjects": "プロジェクトを開く",
+      "workGroupsUnavailable": "ワークグループソースは利用できません"
+    }
   },
   "ai": {
     "title": "AI",
@@ -997,7 +1026,7 @@
     "conflict": "競合するキー組み合わせ: {chords}",
     "blockedBy": "{id} にブロックされています",
     "items": {
-      "commandPanelToggle": "コマンドパネルの切り替え",
+      "commandPanelToggle": "検索パレットの切り替え",
       "discoveryGlobalSearch": "Discovery 検索を開く",
       "navigatorFolderSearch": "現在のフォルダーを検索",
       "navigatorGoUp": "一つ上のフォルダーへ",

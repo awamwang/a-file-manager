@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+/** 搜索源注册表：Phase 1 = 命令 / 项目 / 工作组（文件、工具、扩展后续接入）。 */
+
+import type { Router } from "vue-router";
+import type { AppCommand } from "../commands/types.ts";
+import { createCommandsSource } from "./sources/commands.ts";
+import { createProjectsSource } from "./sources/projects.ts";
+import { createWorkgroupsSource } from "./sources/workgroups.ts";
+import type { SearchSource } from "./types.ts";
+
+export type SearchPaletteDeps = {
+  router: Router;
+  /** 当前命令列表（locale / Pack 变化时由壳层重算后经 getter 取新值）。 */
+  commands: () => readonly AppCommand[];
+};
+
+export function buildSearchSources(deps: SearchPaletteDeps): SearchSource[] {
+  return [
+    createCommandsSource(deps.commands),
+    createProjectsSource(deps.router),
+    createWorkgroupsSource(),
+  ];
+}

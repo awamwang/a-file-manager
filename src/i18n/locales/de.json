@@ -16,9 +16,9 @@
     "pinTab": "Registerkarte anheften",
     "tabClose": "Schließen",
     "unpinTab": "Anheften aufheben",
-    "commands": "Befehle",
+    "commands": "Suchpalette",
     "commandsShortcut": "Ctrl+Shift+P",
-    "commandsTitle": "Befehlspalette (Ctrl+Shift+P)",
+    "commandsTitle": "Suchpalette (Ctrl+Shift+P)",
     "forward": "Vorwärts",
     "go": "Los",
     "providerQueryApply": "Anwenden",
@@ -87,14 +87,12 @@
     "viewIconsSmall": "Kleine Symbole"
   },
   "commands": {
-    "empty": "Keine passenden Befehle",
     "goUp": "Einen Ordner nach oben",
     "groups": {
       "actions": "Aktionen",
       "navigate": "Navigation",
       "view": "Ansicht"
     },
-    "hint": "↑↓ zum Bewegen · Enter zum Ausführen · Esc zum Schließen · Ctrl+Shift+P",
     "openDiscovery": "Suche öffnen",
     "openExtensions": "Erweiterungen öffnen",
     "openHealth": "Einstellungen · Health öffnen",
@@ -104,11 +102,42 @@
     "openProviders": "Anbieter öffnen",
     "openSettings": "Einstellungen öffnen",
     "openWorkGroups": "Arbeitsgruppen öffnen",
-    "panelLabel": "Befehlspalette",
-    "placeholder": "Befehl eingeben…",
     "refreshHealth": "Health-Status aktualisieren",
-    "reloadWindow": "Fenster neu laden",
-    "results": "Befehlsergebnisse"
+    "reloadWindow": "Fenster neu laden"
+  },
+  "searchPalette": {
+    "title": "Suchpalette",
+    "placeholder": "Befehle, Projekte, Arbeitsgruppen durchsuchen…",
+    "results": "Suchergebnisse",
+    "scopesLabel": "Suchbereiche",
+    "empty": "Keine Treffer",
+    "hint": "↑↓ bewegen · Enter öffnen · Alt+1–9 Bereich · Esc schließen",
+    "workGroupMembers": "keine Mitglieder | 1 Mitglied | {count} Mitglieder",
+    "scopes": {
+      "commands": "Befehle",
+      "files": "Dateien",
+      "projects": "Projekte",
+      "workgroups": "Arbeitsgruppen",
+      "tools": "Werkzeuge",
+      "extensions": "Erweiterungen"
+    },
+    "types": {
+      "command": "Befehl",
+      "file": "Datei",
+      "folder": "Ordner",
+      "project": "Projekt",
+      "workgroup": "Arbeitsgruppe",
+      "tool": "Werkzeug",
+      "capability": "Fähigkeit",
+      "extension": "Erweiterung"
+    },
+    "status": {
+      "loading": "Suche läuft…",
+      "commandsUnavailable": "Befehlsquelle nicht verfügbar",
+      "projectsUnavailable": "Projektquelle nicht verfügbar",
+      "openProjects": "Projekte öffnen",
+      "workGroupsUnavailable": "Arbeitsgruppenquelle nicht verfügbar"
+    }
   },
   "ai": {
     "title": "AI",
@@ -997,7 +1026,7 @@
     "conflict": "Konfliktierende Akkorde: {chords}",
     "blockedBy": "Blockiert durch {id}",
     "items": {
-      "commandPanelToggle": "Befehlspalette umschalten",
+      "commandPanelToggle": "Suchpalette umschalten",
       "discoveryGlobalSearch": "Discovery-Suche öffnen",
       "navigatorFolderSearch": "Aktuellen Ordner durchsuchen",
       "navigatorGoUp": "Eine Ebene nach oben",
