@@ -2,33 +2,16 @@
 /**
  * 路径键局部性：Windows 原生 `\` 写入/比较；URI 方案（afm://…）不改分隔符。
  * Open State / browse / folder tree 等共用此模块，避免多处浅层 normalize。
+ *
+ * 7.16: 真实路径规范化的**唯一实现**在 `./fsPath.ts`；这里保留公共 API
+ * 作为薄包装，让既有调用方与静态契约（`check-path-key.mjs`）不受影响。
  */
+
+import { toNativeFsPath as normalizeFsPath } from "./fsPath.ts";
 
 /** 规范为 OS 原生路径（Windows=`\`）；虚拟 URI 保持方案分隔符。 */
 export function toNativeFsPath(path: string): string {
-  const trimmed = path.trim();
-  if (!trimmed) return "";
-  // POSIX absolute paths (macOS / Linux): keep "/" and the leading root.
-  // Windows never produces a path starting with a single "/", so this branch
-  // is inert there — but on macOS the old unconditional `/`→`\` rewrite turned
-  // "/Users/wangmeng" into "\Users\wangmeng", which the backend cannot open.
-  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) {
-    return trimmed.replace(/\/+$/, "") || "/";
-  }
-  if (
-    /^[a-zA-Z]:[\\/]/.test(trimmed) ||
-    trimmed.startsWith("\\\\") ||
-    trimmed.startsWith("//")
-  ) {
-    let native = trimmed.replace(/\//g, "\\");
-    if (/^[a-zA-Z]:\\$/i.test(native)) return native;
-    return native.replace(/\\+$/, "");
-  }
-  // 含 `://` 的方案（afm://guide、http://…）不改分隔符
-  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
-    return trimmed.replace(/\/+$/, "");
-  }
-  return trimmed.replace(/\//g, "\\").replace(/\\+$/, "");
+  return normalizeFsPath(path);
 }
 
 /**

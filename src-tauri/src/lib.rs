@@ -132,21 +132,19 @@ pub fn run() {
             #[cfg(windows)]
             drag_focus::install_for_main_window(app.handle());
 
-            // macOS: the Windows-only Fluent overlay titlebar (`tauri-plugin-frame`) is a
-            // no-op here, so a `decorations:false` window would be borderless with no title
-            // bar — undraggable and with no traffic lights. Restore the native macOS title
-            // bar so the window is usable. Windows is unaffected (decorations:false + Fluent bar).
-            #[cfg(target_os = "macos")]
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.set_decorations(true);
-                // 7.9 / 7.14 (option C): avoid a second native title bar row. Overlay makes
-                // the titlebar transparent with a full-size content view, so the traffic
-                // lights float over the self-drawn Fluent caption instead. The frontend
-                // reserves 78px on the left and hides the duplicate Win11 caption buttons.
-                // Using the runtime API keeps `decorations:false` in tauri.conf.json (hard
-                // assertion in check-window-controls.mjs) and leaves Windows untouched.
-                let _ = window.set_title_bar_style(tauri::TitleBarStyle::Overlay);
-                let _ = window.set_title("");
+            // 7.16: window chrome is reported by the platform adapter instead of
+            // a scattered `#[cfg(target_os = "macos")]` branch. Windows returns
+            // `FluentSelfDrawn` and leaves `decorations:false` + the Fluent caption
+            // alone; macOS requests native decorations + a transparent Overlay
+            // titlebar so traffic lights float over the self-drawn caption (7.14
+            // option C). `decorations:false` in tauri.conf.json stays untouched
+            // (hard assertion in check-window-controls.mjs).
+            if crate::platform::window_chrome() == crate::platform::WindowChrome::MacOverlay {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.set_decorations(true);
+                    let _ = window.set_title_bar_style(tauri::TitleBarStyle::Overlay);
+                    let _ = window.set_title("");
+                }
             }
 
             // Only the primary instance owns the tray icon.

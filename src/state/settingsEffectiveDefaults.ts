@@ -5,6 +5,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { appConfigDir, join } from "@tauri-apps/api/path";
+import { toNativeFsPath } from "./fsPath.ts";
 
 /** 存空时回退到运行时/语言默认的字符串设置键。 */
 export const SETTINGS_EMPTY_MEANS_DEFAULT_KEYS = [
@@ -28,18 +29,6 @@ export type SettingsEffectiveDefaults = Partial<
 >;
 
 /**
- * Keep the host-native separator. `join()` already returns one, so a POSIX
- * absolute path must never be rewritten to `\` — on macOS that produced
- * unopenable defaults like `\Users\...\projects` (7.14). Windows paths keep
- * the historical normalization.
- */
-function toNativeDisplayPath(path: string): string {
-  const trimmed = path.trim();
-  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) return trimmed;
-  return trimmed.replace(/\//g, "\\");
-}
-
-/**
  * 解析空值时的真实生效默认（USERPROFILE、项目根、当前语言新建名等）。
  * 与当前已保存的覆盖值无关，始终返回「空=默认」时的生效值。
  */
@@ -61,7 +50,10 @@ export async function loadSettingsEffectiveDefaults(opts: {
 
   try {
     const configDir = await appConfigDir();
-    const projectsRoot = toNativeDisplayPath(await join(configDir, "projects"));
+    // 7.14: `join()` already returns a host-native path — rewriting `/` to `\`
+    // produced unopenable defaults like `\Users\...\projects` on macOS.
+    // 7.16: shape decision delegated to the shared fsPath layer.
+    const projectsRoot = toNativeFsPath(await join(configDir, "projects"));
     if (projectsRoot.trim()) out["core.projectsRoot"] = projectsRoot;
   } catch {
     // ignore

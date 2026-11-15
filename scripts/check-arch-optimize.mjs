@@ -30,7 +30,10 @@ const pathKey = read("src/state/pathKey.ts");
 assert.match(model, /export \{ toNativeFsPath, normalizePathKey \} from "\.\.\/pathKey\.ts"/);
 assert.match(pathKey, /export function toNativeFsPath/);
 assert.match(pathKey, /export function normalizePathKey/);
-assert.match(pathKey, /replace\(\/\\\/\/g,\s*"\\\\"\)/);
+// 7.16: the normalization itself moved to the single fsPath entry point;
+// pathKey keeps only the public API as a thin wrapper.
+assert.match(pathKey, /from "\.\/fsPath\.ts"/);
+assert.match(read("src/state/fsPath.ts"), /replace\(\/\\\/\/g,\s*"\\\\"\)/);
 
 const wg = read("src/views/WorkGroupsView.vue");
 assert.ok(wg.includes("displayNameFromPath"));

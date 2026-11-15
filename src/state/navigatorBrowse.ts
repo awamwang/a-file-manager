@@ -56,6 +56,7 @@ import {
 } from "./tabPins.ts";
 import { clearSelection } from "./navigatorSelection.ts";
 import { normalizePathKey, toNativeFsPath } from "./pathKey.ts";
+import { joinFsPath } from "./fsPath.ts";
 import { perfSpan } from "./perfProbe.ts";
 import {
   getCachedListing,
@@ -112,16 +113,10 @@ export function joinListingChildPath(parent: string, name: string): string {
     const uri = toProviderUri(native);
     return `${uri.replace(/\/+$/, "")}/${name}`;
   }
-  // POSIX paths must be joined with "/" — a hardcoded "\" produces unopenable
+  // 7.16: separator selection lives in fsPath.ts, shared with breadcrumbs /
+  // open-state / settings defaults. A hardcoded "\" here produced unopenable
   // entry paths on macOS ("Path does not exist: Users\\wangmeng\\...").
-  if (native.startsWith("/") && !native.startsWith("//")) {
-    const root = native.replace(/\/+$/, "");
-    return `${root}/${name}`;
-  }
-  if (/^[a-zA-Z]:\\?$/i.test(native)) {
-    return `${native.slice(0, 2)}\\${name}`;
-  }
-  return `${native.replace(/\\+$/, "")}\\${name}`;
+  return joinFsPath(native, name);
 }
 
 /** Fill omitted entry paths after `navigator_list` / search-shaped listings. */

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Thin platform abstraction layer (macOS port, step 1).
+//! Thin platform abstraction layer (macOS port). 7.16 brought volumes, disk
+//! space, hidden-file semantics and window chrome back under this roof.
 //!
 //! Cross-platform browsers keep OS-specific code out of business logic: they
 //! define a platform-neutral contract, select one thin adapter at build time,
@@ -11,6 +12,10 @@
 //! - Never hardcode `\`, drive letters, `USERPROFILE`, or `%VAR%` outside this
 //!   module. Use `to_native_fs_path` / `normalize_for_comparison` / `home_dir`.
 //! - Query `platform_capabilities()` before showing a Windows-only feature.
+//! - OS-specific behaviour (volume enumeration, free space, hidden files,
+//!   window chrome) belongs in `windows.rs` / `macos.rs`; business modules
+//!   call the free functions here instead of opening new `#[cfg]` branches.
+//! - On the frontend, real filesystem paths go through `src/state/fsPath.ts`.
 //! - OS-specific imports must be `#[cfg]`-gated *and* target-gated in
 //!   `Cargo.toml`, or macOS builds fail with unresolved imports.
 
@@ -23,6 +28,52 @@ mod windows;
 // Unix-like fallback. macOS is the first non-Windows target; Linux reuses it.
 #[cfg(not(windows))]
 mod macos;
+
+/// Neutral, OS-independent description of a mounted volume. The frontend
+/// contract (`navigator::places::DriveInfo`) is built from this in the
+/// navigator layer, so no drive letters / Win32 types leak through here.
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum VolumeKind {
+    Fixed,
+    Removable,
+    Remote,
+    Cdrom,
+    Ramdisk,
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Volume {
+    /// Native root / mount point, e.g. `C:\`, `/`, `/Volumes/USB`.
+    pub path: String,
+    /// Short identifier for the sidebar: drive letter or mount basename.
+    pub letter: String,
+    pub label: String,
+    pub kind: VolumeKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VolumeSpace {
+    /// Root of the volume that actually contains the requested path.
+    pub path: String,
+    pub free_bytes: u64,
+    pub total_bytes: u64,
+}
+
+/// How the main window chrome is composed. The window setup code reads this
+/// instead of hardcoding `#[cfg(target_os = "macos")]` branches (7.16).
+// Some variants are only constructed by the adapter for another target.
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WindowChrome {
+    /// Windows: `decorations:false` + the self-drawn Fluent caption bar.
+    FluentSelfDrawn,
+    /// macOS: native decorations with a transparent Overlay titlebar, so the
+    /// traffic lights float over the Fluent caption instead of a second row.
+    MacOverlay,
+}
 
 /// Describes which desktop capabilities this build can actually deliver.
 /// The frontend should hide/disable unsupported entries instead of invoking
@@ -49,9 +100,18 @@ pub struct PlatformCapabilities {
     pub global_search: bool,
     pub quick_look_preview: bool,
     pub ole_drag_out: bool,
+    /// AppKit / native drag-out transport. Off on macOS since 7.13: the
+    /// `tauri-plugin-drag` command aborts the process there.
     pub native_drag_out: bool,
+    /// WebView-native HTML5 file drag-out (`text/uri-list`), the macOS
+    /// transport used after 7.13. Combine with `ole_drag_out` to decide
+    /// whether cross-application drag-out is available at all.
+    pub webview_drag_out: bool,
     pub hidden_file_attributes: bool,
     pub drive_letters: bool,
+    /// Mounted volumes are enumerable (drive letters on Windows, mount
+    /// points on macOS). Independent of `drive_letters` (7.16).
+    pub volume_list: bool,
     pub system_tray: bool,
     pub webview2_required: bool,
 }
@@ -79,8 +139,10 @@ impl PlatformCapabilities {
             quick_look_preview: false,
             ole_drag_out: false,
             native_drag_out: false,
+            webview_drag_out: false,
             hidden_file_attributes: false,
             drive_letters: false,
+            volume_list: false,
             system_tray: false,
             webview2_required: false,
         }
@@ -97,6 +159,14 @@ pub trait Platform: Send + Sync {
     fn to_native_fs_path(&self, path: &str) -> String;
     fn normalize_for_comparison(&self, path: &str) -> String;
     fn capabilities(&self) -> PlatformCapabilities;
+    /// Mounted volumes for the Navigator's "This PC" sidebar.
+    fn volumes(&self) -> Result<Vec<Volume>, String>;
+    /// Free / total space of the volume containing `path`.
+    fn volume_space(&self, path: &str) -> Result<VolumeSpace, String>;
+    /// Hidden-file semantics (Win32 attribute vs POSIX dot-files).
+    fn is_hidden(&self, name: &str, metadata: &std::fs::Metadata) -> bool;
+    /// Window chrome composition for the main window.
+    fn window_chrome(&self) -> WindowChrome;
 }
 
 static CURRENT: Lazy<Box<dyn Platform>> = Lazy::new(|| {
@@ -126,6 +196,26 @@ pub fn normalize_for_comparison(path: &str) -> String {
 
 pub fn home_dir() -> Option<PathBuf> {
     current().home_dir()
+}
+
+/// Single entry point for volume enumeration (both OS adapters).
+pub fn volumes() -> Result<Vec<Volume>, String> {
+    current().volumes()
+}
+
+/// Single entry point for free-space queries (both OS adapters).
+pub fn volume_space(path: &str) -> Result<VolumeSpace, String> {
+    current().volume_space(path)
+}
+
+/// Single entry point for hidden-file semantics (both OS adapters).
+pub fn is_hidden(name: &str, metadata: &std::fs::Metadata) -> bool {
+    current().is_hidden(name, metadata)
+}
+
+/// Single entry point for main-window chrome composition.
+pub fn window_chrome() -> WindowChrome {
+    current().window_chrome()
 }
 
 /// True for `afm://guide`, `http://…`, etc. — these are not filesystem paths

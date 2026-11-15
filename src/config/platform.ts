@@ -34,9 +34,14 @@ export type PlatformCapabilities = {
   globalSearch: boolean;
   quickLookPreview: boolean;
   oleDragOut: boolean;
+  /** AppKit / OS-native drag-out. Off on macOS (7.13 command abort). */
   nativeDragOut: boolean;
+  /** WebView-native HTML5 file drag-out (`text/uri-list`). */
+  webviewDragOut: boolean;
   hiddenFileAttributes: boolean;
   driveLetters: boolean;
+  /** Mounted volumes enumerable, independent of drive-letter shape (7.16). */
+  volumeList: boolean;
   systemTray: boolean;
   webview2Required: boolean;
 };
@@ -68,8 +73,10 @@ export const NEUTRAL_PLATFORM: PlatformCapabilities = {
   quickLookPreview: false,
   oleDragOut: false,
   nativeDragOut: false,
+  webviewDragOut: false,
   hiddenFileAttributes: false,
   driveLetters: false,
+  volumeList: false,
   systemTray: false,
   webview2Required: false,
 };

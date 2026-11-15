@@ -4,21 +4,10 @@
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 
-/// Logical drive kind from `GetDriveTypeW` (guide / This PC visuals).
-// Variants are constructed only on Windows (`list_drives`); the enum itself is a
-// cross-platform contract type consumed by the frontend, so it must stay present
-// on every target even when no variant is ever built there.
-#[allow(dead_code)]
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub enum DriveKind {
-    Fixed,
-    Removable,
-    Remote,
-    Cdrom,
-    Ramdisk,
-    Unknown,
-}
+/// Logical drive kind (guide / This PC visuals). 7.16: the neutral enum now
+/// lives in the platform layer; `DriveKind` stays as an alias so the frontend
+/// wire contract and existing `DriveKind::Fixed` call sites are unchanged.
+pub use crate::platform::VolumeKind as DriveKind;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -215,135 +204,21 @@ fn list_network_places() -> Vec<NetworkPlace> {
     }
 }
 
-#[cfg(windows)]
-fn drive_kind_for_root(path: &str) -> DriveKind {
-    use std::os::windows::ffi::OsStrExt;
-    use windows::core::PCWSTR;
-    use windows::Win32::Storage::FileSystem::GetDriveTypeW;
-
-    // Win32 DRIVE_* constants (avoid extra Cargo feature for WindowsProgramming).
-    const DRIVE_REMOVABLE: u32 = 2;
-    const DRIVE_FIXED: u32 = 3;
-    const DRIVE_REMOTE: u32 = 4;
-    const DRIVE_CDROM: u32 = 5;
-    const DRIVE_RAMDISK: u32 = 6;
-
-    let wide: Vec<u16> = std::ffi::OsStr::new(path)
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect();
-    match unsafe { GetDriveTypeW(PCWSTR(wide.as_ptr())) } {
-        DRIVE_REMOVABLE => DriveKind::Removable,
-        DRIVE_FIXED => DriveKind::Fixed,
-        DRIVE_REMOTE => DriveKind::Remote,
-        DRIVE_CDROM => DriveKind::Cdrom,
-        DRIVE_RAMDISK => DriveKind::Ramdisk,
-        _ => DriveKind::Unknown,
-    }
-}
-
-#[cfg(windows)]
-fn volume_label_for_root(path: &str) -> String {
-    use std::os::windows::ffi::OsStrExt;
-    use windows::core::PCWSTR;
-    use windows::Win32::Storage::FileSystem::GetVolumeInformationW;
-
-    let wide: Vec<u16> = std::ffi::OsStr::new(path)
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect();
-    let mut name = [0u16; 64];
-    let ok = unsafe {
-        GetVolumeInformationW(
-            PCWSTR(wide.as_ptr()),
-            Some(&mut name),
-            None,
-            None,
-            None,
-            None,
-        )
-    };
-    if ok.is_err() {
-        return String::new();
-    }
-    let end = name.iter().position(|&c| c == 0).unwrap_or(name.len());
-    String::from_utf16_lossy(&name[..end]).trim().to_string()
-}
-
-/// Enumerate mounted drive roots (`A:\` … `Z:\`).
+/// Enumerate mounted volumes. 7.16: the OS-specific enumeration (Win32
+/// `GetLogicalDrives` bitmap / `sysinfo::Disks` mount points) now lives in the
+/// platform adapters; this layer only maps the neutral `Volume` contract onto
+/// the frontend `DriveInfo` wire type.
 ///
-/// FIL-54: 用 `GetLogicalDrives` 位图，避免对离线映射盘 / 空光驱反复 `is_dir` /
-/// `GetVolumeInformation` 把引导页与侧栏拖死；远程卷跳过卷标探测。
 pub fn list_drives() -> Result<Vec<DriveInfo>, String> {
-    #[cfg(windows)]
-    {
-        use windows::Win32::Storage::FileSystem::GetLogicalDrives;
-
-        let mask = unsafe { GetLogicalDrives() };
-        let mut drives = Vec::new();
-        for i in 0..26u32 {
-            if mask & (1 << i) == 0 {
-                continue;
-            }
-            let letter = ((b'A' + i as u8) as char).to_string();
-            let path = format!("{letter}:\\");
-            let kind = drive_kind_for_root(&path);
-            // 固定/可移动仍确认目录存在；远程/光驱/RAM 仅信驱动器类型，避免离线挂起。
-            let present = match kind {
-                DriveKind::Remote | DriveKind::Cdrom | DriveKind::Ramdisk => true,
-                _ => Path::new(&path).is_dir(),
-            };
-            if !present {
-                continue;
-            }
-            let label = match kind {
-                DriveKind::Fixed | DriveKind::Removable => volume_label_for_root(&path),
-                _ => String::new(),
-            };
-            drives.push(DriveInfo {
-                letter: letter.clone(),
-                path,
-                label,
-                kind,
-            });
-        }
-        return Ok(drives);
-    }
-
-    #[cfg(not(windows))]
-    {
-        // 6.5 / P1: `sysinfo::Disks` replaces the Windows `A:\`…`Z:\` bitmap.
-        // Drive letters are a Windows concept, so expose real mount points:
-        // the root volume plus user-mounted `/Volumes/*`. APFS also exposes a
-        // handful of `/System/Volumes/*` helper volumes that are invisible in
-        // Finder, so filter them out instead of flooding the sidebar.
-        use sysinfo::Disks;
-
-        let disks = Disks::new_with_refreshed_list()
-            .map_err(|err| format!("Failed to enumerate mounted volumes: {err}"))?;
-        let mut drives = Vec::new();
-        for disk in disks.iter() {
-            let mount = disk.mount_point();
-            let path = crate::paths::display_path(mount);
-            if path != "/" && !path.starts_with("/Volumes/") {
-                continue;
-            }
-            if !mount.is_dir() || drives.iter().any(|d: &DriveInfo| d.path == path) {
-                continue;
-            }
-            drives.push(DriveInfo {
-                letter: mount
-                    .file_name()
-                    .map(|n| n.to_string_lossy().to_string())
-                    .filter(|s| !s.is_empty())
-                    .unwrap_or_else(|| path.clone()),
-                path,
-                label: disk.name().to_string_lossy().to_string(),
-                kind: DriveKind::Fixed,
-            });
-        }
-        Ok(drives)
-    }
+    Ok(crate::platform::volumes()?
+        .into_iter()
+        .map(|volume| DriveInfo {
+            letter: volume.letter,
+            path: volume.path,
+            label: volume.label,
+            kind: volume.kind,
+        })
+        .collect())
 }
 
 #[cfg(test)]

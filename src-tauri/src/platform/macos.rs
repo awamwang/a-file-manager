@@ -5,7 +5,10 @@
 //! Windows-only integrations (Shell verb, Everything, Peek, HKCU Run) stay
 //! `false` so the UI can hide them until a native implementation lands.
 
-use super::{has_uri_scheme, Platform, PlatformCapabilities};
+use super::{
+    has_uri_scheme, Platform, PlatformCapabilities, Volume, VolumeKind, VolumeSpace, WindowChrome,
+};
+use std::fs::Metadata;
 use std::path::PathBuf;
 
 pub struct MacosPlatform;
@@ -83,10 +86,102 @@ impl Platform for MacosPlatform {
         // macOS is explicitly excluded by the crate, so keep this off and let
         // the UI offer `open_recycle_bin_system()` (`~/.Trash`) instead.
         caps.trash_list_restore = false;
-        caps.native_drag_out = true; // patches/drag AppKit implementation
         caps.system_tray = true; // Tauri TrayIconBuilder → NSStatusItem
-                                 // Deliberately false until implemented: see docs/macos-port-research.md.
+        // 7.13: the AppKit drag-out command in `tauri-plugin-drag` aborts the
+        // process on macOS, so `native_drag_out` stays false. The working
+        // transport is the WebView-native HTML5 `text/uri-list` drag-out
+        // (src/state/dnd/dragOut.ts + NavigatorView.vue).
+        caps.webview_drag_out = true;
+        // 7.16: volumes() lists `/` and `/Volumes/*`; there are no drive letters.
+        caps.volume_list = true;
+        // Deliberately false until implemented: see docs/macos-port-research.md.
         caps
+    }
+
+    /// Moved from `navigator::places::list_drives` (7.16). `sysinfo::Disks`
+    /// exposes real mount points: the root volume plus user `/Volumes/*`.
+    /// APFS helper volumes under `/System/Volumes/*` are invisible in Finder,
+    /// so they are excluded to avoid flooding the sidebar.
+    fn volumes(&self) -> Result<Vec<Volume>, String> {
+        use sysinfo::Disks;
+
+        let disks = Disks::new_with_refreshed_list()
+            .map_err(|err| format!("Failed to enumerate mounted volumes: {err}"))?;
+        let mut volumes = Vec::new();
+        for disk in disks.iter() {
+            let mount = disk.mount_point();
+            let path = crate::paths::display_path(mount);
+            if path != "/" && !path.starts_with("/Volumes/") {
+                continue;
+            }
+            if !mount.is_dir() || volumes.iter().any(|v: &Volume| v.path == path) {
+                continue;
+            }
+            volumes.push(Volume {
+                letter: mount
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or_else(|| path.clone()),
+                path,
+                label: disk.name().to_string_lossy().to_string(),
+                kind: VolumeKind::Fixed,
+            });
+        }
+        Ok(volumes)
+    }
+
+    /// Moved from `navigator::disk_space` (7.16): pick the longest mount point
+    /// containing `path` (e.g. `/Volumes/USB` wins over `/`).
+    fn volume_space(&self, path: &str) -> Result<VolumeSpace, String> {
+        use sysinfo::Disks;
+
+        let target = path.trim();
+        if target.is_empty() {
+            return Err("Path must not be empty".to_string());
+        }
+        let disks = Disks::new_with_refreshed_list()
+            .map_err(|err| format!("Failed to enumerate mounted volumes: {err}"))?;
+        let target_path = std::path::Path::new(target);
+        let mut best: Option<(String, u64, u64, usize)> = None;
+        for disk in disks.iter() {
+            let mount = disk.mount_point();
+            if !target_path.starts_with(mount) {
+                continue;
+            }
+            let len = mount.as_os_str().len();
+            if best.as_ref().map_or(true, |b| len > b.3) {
+                best = Some((
+                    crate::paths::display_path(mount),
+                    disk.available_space(),
+                    disk.total_space(),
+                    len,
+                ));
+            }
+        }
+        let (root, free_bytes, total_bytes, _) =
+            best.ok_or_else(|| "Path has no volume root".to_string())?;
+        Ok(VolumeSpace {
+            path: root,
+            free_bytes,
+            total_bytes,
+        })
+    }
+
+    fn is_hidden(&self, name: &str, _metadata: &Metadata) -> bool {
+        // POSIX has no hidden attribute: dot-files are the convention.
+        name.starts_with('.') && name != "." && name != ".."
+    }
+
+    fn window_chrome(&self) -> WindowChrome {
+        #[cfg(target_os = "macos")]
+        {
+            WindowChrome::MacOverlay
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            WindowChrome::FluentSelfDrawn
+        }
     }
 }
 

@@ -31,20 +31,10 @@ pub struct NavigatorListing {
     pub file_count: u64,
 }
 
+/// 7.16: hidden-file semantics are an OS adapter concern, not a navigator
+/// concern. Win32 reads `FILE_ATTRIBUTE_HIDDEN`; POSIX checks dot-files.
 pub(crate) fn entry_is_hidden(metadata: &fs::Metadata, name: &str) -> bool {
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::MetadataExt;
-        const FILE_ATTRIBUTE_HIDDEN: u32 = 2;
-        let _ = name;
-        metadata.file_attributes() & FILE_ATTRIBUTE_HIDDEN != 0
-    }
-    #[cfg(not(windows))]
-    {
-        // POSIX has no hidden attribute: dot-files are the convention.
-        let _ = metadata;
-        name.starts_with('.') && name != "." && name != ".."
-    }
+    crate::platform::is_hidden(name, metadata)
 }
 
 pub fn list_directory(path: &str, show_hidden: bool) -> Result<NavigatorListing, String> {

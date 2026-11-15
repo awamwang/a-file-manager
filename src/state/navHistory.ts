@@ -8,6 +8,7 @@ import {
   providerParentPath,
   toProviderUri,
 } from "./provider/path.ts";
+import { isPosixAbsolute, splitFsPath } from "./fsPath.ts";
 
 /** Keep in sync with `guide/path.ts` (avoid ESM extension issues in Node checks). */
 const GUIDE_PATH = "afm://guide";
@@ -125,9 +126,10 @@ export function buildBreadcrumbs(path: string): BreadcrumbCrumb[] {
   // the leading root. The Windows splitter below would turn
   // "/Users/wangmeng" into "Users\wangmeng", and the address bar then hands
   // that to `navigator_list` as a real path → "Path does not exist".
-  // Windows paths never start with a single "/", so this branch is inert there.
-  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) {
-    const segments = trimmed.split("/").filter(Boolean);
+  // Both the shape test and the segmentation come from the single fsPath layer
+  // (7.16), so this branch cannot drift away from the other path producers.
+  if (isPosixAbsolute(trimmed)) {
+    const { segments } = splitFsPath(trimmed);
     if (!segments.length) {
       return [{ label: "/", path: "/", kind: "path" }];
     }

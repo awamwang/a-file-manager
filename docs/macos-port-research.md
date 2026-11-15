@@ -315,7 +315,9 @@
 | `tauri-specta` | IPC 契约类型生成 | 仅 6.3 列为待决策 | ❌ 无排期；若决定不引入应明确记为「不做」，避免长期悬置 |
 | VS Code / OpenDAL 架构 | trait + capabilities + 共享测试 | 6.1 采用 | ⚠️ 抄了 trait 与能力协商；**OpenDAL 的共享 behavior test suite 没抄**——它恰好是 7.5 那 17 个「同一套断言跨平台」问题的现成解法 |
 
-**结构性缺口**：`PlatformCapabilities` 的 24 个字段目前是静态 bool（macOS 侧仅 4 项为 `true`），`Platform` trait 只有路径 / 比较 / home / 能力 4 个方法；图标、废纸篓、剪贴板、拖放、搜索仍散落在各自模块的 `#[cfg]` 里。5.6 承诺的「一层 trait 包住现成 crate」尚未排期，所以当前的能力协商只能用于 UI 显隐，还不能用来绑定或替换实现。
+**结构性缺口**（复盘当时）：`PlatformCapabilities` 的 24 个字段是静态 bool（macOS 侧仅 4 项为 `true`），`Platform` trait 只有路径 / 比较 / home / 能力 4 个方法；图标、废纸篓、剪贴板、拖放、搜索仍散落在各自模块的 `#[cfg]` 里。5.6 承诺的「一层 trait 包住现成 crate」尚未排期，所以能力协商只能用于 UI 显隐，不能用来绑定或替换实现。
+
+> **7.16 部分回收**：卷列表 / 磁盘空间 / 隐藏文件 / 窗口 chrome 四项已收进 `Platform` trait（12 个方法、26 个字段），前端真实路径收敛到 `src/state/fsPath.ts`，并补了上一条「架构归位门禁」。图标、废纸篓、剪贴板、搜索仍在各自模块的 `#[cfg]` 里；`PlatformCapabilities` 仍是静态 bool，6.5 第 4 条的「由实现动态回报」与 5.6 第 1 条的 `FsPath` 新类型仍属未做，别误判为已完成。
 
 > 表中 ⚠️ / ❌ 是复盘当时的状态；其中 3 项代码级浪费已在第二轮（7.7）回收，最新状态以 7.7 为准。第三轮（7.8）把能力层的**前端契约**接上，并用静态断言守住 TS/Rust 字段同步；社区插件与 `sysinfo` 等排期仍按 6.5 执行。
 
@@ -326,6 +328,7 @@
 3. **P2 优先引入**：`global-shortcut` 与社区剪贴板 / 右键菜单插件逐个做 Tauri 2 兼容性与许可证复核后再引；`tauri-plugin-macos-permissions` 对应 7.5 的 TCC 权限失败。
 4. **能力层升级**：把 `PlatformCapabilities` 从静态 bool 升级为「由已注册适配器回报」，给 trait 增加图标 / 废纸篓 / 搜索等 provider 方法；用 OpenDAL 式共享测试替代按平台复制断言。
 5. **契约层闭环**：`tauri-specta` 在 6.3 给出明确「做 / 不做」结论，不要长期悬置。
+6. **架构归位门禁（7.16 补）**：每新增一处 `#[cfg(windows)]` / `#[cfg(not(windows))]` / `isMacPlatform()` 分支，必须先回答「为什么不能放进 `platform/` 适配层或 `fsPath.ts`」。选型门禁（第 1 条）只管「用什么实现」，不管「放在哪里」——7~10 轮全部过了选型门禁却持续长出旁路，就是因为缺这一条。纯 UI 展现差异（如自绘栏留白）与整模块 Windows-only 集成（如 `autostart.rs`）可豁免，但须在提交说明里写明理由。
 
 ---
 
@@ -637,6 +640,32 @@
 **仍待用户实机确认**：Overlay 后交通灯落点与 78px 留白是否合适、`set_title("")` 对窗口菜单的影响、「此电脑」卷列表呈现、dot-file 隐藏开关、磁盘空间用量条。这些在沙箱里无法截图。
 
 **下一轮候选（按 6.5 门禁逐项判定，勿误判为已完成）**：Rust 侧仍有约 20 处 `replace('/', "\\")` 规范化（`visit_stats` / `projects` / `favorites` / `discovery` / `ai/*` / `file_ops` / `terminal` 等）。多数是比较键 / 缓存键，不产生交给后端的真实路径；但 `terminal/mod.rs:142`、`ai/open_editor.rs:58`、`ai/harness.rs:28`、`file_ops/recycle.rs:26` 疑似产出真实路径，需逐个确认后再平台化。P1 的终端/IDE `open -a`、废纸篓 TCC（或改 `~/.Trash` 移动）、全局搜索 Spotlight、进程树清理，以及 P2 的 i18n Windows 名词 / 原生菜单，仍按原排期。
+
+### 7.16 架构收口（第 11 轮）：把第 7~10 轮的旁路压回适配层
+
+**触发**：用户实机截图（交通灯单栏、无双层标题栏，地址栏 `/Users/wangmeng/Downloads` 已是 POSIX 路径）+「收口」。上一轮审计结论：适配层骨架符合 6.1 设计，但 7~10 轮的修复全在业务模块就地打平台分支。
+
+**改动前基线**：Rust 端 210 处平台 `#[cfg]` 分布在 36 个文件；`Platform` trait 仅 8 个方法、`PlatformCapabilities` 24 个静态 bool 且前端只消费 3–4 个；前端 `navHistory.ts` / `pathKey.ts` / `navigatorBrowse.ts` / `settingsEffectiveDefaults.ts` 四份各自实现 POSIX/Windows 判定；`macos.rs` 仍声明 `native_drag_out = true`，而 7.13 已禁用 AppKit 拖出改走 WebView `text/uri-list` —— 能力层不再是单一事实源。
+
+| 收口项 | 做法 | 落点 |
+|---|---|---|
+| 前端真实路径 | 新增 `src/state/fsPath.ts` 单一入口：`isPosixAbsolute` / `fsPathSeparator` / `toNativeFsPath` / `joinFsPath` / `splitFsPath`，四个文件改为委托 | `pathKey.ts` 保留 `export function toNativeFsPath` 薄包装（既有契约与公共 API 不变）；`navigatorBrowse.ts` 只保留 provider URI 分支；`navHistory.ts` 只保留 Windows 面包屑展现逻辑 |
+| Rust 四项能力 | `Platform` trait 增 `volumes()` / `volume_space()` / `is_hidden()` / `window_chrome()`，中立类型 `Volume` / `VolumeKind` / `VolumeSpace` / `WindowChrome` | Win32 `GetLogicalDrives` / `GetVolumeInformationW` / `GetDiskFreeSpaceExW` 与 `sysinfo::Disks` 分别搬进 `platform/windows.rs` / `macos.rs`；`places.rs::list_drives` 与 `disk_space.rs` 只剩「中立类型 → wire 类型」映射；`list.rs::entry_is_hidden` 委托；`lib.rs` 改为按 `window_chrome()` 判定，删掉 `#[cfg(target_os="macos")]` 分支 |
+| 能力层 | `native_drag_out` 在 macOS 归 false（7.13 已禁用），新增 `webviewDragOut`（macOS true）与 `volumeList`（两端 true）；Rust struct / TS type / `NEUTRAL_PLATFORM` 同步 | `test:shortcuts` 的字段同步断言守住 |
+| 门禁 | 6.5 新增第 6 条「架构归位门禁」：新增平台分支必须先回答「为何不能放进 `platform/` 或 `fsPath.ts`」 | 新增 `scripts/check-fs-path.mjs` + `fs-path-checks.ts`，静态断言四个文件必须委托 `fsPath.ts`、不得再本地做 POSIX 判定 |
+
+**契约同步（4 处既有断言随实现位置更新，非放宽）**：`check-arch-optimize.mjs`（Windows 规范化实现移到 fsPath）、`check-navigator-guide.mjs`（`GetDriveTypeW` / `GetVolumeInformationW` 移到 Windows adapter）、`check-navigator-nonblocking.mjs`（卷枚举委托 + 两端 adapter 各有实现）、`check-settings-ui-regroup.mjs`（设置页委托 fsPath）。`check-path-key.mjs` / `check-window-controls.mjs` 等一字未改仍通过。
+
+| 验证 | 结果 |
+|---|---|
+| `cargo check`（默认 / `--no-default-features`） | ✅ 均 0 警告 |
+| `cargo test --lib` | ✅ 299 passed / 0 failed / 1 ignored（搬走 1 个 Win32 纯函数测试到 windows.rs，补 1 个跨平台空路径用例，计数不变） |
+| `npm run build` / **`npm test` 全量** | ✅ / ✅ **exit 0** |
+| `test:shortcuts`（能力字段同步）/ `test:fs-path`（新增） | ✅ / ✅ |
+
+**Windows 侧限制**：`platform/windows.rs` 的 Win32 代码是逐字搬迁（仅 `DriveKind` → `VolumeKind`），本机 macOS 无法编译 Windows target；静态契约守住了调用点，仍需 Windows CI 实机编译确认。
+
+**效果与边界**：平台 `#[cfg]` 210 → 205（多数是整模块 Windows-only 集成，不算散落，故降幅有限）；真正的变化是 4 项能力的**实现位置**从业务模块移到适配器，trait 8 → 12 个方法。仍未做（勿误判为完成）：6.5 第 4 条的动态能力探测（仍是静态 bool）、5.6 第 1 条的 `FsPath` 新类型（`typed-path` 未回排期）、6.1 第 1 条的 IPC 契约清洗（`DriveInfo.letter` 等 Windows 名词仍在）、图标 / 废纸篓 / 剪贴板 / 搜索四个 provider 仍在各自模块的 `#[cfg]` 里。
 
 ---
 
