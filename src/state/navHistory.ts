@@ -121,6 +121,25 @@ export function buildBreadcrumbs(path: string): BreadcrumbCrumb[] {
     return buildProviderBreadcrumbs(trimmed);
   }
 
+  // POSIX absolute paths (macOS / Linux): keep "/" as the separator and keep
+  // the leading root. The Windows splitter below would turn
+  // "/Users/wangmeng" into "Users\wangmeng", and the address bar then hands
+  // that to `navigator_list` as a real path → "Path does not exist".
+  // Windows paths never start with a single "/", so this branch is inert there.
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) {
+    const segments = trimmed.split("/").filter(Boolean);
+    if (!segments.length) {
+      return [{ label: "/", path: "/", kind: "path" }];
+    }
+    const crumbs: BreadcrumbCrumb[] = [];
+    let acc = "";
+    for (const part of segments) {
+      acc += `/${part}`;
+      crumbs.push({ label: part, path: acc, kind: "path" });
+    }
+    return crumbs;
+  }
+
   const raw = trimmed.replace(/\//g, "\\");
 
   if (raw.startsWith("\\\\")) {

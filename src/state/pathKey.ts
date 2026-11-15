@@ -8,6 +8,13 @@
 export function toNativeFsPath(path: string): string {
   const trimmed = path.trim();
   if (!trimmed) return "";
+  // POSIX absolute paths (macOS / Linux): keep "/" and the leading root.
+  // Windows never produces a path starting with a single "/", so this branch
+  // is inert there — but on macOS the old unconditional `/`→`\` rewrite turned
+  // "/Users/wangmeng" into "\Users\wangmeng", which the backend cannot open.
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) {
+    return trimmed.replace(/\/+$/, "") || "/";
+  }
   if (
     /^[a-zA-Z]:[\\/]/.test(trimmed) ||
     trimmed.startsWith("\\\\") ||

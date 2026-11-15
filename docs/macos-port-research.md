@@ -572,6 +572,39 @@
 
 ---
 
+### 7.14 用户实机反馈（第 9 轮）：POSIX 路径被 Windows 化 + 双层标题栏
+
+**前提**：本轮反馈发生在 `mac` 分支合并 `origin/master`（`f3979fd`）之后。该 merge 引入任务中心 / 文件操作进度等约 1792 行改动，并把 reveal 的最后一步从 JS `win.show()+setFocus()` 换成宿主命令 `afm_reveal_main_window`（Windows FIL-72）。复核确认：`show_main_window()` 本体是跨平台的（`show` / `unminimize` / `set_focus`），Windows 专属的强制前置激活是 `#[cfg(windows)]`；第 7 轮的 `setTimeout` 兜底 + macOS 跳过 maximize、第 8 轮的 OLE 门控 + `text/uri-list` 拖出**均仍在**。用户能看到界面 → 新的宿主 reveal 路径在 macOS 上也可用。
+
+**反馈 1（已修）：`Path does not exist: Users\wangmeng`**
+
+根因不在 Rust（7.10 已把 `paths.rs` / platform adapter 平台化，macOS 的 `to_native_fs_path` 不改写分隔符），而在**前端仍有一批 Windows 假设的路径工具**，且它们的输出会被当成真实路径交给 `navigator_list`：
+
+| 位置 | 坏行为 | 影响 |
+|---|---|---|
+| `src/state/navHistory.ts` `buildBreadcrumbs` | `trimmed.replace(/\//g, "\\")` 后按 `\` 分段并丢掉前导根 → `/Users/wangmeng` 变 `Users\wangmeng` | 地址栏面包屑、`navigableParentPath()`（上一级）把它当真实路径 |
+| `src/state/pathKey.ts` `toNativeFsPath` | 无条件 `/`→`\` → `/Users/wangmeng` 变 `\Users\wangmeng` | `openState/model.ts`、`tabPins.ts`、`navigatorBrowse.ts` 都用它生成真实路径 |
+| `src/state/navigatorBrowse.ts` `joinListingChildPath` | 硬编码 `` `${native}\\${name}` `` 拼子项 | 文件列表里每个条目的 `path` 在 macOS 都是反斜杠路径 |
+
+**修复（按输入形态分流，不改 Windows 行为）**：三处都新增「POSIX 绝对路径」分支——以**单个** `/` 开头且不是 `//`（UNC）时保留 `/` 与前导根、按 `/` 分段/拼接；Windows 盘符与 UNC 路径不会出现这种形态，因此原分支与其静态断言全部保持不变。补回归断言到 `scripts/nav-history-checks.ts`（`/Users/wangmeng/Docs` 面包屑、上一级）与 `scripts/path-key-checks.ts`（`toNativeFsPath` / `normalizePathKey` / openState 转出）。
+
+**验证**：`test:nav-history` ✓ · `test:path-key` ✓ · `test:open-state` ✓ · `npm run build` ✓（27–29s，仅既有 chunk 提示）。
+
+**仍未平台化的同类工具（本轮刻意不动）**：`folderTree.ts`、`favorites.ts`、`dnd/location.ts` / `mode.ts` / `surface.ts` / `paths.ts`、`settingsEffectiveDefaults.ts`、`navHistory.normalizeKey` 仍按 `\` 规范化，但它们只用于内部比较键、拖放同位置判定或设置页展示文案，不产生交给后端的真实路径。`settingsEffectiveDefaults.ts` 的 `toWindowsPath(await join(configDir,"projects"))` 会让设置页显示 `/`→`\` 的路径，属 UI 文案瑕疵，留待后续。
+
+**反馈 2（待定）：原生标题栏 + 前端自绘 Fluent 栏双层叠放**
+
+用户实机确认 7.12 预留的问题属实：`lib.rs` 在 macOS `set_decorations(true)` 给出一条原生标题栏（交通灯 + app 名），前端 `AppShell.vue` 的 `<header class="titlebar">` 又是 40px 自绘 Fluent 栏（刷新、品牌名、命令面板、Win11 三键），控制按钮与品牌重复。
+
+三个可选方向：
+- **A · 只用原生标题栏**：macOS 下 `display:none` 掉整条自绘栏。零窗口层改动、最稳，但丢「刷新窗口 / 命令面板」两个按钮（命令面板仍有 ⌘⇧P）。
+- **B · 保留两层但去重复**：隐藏自绘栏的 `.window-controls` 与品牌区，使其变成「系统标题栏 + 应用工具栏」（Finder/Safari 式布局）。
+- **C · `titleBarStyle: Overlay` + `hiddenTitle`**（7.9 原计划）：交通灯浮在自绘 Fluent 栏左侧，只剩一条栏，功能按钮全保留；需给左侧留约 80px 并隐藏 Win11 三键。
+
+约束：`scripts/check-window-controls.mjs` 硬断言 `mainWindow.decorations === false`，所以 C **只能新增** `titleBarStyle` / `hiddenTitle` 字段，不能改 `decorations`；`set_decorations(true)` 仍需保留在运行时。C 的视觉效果本会话无法截图验证，需用户选定后再动。
+
+---
+
 ## 附录 A · 关键证据索引（便于复核）
 
 | 主题 | 文件 |

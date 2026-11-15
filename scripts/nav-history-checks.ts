@@ -52,6 +52,16 @@ assert.equal(unc[2].path, "\\\\server\\share\\folder");
 
 assert.deepEqual(buildBreadcrumbs("afm://guide"), []);
 
+// macOS/POSIX absolute paths must stay native: keeping "/" and the leading
+// root prevents the Windows splitter from emitting "Users\\wangmeng", which
+// the backend rejects as "Path does not exist".
+const posix = buildBreadcrumbs("/Users/wangmeng/Docs");
+assert.deepEqual(posix.map((c) => c.label), ["Users", "wangmeng", "Docs"]);
+assert.equal(posix[0].path, "/Users");
+assert.equal(posix[2].path, "/Users/wangmeng/Docs");
+assert.equal(navigableParentPath("/Users/wangmeng/Docs"), "/Users/wangmeng");
+assert.equal(buildBreadcrumbs("/")[0].path, "/");
+
 const withRoot = buildNavigatorBreadcrumbs("C:\\Temp\\afm-fixture", "This PC");
 assert.equal(withRoot[0].kind, "root");
 assert.equal(withRoot[0].path, GUIDE_PATH);

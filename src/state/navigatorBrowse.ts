@@ -112,6 +112,12 @@ export function joinListingChildPath(parent: string, name: string): string {
     const uri = toProviderUri(native);
     return `${uri.replace(/\/+$/, "")}/${name}`;
   }
+  // POSIX paths must be joined with "/" — a hardcoded "\" produces unopenable
+  // entry paths on macOS ("Path does not exist: Users\\wangmeng\\...").
+  if (native.startsWith("/") && !native.startsWith("//")) {
+    const root = native.replace(/\/+$/, "");
+    return `${root}/${name}`;
+  }
   if (/^[a-zA-Z]:\\?$/i.test(native)) {
     return `${native.slice(0, 2)}\\${name}`;
   }
