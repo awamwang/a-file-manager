@@ -79,6 +79,18 @@ for (const token of [
 assert.ok(surface.includes("activeDragSources()"), "dragover preview uses session sources");
 assert.ok(surface.includes("showDropHint(event"), "folder dragover shows the release hint");
 assert.ok(surface.includes("endDragSession()"), "drop ends the session / clears the hint");
+// drop 后投放提示先收起、浮层卸载完成后才可能弹「是否覆盖」确认窗，
+// 两个浮层（提示 z-index 10050 / 确认弹窗）不同屏。
+assert.ok(
+  surface.indexOf("hideDropHint();") <
+    surface.indexOf("await transferEntries(paths, destPath, mode)"),
+  "drop collapses the hint before the transfer can open the overwrite dialog",
+);
+assert.ok(
+  surface.indexOf("await nextTick();") <
+    surface.indexOf("await transferEntries(paths, destPath, mode)"),
+  "overwrite dialog waits for the hint overlay to unmount first",
+);
 assert.ok(dragOut.includes("beginDragSources(cleaned)"), "press registers drag sources");
 assert.ok(dragOut.includes("endDragSession()"), "plain click clears drag sources");
 assert.ok(

@@ -16,6 +16,7 @@ import {
   hideDropHint,
   showDropHint,
 } from "./session.ts";
+import { nextTick } from "vue";
 import { transferEntries } from "../fileClipboard.ts";
 import { recordCopyUndo, recordMoveUndo } from "../fileUndo/index.ts";
 import { clearSelection, selectedPaths } from "../navigatorSelection.ts";
@@ -123,6 +124,8 @@ export async function commitFolderDrop(
 ): Promise<FolderDropCommit> {
   event.preventDefault();
   event.stopPropagation();
+  // 放下即收起跟随光标的投放提示（不限 key：drop 后任何残留提示都已过期）。
+  hideDropHint();
   const transferred = pathsFromDataTransfer(event.dataTransfer);
   // WebView2 原生 OLE 回灌时 dataTransfer 常只有 Files（File.path 可能为空、
   // 也没有 uri-list）；dragover 拿不到源路径，但按下时登记的会话就是同一次
@@ -144,6 +147,11 @@ export async function commitFolderDrop(
     endDragSession();
     return { ok: false, error: "empty" };
   }
+
+  // 等顶部已收起的投放提示浮层完成卸载，再进入传输流程：目标重名时
+  // 弹出的「是否覆盖」确认窗出现在提示消失之后，避免投放提示
+  // （z-index 10050）与确认弹窗两个浮层同屏。
+  await nextTick();
 
   try {
     const mode = resolution.mode;
