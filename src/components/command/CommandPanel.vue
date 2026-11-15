@@ -10,7 +10,12 @@ import {
 } from "../../state/commandPanel.ts";
 import { toastError, toastInfo } from "../../state/toast.ts";
 import { buildSearchSources } from "../../search/registry.ts";
-import { useSearchPalette } from "../../search/useSearchPalette.ts";
+import {
+  useSearchPalette,
+  type PaletteGroup,
+  type PaletteRow,
+} from "../../search/useSearchPalette.ts";
+import { iconUrlFor } from "../../state/shellIcons.ts";
 import type {
   SearchActivateNotice,
   SearchItemType,
@@ -78,6 +83,16 @@ function itemIcon(item: SearchResultItem): FluentGlyphId {
     return commandGroupIcon(item.group);
   }
   return ITEM_TYPE_ICON[item.type] ?? "commands";
+}
+
+/** 文件/文件夹行的系统壳图标 URL（无则回落 Fluent 图标）。 */
+function rowShellIcon(item: SearchResultItem): string | null {
+  return item.iconPath ? iconUrlFor(item.iconPath) : null;
+}
+
+function rowTitle(group: PaletteGroup, row: PaletteRow): string {
+  if (row.viewAll) return t(group.source.viewAll?.labelKey ?? "");
+  return row.item.title;
 }
 
 function itemSubtitle(item: SearchResultItem): string | null {
@@ -270,25 +285,37 @@ function onPanelKeydown(event: KeyboardEvent) {
                 type="button"
                 role="option"
                 class="cmd-item fluent-list-row"
-                :class="{ 'cmd-item--active': row.index === activeIndex }"
+                :class="{
+                  'cmd-item--active': row.index === activeIndex,
+                  'cmd-view-all': row.viewAll,
+                }"
                 :data-palette-index="row.index"
                 :aria-selected="row.index === activeIndex"
                 @mouseenter="activeIndex = row.index"
                 @click="runItem(row.item)"
               >
+                <img
+                  v-if="!row.viewAll && rowShellIcon(row.item)"
+                  class="cmd-item-shell-icon"
+                  :src="rowShellIcon(row.item)!"
+                  alt=""
+                  width="16"
+                  height="16"
+                />
                 <FluentIcon
+                  v-else
                   :name="itemIcon(row.item)"
                   size="sm"
                   class="cmd-item-icon"
                 />
                 <span class="cmd-item-main">
-                  <span class="cmd-item-title">{{ row.item.title }}</span>
+                  <span class="cmd-item-title">{{ rowTitle(group, row) }}</span>
                   <span
-                    v-if="itemSubtitle(row.item)"
+                    v-if="!row.viewAll && itemSubtitle(row.item)"
                     class="cmd-item-subtitle"
                   >{{ itemSubtitle(row.item) }}</span>
                 </span>
-                <span class="cmd-item-type">{{
+                <span v-if="!row.viewAll" class="cmd-item-type">{{
                   itemTypeLabel(row.item)
                 }}</span>
               </button>
@@ -457,6 +484,22 @@ function onPanelKeydown(event: KeyboardEvent) {
 .cmd-item-icon {
   color: var(--fluent-color-text-secondary);
   flex-shrink: 0;
+}
+
+.cmd-item-shell-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.cmd-view-all .cmd-item-title {
+  color: var(--fluent-color-fill-accent);
+  font-size: var(--fluent-font-size-caption);
+}
+
+.cmd-view-all .cmd-item-icon {
+  color: var(--fluent-color-fill-accent);
 }
 
 .cmd-item--active .cmd-item-icon {

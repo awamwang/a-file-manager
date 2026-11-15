@@ -62,6 +62,8 @@ export type SearchResultItem = {
   subtitleParams?: Record<string, string | number>;
   /** 行首图标覆盖（缺省按 type 映射）。 */
   icon?: FluentGlyphId;
+  /** 壳图标路径（文件/文件夹行：优先显示系统图标）。 */
+  iconPath?: string;
   /** 命令行的分组（Navigate/View/Actions），供 commandGroupIcon。 */
   group?: string;
   activate(options: SearchActivateOptions):
@@ -76,6 +78,12 @@ export type SearchSourceResult = {
   items: SearchResultItem[];
 };
 
+/** 组尾「查看全部」入口：带当前查询跳转到该源的完整结果页。 */
+export type SearchViewAll = {
+  labelKey: string;
+  action(query: string): void | Promise<void>;
+};
+
 export type SearchSource = {
   id: SearchSourceId;
   /** 范围 chip / 分组标题 i18n key。 */
@@ -87,6 +95,8 @@ export type SearchSource = {
   /** 状态行引导动作（如「打开项目页」）。 */
   unavailableActionLabelKey?: string;
   unavailableAction?(): void | Promise<void>;
+  /** 组尾「查看全部」入口（如文件源跳 Discovery 带查询）。 */
+  viewAll?: SearchViewAll;
   /**
    * 检索：空 query 时命令源返回全量、其余源返回空列表；
    * 失败时自行捕获并返回 `status: "unavailable"`。

@@ -113,6 +113,8 @@
     "empty": "Aucun résultat",
     "hint": "↑↓ déplacer · Entrée ouvrir · Alt+1–9 périmètre · Échap fermer",
     "workGroupMembers": "aucun membre | 1 membre | {count} membres",
+    "viewAllFiles": "Voir tous les résultats de fichiers",
+    "openFailed": "Impossible d’ouvrir l’élément",
     "scopes": {
       "commands": "Commandes",
       "files": "Fichiers",
@@ -134,6 +136,8 @@
     "status": {
       "loading": "Recherche en cours…",
       "commandsUnavailable": "Source Commandes indisponible",
+      "filesUnavailable": "Recherche de fichiers indisponible",
+      "openDiscovery": "Ouvrir Recherche",
       "projectsUnavailable": "Source Projets indisponible",
       "openProjects": "Ouvrir les Projets",
       "workGroupsUnavailable": "Source Groupes de travail indisponible"

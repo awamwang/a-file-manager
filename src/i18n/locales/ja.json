@@ -113,6 +113,8 @@
     "empty": "一致なし",
     "hint": "↑↓ 移動 · Enter 開く · Alt+1–9 スコープ · Esc 閉じる",
     "workGroupMembers": "メンバーなし | 1 メンバー | {count} メンバー",
+    "viewAllFiles": "ファイルの結果をすべて表示",
+    "openFailed": "項目を開けませんでした",
     "scopes": {
       "commands": "コマンド",
       "files": "ファイル",
@@ -134,6 +136,8 @@
     "status": {
       "loading": "検索中…",
       "commandsUnavailable": "コマンドソースは利用できません",
+      "filesUnavailable": "ファイル検索は利用できません",
+      "openDiscovery": "検索ページを開く",
       "projectsUnavailable": "プロジェクトソースは利用できません",
       "openProjects": "プロジェクトを開く",
       "workGroupsUnavailable": "ワークグループソースは利用できません"

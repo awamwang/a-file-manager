@@ -158,6 +158,8 @@
     "empty": "No matches",
     "hint": "↑↓ move · Enter open · Alt+1–9 scope · Esc close",
     "workGroupMembers": "no members | 1 member | {count} members",
+    "viewAllFiles": "View all file results",
+    "openFailed": "Failed to open item",
     "scopes": {
       "commands": "Commands",
       "files": "Files",
@@ -179,6 +181,8 @@
     "status": {
       "loading": "Searching…",
       "commandsUnavailable": "Commands unavailable",
+      "filesUnavailable": "File search unavailable",
+      "openDiscovery": "Open Search",
       "projectsUnavailable": "Projects unavailable",
       "openProjects": "Open Projects",
       "workGroupsUnavailable": "Work Groups unavailable"

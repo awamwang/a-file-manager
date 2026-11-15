@@ -1027,7 +1027,14 @@ export async function openEntry(entry: NavigatorEntry): Promise<void> {
     await openProviderEntry(entry.path);
     return;
   }
-  // Non-dir entries (file / symlink-as-file) follow double-click Settings.
+  await openLocalEntry(entry);
+}
+
+/**
+ * 本地条目激活：只走文件双击动作，跳过 Provider 分支。
+ * 搜索面板的文件命中必须走这里（当前标签可能是 Provider，不能误走远端打开）。
+ */
+export async function openLocalEntry(entry: NavigatorEntry): Promise<void> {
   const action = await readFileDoubleClickAction();
   switch (action) {
     case "none":

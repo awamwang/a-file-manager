@@ -158,6 +158,8 @@
     "empty": "无匹配结果",
     "hint": "↑↓ 移动 · Enter 打开 · Alt+1–9 切换范围 · Esc 关闭",
     "workGroupMembers": "{count} 个成员",
+    "viewAllFiles": "查看全部文件结果",
+    "openFailed": "打开条目失败",
     "scopes": {
       "commands": "命令",
       "files": "文件",
@@ -179,6 +181,8 @@
     "status": {
       "loading": "正在搜索…",
       "commandsUnavailable": "命令源暂不可用",
+      "filesUnavailable": "文件搜索暂不可用",
+      "openDiscovery": "打开搜索页",
       "projectsUnavailable": "项目源暂不可用",
       "openProjects": "打开项目页",
       "workGroupsUnavailable": "工作组源暂不可用"

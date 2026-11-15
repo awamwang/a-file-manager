@@ -113,6 +113,8 @@
     "empty": "Keine Treffer",
     "hint": "↑↓ bewegen · Enter öffnen · Alt+1–9 Bereich · Esc schließen",
     "workGroupMembers": "keine Mitglieder | 1 Mitglied | {count} Mitglieder",
+    "viewAllFiles": "Alle Datei-Ergebnisse anzeigen",
+    "openFailed": "Element konnte nicht geöffnet werden",
     "scopes": {
       "commands": "Befehle",
       "files": "Dateien",
@@ -134,6 +136,8 @@
     "status": {
       "loading": "Suche läuft…",
       "commandsUnavailable": "Befehlsquelle nicht verfügbar",
+      "filesUnavailable": "Dateisuche nicht verfügbar",
+      "openDiscovery": "Suche öffnen",
       "projectsUnavailable": "Projektquelle nicht verfügbar",
       "openProjects": "Projekte öffnen",
       "workGroupsUnavailable": "Arbeitsgruppenquelle nicht verfügbar"

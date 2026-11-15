@@ -25,6 +25,8 @@ export type PaletteRow = {
   item: SearchResultItem;
   /** flat 列表内的索引（键盘选中用）。 */
   index: number;
+  /** 组尾「查看全部」伪行：渲染 labelKey、无类型 chip。 */
+  viewAll?: boolean;
 };
 
 export type PaletteGroup = {
@@ -124,6 +126,24 @@ export function useSearchPalette(sources: () => readonly SearchSource[]) {
       const rows: PaletteRow[] = [];
       for (const item of state.items.slice(0, SEARCH_GROUP_LIMIT)) {
         rows.push({ item, index });
+        index += 1;
+      }
+      // 组尾「查看全部」伪行：源就绪且有结果时追加（不占每组结果上限）。
+      const viewAll = source.viewAll;
+      if (viewAll && state.status === "ready" && state.items.length > 0) {
+        rows.push({
+          item: {
+            key: `${source.id}:view-all`,
+            sourceId: source.id,
+            // viewAll 行不渲染类型 chip；type 仅占位。
+            type: "file",
+            title: "",
+            icon: "search",
+            activate: () => viewAll.action(query.value),
+          },
+          index,
+          viewAll: true,
+        });
         index += 1;
       }
       if (!rows.length && state.status === "ready") continue;
