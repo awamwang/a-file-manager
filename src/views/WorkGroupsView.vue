@@ -7,6 +7,7 @@ import { useRouter } from "vue-router";
 import {
   activeWorkGroupId,
   cancelOpenStatePersist,
+  closeAllNavigatorTabs,
   hydrateWorkGroups,
   liveOpenState,
   openMembersIntoOpenState,
@@ -589,6 +590,13 @@ async function openMembersIntoRuntime() {
   }
 }
 
+/** 关闭运行时：把当前实时 Open State（标签条）整体关闭，并同步落盘。 */
+async function closeRuntimeOpenState() {
+  if (!liveTabs.value.length) return;
+  await closeAllNavigatorTabs();
+  toastInfo(t("workGroups.runtimeClosed"));
+}
+
 type PromoteWorkspaceResult = {
   workspace: { project: { slug: string }; path: string };
   members: unknown[];
@@ -871,6 +879,14 @@ onUnmounted(() => {
             @click="openMembersIntoRuntime"
           >
             {{ t("workGroups.openMembersIntoOpenState") }}
+          </button>
+          <button
+            class="fluent-control"
+            type="button"
+            :disabled="!liveTabs.length"
+            @click="closeRuntimeOpenState"
+          >
+            {{ t("workGroups.closeRuntimeOpenState") }}
           </button>
           <button class="fluent-control" type="button" @click="saveMembersFromTabs">
             {{ t("workGroups.saveMembersFromTabs") }}

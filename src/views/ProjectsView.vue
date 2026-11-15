@@ -10,6 +10,8 @@ import { useRoute, useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
 import {
   applyProjectSilentSwitch,
+  closeAllNavigatorTabs,
+  liveOpenState,
   openMembersIntoOpenState,
   openOrFocusNavigatorTab,
   openPathsAsNavigatorTabs,
@@ -651,6 +653,8 @@ const boundMemberPaths = computed(() => {
   return workGroups.value.find((group) => group.id === id)?.memberPaths ?? [];
 });
 
+const hasOpenTabs = computed(() => liveOpenState.value.tabGroups.length > 0);
+
 async function openBoundMembersIntoRuntime() {
   if (!selected.value?.workGroupId) {
     error.value = t("projects.errorUnbound");
@@ -669,6 +673,13 @@ async function openBoundMembersIntoRuntime() {
   } else {
     toastInfo(t("workGroups.openMembersNone"));
   }
+}
+
+/** 关闭运行时：把当前实时 Open State（标签条）整体关闭，并同步落盘。 */
+async function closeRuntimeOpenState() {
+  if (!hasOpenTabs.value) return;
+  await closeAllNavigatorTabs();
+  toastInfo(t("projects.runtimeClosed"));
 }
 
 async function copyProject(project: UserProject) {
@@ -1190,6 +1201,15 @@ onUnmounted(() => {
             @click="openBoundMembersIntoRuntime"
           >
             {{ t("projects.openMembersIntoOpenState") }}
+          </button>
+          <button
+            v-if="selected.workGroupId"
+            class="fluent-control"
+            type="button"
+            :disabled="!hasOpenTabs"
+            @click="closeRuntimeOpenState"
+          >
+            {{ t("projects.closeRuntimeOpenState") }}
           </button>
           <button
             v-if="selected.workGroupId"
