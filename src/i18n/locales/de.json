@@ -574,6 +574,7 @@
     "typeFolder": "Dateiordner",
     "typeFile": "Datei",
     "typeFileExt": "{ext}-Datei",
+    "typeShortcut": "Verknüpfung",
     "nItems": "{count} Elemente",
     "movedInto": "{count} Element(e) nach {name} verschoben",
     "copiedInto": "{count} Element(e) nach {name} kopiert",
@@ -1168,7 +1169,18 @@
     "empty": "Eine einzelne Datei zur Vorschau auswählen",
     "unsupported": "Keine Vorschau für diesen Typ",
     "truncated": "Inhalt gekürzt",
-    "resize": "Vorschaufenster in der Breite anpassen"
+    "resize": "Vorschaufenster in der Breite anpassen",
+    "linkKindShortcut": "Windows-Verknüpfung",
+    "linkKindSymlink": "Symbolischer Link",
+    "linkTargetLabel": "Ziel",
+    "linkTargetUnresolved": "Ziel der Verknüpfung konnte nicht aufgelöst werden",
+    "linkTargetMissing": "Ziel ist nicht vorhanden (möglicherweise verschoben oder gelöscht)",
+    "linkTargetKindLabel": "Zieltyp",
+    "linkTargetKindDir": "Ordner",
+    "linkTargetKindFile": "Datei",
+    "linkTargetDirLabel": "Ursprünglicher Speicherort",
+    "linkCopyTarget": "Zielpfad kopieren",
+    "linkCopiedTarget": "Kopiert"
   },
   "previewBridge": {
     "noPath": "Lokale Datei zur Vorschau auswählen",

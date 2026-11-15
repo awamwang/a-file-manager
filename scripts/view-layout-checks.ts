@@ -20,14 +20,17 @@ assert.equal(entryExtension("archive.tar.gz"), "gz");
 assert.equal(entryExtension("README"), "");
 assert.equal(entryTypeKey("dir", "Docs"), "dir");
 assert.equal(entryTypeKey("file", "a.PNG"), "file:png");
+assert.equal(entryTypeKey("file", "a - Shortcut.lnk"), "shortcut");
 
 const labels = {
   folder: "File folder",
   file: "File",
+  shortcut: "Shortcut",
   typedFile: (ext: string) => `${ext} File`,
 };
 assert.equal(entryTypeLabel("dir", "Docs", labels), "File folder");
 assert.equal(entryTypeLabel("file", "a.txt", labels), "TXT File");
+assert.equal(entryTypeLabel("file", "a - Shortcut.lnk", labels), "Shortcut");
 
 const resized = resizeColumnWidth(DEFAULT_DETAILS_COLUMN_WIDTHS, "type", 40);
 assert.equal(resized.type, DEFAULT_DETAILS_COLUMN_WIDTHS.type + 40);

@@ -64,6 +64,53 @@ fn create_one_shortcut(source: &Path, dest_lnk: &Path) -> Result<(), String> {
     }
 }
 
+/// Read the stored target path of an existing `.lnk` shortcut (link preview).
+/// Returns the raw stored target (empty string when the shortcut has no file target).
+pub fn read_shortcut_target(lnk_path: &Path) -> Result<String, String> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        use windows::core::{Interface, PCWSTR};
+        use windows::Win32::System::Com::{
+            CoCreateInstance, CoInitializeEx, CoUninitialize, IPersistFile, CLSCTX_INPROC_SERVER,
+            COINIT_APARTMENTTHREADED, STGM_READ,
+        };
+        use windows::Win32::UI::Shell::{IShellLinkW, ShellLink};
+
+        unsafe {
+            let coinit = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+            let needs_uninit = coinit.is_ok();
+            let result = (|| -> windows::core::Result<String> {
+                let shell_link: IShellLinkW =
+                    CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER)?;
+                let persist: IPersistFile = shell_link.cast()?;
+                let lnk_wide: Vec<u16> = lnk_path
+                    .as_os_str()
+                    .encode_wide()
+                    .chain(std::iter::once(0))
+                    .collect();
+                persist.Load(PCWSTR(lnk_wide.as_ptr()), STGM_READ)?;
+                let mut target_buf = [0u16; 1024];
+                shell_link.GetPath(&mut target_buf, std::ptr::null_mut(), 0)?;
+                let len = target_buf
+                    .iter()
+                    .position(|c| *c == 0)
+                    .unwrap_or(target_buf.len());
+                Ok(String::from_utf16_lossy(&target_buf[..len]))
+            })();
+            if needs_uninit {
+                CoUninitialize();
+            }
+            result.map_err(|e| e.to_string())
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = lnk_path;
+        Err("Shortcuts are only supported on Windows".into())
+    }
+}
+
 pub fn create_shortcuts(
     sources: &[String],
     dest_dir: &str,

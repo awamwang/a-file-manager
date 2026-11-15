@@ -574,6 +574,7 @@
     "typeFolder": "ファイル フォルダー",
     "typeFile": "ファイル",
     "typeFileExt": "{ext} ファイル",
+    "typeShortcut": "ショートカット",
     "nItems": "{count} 項目",
     "movedInto": "{count} 項目を {name} へ移動しました",
     "copiedInto": "{count} 項目を {name} へコピーしました",
@@ -1168,7 +1169,18 @@
     "empty": "単一ファイルを選択してプレビュー",
     "unsupported": "この種類はプレビューできません",
     "truncated": "内容は切り詰められています",
-    "resize": "プレビューペインの幅を変更"
+    "resize": "プレビューペインの幅を変更",
+    "linkKindShortcut": "Windows ショートカット",
+    "linkKindSymlink": "シンボリックリンク",
+    "linkTargetLabel": "リンク先",
+    "linkTargetUnresolved": "リンク先を解決できません",
+    "linkTargetMissing": "リンク先が存在しません（移動または削除された可能性があります）",
+    "linkTargetKindLabel": "リンク先の種類",
+    "linkTargetKindDir": "フォルダー",
+    "linkTargetKindFile": "ファイル",
+    "linkTargetDirLabel": "元の場所",
+    "linkCopyTarget": "リンク先のパスをコピー",
+    "linkCopiedTarget": "コピーしました"
   },
   "previewBridge": {
     "noPath": "プレビューするローカルファイルを選択してください",

@@ -420,6 +420,7 @@
     "typeFolder": "文件夹",
     "typeFile": "文件",
     "typeFileExt": "{ext} 文件",
+    "typeShortcut": "快捷方式",
     "nItems": "{count} 项",
     "movedInto": "已将 {count} 项移入 {name}",
     "copiedInto": "已将 {count} 项复制到 {name}",
@@ -1168,7 +1169,18 @@
     "empty": "选中单个文件以预览",
     "unsupported": "暂不支持此类型预览",
     "truncated": "内容已截断",
-    "resize": "调整预览窗格宽度"
+    "resize": "调整预览窗格宽度",
+    "linkKindShortcut": "Windows 快捷方式",
+    "linkKindSymlink": "符号链接",
+    "linkTargetLabel": "目标",
+    "linkTargetUnresolved": "无法解析链接目标",
+    "linkTargetMissing": "目标不存在，可能已被移动或删除",
+    "linkTargetKindLabel": "目标类型",
+    "linkTargetKindDir": "文件夹",
+    "linkTargetKindFile": "文件",
+    "linkTargetDirLabel": "原目录",
+    "linkCopyTarget": "复制目标路径",
+    "linkCopiedTarget": "已复制"
   },
   "previewBridge": {
     "noPath": "请选择本地文件以预览",

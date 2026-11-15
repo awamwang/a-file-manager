@@ -574,6 +574,7 @@
     "typeFolder": "Dossier de fichiers",
     "typeFile": "Fichier",
     "typeFileExt": "Fichier {ext}",
+    "typeShortcut": "Raccourci",
     "nItems": "{count} éléments",
     "movedInto": "{count} élément(s) déplacé(s) vers {name}",
     "copiedInto": "{count} élément(s) copié(s) vers {name}",
@@ -1168,7 +1169,18 @@
     "empty": "Sélectionnez un seul fichier pour l’aperçu",
     "unsupported": "Aperçu indisponible pour ce type",
     "truncated": "Contenu tronqué",
-    "resize": "Redimensionner le volet d’aperçu"
+    "resize": "Redimensionner le volet d’aperçu",
+    "linkKindShortcut": "Raccourci Windows",
+    "linkKindSymlink": "Lien symbolique",
+    "linkTargetLabel": "Cible",
+    "linkTargetUnresolved": "Impossible de résoudre la cible du lien",
+    "linkTargetMissing": "La cible n’existe pas (peut-être déplacée ou supprimée)",
+    "linkTargetKindLabel": "Type de cible",
+    "linkTargetKindDir": "Dossier",
+    "linkTargetKindFile": "Fichier",
+    "linkTargetDirLabel": "Emplacement d’origine",
+    "linkCopyTarget": "Copier le chemin de la cible",
+    "linkCopiedTarget": "Copié"
   },
   "previewBridge": {
     "noPath": "Sélectionnez un fichier local pour l’aperçu",
