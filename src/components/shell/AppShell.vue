@@ -38,7 +38,11 @@ import {
   registerShortcutHandler,
   unregisterShortcutHandler,
 } from "../../shortcuts/index.ts";
-import { platformAriaKeys, platformShortcutLabel } from "../../config/platform.ts";
+import {
+  isMacPlatform,
+  platformAriaKeys,
+  platformShortcutLabel,
+} from "../../config/platform.ts";
 import {
   FOCUS_CYCLE_ATTR,
   focusRegionElement,
@@ -1794,7 +1798,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="shell fluent-chrome">
+  <div
+    class="shell fluent-chrome"
+    :class="{ 'mac-overlay-titlebar': isMacPlatform() }"
+  >
     <header class="titlebar" data-tauri-frame-tb :aria-label="t('chrome.titleBar')">
       <div
         class="titlebar-leading"
@@ -2670,6 +2677,17 @@ onUnmounted(() => {
   border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   background: var(--fluent-color-fill-control);
   user-select: none;
+}
+
+/* macOS `TitleBarStyle::Overlay`: the native title bar is transparent and the
+   traffic lights float over the webview content. Reserve room for them and
+   drop the Win11 caption buttons, which would duplicate the traffic lights. */
+.shell.mac-overlay-titlebar .titlebar {
+  padding-inline-start: 78px;
+}
+
+.shell.mac-overlay-titlebar .window-controls {
+  display: none;
 }
 
 .titlebar-leading {

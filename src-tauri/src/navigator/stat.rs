@@ -86,16 +86,20 @@ pub fn stat_path(path: &str) -> Result<NavigatorEntryStat, String> {
     } else {
         (None, None, None, false)
     };
+    // Compute before `name` is moved into the struct literal.
+    let hidden = super::list::entry_is_hidden(&meta, &name);
 
     Ok(NavigatorEntryStat {
         name,
-        path: pb.to_string_lossy().replace('/', "\\"),
+        // Keep the host separator: a hardcoded `\` turns POSIX paths into
+        // unopenable strings on macOS (see docs/macos-port-research.md 7.14).
+        path: crate::paths::display_path(&pb),
         kind: if is_dir { "dir" } else { "file" }.to_string(),
         size: if meta.is_file() { meta.len() } else { 0 },
         modified_ms: meta.modified().ok().and_then(system_time_ms),
         created_ms: meta.created().ok().and_then(system_time_ms),
         readonly: meta.permissions().readonly(),
-        hidden: super::list::entry_is_hidden(&meta),
+        hidden,
         total_size,
         file_count,
         dir_count,

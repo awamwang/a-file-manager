@@ -312,10 +312,37 @@ pub fn list_drives() -> Result<Vec<DriveInfo>, String> {
 
     #[cfg(not(windows))]
     {
-        // Drive letters are a Windows concept: `A:\`…`Z:\` are never real dirs
-        // here, so this loop only cost 26 pointless stat calls. Real volumes
-        // (`/Volumes`) and free space come with the P1 `sysinfo::Disks` work.
-        Ok(Vec::new())
+        // 6.5 / P1: `sysinfo::Disks` replaces the Windows `A:\`…`Z:\` bitmap.
+        // Drive letters are a Windows concept, so expose real mount points:
+        // the root volume plus user-mounted `/Volumes/*`. APFS also exposes a
+        // handful of `/System/Volumes/*` helper volumes that are invisible in
+        // Finder, so filter them out instead of flooding the sidebar.
+        use sysinfo::Disks;
+
+        let disks = Disks::new_with_refreshed_list()
+            .map_err(|err| format!("Failed to enumerate mounted volumes: {err}"))?;
+        let mut drives = Vec::new();
+        for disk in disks.iter() {
+            let mount = disk.mount_point();
+            let path = crate::paths::display_path(mount);
+            if path != "/" && !path.starts_with("/Volumes/") {
+                continue;
+            }
+            if !mount.is_dir() || drives.iter().any(|d: &DriveInfo| d.path == path) {
+                continue;
+            }
+            drives.push(DriveInfo {
+                letter: mount
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or_else(|| path.clone()),
+                path,
+                label: disk.name().to_string_lossy().to_string(),
+                kind: DriveKind::Fixed,
+            });
+        }
+        Ok(drives)
     }
 }
 
@@ -335,9 +362,12 @@ mod tests {
         #[cfg(windows)]
         assert!(!drives.is_empty());
         for drive in &drives {
-            assert!(drive.path.ends_with('\\'));
             assert!(Path::new(&drive.path).is_dir());
             assert!(!drive.letter.is_empty());
+            #[cfg(windows)]
+            assert!(drive.path.ends_with('\\'));
+            #[cfg(not(windows))]
+            assert!(drive.path.starts_with('/'));
         }
         #[cfg(windows)]
         {

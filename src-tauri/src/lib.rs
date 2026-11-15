@@ -139,6 +139,14 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_decorations(true);
+                // 7.9 / 7.14 (option C): avoid a second native title bar row. Overlay makes
+                // the titlebar transparent with a full-size content view, so the traffic
+                // lights float over the self-drawn Fluent caption instead. The frontend
+                // reserves 78px on the left and hides the duplicate Win11 caption buttons.
+                // Using the runtime API keeps `decorations:false` in tauri.conf.json (hard
+                // assertion in check-window-controls.mjs) and leaves Windows untouched.
+                let _ = window.set_title_bar_style(tauri::TitleBarStyle::Overlay);
+                let _ = window.set_title("");
             }
 
             // Only the primary instance owns the tray icon.

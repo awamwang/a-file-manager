@@ -568,7 +568,7 @@
   - **Windows 分支**：维持原 OLE 行为（`preventDefault` + `armOutboundPathsForPress` + `startNativeFileDragOut`），契约字面量 `startNativeFileDragOut(paths)` / `armOutboundPathsForPress` 均保留以满足静态脚本。
 - `isMacPlatform()` 取自 `src/config/platform.ts`（同步：缓存能力优先、UA 兜底），与 `revealMainWindow.ts` 判定方式一致。
 
-**验证**：`cargo check` 0 警告 · `npm run build` ✓ · `test:file-drag-out` ✓ · `test:cross-app-dnd` ✓；`test:file-drag-inout` 失败是**既存 macOS 失败用例**（`pathToFileURL("C:\\Temp\\x")` 在 macOS 按 POSIX 解析返回 `null`，仅 Windows 可过），与本次改动无关（`git stash` 已证实改动前同样失败）。`tauri dev` 重启后进程**不再 abort**，日志无 `RecvError` panic。`lsappinfo` 在本沙箱无法确认窗口可见性；窗口显示本身与 7.12 一致（reveal 逻辑未改动）。**拖放真实交互（拖文件到 Finder）仍需本机桌面实机确认**——代码层已证明 `start_dragging` 在 macOS 永不被调用，崩溃路径已切断。
+**验证**：`cargo check` 0 警告 · `npm run build` ✓ · `test:file-drag-out` ✓ · `test:cross-app-dnd` ✓；`test:file-drag-inout` 失败是**既存 macOS 失败用例**（`pathToFileURL("C:\\Temp\\x")` 在 macOS 按 POSIX 解析返回 `null`，仅 Windows 可过），与本次改动无关（`git stash` 已证实改动前同样失败）；**该脚本已在 7.15 平台化，`npm test` 现全绿**。`tauri dev` 重启后进程**不再 abort**，日志无 `RecvError` panic。`lsappinfo` 在本沙箱无法确认窗口可见性；窗口显示本身与 7.12 一致（reveal 逻辑未改动）。**拖放真实交互（拖文件到 Finder）仍需本机桌面实机确认**——代码层已证明 `start_dragging` 在 macOS 永不被调用，崩溃路径已切断。
 
 ---
 
@@ -602,6 +602,41 @@
 - **C · `titleBarStyle: Overlay` + `hiddenTitle`**（7.9 原计划）：交通灯浮在自绘 Fluent 栏左侧，只剩一条栏，功能按钮全保留；需给左侧留约 80px 并隐藏 Win11 三键。
 
 约束：`scripts/check-window-controls.mjs` 硬断言 `mainWindow.decorations === false`，所以 C **只能新增** `titleBarStyle` / `hiddenTitle` 字段，不能改 `decorations`；`set_decorations(true)` 仍需保留在运行时。C 的视觉效果本会话无法截图验证，需用户选定后再动。
+
+---
+
+### 7.15 按排期继续兼容实施（第 10 轮）：标题栏 / 卷信息 / 隐藏文件 / 契约平台化
+
+延续 7.6 遗留项与 P1 缺口。**每项先按 6.5 第 1 条门禁标注四选一**：
+
+| 缺口 | 门禁决策 | 依据 |
+|---|---|---|
+| 双层标题栏（7.14 反馈 2） | **复用** | Tauri 2.12.5 自带运行时 `WebviewWindow::set_title_bar_style` / `tauri::TitleBarStyle::Overlay`，无需新依赖、无需 objc、无需改 config |
+| 卷列表 / 磁盘空间（7.11 ②） | **引入** | 6.5 第 2 条明确指定 `sysinfo::Disks`；自写 `statvfs` 绑定被门禁禁止 |
+| POSIX 隐藏文件（P1） | **自写（标准库）** | POSIX 没有 hidden attribute，dot-file 是命名约定，无 crate 可代劳 |
+| 设置页默认路径（7.14 遗留） | **复用** | `@tauri-apps/api/path` 的 `join()` 已返回 host 原生路径，只需去掉多余的 `\` 改写 |
+
+**改动**：
+
+- **标题栏方案 C**（7.9 原计划，7.14 三选一中的 C）：`src-tauri/src/lib.rs` 在 macOS 的 `set_decorations(true)` 之后追加 `set_title_bar_style(tauri::TitleBarStyle::Overlay)` + `set_title("")`。查证 `tauri-runtime-wry` 的 `SetTitleBarStyle` 处理：Overlay 会 `set_titlebar_transparent(true)` + `set_fullsize_content_view(true)`，交通灯浮在 webview 内容上。**关键收益**：用运行时 API 实现，`tauri.conf.json` 的 `decorations:false` 一字未改（`check-window-controls.mjs` 硬断言），Windows 完全不受影响。`AppShell.vue` 引入 `isMacPlatform()` 给 `.shell` 加 `mac-overlay-titlebar` class：自绘 Fluent 栏左侧留 78px 给交通灯、隐藏重复的 Win11 三键；刷新与命令面板按钮保留。
+- **卷 / 磁盘空间**：`src-tauri/Cargo.toml` 引入 `sysinfo = { version = "0.40.3", default-features = false, features = ["disk"] }`（只开 disk，避免拖入 component/gpu/network 等）。`navigator/places.rs::list_drives` 非 Windows 分支改为遍历 `Disks::new_with_refreshed_list()`，只暴露 `/` 与 `/Volumes/*`（过滤 Finder 不可见的 `/System/Volumes/*` 辅助卷），`letter` 用挂载点 basename；`navigator/disk_space.rs` 非 Windows 分支改为「最长匹配挂载点」返回 `available_space()` / `total_space()`，替换恒 `Err`。`volume_root` 保留给 Windows 并加 `cfg_attr(not(windows), allow(dead_code))`。两处各补一个 macOS 单测，`places.rs` 的卷路径断言改为 `cfg` 分支（Windows 验 `\` 结尾、POSIX 验 `/` 开头）。
+- **隐藏文件**：`navigator/list.rs::entry_is_hidden` 签名加 `name: &str`，Windows 仍用 `FILE_ATTRIBUTE_HIDDEN`，非 Windows 用 `name.starts_with('.')`（排除 `.` / `..`）。`list.rs` / `stat.rs` / `search.rs` 三处调用同步传入文件名。顺带把 `stat_path` 的 `pb.to_string_lossy().replace('/', "\\")` 换成 `crate::paths::display_path(&pb)`——这是 7.14 之后发现的又一处真实路径 Windows 化。
+- **设置页**：`settingsEffectiveDefaults.ts` 的 `toWindowsPath` 改为 `toNativeDisplayPath`，POSIX 绝对路径保留 `/`；`check-settings-ui-regroup.mjs` 加断言守住。
+- **静态契约平台化（顺手修，两项均为既存漂移）**：① `check-perf-probe.mjs` 两处 `from "./perfProbe"` 断言改正则允许 `.ts` 后缀（源码一直写 `./perfProbe.ts`，`69f171e` 版本即如此）；② `check-file-drag-inout.mjs:95` 的 `pathToFileURL("C:\\Temp\\x")` 断言按 `process.platform` 门控，非 Windows 补一条 POSIX URL 断言。7.13 记为「既存 macOS 失败用例」的这一条至此修复。
+
+**验证**：
+
+| 项目 | 结果 |
+|---|---|
+| `cargo check`（默认） / `--no-default-features`（Core） | ✅ 均 0 警告 |
+| `cargo test --lib` | ✅ 299 passed / 0 failed / 1 ignored（原 296，本轮 +2 个卷/磁盘用例 +1 个既有用例计数差异） |
+| `npm run build`（`vue-tsc` + vite） | ✅ 通过 |
+| **`npm test`（全量前端契约）** | ✅ **exit 0，macOS 上首次全绿**（此前唯一阻塞 `test:file-drag-inout` 已平台化） |
+| 5 个读 `tauri.conf.json` 的静态脚本 + perf/show-hidden/properties/settings 等 | ✅ 全通过 |
+
+**仍待用户实机确认**：Overlay 后交通灯落点与 78px 留白是否合适、`set_title("")` 对窗口菜单的影响、「此电脑」卷列表呈现、dot-file 隐藏开关、磁盘空间用量条。这些在沙箱里无法截图。
+
+**下一轮候选（按 6.5 门禁逐项判定，勿误判为已完成）**：Rust 侧仍有约 20 处 `replace('/', "\\")` 规范化（`visit_stats` / `projects` / `favorites` / `discovery` / `ai/*` / `file_ops` / `terminal` 等）。多数是比较键 / 缓存键，不产生交给后端的真实路径；但 `terminal/mod.rs:142`、`ai/open_editor.rs:58`、`ai/harness.rs:28`、`file_ops/recycle.rs:26` 疑似产出真实路径，需逐个确认后再平台化。P1 的终端/IDE `open -a`、废纸篓 TCC（或改 `~/.Trash` 移动）、全局搜索 Spotlight、进程树清理，以及 P2 的 i18n Windows 名词 / 原生菜单，仍按原排期。
 
 ---
 

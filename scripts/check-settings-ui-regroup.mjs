@@ -37,6 +37,11 @@ assert.ok(view.includes("settingsEffectiveDefaults"));
 assert.ok(effective.includes("SETTINGS_EMPTY_MEANS_DEFAULT_KEYS"));
 assert.ok(effective.includes("core.defaultLocation"));
 assert.ok(effective.includes("core.projectsRoot"));
+// 7.15: the effective default path must stay POSIX-native on macOS.
+assert.ok(
+  effective.includes('trimmed.startsWith("/")'),
+  "settings defaults must not rewrite POSIX paths with backslashes",
+);
 
 assert.ok(zh.includes("项目的公共配置"));
 assert.ok(zh.includes("（默认：{default}）"));

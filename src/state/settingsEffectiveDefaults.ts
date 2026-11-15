@@ -27,8 +27,16 @@ export type SettingsEffectiveDefaults = Partial<
   Record<SettingsEmptyMeansDefaultKey, string>
 >;
 
-function toWindowsPath(path: string): string {
-  return path.replace(/\//g, "\\");
+/**
+ * Keep the host-native separator. `join()` already returns one, so a POSIX
+ * absolute path must never be rewritten to `\` — on macOS that produced
+ * unopenable defaults like `\Users\...\projects` (7.14). Windows paths keep
+ * the historical normalization.
+ */
+function toNativeDisplayPath(path: string): string {
+  const trimmed = path.trim();
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) return trimmed;
+  return trimmed.replace(/\//g, "\\");
 }
 
 /**
@@ -53,7 +61,7 @@ export async function loadSettingsEffectiveDefaults(opts: {
 
   try {
     const configDir = await appConfigDir();
-    const projectsRoot = toWindowsPath(await join(configDir, "projects"));
+    const projectsRoot = toNativeDisplayPath(await join(configDir, "projects"));
     if (projectsRoot.trim()) out["core.projectsRoot"] = projectsRoot;
   } catch {
     // ignore

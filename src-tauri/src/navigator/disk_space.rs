@@ -11,6 +11,9 @@ pub struct DiskSpaceInfo {
     pub total_bytes: u64,
 }
 
+// Windows-only helper (drive letter / UNC share root). POSIX paths resolve
+// their volume through `sysinfo::Disks` in the `not(windows)` implementation.
+#[cfg_attr(not(windows), allow(dead_code))]
 fn volume_root(path: &str) -> Option<String> {
     let trimmed = path.trim().replace('/', "\\");
     if trimmed.starts_with("\\\\") {
@@ -60,8 +63,41 @@ pub fn disk_space_for_path(path: &str) -> Result<DiskSpaceInfo, String> {
 
 #[cfg(not(windows))]
 pub fn disk_space_for_path(path: &str) -> Result<DiskSpaceInfo, String> {
-    let _ = volume_root(path);
-    Err("Disk space query is only implemented on Windows".to_string())
+    // 6.5 / P1: `sysinfo::Disks` provides mounted volumes and their free /
+    // total space without a hand-rolled `statvfs` binding. Pick the longest
+    // mount point that contains `path` (e.g. `/Volumes/USB` wins over `/`).
+    use sysinfo::Disks;
+
+    let target = path.trim();
+    if target.is_empty() {
+        return Err("Path must not be empty".to_string());
+    }
+    let disks = Disks::new_with_refreshed_list()
+        .map_err(|err| format!("Failed to enumerate mounted volumes: {err}"))?;
+    let target_path = std::path::Path::new(target);
+    let mut best: Option<(String, u64, u64, usize)> = None;
+    for disk in disks.iter() {
+        let mount = disk.mount_point();
+        if !target_path.starts_with(mount) {
+            continue;
+        }
+        let len = mount.as_os_str().len();
+        if best.as_ref().map_or(true, |b| len > b.3) {
+            best = Some((
+                crate::paths::display_path(mount),
+                disk.available_space(),
+                disk.total_space(),
+                len,
+            ));
+        }
+    }
+    let (root, free_bytes, total_bytes, _) =
+        best.ok_or_else(|| "Path has no volume root".to_string())?;
+    Ok(DiskSpaceInfo {
+        path: root,
+        free_bytes,
+        total_bytes,
+    })
 }
 
 #[cfg(test)]
@@ -84,5 +120,14 @@ mod tests {
         let info = disk_space_for_path(r"C:\").unwrap();
         assert!(info.total_bytes > 0);
         assert!(info.free_bytes <= info.total_bytes);
+    }
+
+    #[test]
+    #[cfg(not(windows))]
+    fn free_space_for_root_volume() {
+        let info = disk_space_for_path("/").unwrap();
+        assert!(info.total_bytes > 0);
+        assert!(info.free_bytes <= info.total_bytes);
+        assert!(info.path.starts_with('/'));
     }
 }

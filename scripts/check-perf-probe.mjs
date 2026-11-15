@@ -18,7 +18,10 @@ assert.ok(probe.includes("export async function perfSpan"), "perfSpan exported")
 assert.ok(probe.includes("export function perfMark"), "perfMark exported");
 
 const browse = read("src/state/navigatorBrowse.ts");
-assert.ok(browse.includes('from "./perfProbe"'), "navigatorBrowse imports perfProbe");
+assert.ok(
+  /from ["']\.\/perfProbe(?:\.ts)?["']/.test(browse),
+  "navigatorBrowse imports perfProbe",
+);
 assert.ok(/perfSpan\(\s*"navigator_list"/.test(browse), "navigator_list span");
 assert.ok(/perfSpan\(\s*"tab_switch"/.test(browse), "tab_switch span");
 assert.ok(browse.includes("revealPathForTabSwitch"), "tab switch uses timed reveal");
@@ -30,7 +33,10 @@ assert.ok(listRs.includes("skip_serializing_if"), "Phase C omit default entry pa
 assert.ok(listRs.includes("elides_default_child_path_on_wire"), "Phase C elision test");
 
 const icons = read("src/state/shellIcons.ts");
-assert.ok(icons.includes('from "./perfProbe"'), "shellIcons imports perfProbe");
+assert.ok(
+  /from ["']\.\/perfProbe(?:\.ts)?["']/.test(icons),
+  "shellIcons imports perfProbe",
+);
 assert.ok(/perfSpan\(\s*"shell_icon_batch"/.test(icons), "shell_icon_batch span");
 
 const tree = read("src/components/shell/FolderTreeBranch.vue");
