@@ -1,6 +1,13 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, ref, watch } from "vue";
+import {
+  computed,
+  defineAsyncComponent,
+  onMounted,
+  onUnmounted,
+  ref,
+  watch,
+} from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
 import { applyUiChromeFromValues } from "../state/uiChrome";
@@ -27,8 +34,20 @@ import { useI18n } from "vue-i18n";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import { settingsIconForKey, type FluentGlyphId } from "../components/icons/glyphs";
 import {
+  chordFromEvent,
+  chordKey,
+  effectiveChordsForId,
+  effectiveShortcutDefinitions,
   findShortcutConflicts,
+  listShortcutActionsForDisplay,
   listShortcutsForDisplay,
+  resetActionChords,
+  resetAllShortcutOverrides,
+  setActionChords,
+  shortcutOverridesVersion,
+  validateNewChord,
+  type ShortcutChord,
+  type ShortcutValidationResult,
 } from "../shortcuts/index.ts";
 import { applyLaunchAtStartupPreference } from "../utils/autostartSync";
 import {
@@ -153,12 +172,108 @@ const sections = computed(() => [
 const ideApps = ref<IdeAppInfo[]>([]);
 const ideAppsLoading = ref(false);
 
-const shortcutRows = computed(() => {
+/** One row per function, with all FINAL chords (builtins + user overrides). */
+const shortcutActionRows = computed(() => {
   void locale.value;
-  return listShortcutsForDisplay();
+  void shortcutOverridesVersion.value;
+  return listShortcutActionsForDisplay();
 });
 
-const shortcutConflicts = computed(() => findShortcutConflicts());
+const shortcutConflicts = computed(() => {
+  void shortcutOverridesVersion.value;
+  return findShortcutConflicts(effectiveShortcutDefinitions());
+});
+
+/** Legacy flat view still supplies the count of shadowed bindings. */
+const shortcutBlockedCount = computed(() => {
+  void shortcutOverridesVersion.value;
+  return listShortcutsForDisplay(effectiveShortcutDefinitions()).filter(
+    (row) => Boolean(row.blockedBy),
+  ).length;
+});
+
+const recordingActionId = ref<string | null>(null);
+const shortcutNotice = ref<string | null>(null);
+let recordingListenerAttached = false;
+
+function currentChords(actionId: string): ShortcutChord[] {
+  return effectiveChordsForId(actionId);
+}
+
+function startRecording(actionId: string) {
+  stopRecording();
+  shortcutNotice.value = null;
+  recordingActionId.value = actionId;
+  // Capture phase: the combo must never reach the global shortcut dispatcher.
+  window.addEventListener("keydown", onRecordKeydown, true);
+  recordingListenerAttached = true;
+}
+
+function stopRecording() {
+  if (recordingListenerAttached) {
+    window.removeEventListener("keydown", onRecordKeydown, true);
+    recordingListenerAttached = false;
+  }
+  recordingActionId.value = null;
+}
+
+function noticeForValidation(result: ShortcutValidationResult): string {
+  switch (result.reason) {
+    case "reserved":
+      return String(t("shortcuts.errorReserved"));
+    case "duplicate":
+      return String(t("shortcuts.errorDuplicate"));
+    case "conflict":
+      return String(t("shortcuts.errorConflict", { id: result.ownerId ?? "" }));
+    default:
+      return String(t("shortcuts.errorUnknown"));
+  }
+}
+
+function onRecordKeydown(event: KeyboardEvent) {
+  const actionId = recordingActionId.value;
+  if (!actionId) return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (event.key === "Escape") {
+    stopRecording();
+    return;
+  }
+  const chord = chordFromEvent(event);
+  // Still holding a modifier (or IME composing): keep listening.
+  if (!chord) return;
+  const result = validateNewChord(actionId, chord);
+  if (!result.ok) {
+    shortcutNotice.value = noticeForValidation(result);
+    return;
+  }
+  setActionChords(actionId, [...currentChords(actionId), chord]);
+  shortcutNotice.value = null;
+  stopRecording();
+}
+
+function removeChord(actionId: string, chord: ShortcutChord) {
+  const key = chordKey(chord);
+  setActionChords(
+    actionId,
+    currentChords(actionId).filter((candidate) => chordKey(candidate) !== key),
+  );
+  shortcutNotice.value = null;
+}
+
+function restoreAction(actionId: string) {
+  resetActionChords(actionId);
+  shortcutNotice.value = null;
+  stopRecording();
+}
+
+function restoreAll() {
+  resetAllShortcutOverrides();
+  shortcutNotice.value = null;
+  stopRecording();
+}
+
+onUnmounted(() => stopRecording());
 
 const visibleDefs = computed(() =>
   (schema.value?.definitions ?? [])
@@ -568,30 +683,106 @@ onMounted(() => {
 
       <div v-else-if="activeSection === 'shortcuts'" class="fluent-surface shortcuts-panel">
         <p class="shortcuts-meta">{{ t("shortcuts.meta") }}</p>
+
+        <div class="shortcut-toolbar">
+          <button type="button" class="fluent-control" @click="restoreAll">
+            {{ t("shortcuts.resetAll") }}
+          </button>
+          <span v-if="shortcutNotice" class="shortcut-notice">{{
+            shortcutNotice
+          }}</span>
+        </div>
+
         <p
           v-if="shortcutConflicts.length"
-          class="fluent-banner fluent-banner--error"
+          class="fluent-banner fluent-banner--error shortcuts-banner"
         >
           {{
             t("shortcuts.conflict", {
               chords: shortcutConflicts.map((c) => c.chordLabel).join(", "),
             })
           }}
+          <template v-if="shortcutBlockedCount">
+            {{ t("shortcuts.blockedCount", { count: shortcutBlockedCount }) }}
+          </template>
         </p>
-        <div
-          v-for="row in shortcutRows"
-          :key="row.id"
-          class="shortcut-row"
-          :class="{ 'shortcut-row--blocked': Boolean(row.blockedBy) }"
-        >
+
+        <div v-for="row in shortcutActionRows" :key="row.id" class="shortcut-row">
           <div class="shortcut-text">
-            <span class="title">{{ t(row.labelKey) }}</span>
+            <span class="title">
+              {{ t(row.labelKey) }}
+              <span v-if="row.isOverridden" class="shortcut-badge">{{
+                t("shortcuts.overridden")
+              }}</span>
+            </span>
             <code class="key">{{ row.id }}</code>
-            <p v-if="row.blockedBy" class="desc">
-              {{ t("shortcuts.blockedBy", { id: row.blockedBy }) }}
+            <p v-if="!row.configurable" class="desc">
+              {{ t("shortcuts.fixedGroup") }}
             </p>
           </div>
-          <kbd class="chord">{{ row.chordLabel }}</kbd>
+
+          <div class="shortcut-bindings">
+            <span
+              v-for="binding in row.bindings"
+              :key="binding.label"
+              class="shortcut-binding"
+            >
+              <kbd
+                class="chord"
+                :class="{ 'chord--blocked': Boolean(binding.blockedBy) }"
+                :title="
+                  binding.blockedBy
+                    ? t('shortcuts.blockedBy', { id: binding.blockedBy })
+                    : undefined
+                "
+                >{{ binding.label }}</kbd
+              >
+              <button
+                v-if="row.configurable"
+                type="button"
+                class="binding-remove"
+                :aria-label="t('shortcuts.remove')"
+                :title="t('shortcuts.remove')"
+                @click="removeChord(row.id, binding.chord)"
+              >
+                ×
+              </button>
+            </span>
+            <span v-if="!row.bindings.length" class="shortcut-unbound">{{
+              t("shortcuts.unbound")
+            }}</span>
+
+            <template v-if="row.configurable">
+              <button
+                v-if="recordingActionId !== row.id"
+                type="button"
+                class="fluent-control shortcut-action"
+                @click="startRecording(row.id)"
+              >
+                {{ t("shortcuts.add") }}
+              </button>
+              <template v-else>
+                <span class="shortcut-recording">{{
+                  t("shortcuts.recording")
+                }}</span>
+                <button
+                  type="button"
+                  class="fluent-control shortcut-action"
+                  @click="stopRecording"
+                >
+                  {{ t("shortcuts.cancel") }}
+                </button>
+              </template>
+              <button
+                v-if="row.isOverridden"
+                type="button"
+                class="fluent-control shortcut-action"
+                @click="restoreAction(row.id)"
+              >
+                {{ t("shortcuts.reset") }}
+              </button>
+            </template>
+          </div>
         </div>
       </div>
 
@@ -886,7 +1077,7 @@ onMounted(() => {
 
 .shortcut-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--fluent-space-md);
   padding: var(--fluent-space-md) var(--fluent-space-lg);
@@ -915,6 +1106,88 @@ onMounted(() => {
   border-radius: var(--fluent-radius-sm);
   background: var(--fluent-color-fill-subtle);
   font-family: var(--fluent-font-family-mono);
+  font-size: var(--fluent-font-size-caption);
+}
+
+.shortcut-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-md);
+  margin: 0 var(--fluent-space-lg) var(--fluent-space-md);
+}
+
+.shortcut-notice {
+  color: var(--fluent-color-status-danger);
+  font-size: var(--fluent-font-size-caption);
+}
+
+.shortcuts-banner {
+  margin-inline: var(--fluent-space-lg);
+}
+
+.shortcut-badge {
+  margin-left: var(--fluent-space-sm);
+  padding: 1px 6px;
+  border-radius: var(--fluent-radius-sm);
+  background: var(--fluent-color-fill-selected);
+  color: var(--fluent-color-text-secondary);
+  font-size: var(--fluent-font-size-caption);
+  font-weight: normal;
+  white-space: nowrap;
+}
+
+.shortcut-bindings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--fluent-space-xs);
+  max-width: 26rem;
+}
+
+.shortcut-binding {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.binding-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--fluent-radius-sm);
+  background: transparent;
+  color: var(--fluent-color-text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.binding-remove:hover {
+  background: var(--fluent-color-fill-control-hover);
+  color: var(--fluent-color-status-danger);
+}
+
+.chord--blocked {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+.shortcut-unbound,
+.shortcut-recording {
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+}
+
+.shortcut-recording {
+  color: var(--fluent-color-status-info);
+}
+
+.shortcut-action {
+  padding: 2px 8px;
   font-size: var(--fluent-font-size-caption);
 }
 

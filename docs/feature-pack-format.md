@@ -23,5 +23,26 @@ v1 安装入口为本机 zip 或目录；包根目录需包含 `pack.json`，`ap
 | `routes` | array | 路由：`path`、`name`、`entry`（如 `builtin:tool-runtime`） |
 | `commands` | array | 命令：`id`、`labelKey`、可选 `route` |
 | `sidecars` | array | sidecar：`id`、`command`、`args`、可选 `workingDirRel` |
+| `search` | array | 搜索面板静态条目：`id`、`labelKey`、`keywords`（string[]，可选）、`route` |
 
 未列出的权限字符串在安装时会被拒绝。`entry` 仅允许宿主内置路由别名，不热加载任意 Rust 或远程模块。
+
+## `contributions.search`
+
+声明搜索面板「扩展」分组的静态条目（声明 `search` 必须申请 `uiCommands` 权限）：
+
+```json
+"search": [
+  {
+    "id": "open-example",
+    "labelKey": "packs.example.openEntry",
+    "keywords": ["example", "demo"],
+    "route": "/example"
+  }
+]
+```
+
+- `labelKey` 为 5 locale 均需提供的 i18n key；面板内显示为条目标题，匹配字段为 翻译后标题 + `keywords`。
+- `route` 必须可解析（核心壳路由或本 Pack `routes` 贡献的路径），否则条目被过滤。
+- 聚合时宿主自动写入 `packId` / `packName`（条目副标题显示 Pack 名），清单内声明无效。
+- Pack 禁用后条目随聚合一起消失。

@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import FluentIcon from "../icons/FluentIcon.vue";
@@ -12,14 +12,43 @@ import {
   previewPaneWidth,
   setPreviewPaneWidth,
 } from "../../state/sidePaneWidth";
+import { newNavigatorTab } from "../../state/navigatorBrowse.ts";
+
+export type PreviewLinkInfo = {
+  /** "shortcut" (.lnk) or "symlink" (reparse point). */
+  kind: "shortcut" | "symlink" | string;
+  /** Resolved target path (null when the link carries no readable target). */
+  target: string | null;
+  /** Whether the target still exists on disk. */
+  targetExists: boolean;
+  /** "dir" | "file" of the target (null when missing/unknown). */
+  targetKind: string | null;
+  /** Directory containing the target (原目录 / start-in folder). */
+  targetDir: string | null;
+  /** Whether the 原目录 still exists (lets the user jump there). */
+  targetDirExists: boolean;
+};
+
+export type PreviewDirInfo = {
+  /** Direct child files (null when the folder is unreadable). */
+  fileCount: number | null;
+  /** Direct child subfolders (null when the folder is unreadable). */
+  dirCount: number | null;
+  modifiedMs: number | null;
+  createdMs: number | null;
+};
 
 export type PreviewPayload = {
-  kind: "image" | "text" | "unsupported" | string;
+  kind: "image" | "text" | "unsupported" | "link" | "dir" | string;
   path: string;
   text: string | null;
   dataUrl: string | null;
   truncated: boolean;
   error: string | null;
+  /** Link metadata; non-null only for kind "link" payloads. */
+  link: PreviewLinkInfo | null;
+  /** Directory basics; non-null only for kind "dir" payloads. */
+  dir: PreviewDirInfo | null;
 };
 
 const props = defineProps<{
@@ -29,10 +58,12 @@ const props = defineProps<{
 
 const emit = defineEmits<{ close: [] }>();
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const loading = ref(false);
 const payload = ref<PreviewPayload | null>(null);
+const copiedTarget = ref(false);
 let seq = 0;
+let copyResetTimer: number | null = null;
 
 const resizing = ref(false);
 let resizeStartX = 0;
@@ -92,6 +123,11 @@ function onSplitterKey(event: KeyboardEvent) {
 
 async function load(path: string | null) {
   const my = ++seq;
+  copiedTarget.value = false;
+  if (copyResetTimer !== null) {
+    window.clearTimeout(copyResetTimer);
+    copyResetTimer = null;
+  }
   if (!props.enabled || !path) {
     payload.value = null;
     loading.value = false;
@@ -111,9 +147,82 @@ async function load(path: string | null) {
       dataUrl: null,
       truncated: false,
       error: err instanceof Error ? err.message : String(err),
+      link: null,
+      dir: null,
     };
   } finally {
     if (my === seq) loading.value = false;
+  }
+}
+
+const linkKindLabel = computed(() => {
+  const link = payload.value?.link;
+  if (!link) return "";
+  return link.kind === "symlink"
+    ? t("preview.linkKindSymlink")
+    : t("preview.linkKindShortcut");
+});
+
+const targetKindLabel = computed(() => {
+  const link = payload.value?.link;
+  if (!link?.targetKind) return "";
+  return link.targetKind === "dir"
+    ? t("preview.linkTargetKindDir")
+    : t("preview.linkTargetKindFile");
+});
+
+// Folder preview rows share the 属性 labels; timestamps follow the UI locale.
+function formatDirTime(ms: number | null): string {
+  if (ms == null) return t("properties.unknown");
+  void locale.value;
+  return new Date(ms).toLocaleString();
+}
+
+async function copyLinkTarget() {
+  const target = payload.value?.link?.target;
+  if (!target) return;
+  try {
+    await navigator.clipboard.writeText(target);
+    copiedTarget.value = true;
+    if (copyResetTimer !== null) window.clearTimeout(copyResetTimer);
+    copyResetTimer = window.setTimeout(() => {
+      copiedTarget.value = false;
+      copyResetTimer = null;
+    }, 1500);
+  } catch {
+    /* clipboard may be unavailable; keep the path selectable */
+  }
+}
+
+// Missing target: keep the card a link card — only the red banner is reserved
+// for fully dead links (target AND 原目录 both gone).
+const targetMissing = computed(() => {
+  const link = payload.value?.link;
+  return Boolean(link?.target && !link.targetExists);
+});
+
+const showMissingBanner = computed(() => {
+  const link = payload.value?.link;
+  return Boolean(link?.target && !link.targetExists && !link.targetDirExists);
+});
+
+// Existing directory targets / 原目录 open in a new navigator tab.
+const canOpenTargetInNewTab = computed(() => {
+  const link = payload.value?.link;
+  return Boolean(link?.target && link.targetExists && link.targetKind === "dir");
+});
+
+async function openTargetInNewTab() {
+  const link = payload.value?.link;
+  if (link?.target && link.targetExists && link.targetKind === "dir") {
+    await newNavigatorTab(link.target);
+  }
+}
+
+async function openTargetDirInNewTab() {
+  const link = payload.value?.link;
+  if (link?.targetDir && link.targetDirExists) {
+    await newNavigatorTab(link.targetDir);
   }
 }
 
@@ -168,6 +277,115 @@ watch(
     <p v-else-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
     <template v-else-if="payload">
       <p v-if="payload.error" class="fluent-banner fluent-banner--error">{{ payload.error }}</p>
+      <div
+        v-else-if="payload.kind === 'link' && payload.link"
+        class="preview-link"
+      >
+        <div class="preview-link-head">
+          <span class="preview-link-icon"><FluentIcon name="link" size="lg" /></span>
+          <div class="preview-link-head-text">
+            <p class="preview-link-kind">{{ linkKindLabel }}</p>
+          </div>
+        </div>
+        <p
+          v-if="showMissingBanner"
+          class="fluent-banner fluent-banner--error preview-link-missing"
+        >
+          {{ t("preview.linkTargetMissing") }}
+        </p>
+        <dl class="preview-link-rows">
+          <div class="preview-link-row">
+            <dt>{{ t("preview.linkTargetLabel") }}</dt>
+            <dd class="preview-link-path">
+              <button
+                v-if="canOpenTargetInNewTab"
+                type="button"
+                class="preview-link-open"
+                :title="t('contextMenu.openInNewTab')"
+                @click="openTargetInNewTab"
+                >{{ payload.link.target }}</button
+              >
+              <span
+                v-else-if="payload.link.target"
+                class="preview-link-path-text"
+                :title="payload.link.target"
+                >{{ payload.link.target }}</span
+              >
+              <span v-else class="preview-link-muted">{{
+                t("preview.linkTargetUnresolved")
+              }}</span>
+              <span
+                v-if="targetMissing"
+                class="preview-link-badge"
+                >{{ t("preview.linkTargetMissingBadge") }}</span
+              >
+              <button
+                v-if="payload.link.target"
+                type="button"
+                class="fluent-control preview-link-copy"
+                :aria-label="t('preview.linkCopyTarget')"
+                :title="copiedTarget ? t('preview.linkCopiedTarget') : t('preview.linkCopyTarget')"
+                @click="copyLinkTarget"
+              >
+                <FluentIcon :name="copiedTarget ? 'check' : 'copy'" size="sm" />
+              </button>
+            </dd>
+          </div>
+          <div v-if="targetKindLabel" class="preview-link-row">
+            <dt>{{ t("preview.linkTargetKindLabel") }}</dt>
+            <dd>{{ targetKindLabel }}</dd>
+          </div>
+          <div v-if="payload.link.targetDir" class="preview-link-row">
+            <dt>{{ t("preview.linkTargetDirLabel") }}</dt>
+            <dd class="preview-link-path">
+              <button
+                v-if="payload.link.targetDirExists"
+                type="button"
+                class="preview-link-open"
+                :title="t('contextMenu.openInNewTab')"
+                @click="openTargetDirInNewTab"
+                >{{ payload.link.targetDir }}</button
+              >
+              <span v-else class="preview-link-path-text" :title="payload.link.targetDir">{{
+                payload.link.targetDir
+              }}</span>
+            </dd>
+          </div>
+        </dl>
+      </div>
+      <div
+        v-else-if="payload.kind === 'dir' && payload.dir"
+        class="preview-link"
+      >
+        <div class="preview-link-head">
+          <span class="preview-link-icon"><FluentIcon name="folder" size="lg" /></span>
+          <div class="preview-link-head-text">
+            <p class="preview-link-kind">{{ t("properties.kindFolder") }}</p>
+          </div>
+        </div>
+        <dl class="preview-link-rows">
+          <div v-if="payload.dir.fileCount != null" class="preview-link-row">
+            <dt>{{ t("properties.fileCount") }}</dt>
+            <dd>{{ payload.dir.fileCount }}</dd>
+          </div>
+          <div v-if="payload.dir.dirCount != null" class="preview-link-row">
+            <dt>{{ t("properties.dirCount") }}</dt>
+            <dd>{{ payload.dir.dirCount }}</dd>
+          </div>
+          <div v-if="payload.dir.fileCount == null" class="preview-link-row">
+            <dt>{{ t("preview.dirContentsLabel") }}</dt>
+            <dd><span class="preview-link-muted">{{ t("preview.dirUnreadable") }}</span></dd>
+          </div>
+          <div class="preview-link-row">
+            <dt>{{ t("properties.modified") }}</dt>
+            <dd>{{ formatDirTime(payload.dir.modifiedMs) }}</dd>
+          </div>
+          <div class="preview-link-row">
+            <dt>{{ t("properties.created") }}</dt>
+            <dd>{{ formatDirTime(payload.dir.createdMs) }}</dd>
+          </div>
+        </dl>
+      </div>
       <img
         v-else-if="payload.kind === 'image' && payload.dataUrl"
         class="preview-image"
@@ -291,5 +509,120 @@ watch(
   padding: var(--fluent-space-xs) var(--fluent-space-md) var(--fluent-space-sm);
   font-size: var(--fluent-font-size-caption);
   color: var(--fluent-color-text-secondary);
+}
+
+.preview-link {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--fluent-space-md);
+}
+
+.preview-link-head {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  margin-bottom: var(--fluent-space-md);
+}
+
+.preview-link-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--fluent-radius, 6px);
+  background: color-mix(in srgb, var(--fluent-color-fill-accent) 14%, transparent);
+  color: var(--fluent-color-fill-accent);
+}
+
+.preview-link-kind {
+  margin: 0;
+  font-size: var(--fluent-font-size-body);
+  font-weight: var(--fluent-font-weight-semibold);
+}
+
+.preview-link-missing {
+  margin: 0 0 var(--fluent-space-sm);
+}
+
+.preview-link-rows {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-sm);
+}
+
+.preview-link-row {
+  display: grid;
+  grid-template-columns: minmax(72px, auto) 1fr;
+  column-gap: var(--fluent-space-sm);
+  align-items: start;
+}
+
+.preview-link-row dt {
+  margin: 0;
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+  padding-top: 2px;
+}
+
+.preview-link-row dd {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--fluent-font-size-caption);
+  word-break: break-word;
+}
+
+.preview-link-path {
+  display: flex;
+  align-items: start;
+  gap: var(--fluent-space-xs);
+}
+
+.preview-link-path-text {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+  font-family: var(--fluent-font-family-mono);
+}
+
+/* Existing dir targets / 原目录: inline link that opens a new navigator tab. */
+.preview-link-open {
+  min-width: 0;
+  flex: 1;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font-family: var(--fluent-font-family-mono);
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-fill-accent);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.preview-link-open:hover,
+.preview-link-open:focus-visible {
+  text-decoration: underline;
+}
+
+/* Muted "missing" badge next to a dead target path (link card stays a card). */
+.preview-link-badge {
+  flex-shrink: 0;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+  background: color-mix(in srgb, var(--fluent-color-text-secondary) 14%, transparent);
+}
+
+.preview-link-muted {
+  color: var(--fluent-color-text-secondary);
+}
+
+.preview-link-copy {
+  flex-shrink: 0;
+  padding: var(--fluent-space-xs);
 }
 </style>

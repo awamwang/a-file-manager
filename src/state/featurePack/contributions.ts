@@ -4,6 +4,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
+import { ref } from "vue";
 import type { RouteRecordRaw, Router } from "vue-router";
 import type { AppCommand } from "../../commands/types.ts";
 import type { SideNavItem } from "../../shell/sideNav.ts";
@@ -36,11 +37,22 @@ export type FeaturePackSidecarContribution = {
   workingDirRel?: string | null;
 };
 
+export type FeaturePackSearchEntryContribution = {
+  id: string;
+  labelKey: string;
+  keywords: string[];
+  route: string;
+  /** 聚合时由宿主写入。 */
+  packId?: string | null;
+  packName?: string | null;
+};
+
 export type AggregatedContributions = {
   sideNav: FeaturePackSideNavContribution[];
   routes: FeaturePackRouteContribution[];
   commands: FeaturePackCommandContribution[];
   sidecars: FeaturePackSidecarContribution[];
+  search: FeaturePackSearchEntryContribution[];
 };
 
 const EMPTY_CONTRIBUTIONS: AggregatedContributions = {
@@ -48,9 +60,73 @@ const EMPTY_CONTRIBUTIONS: AggregatedContributions = {
   routes: [],
   commands: [],
   sidecars: [],
+  search: [],
 };
 
 let cached: AggregatedContributions = EMPTY_CONTRIBUTIONS;
+
+/**
+ * 工具运行时路由贡献（entry `builtin:tool-runtime`）。
+ * 响应式：搜索面板工具源据此决定源与 chip 是否参与（Pack 未启用 → null）。
+ */
+export const toolRuntimeRouteContribution = ref<FeaturePackRouteContribution | null>(
+  null,
+);
+
+function syncToolRuntimeRouteContribution(): void {
+  toolRuntimeRouteContribution.value =
+    cached.routes.find((route) => route.entry === "builtin:tool-runtime") ??
+    null;
+}
+
+/** 启用 Pack 的搜索面板静态条目（已过滤非法/未知路由）；响应式供扩展源消费。 */
+export const searchExtras = ref<FeaturePackSearchEntry[]>([]);
+
+/** 搜索面板「扩展」源的 Pack 静态条目（副标题显示 Pack 名）。 */
+export type FeaturePackSearchEntry = {
+  id: string;
+  labelKey: string;
+  keywords: string[];
+  route: string;
+  packId: string;
+  packName: string;
+};
+
+/**
+ * Pack 静态搜索条目 → 扩展源条目（过滤缺 id/labelKey/route 与不可解析路由）；
+ * 供 `getSearchExtras` 与测试消费。
+ */
+export function toFeaturePackSearchEntries(
+  entries: readonly FeaturePackSearchEntryContribution[],
+  isResolvable: (route: string) => boolean,
+): FeaturePackSearchEntry[] {
+  return entries
+    .filter(
+      (entry) =>
+        !!entry &&
+        !!entry.id &&
+        !!entry.labelKey &&
+        !!entry.route &&
+        isResolvable(entry.route),
+    )
+    .map((entry) => ({
+      id: entry.id,
+      labelKey: entry.labelKey,
+      keywords: Array.isArray(entry.keywords) ? entry.keywords : [],
+      route: entry.route,
+      packId: entry.packId ?? "",
+      packName: entry.packName ?? "",
+    }));
+}
+
+/** Pack 静态搜索条目（过滤非法/未知路由）；供扩展源与测试消费。 */
+export function getSearchExtras(): FeaturePackSearchEntry[] {
+  return toFeaturePackSearchEntries(cached.search, isResolvableCommandRoute);
+}
+
+function syncSearchExtras(): void {
+  searchExtras.value = getSearchExtras();
+}
 
 /** 已通过 addRoute 挂上的 Pack 路由 name，Soft Reload 时卸载不再启用的项。 */
 const registeredPackRouteNames = new Set<string>();
@@ -112,6 +188,7 @@ function normalizeContributions(
     routes: Array.isArray(raw?.routes) ? raw.routes : [],
     commands: Array.isArray(raw?.commands) ? raw.commands : [],
     sidecars: Array.isArray(raw?.sidecars) ? raw.sidecars : [],
+    search: Array.isArray(raw?.search) ? raw.search : [],
   };
 }
 
@@ -198,6 +275,8 @@ export async function hydrateFeaturePackContributions(): Promise<void> {
   } catch {
     // 拉取失败时保留上次贡献，避免 Soft Reload 清空已合并项。
   }
+  syncToolRuntimeRouteContribution();
+  syncSearchExtras();
   const { applyFeaturePackSideNav } = await import("../../shell/sideNav.ts");
   applyFeaturePackSideNav();
   const { registerFeaturePackRoutes } = await import("../../router/index.ts");

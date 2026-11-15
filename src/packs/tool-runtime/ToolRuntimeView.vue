@@ -1,7 +1,8 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { useRoute, useRouter } from "vue-router";
 import FluentIcon from "../../components/icons/FluentIcon.vue";
 import { openConfirmDialog } from "../../state/confirmDialog";
 import { selectedPaths } from "../../state/navigatorSelection";
@@ -30,6 +31,8 @@ import {
 } from "./client";
 
 const { t } = useI18n();
+const route = useRoute();
+const router = useRouter();
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:8766";
 
@@ -83,8 +86,40 @@ onMounted(() => {
   void (async () => {
     await loadConfig();
     await refreshStatus({ loadToolsIfReachable: true });
+    await applyRoutePreselect();
   })();
 });
+
+function routeQueryText(key: string): string {
+  const raw = route.query[key];
+  return typeof raw === "string" ? raw.trim() : "";
+}
+
+/** 搜索面板带 `?tool=…&capability=…` 进入时预选；应用后清 query（一次性）。 */
+async function applyRoutePreselect(): Promise<void> {
+  const toolId = routeQueryText("tool");
+  const capabilityId = routeQueryText("capability");
+  if (!toolId) return;
+  void router.replace({ query: {} });
+  const tool = tools.value.find((item) => item.id === toolId);
+  if (!tool) return;
+  await selectTool(tool);
+  if (!capabilityId) return;
+  const capability = capabilities.value.find(
+    (item) => item.capabilityId === capabilityId,
+  );
+  if (capability) {
+    selectCapability(capability);
+  }
+}
+
+watch(
+  () => route.query,
+  () => {
+    // 已在 /tools 时面板再次带 query 进入：组件不重挂，靠 watch 补预选。
+    void applyRoutePreselect();
+  },
+);
 
 async function loadConfig(): Promise<void> {
   try {

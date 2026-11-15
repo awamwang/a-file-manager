@@ -4,6 +4,7 @@ import {
   buildContextMenuItems,
   buildContextToolbarItems,
   canOpenInNewTab,
+  canOpenInSecondPane,
 } from "../src/components/navigator/contextMenuModel.ts";
 
 const dir = { name: "Docs", path: "C:/Temp/afm-fixture/Docs", kind: "dir" as const, size: 0 };
@@ -21,6 +22,15 @@ const dirOpenWith = dirItems.find((item) => item.id === "openWith");
 assert.ok(dirOpenWith?.enabled);
 assert.ok(dirOpenWith?.children?.some((c) => c.id === "openInNewTab" && c.enabled));
 assert.ok(dirOpenWith?.children?.some((c) => c.id === "openWithNative"));
+// FIL-74: 「在第二窗口打开」只对目录可见，顶层、紧随 Open with。
+const secondPane = dirItems.find((item) => item.id === "openInSecondPane");
+assert.ok(secondPane?.enabled);
+assert.equal(secondPane?.labelKey, "contextMenu.openInSecondPane");
+assert.equal(secondPane?.icon, "dualPane");
+assert.equal(secondPane?.children, undefined);
+assert.equal(canOpenInSecondPane(dir), true);
+assert.equal(canOpenInSecondPane(file), false);
+assert.equal(canOpenInSecondPane(null), false);
 const systemMenu = dirItems.find((item) => item.id === "systemMenu");
 assert.ok(systemMenu);
 assert.equal(systemMenu.enabled, true);
@@ -97,6 +107,7 @@ assert.equal(
 const fileItems = buildContextMenuItems(file);
 assert.equal(fileItems.find((item) => item.id === "open"), undefined);
 assert.equal(fileItems.find((item) => item.id === "openInNewTab"), undefined);
+assert.equal(fileItems.find((item) => item.id === "openInSecondPane"), undefined);
 assert.ok(fileItems.find((item) => item.id === "systemMenu")?.enabled);
 assert.ok(fileItems.find((item) => item.id === "openInTerminal")?.enabled);
 assert.ok(fileItems.find((item) => item.id === "toggleFavorite")?.enabled);

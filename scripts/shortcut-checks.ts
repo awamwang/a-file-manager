@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import assert from "node:assert/strict";
 import {
+  chordFromEvent,
   chordKey,
   eventMatchesChord,
   formatChordLabel,
@@ -8,13 +9,26 @@ import {
 } from "../src/shortcuts/chord.ts";
 import { NEUTRAL_PLATFORM, platformAriaKeys } from "../src/config/platform.ts";
 import {
+  FIXED_CHORD_KEYS,
+  SHORTCUT_ACTIONS,
   BUILTIN_SHORTCUTS,
+  actionIdFor,
+  effectiveChordLabelsForId,
+  effectiveShortcutDefinitions,
   findShortcutConflicts,
+  listShortcutActionsForDisplay,
   listShortcutsForDisplay,
   resolveDispatchMap,
+  validateNewChord,
 } from "../src/shortcuts/registry.ts";
 import {
+  normalizeShortcutOverrides,
+  resetAllShortcutOverrides,
+  setActionChords,
+} from "../src/shortcuts/config.ts";
+import {
   dispatchShortcutEvent,
+  ownerForChordKey,
   registerShortcutHandler,
   unregisterShortcutHandler,
 } from "../src/shortcuts/runtime.ts";
@@ -280,6 +294,121 @@ assert.ok(
   "runtime must yield Ctrl+C/X when DOM text is selected",
 );
 assert.ok(runtimeSrc.includes("YIELD_TO_DOM_TEXT_SELECTION"));
+assert.ok(
+  runtimeSrc.includes("hasChordModifier"),
+  "bare keys (backtick) must not fire from editable targets",
+);
+
+/* —— 反引号触发 + 功能/多键模型 + 用户覆盖层 —— */
+
+assert.equal(
+  winners.get(chordKey({ key: "`" }))?.id,
+  "commandPanel.toggleBacktick",
+  "bare backtick must toggle the Search Palette",
+);
+assert.equal(actionIdFor("commandPanel.toggleBacktick"), "commandPanel.toggle");
+assert.deepEqual(effectiveChordLabelsForId("commandPanel.toggle"), [
+  "Ctrl+Shift+P",
+  "`",
+]);
+assert.equal(
+  eventMatchesChord(keyEvent({ key: "`" }), { key: "`" }),
+  true,
+);
+assert.deepEqual(
+  chordFromEvent(keyEvent({ key: "`", ctrlKey: true, shiftKey: true })),
+  { ctrl: true, shift: true, key: "`" },
+);
+assert.equal(
+  chordFromEvent(keyEvent({ key: "Shift", shiftKey: true })),
+  null,
+  "modifier-only keydown must not be recorded",
+);
+
+const panelAction = SHORTCUT_ACTIONS.find((a) => a.id === "commandPanel.toggle");
+assert.equal(panelAction?.configurable, true);
+assert.deepEqual(panelAction?.aliases, ["commandPanel.toggleBacktick"]);
+assert.equal(
+  SHORTCUT_ACTIONS.find((a) => a.id === "navigator.jumpTab1")?.configurable,
+  false,
+  "Ctrl+1…9 is a fixed x+N group",
+);
+assert.equal(
+  SHORTCUT_ACTIONS.find((a) => a.id === "workGroup.switch9")?.configurable,
+  false,
+  "Alt+1…9 is a fixed x+N group",
+);
+assert.ok(FIXED_CHORD_KEYS.has(chordKey({ alt: true, key: "1" })));
+assert.ok(FIXED_CHORD_KEYS.has(chordKey({ ctrl: true, key: "9" })));
+assert.equal(effectiveChordLabelsForId("navigator.back").length, 3);
+
+// One function → many chords, and every chord reaches the canonical handler.
+let backHandled = 0;
+registerShortcutHandler("navigator.back", () => {
+  backHandled += 1;
+});
+setActionChords("navigator.back", [{ key: "f7" }, { ctrl: true, key: "k" }]);
+assert.deepEqual(effectiveChordLabelsForId("navigator.back"), [
+  "F7",
+  "Ctrl+K",
+]);
+assert.equal(ownerForChordKey("F7")?.id, "navigator.back");
+assert.equal(dispatchShortcutEvent(keyEvent({ key: "F7" })), true);
+assert.equal(dispatchShortcutEvent(keyEvent({ ctrlKey: true, key: "k" })), true);
+assert.equal(backHandled, 2);
+assert.equal(
+  dispatchShortcutEvent(keyEvent({ altKey: true, key: "ArrowLeft" })),
+  false,
+  "an overridden action must stop firing its old default chords",
+);
+assert.equal(
+  effectiveShortcutDefinitions().some((def) => def.id === "navigator.backBrowser"),
+  false,
+  "removed alias chords must disappear from the dispatch table",
+);
+
+assert.equal(validateNewChord("navigator.back", { alt: true, key: "1" }).reason, "reserved");
+assert.equal(validateNewChord("navigator.back", { key: "escape" }).reason, "reserved");
+assert.equal(validateNewChord("navigator.back", { key: "f7" }).reason, "duplicate");
+assert.equal(
+  validateNewChord("navigator.back", { ctrl: true, key: "c" }).reason,
+  "conflict",
+  "Ctrl+C belongs to navigator.copy",
+);
+assert.equal(
+  validateNewChord("navigator.jumpTab1", { key: "f8" }).reason,
+  "unknown",
+);
+assert.deepEqual(
+  normalizeShortcutOverrides({
+    "navigator.back": [{ key: "f7" }, { key: "f7" }, "bad"],
+  }),
+  { "navigator.back": [{ key: "f7" }] },
+);
+
+// A built-in bare key (Space = preview) must be re-bindable after removal.
+setActionChords("navigator.previewBridge", []);
+assert.equal(
+  validateNewChord("navigator.previewBridge", { key: "space" }).ok,
+  true,
+);
+
+const actionRows = listShortcutActionsForDisplay();
+const backRow = actionRows.find((row) => row.id === "navigator.back");
+assert.equal(backRow?.bindings.length, 2);
+assert.equal(backRow?.isOverridden, true);
+assert.equal(
+  actionRows.find((row) => row.id === "navigator.jumpTab1")?.configurable,
+  false,
+);
+
+resetAllShortcutOverrides();
+assert.deepEqual(effectiveChordLabelsForId("navigator.back"), [
+  "Alt+←",
+  "Ctrl+Alt+←",
+  "BrowserBack",
+]);
+unregisterShortcutHandler("navigator.back");
 
 /**
  * macOS port: the registry stays Windows-first (`ctrl: true`), but a Cmd keydown
@@ -357,5 +486,5 @@ assert.deepEqual(
 );
 
 console.log(
-  `Shortcut registry checks OK (${BUILTIN_SHORTCUTS.length} builtins, conflict + match, macOS primary modifier, capability contract).`,
+  `Shortcut registry checks OK (${BUILTIN_SHORTCUTS.length} builtins, ${SHORTCUT_ACTIONS.length} actions, config + backtick + conflict + match, macOS primary modifier, capability contract).`,
 );

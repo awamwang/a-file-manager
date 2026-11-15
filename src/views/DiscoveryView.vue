@@ -4,7 +4,7 @@ import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { openOrFocusNavigatorTab, type NavigatorEntry } from "../state/navigatorBrowse";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import {
   consumeGlobalSearchFocus,
   globalSearchFocusToken,
@@ -52,6 +52,7 @@ type DiscoverySearchResult = {
 };
 
 const { t } = useI18n();
+const route = useRoute();
 const router = useRouter();
 const status = ref<DiscoveryStatus | null>(null);
 const selectedCard = ref<EngineCardId>("everything");
@@ -246,11 +247,47 @@ watch(globalSearchFocusToken, () => {
   }
 });
 
+/** 从路由 query 提取待搜索文本（/discovery?q=...，搜索面板「查看全部」入口）。 */
+function routeQueryText(): string {
+  const raw = route.query.q;
+  if (typeof raw === "string") return raw;
+  if (Array.isArray(raw)) {
+    const first = raw.find((entry): entry is string => typeof entry === "string");
+    return first ?? "";
+  }
+  return "";
+}
+
+/** 消费一次 q 参数：填入并搜索，随后从地址栏清除（一次性深链）。 */
+async function consumeRouteQuery(): Promise<void> {
+  const text = routeQueryText().trim();
+  if (!text) return;
+  query.value = text;
+  await runSearch();
+  // 清除 q：避免 F5/分享残留旧查询；后续页内搜索不回写地址栏。
+  if (routeQueryText()) {
+    void router.replace({ query: {} });
+  }
+}
+
+// 已在 /discovery 时搜索面板再次跳转（带新 q）：组件不重挂载，靠 watch 触发。
+watch(
+  () => route.query.q,
+  () => {
+    void consumeRouteQuery();
+  },
+);
+
 onMounted(() => {
   void refreshStatus().catch((err) => {
     error.value = err instanceof Error ? err.message : String(err);
   });
   void loadFavorites().catch(() => undefined);
+  // q 参数优先于 Ctrl+Shift+F 焦点 token（双入口冲突时以显式查询为准）。
+  if (routeQueryText().trim()) {
+    void consumeRouteQuery();
+    return;
+  }
   if (consumeGlobalSearchFocus()) {
     void focusSearchInput();
   }

@@ -50,7 +50,7 @@ const EXPECTED_KEYS = [
   // Shortcut labels (primary modifier ⌘ / Option ⌥).
   "chrome.commandsShortcut",
   "chrome.commandsTitle",
-  "commands.hint",
+  "searchPalette.hint",
   "detailsPane.multiHint",
   // "PC" wording in search copy.
   "discovery.meta",
@@ -130,7 +130,7 @@ for (const id of localeIds) {
     }
     if (value !== lookup(catalog, key)) effectiveOverrides += 1;
   }
-  for (const key of ["chrome.commandsShortcut", "chrome.commandsTitle", "commands.hint"]) {
+  for (const key of ["chrome.commandsShortcut", "chrome.commandsTitle", "searchPalette.hint"]) {
     assert.match(macos[key], /⌘\+⇧\+P/, `${id}:${key} must use the ⌘ chord`);
   }
   assert.match(
@@ -149,8 +149,8 @@ assert.ok(
   `overrides must actually change copy (got ${effectiveOverrides})`,
 );
 
-// F5 is intentionally NOT overridden: the refresh chord is still a bare F5.
-// If the registry ever moves to ⌘R, the copy must move with it.
+// F5 is intentionally NOT overridden, and the chord is no longer baked into
+// the title: the action tip renders the configured chord at runtime.
 assert.ok(
   !EXPECTED_KEYS.includes("chrome.refreshTitle"),
   "chrome.refreshTitle must stay on the base copy while the chord is F5",
@@ -158,9 +158,20 @@ assert.ok(
 assert.match(
   readFileSync(join(root, "src/shortcuts/registry.ts"), "utf8"),
   /key:\s*"f5"/,
-  "refresh chord must still be F5 (otherwise update the copy too)",
+  "refresh chord must still be F5 (otherwise update the tip too)",
 );
-assert.match(catalogs.en.chrome.refreshTitle, /F5/);
+for (const id of localeIds) {
+  assert.doesNotMatch(
+    catalogs[id].chrome.refreshTitle,
+    /F5/,
+    `${id}: refresh title must not bake in the chord`,
+  );
+}
+assert.match(
+  readFileSync(join(root, "src/components/shell/AppShell.vue"), "utf8"),
+  /v-action-tip="\{ label: t\('chrome\.refresh'\), actionId: 'navigator\.refresh' \}"/,
+  "refresh button must surface its chord through the action tip",
+);
 
 // Architecture gate: merge lives in the i18n layer, host detection in the
 // capability contract, no new platform branches in components.

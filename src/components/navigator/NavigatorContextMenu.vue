@@ -20,7 +20,7 @@ import {
   snapshotLiveOpenState,
 } from "../../state/navigatorBrowse";
 import { afterFileMutation } from "../../state/fileMutation";
-import { dualPaneEnabled } from "../../state/dualPane";
+import { dualPaneEnabled, openInSecondPane } from "../../state/dualPane";
 import { workGroupDisplayName } from "../../state/workGroup";
 import type { WorkGroupOpenState } from "../../state/openState";
 import {
@@ -65,13 +65,17 @@ import {
   buildContextMenuItems,
   buildContextToolbarItems,
   canOpenInNewTab,
+  canOpenInSecondPane,
 } from "./contextMenuModel";
 import {
   beginShellMenuGuard,
   endShellMenuGuard,
   showNativeShellContextMenu,
 } from "./shellMenuEmbed";
-import { BUILTIN_SHORTCUTS, formatChordLabel } from "../../shortcuts/index.ts";
+import {
+  effectiveChordLabelsForId,
+  shortcutOverridesVersion,
+} from "../../shortcuts/index.ts";
 
 const props = defineProps<{
   entry: NavigatorEntry | null;
@@ -173,15 +177,18 @@ function childLabel(child: {
   return t(child.labelKey);
 }
 
-const TOOLBAR_SHORTCUT_IDS: Record<string, string> = {
+/** Context-menu operations that own a shortcut (toolbar strip + menu rows). */
+const CONTEXT_SHORTCUT_IDS: Record<string, string> = {
   cut: "navigator.cut",
   copy: "navigator.copy",
   paste: "navigator.paste",
   rename: "navigator.rename",
   copyPath: "navigator.copyPath",
+  newFolder: "navigator.newFolder",
+  newFile: "navigator.newFile",
+  delete: "navigator.delete",
+  properties: "navigator.properties",
 };
-
-const tip = ref<{ text: string; left: number; top: number } | null>(null);
 
 const toolbarItems = computed(() =>
   buildContextToolbarItems({
@@ -193,28 +200,22 @@ const toolbarItems = computed(() =>
   })),
 );
 
-function toolbarTipText(item: { id: string; label: string }): string {
-  const shortcutId = TOOLBAR_SHORTCUT_IDS[item.id];
-  const def = shortcutId
-    ? BUILTIN_SHORTCUTS.find((row) => row.id === shortcutId)
-    : undefined;
-  if (!def) return item.label;
-  return `${item.label} (${formatChordLabel(def.chord)})`;
+function contextShortcutId(itemId: string): string | null {
+  return CONTEXT_SHORTCUT_IDS[itemId] ?? null;
 }
 
-function showToolbarTip(event: Event, item: { id: string; label: string }) {
-  const btn = event.currentTarget;
-  if (!(btn instanceof HTMLElement)) return;
-  const rect = btn.getBoundingClientRect();
-  tip.value = {
-    text: toolbarTipText(item),
-    left: rect.left + rect.width / 2,
-    top: rect.top - 8,
-  };
+/** Final chords for a11y text; reading the version ref keeps labels reactive. */
+function contextTipLabel(item: { id: string; label: string }): string {
+  void shortcutOverridesVersion.value;
+  const actionId = contextShortcutId(item.id);
+  const chords = actionId ? effectiveChordLabelsForId(actionId) : [];
+  return chords.length ? `${item.label} (${chords.join(" / ")})` : item.label;
 }
 
-function hideToolbarTip() {
-  tip.value = null;
+/** Null = no shortcut, so no floating card for that menu row. */
+function contextTip(item: { id: string; label: string }) {
+  const actionId = contextShortcutId(item.id);
+  return actionId ? { label: item.label, actionId } : null;
 }
 
 function clearShellCascadeTimer() {
@@ -279,7 +280,6 @@ watch(
       clearShellCascadeTimer();
       openSubmenuId.value = null;
       submenuAnchor.value = null;
-      hideToolbarTip();
       // Warm once; do not re-probe PATH helpers on every right-click.
       preloadLaunchersIfNeeded();
     } else {
@@ -287,7 +287,6 @@ watch(
       clearShellCascadeTimer();
       openSubmenuId.value = null;
       submenuAnchor.value = null;
-      hideToolbarTip();
     }
   },
 );
@@ -703,6 +702,12 @@ async function run(id: string) {
       // Always append a new page group (even if path already has a tab).
       if (entry && canOpenInNewTab(entry)) {
         await newNavigatorTab(entry.path);
+      }
+      break;
+    case "openInSecondPane":
+      // FIL-74: 双栏未开则开启，已开则只替换副栏路径。
+      if (entry && canOpenInSecondPane(entry)) {
+        await openInSecondPane(entry.path);
       }
       break;
     case "openWithSystemDefault":
@@ -1129,12 +1134,9 @@ onUnmounted(() => {
           type="button"
           class="ctx-tool"
           :disabled="!tool.enabled"
-          :aria-label="toolbarTipText(tool)"
+          :aria-label="contextTipLabel(tool)"
+          v-action-tip="contextTip(tool)"
           @click="run(tool.id)"
-          @mouseenter="showToolbarTip($event, tool)"
-          @mouseleave="hideToolbarTip"
-          @focus="showToolbarTip($event, tool)"
-          @blur="hideToolbarTip"
         >
           <FluentIcon v-if="tool.icon" :name="tool.icon" size="sm" />
         </button>
@@ -1150,6 +1152,7 @@ onUnmounted(() => {
           class="ctx-item"
           role="menuitem"
           :data-ctx-id="item.id"
+          v-action-tip="contextTip(item)"
           :aria-haspopup="itemHasSubmenu(item) ? 'menu' : undefined"
           :aria-expanded="itemHasChildren(item) ? openSubmenuId === item.id : undefined"
           :disabled="!item.enabled"
@@ -1174,16 +1177,6 @@ onUnmounted(() => {
           <span v-else-if="item.stub" class="later">{{ t("chrome.later") }}</span>
         </button>
       </div>
-    </div>
-  </Teleport>
-  <Teleport to="body">
-    <div
-      v-if="open && tip"
-      class="ctx-tip"
-      role="tooltip"
-      :style="{ left: `${tip.left}px`, top: `${tip.top}px` }"
-    >
-      {{ tip.text }}
     </div>
   </Teleport>
   <Teleport to="body">
@@ -1269,21 +1262,6 @@ onUnmounted(() => {
 .ctx-tool:disabled {
   opacity: 0.35;
   cursor: not-allowed;
-}
-
-.ctx-tip {
-  position: fixed;
-  z-index: 1300;
-  transform: translate(-50%, -100%);
-  padding: 4px 8px;
-  border-radius: var(--fluent-radius-sm);
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  background: var(--fluent-color-fill-control);
-  box-shadow: var(--fluent-shadow-flyout);
-  color: var(--fluent-color-text-primary);
-  font-size: var(--fluent-font-size-caption);
-  white-space: nowrap;
-  pointer-events: none;
 }
 
 .ctx-row--sep {

@@ -12,12 +12,14 @@ export function entryExtension(name: string): string {
 export function entryTypeKey(kind: string, name: string): string {
   if (kind === "dir") return "dir";
   const ext = entryExtension(name);
+  if (ext === "lnk") return "shortcut";
   return ext ? `file:${ext}` : "file";
 }
 
 /**
- * Human type label. `folderLabel` / `fileLabel` / `typedFile` come from i18n.
- * `typedFile(ext)` receives the uppercased extension (e.g. "TXT").
+ * Human type label. `folderLabel` / `fileLabel` / `shortcutLabel` /
+ * `typedFile(ext)` come from i18n. `typedFile(ext)` receives the uppercased
+ * extension (e.g. "TXT"). Windows `.lnk` shortcuts get a dedicated label.
  */
 export function entryTypeLabel(
   kind: string,
@@ -25,11 +27,13 @@ export function entryTypeLabel(
   labels: {
     folder: string;
     file: string;
+    shortcut: string;
     typedFile: (ext: string) => string;
   },
 ): string {
   if (kind === "dir") return labels.folder;
   const ext = entryExtension(name);
+  if (ext === "lnk") return labels.shortcut;
   if (!ext) return labels.file;
   return labels.typedFile(ext.toUpperCase());
 }

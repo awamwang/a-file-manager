@@ -76,10 +76,116 @@ function displayMainKey(key: string): string {
       return "Tab";
     case ",":
       return ",";
+    case "delete":
+      return "Delete";
+    case "backspace":
+      return "Backspace";
+    case "insert":
+      return "Insert";
+    case "home":
+      return "Home";
+    case "end":
+      return "End";
+    case "pageup":
+      return "PageUp";
+    case "pagedown":
+      return "PageDown";
+    case "browserback":
+      return "BrowserBack";
+    case "browserforward":
+      return "BrowserForward";
     default:
       if (/^f\d{1,2}$/.test(key)) return key.toUpperCase();
       return key.length === 1 ? key.toUpperCase() : key;
   }
+}
+
+const MODIFIER_KEYS = new Set([
+  "control",
+  "ctrl",
+  "shift",
+  "alt",
+  "altgraph",
+  "meta",
+  "os",
+  "capslock",
+  "numlock",
+]);
+
+/**
+ * Bare keys that would break editing / overlays even without a chord conflict.
+ * Space is deliberately NOT here: it is the built-in preview chord and must be
+ * re-bindable after the user removes it.
+ */
+const RESERVED_BARE_KEYS = new Set([
+  "escape",
+  "enter",
+  "tab",
+  "backspace",
+]);
+
+export function hasChordModifier(chord: ShortcutChord): boolean {
+  return Boolean(chord.ctrl || chord.shift || chord.alt || chord.meta);
+}
+
+export function isModifierKey(key: string): boolean {
+  return MODIFIER_KEYS.has(key.toLowerCase());
+}
+
+export function isReservedBareKey(chord: ShortcutChord): boolean {
+  return !hasChordModifier(chord) && RESERVED_BARE_KEYS.has(chord.key);
+}
+
+/** Build a chord from a live keydown (Settings recorder). Null = IME / modifier-only. */
+export function chordFromEvent(event: KeyboardEvent): ShortcutChord | null {
+  if (event.isComposing) return null;
+  const key = normalizeEventKey(event.key);
+  if (!key || isModifierKey(key)) return null;
+  return {
+    ...(event.ctrlKey ? { ctrl: true } : {}),
+    ...(event.shiftKey ? { shift: true } : {}),
+    ...(event.altKey ? { alt: true } : {}),
+    ...(event.metaKey ? { meta: true } : {}),
+    key,
+  };
+}
+
+/** ARIA `aria-keyshortcuts` grammar (Control+Shift+P rather than Ctrl+Shift+P). */
+export function chordToAria(chord: ShortcutChord): string {
+  const parts: string[] = [];
+  if (chord.ctrl) parts.push("Control");
+  if (chord.shift) parts.push("Shift");
+  if (chord.alt) parts.push("Alt");
+  if (chord.meta) parts.push("Meta");
+  switch (chord.key) {
+    case "arrowup":
+      parts.push("ArrowUp");
+      break;
+    case "arrowdown":
+      parts.push("ArrowDown");
+      break;
+    case "arrowleft":
+      parts.push("ArrowLeft");
+      break;
+    case "arrowright":
+      parts.push("ArrowRight");
+      break;
+    case "escape":
+      parts.push("Escape");
+      break;
+    case "enter":
+      parts.push("Enter");
+      break;
+    case "tab":
+      parts.push("Tab");
+      break;
+    case "space":
+      parts.push("Space");
+      break;
+    default:
+      parts.push(/^f\d{1,2}$/.test(chord.key) ? chord.key.toUpperCase() : chord.key);
+  }
+  return parts.join("+");
 }
 
 export function isEditableTarget(target: EventTarget | null): boolean {

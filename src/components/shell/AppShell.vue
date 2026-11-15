@@ -8,6 +8,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import CommandPanel from "../command/CommandPanel.vue";
+import ActionTipHost from "../common/ActionTipHost.vue";
 import ToastHost from "./ToastHost.vue";
 import TaskCenterHost from "./TaskCenterHost.vue";
 import ConfirmDialogHost from "./ConfirmDialogHost.vue";
@@ -33,8 +34,9 @@ import { toggleCommandPanel } from "../../state/commandPanel";
 import { reloadWindow } from "../../state/uiReload";
 import { requestGlobalSearchFocus } from "../../state/globalSearch";
 import {
+  ariaKeyshortcutsForId,
   dispatchShortcutEvent,
-  formatChordLabel,
+  effectiveChordLabelsForId,
   registerShortcutHandler,
   unregisterShortcutHandler,
 } from "../../shortcuts/index.ts";
@@ -106,6 +108,7 @@ import {
   DEFAULT_WINDOW_MIN_HEIGHT_PX,
   dualPaneEnabled,
   navigateSecondary,
+  openInSecondPane,
   secondaryPath,
   toggleDualPane,
   windowMinWidthForDualPane,
@@ -543,9 +546,10 @@ async function onSilentSwitchWorkGroupByIndex(index1Based: number) {
   await onSilentSwitchWorkGroup(target.id);
 }
 
+/** Fixed x+N group: still resolved through the registry so it can never go stale. */
 function workGroupChordLabel(index0Based: number): string | null {
   if (index0Based < 0 || index0Based >= 9) return null;
-  return formatChordLabel({ alt: true, key: String(index0Based + 1) });
+  return effectiveChordLabelsForId(`workGroup.switch${index0Based + 1}`)[0] ?? null;
 }
 
 async function onSaveMembersFromTabs() {
@@ -1592,7 +1596,8 @@ const tabContextCanCloseRight = computed(() => {
   return idx != null && idx < stripTabs.value.length - 1;
 });
 
-const tabContextCanDuplicate = computed(() => {
+/** 「复制标签」与「在第二窗口打开」都需要目标标签有真实路径（FIL-74）。 */
+const tabContextHasPath = computed(() => {
   const idx = tabContextGroupIndex.value;
   if (idx == null) return false;
   const tab = stripTabs.value.find((item) => item.groupIndex === idx);
@@ -1611,7 +1616,8 @@ function onTabContextMenu(event: MouseEvent, groupIndex: number) {
   if (!Number.isInteger(groupIndex) || groupIndex < 0) return;
   tabContextGroupIndex.value = groupIndex;
   const menuWidth = Math.min(220, window.innerWidth * 0.7);
-  const menuHeight = 220;
+  // 6 项（复制 / 在第二窗口打开 / 关闭 ×4）留出完整的点击高度。
+  const menuHeight = 260;
   let left = event.clientX;
   if (left + menuWidth > window.innerWidth - 8) {
     left = Math.max(8, window.innerWidth - menuWidth - 8);
@@ -1638,6 +1644,19 @@ async function onDuplicateTabFromContext() {
   if (!path) return;
   await ensureNavigatorRoute();
   await newNavigatorTab(path);
+}
+
+/** FIL-74: 标签右键 → 在第二窗口（双栏副栏）打开该标签的目录。 */
+async function onOpenTabInSecondPane() {
+  const idx = tabContextGroupIndex.value;
+  const path =
+    idx != null
+      ? stripTabs.value.find((item) => item.groupIndex === idx)?.path?.trim()
+      : "";
+  closeTabContextMenu();
+  if (!path) return;
+  await ensureNavigatorRoute();
+  await openInSecondPane(path);
 }
 
 async function onCloseTabFromContext() {
@@ -1851,9 +1870,10 @@ onUnmounted(() => {
         <button
           type="button"
           class="fluent-control titlebar-action"
+          v-action-tip="{ label: t('chrome.commands'), actionId: 'commandPanel.toggle' }"
           :title="platformShortcutLabel(String(t('chrome.commandsTitle')))"
           :aria-label="t('chrome.commands')"
-          :aria-keyshortcuts="platformAriaKeys('Control+Shift+P')"
+          :aria-keyshortcuts="platformAriaKeys(ariaKeyshortcutsForId('commandPanel.toggle'))"
           @click="toggleCommandPanel"
         >
           <FluentIcon name="commands" size="sm" />
@@ -2015,7 +2035,7 @@ onUnmounted(() => {
           <button
             type="button"
             class="tab tab--add"
-            :title="t('chrome.newTab')"
+            v-action-tip="{ label: t('chrome.newTab'), actionId: 'navigator.newTab' }"
             :aria-label="t('chrome.newTab')"
             @click="onNewNavigatorTab"
           >
@@ -2064,11 +2084,10 @@ onUnmounted(() => {
                 :class="{ 'places-item--active': group.id === workGroupsDoc?.activeWorkGroupId }"
                 role="menuitem"
                 :disabled="workGroupChromeBusy || group.id === workGroupsDoc?.activeWorkGroupId"
-                :title="
-                  workGroupChordLabel(groupIndex)
-                    ? `${workGroupDisplayName(group, t('workGroups.defaultName'))} (${workGroupChordLabel(groupIndex)})`
-                    : group.id
-                "
+                v-action-tip="{
+                  label: workGroupDisplayName(group, t('workGroups.defaultName')),
+                  actionId: `workGroup.switch${groupIndex + 1}`,
+                }"
                 @click="onSilentSwitchWorkGroup(group.id)"
               >
                 <FluentIcon :name="group.isDefault ? 'home' : 'viewAll'" size="sm" />
@@ -2123,7 +2142,7 @@ onUnmounted(() => {
             type="button"
             class="fluent-control nav-icon-btn"
             :disabled="!canGoBack"
-            :title="t('chrome.back')"
+            v-action-tip="{ label: t('chrome.back'), actionId: 'navigator.back' }"
             :aria-label="t('chrome.back')"
             @click="onGoBack"
           >
@@ -2133,7 +2152,7 @@ onUnmounted(() => {
             type="button"
             class="fluent-control nav-icon-btn"
             :disabled="!canGoForward"
-            :title="t('chrome.forward')"
+            v-action-tip="{ label: t('chrome.forward'), actionId: 'navigator.forward' }"
             :aria-label="t('chrome.forward')"
             @click="onGoForward"
           >
@@ -2142,7 +2161,7 @@ onUnmounted(() => {
           <button
             type="button"
             class="fluent-control nav-icon-btn"
-            :title="t('chrome.upTitle')"
+            v-action-tip="{ label: t('chrome.up'), actionId: 'navigator.goUp' }"
             :aria-label="t('chrome.up')"
             @click="onGoUp"
           >
@@ -2152,7 +2171,7 @@ onUnmounted(() => {
             type="button"
             class="fluent-control nav-icon-btn"
             :disabled="!currentPath"
-            :title="t('chrome.refreshTitle')"
+            v-action-tip="{ label: t('chrome.refresh'), actionId: 'navigator.refresh' }"
             :aria-label="t('chrome.refresh')"
             @click="onRefreshListing"
           >
@@ -2433,6 +2452,7 @@ onUnmounted(() => {
             class="navigator-filter-inline"
             role="search"
             :aria-label="t('navigator.filterToggle')"
+            v-action-tip="{ label: t('navigator.filterToggle'), actionId: 'navigator.folderSearch' }"
           >
             <FluentIcon name="search" size="sm" class="navigator-filter-icon" />
             <input
@@ -2441,7 +2461,6 @@ onUnmounted(() => {
               class="fluent-control navigator-filter-input"
               type="search"
               :placeholder="t('navigator.filterPlaceholder')"
-              :title="t('navigator.filterToggle')"
               spellcheck="false"
               @keydown.enter.prevent
               @keydown.escape.prevent="clearNavigatorFilter"
@@ -2497,10 +2516,19 @@ onUnmounted(() => {
               type="button"
               class="tab-context-item"
               role="menuitem"
-              :disabled="!tabContextCanDuplicate"
+              :disabled="!tabContextHasPath"
               @click="onDuplicateTabFromContext"
             >
               {{ t("chrome.duplicateTab") }}
+            </button>
+            <button
+              type="button"
+              class="tab-context-item"
+              role="menuitem"
+              :disabled="!tabContextHasPath"
+              @click="onOpenTabInSecondPane"
+            >
+              {{ t("chrome.openInSecondPane") }}
             </button>
             <button
               type="button"
@@ -2664,6 +2692,7 @@ onUnmounted(() => {
     <PromptDialogHost />
     <ToastHost />
     <TaskCenterHost />
+    <ActionTipHost />
     <CommandPanel :commands="panelCommands" />
   </div>
 </template>

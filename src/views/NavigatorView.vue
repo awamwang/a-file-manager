@@ -1227,6 +1227,7 @@ const detailsGridStyle = computed(() => ({
 const typeLabels = computed(() => ({
   folder: t("navigator.typeFolder"),
   file: t("navigator.typeFile"),
+  shortcut: t("navigator.typeShortcut"),
   typedFile: (ext: string) => t("navigator.typeFileExt", { ext }),
 }));
 

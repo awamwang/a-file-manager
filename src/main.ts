@@ -11,6 +11,7 @@ import { hydrateSettings } from "./state/settingsHydrate.ts";
 import { startupMark } from "./state/startupTiming.ts";
 import { applyUiChromeFromValues } from "./state/uiChrome.ts";
 import { hydratePlatform } from "./config/platform.ts";
+import { vActionTip } from "./shortcuts/actionTip.ts";
 import "./styles/fluent-tokens.css";
 import "./styles/base.css";
 import "./styles/path-cards.css";
@@ -60,7 +61,7 @@ async function bootstrap(): Promise<void> {
     // IPC unavailable (vite-only): keep built-in side nav / routes / commands.
   }
 
-  createApp(App).use(router).use(i18n).mount("#app");
+  createApp(App).use(router).use(i18n).directive("action-tip", vActionTip).mount("#app");
   startupMark("bootstrap:mounted");
   // AIA-272: show after first paint (window starts visible:false; no black/maximize flash).
   void revealMainWindowAfterReady();

@@ -25,6 +25,8 @@ assert.ok(shell.includes("chrome.closeOtherTabs"));
 assert.ok(shell.includes("chrome.closeRightTabs"));
 assert.ok(shell.includes("chrome.closeAllTabs"));
 assert.ok(shell.includes("onDuplicateTabFromContext"));
+assert.ok(shell.includes("chrome.openInSecondPane"));
+assert.ok(shell.includes("onOpenTabInSecondPane"));
 assert.ok(shell.includes("onCloseTabFromContext"));
 assert.ok(shell.includes("onCloseOtherTabsFromContext"));
 assert.ok(shell.includes("onCloseRightTabsFromContext"));
@@ -44,6 +46,8 @@ assert.ok(model.includes("openStateAfterCloseAllGroups"));
 
 assert.equal(en.chrome.duplicateTab, "Duplicate tab");
 assert.equal(zh.chrome.duplicateTab, "复制标签");
+assert.equal(en.chrome.openInSecondPane, "Open in second pane");
+assert.equal(zh.chrome.openInSecondPane, "在第二窗口打开");
 assert.equal(en.chrome.tabClose, "Close");
 assert.equal(zh.chrome.tabClose, "关闭");
 assert.equal(en.chrome.closeOtherTabs, "Close other tabs");

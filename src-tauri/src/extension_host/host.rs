@@ -472,10 +472,20 @@ impl ExtensionHost {
             aggregated
                 .sidecars
                 .extend(contrib.sidecars.iter().cloned());
+            // 搜索条目：聚合时写入 packId / packName（副标题显示 Pack 名）。
+            for entry in &contrib.search {
+                let mut item = entry.clone();
+                item.pack_id = Some(id.clone());
+                item.pack_name = Some(pack.name.clone());
+                aggregated.search.push(item);
+            }
         }
         aggregated
             .side_nav
             .sort_by(|a, b| a.order.cmp(&b.order).then(a.id.cmp(&b.id)));
+        aggregated
+            .search
+            .sort_by(|a, b| a.id.cmp(&b.id).then(a.route.cmp(&b.route)));
         Ok(aggregated)
     }
 
@@ -606,6 +616,14 @@ fn validate_pack_permissions(
             "sidecars declared but permission 'spawnSidecar' was not requested".to_string(),
         );
     }
+    // 搜索面板静态条目与命令/侧栏同属 UI 贡献，声明必须申请 uiCommands。
+    if !manifest.contributions.search.is_empty()
+        && !requires(&permissions, ExtensionPermission::UiCommands)
+    {
+        return Err(
+            "search declared but permission 'uiCommands' was not requested".to_string(),
+        );
+    }
     Ok(permissions)
 }
 
@@ -732,6 +750,77 @@ mod tests {
             contribs.side_nav.iter().any(|item| item.id == "nav-tools"),
             "enabled pack sideNav should be aggregated, got {:?}",
             contribs.side_nav
+        );
+    }
+
+    fn write_search_pack(dir: &std::path::Path) {
+        std::fs::create_dir_all(dir).unwrap();
+        std::fs::write(
+            dir.join("pack.json"),
+            r#"{
+                "id":"demo.pack",
+                "name":"Demo",
+                "version":"0.1.0",
+                "apiVersion":"feature-pack.1",
+                "permissions":["uiCommands"],
+                "contributions":{
+                    "search":[
+                        {
+                            "id":"open-demo",
+                            "labelKey":"demo.openEntry",
+                            "keywords":["demo"],
+                            "route":"/navigator"
+                        }
+                    ]
+                }
+            }"#,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn list_contributions_aggregates_search_with_pack_info() {
+        let tmp = tempfile::tempdir().unwrap();
+        let src = tmp.path().join("src-pack");
+        write_search_pack(&src);
+        let app = tmp.path().join("appdata");
+        let host = ExtensionHost::new();
+        host.load_from_disk(&app).unwrap();
+        let installed = host.install_pack(&src);
+        assert!(installed.success, "{:?}", installed.error);
+        // 未启用：不聚合。
+        assert!(host.list_contributions().unwrap().search.is_empty());
+        host.set_pack_enabled("demo.pack", true).unwrap();
+        let contribs = host.list_contributions().unwrap();
+        assert_eq!(contribs.search.len(), 1);
+        let entry = &contribs.search[0];
+        assert_eq!(entry.id, "open-demo");
+        assert_eq!(entry.route, "/navigator");
+        assert_eq!(entry.pack_id.as_deref(), Some("demo.pack"));
+        assert_eq!(entry.pack_name.as_deref(), Some("Demo"));
+    }
+
+    #[test]
+    fn search_contribution_requires_ui_commands_permission() {
+        let tmp = tempfile::tempdir().unwrap();
+        let src = tmp.path().join("src-pack");
+        write_search_pack(&src);
+        // 去掉 uiCommands 权限后安装必须失败。
+        let text = std::fs::read_to_string(src.join("pack.json"))
+            .unwrap()
+            .replace("\"permissions\":[\"uiCommands\"]", "\"permissions\":[]");
+        std::fs::write(src.join("pack.json"), text).unwrap();
+        let app = tmp.path().join("appdata");
+        let host = ExtensionHost::new();
+        host.load_from_disk(&app).unwrap();
+        let installed = host.install_pack(&src);
+        assert!(!installed.success);
+        assert!(
+            installed
+                .error
+                .unwrap()
+                .contains("uiCommands' was not requested"),
+            "install without uiCommands should fail"
         );
     }
 

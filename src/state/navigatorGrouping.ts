@@ -18,6 +18,7 @@ export type NavigatorGroup<T extends GroupableEntry = GroupableEntry> = {
 export type GroupLabelFns = {
   folder: string;
   file: string;
+  shortcut: string;
   typedFile: (ext: string) => string;
 };
 
