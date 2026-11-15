@@ -1204,6 +1204,7 @@
     "attributesSaved": "Attribute aktualisiert",
     "kindFolder": "Ordner",
     "kindFile": "Datei",
+    "linkKind": "Linktyp",
     "unknown": "Unbekannt"
   },
   "preview": {
@@ -1222,7 +1223,10 @@
     "linkTargetKindFile": "Datei",
     "linkTargetDirLabel": "Ursprünglicher Speicherort",
     "linkCopyTarget": "Zielpfad kopieren",
-    "linkCopiedTarget": "Kopiert"
+    "linkCopiedTarget": "Kopiert",
+    "linkTargetMissingBadge": "fehlt",
+    "dirContentsLabel": "Inhalt",
+    "dirUnreadable": "Ordnerinhalt nicht lesbar"
   },
   "previewBridge": {
     "noPath": "Lokale Datei zur Vorschau auswählen",

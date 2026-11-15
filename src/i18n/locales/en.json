@@ -1204,6 +1204,7 @@
     "attributesSaved": "Attributes updated",
     "kindFolder": "Folder",
     "kindFile": "File",
+    "linkKind": "Link type",
     "unknown": "Unknown"
   },
   "preview": {
@@ -1222,7 +1223,10 @@
     "linkTargetKindFile": "File",
     "linkTargetDirLabel": "Original location",
     "linkCopyTarget": "Copy target path",
-    "linkCopiedTarget": "Copied"
+    "linkCopiedTarget": "Copied",
+    "linkTargetMissingBadge": "missing",
+    "dirContentsLabel": "Contents",
+    "dirUnreadable": "Folder contents unreadable"
   },
   "previewBridge": {
     "noPath": "Select a local file to preview",

@@ -1204,6 +1204,7 @@
     "attributesSaved": "属性を更新しました",
     "kindFolder": "フォルダー",
     "kindFile": "ファイル",
+    "linkKind": "リンクの種類",
     "unknown": "不明"
   },
   "preview": {
@@ -1222,7 +1223,10 @@
     "linkTargetKindFile": "ファイル",
     "linkTargetDirLabel": "元の場所",
     "linkCopyTarget": "リンク先のパスをコピー",
-    "linkCopiedTarget": "コピーしました"
+    "linkCopiedTarget": "コピーしました",
+    "linkTargetMissingBadge": "存在しません",
+    "dirContentsLabel": "内容",
+    "dirUnreadable": "フォルダーの内容を読み取れません"
   },
   "previewBridge": {
     "noPath": "プレビューするローカルファイルを選択してください",

@@ -1204,6 +1204,7 @@
     "attributesSaved": "属性已更新",
     "kindFolder": "文件夹",
     "kindFile": "文件",
+    "linkKind": "链接类型",
     "unknown": "未知"
   },
   "preview": {
@@ -1222,7 +1223,10 @@
     "linkTargetKindFile": "文件",
     "linkTargetDirLabel": "原目录",
     "linkCopyTarget": "复制目标路径",
-    "linkCopiedTarget": "已复制"
+    "linkCopiedTarget": "已复制",
+    "linkTargetMissingBadge": "不存在",
+    "dirContentsLabel": "包含项",
+    "dirUnreadable": "无法读取目录内容"
   },
   "previewBridge": {
     "noPath": "请选择本地文件以预览",

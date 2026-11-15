@@ -25,6 +25,21 @@ pub struct PreviewLinkInfo {
     pub target_kind: Option<String>,
     /// Directory containing the target (原目录 / start-in folder).
     pub target_dir: Option<String>,
+    /// Whether the target's parent directory (原目录) still exists.
+    pub target_dir_exists: bool,
+}
+
+/// Directory preview (`kind: "dir"` payloads): lightweight folder basics
+/// (direct children + timestamps) instead of a "Not a file" error.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PreviewDirInfo {
+    /// Direct child files (`None` when the folder cannot be read).
+    pub file_count: Option<u64>,
+    /// Direct child subfolders (`None` when the folder cannot be read).
+    pub dir_count: Option<u64>,
+    pub modified_ms: Option<u64>,
+    pub created_ms: Option<u64>,
 }
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -38,6 +53,14 @@ pub struct PreviewPayload {
     pub error: Option<String>,
     /// Link metadata; `Some` only for `kind: "link"` payloads.
     pub link: Option<PreviewLinkInfo>,
+    /// Directory basics; `Some` only for `kind: "dir"` payloads.
+    pub dir: Option<PreviewDirInfo>,
+}
+
+fn system_time_ms(time: std::time::SystemTime) -> Option<u64> {
+    time.duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .ok()
+        .map(|d| d.as_millis() as u64)
 }
 
 fn extension_lower(path: &Path) -> String {
@@ -109,6 +132,7 @@ fn unsupported(path: &str, truncated: bool, error: Option<String>) -> PreviewPay
         truncated,
         error,
         link: None,
+        dir: None,
     }
 }
 
@@ -121,11 +145,58 @@ fn preview_link(path: &str, link: PreviewLinkInfo) -> PreviewPayload {
         truncated: false,
         error: None,
         link: Some(link),
+        dir: None,
+    }
+}
+
+fn preview_dir(path: &str, info: PreviewDirInfo) -> PreviewPayload {
+    PreviewPayload {
+        kind: "dir".into(),
+        path: path.to_string(),
+        text: None,
+        data_url: None,
+        truncated: false,
+        error: None,
+        link: None,
+        dir: Some(info),
+    }
+}
+
+/// Lightweight directory basics for the preview pane: one non-recursive
+/// `read_dir` pass for direct child counts plus the folder's timestamps.
+fn dir_info(path: &Path) -> PreviewDirInfo {
+    let meta = fs::metadata(path).ok();
+    let (file_count, dir_count) = match fs::read_dir(path) {
+        Ok(entries) => {
+            let mut files = 0u64;
+            let mut dirs = 0u64;
+            for entry in entries.flatten() {
+                if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
+                    dirs = dirs.saturating_add(1);
+                } else {
+                    files = files.saturating_add(1);
+                }
+            }
+            (Some(files), Some(dirs))
+        }
+        Err(_) => (None, None),
+    };
+    PreviewDirInfo {
+        file_count,
+        dir_count,
+        modified_ms: meta
+            .as_ref()
+            .and_then(|m| m.modified().ok())
+            .and_then(system_time_ms),
+        created_ms: meta
+            .as_ref()
+            .and_then(|m| m.created().ok())
+            .and_then(system_time_ms),
     }
 }
 
 /// Describe a link's target: existence, kind, and the directory it lives in.
-fn describe_link_target(kind: &str, target: &Path) -> PreviewLinkInfo {
+pub(crate) fn describe_link_target(kind: &str, target: &Path) -> PreviewLinkInfo {
     let (target_exists, target_kind) = match fs::metadata(target) {
         Ok(meta) => (
             true,
@@ -133,14 +204,20 @@ fn describe_link_target(kind: &str, target: &Path) -> PreviewLinkInfo {
         ),
         Err(_) => (false, None),
     };
+    let target_dir = target
+        .parent()
+        .map(|parent| parent.to_string_lossy().into_owned());
+    let target_dir_exists = target
+        .parent()
+        .map(|parent| fs::metadata(parent).map(|meta| meta.is_dir()).unwrap_or(false))
+        .unwrap_or(false);
     PreviewLinkInfo {
         kind: kind.to_string(),
         target: Some(target.to_string_lossy().into_owned()),
         target_exists,
         target_kind,
-        target_dir: target
-            .parent()
-            .map(|parent| parent.to_string_lossy().into_owned()),
+        target_dir,
+        target_dir_exists,
     }
 }
 
@@ -156,15 +233,12 @@ fn clean_reparse_target(raw: &Path) -> PathBuf {
     PathBuf::from(cleaned)
 }
 
-/// Broken reparse points (junction / symlink whose target is gone) must preview
-/// as link info instead of a "file not found" style error. Valid links return
-/// `None` so the normal preview follows their target.
-fn broken_reparse_link_info(path: &Path) -> Option<PreviewLinkInfo> {
+/// Link info for any reparse point (junction / symbolic link), valid or broken.
+/// Returns `None` for regular files and directories. Shared by the preview
+/// pane and the 属性 panel (`navigator_stat`).
+pub(crate) fn reparse_link_info(path: &Path) -> Option<PreviewLinkInfo> {
     let meta = fs::symlink_metadata(path).ok()?;
     if !meta.file_type().is_symlink() {
-        return None;
-    }
-    if fs::metadata(path).is_ok() {
         return None;
     }
     let raw = fs::read_link(path).ok()?;
@@ -179,6 +253,17 @@ fn broken_reparse_link_info(path: &Path) -> Option<PreviewLinkInfo> {
     Some(describe_link_target("symlink", &target))
 }
 
+/// Broken reparse points (junction / symlink whose target is gone) must preview
+/// as link info instead of a "file not found" style error. Valid links return
+/// `None` so the normal preview follows their target.
+fn broken_reparse_link_info(path: &Path) -> Option<PreviewLinkInfo> {
+    let info = reparse_link_info(path)?;
+    if info.target_exists {
+        return None;
+    }
+    Some(info)
+}
+
 #[tauri::command]
 pub fn preview_load(path: String) -> PreviewPayload {
     let trimmed = path.trim();
@@ -190,6 +275,10 @@ pub fn preview_load(path: String) -> PreviewPayload {
         return preview_link(trimmed, info);
     }
     if !pb.is_file() {
+        // Folders preview as basic info (children / timestamps), not an error.
+        if pb.is_dir() {
+            return preview_dir(trimmed, dir_info(pb));
+        }
         return unsupported(trimmed, false, Some("Not a file".into()));
     }
     let ext = extension_lower(pb);
@@ -205,6 +294,7 @@ pub fn preview_load(path: String) -> PreviewPayload {
                     target_exists: false,
                     target_kind: None,
                     target_dir: None,
+                    target_dir_exists: false,
                 },
             ),
             Ok(target) => preview_link(
@@ -245,6 +335,7 @@ pub fn preview_load(path: String) -> PreviewPayload {
                 truncated: false,
                 error: None,
                 link: None,
+                dir: None,
             },
             Err(err) => unsupported(trimmed, false, Some(format!("Failed to read image: {err}"))),
         };
@@ -275,6 +366,7 @@ pub fn preview_load(path: String) -> PreviewPayload {
             truncated,
             error: None,
             link: None,
+            dir: None,
         };
     }
 
@@ -291,6 +383,26 @@ mod tests {
     fn empty_path_unsupported() {
         let p = preview_load(String::new());
         assert_eq!(p.kind, "unsupported");
+    }
+
+    #[test]
+    fn dir_preview_returns_folder_info_not_error() {
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
+        let dir = std::env::temp_dir().join(format!("afm-preview-dir-{stamp}"));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("sub")).unwrap();
+        fs::write(dir.join("a.txt"), "a").unwrap();
+        let p = preview_load(dir.to_string_lossy().into_owned());
+        assert_eq!(p.kind, "dir");
+        assert!(p.error.is_none());
+        let info = p.dir.expect("dir payload carries dir info");
+        assert_eq!(info.file_count, Some(1));
+        assert_eq!(info.dir_count, Some(1));
+        assert!(info.modified_ms.is_some());
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -339,6 +451,7 @@ mod tests {
         );
         assert!(link.target_exists);
         assert_eq!(link.target_kind.as_deref(), Some("file"));
+        assert!(link.target_dir_exists);
         let got_dir = link.target_dir.expect("target dir (原目录) resolved");
         assert!(
             got_dir.to_ascii_lowercase().contains("afm-preview-lnk"),
@@ -386,6 +499,8 @@ mod tests {
         assert_eq!(info.kind, "symlink");
         assert!(!info.target_exists);
         assert!(info.target.is_some());
+        // The link is broken but its 原目录 (temp dir) still exists.
+        assert!(info.target_dir_exists);
         let _ = fs::remove_dir_all(&dir);
     }
 }

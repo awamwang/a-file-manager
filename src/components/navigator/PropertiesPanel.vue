@@ -5,6 +5,8 @@ import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import FluentIcon from "../icons/FluentIcon.vue";
 import { toastSuccess } from "../../state/toast";
+import { newNavigatorTab } from "../../state/navigatorBrowse.ts";
+import type { PreviewLinkInfo } from "./PreviewPane.vue";
 
 export type EntryStat = {
   name: string;
@@ -19,6 +21,8 @@ export type EntryStat = {
   fileCount?: number | null;
   dirCount?: number | null;
   totalSizeTruncated?: boolean;
+  /** Link metadata (target / 原目录) for shortcuts and reparse points. */
+  link?: PreviewLinkInfo | null;
 };
 
 const props = defineProps<{
@@ -40,6 +44,48 @@ const kindLabel = computed(() => {
   if (!stat.value) return "";
   return stat.value.kind === "dir" ? t("properties.kindFolder") : t("properties.kindFile");
 });
+
+// Link section (shortcuts / junctions / symlinks): 目标 / 原目录 rows.
+const link = computed(() => stat.value?.link ?? null);
+
+const linkKindText = computed(() => {
+  const l = link.value;
+  if (!l) return "";
+  return l.kind === "symlink" ? t("preview.linkKindSymlink") : t("preview.linkKindShortcut");
+});
+
+const linkTarget = computed(() => link.value?.target ?? null);
+
+const linkTargetDir = computed(() => link.value?.targetDir ?? null);
+
+const linkTargetMissing = computed(() => {
+  const l = link.value;
+  return Boolean(l?.target && !l.targetExists);
+});
+
+const canOpenLinkTarget = computed(() => {
+  const l = link.value;
+  return Boolean(l?.target && l.targetExists && l.targetKind === "dir");
+});
+
+const canOpenLinkTargetDir = computed(() => {
+  const l = link.value;
+  return Boolean(l?.targetDir && l.targetDirExists);
+});
+
+async function openLinkTargetInNewTab() {
+  const l = link.value;
+  if (l?.target && l.targetExists && l.targetKind === "dir") {
+    await newNavigatorTab(l.target);
+  }
+}
+
+async function openLinkTargetDirInNewTab() {
+  const l = link.value;
+  if (l?.targetDir && l.targetDirExists) {
+    await newNavigatorTab(l.targetDir);
+  }
+}
 
 const rows = computed(() => {
   const s = stat.value;
@@ -189,6 +235,43 @@ watch(
               <span class="props-label">{{ row.label }}</span>
               <span class="props-value" :class="{ mono: row.mono }" :title="row.value">{{ row.value }}</span>
             </li>
+            <template v-if="link">
+              <li class="props-row">
+                <span class="props-label">{{ t("properties.linkKind") }}</span>
+                <span class="props-value">{{ linkKindText }}</span>
+              </li>
+              <li v-if="linkTarget" class="props-row">
+                <span class="props-label">{{ t("preview.linkTargetLabel") }}</span>
+                <span class="props-value mono props-link-cell">
+                  <button
+                    v-if="canOpenLinkTarget"
+                    type="button"
+                    class="props-link-open"
+                    :title="t('contextMenu.openInNewTab')"
+                    @click="openLinkTargetInNewTab"
+                    >{{ linkTarget }}</button
+                  >
+                  <template v-else>{{ linkTarget }}</template>
+                  <span v-if="linkTargetMissing" class="props-link-badge">{{
+                    t("preview.linkTargetMissingBadge")
+                  }}</span>
+                </span>
+              </li>
+              <li v-if="linkTargetDir" class="props-row">
+                <span class="props-label">{{ t("preview.linkTargetDirLabel") }}</span>
+                <span class="props-value mono">
+                  <button
+                    v-if="canOpenLinkTargetDir"
+                    type="button"
+                    class="props-link-open"
+                    :title="t('contextMenu.openInNewTab')"
+                    @click="openLinkTargetDirInNewTab"
+                    >{{ linkTargetDir }}</button
+                  >
+                  <template v-else>{{ linkTargetDir }}</template>
+                </span>
+              </li>
+            </template>
             <li class="props-row props-row--attrs">
               <span class="props-label">{{ t("properties.attributes") }}</span>
               <div class="props-attrs">
@@ -290,6 +373,42 @@ watch(
 .mono {
   font-family: var(--fluent-font-family-mono);
   font-size: var(--fluent-font-size-caption);
+}
+
+/* Link rows: existing dir targets / 原目录 open a new navigator tab. */
+.props-link-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-xs);
+  flex-wrap: wrap;
+}
+
+.props-link-open {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font-family: var(--fluent-font-family-mono);
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-fill-accent);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.props-link-open:hover,
+.props-link-open:focus-visible {
+  text-decoration: underline;
+}
+
+.props-link-badge {
+  flex-shrink: 0;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+  background: color-mix(in srgb, var(--fluent-color-text-secondary) 14%, transparent);
 }
 
 .props-attrs {

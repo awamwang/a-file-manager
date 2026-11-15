@@ -12,6 +12,7 @@ import {
   previewPaneWidth,
   setPreviewPaneWidth,
 } from "../../state/sidePaneWidth";
+import { newNavigatorTab } from "../../state/navigatorBrowse.ts";
 
 export type PreviewLinkInfo = {
   /** "shortcut" (.lnk) or "symlink" (reparse point). */
@@ -24,10 +25,21 @@ export type PreviewLinkInfo = {
   targetKind: string | null;
   /** Directory containing the target (原目录 / start-in folder). */
   targetDir: string | null;
+  /** Whether the 原目录 still exists (lets the user jump there). */
+  targetDirExists: boolean;
+};
+
+export type PreviewDirInfo = {
+  /** Direct child files (null when the folder is unreadable). */
+  fileCount: number | null;
+  /** Direct child subfolders (null when the folder is unreadable). */
+  dirCount: number | null;
+  modifiedMs: number | null;
+  createdMs: number | null;
 };
 
 export type PreviewPayload = {
-  kind: "image" | "text" | "unsupported" | "link" | string;
+  kind: "image" | "text" | "unsupported" | "link" | "dir" | string;
   path: string;
   text: string | null;
   dataUrl: string | null;
@@ -35,6 +47,8 @@ export type PreviewPayload = {
   error: string | null;
   /** Link metadata; non-null only for kind "link" payloads. */
   link: PreviewLinkInfo | null;
+  /** Directory basics; non-null only for kind "dir" payloads. */
+  dir: PreviewDirInfo | null;
 };
 
 const props = defineProps<{
@@ -44,7 +58,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ close: [] }>();
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const loading = ref(false);
 const payload = ref<PreviewPayload | null>(null);
 const copiedTarget = ref(false);
@@ -134,6 +148,7 @@ async function load(path: string | null) {
       truncated: false,
       error: err instanceof Error ? err.message : String(err),
       link: null,
+      dir: null,
     };
   } finally {
     if (my === seq) loading.value = false;
@@ -156,6 +171,13 @@ const targetKindLabel = computed(() => {
     : t("preview.linkTargetKindFile");
 });
 
+// Folder preview rows share the 属性 labels; timestamps follow the UI locale.
+function formatDirTime(ms: number | null): string {
+  if (ms == null) return t("properties.unknown");
+  void locale.value;
+  return new Date(ms).toLocaleString();
+}
+
 async function copyLinkTarget() {
   const target = payload.value?.link?.target;
   if (!target) return;
@@ -169,6 +191,38 @@ async function copyLinkTarget() {
     }, 1500);
   } catch {
     /* clipboard may be unavailable; keep the path selectable */
+  }
+}
+
+// Missing target: keep the card a link card — only the red banner is reserved
+// for fully dead links (target AND 原目录 both gone).
+const targetMissing = computed(() => {
+  const link = payload.value?.link;
+  return Boolean(link?.target && !link.targetExists);
+});
+
+const showMissingBanner = computed(() => {
+  const link = payload.value?.link;
+  return Boolean(link?.target && !link.targetExists && !link.targetDirExists);
+});
+
+// Existing directory targets / 原目录 open in a new navigator tab.
+const canOpenTargetInNewTab = computed(() => {
+  const link = payload.value?.link;
+  return Boolean(link?.target && link.targetExists && link.targetKind === "dir");
+});
+
+async function openTargetInNewTab() {
+  const link = payload.value?.link;
+  if (link?.target && link.targetExists && link.targetKind === "dir") {
+    await newNavigatorTab(link.target);
+  }
+}
+
+async function openTargetDirInNewTab() {
+  const link = payload.value?.link;
+  if (link?.targetDir && link.targetDirExists) {
+    await newNavigatorTab(link.targetDir);
   }
 }
 
@@ -234,7 +288,7 @@ watch(
           </div>
         </div>
         <p
-          v-if="payload.link.target && !payload.link.targetExists"
+          v-if="showMissingBanner"
           class="fluent-banner fluent-banner--error preview-link-missing"
         >
           {{ t("preview.linkTargetMissing") }}
@@ -243,8 +297,16 @@ watch(
           <div class="preview-link-row">
             <dt>{{ t("preview.linkTargetLabel") }}</dt>
             <dd class="preview-link-path">
+              <button
+                v-if="canOpenTargetInNewTab"
+                type="button"
+                class="preview-link-open"
+                :title="t('contextMenu.openInNewTab')"
+                @click="openTargetInNewTab"
+                >{{ payload.link.target }}</button
+              >
               <span
-                v-if="payload.link.target"
+                v-else-if="payload.link.target"
                 class="preview-link-path-text"
                 :title="payload.link.target"
                 >{{ payload.link.target }}</span
@@ -252,6 +314,11 @@ watch(
               <span v-else class="preview-link-muted">{{
                 t("preview.linkTargetUnresolved")
               }}</span>
+              <span
+                v-if="targetMissing"
+                class="preview-link-badge"
+                >{{ t("preview.linkTargetMissingBadge") }}</span
+              >
               <button
                 v-if="payload.link.target"
                 type="button"
@@ -271,10 +338,51 @@ watch(
           <div v-if="payload.link.targetDir" class="preview-link-row">
             <dt>{{ t("preview.linkTargetDirLabel") }}</dt>
             <dd class="preview-link-path">
-              <span class="preview-link-path-text" :title="payload.link.targetDir">{{
+              <button
+                v-if="payload.link.targetDirExists"
+                type="button"
+                class="preview-link-open"
+                :title="t('contextMenu.openInNewTab')"
+                @click="openTargetDirInNewTab"
+                >{{ payload.link.targetDir }}</button
+              >
+              <span v-else class="preview-link-path-text" :title="payload.link.targetDir">{{
                 payload.link.targetDir
               }}</span>
             </dd>
+          </div>
+        </dl>
+      </div>
+      <div
+        v-else-if="payload.kind === 'dir' && payload.dir"
+        class="preview-link"
+      >
+        <div class="preview-link-head">
+          <span class="preview-link-icon"><FluentIcon name="folder" size="lg" /></span>
+          <div class="preview-link-head-text">
+            <p class="preview-link-kind">{{ t("properties.kindFolder") }}</p>
+          </div>
+        </div>
+        <dl class="preview-link-rows">
+          <div v-if="payload.dir.fileCount != null" class="preview-link-row">
+            <dt>{{ t("properties.fileCount") }}</dt>
+            <dd>{{ payload.dir.fileCount }}</dd>
+          </div>
+          <div v-if="payload.dir.dirCount != null" class="preview-link-row">
+            <dt>{{ t("properties.dirCount") }}</dt>
+            <dd>{{ payload.dir.dirCount }}</dd>
+          </div>
+          <div v-if="payload.dir.fileCount == null" class="preview-link-row">
+            <dt>{{ t("preview.dirContentsLabel") }}</dt>
+            <dd><span class="preview-link-muted">{{ t("preview.dirUnreadable") }}</span></dd>
+          </div>
+          <div class="preview-link-row">
+            <dt>{{ t("properties.modified") }}</dt>
+            <dd>{{ formatDirTime(payload.dir.modifiedMs) }}</dd>
+          </div>
+          <div class="preview-link-row">
+            <dt>{{ t("properties.created") }}</dt>
+            <dd>{{ formatDirTime(payload.dir.createdMs) }}</dd>
           </div>
         </dl>
       </div>
@@ -477,6 +585,36 @@ watch(
   flex: 1;
   overflow-wrap: anywhere;
   font-family: var(--fluent-font-family-mono);
+}
+
+/* Existing dir targets / 原目录: inline link that opens a new navigator tab. */
+.preview-link-open {
+  min-width: 0;
+  flex: 1;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font-family: var(--fluent-font-family-mono);
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-fill-accent);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.preview-link-open:hover,
+.preview-link-open:focus-visible {
+  text-decoration: underline;
+}
+
+/* Muted "missing" badge next to a dead target path (link card stays a card). */
+.preview-link-badge {
+  flex-shrink: 0;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+  background: color-mix(in srgb, var(--fluent-color-text-secondary) 14%, transparent);
 }
 
 .preview-link-muted {

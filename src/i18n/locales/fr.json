@@ -1204,6 +1204,7 @@
     "attributesSaved": "Attributs mis à jour",
     "kindFolder": "Dossier",
     "kindFile": "Fichier",
+    "linkKind": "Type de lien",
     "unknown": "Inconnu"
   },
   "preview": {
@@ -1222,7 +1223,10 @@
     "linkTargetKindFile": "Fichier",
     "linkTargetDirLabel": "Emplacement d’origine",
     "linkCopyTarget": "Copier le chemin de la cible",
-    "linkCopiedTarget": "Copié"
+    "linkCopiedTarget": "Copié",
+    "linkTargetMissingBadge": "introuvable",
+    "dirContentsLabel": "Contenu",
+    "dirUnreadable": "Contenu du dossier illisible"
   },
   "previewBridge": {
     "noPath": "Sélectionnez un fichier local pour l’aperçu",
