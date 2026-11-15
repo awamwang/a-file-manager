@@ -112,6 +112,7 @@
     "scopesLabel": "Suchbereiche",
     "empty": "Keine Treffer",
     "hint": "↑↓ bewegen · Enter öffnen · Alt+1–9 Bereich · Esc schließen",
+    "fuzzy": "Unscharfe Suche",
     "workGroupMembers": "keine Mitglieder | 1 Mitglied | {count} Mitglieder",
     "viewAllFiles": "Alle Datei-Ergebnisse anzeigen",
     "openFailed": "Element konnte nicht geöffnet werden",

@@ -112,6 +112,7 @@
     "scopesLabel": "Périmètres de recherche",
     "empty": "Aucun résultat",
     "hint": "↑↓ déplacer · Entrée ouvrir · Alt+1–9 périmètre · Échap fermer",
+    "fuzzy": "Recherche floue",
     "workGroupMembers": "aucun membre | 1 membre | {count} membres",
     "viewAllFiles": "Voir tous les résultats de fichiers",
     "openFailed": "Impossible d’ouvrir l’élément",

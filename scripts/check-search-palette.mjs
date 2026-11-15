@@ -16,6 +16,7 @@ const config = read("src/search/searchPaletteConfig.ts");
 const tools = read("src/search/sources/tools.ts");
 const extensions = read("src/search/sources/extensions.ts");
 const files = read("src/search/sources/files.ts");
+const match = read("src/search/match.ts");
 const libRs = read("src-tauri/src/lib.rs");
 const paletteRs = read("src-tauri/src/palette/mod.rs");
 
@@ -25,14 +26,19 @@ for (const [label, text, needle] of [
   ["CommandPanel", commandPanel, "toggleScopeAt("],
   ["CommandPanel", commandPanel, "searchPalette.types."],
   ["scope", scope, "afm.searchPaletteScopes"],
+  ["CommandPanel", commandPanel, "searchPalette.fuzzy"],
+  ["CommandPanel", commandPanel, 'v-model="fuzzy"'],
   ["useSearchPalette", palette, "seq !== searchSeq"],
   ["useSearchPalette", palette, "SEARCH_GROUP_LIMIT"],
+  ["useSearchPalette", palette, "fuzzy: fuzzy.value"],
   ["types", types, "export const SEARCH_SOURCE_ORDER"],
   ["types", types, "export const SEARCH_GROUP_LIMIT = 8;"],
+  ["match", match, "matchText"],
   ["searchPaletteConfig", config, "palette_get_config"],
   ["tools source", tools, "allowDestructive: false"],
   ["tools source", tools, "searchPalette.destructiveInRuntime"],
   ["extensions source", extensions, "getSearchExtras"],
+  ["files source", files, "fuzzyEverythingPattern"],
   ["files source", files, "searchPalette.viewAllFiles"],
   ["files source", files, "query: q ? { q } : {}"],
   ["lib.rs", libRs, "palette::palette_get_config,"],

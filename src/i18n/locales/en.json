@@ -157,6 +157,7 @@
     "scopesLabel": "Search scopes",
     "empty": "No matches",
     "hint": "↑↓ move · Enter open · Alt+1–9 scope · Esc close",
+    "fuzzy": "Fuzzy search",
     "workGroupMembers": "no members | 1 member | {count} members",
     "viewAllFiles": "View all file results",
     "openFailed": "Failed to open item",

@@ -15,8 +15,9 @@ import {
   SEARCH_PALETTE_SCOPES_STORAGE_KEY,
   toggleScope,
 } from "../src/search/scope.ts";
-import { matchByName } from "../src/search/match.ts";
+import { matchByName, matchText } from "../src/search/match.ts";
 import { useSearchPalette } from "../src/search/useSearchPalette.ts";
+import { fuzzyEverythingPattern } from "../src/search/sources/files.ts";
 import {
   SEARCH_GROUP_LIMIT,
   SEARCH_RESULT_GROUP_ORDER,
@@ -141,6 +142,58 @@ assert.ok(
   matchByName(named, (e) => e.name, "notepad").length === 1,
   "精确名称命中",
 );
+
+// ---------- 2b. 模糊搜索勾选（matchText / Everything 模式 / options 透传） ----------
+
+// matchText：非模糊=大小写不敏感子串；模糊=子序列。
+assert.equal(
+  matchText("Open Settings", "settings", false),
+  true,
+  "非模糊：子串命中",
+);
+assert.equal(
+  matchText("Open Settings", "setng", false),
+  false,
+  "非模糊：子序列不算命中",
+);
+assert.equal(
+  matchText("Open Settings", "setng", true),
+  true,
+  "模糊：子序列命中",
+);
+assert.equal(
+  matchText("Open Settings", "setngz", true),
+  false,
+  "模糊：超出子序列不命中",
+);
+assert.equal(matchText("Open Settings", "", true), false, "空查询不命中");
+
+// 文件源模糊：Everything 通配符子序列模式。
+assert.equal(fuzzyEverythingPattern("setng"), "*s*e*t*n*g*");
+assert.equal(fuzzyEverythingPattern("a b"), "*a*b*", "空格剔除");
+assert.equal(fuzzyEverythingPattern("*.txt"), "*t*x*t*", "通配符/点剔除");
+assert.equal(fuzzyEverythingPattern("  "), "  ", "无有效字符原样返回");
+
+// useSearchPalette：默认不勾选；勾选后重跑并把 fuzzy 透传给源。
+let capturedOptions: { fuzzy: boolean } | undefined;
+const optsSource: SearchSource = {
+  id: "commands",
+  labelKey: "searchPalette.scopes.commands",
+  enabled: () => true,
+  unavailableKey: "searchPalette.status.commandsUnavailable",
+  search(query: string, options?: { fuzzy: boolean }): SearchSourceResult {
+    capturedOptions = options;
+    return { status: "ready", items: [] };
+  },
+};
+const fuzzyPalette = useSearchPalette(() => [optsSource]);
+assert.equal(fuzzyPalette.fuzzy.value, false, "默认不勾选模糊搜索");
+fuzzyPalette.query.value = "x";
+await nextTick();
+assert.deepEqual(capturedOptions, { fuzzy: false }, "未勾选时透传 fuzzy=false");
+fuzzyPalette.fuzzy.value = true;
+await nextTick();
+assert.deepEqual(capturedOptions, { fuzzy: true }, "勾选后重跑并透传 fuzzy=true");
 
 // ---------- 3. 分组顺序 / 每组上限 / 异步过期丢弃 ----------
 

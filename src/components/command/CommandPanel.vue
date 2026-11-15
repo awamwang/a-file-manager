@@ -44,6 +44,7 @@ const sources = buildSearchSources({
 const {
   query,
   activeIndex,
+  fuzzy,
   scopeChips,
   groups,
   flat,
@@ -344,7 +345,16 @@ function onPanelKeydown(event: KeyboardEvent) {
           </template>
           <p v-else class="cmd-empty">{{ t("searchPalette.empty") }}</p>
         </div>
-        <p class="cmd-hint">{{ t("searchPalette.hint") }}</p>
+        <div class="cmd-footer">
+          <p class="cmd-hint">{{ t("searchPalette.hint") }}</p>
+          <label class="cmd-fuzzy">
+            <input
+              v-model="fuzzy"
+              type="checkbox"
+              class="cmd-fuzzy-box"
+            />{{ t("searchPalette.fuzzy") }}
+          </label>
+        </div>
       </div>
     </div>
   </Teleport>
@@ -580,12 +590,42 @@ function onPanelKeydown(event: KeyboardEvent) {
   font-size: var(--fluent-font-size-body);
 }
 
-.cmd-hint {
+.cmd-footer {
   flex-shrink: 0;
-  margin: 0;
-  padding: var(--fluent-space-sm) var(--fluent-space-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fluent-space-md);
   border-top: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  padding: 0 var(--fluent-space-md);
+}
+
+.cmd-hint {
+  flex: 1;
+  margin: 0;
+  padding: var(--fluent-space-sm) 0;
   font-size: var(--fluent-font-size-caption);
   color: var(--fluent-color-text-secondary);
+}
+
+.cmd-fuzzy {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fluent-space-xs);
+  padding: var(--fluent-space-xxs) 0;
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.cmd-fuzzy:hover {
+  color: var(--fluent-color-text-primary);
+}
+
+.cmd-fuzzy-box {
+  margin: 0;
+  accent-color: var(--fluent-color-fill-accent);
 }
 </style>

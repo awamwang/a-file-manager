@@ -157,6 +157,7 @@
     "scopesLabel": "搜索范围",
     "empty": "无匹配结果",
     "hint": "↑↓ 移动 · Enter 打开 · Alt+1–9 切换范围 · Esc 关闭",
+    "fuzzy": "模糊搜索",
     "workGroupMembers": "{count} 个成员",
     "viewAllFiles": "查看全部文件结果",
     "openFailed": "打开条目失败",

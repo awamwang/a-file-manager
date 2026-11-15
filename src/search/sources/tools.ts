@@ -18,19 +18,17 @@ import type { ToolIndexEntry } from "../../state/toolRuntimeIndex.ts";
 import { loadToolIndex } from "../../state/toolRuntimeIndex.ts";
 import type {
   SearchActivateOutcome,
+  SearchQueryOptions,
   SearchResultItem,
   SearchSource,
   SearchSourceResult,
 } from "../types.ts";
+import { matchText } from "../match.ts";
 import {
   loadSearchPaletteConfig,
   paletteActionFor,
   type PaletteToolAction,
 } from "../searchPaletteConfig.ts";
-
-function matches(haystack: string, needle: string): boolean {
-  return haystack.toLowerCase().includes(needle.toLowerCase());
-}
 
 export function createToolsSource(router: Router): SearchSource {
   /** 跳工具运行时并预选；Pack 未启用时无贡献即忽略。 */
@@ -129,9 +127,13 @@ export function createToolsSource(router: Router): SearchSource {
     unavailableAction: () => {
       pushToolRuntime({});
     },
-    async search(query: string): Promise<SearchSourceResult> {
+    async search(
+      query: string,
+      options?: SearchQueryOptions,
+    ): Promise<SearchSourceResult> {
       const q = query.trim();
       if (!q) return { status: "ready", items: [] };
+      const fuzzy = options?.fuzzy ?? false;
       const entries = await loadToolIndex();
       if (!entries) {
         // 网关离线 / 列取失败：状态行。
@@ -139,11 +141,11 @@ export function createToolsSource(router: Router): SearchSource {
       }
       const items: SearchResultItem[] = [];
       for (const entry of entries) {
-        if (matches(entry.tool.name, q)) {
+        if (matchText(entry.tool.name, q, fuzzy)) {
           items.push(toolItem(entry));
         }
         for (let index = 0; index < entry.capabilities.length; index += 1) {
-          if (matches(entry.capabilities[index].name, q)) {
+          if (matchText(entry.capabilities[index].name, q, fuzzy)) {
             items.push(capabilityItem(entry, index));
           }
         }

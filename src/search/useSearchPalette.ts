@@ -49,6 +49,8 @@ export function useSearchPalette(sources: () => readonly SearchSource[]) {
 
   const query = ref("");
   const activeIndex = ref(0);
+  /** 模糊搜索勾选（默认不勾选；会话内状态，不持久化）。 */
+  const fuzzy = ref(false);
   /** null = 未持久化 / 按「全部」处理（全选，不是独立模式）。 */
   const storedScopes = ref<SearchSourceId[] | null>(loadScopes(storage));
   const sourceStates = ref<Partial<Record<SearchSourceId, SearchSourceState>>>(
@@ -101,7 +103,7 @@ export function useSearchPalette(sources: () => readonly SearchSource[]) {
       void (async () => {
         let result: SearchSourceResult;
         try {
-          result = await source.search(q);
+          result = await source.search(q, { fuzzy: fuzzy.value });
         } catch {
           result = { status: "unavailable", items: [] };
         }
@@ -162,6 +164,11 @@ export function useSearchPalette(sources: () => readonly SearchSource[]) {
     runSearch();
   });
 
+  watch(fuzzy, () => {
+    activeIndex.value = 0;
+    runSearch();
+  });
+
   watch(activeScopes, () => {
     runSearch();
   });
@@ -203,6 +210,7 @@ export function useSearchPalette(sources: () => readonly SearchSource[]) {
   return {
     query,
     activeIndex,
+    fuzzy,
     activeScopes,
     scopeChips,
     groups,

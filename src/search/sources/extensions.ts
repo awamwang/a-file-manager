@@ -11,10 +11,12 @@ import {
   type FeaturePackSearchEntry,
 } from "../../state/featurePack/contributions.ts";
 import type {
+  SearchQueryOptions,
   SearchResultItem,
   SearchSource,
   SearchSourceResult,
 } from "../types.ts";
+import { matchText } from "../match.ts";
 
 export type ExtensionsSourceDeps = {
   router: Router;
@@ -30,17 +32,25 @@ export function createExtensionsSource(
     labelKey: "searchPalette.scopes.extensions",
     enabled: () => getSearchExtras().length > 0,
     unavailableKey: "searchPalette.status.extensionsUnavailable",
-    search(query: string): SearchSourceResult {
+    search(
+      query: string,
+      options?: SearchQueryOptions,
+    ): SearchSourceResult {
       const q = query.trim();
       if (!q) return { status: "ready", items: [] };
-      const needle = q.toLowerCase();
+      const fuzzy = options?.fuzzy ?? false;
       const items: SearchResultItem[] = [];
       for (const entry of getSearchExtras()) {
         const title = deps.t(entry.labelKey);
-        const haystack = [title, ...entry.keywords]
-          .join(" ")
-          .toLowerCase();
-        if (!haystack.includes(needle)) continue;
+        // 模糊：标题/关键词子序列；非模糊：标题+关键词拼接子串。
+        const matched = fuzzy
+          ? matchText(title, q, true) ||
+            entry.keywords.some((keyword) => matchText(keyword, q, true))
+          : [title, ...entry.keywords]
+              .join(" ")
+              .toLowerCase()
+              .includes(q.toLowerCase());
+        if (!matched) continue;
         items.push(extensionItem(entry, title, deps.router));
       }
       return { status: "ready", items };

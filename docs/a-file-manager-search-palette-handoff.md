@@ -55,7 +55,10 @@ src-tauri/src/extension_host/            Pack search 贡献聚合 + uiCommands �
 7. **扩展源**：Pack 声明 `contributions.search` 必须申请 `uiCommands` 权限（Rust 侧校验）；
    缺 id/labelKey/route 或路由不可解析的条目被过滤；禁用 Pack 后条目与 chip 一起消失。
 8. **网关离线**：工具源显示状态行 + 「打开工具运行时」引导；tool-runtime Pack 未启用时源与 chip 一起隐藏。
-9. **命名不变量**：内部文件名 `CommandPanel.vue` / `state/commandPanel.ts`、快捷键 id
+9. **模糊搜索勾选**：面板底部勾选框（默认不勾选，会话内状态不持久化）。勾选后
+   tools/extensions 改子序列匹配（`matchText`），文件源发 Everything `*a*b*c*` 通配符模式
+   （limit 32）并按名称 `fuzzyScore` 重排取前 8；commands/projects/workgroups 本就是模糊匹配，不受影响。
+10. **命名不变量**：内部文件名 `CommandPanel.vue` / `state/commandPanel.ts`、快捷键 id
    `commandPanel.toggle` 不变；仅用户可见文案为「搜索面板」。
 
 ## 4. 测试门禁
@@ -63,7 +66,7 @@ src-tauri/src/extension_host/            Pack search 贡献聚合 + uiCommands �
 - `npm run test:search-palette`：范围归一化/持久化/切换、仅名称匹配、分组顺序与每组上限、
   类型标签齐全、异步源过期丢弃、工具动作配置解析与非法回落、Pack 条目过滤。
 - `npm run test:global-search`：Ctrl+Shift+F 焦点链 + Discovery `q` 参数深链。
-- 相关回归：`test:command-panel`、`test:i18n`（1076 keys × 5 locale）、`test:feature-pack-shell`、
+- 相关回归：`test:command-panel`、`test:i18n`（1077 keys × 5 locale）、`test:feature-pack-shell`、
   `test:tool-runtime-pack`、`npm run test:rust`（含 palette 与 extension_host search 测试）。
 
 ## 5. 真机验证清单（`npm run tauri:dev`）

@@ -88,6 +88,11 @@ export type SearchSourceResult = {
   items: SearchResultItem[];
 };
 
+/** 检索选项：`fuzzy` = 面板底部「模糊搜索」勾选（默认关，本地过滤源切子序列匹配）。 */
+export type SearchQueryOptions = {
+  fuzzy: boolean;
+};
+
 /** 组尾「查看全部」入口：带当前查询跳转到该源的完整结果页。 */
 export type SearchViewAll = {
   labelKey: string;
@@ -110,6 +115,10 @@ export type SearchSource = {
   /**
    * 检索：空 query 时命令源返回全量、其余源返回空列表；
    * 失败时自行捕获并返回 `status: "unavailable"`。
+   * `options.fuzzy` 开启时本地过滤的源改用子序列模糊匹配。
    */
-  search(query: string): SearchSourceResult | Promise<SearchSourceResult>;
+  search(
+    query: string,
+    options?: SearchQueryOptions,
+  ): SearchSourceResult | Promise<SearchSourceResult>;
 };

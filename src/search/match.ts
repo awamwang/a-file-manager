@@ -5,6 +5,18 @@ import { fuzzyScore } from "../commands/fuzzyFilter.ts";
 
 export type NameMatch<T> = { entry: T; score: number };
 
+/** 源内单文本匹配：模糊=子序列（fuzzyScore），否则大小写不敏感子串。 */
+export function matchText(
+  text: string,
+  query: string,
+  fuzzy: boolean,
+): boolean {
+  const q = query.trim();
+  if (!q) return false;
+  if (fuzzy) return fuzzyScore(q, text) !== null;
+  return text.toLowerCase().includes(q.toLowerCase());
+}
+
 export function matchByName<T>(
   entries: readonly T[],
   name: (entry: T) => string,

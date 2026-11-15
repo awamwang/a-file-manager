@@ -112,6 +112,7 @@
     "scopesLabel": "検索スコープ",
     "empty": "一致なし",
     "hint": "↑↓ 移動 · Enter 開く · Alt+1–9 スコープ · Esc 閉じる",
+    "fuzzy": "あいまい検索",
     "workGroupMembers": "メンバーなし | 1 メンバー | {count} メンバー",
     "viewAllFiles": "ファイルの結果をすべて表示",
     "openFailed": "項目を開けませんでした",
