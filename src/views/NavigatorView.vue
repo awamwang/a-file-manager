@@ -32,6 +32,7 @@ import {
   afterFileMutation,
   afterUndoMutation,
 } from "../state/fileMutation";
+import { revealItemsInNavigator } from "../state/revealInNavigator";
 import {
   dirEntryFromPath,
   folderContextMenuRequest,
@@ -1610,13 +1611,14 @@ async function shortcutPaste() {
     }
     if (wasCut) {
       recordMoveUndo(sources, result.paths);
-      onNotice(t("contextMenu.pasted", { count: result.paths.length }));
       await refreshListing({ invalidateEntryPaths: sources });
     } else {
       recordCopyUndo(result.paths);
-      onNotice(t("contextMenu.pasted", { count: result.paths.length }));
       await refreshListing();
     }
+    onNotice(t("contextMenu.pasted", { count: result.paths.length }));
+    // Explorer 式反馈：粘贴完成后选中新粘贴的条目并滚动到可见。
+    await revealItemsInNavigator(result.paths);
   } catch (err) {
     onNotice(err instanceof Error ? err.message : String(err));
   }

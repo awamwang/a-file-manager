@@ -10,6 +10,7 @@ import {
   globalSearchFocusToken,
 } from "../state/globalSearch";
 import { iconUrlFor, requestShellIcons } from "../state/shellIcons";
+import { revealItemsInNavigator } from "../state/revealInNavigator";
 import { loadFavorites } from "../state/favorites";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import NavigatorContextMenu from "../components/navigator/NavigatorContextMenu.vue";
@@ -211,11 +212,11 @@ async function openHit(hit: DiscoveryHit) {
   const path = hit.path.replace(/\//g, "\\");
   if (hit.isDir) {
     await openOrFocusNavigatorTab(path);
-  } else {
-    const parent = path.includes("\\") ? path.slice(0, path.lastIndexOf("\\")) : path;
-    await openOrFocusNavigatorTab(parent || path);
+    await router.push("/navigator");
+    return;
   }
-  await router.push("/navigator");
+  // 文件命中：定位到父目录并选中该文件（reveal-and-select）。
+  await revealItemsInNavigator([path]);
 }
 
 watch(globalSearchFocusToken, () => {

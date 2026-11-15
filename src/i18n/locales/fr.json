@@ -556,7 +556,8 @@
     "maxRecords": "Entrées maximales",
     "maxRecordsHint": "Au-delà de la limite, les entrées terminées les plus anciennes sont supprimées en premier.",
     "empty": "Aucune entrée de tâche",
-    "more": "+{count} autres"
+    "more": "+{count} autres",
+    "revealHint": "Cliquez pour afficher la destination dans l'explorateur"
   },
   "navigator": {
     "empty": "Ce dossier est vide.",

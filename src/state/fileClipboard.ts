@@ -104,8 +104,12 @@ export async function transferEntries(
   const trackedKind: LongTaskKind | null = mode === "copy" || mode === "move" ? mode : null;
   const taskId =
     trackedKind && sources.length ? beginLongTask(trackedKind, sources, destDir) : null;
-  const finish = (ok: boolean, error: string | null, count: number): void => {
-    if (taskId) finishLongTask(taskId, ok, error, count);
+  const finish = (
+    ok: boolean,
+    error: string | null,
+    count: number,
+  ): void => {
+    if (taskId) finishLongTask(taskId, ok, error, count, transferred);
   };
   const transferred: string[] = [];
   for (const source of sources) {

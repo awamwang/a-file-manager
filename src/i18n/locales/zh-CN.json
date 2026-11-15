@@ -402,7 +402,8 @@
     "maxRecords": "最多保留条数",
     "maxRecordsHint": "超出上限时从最旧的完成记录开始移除。",
     "empty": "暂无任务记录",
-    "more": "等 {count} 项"
+    "more": "等 {count} 项",
+    "revealHint": "点击在资源管理器中显示目标位置"
   },
   "navigator": {
     "title": "资源管理器",

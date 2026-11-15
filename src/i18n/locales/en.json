@@ -402,7 +402,8 @@
     "maxRecords": "Max records",
     "maxRecordsHint": "Oldest finished records are removed first when the limit is exceeded.",
     "empty": "No task records",
-    "more": "+{count} more"
+    "more": "+{count} more",
+    "revealHint": "Click to show the destination in Explorer"
   },
   "navigator": {
     "title": "Explorer",

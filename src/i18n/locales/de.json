@@ -556,7 +556,8 @@
     "maxRecords": "Maximale Einträge",
     "maxRecordsHint": "Bei Überschreitung werden zuerst die ältesten abgeschlossenen Einträge entfernt.",
     "empty": "Keine Aufgabeneinträge",
-    "more": "+{count} weitere"
+    "more": "+{count} weitere",
+    "revealHint": "Klicken, um das Ziel im Explorer anzuzeigen"
   },
   "navigator": {
     "empty": "Dieser Ordner ist leer.",
