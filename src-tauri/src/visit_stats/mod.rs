@@ -61,7 +61,9 @@ fn now_ms() -> u64 {
 }
 
 pub fn normalize_path(path: &str) -> String {
-    path.trim().replace('/', "\\")
+    // Comparison key only. Delegate to the platform adapter so POSIX paths
+    // keep `/` instead of becoming a relative `\Users\...` key (7.20).
+    crate::paths::to_native_fs_path(path)
 }
 
 pub fn load_from_path(config_dir: &Path) -> Result<VisitStatsDocument, String> {
@@ -96,11 +98,7 @@ pub fn visit_score(item: &VisitItem, now_ms: u64) -> f64 {
     item.open_count as f64 + recency
 }
 
-pub fn rank_quick_access(
-    visits: &[VisitItem],
-    now_ms: u64,
-    cap: usize,
-) -> Vec<VisitItem> {
+pub fn rank_quick_access(visits: &[VisitItem], now_ms: u64, cap: usize) -> Vec<VisitItem> {
     let mut ranked: Vec<VisitItem> = visits.to_vec();
     ranked.sort_by(|a, b| {
         let sa = visit_score(a, now_ms);
@@ -137,9 +135,11 @@ pub fn record_visit(
     if normalized.is_empty() {
         return Err("Path is empty".to_string());
     }
-    if let Some(existing) = document.visits.iter_mut().find(|item| {
-        normalize_path(&item.path).eq_ignore_ascii_case(&normalized)
-    }) {
+    if let Some(existing) = document
+        .visits
+        .iter_mut()
+        .find(|item| normalize_path(&item.path).eq_ignore_ascii_case(&normalized))
+    {
         existing.open_count = existing.open_count.saturating_add(1);
         existing.last_opened_at = at_ms;
         existing.is_dir = is_dir;
@@ -198,11 +198,31 @@ mod tests {
     #[test]
     fn record_increments_same_path() {
         let mut doc = VisitStatsDocument::default();
-        assert_eq!(record_visit(&mut doc, r"C:\Docs", true, 1000).unwrap(), 1);
-        assert_eq!(record_visit(&mut doc, r"C:/Docs", true, 2000).unwrap(), 2);
+        // Both spellings of the *host's* separator must fold to one key. The
+        // old `C:\Docs` / `C:/Docs` fixture only made sense on Windows (7.20).
+        let (first, second) = if cfg!(windows) {
+            (r"C:\Docs", "C:/Docs")
+        } else {
+            ("/Users/wangmeng/Docs", "/Users/wangmeng/Docs/")
+        };
+        assert_eq!(record_visit(&mut doc, first, true, 1000).unwrap(), 1);
+        assert_eq!(record_visit(&mut doc, second, true, 2000).unwrap(), 2);
         assert_eq!(doc.visits.len(), 1);
         assert_eq!(doc.visits[0].last_opened_at, 2000);
         assert_eq!(doc.visits[0].open_count, 2);
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn posix_paths_never_become_backslash_keys() {
+        assert_eq!(
+            normalize_path("/Users/wangmeng/Docs/"),
+            "/Users/wangmeng/Docs"
+        );
+        let mut doc = VisitStatsDocument::default();
+        record_visit(&mut doc, "/Users/wangmeng/Docs/", false, 1000).unwrap();
+        assert_eq!(doc.visits[0].path, "/Users/wangmeng/Docs");
+        assert!(!doc.visits[0].path.contains('\\'));
     }
 
     #[test]
@@ -254,10 +274,8 @@ mod tests {
 
     #[test]
     fn persists_round_trip() {
-        let dir = std::env::temp_dir().join(format!(
-            "a-file-manager-visits-{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("a-file-manager-visits-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
 

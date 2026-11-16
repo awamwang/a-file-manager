@@ -41,6 +41,11 @@ import {
   unregisterShortcutHandler,
 } from "../../shortcuts/index.ts";
 import {
+  isMacPlatform,
+  platformAriaKeys,
+  platformShortcutLabel,
+} from "../../config/platform.ts";
+import {
   FOCUS_CYCLE_ATTR,
   focusRegionElement,
   nextFocusRegion,
@@ -1812,8 +1817,19 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="shell fluent-chrome">
+  <div
+    class="shell fluent-chrome"
+    :class="{ 'mac-overlay-titlebar': isMacPlatform() }"
+  >
     <header class="titlebar" data-tauri-frame-tb :aria-label="t('chrome.titleBar')">
+      <!-- macOS Overlay: the 78px gutter under the native traffic lights is
+           webview content now, so it needs its own drag region (7.18). -->
+      <div
+        v-if="isMacPlatform()"
+        class="mac-traffic-light-gutter"
+        data-tauri-drag-region
+        @dblclick.prevent="toggleMaximizeWindow"
+      />
       <div
         class="titlebar-drag"
         data-tauri-drag-region
@@ -1839,8 +1855,9 @@ onUnmounted(() => {
           type="button"
           class="fluent-control titlebar-action"
           v-action-tip="{ label: t('chrome.commands'), actionId: 'commandPanel.toggle' }"
+          :title="platformShortcutLabel(String(t('chrome.commandsTitle')))"
           :aria-label="t('chrome.commands')"
-          :aria-keyshortcuts="ariaKeyshortcutsForId('commandPanel.toggle')"
+          :aria-keyshortcuts="platformAriaKeys(ariaKeyshortcutsForId('commandPanel.toggle'))"
           @click="toggleCommandPanel"
         >
           <FluentIcon name="commands" size="sm" />
@@ -2693,6 +2710,17 @@ onUnmounted(() => {
   user-select: none;
 }
 
+/* macOS `TitleBarStyle::Overlay`: the native title bar is transparent and the
+   traffic lights float over webview content. Reserve room for them (the gutter
+   doubles as a drag region now that the caption reaches the window top) and
+   drop the Win11 caption buttons, which would duplicate the traffic lights. */
+.shell.mac-overlay-titlebar .mac-traffic-light-gutter {
+  flex: 0 0 78px;
+}
+
+.shell.mac-overlay-titlebar .window-controls {
+  display: none;
+}
 .titlebar-drag {
   display: flex;
   flex: 1;

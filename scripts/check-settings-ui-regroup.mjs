@@ -37,6 +37,16 @@ assert.ok(view.includes("settingsEffectiveDefaults"));
 assert.ok(effective.includes("SETTINGS_EMPTY_MEANS_DEFAULT_KEYS"));
 assert.ok(effective.includes("core.defaultLocation"));
 assert.ok(effective.includes("core.projectsRoot"));
+// 7.16: the effective default path stays POSIX-native on macOS; the shape
+// decision now comes from the single fsPath layer instead of a local copy.
+assert.ok(
+  effective.includes('from "./fsPath.ts"'),
+  "settings defaults must delegate path normalization to fsPath.ts",
+);
+assert.ok(
+  !effective.includes("replace(/\\//g"),
+  "settings defaults must not hand-roll slash-to-backslash rewriting",
+);
 
 assert.ok(zh.includes("项目的公共配置"));
 assert.ok(zh.includes("（默认：{default}）"));

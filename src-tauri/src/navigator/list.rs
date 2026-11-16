@@ -44,18 +44,10 @@ fn is_false(value: &bool) -> bool {
     !*value
 }
 
-pub(crate) fn entry_is_hidden(metadata: &fs::Metadata) -> bool {
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::MetadataExt;
-        const FILE_ATTRIBUTE_HIDDEN: u32 = 2;
-        metadata.file_attributes() & FILE_ATTRIBUTE_HIDDEN != 0
-    }
-    #[cfg(not(windows))]
-    {
-        let _ = metadata;
-        false
-    }
+/// 7.16: hidden-file semantics are an OS adapter concern, not a navigator
+/// concern. Win32 reads `FILE_ATTRIBUTE_HIDDEN`; POSIX checks dot-files.
+pub(crate) fn entry_is_hidden(metadata: &fs::Metadata, name: &str) -> bool {
+    crate::platform::is_hidden(name, metadata)
 }
 
 pub fn list_directory(path: &str, show_hidden: bool) -> Result<NavigatorListing, String> {
@@ -87,7 +79,7 @@ pub fn list_directory(path: &str, show_hidden: bool) -> Result<NavigatorListing,
             Err(_) => continue,
         };
 
-        if !show_hidden && entry_is_hidden(&metadata) {
+        if !show_hidden && entry_is_hidden(&metadata, &entry.file_name().to_string_lossy()) {
             continue;
         }
 
@@ -146,11 +138,13 @@ pub fn list_directory(path: &str, show_hidden: bool) -> Result<NavigatorListing,
 }
 
 pub fn default_path() -> Result<String, String> {
-    if let Ok(home) = std::env::var("USERPROFILE") {
-        if !home.trim().is_empty() && Path::new(&home).is_dir() {
-            return Ok(display_path(Path::new(&home)));
+    // Platform layer resolves USERPROFILE (Windows) / $HOME (macOS).
+    if let Some(home) = crate::platform::home_dir() {
+        if home.is_dir() {
+            return Ok(display_path(&home));
         }
     }
+    #[cfg(windows)]
     if Path::new(r"C:\").is_dir() {
         return Ok(r"C:\".to_string());
     }
@@ -167,12 +161,12 @@ pub fn parent_path(path: &str) -> Result<Option<String>, String> {
 }
 
 pub(crate) fn display_path(path: &Path) -> String {
-    path.to_string_lossy().replace('/', "\\")
+    crate::paths::display_path(path)
 }
 
 fn display_paths_equal(left: &str, right: &str) -> bool {
-    left.replace('/', "\\")
-        .eq_ignore_ascii_case(&right.replace('/', "\\"))
+    crate::paths::normalize_path_for_comparison(left)
+        == crate::paths::normalize_path_for_comparison(right)
 }
 
 pub(crate) fn system_time_ms(time: SystemTime) -> Option<u64> {
@@ -303,12 +297,14 @@ mod tests {
         assert!(!path.to_ascii_lowercase().starts_with("awam://"));
     }
 
+    #[cfg(windows)]
     #[test]
     fn parent_of_nested_path() {
         let parent = parent_path(r"C:\Windows\System32").unwrap();
         assert_eq!(parent.as_deref(), Some(r"C:\Windows"));
     }
 
+    #[cfg(windows)]
     #[test]
     fn parent_of_drive_roots_is_none() {
         for p in [r"D:\", r"D:/", r"D:", r"C:\", r"G:\", r"\\server\share"] {
@@ -316,6 +312,17 @@ mod tests {
             assert!(got.is_none(), "{p} should have no FS parent, got {got:?}");
         }
         assert_eq!(parent_path(r"D:\Projects").unwrap().as_deref(), Some(r"D:\"));
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn parent_of_posix_paths() {
+        assert_eq!(
+            parent_path("/Users/wangmeng/Docs").unwrap().as_deref(),
+            Some("/Users/wangmeng")
+        );
+        assert_eq!(parent_path("/Users").unwrap().as_deref(), Some("/"));
+        assert_eq!(parent_path("/").unwrap(), None);
     }
 
     #[cfg(windows)]

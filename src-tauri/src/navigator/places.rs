@@ -4,17 +4,10 @@
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 
-/// Logical drive kind from `GetDriveTypeW` (guide / This PC visuals).
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub enum DriveKind {
-    Fixed,
-    Removable,
-    Remote,
-    Cdrom,
-    Ramdisk,
-    Unknown,
-}
+/// Logical drive kind (guide / This PC visuals). 7.16: the neutral enum now
+/// lives in the platform layer; `DriveKind` stays as an alias so the frontend
+/// wire contract and existing `DriveKind::Fixed` call sites are unchanged.
+pub use crate::platform::VolumeKind as DriveKind;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -64,16 +57,18 @@ pub struct ShellPlaces {
     pub network: Vec<NetworkPlace>,
 }
 
-fn display_path(path: &Path) -> String {
-    path.to_string_lossy().replace('/', "\\")
-}
-
 fn existing_dir(path: PathBuf) -> Option<String> {
     if path.is_dir() {
-        Some(display_path(&path))
+        Some(crate::paths::display_path(&path))
     } else {
         None
     }
+}
+
+/// `directories::UserDirs` returns `Option<&Path>`; only keep folders that exist.
+#[cfg(not(windows))]
+fn existing_opt_dir(path: Option<&Path>) -> Option<String> {
+    path.and_then(|p| existing_dir(p.to_path_buf()))
 }
 
 fn resolve_onedrive(home_path: &Path) -> Option<String> {
@@ -90,20 +85,52 @@ fn resolve_onedrive(home_path: &Path) -> Option<String> {
     existing_dir(home_path.join("OneDrive"))
 }
 
-/// Resolve USERPROFILE (or fallback) and common child folders when they exist.
+/// Resolve the home directory and common child folders when they exist.
+///
+/// Windows keeps the original USERPROFILE-relative layout (including the
+/// OneDrive env vars). Other platforms use `directories::UserDirs`, which is
+/// locale-aware and follows the OS special-folder rules instead of guessing
+/// English child names under `$HOME`.
 pub fn user_folders() -> Result<UserFolders, String> {
     let home = super::list::default_path()?;
     let home_path = PathBuf::from(&home);
-    Ok(UserFolders {
-        home: home.clone(),
-        desktop: existing_dir(home_path.join("Desktop")),
-        documents: existing_dir(home_path.join("Documents")),
-        downloads: existing_dir(home_path.join("Downloads")),
-        pictures: existing_dir(home_path.join("Pictures")),
-        music: existing_dir(home_path.join("Music")),
-        videos: existing_dir(home_path.join("Videos")),
-        onedrive: resolve_onedrive(&home_path),
-    })
+
+    #[cfg(windows)]
+    {
+        Ok(UserFolders {
+            home: home.clone(),
+            desktop: existing_dir(home_path.join("Desktop")),
+            documents: existing_dir(home_path.join("Documents")),
+            downloads: existing_dir(home_path.join("Downloads")),
+            pictures: existing_dir(home_path.join("Pictures")),
+            music: existing_dir(home_path.join("Music")),
+            videos: existing_dir(home_path.join("Videos")),
+            onedrive: resolve_onedrive(&home_path),
+        })
+    }
+
+    #[cfg(not(windows))]
+    {
+        let dirs = directories::UserDirs::new();
+        Ok(UserFolders {
+            home,
+            desktop: dirs
+                .as_ref()
+                .and_then(|d| existing_opt_dir(d.desktop_dir())),
+            documents: dirs
+                .as_ref()
+                .and_then(|d| existing_opt_dir(d.document_dir())),
+            downloads: dirs
+                .as_ref()
+                .and_then(|d| existing_opt_dir(d.download_dir())),
+            pictures: dirs
+                .as_ref()
+                .and_then(|d| existing_opt_dir(d.picture_dir())),
+            music: dirs.as_ref().and_then(|d| existing_opt_dir(d.audio_dir())),
+            videos: dirs.as_ref().and_then(|d| existing_opt_dir(d.video_dir())),
+            onedrive: resolve_onedrive(&home_path),
+        })
+    }
 }
 
 /// Libraries / OneDrive / mapped network shares for Guide + Places.
@@ -132,167 +159,66 @@ pub fn shell_places() -> Result<ShellPlaces, String> {
 }
 
 fn list_network_places() -> Vec<NetworkPlace> {
-    let output = std::process::Command::new("cmd")
-        .args(["/C", "net use"])
-        .output();
-    let Ok(output) = output else {
-        return Vec::new();
-    };
-    if !output.status.success() {
-        return Vec::new();
-    }
-    let text = String::from_utf8_lossy(&output.stdout);
-    let mut places = Vec::new();
-    for line in text.lines() {
-        // Typical: OK  Z:  \\server\share  Microsoft Windows Network
-        let trimmed = line.trim();
-        if !trimmed.contains("\\\\") {
-            continue;
-        }
-        let parts: Vec<&str> = trimmed.split_whitespace().collect();
-        let unc = parts.iter().find(|part| part.starts_with(r"\\"));
-        let Some(unc) = unc else { continue };
-        let letter = parts
-            .iter()
-            .find(|part| part.len() == 2 && part.ends_with(':'))
-            .copied();
-        let name = letter.unwrap_or(*unc).to_string();
-        let path = if let Some(letter) = letter {
-            format!("{letter}\\")
-        } else {
-            (*unc).to_string()
-        };
-        places.push(NetworkPlace { name, path });
-    }
-    places
-}
-
-#[cfg(windows)]
-fn drive_kind_for_root(path: &str) -> DriveKind {
-    use std::os::windows::ffi::OsStrExt;
-    use windows::core::PCWSTR;
-    use windows::Win32::Storage::FileSystem::GetDriveTypeW;
-
-    // Win32 DRIVE_* constants (avoid extra Cargo feature for WindowsProgramming).
-    const DRIVE_REMOVABLE: u32 = 2;
-    const DRIVE_FIXED: u32 = 3;
-    const DRIVE_REMOTE: u32 = 4;
-    const DRIVE_CDROM: u32 = 5;
-    const DRIVE_RAMDISK: u32 = 6;
-
-    let wide: Vec<u16> = std::ffi::OsStr::new(path)
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect();
-    match unsafe { GetDriveTypeW(PCWSTR(wide.as_ptr())) } {
-        DRIVE_REMOVABLE => DriveKind::Removable,
-        DRIVE_FIXED => DriveKind::Fixed,
-        DRIVE_REMOTE => DriveKind::Remote,
-        DRIVE_CDROM => DriveKind::Cdrom,
-        DRIVE_RAMDISK => DriveKind::Ramdisk,
-        _ => DriveKind::Unknown,
-    }
-}
-
-#[cfg(not(windows))]
-fn drive_kind_for_root(_path: &str) -> DriveKind {
-    DriveKind::Unknown
-}
-
-#[cfg(windows)]
-fn volume_label_for_root(path: &str) -> String {
-    use std::os::windows::ffi::OsStrExt;
-    use windows::core::PCWSTR;
-    use windows::Win32::Storage::FileSystem::GetVolumeInformationW;
-
-    let wide: Vec<u16> = std::ffi::OsStr::new(path)
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect();
-    let mut name = [0u16; 64];
-    let ok = unsafe {
-        GetVolumeInformationW(
-            PCWSTR(wide.as_ptr()),
-            Some(&mut name),
-            None,
-            None,
-            None,
-            None,
-        )
-    };
-    if ok.is_err() {
-        return String::new();
-    }
-    let end = name.iter().position(|&c| c == 0).unwrap_or(name.len());
-    String::from_utf16_lossy(&name[..end]).trim().to_string()
-}
-
-#[cfg(not(windows))]
-fn volume_label_for_root(_path: &str) -> String {
-    String::new()
-}
-
-/// Enumerate mounted drive roots (`A:\` … `Z:\`).
-///
-/// FIL-54: 用 `GetLogicalDrives` 位图，避免对离线映射盘 / 空光驱反复 `is_dir` /
-/// `GetVolumeInformation` 把引导页与侧栏拖死；远程卷跳过卷标探测。
-pub fn list_drives() -> Result<Vec<DriveInfo>, String> {
-    #[cfg(windows)]
-    {
-        use windows::Win32::Storage::FileSystem::GetLogicalDrives;
-
-        let mask = unsafe { GetLogicalDrives() };
-        let mut drives = Vec::new();
-        for i in 0..26u32 {
-            if mask & (1 << i) == 0 {
-                continue;
-            }
-            let letter = ((b'A' + i as u8) as char).to_string();
-            let path = format!("{letter}:\\");
-            let kind = drive_kind_for_root(&path);
-            // 固定/可移动仍确认目录存在；远程/光驱/RAM 仅信驱动器类型，避免离线挂起。
-            let present = match kind {
-                DriveKind::Remote | DriveKind::Cdrom | DriveKind::Ramdisk => true,
-                _ => Path::new(&path).is_dir(),
-            };
-            if !present {
-                continue;
-            }
-            let label = match kind {
-                DriveKind::Fixed | DriveKind::Removable => volume_label_for_root(&path),
-                _ => String::new(),
-            };
-            drives.push(DriveInfo {
-                letter: letter.clone(),
-                path,
-                label,
-                kind,
-            });
-        }
-        return Ok(drives);
-    }
-
     #[cfg(not(windows))]
     {
-        let mut drives = Vec::new();
-        for code in b'A'..=b'Z' {
-            let letter = (code as char).to_string();
-            let path = format!("{letter}:\\");
-            let root = Path::new(&path);
-            if !root.is_dir() {
+        // No `net use` on macOS. Mounted shares live under /Volumes and belong
+        // to the P1 `sysinfo::Disks` volume work, not to network-place enumeration.
+        return Vec::new();
+    }
+
+    #[cfg(windows)]
+    {
+        let output = std::process::Command::new("cmd")
+            .args(["/C", "net use"])
+            .output();
+        let Ok(output) = output else {
+            return Vec::new();
+        };
+        if !output.status.success() {
+            return Vec::new();
+        }
+        let text = String::from_utf8_lossy(&output.stdout);
+        let mut places = Vec::new();
+        for line in text.lines() {
+            // Typical: OK  Z:  \\server\share  Microsoft Windows Network
+            let trimmed = line.trim();
+            if !trimmed.contains("\\\\") {
                 continue;
             }
-            let kind = drive_kind_for_root(&path);
-            let label = volume_label_for_root(&path);
-            drives.push(DriveInfo {
-                letter: letter.clone(),
-                path,
-                label,
-                kind,
-            });
+            let parts: Vec<&str> = trimmed.split_whitespace().collect();
+            let unc = parts.iter().find(|part| part.starts_with(r"\\"));
+            let Some(unc) = unc else { continue };
+            let letter = parts
+                .iter()
+                .find(|part| part.len() == 2 && part.ends_with(':'))
+                .copied();
+            let name = letter.unwrap_or(*unc).to_string();
+            let path = if let Some(letter) = letter {
+                format!("{letter}\\")
+            } else {
+                (*unc).to_string()
+            };
+            places.push(NetworkPlace { name, path });
         }
-        Ok(drives)
+        places
     }
+}
+
+/// Enumerate mounted volumes. 7.16: the OS-specific enumeration (Win32
+/// `GetLogicalDrives` bitmap / `sysinfo::Disks` mount points) now lives in the
+/// platform adapters; this layer only maps the neutral `Volume` contract onto
+/// the frontend `DriveInfo` wire type.
+///
+pub fn list_drives() -> Result<Vec<DriveInfo>, String> {
+    Ok(crate::platform::volumes()?
+        .into_iter()
+        .map(|volume| DriveInfo {
+            letter: volume.letter,
+            path: volume.path,
+            label: volume.label,
+            kind: volume.kind,
+        })
+        .collect())
 }
 
 #[cfg(test)]
@@ -311,9 +237,12 @@ mod tests {
         #[cfg(windows)]
         assert!(!drives.is_empty());
         for drive in &drives {
-            assert!(drive.path.ends_with('\\'));
             assert!(Path::new(&drive.path).is_dir());
             assert!(!drive.letter.is_empty());
+            #[cfg(windows)]
+            assert!(drive.path.ends_with('\\'));
+            #[cfg(not(windows))]
+            assert!(drive.path.starts_with('/'));
         }
         #[cfg(windows)]
         {

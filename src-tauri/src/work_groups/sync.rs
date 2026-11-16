@@ -518,11 +518,18 @@ mod tests {
         let live = open_state(&["D:/keep", "D:/scratch"]);
         let (next_group, next_open, notice) =
             add_member_to_hard_config(&group, Some(&live), "D:/new");
+        // Expected spelling comes from the platform normalizer, not a hardcoded `\`.
         assert_eq!(
             next_group.member_paths,
-            vec![r"D:\keep".to_string(), r"D:\new".to_string()]
+            vec![
+                crate::paths::to_native_fs_path("D:/keep"),
+                crate::paths::to_native_fs_path("D:/new"),
+            ]
         );
-        assert!(open_state_has_exact_path(&next_open, r"D:\new"));
+        assert!(open_state_has_exact_path(
+            &next_open,
+            &crate::paths::to_native_fs_path("D:/new")
+        ));
         assert!(open_state_has_exact_path(&next_open, "D:/scratch"));
         assert_eq!(
             notice.as_ref().map(|n| n.kind.as_str()),

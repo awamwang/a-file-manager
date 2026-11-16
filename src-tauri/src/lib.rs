@@ -13,6 +13,7 @@ mod file_ops;
 mod navigator;
 mod perf_log;
 mod paths;
+mod platform;
 mod preview;
 mod preview_bridge;
 mod shell_icons;
@@ -102,6 +103,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         // Native OLE/file drag-out (CF_HDROP) for dropping onto players / Explorer / etc.
+        // NOTE: on macOS this plugin's `start_dragging` command aborts the process (a `RecvError`
+        // from an `unwrap` inside the plugin); the frontend never calls it on macOS — see
+        // src/state/dnd/dragOut.ts and src/views/NavigatorView.vue (which use the WebView-native
+        // HTML5 file drag-out via text/uri-list instead).
         .plugin(tauri_plugin_drag::init())
         .plugin(
             FramePluginBuilder::new()
@@ -128,6 +133,68 @@ pub fn run() {
             // AIA-261: Explorer-like — background mousedown for outbound drag must not raise AFM.
             #[cfg(windows)]
             drag_focus::install_for_main_window(app.handle());
+
+            // 7.16: window chrome is reported by the platform adapter instead of
+            // a scattered `#[cfg(target_os = "macos")]` branch. Windows returns
+            // `FluentSelfDrawn` and leaves `decorations:false` + the Fluent caption
+            // alone; macOS requests native decorations + a transparent Overlay
+            // titlebar so traffic lights float over the self-drawn caption (7.14
+            // option C). `decorations:false` in tauri.conf.json stays untouched
+            // (hard assertion in check-window-controls.mjs).
+            if crate::platform::window_chrome() == crate::platform::WindowChrome::MacOverlay {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.set_decorations(true);
+                    let _ = window.set_title("");
+                    // tao rewrites the whole styleMask for `set_decorations(true)`
+                    // on a dispatch_async main-queue task, dropping the
+                    // FullSizeContentView bit. Queue the Overlay switch behind
+                    // that task, then restore the bit in the adapter (7.18):
+                    // without it AppKit keeps contentView 28pt shorter than the
+                    // window and the caption starts below an empty grey band.
+                    let overlay_app = app.handle().clone();
+                    let _ = window.run_on_main_thread(move || {
+                        if let Some(window) = overlay_app.get_webview_window("main") {
+                            let _ = window.set_title_bar_style(tauri::TitleBarStyle::Overlay);
+                            // Also centres the traffic lights on the caption (7.19).
+                            crate::platform::extend_content_under_titlebar(&window);
+                        }
+                    });
+                    // AppKit re-lays out contentView and resets button frames on
+                    // resize / focus / after reveal; re-apply on the main thread
+                    // after those events and once at startup for windows
+                    // revealed without a resize.
+                    let chrome_app = app.handle().clone();
+                    window.on_window_event(move |event| {
+                        if matches!(
+                            event,
+                            tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Focused(_)
+                        ) {
+                            if let Some(window) = chrome_app.get_webview_window("main") {
+                                let main_thread_app = chrome_app.clone();
+                                let _ = window.run_on_main_thread(move || {
+                                    if let Some(window) =
+                                        main_thread_app.get_webview_window("main")
+                                    {
+                                        crate::platform::extend_content_under_titlebar(&window);
+                                    }
+                                });
+                            }
+                        }
+                    });
+                    // Startup fallback: a window revealed without a resize never
+                    // fires Resized. The adapter call is idempotent.
+                    let late_app = app.handle().clone();
+                    std::thread::spawn(move || {
+                        std::thread::sleep(std::time::Duration::from_millis(1600));
+                        let align_app = late_app.clone();
+                        let _ = late_app.run_on_main_thread(move || {
+                            if let Some(window) = align_app.get_webview_window("main") {
+                                crate::platform::extend_content_under_titlebar(&window);
+                            }
+                        });
+                    });
+                }
+            }
 
             // Only the primary instance owns the tray icon.
             if primary_instance {
@@ -192,7 +259,9 @@ pub fn run() {
             system_tray::handle_menu_event(app, event);
         })
         .invoke_handler(tauri::generate_handler![
-health_get,
+                    health_get,
+                    platform::platform_capabilities,
+                    platform::platform_home_dir,
                     deps_probe::deps_probe_get,
                     app_quit,
                     system_tray::afm_startup_should_reveal,

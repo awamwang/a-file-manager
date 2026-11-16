@@ -17,7 +17,7 @@ use std::process::Stdio;
 pub fn placeholder_sidecar_contribution() -> SidecarContribution {
     SidecarContribution {
         id: "awam-tool-manager".to_string(),
-        command: "python".to_string(),
+        command: crate::platform::python_command().to_string(),
         args: vec![
             "-m".to_string(),
             "awam_tool_manager_placeholder".to_string(),
@@ -245,7 +245,7 @@ mod tests {
     fn sample_contrib() -> SidecarContribution {
         SidecarContribution {
             id: "awam-tool-manager".to_string(),
-            command: "python".to_string(),
+            command: crate::platform::python_command().to_string(),
             args: vec![
                 "-m".to_string(),
                 "awam_tool_manager_placeholder".to_string(),
@@ -327,7 +327,7 @@ mod tests {
         cfg.auto_start_sidecar = true;
         save_to_path(app.path(), &cfg).unwrap();
         let result = ensure_gateway_with(app.path(), &health_down, |_dir, contrib| {
-            assert_eq!(contrib.command, "python");
+            assert_eq!(contrib.command, crate::platform::python_command());
             Ok(11)
         })
         .unwrap();
@@ -370,7 +370,7 @@ mod tests {
     fn placeholder_sidecar_matches_plan_until_http_start_is_documented() {
         let contrib = placeholder_sidecar_contribution();
         assert_eq!(contrib.id, "awam-tool-manager");
-        assert_eq!(contrib.command, "python");
+        assert_eq!(contrib.command, crate::platform::python_command());
         assert_eq!(
             contrib.args,
             vec![

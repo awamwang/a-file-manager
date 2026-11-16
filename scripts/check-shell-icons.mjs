@@ -6,6 +6,9 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const rust = readFileSync(join(root, "src-tauri/src/shell_icons/mod.rs"), "utf8");
+const platformMod = readFileSync(join(root, "src-tauri/src/platform/mod.rs"), "utf8");
+const windowsAdapter = readFileSync(join(root, "src-tauri/src/platform/windows.rs"), "utf8");
+const macosAdapter = readFileSync(join(root, "src-tauri/src/platform/macos.rs"), "utf8");
 const lib = readFileSync(join(root, "src-tauri/src/lib.rs"), "utf8");
 const cargo = readFileSync(join(root, "src-tauri/Cargo.toml"), "utf8");
 const view = readFileSync(join(root, "src/views/NavigatorView.vue"), "utf8");
@@ -17,12 +20,36 @@ const shellImg = readFileSync(
 
 assert.ok(cargo.includes("file_icon_provider"));
 assert.ok(lib.includes("shell_icons::shell_icon_get"));
-assert.ok(rust.includes("get_file_icon"));
+// 7.23: OS image work lives in the adapters; `shell_icons` is only neutral
+// RGBA → PNG encoding + cache, with zero Win32/AppKit imports.
 assert.ok(
-  rust.includes("IShellItemImageFactory") && rust.includes("SIIGBF_THUMBNAILONLY"),
-  "AIA-143 must reuse Shell IShellItemImageFactory thumbnails",
+  windowsAdapter.includes("get_file_icon") && macosAdapter.includes("get_file_icon"),
+  "both adapters must supply the native file-type icon",
 );
-assert.ok(rust.includes("SIIGBF_INCACHEONLY"), "prefer Explorer thumbnail cache first");
+assert.ok(
+  windowsAdapter.includes("IShellItemImageFactory") && windowsAdapter.includes("SIIGBF_THUMBNAILONLY"),
+  "AIA-143 must reuse Shell IShellItemImageFactory thumbnails in the Windows adapter",
+);
+assert.ok(
+  windowsAdapter.includes("SIIGBF_INCACHEONLY"),
+  "prefer Explorer thumbnail cache first",
+);
+assert.ok(
+  platformMod.includes("fn system_thumbnail") && platformMod.includes("struct RgbaIcon"),
+  "thumbnails/icons cross the trait as neutral RGBA",
+);
+assert.ok(
+  !/use windows::/.test(rust) && !rust.includes("CoInitializeEx") && !rust.includes("HBITMAP"),
+  "shell_icons must not contain OS image types (7.23)",
+);
+assert.ok(
+  macosAdapter.includes("file_icon_provider") && /fn system_thumbnail[\s\S]{0,400}Err\(/.test(macosAdapter),
+  "macOS must use the NSWorkspace icon and downgrade thumbnails explicitly",
+);
+assert.ok(
+  !/Command::new\([^)]*qlmanage/.test(macosAdapter),
+  "qlmanage failed sandbox initialization on the dev host; do not add it as a silent dependency",
+);
 assert.ok(
   !rust.includes("image_thumbnail_data_url") && !rust.includes("load_from_memory"),
   "must not self-decode images into thumbnails",
@@ -46,7 +73,7 @@ assert.ok(
 assert.ok(
   rust.includes("system_thumbnail_data_url")
     && /system_thumbnail_data_url[\s\S]*?\.or_else/.test(rust),
-  "thumbnail path must try Shell handlers then fall back to shell icon",
+  "thumbnail path must try the platform adapter then fall back to the file icon",
 );
 assert.ok(state.includes("shell_icon_get_many"));
 assert.ok(state.includes("clearShellIconQueue"), "cancel queue on folder change");
@@ -102,4 +129,4 @@ assert.ok(shellImg.includes("iconUrlFor"));
 assert.ok(shellImg.includes("shell-icon-slot"), "soft near-transparent placeholder before final icon");
 assert.ok(!shellImg.includes("FluentIcon"), "must not show Fluent glyph then swap to shell/thumb");
 
-console.log("Shell icons checks OK (AIA-65/182/143/278 system thumbnails + scroll queue).");
+console.log("Shell icons checks OK (AIA-65/182/143/278 + 7.23 platform adapters + scroll queue).");

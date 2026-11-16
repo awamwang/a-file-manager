@@ -1,8 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { ShortcutChord } from "./types.ts";
+import { isMacPlatform, platformShortcutLabel } from "../config/platform.ts";
 
-/** Stable string for conflict maps / equality. */
+/**
+ * Stable string for conflict maps / equality.
+ *
+ * Deliberately platform-independent: `resolveDispatchMap`, conflict detection
+ * and `chordKeyForId` all use this key, so it must not change when the host
+ * switches from Ctrl to ⌘. Only display (`formatChordLabel`) and event
+ * matching (`eventMatchesChord`) are platform-aware.
+ */
 export function chordKey(chord: ShortcutChord): string {
   const parts: string[] = [];
   if (chord.ctrl) parts.push("Ctrl");
@@ -14,7 +22,21 @@ export function chordKey(chord: ShortcutChord): string {
 }
 
 export function formatChordLabel(chord: ShortcutChord): string {
-  return chordKey(chord);
+  // Registry chords stay Windows-first (`ctrl: true`); on macOS the same chord
+  // is ⌘, and the label must say so.
+  return platformShortcutLabel(chordKey(chord));
+}
+
+/**
+ * The registry declares chords with the Windows primary modifier. On macOS the
+ * primary modifier is ⌘ (`metaKey`), so `ctrl` and `meta` swap for matching.
+ * Alt/Shift stay literal (⌥/⇧ are the same physical keys).
+ */
+function effectiveCtrlMeta(chord: ShortcutChord): { ctrl: boolean; meta: boolean } {
+  if (!isMacPlatform()) {
+    return { ctrl: Boolean(chord.ctrl), meta: Boolean(chord.meta) };
+  }
+  return { ctrl: Boolean(chord.meta), meta: Boolean(chord.ctrl) };
 }
 
 export function normalizeEventKey(key: string): string {
@@ -25,10 +47,11 @@ export function normalizeEventKey(key: string): string {
 
 export function eventMatchesChord(event: KeyboardEvent, chord: ShortcutChord): boolean {
   if (event.isComposing) return false;
-  if (Boolean(chord.ctrl) !== event.ctrlKey) return false;
+  const primary = effectiveCtrlMeta(chord);
+  if (primary.ctrl !== event.ctrlKey) return false;
   if (Boolean(chord.shift) !== event.shiftKey) return false;
   if (Boolean(chord.alt) !== event.altKey) return false;
-  if (Boolean(chord.meta) !== event.metaKey) return false;
+  if (primary.meta !== event.metaKey) return false;
   return normalizeEventKey(event.key) === chord.key;
 }
 

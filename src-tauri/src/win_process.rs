@@ -7,7 +7,7 @@
 
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Command;
 
 /// `CREATE_NO_WINDOW` — hide the console for helper/CLI child processes.
 #[cfg(windows)]
@@ -15,6 +15,7 @@ pub const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 /// Build a `Command` that will not flash a console window on Windows GUI builds.
 pub fn command(program: impl AsRef<OsStr>) -> Command {
+    #[cfg_attr(not(windows), allow(unused_mut))]
     let mut cmd = Command::new(program);
     #[cfg(windows)]
     {
@@ -24,20 +25,11 @@ pub fn command(program: impl AsRef<OsStr>) -> Command {
     cmd
 }
 
-/// 终止进程及其子进程树（rclone→ssh 等）。失败时仍尝试普通 kill。
+/// Terminate a process together with its descendants (rclone → ssh). The
+/// platform choice lives in `platform/`; callers keep killing the direct child
+/// afterwards as a final fallback (7.23).
 pub fn kill_process_tree(pid: u32) {
-    #[cfg(windows)]
-    {
-        let _ = command("taskkill")
-            .args(["/F", "/T", "/PID", &pid.to_string()])
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
-    }
-    #[cfg(not(windows))]
-    {
-        let _ = pid;
-    }
+    crate::platform::kill_process_tree(pid);
 }
 
 /// Resolve a bare command name via `PATH` (+ `PATHEXT` on Windows) without
@@ -98,10 +90,7 @@ fn path_lookup_extensions(candidate: &str) -> Vec<String> {
             } else {
                 format!(".{trimmed}")
             };
-            if !exts
-                .iter()
-                .any(|e| e.eq_ignore_ascii_case(&with_dot))
-            {
+            if !exts.iter().any(|e| e.eq_ignore_ascii_case(&with_dot)) {
                 exts.push(with_dot);
             }
         }

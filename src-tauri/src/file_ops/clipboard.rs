@@ -2,18 +2,16 @@
 //! Windows shell clipboard (CF_HDROP + Preferred DropEffect) so copy/cut/paste
 //! interoperate with File Explorer.
 
-use serde::Serialize;
+// 7.24: the payload DTO is neutral and lives in `platform/`; this module is
+// the Windows CF_HDROP backend behind `ClipboardProvider`.
+pub use crate::platform::ShellClipboard;
 
 const DROPEFFECT_COPY: u32 = 1;
 const DROPEFFECT_MOVE: u32 = 2;
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct ShellClipboard {
-    pub paths: Vec<String>,
-    pub mode: Option<String>,
-}
-
+// Cross-platform HDROP byte contract (used by tests + Windows clipboard paths);
+// only dead in non-test lib builds on non-Windows targets.
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn encode_hdrop(paths: &[String]) -> Vec<u8> {
     let mut body = Vec::new();
     for path in paths {
@@ -38,6 +36,7 @@ pub fn encode_hdrop(paths: &[String]) -> Vec<u8> {
     out
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn decode_hdrop(bytes: &[u8]) -> Vec<String> {
     if bytes.len() < 20 {
         return Vec::new();
@@ -55,6 +54,7 @@ pub fn decode_hdrop(bytes: &[u8]) -> Vec<String> {
     }
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 fn decode_wide_list(payload: &[u8]) -> Vec<String> {
     let mut units = Vec::with_capacity(payload.len() / 2);
     let mut i = 0;
@@ -82,6 +82,7 @@ fn decode_wide_list(payload: &[u8]) -> Vec<String> {
     paths
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 fn decode_ansi_list(payload: &[u8]) -> Vec<String> {
     let mut paths = Vec::new();
     let mut start = 0;
@@ -102,6 +103,7 @@ fn decode_ansi_list(payload: &[u8]) -> Vec<String> {
     paths
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn mode_to_effect(mode: &str) -> u32 {
     if mode == "cut" {
         DROPEFFECT_MOVE
@@ -110,6 +112,7 @@ pub fn mode_to_effect(mode: &str) -> u32 {
     }
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn effect_to_mode(effect: u32) -> String {
     if effect & DROPEFFECT_MOVE != 0 && effect & DROPEFFECT_COPY == 0 {
         "cut".to_string()
@@ -146,23 +149,9 @@ pub fn get_shell_clipboard() -> Result<ShellClipboard, String> {
     with_clipboard(|| unsafe { read_formats() })
 }
 
-#[cfg(not(windows))]
-pub fn set_shell_clipboard(_paths: &[String], _mode: &str) -> Result<(), String> {
-    Err("Shell clipboard is only available on Windows".to_string())
-}
-
-#[cfg(not(windows))]
-pub fn clear_shell_clipboard() -> Result<(), String> {
-    Ok(())
-}
-
-#[cfg(not(windows))]
-pub fn get_shell_clipboard() -> Result<ShellClipboard, String> {
-    Ok(ShellClipboard {
-        paths: Vec::new(),
-        mode: None,
-    })
-}
+// No non-Windows stubs: the clipboard provider is only registered on Windows,
+// and `platform::clipboard_*` handles the absent-provider case centrally
+// (7.24). Keeping stubs here would be dead code with a second degradation path.
 
 #[cfg(windows)]
 fn with_clipboard<T>(body: impl FnOnce() -> Result<T, String>) -> Result<T, String> {
@@ -188,11 +177,11 @@ const CF_HDROP: u32 = 15;
 
 #[cfg(windows)]
 unsafe fn write_formats(hdrop: &[u8], effect: u32) -> Result<(), String> {
+    use windows::core::w;
     use windows::Win32::Foundation::{GlobalFree, HANDLE};
     use windows::Win32::System::DataExchange::{
         EmptyClipboard, RegisterClipboardFormatW, SetClipboardData,
     };
-    use windows::core::w;
 
     unsafe {
         EmptyClipboard().map_err(|err| err.to_string())?;
@@ -229,9 +218,9 @@ unsafe fn alloc_global(bytes: &[u8]) -> Result<windows::Win32::Foundation::HGLOB
 
 #[cfg(windows)]
 unsafe fn read_formats() -> Result<ShellClipboard, String> {
+    use windows::core::w;
     use windows::Win32::System::DataExchange::{GetClipboardData, RegisterClipboardFormatW};
     use windows::Win32::System::Memory::{GlobalLock, GlobalSize, GlobalUnlock};
-    use windows::core::w;
 
     unsafe {
         let handle = match GetClipboardData(CF_HDROP) {
@@ -267,7 +256,10 @@ unsafe fn read_formats() -> Result<ShellClipboard, String> {
                     let effect = if effect_ptr.is_null() {
                         DROPEFFECT_COPY
                     } else {
-                        let raw = std::slice::from_raw_parts(effect_ptr as *const u8, 4.min(GlobalSize(effect_global)));
+                        let raw = std::slice::from_raw_parts(
+                            effect_ptr as *const u8,
+                            4.min(GlobalSize(effect_global)),
+                        );
                         let mut buf = [0u8; 4];
                         let n = raw.len().min(4);
                         buf[..n].copy_from_slice(&raw[..n]);
@@ -283,19 +275,21 @@ unsafe fn read_formats() -> Result<ShellClipboard, String> {
     }
 }
 
+// Tauri commands are neutral entry points: they call the registered provider
+// through `platform/`, never the OS backend functions above (7.24).
 #[tauri::command]
 pub fn file_ops_clipboard_set(paths: Vec<String>, mode: String) -> Result<(), String> {
-    set_shell_clipboard(&paths, &mode)
+    crate::platform::clipboard_set(&paths, &mode)
 }
 
 #[tauri::command]
 pub fn file_ops_clipboard_get() -> Result<ShellClipboard, String> {
-    get_shell_clipboard()
+    crate::platform::clipboard_get()
 }
 
 #[tauri::command]
 pub fn file_ops_clipboard_clear() -> Result<(), String> {
-    clear_shell_clipboard()
+    crate::platform::clipboard_clear()
 }
 
 #[cfg(test)]
@@ -304,10 +298,7 @@ mod tests {
 
     #[test]
     fn hdrop_roundtrip_preserves_paths() {
-        let paths = vec![
-            r"C:\Temp\a.txt".to_string(),
-            r"D:\文件夹\b.txt".to_string(),
-        ];
+        let paths = vec![r"C:\Temp\a.txt".to_string(), r"D:\文件夹\b.txt".to_string()];
         let decoded = decode_hdrop(&encode_hdrop(&paths));
         assert_eq!(decoded, paths);
     }

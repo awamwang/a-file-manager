@@ -4,6 +4,8 @@
  * Schema 键仍全部保留；此处只控制侧栏分区内的分组、排序与默认隐藏。
  */
 
+import type { PlatformCapabilities } from "../config/platform.ts";
+
 export type SettingsUiGroupId =
   | "appearance"
   | "startup"
@@ -91,4 +93,28 @@ export function compareSettingsUiKeys(a: string, b: string): number {
   const gb = GROUP_ORDER.indexOf(settingsUiGroupForKey(b));
   if (ga !== gb) return ga - gb;
   return a.localeCompare(b);
+}
+
+/**
+ * macOS port: hide settings whose backend integration does not exist on the
+ * host. The schema/document keys are kept (no data loss); only the row is
+ * hidden. `caps.os === ""` means the IPC has not answered yet — never hide
+ * anything in that state, so Windows / vite-only keep the full settings UI.
+ */
+export function isPlatformUnsupportedSetting(
+  key: string,
+  caps: PlatformCapabilities,
+): boolean {
+  if (!caps.os || caps.os === "windows") return false;
+  switch (key) {
+    // HKCU Run / LaunchAgent autostart: no implementation on macOS yet.
+    case "core.launchAtStartup":
+    case "core.launchAtStartupHidden":
+      return !caps.nativeAutostart && !caps.registryAutostart;
+    // "Prefer Everything" is a Windows-only setting; macOS uses Spotlight (7.21).
+    case "core.everythingPreferred":
+      return caps.globalSearchEngine !== "everything";
+    default:
+      return false;
+  }
 }

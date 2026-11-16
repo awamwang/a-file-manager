@@ -24,6 +24,7 @@ const releaseYml = read(".github/workflows/release.yml");
 const prepare = read("scripts/prepare-release.mjs");
 const buildFlavor = read("scripts/build-flavor.mjs");
 const buildArts = read("scripts/build-release-artifacts.mjs");
+const packScript = read("scripts/package-feature-packs.mjs");
 const skillPath = join(root, ".cursor/skills/afm-multi-pack-release/SKILL.md");
 
 assert.equal(pkg.scripts["prepare-release"], "node scripts/prepare-release.mjs");
@@ -57,6 +58,13 @@ assert.ok(
   "应能发现 packs/tool-runtime",
 );
 assert.ok(!packs.some((p) => p.dirName === "_template"), "排除 _template");
+
+// Windows Git Bash 的 GNU tar 把绝对路径 `D:\...` 的 `D:` 当成远程主机，
+// v0.3.0 首跑因此失败（Cannot connect to D: resolve failed）。路径必须相对化。
+assert.ok(
+  packScript.includes("relative(root, p)") && packScript.includes('split("\\\\").join("/")'),
+  "feature-pack tar paths must be repo-relative with forward slashes (Windows drive colon bug)",
+);
 
 assert.ok(existsSync(skillPath), "仓库内 Agent skill 存在");
 const skill = read(".cursor/skills/afm-multi-pack-release/SKILL.md");

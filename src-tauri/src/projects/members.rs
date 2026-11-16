@@ -10,6 +10,7 @@ use super::workspace::{load_workspace, WORKSPACE_MEMBERS_DIR};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
+#[cfg(windows)]
 use std::process::Command;
 
 pub const ERR_MEMBER_TARGET_INVALID: &str = "PROJECT_MEMBER_TARGET_INVALID";
@@ -170,6 +171,11 @@ fn create_directory_junction(link: &Path, target: &Path) -> Result<(), String> {
     if link.exists() {
         return Err(ERR_MEMBER_EXISTS.to_string());
     }
+    create_link_native(link, target)
+}
+
+#[cfg(windows)]
+fn create_link_native(link: &Path, target: &Path) -> Result<(), String> {
     let link_s = normalize_path_string(link);
     let target_s = strip_extended_path(
         &fs::canonicalize(target)
@@ -194,6 +200,15 @@ fn create_directory_junction(link: &Path, target: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Unix: a plain symlink to the real folder. `resolve_reparse_to_target`
+/// already resolves it via `read_link`, exactly like a Windows junction.
+#[cfg(not(windows))]
+fn create_link_native(link: &Path, target: &Path) -> Result<(), String> {
+    let absolute = fs::canonicalize(target).unwrap_or_else(|_| target.to_path_buf());
+    std::os::unix::fs::symlink(&absolute, link)
+        .map_err(|err| format!("Failed to create member symlink: {err}"))
+}
+
 /// Remove a member junction only — never deletes the real target folder.
 pub fn remove_member_junction(workspace_dir: &Path, name: &str) -> Result<(), String> {
     let name = validate_member_name(name)?;
@@ -201,9 +216,19 @@ pub fn remove_member_junction(workspace_dir: &Path, name: &str) -> Result<(), St
     if !link.exists() {
         return Err(ERR_MEMBER_NOT_FOUND.to_string());
     }
-    // Junctions / symlink dirs: remove_dir unlinks without touching the target.
-    fs::remove_dir(&link).map_err(|err| format!("Failed to remove member junction: {err}"))?;
-    Ok(())
+    remove_link_native(&link)
+}
+
+#[cfg(windows)]
+fn remove_link_native(link: &Path) -> Result<(), String> {
+    // A Windows junction is a directory entry: remove_dir unlinks it only.
+    fs::remove_dir(link).map_err(|err| format!("Failed to remove member junction: {err}"))
+}
+
+#[cfg(not(windows))]
+fn remove_link_native(link: &Path) -> Result<(), String> {
+    // A Unix symlink is a file entry: remove_file unlinks it only.
+    fs::remove_file(link).map_err(|err| format!("Failed to remove member symlink: {err}"))
 }
 
 /// List junctions under `members/` with open paths = real targets.

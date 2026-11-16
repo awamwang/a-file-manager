@@ -1,6 +1,6 @@
 [package]
 name = "a-file-manager"
-version = "0.2.0"
+version = "0.3.0"
 description = "A File Manager — Windows-first file manager (Tauri 2 + Vue 3)"
 authors = ["Awam"]
 license = "GPL-3.0-or-later"
@@ -30,6 +30,40 @@ tauri = { version = "2", features = ["tray-icon", "image-png", "image-ico"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Cross-platform special-directory resolution (platform/ module). No OS-specific bindings.
+directories = "6"
+tauri-plugin-frame = "1.1.8"
+trash = "5.2"
+file_icon_provider = "1.0"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "bmp", "webp", "ico"] }
+base64 = "0.22"
+once_cell = "1"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+walkdir = "2"
+tauri-plugin-drag = "2"
+# Direct dep so AIA-261/264 host subclass can read OLE / deferred-activate / drag-gesture flags.
+drag = "2.1.1"
+ureq = { version = "3.5.1", features = ["json"] }
+sysinfo = { version = "0.40.3", default-features = false, features = ["disk", "system"] }
+
+# AppKit bindings are macOS-only; Tauri/tao already pull the same versions.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = [
+  "std",
+  "objc2-core-foundation",
+  "NSApplication",
+  "NSButton",
+  "NSControl",
+  "NSResponder",
+  "NSView",
+  "NSWindow",
+  "NSGraphics",
+] }
+
+# Win32 bindings only exist on Windows: the crate itself is `#![cfg(windows)]`.
+# Keeping this target-gated prevents unresolved imports on macOS/Linux builds.
+[target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = [
   "Win32_Foundation",
   "Win32_Graphics_Gdi",
@@ -48,18 +82,6 @@ windows = { version = "0.62", features = [
   "Win32_UI_Shell_Common",
   "Win32_UI_WindowsAndMessaging",
 ] }
-tauri-plugin-frame = "1.1.8"
-trash = "5.2"
-file_icon_provider = "1.0"
-image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "bmp", "webp", "ico"] }
-base64 = "0.22"
-once_cell = "1"
-zip = { version = "2", default-features = false, features = ["deflate"] }
-walkdir = "2"
-tauri-plugin-drag = "2"
-# Direct dep so AIA-261/264 host subclass can read OLE / deferred-activate / drag-gesture flags.
-drag = "2.1.1"
-ureq = { version = "3.5.1", features = ["json"] }
 
 [dev-dependencies]
 tempfile = "3"

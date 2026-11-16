@@ -44,7 +44,7 @@ fn now_millis() -> u64 {
 }
 
 fn normalize_path_string(path: &Path) -> String {
-    path.to_string_lossy().replace('/', "\\")
+    crate::paths::to_native_fs_path(&path.to_string_lossy())
 }
 
 pub fn default_skills_library_root(config_dir: &Path) -> PathBuf {

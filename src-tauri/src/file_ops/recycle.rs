@@ -1,23 +1,38 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Recycle Bin list / restore via Shell.Application (Windows).
+//! Recycle Bin list / restore via Shell.Application (Windows only).
+//!
+//! macOS has no equivalent here: `trash 5.2` deliberately excludes macOS from
+//! `os_limited` (its list/restore/purge APIs are Windows + freedesktop only),
+//! and Finder automation would require TCC automation permission. The platform
+//! capability bit `trashListRestore` stays false, so the UI must hide these
+//! commands and offer `open_recycle_bin_system()` (`~/.Trash` in Finder).
 
-use serde::Serialize;
+// 7.24: the payload DTO is neutral and lives in `platform/`; this module is
+// the Windows Shell.Application backend behind `TrashProvider`.
+pub use crate::platform::RecycleBinItem;
+#[cfg(any(windows, test))]
 use std::fs;
-use std::path::{Path, PathBuf};
+#[cfg(windows)]
+use std::path::Path;
+#[cfg(any(windows, test))]
+use std::path::PathBuf;
+#[cfg(windows)]
 use std::process::Command;
-
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct RecycleBinItem {
-    pub name: String,
-    pub original_path: String,
-    /// Shell item path inside the bin (used for restore).
-    pub recycle_path: String,
-}
 
 /// List Recycle Bin entries (name + original path).
 pub fn list_recycle_bin() -> Result<Vec<RecycleBinItem>, String> {
-    let script = r#"
+    #[cfg(not(windows))]
+    {
+        // `trash::os_limited` excludes macOS; no list/restore API to reuse.
+        return Err(
+            "Recycle Bin listing is unavailable on macOS; open ~/.Trash in Finder instead"
+                .to_string(),
+        );
+    }
+
+    #[cfg(windows)]
+    {
+        let script = r#"
 $ErrorActionPreference = 'Stop'
 $shell = New-Object -ComObject Shell.Application
 $bin = $shell.NameSpace(10)
@@ -36,10 +51,12 @@ foreach ($item in $bin.Items()) {
 }
 $items | ConvertTo-Json -Compress -Depth 3
 "#;
-    let output = run_powershell(script)?;
-    parse_recycle_json(&output)
+        let output = run_powershell(script)?;
+        parse_recycle_json(&output)
+    }
 }
 
+#[cfg(any(windows, test))]
 fn parse_recycle_json(raw: &str) -> Result<Vec<RecycleBinItem>, String> {
     let trimmed = raw.trim();
     if trimmed.is_empty() || trimmed == "null" {
@@ -84,6 +101,7 @@ fn parse_recycle_json(raw: &str) -> Result<Vec<RecycleBinItem>, String> {
     Ok(out)
 }
 
+#[cfg(windows)]
 fn run_powershell(script: &str) -> Result<String, String> {
     let output = Command::new("powershell")
         .args(["-NoProfile", "-NonInteractive", "-Command", script])
@@ -96,6 +114,7 @@ fn run_powershell(script: &str) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
+#[cfg(any(windows, test))]
 fn write_wanted_paths_file(original_paths: &[String]) -> Result<PathBuf, String> {
     let mut path = std::env::temp_dir();
     path.push(format!(
@@ -119,6 +138,7 @@ fn write_wanted_paths_file(original_paths: &[String]) -> Result<PathBuf, String>
     Ok(path)
 }
 
+#[cfg(any(windows, test))]
 fn parse_restored_paths(raw: &str) -> Result<Vec<String>, String> {
     let trimmed = raw.trim();
     if trimmed.is_empty() || trimmed == "null" || trimmed == "[]" {
@@ -151,19 +171,28 @@ fn parse_restored_paths(raw: &str) -> Result<Vec<String>, String> {
 /// 在一次 PowerShell 会话中完成「列举 + 匹配 + 还原」，避免按文件反复拉起
 /// 进程并全量扫描回收站（多文件撤销时会严重阻塞）。
 pub fn restore_original_paths(original_paths: &[String]) -> Result<Vec<String>, String> {
-    if original_paths.is_empty() {
-        return Ok(Vec::new());
+    #[cfg(not(windows))]
+    {
+        let _ = original_paths;
+        return Err(
+            "Recycle Bin restore is unavailable on macOS; use Finder's Trash instead".to_string(),
+        );
     }
-    let wanted_file = write_wanted_paths_file(original_paths)?;
-    let result = restore_original_paths_with_list(&wanted_file);
-    let _ = fs::remove_file(&wanted_file);
-    result
+    #[cfg(windows)]
+    {
+        if original_paths.is_empty() {
+            return Ok(Vec::new());
+        }
+        let wanted_file = write_wanted_paths_file(original_paths)?;
+        let result = restore_original_paths_with_list(&wanted_file);
+        let _ = fs::remove_file(&wanted_file);
+        result
+    }
 }
 
+#[cfg(windows)]
 fn restore_original_paths_with_list(wanted_file: &Path) -> Result<Vec<String>, String> {
-    let escaped = wanted_file
-        .to_string_lossy()
-        .replace('\'', "''");
+    let escaped = wanted_file.to_string_lossy().replace('\'', "''");
     let script = format!(
         r#"
 $ErrorActionPreference = 'Stop'
@@ -238,7 +267,9 @@ mod tests {
             vec![r"C:\a.txt".to_string()]
         );
         assert_eq!(
-            parse_restored_paths(r#"["C:\\a.txt","D:\\b.txt"]"#).unwrap().len(),
+            parse_restored_paths(r#"["C:\\a.txt","D:\\b.txt"]"#)
+                .unwrap()
+                .len(),
             2
         );
     }

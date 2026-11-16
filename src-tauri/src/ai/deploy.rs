@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+#[cfg(windows)]
 use std::process::Command;
 
 const AFM_SKILL_MARKER: &str = "_afm_deploy.json";
@@ -45,7 +46,7 @@ pub struct DeployReport {
 }
 
 fn normalize_path_string(path: &Path) -> String {
-    path.to_string_lossy().replace('/', "\\")
+    crate::paths::to_native_fs_path(&path.to_string_lossy())
 }
 
 fn create_directory_junction(link: &Path, target: &Path) -> Result<(), String> {
@@ -56,6 +57,11 @@ fn create_directory_junction(link: &Path, target: &Path) -> Result<(), String> {
         fs::create_dir_all(parent)
             .map_err(|err| format!("Failed to ensure skills dir: {err}"))?;
     }
+    create_link_native(link, target)
+}
+
+#[cfg(windows)]
+fn create_link_native(link: &Path, target: &Path) -> Result<(), String> {
     let link_s = normalize_path_string(link);
     let target_s = fs::canonicalize(target)
         .map(|p| normalize_path_string(&p))
@@ -65,6 +71,7 @@ fn create_directory_junction(link: &Path, target: &Path) -> Result<(), String> {
         .unwrap_or(&target_s)
         .to_string();
 
+    // Directory junction (mklink /J) — no admin required; remove_dir drops link only.
     let output = Command::new("cmd")
         .args(["/C", "mklink", "/J", &link_s, &target_s])
         .output()
@@ -81,11 +88,30 @@ fn create_directory_junction(link: &Path, target: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Unix: a plain symlink to the absolute skill folder. `symlink_metadata` /
+/// `read_link` already treat it like a Windows junction downstream.
+#[cfg(not(windows))]
+fn create_link_native(link: &Path, target: &Path) -> Result<(), String> {
+    let absolute = fs::canonicalize(target).unwrap_or_else(|_| target.to_path_buf());
+    std::os::unix::fs::symlink(&absolute, link)
+        .map_err(|err| format!("Failed to create skill symlink: {err}"))
+}
+
 fn remove_junction(link: &Path) -> Result<(), String> {
     if !link.exists() {
         return Ok(());
     }
+    remove_link_native(link)
+}
+
+#[cfg(windows)]
+fn remove_link_native(link: &Path) -> Result<(), String> {
     fs::remove_dir(link).map_err(|err| format!("Failed to remove skill junction: {err}"))
+}
+
+#[cfg(not(windows))]
+fn remove_link_native(link: &Path) -> Result<(), String> {
+    fs::remove_file(link).map_err(|err| format!("Failed to remove skill symlink: {err}"))
 }
 
 fn skill_in_library(
@@ -284,7 +310,7 @@ pub fn deploy_skill(
                 skipped.push(format!("{}: empty project skills dir", agent.id));
                 continue;
             }
-            let project_skills = ws_path.join(rel.replace('/', "\\"));
+            let project_skills = crate::paths::join_relative(&ws_path, rel);
             let raw = normalize_path_string(&project_skills);
             match deploy_one(agent, &skill, &raw, "project", &mode) {
                 Ok(Some(d)) => deployments.push(d),
@@ -326,7 +352,7 @@ pub fn undeploy_skill(
             if rel.is_empty() {
                 continue;
             }
-            let link = PathBuf::from(ws).join(rel.replace('/', "\\")).join(&skill.name);
+            let link = crate::paths::join_relative(Path::new(ws), rel).join(&skill.name);
             if link.exists() {
                 match remove_deployed_skill(&link) {
                     Ok(()) => deployments.push(SkillDeployment {
@@ -385,8 +411,8 @@ pub fn search_project_skills(workspace: &str) -> Result<Vec<ProjectSkillCandidat
     let mut out = Vec::new();
     // Shallow + one-level common dirs (skills/, .cursor/skills, etc.)
     let mut roots = vec![root.clone()];
-    for child in ["skills", ".cursor\\skills", ".agents\\skills", ".claude\\skills"] {
-        let p = root.join(child);
+    for child in ["skills", ".cursor/skills", ".agents/skills", ".claude/skills"] {
+        let p = crate::paths::join_relative(&root, child);
         if p.is_dir() {
             roots.push(p);
         }

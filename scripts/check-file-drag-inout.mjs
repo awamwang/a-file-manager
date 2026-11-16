@@ -92,6 +92,16 @@ function fileUrlToPath(url) {
 assert.equal(fileUrlToPath("file:///C:/Users/Public/a.txt"), "C:\\Users\\Public\\a.txt");
 assert.equal(fileUrlToPath("file:/D:/temp/b"), "D:\\temp\\b");
 assert.equal(fileUrlToPath("C:\\Windows\\System32"), "C:\\Windows\\System32");
-assert.equal(fileUrlToPath(pathToFileURL("C:\\Temp\\x").href), "C:\\Temp\\x");
+// `pathToFileURL("C:\\Temp\\x")` only round-trips on Windows; POSIX treats the
+// backslashes as part of a relative filename. Gate that Windows-only assertion
+// so the shared contract suite also passes on macOS (7.15). On macOS the
+// WebView-native drag-out carries `text/uri-list` instead of this OLE parser.
+if (process.platform === "win32") {
+  assert.equal(fileUrlToPath(pathToFileURL("C:\\Temp\\x").href), "C:\\Temp\\x");
+} else {
+  const posixHref = pathToFileURL("/Users/Shared/afm-fixture").href;
+  assert.ok(posixHref.startsWith("file:///Users/Shared/afm-fixture"));
+  assert.equal(fileUrlToPath(posixHref), null);
+}
 
 console.log("File drag in/out checks OK (AIA-240 Explorer + Link + dual-pane).");

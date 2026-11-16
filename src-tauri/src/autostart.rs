@@ -2,12 +2,17 @@
 //! Windows login autostart via HKCU Run key (AIA-60). No Tauri plugin dependency.
 
 use serde::Serialize;
+#[cfg(windows)]
 use std::ffi::OsStr;
+#[cfg(windows)]
 use std::os::windows::ffi::OsStrExt;
+#[cfg(windows)]
 use std::path::PathBuf;
 
 pub const AFM_AUTOSTART_CLI_FLAG: &str = "--afm-autostart";
+#[cfg(windows)]
 const RUN_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
+#[cfg(windows)]
 const VALUE_NAME: &str = "AFileManager";
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -18,6 +23,7 @@ pub struct AutostartStatus {
     pub error: Option<String>,
 }
 
+#[cfg(windows)]
 fn to_wide(value: &str) -> Vec<u16> {
     OsStr::new(value)
         .encode_wide()
@@ -25,10 +31,12 @@ fn to_wide(value: &str) -> Vec<u16> {
         .collect()
 }
 
+#[cfg(windows)]
 fn current_exe_path() -> Result<PathBuf, String> {
     std::env::current_exe().map_err(|err| format!("Failed to resolve current exe: {err}"))
 }
 
+#[cfg(any(windows, test))]
 fn build_run_command(exe: &std::path::Path) -> String {
     format!("\"{}\" {}", exe.display(), AFM_AUTOSTART_CLI_FLAG)
 }

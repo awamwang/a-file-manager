@@ -8,7 +8,7 @@
  *   node scripts/package-feature-packs.mjs --from-package
  */
 import { mkdirSync, rmSync, existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import {
@@ -32,8 +32,12 @@ function run(cmd, args) {
 /** 用 tar 生成 zip（Windows bsdtar / GitHub runners 可用） */
 function zipPackDir(absPackDir, outZip) {
   if (existsSync(outZip)) rmSync(outZip);
+  // Windows Git Bash 的 GNU tar 会把 `D:\...` 中的 `D:` 当成远程主机名，
+  // 报 "Cannot connect to D: resolve failed"。改用仓库相对路径 + 正斜杠，
+  // 两端 tar 都能识别；run() 的 cwd 已是 root。
+  const toTarPath = (p) => relative(root, p).split("\\").join("/");
   // -a: 按扩展名选格式；-C 后路径为包根，zip 内含 pack.json
-  run("tar", ["-a", "-cf", outZip, "-C", absPackDir, "."]);
+  run("tar", ["-a", "-cf", toTarPath(outZip), "-C", toTarPath(absPackDir), "."]);
 }
 
 /**

@@ -84,7 +84,7 @@ pub fn search_directory(root: &str, query: &str, show_hidden: bool) -> Result<Na
                 return true;
             }
             match entry.metadata() {
-                Ok(metadata) => !entry_is_hidden(&metadata),
+                Ok(metadata) => !entry_is_hidden(&metadata, &entry.file_name().to_string_lossy()),
                 Err(_) => true,
             }
         })

@@ -223,8 +223,7 @@ pub fn parse_ai_config_text(text: &str) -> Result<AiConfigDocument, String> {
     if trimmed.is_empty() {
         return Ok(AiConfigDocument::empty());
     }
-    serde_json::from_str(trimmed)
-        .map_err(|err| format!("Failed to parse AI config JSON: {err}"))
+    serde_json::from_str(trimmed).map_err(|err| format!("Failed to parse AI config JSON: {err}"))
 }
 
 /// Backup corrupt file once (skip if backup already exists), then remove/replace via rewrite.
@@ -253,10 +252,7 @@ fn write_text_atomic(path: &Path, text: &str) -> Result<(), String> {
         .file_name()
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_else(|| AI_CONFIG_FILE_NAME.to_string());
-    let tmp = parent.join(format!(
-        ".{file_name}.{}.tmp",
-        std::process::id()
-    ));
+    let tmp = parent.join(format!(".{file_name}.{}.tmp", std::process::id()));
     fs::write(&tmp, text).map_err(|err| {
         let _ = fs::remove_file(&tmp);
         format!("Failed to write AI config staging file: {err}")
@@ -287,20 +283,36 @@ fn write_text_atomic(path: &Path, text: &str) -> Result<(), String> {
     }
 }
 
-/// Expand `%USERPROFILE%` / `%APPDATA%` / `%LOCALAPPDATA%` (Windows-oriented).
+/// Expand `%USERPROFILE%` / `%APPDATA%` / `%LOCALAPPDATA%` / `~`.
+///
+/// Windows keeps the original env-var semantics. On macOS/Linux those vars do
+/// not exist, so fall back to `platform::home_dir()` and `directories::BaseDirs`
+/// instead of leaving the token (or worse, turning `/Users/...` into `\Users\...`).
 pub fn expand_agent_path(raw: &str) -> String {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
         return String::new();
     }
     let mut out = trimmed.to_string();
-    for (key, fallback_env) in [
-        ("%USERPROFILE%", "USERPROFILE"),
-        ("%APPDATA%", "APPDATA"),
-        ("%LOCALAPPDATA%", "LOCALAPPDATA"),
+    let home = crate::platform::home_dir().map(|p| p.to_string_lossy().into_owned());
+    let base = directories::BaseDirs::new();
+    for (key, env_key, fallback) in [
+        ("%USERPROFILE%", "USERPROFILE", home.clone()),
+        (
+            "%APPDATA%",
+            "APPDATA",
+            base.as_ref()
+                .map(|b| b.config_dir().to_string_lossy().into_owned()),
+        ),
+        (
+            "%LOCALAPPDATA%",
+            "LOCALAPPDATA",
+            base.as_ref()
+                .map(|b| b.cache_dir().to_string_lossy().into_owned()),
+        ),
     ] {
         if out.to_ascii_uppercase().contains(&key.to_ascii_uppercase()) {
-            if let Ok(val) = std::env::var(fallback_env) {
+            if let Some(val) = std::env::var(env_key).ok().or(fallback) {
                 // Case-insensitive replace of the token.
                 let lower = out.to_ascii_lowercase();
                 let token = key.to_ascii_lowercase();
@@ -311,16 +323,18 @@ pub fn expand_agent_path(raw: &str) -> String {
         }
     }
     if let Some(rest) = out.strip_prefix('~') {
-        if let Ok(home) = std::env::var("USERPROFILE") {
+        if let Some(home) = home.as_ref() {
             let rest = rest.trim_start_matches(['/', '\\']);
-            out = if rest.is_empty() {
-                home
+            let sep = crate::platform::current().path_separator();
+            let expanded = if rest.is_empty() {
+                home.clone()
             } else {
-                format!("{home}\\{rest}")
+                format!("{home}{sep}{rest}")
             };
+            out = expanded;
         }
     }
-    out.replace('/', "\\")
+    crate::paths::to_native_fs_path(&out)
 }
 
 pub fn path_exists_expanded(raw: &str) -> bool {
@@ -419,8 +433,8 @@ pub fn load_from_path(config_dir: &Path) -> Result<AiConfigDocument, String> {
     let document = if !path.exists() {
         AiConfigDocument::empty()
     } else {
-        let text = fs::read_to_string(&path)
-            .map_err(|err| format!("Failed to read AI config: {err}"))?;
+        let text =
+            fs::read_to_string(&path).map_err(|err| format!("Failed to read AI config: {err}"))?;
         let stripped = strip_bom(&text);
         // Empty / whitespace / BOM-only: silent recover (AIA-277 — not a user-facing failure).
         if stripped.trim().is_empty() {
@@ -530,13 +544,13 @@ pub fn update_target(
         target.global_skills_dir = v.trim().to_string();
     }
     if let Some(v) = patch.project_skills_dir {
-        target.project_skills_dir = v.trim().replace('/', "\\");
+        target.project_skills_dir = v.trim().to_string();
     }
     if let Some(v) = patch.global_mcp_path {
         target.global_mcp_path = v.trim().to_string();
     }
     if let Some(v) = patch.project_mcp_path {
-        target.project_mcp_path = v.trim().replace('/', "\\");
+        target.project_mcp_path = v.trim().to_string();
     }
     if let Some(v) = patch.mcp_usage_prompt {
         // Placeholder field — store as-is; never inject (A2).
@@ -590,9 +604,9 @@ pub fn upsert_custom(
         }
         existing.display_name = name.to_string();
         existing.global_skills_dir = global_skills_dir.trim().to_string();
-        existing.project_skills_dir = project_skills_dir.trim().replace('/', "\\");
+        existing.project_skills_dir = project_skills_dir.trim().to_string();
         existing.global_mcp_path = global_mcp_path.trim().to_string();
-        existing.project_mcp_path = project_mcp_path.trim().replace('/', "\\");
+        existing.project_mcp_path = project_mcp_path.trim().to_string();
         existing.mcp_usage_prompt = mcp_usage_prompt;
         existing.updated_at = stamp;
         refresh_discovered(existing);
@@ -611,9 +625,9 @@ pub fn upsert_custom(
         default_in_projects: false,
         discovered: false,
         global_skills_dir: global_skills_dir.trim().to_string(),
-        project_skills_dir: project_skills_dir.trim().replace('/', "\\"),
+        project_skills_dir: project_skills_dir.trim().to_string(),
         global_mcp_path: global_mcp_path.trim().to_string(),
-        project_mcp_path: project_mcp_path.trim().replace('/', "\\"),
+        project_mcp_path: project_mcp_path.trim().to_string(),
         mcp_usage_prompt,
         created_at: stamp,
         updated_at: stamp,
@@ -645,11 +659,8 @@ mod tests {
     use super::*;
 
     fn temp_dir(tag: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!(
-            "afm-ai-agents-{}-{}",
-            tag,
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("afm-ai-agents-{}-{}", tag, std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
@@ -670,7 +681,11 @@ mod tests {
         let dir = temp_dir("enable");
         let doc = load_from_path(&dir).unwrap();
         let enabled = set_enabled(&doc, "cursor", true).unwrap();
-        let cursor = enabled.agent_targets.iter().find(|t| t.id == "cursor").unwrap();
+        let cursor = enabled
+            .agent_targets
+            .iter()
+            .find(|t| t.id == "cursor")
+            .unwrap();
         assert!(cursor.enabled);
 
         let patched = update_target(
@@ -688,7 +703,11 @@ mod tests {
             },
         )
         .unwrap();
-        let cursor = patched.agent_targets.iter().find(|t| t.id == "cursor").unwrap();
+        let cursor = patched
+            .agent_targets
+            .iter()
+            .find(|t| t.id == "cursor")
+            .unwrap();
         assert_eq!(cursor.mcp_usage_prompt, "PLACEHOLDER — do not inject");
         // Field is stored only; no injection helper exists in this module.
         assert!(!cursor.mcp_usage_prompt.is_empty());
@@ -710,7 +729,10 @@ mod tests {
             String::new(),
         )
         .unwrap();
-        assert!(with.agent_targets.iter().any(|t| t.id == "my-agent" && t.kind == "custom"));
+        assert!(with
+            .agent_targets
+            .iter()
+            .any(|t| t.id == "my-agent" && t.kind == "custom"));
 
         let removed = remove_custom(&with, "my-agent").unwrap();
         assert!(!removed.agent_targets.iter().any(|t| t.id == "my-agent"));

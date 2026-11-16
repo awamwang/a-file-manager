@@ -52,8 +52,12 @@ impl DiscoveryService {
 
     /// Empty Everything query for totitems — can take up to QUERY_TIMEOUT (~5s).
     /// Kept off the light `status()` path so Discovery first paint stays snappy (AIA-182).
+    /// Spotlight has no cheap "total indexed items" equivalent (`mdfind -name ""`
+    /// fails to build a query), so it deliberately reports unknown (7.21).
     pub fn estimate_item_count(&self) -> Option<u64> {
-        if !self.everything.probe().available {
+        if !self.everything.probe().available
+            || self.everything.engine() == DiscoveryEngine::Spotlight
+        {
             return None;
         }
         match self.everything.query("", 1, 0) {
@@ -65,21 +69,18 @@ impl DiscoveryService {
     /// Light status: FindWindow probe + engine flags only (no empty-query estimate).
     pub fn status(&self) -> DiscoveryStatus {
         let probe = self.everything.probe();
+        let engine = self.everything.engine();
+        let engine_label = engine_label(engine);
         let fallback_enabled = self.fallback_enabled();
         let blacklist = self.blacklist();
         let (active_engine, degraded, detail, index_state) = if probe.available {
-            (
-                DiscoveryEngine::Everything,
-                false,
-                probe.detail,
-                DiscoveryIndexState::Ready,
-            )
+            (engine, false, probe.detail, DiscoveryIndexState::Ready)
         } else if fallback_enabled {
             (
                 DiscoveryEngine::Fallback,
                 true,
                 format!(
-                    "Everything unavailable; fallback index stub active (degraded). {}",
+                    "{engine_label} unavailable; fallback index stub active (degraded). {}",
                     probe.detail
                 ),
                 DiscoveryIndexState::Degraded,
@@ -89,7 +90,7 @@ impl DiscoveryService {
                 DiscoveryEngine::Unavailable,
                 true,
                 format!(
-                    "Everything unavailable; fallback disabled. {}",
+                    "{engine_label} unavailable; fallback disabled. {}",
                     probe.detail
                 ),
                 DiscoveryIndexState::Unavailable,
@@ -123,17 +124,15 @@ impl DiscoveryService {
         let blacklist = status.blacklist.clone();
 
         match status.active_engine {
-            DiscoveryEngine::Everything => {
+            DiscoveryEngine::Everything | DiscoveryEngine::Spotlight => {
                 // Over-fetch a bit so blacklist filtering still fills the page.
                 let fetch_limit = limit.saturating_mul(3).clamp(limit, MAX_SEARCH_LIMIT) as u32;
-                let result = self
-                    .everything
-                    .query(&query, fetch_limit, offset as u32)?;
+                let result = self.everything.query(&query, fetch_limit, offset as u32)?;
                 let filtered = filter_hits(result.hits, &blacklist);
                 let hits: Vec<_> = filtered.into_iter().take(limit as usize).collect();
                 Ok(DiscoverySearchResult {
                     query,
-                    engine: DiscoveryEngine::Everything,
+                    engine: self.everything.engine(),
                     total_count: result.total_count,
                     offset: result.offset,
                     hits,
@@ -150,11 +149,22 @@ impl DiscoveryService {
                     hits,
                 })
             }
-            DiscoveryEngine::Unavailable => Err(
-                "Discovery unavailable: Everything IPC not running and fallback is disabled"
-                    .to_string(),
-            ),
+            DiscoveryEngine::Unavailable => Err(format!(
+                "Discovery unavailable: {} is not running and fallback is disabled",
+                engine_label(self.everything.engine())
+            )),
         }
+    }
+}
+
+/// Neutral label for status/error text; the UI uses the i18n engine name
+/// instead of showing raw `detail` (AIA-61).
+fn engine_label(engine: DiscoveryEngine) -> &'static str {
+    match engine {
+        DiscoveryEngine::Everything => "Everything",
+        DiscoveryEngine::Spotlight => "Spotlight",
+        DiscoveryEngine::Fallback => "Fallback index",
+        DiscoveryEngine::Unavailable => "Host index",
     }
 }
 
@@ -254,11 +264,72 @@ mod tests {
 
     #[test]
     fn blacklist_filters_search_hits() {
-        let backend = Arc::new(MockEverythingBackend::new(true, sample_hits()));
+        // 7.21: blacklist paths are host-native now, so the fixture follows
+        // the platform instead of assuming a Windows drive letter.
+        let (blocked, hit_path) = if cfg!(windows) {
+            (r"C:\Windows", r"C:\Windows\secret.txt")
+        } else {
+            ("/Users/me/Library", "/Users/me/Library/secret.txt")
+        };
+        let backend = Arc::new(MockEverythingBackend::new(
+            true,
+            vec![DiscoveryHit {
+                name: "secret.txt".into(),
+                path: hit_path.into(),
+                is_dir: false,
+            }],
+        ));
         let service = DiscoveryService::new(backend, false);
-        service.set_blacklist(vec![r"C:\Windows".into()]);
+        service.set_blacklist(vec![blocked.into()]);
         let result = service.search("secret".to_string(), None).unwrap();
         assert!(result.hits.is_empty());
-        assert_eq!(service.status().blacklist, vec![r"C:\Windows".to_string()]);
+        assert_eq!(service.status().blacklist, vec![blocked.to_string()]);
+    }
+
+    #[test]
+    fn spotlight_engine_serializes_for_the_frontend() {
+        assert_eq!(
+            serde_json::to_string(&DiscoveryEngine::Spotlight).unwrap(),
+            "\"spotlight\""
+        );
+    }
+
+    #[test]
+    fn spotlight_engine_is_reported_in_status_and_results() {
+        struct SpotlightStub;
+        impl EverythingBackend for SpotlightStub {
+            fn engine(&self) -> DiscoveryEngine {
+                DiscoveryEngine::Spotlight
+            }
+            fn probe(&self) -> crate::discovery::types::EverythingProbe {
+                crate::discovery::types::EverythingProbe {
+                    available: true,
+                    detail: "Spotlight index available".into(),
+                }
+            }
+            fn query(
+                &self,
+                _search: &str,
+                _max_results: u32,
+                _offset: u32,
+            ) -> Result<crate::discovery::types::EverythingQueryResult, String> {
+                Ok(crate::discovery::types::EverythingQueryResult {
+                    total_count: 1,
+                    offset: 0,
+                    hits: vec![DiscoveryHit {
+                        name: "readme.md".into(),
+                        path: "/Users/me/readme.md".into(),
+                        is_dir: false,
+                    }],
+                })
+            }
+        }
+        let service = DiscoveryService::new(Arc::new(SpotlightStub), false);
+        assert_eq!(service.status().active_engine, DiscoveryEngine::Spotlight);
+        // Spotlight has no cheap "total indexed items" query.
+        assert!(service.estimate_item_count().is_none());
+        let result = service.search("readme".to_string(), None).unwrap();
+        assert_eq!(result.engine, DiscoveryEngine::Spotlight);
+        assert_eq!(result.hits[0].path, "/Users/me/readme.md");
     }
 }

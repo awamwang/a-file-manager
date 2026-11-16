@@ -99,8 +99,7 @@ fn unlink_reparse_point(path: &Path) -> Result<(), String> {
             return fs::remove_dir(path)
                 .map_err(|err| format!("Failed to delete directory link: {err}"));
         }
-        return fs::remove_file(path)
-            .map_err(|err| format!("Failed to delete file link: {err}"));
+        return fs::remove_file(path).map_err(|err| format!("Failed to delete file link: {err}"));
     }
     #[cfg(not(windows))]
     {
@@ -458,7 +457,9 @@ pub fn delete_paths(paths: &[String]) -> Result<Vec<String>, String> {
             )
         })?;
         // 回收站路径必须是链接项本身；若 Shell 对损坏重解析点失败则直接卸链接。
-        match delete_to_recycle(&pb, path) {
+        // 7.24: go through the registered trash provider instead of the OS
+        // backend directly; `delete_to_recycle` remains the provider body.
+        match crate::platform::delete_to_trash(&pb, path) {
             Ok(()) => {}
             Err(err) if is_reparse_point(&pb) => {
                 unlink_reparse_point(&pb).map_err(|unlink_err| {
@@ -509,23 +510,19 @@ pub async fn file_ops_copy(
     let tracked_task_id = task_id
         .map(|id| id.trim().to_string())
         .filter(|id| !id.is_empty());
-    match tauri::async_runtime::spawn_blocking(move || {
-        match tracked_task_id {
-            Some(task_id) => {
-                let total = total_transfer_bytes(&sources);
-                let emitter =
-                    progress::ProgressEmitter::new(app, task_id, total);
-                emitter.emit_start();
-                let result =
-                    copy_paths_tracked(&sources, &dest_dir, mode, &emitter);
-                match &result {
-                    Ok(_) => emitter.emit_done(true, None),
-                    Err(error) => emitter.emit_done(false, Some(error.clone())),
-                }
-                result
+    match tauri::async_runtime::spawn_blocking(move || match tracked_task_id {
+        Some(task_id) => {
+            let total = total_transfer_bytes(&sources);
+            let emitter = progress::ProgressEmitter::new(app, task_id, total);
+            emitter.emit_start();
+            let result = copy_paths_tracked(&sources, &dest_dir, mode, &emitter);
+            match &result {
+                Ok(_) => emitter.emit_done(true, None),
+                Err(error) => emitter.emit_done(false, Some(error.clone())),
             }
-            None => copy_paths(&sources, &dest_dir, mode),
+            result
         }
+        None => copy_paths(&sources, &dest_dir, mode),
     })
     .await
     {
@@ -549,23 +546,19 @@ pub async fn file_ops_move(
     let tracked_task_id = task_id
         .map(|id| id.trim().to_string())
         .filter(|id| !id.is_empty());
-    match tauri::async_runtime::spawn_blocking(move || {
-        match tracked_task_id {
-            Some(task_id) => {
-                let total = total_transfer_bytes(&sources);
-                let emitter =
-                    progress::ProgressEmitter::new(app, task_id, total);
-                emitter.emit_start();
-                let result =
-                    move_paths_tracked(&sources, &dest_dir, mode, &emitter);
-                match &result {
-                    Ok(_) => emitter.emit_done(true, None),
-                    Err(error) => emitter.emit_done(false, Some(error.clone())),
-                }
-                result
+    match tauri::async_runtime::spawn_blocking(move || match tracked_task_id {
+        Some(task_id) => {
+            let total = total_transfer_bytes(&sources);
+            let emitter = progress::ProgressEmitter::new(app, task_id, total);
+            emitter.emit_start();
+            let result = move_paths_tracked(&sources, &dest_dir, mode, &emitter);
+            match &result {
+                Ok(_) => emitter.emit_done(true, None),
+                Err(error) => emitter.emit_done(false, Some(error.clone())),
             }
-            None => move_paths(&sources, &dest_dir, mode),
+            result
         }
+        None => move_paths(&sources, &dest_dir, mode),
     })
     .await
     {
@@ -628,14 +621,14 @@ pub fn file_ops_can_recycle(paths: Vec<String>) -> Vec<String> {
 }
 
 #[tauri::command]
-pub fn file_ops_recycle_list() -> Result<Vec<recycle::RecycleBinItem>, String> {
-    recycle::list_recycle_bin()
+pub fn file_ops_recycle_list() -> Result<Vec<crate::platform::RecycleBinItem>, String> {
+    crate::platform::trash_list()
 }
 
 /// 批量从回收站还原不得占用 Tauri 同步命令线程（多文件撤销删除会扫回收站）。
 #[tauri::command]
 pub async fn file_ops_restore(paths: Vec<String>) -> FileOpsResult {
-    match tauri::async_runtime::spawn_blocking(move || recycle::restore_original_paths(&paths)).await
+    match tauri::async_runtime::spawn_blocking(move || crate::platform::trash_restore(&paths)).await
     {
         Ok(Ok(restored)) => ok_paths(restored),
         Ok(Err(error)) => err_msg(error),
@@ -654,11 +647,8 @@ mod tests {
     use std::io::Write;
 
     fn temp_workspace(label: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!(
-            "afm-file-ops-{}-{}",
-            label,
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("afm-file-ops-{}-{}", label, std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
@@ -788,10 +778,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(copied_dir.len(), 1);
-        assert_eq!(
-            Path::new(&copied_dir[0]).file_name().unwrap(),
-            "sub - Copy"
-        );
+        assert_eq!(Path::new(&copied_dir[0]).file_name().unwrap(), "sub - Copy");
         assert!(Path::new(&copied_dir[0]).join("n.txt").is_file());
 
         // skip：不产生任何新条目。
@@ -825,8 +812,25 @@ mod tests {
         fs::write(&file, b"bye").unwrap();
         let path = display_path(&file);
         assert!(path_can_use_recycle_bin(&path));
-        delete_paths(&[path]).unwrap();
-        assert!(!file.exists());
+        let result = delete_paths(&[path]);
+        if cfg!(windows) {
+            result.unwrap();
+            assert!(!file.exists());
+        } else {
+            // trash 5.2 moves items via Finder AppleScript on macOS, which needs
+            // TCC Automation permission. Without it the delete is a *declared*
+            // failure, not a silent success — accept only that explicit failure.
+            match result {
+                Ok(deleted) => {
+                    assert_eq!(deleted.len(), 1);
+                    assert!(!file.exists());
+                }
+                Err(err) => assert!(
+                    err.contains("Failed to move to Recycle Bin"),
+                    "unexpected delete failure: {err}"
+                ),
+            }
+        }
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -838,7 +842,11 @@ mod tests {
         let removed = delete_permanent_paths(&[display_path(&file)]).unwrap();
         assert_eq!(removed.len(), 1);
         assert!(!file.exists());
-        let err = delete_permanent_paths(&[r"C:\".to_string()]).unwrap_err();
+        #[cfg(windows)]
+        let volume_root = r"C:\".to_string();
+        #[cfg(not(windows))]
+        let volume_root = "/".to_string();
+        let err = delete_permanent_paths(&[volume_root]).unwrap_err();
         assert!(err.contains("root"));
         let _ = fs::remove_dir_all(&dir);
     }
@@ -926,7 +934,8 @@ mod tests {
 
     #[test]
     fn rejects_awam_paths() {
-        let err = copy_paths(&["awam://x".into()], r"C:\", NameConflict::KeepBoth).unwrap_err();
+        let dest = display_path(&std::env::temp_dir());
+        let err = copy_paths(&["awam://x".into()], &dest, NameConflict::KeepBoth).unwrap_err();
         assert!(err.to_ascii_lowercase().contains("awam"));
     }
 

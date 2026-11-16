@@ -105,9 +105,21 @@ assert.equal(zh.guide.driveCapacity, "{free} 可用，共 {total}");
 assert.ok(guideState.includes("fetchDriveSpaces"));
 assert.ok(guideState.includes("DiskSpaceInfo"));
 const placesRs = readFileSync(join(root, "src-tauri/src/navigator/places.rs"), "utf8");
+const winAdapter = readFileSync(
+  join(root, "src-tauri/src/platform/windows.rs"),
+  "utf8",
+);
 assert.ok(placesRs.includes("DriveKind"), "DriveInfo exposes kind");
-assert.ok(placesRs.includes("GetDriveTypeW"), "drive kind from GetDriveTypeW");
-assert.ok(placesRs.includes("GetVolumeInformationW"), "volume label from GetVolumeInformationW");
+assert.ok(
+  placesRs.includes("crate::platform::volumes()"),
+  "7.16: volume enumeration comes from the platform adapter",
+);
+// 7.16: the Win32 probes moved from places.rs into the Windows adapter.
+assert.ok(winAdapter.includes("GetDriveTypeW"), "drive kind from GetDriveTypeW");
+assert.ok(
+  winAdapter.includes("GetVolumeInformationW"),
+  "volume label from GetVolumeInformationW",
+);
 
 const history = spawnSync(
   process.execPath,

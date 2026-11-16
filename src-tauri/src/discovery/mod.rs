@@ -7,18 +7,28 @@ mod everything_ipc;
 mod fallback;
 #[cfg(test)]
 mod mock;
+mod platform_backend;
 mod service;
 mod types;
 
 use everything_ipc::WindowsEverythingIpc;
+use platform_backend::PlatformSearchBackend;
 use service::DiscoveryService;
 use std::sync::{Arc, LazyLock};
 use tauri::{AppHandle, Manager};
 use types::{DiscoverySearchOptions, DiscoverySearchResult, DiscoveryStatus};
 
 static DISCOVERY: LazyLock<DiscoveryService> = LazyLock::new(|| {
+    // 7.21: the host index is chosen by the platform adapter, not by a
+    // `#[cfg]` inside this module. Windows keeps Everything IPC verbatim;
+    // macOS uses Spotlight; other Unix targets keep the explicit stub.
+    let backend: Arc<dyn backend::EverythingBackend> = match crate::platform::global_search_engine()
+    {
+        crate::platform::GlobalSearchEngine::Spotlight => Arc::new(PlatformSearchBackend),
+        _ => Arc::new(WindowsEverythingIpc),
+    };
     // Fallback off by default — no dual-default with self-index.
-    DiscoveryService::new(Arc::new(WindowsEverythingIpc), false)
+    DiscoveryService::new(backend, false)
 });
 
 /// Apply persisted `core.discoveryBlacklist` into the live Discovery service (AIA-61).

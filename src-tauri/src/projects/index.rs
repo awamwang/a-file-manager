@@ -141,10 +141,7 @@ pub fn reorder_workspace_slugs(
             .cloned()
             .collect();
         for slug in fallback_slugs {
-            if !known
-                .iter()
-                .any(|s| s.eq_ignore_ascii_case(slug.as_str()))
-            {
+            if !known.iter().any(|s| s.eq_ignore_ascii_case(slug.as_str())) {
                 known.push(slug.clone());
             }
         }
@@ -222,12 +219,18 @@ pub fn workspace_path_for_slug(projects_root: &Path, slug: &str) -> Result<PathB
 }
 
 fn active_still_under_root(active: &ActiveProjectRef, root: &Path) -> bool {
-    let root_norm = normalize_path_string(root).to_ascii_lowercase();
-    let path_norm = active.path.replace('/', "\\").to_ascii_lowercase();
-    let prefix = if root_norm.ends_with('\\') {
+    // 7.20: `normalize_path_string` now returns a host-native path, while the
+    // active project path was still hardcoded to `\`. On macOS that made the
+    // prefix check fail for every project. Normalize both sides through the
+    // platform adapter and join with its separator.
+    let separator = crate::platform::current().path_separator();
+    let root_norm = crate::paths::normalize_path_for_comparison(&normalize_path_string(root))
+        .to_ascii_lowercase();
+    let path_norm = crate::paths::normalize_path_for_comparison(&active.path).to_ascii_lowercase();
+    let prefix = if root_norm.ends_with(separator) {
         root_norm
     } else {
-        format!("{root_norm}\\")
+        format!("{root_norm}{separator}")
     };
     path_norm.starts_with(&prefix)
         && Path::new(&active.path)
@@ -238,8 +241,7 @@ fn active_still_under_root(active: &ActiveProjectRef, root: &Path) -> bool {
 
 /// Ensure Projects Root exists on disk; return absolute normalized path string.
 pub fn ensure_projects_root_dir(root: &Path) -> Result<String, String> {
-    fs::create_dir_all(root)
-        .map_err(|err| format!("Failed to create Projects Root: {err}"))?;
+    fs::create_dir_all(root).map_err(|err| format!("Failed to create Projects Root: {err}"))?;
     let abs = if root.is_absolute() {
         root.to_path_buf()
     } else {
@@ -261,13 +263,15 @@ pub fn load_from_path(config_dir: &Path, configured_root: &str) -> Result<Projec
         return Ok(document);
     }
 
-    let text = fs::read_to_string(&path)
-        .map_err(|err| format!("Failed to read projects index: {err}"))?;
+    let text =
+        fs::read_to_string(&path).map_err(|err| format!("Failed to read projects index: {err}"))?;
     let mut document: ProjectsIndex = serde_json::from_str(&text)
         .map_err(|err| format!("Failed to parse projects index JSON: {err}"))?;
     document.schema_version = INDEX_SCHEMA_VERSION;
 
-    if document.projects_root.replace('/', "\\") != root_str {
+    if crate::paths::normalize_path_for_comparison(&document.projects_root)
+        != crate::paths::normalize_path_for_comparison(&root_str)
+    {
         document.projects_root = root_str.clone();
         if let Some(ref active) = document.active_project {
             if !active_still_under_root(active, Path::new(&root_str)) {
@@ -332,10 +336,7 @@ mod tests {
     #[test]
     fn default_root_is_under_config_projects() {
         let config = PathBuf::from(r"C:\Users\x\AppData\Roaming\com.a-file-manager.app");
-        assert_eq!(
-            default_projects_root(&config),
-            config.join("projects")
-        );
+        assert_eq!(default_projects_root(&config), config.join("projects"));
         assert_eq!(
             resolve_projects_root(&config, ""),
             default_projects_root(&config)
@@ -369,7 +370,11 @@ mod tests {
         let base = ProjectsIndex::empty(r"D:\projects");
         assert!(base.workspace_order.is_empty());
         // 尚未跟踪顺序时，append 为 no-op。
-        assert!(base.clone().append_workspace_order("a").workspace_order.is_empty());
+        assert!(base
+            .clone()
+            .append_workspace_order("a")
+            .workspace_order
+            .is_empty());
 
         let tracked = ProjectsIndex {
             workspace_order: vec!["a".into(), "b".into(), "c".into()],
@@ -396,10 +401,7 @@ mod tests {
         let configured = custom_root.to_string_lossy().to_string();
         let index = load_from_path(&dir, &configured).unwrap();
         assert!(custom_root.is_dir());
-        assert_eq!(
-            index.projects_root,
-            normalize_path_string(&custom_root)
-        );
+        assert_eq!(index.projects_root, normalize_path_string(&custom_root));
 
         let with_active = set_active_project(&index, Some("demo-app")).unwrap();
         save_to_path(&dir, &with_active).unwrap();
@@ -429,36 +431,21 @@ mod tests {
         save_to_path(&dir, &index).unwrap();
 
         let switched = load_from_path(&dir, &root_b.to_string_lossy()).unwrap();
-        assert_eq!(
-            switched.projects_root,
-            normalize_path_string(&root_b)
-        );
+        assert_eq!(switched.projects_root, normalize_path_string(&root_b));
         assert!(switched.active_project.is_none());
         let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
     fn rejects_invalid_slugs() {
-        assert_eq!(
-            validate_slug("").unwrap_err(),
-            ERR_PROJECT_SLUG_EMPTY
-        );
-        assert_eq!(
-            validate_slug("../x").unwrap_err(),
-            ERR_PROJECT_SLUG_INVALID
-        );
+        assert_eq!(validate_slug("").unwrap_err(), ERR_PROJECT_SLUG_EMPTY);
+        assert_eq!(validate_slug("../x").unwrap_err(), ERR_PROJECT_SLUG_INVALID);
         assert_eq!(
             validate_slug("has:colon").unwrap_err(),
             ERR_PROJECT_SLUG_INVALID
         );
-        assert_eq!(
-            validate_slug("CON").unwrap_err(),
-            ERR_PROJECT_SLUG_INVALID
-        );
-        assert_eq!(
-            validate_slug("foo.").unwrap_err(),
-            ERR_PROJECT_SLUG_INVALID
-        );
+        assert_eq!(validate_slug("CON").unwrap_err(), ERR_PROJECT_SLUG_INVALID);
+        assert_eq!(validate_slug("foo.").unwrap_err(), ERR_PROJECT_SLUG_INVALID);
         assert_eq!(
             validate_slug(&"a".repeat(MAX_SLUG_LEN + 1)).unwrap_err(),
             ERR_PROJECT_SLUG_TOO_LONG
@@ -472,7 +459,10 @@ mod tests {
     #[test]
     fn index_is_not_projects_json_blob() {
         // Guardrail: thin index file name stays distinct from legacy projects.json.
-        assert_ne!(PROJECTS_INDEX_FILE_NAME, super::super::store::PROJECTS_FILE_NAME);
+        assert_ne!(
+            PROJECTS_INDEX_FILE_NAME,
+            super::super::store::PROJECTS_FILE_NAME
+        );
         let dir = temp_dir("thin");
         let index = load_from_path(&dir, "").unwrap();
         let text = fs::read_to_string(projects_index_file_path(&dir)).unwrap();

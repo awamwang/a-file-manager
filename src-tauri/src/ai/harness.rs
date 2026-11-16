@@ -25,7 +25,8 @@ pub struct HarnessInitReport {
 }
 
 fn normalize(path: &Path) -> String {
-    path.to_string_lossy().replace('/', "\\")
+    // Report rows show real paths; never Windows-ify POSIX separators (7.20).
+    crate::paths::to_native_fs_path(&path.to_string_lossy())
 }
 
 fn write_new(path: &Path, contents: &str, written: &mut Vec<String>, skipped: &mut Vec<String>) {
@@ -157,11 +158,8 @@ mod tests {
 
     #[test]
     fn harness_writes_agents_and_skills_not_sdd_by_default() {
-        let root = std::env::temp_dir().join(format!(
-            "afm-harness-{}-{}",
-            "basic",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("afm-harness-{}-{}", "basic", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(&root).unwrap();
         let created = create_workspace_at(&root, "Demo", None, Some("demo"), None).unwrap();
@@ -183,18 +181,19 @@ mod tests {
 
     #[test]
     fn sdd_option_writes_superpowers_tree() {
-        let root = std::env::temp_dir().join(format!(
-            "afm-harness-{}-{}",
-            "sdd",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("afm-harness-{}-{}", "sdd", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(&root).unwrap();
         let created = create_workspace_at(&root, "Sdd", None, Some("sdd"), None).unwrap();
         init_harness(&created.path, true, false).unwrap();
         let ws = PathBuf::from(&created.path);
         assert!(ws.join("docs").join("superpowers").join("specs").is_dir());
-        assert!(ws.join(".superpowers").join("sdd").join("progress.md").is_file());
+        assert!(ws
+            .join(".superpowers")
+            .join("sdd")
+            .join("progress.md")
+            .is_file());
         let _ = fs::remove_dir_all(&root);
     }
 }

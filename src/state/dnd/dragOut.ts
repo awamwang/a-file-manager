@@ -12,6 +12,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import { resolveResource } from "@tauri-apps/api/path";
+import { isMacPlatform } from "../../config/platform";
 import { beginDragSources, endDragSession } from "./session.ts";
 
 let outboundBusy = false;
@@ -25,6 +26,7 @@ async function dragIconPath(): Promise<string> {
 }
 
 function armHostOutboundPaths(paths: string[]): void {
+  if (isMacPlatform()) return; // OLE host hook (dnd_arm_outbound_paths) is Windows-only.
   void invoke("dnd_arm_outbound_paths", { paths }).catch(() => {
     /* 非 Windows / 权限缺失时仍走 JS startDrag 回退 */
   });
@@ -60,7 +62,12 @@ export function clearOutboundPathsForPress(): void {
  */
 export async function startNativeFileDragOut(paths: string[]): Promise<void> {
   const cleaned = paths.map((p) => p.trim()).filter(Boolean);
-  if (outboundBusy || cleaned.length === 0) return;
+  if (cleaned.length === 0) return;
+  // macOS: the OLE `start_dragging` command aborts the process here. The WebView
+  // native HTML5 drag-out (set in NavigatorView.onDragStart) handles file drag-out,
+  // so we never reach the crashing plugin path.
+  if (isMacPlatform()) return;
+  if (outboundBusy) return;
   outboundBusy = true;
   armHostOutboundPaths(cleaned);
   try {

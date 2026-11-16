@@ -22,6 +22,11 @@ import {
 import { scheduleAfterPaint } from "../state/scheduleIdle";
 import { applyAppLocaleFromValues } from "../i18n/index";
 import {
+  getCachedPlatformCapabilities,
+  hydratePlatform,
+  type PlatformCapabilities,
+} from "../config/platform.ts";
+import {
   settingEnumOptionPath,
   settingFieldMessagePath,
 } from "../i18n/settingsFields";
@@ -52,6 +57,7 @@ import {
 } from "../state/favorites";
 import {
   compareSettingsUiKeys,
+  isPlatformUnsupportedSetting,
   isSettingsUiHiddenKey,
   settingsUiGroupForKey,
   settingsUiGroupMessagePath,
@@ -74,6 +80,14 @@ const route = useRoute();
 const router = useRouter();
 
 const effectiveDefaults = ref<SettingsEffectiveDefaults>({});
+
+/** macOS port: capability-gated settings UI, resolved once per session. */
+const platformCaps = ref<PlatformCapabilities>(getCachedPlatformCapabilities());
+const showOsFavoriteVerb = computed(() => {
+  const caps = platformCaps.value;
+  // Unknown host (vite-only / IPC pending) keeps the Windows-first UI intact.
+  return !caps.os || caps.os === "windows" || caps.osShellVerb;
+});
 
 function fieldTitle(def: SettingDefinition): string {
   const path = settingFieldMessagePath(def.key, "title");
@@ -296,7 +310,9 @@ const visibleDefs = computed(() =>
         // Open tools has its own section UI.
         !def.key.startsWith("core.openTool.") &&
         // FIL-59：过时/双入口项默认隐藏（键仍在 schema）。
-        !isSettingsUiHiddenKey(def.key),
+        !isSettingsUiHiddenKey(def.key) &&
+        // macOS port: hide Windows-only integrations the host cannot deliver.
+        !isPlatformUnsupportedSetting(def.key, platformCaps.value),
     )
     .slice()
     .sort((a, b) => compareSettingsUiKeys(a.key, b.key)),
@@ -588,6 +604,11 @@ watch(locale, () => {
 });
 
 onMounted(() => {
+  // Re-read after the single-flight IPC so rows appear/disappear when the
+  // capability answer arrives (cold start may beat the bootstrap warm-up).
+  void hydratePlatform().then((caps) => {
+    platformCaps.value = caps;
+  });
   void loadAll().then(() => {
     if (activeSection.value === "openTools") {
       void refreshIdeApps();
@@ -887,7 +908,7 @@ onMounted(() => {
           </section>
 
           <section
-            v-if="activeSection === 'power'"
+            v-if="activeSection === 'power' && showOsFavoriteVerb"
             class="field-group favorites-in-advanced"
           >
             <h2 class="field-group-title">{{ t("settings.favoritesMeta") }}</h2>

@@ -8,6 +8,14 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const navMod = readFileSync(join(root, "src-tauri/src/navigator/mod.rs"), "utf8");
 const places = readFileSync(join(root, "src-tauri/src/navigator/places.rs"), "utf8");
+const winAdapter = readFileSync(
+  join(root, "src-tauri/src/platform/windows.rs"),
+  "utf8",
+);
+const unixAdapter = readFileSync(
+  join(root, "src-tauri/src/platform/macos.rs"),
+  "utf8",
+);
 const browse = readFileSync(join(root, "src/state/navigatorBrowse.ts"), "utf8");
 const shell = readFileSync(join(root, "src/components/shell/AppShell.vue"), "utf8");
 const openWith = readFileSync(join(root, "src-tauri/src/open_with/mod.rs"), "utf8");
@@ -29,10 +37,24 @@ for (const name of [
   assert.ok(re.test(navMod), `${name} must be async and use spawn_blocking`);
 }
 
-assert.ok(places.includes("GetLogicalDrives"), "list_drives uses GetLogicalDrives bitmask");
+// 7.16: the OS-specific volume enumeration moved into the platform adapters;
+// the navigator only maps the neutral `Volume` onto `DriveInfo`.
 assert.ok(
-  places.includes("DriveKind::Remote") && places.includes("volume_label_for_root"),
+  places.includes("crate::platform::volumes()"),
+  "list_drives delegates volume enumeration to the platform adapter",
+);
+assert.ok(
+  winAdapter.includes("GetLogicalDrives"),
+  "Windows adapter still uses the GetLogicalDrives bitmask (FIL-54)",
+);
+assert.ok(
+  winAdapter.includes("VolumeKind::Remote") &&
+    winAdapter.includes("volume_label_for_root"),
   "remote drives skip volume-label hang path",
+);
+assert.ok(
+  unixAdapter.includes("sysinfo::Disks"),
+  "Unix adapter enumerates real mount points via sysinfo::Disks",
 );
 
 assert.ok(browse.includes("listLoading.value = true"), "navigate sets listLoading");

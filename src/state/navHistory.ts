@@ -8,6 +8,7 @@ import {
   providerParentPath,
   toProviderUri,
 } from "./provider/path.ts";
+import { isPosixAbsolute, splitFsPath } from "./fsPath.ts";
 
 /** Keep in sync with `guide/path.ts` (avoid ESM extension issues in Node checks). */
 const GUIDE_PATH = "afm://guide";
@@ -119,6 +120,26 @@ export function buildBreadcrumbs(path: string): BreadcrumbCrumb[] {
   }
   if (isProviderPath(trimmed)) {
     return buildProviderBreadcrumbs(trimmed);
+  }
+
+  // POSIX absolute paths (macOS / Linux): keep "/" as the separator and keep
+  // the leading root. The Windows splitter below would turn
+  // "/Users/wangmeng" into "Users\wangmeng", and the address bar then hands
+  // that to `navigator_list` as a real path → "Path does not exist".
+  // Both the shape test and the segmentation come from the single fsPath layer
+  // (7.16), so this branch cannot drift away from the other path producers.
+  if (isPosixAbsolute(trimmed)) {
+    const { segments } = splitFsPath(trimmed);
+    if (!segments.length) {
+      return [{ label: "/", path: "/", kind: "path" }];
+    }
+    const crumbs: BreadcrumbCrumb[] = [];
+    let acc = "";
+    for (const part of segments) {
+      acc += `/${part}`;
+      crumbs.push({ label: part, path: acc, kind: "path" });
+    }
+    return crumbs;
   }
 
   const raw = trimmed.replace(/\//g, "\\");

@@ -4,13 +4,16 @@
  *
  * Usage:
  *   node scripts/build-flavor.mjs ai|core [--dev]
- *   node scripts/build-flavor.mjs ai|core --bundle
+ *   node scripts/build-flavor.mjs ai|core --bundle [--target <rust-triple>]
  *
  * - ai:   VITE_AFM_AI_ADDON=1 + Cargo default features (ai-addon)
  * - core: VITE_AFM_AI_ADDON=0 + Cargo --no-default-features
  *
  * With --dev: runs `tauri dev`.
- * With --bundle: runs full `tauri build --bundles nsis`（前端由 beforeBuildCommand 构建）。
+ * With --bundle: runs full `tauri build`（前端由 beforeBuildCommand 构建）。
+ *   Bundle targets follow the host: nsis on Windows, app+dmg on macOS
+ *   (7.25 GitHub CI packaging). `--target` is forwarded to cargo/tauri, and
+ *   artifacts then live under `target/<triple>/release/bundle/`.
  * Otherwise: `vue-tsc` + `vite build` then prints matching `tauri build` cargo args.
  */
 import { spawnSync } from "node:child_process";
@@ -21,9 +24,15 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const flavor = (process.argv[2] || "").toLowerCase();
 const isDev = process.argv.includes("--dev");
 const doBundle = process.argv.includes("--bundle");
+const targetIndex = process.argv.indexOf("--target");
+const target = targetIndex >= 0 ? process.argv[targetIndex + 1] : "";
 
 if (flavor !== "ai" && flavor !== "core") {
-  console.error("Usage: node scripts/build-flavor.mjs ai|core [--dev|--bundle]");
+  console.error("Usage: node scripts/build-flavor.mjs ai|core [--dev|--bundle] [--target <triple>]");
+  process.exit(1);
+}
+if (targetIndex >= 0 && (!target || target.startsWith("--"))) {
+  console.error("--target needs a Rust target triple");
   process.exit(1);
 }
 
@@ -48,10 +57,16 @@ if (isDev) {
 
 if (doBundle) {
   // beforeBuildCommand 会跑 npm run build；环境变量 VITE_AFM_AI_ADDON 传入 vite。
-  const args = ["run", "tauri", "--", "build", "--bundles", "nsis"];
+  // Windows 仍显式 nsis（FIL-63 契约）；macOS 出 app + dmg（7.25 CI 打包）。
+  const bundles =
+    process.platform === "win32" ? "nsis" : process.platform === "darwin" ? "app,dmg" : "appimage";
+  const args = ["run", "tauri", "--", "build", "--bundles", bundles];
+  if (target) args.push("--target", target);
   if (!aiOn) args.push("--", "--no-default-features");
   run("npm", args);
-  console.log(`\nNSIS bundle flavor=${flavor} (VITE_AFM_AI_ADDON=${env.VITE_AFM_AI_ADDON}) done.`);
+  console.log(
+    `\n${bundles} bundle flavor=${flavor} target=${target || "host"} (VITE_AFM_AI_ADDON=${env.VITE_AFM_AI_ADDON}) done.`,
+  );
   process.exit(0);
 }
 
@@ -64,9 +79,10 @@ const cargoHint = aiOn
 
 console.log(`\nFrontend flavor=${flavor} (VITE_AFM_AI_ADDON=${env.VITE_AFM_AI_ADDON}) built.`);
 console.log(`Rust: ${cargoHint}`);
+const hintBundles = process.platform === "win32" ? "nsis" : "app,dmg";
 console.log(
   aiOn
-    ? "Tauri package (AI): npm run tauri -- build --bundles nsis"
-    : "Tauri package (Core): npm run tauri -- build --bundles nsis -- --no-default-features",
+    ? `Tauri package (AI): npm run tauri -- build --bundles ${hintBundles}`
+    : `Tauri package (Core): npm run tauri -- build --bundles ${hintBundles} -- --no-default-features`,
 );
 console.log("或: node scripts/build-flavor.mjs " + flavor + " --bundle");
