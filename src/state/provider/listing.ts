@@ -40,6 +40,13 @@ export type ProviderNavigatorEntry = {
   kind: "dir" | "file";
   size: number;
   modifiedMs: number | null;
+  /**
+   * Semantic hint forwarded from the backend's `extra` bag
+   * (`kind: "bookmark"` / `url` / `virtual: true` / `"backend"` root card).
+   * Kept so Navigator can give virtual entries a dedicated icon instead of
+   * leaving them on the shell-icon loading placeholder forever.
+   */
+  providerKind?: string | null;
 };
 
 export type ProviderNavigatorListing = {
@@ -52,6 +59,24 @@ export type ProviderNavigatorListing = {
 };
 
 const LEGACY_MISSING_QUERY = /missing\s+query/i;
+
+/**
+ * Backends flag non-file entries in `extra`: browser bookmarks carry
+ * `kind: "bookmark"` + `url`, knowledge/rclone virtual nodes carry
+ * `virtual: true`. Keep only the semantic marker, not the whole bag.
+ */
+export function providerKindFromExtra(
+  extra: Record<string, unknown> | null | undefined,
+): string | null {
+  if (!extra) return null;
+  const rawKind = extra.kind;
+  if (typeof rawKind === "string" && rawKind.trim()) {
+    return rawKind.trim().toLowerCase();
+  }
+  if (typeof extra.url === "string" && extra.url.trim()) return "bookmark";
+  if (extra.virtual === true) return "virtual";
+  return null;
+}
 
 /** 待查询软空：无 error，或旧网关 Missing query 文案且已声明 requiredQuery。 */
 export function isSoftProviderQueryAwaiting(
@@ -96,6 +121,7 @@ export function providerListingFromDir(
       kind: (isDir ? "dir" : "file") as "dir" | "file",
       size: entry.size ?? 0,
       modifiedMs: modified,
+      providerKind: providerKindFromExtra(entry.extra),
     };
   });
   const awaiting = isSoftProviderQueryAwaiting(
@@ -123,5 +149,6 @@ export function providerRootEntriesFromBackends(
     kind: "dir" as const,
     size: 0,
     modifiedMs: null,
+    providerKind: "backend",
   }));
 }

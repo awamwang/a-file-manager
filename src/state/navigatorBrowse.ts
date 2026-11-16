@@ -86,6 +86,8 @@ export type NavigatorEntry = {
   size: number;
   /** Last write time as Unix epoch milliseconds when reported. */
   modifiedMs?: number | null;
+  /** Provider `extra` semantic marker (bookmark / virtual / backend), if any. */
+  providerKind?: string | null;
 };
 
 export type NavigatorListing = {
@@ -134,6 +136,7 @@ export function hydrateNavigatorListing(listing: NavigatorListingWire): Navigato
         kind: entry.kind,
         size: entry.size,
         modifiedMs: entry.modifiedMs,
+        providerKind: entry.providerKind ?? null,
         path: trimmed || joinListingChildPath(parent, entry.name),
       };
     }),

@@ -53,13 +53,22 @@ export type FluentGlyphId =
   | "picture"
   | "musicNote"
   | "video"
-  | "library";
+  | "library"
+  | "shortcut"
+  | "bookmark"
+  | "provider";
 
 export type FluentGlyph = {
   /** Segoe Fluent Icons / MDL2 private-use codepoint */
   codepoint: string;
   /** SVG path `d` attributes for 16×16 viewBox */
   paths: string[];
+  /**
+   * Custom metaphor without a matching Segoe glyph: always render the SVG.
+   * Windows prefers the font, so reusing a real codepoint here would show the
+   * WRONG shape (or a tofu box for an invented PUA codepoint).
+   */
+  svgOnly?: boolean;
 };
 
 export const FLUENT_GLYPHS: Record<FluentGlyphId, FluentGlyph> = {
@@ -378,6 +387,37 @@ export const FLUENT_GLYPHS: Record<FluentGlyphId, FluentGlyph> = {
     codepoint: "\uE8F1",
     paths: [
       "M2.5 3.2h2.2v9.6H2.5V3.2zm3.4 0h2.2v9.6H5.9V3.2zm3.4 0H13l-1.6 9.6H9.3L10.7 3.2z",
+    ],
+  },
+  /**
+   * Special-entry glyphs (no system shell icon exists for these kinds).
+   * All three are svgOnly: they are AFM-specific metaphors, not Segoe symbols.
+   */
+  /** Windows `.lnk` shortcut / reparse-point link: page + jump arrow. */
+  shortcut: {
+    // AFM-internal ID (never rendered through Segoe because of svgOnly).
+    codepoint: "\uE900",
+    svgOnly: true,
+    paths: [
+      "M2.8 2.4h5.3l2.7 2.7v3.3H9.5V5.9H8.2V3.7H4.1v5.1h2.8v1.3H2.8V2.4z",
+      "M9.4 9.1h1.4v3.2l1.3-1.3 1 1-2.9 2.9-2.9-2.9 1-1 1.3 1.3V9.1z",
+    ],
+  },
+  /** Provider bookmark / URL entry: ribbon bookmark. */
+  bookmark: {
+    codepoint: "\uE901",
+    svgOnly: true,
+    paths: [
+      "M4.2 2.3h7.6v11.4L8 10.9l-3.8 2.8V2.3zm1.3 1.3v8.3L8 10l2.5 1.9V3.6H5.5z",
+    ],
+  },
+  /** Provider virtual / backend entry: cloud over three backend nodes. */
+  provider: {
+    codepoint: "\uE902",
+    svgOnly: true,
+    paths: [
+      "M5.2 4.9a2.8 2.8 0 0 1 5.4-.8A2.6 2.6 0 0 1 12.5 8.6H4.2a2.3 2.3 0 0 1 1-3.7z",
+      "M3.5 10.4h2.2v2.2H3.5v-2.2zm3.4 0h2.2v2.2H6.9v-2.2zm3.4 0h2.2v2.2h-2.2v-2.2z",
     ],
   },
 };

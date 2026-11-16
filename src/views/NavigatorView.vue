@@ -42,6 +42,7 @@ import { isRecyclePath } from "../state/recycle";
 import { isProviderPath } from "../state/provider";
 import { restoreRecyclePaths } from "../state/recycle";
 import NavigatorGuide from "../components/navigator/NavigatorGuide.vue";
+import FluentIcon from "../components/icons/FluentIcon.vue";
 import { hydrateSettings } from "../state/settingsHydrate";
 import {
   cancelShellIconRequests,
@@ -140,6 +141,7 @@ import {
   VIEW_ICON_SIZE,
 } from "../state/navigatorViewMode";
 import { entryTypeLabel } from "../state/entryType";
+import { specialEntryIcon } from "../state/entryIcon";
 import {
   DEFAULT_DETAILS_COLUMN_WIDTHS,
   detailsGridTemplate,
@@ -2252,7 +2254,13 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           @drop="onDrop($event, item.entry)"
         >
           <span class="kind" :data-kind="item.entry.kind">
+            <FluentIcon
+              v-if="specialEntryIcon(item.entry, currentPath)"
+              :name="specialEntryIcon(item.entry, currentPath)!"
+              class="entry-special-icon"
+            />
             <ShellIconImg
+              v-else
               :path="item.entry.path"
               :size="iconPixelSize"
               :is-dir="item.entry.kind === 'dir'"
@@ -2415,7 +2423,13 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           @drop="onDrop($event, entry)"
         >
           <span class="kind" :data-kind="entry.kind">
+            <FluentIcon
+              v-if="specialEntryIcon(entry, secondaryPath)"
+              :name="specialEntryIcon(entry, secondaryPath)!"
+              class="entry-special-icon"
+            />
             <ShellIconImg
+              v-else
               :path="entry.path"
               :size="iconPixelSize"
               :is-dir="entry.kind === 'dir'"
@@ -2879,6 +2893,15 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   width: var(--nav-icon-size, 16px);
   height: var(--nav-icon-size, 16px);
   font-size: var(--nav-icon-size, 16px);
+}
+
+/*
+ * Special-entry glyphs (provider / bookmark / shortcut / recycle) are final
+ * icons, not the grey `shell-icon-slot`. Accent tint makes the distinction
+ * obvious; ordinary local rows keep the loading slot until their shell icon.
+ */
+.kind :deep(.entry-special-icon) {
+  color: var(--fluent-color-fill-accent);
 }
 
 .shell-icon {
