@@ -106,6 +106,12 @@ pub fn search_directory(root: &str, query: &str, show_hidden: bool) -> Result<Na
         let is_dir = metadata.is_dir();
         let kind = if is_dir { "dir" } else { "file" };
         let is_link = entry.file_type().is_symlink();
+        // `info.target` is the directory the link points to (not its parent).
+        let link_target = if is_link || name.to_ascii_lowercase().ends_with(".lnk") {
+            super::stat::entry_link_info(entry.path()).and_then(|info| info.target)
+        } else {
+            None
+        };
         let size = if metadata.is_file() { metadata.len() } else { 0 };
         let modified_ms = metadata.modified().ok().and_then(system_time_ms);
 
@@ -119,6 +125,7 @@ pub fn search_directory(root: &str, query: &str, show_hidden: bool) -> Result<Na
             path: Some(display_path(entry.path())),
             kind: kind.to_string(),
             is_link,
+            link_target,
             size,
             modified_ms,
         });

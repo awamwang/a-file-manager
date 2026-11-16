@@ -4,6 +4,7 @@
 import assert from "node:assert/strict";
 import { FLUENT_GLYPHS } from "../src/components/icons/glyphs.ts";
 import { specialEntryIcon } from "../src/state/entryIcon.ts";
+import { isLinkEntry, linkTargetForEntry } from "../src/state/linkTarget.ts";
 import {
   providerKindFromExtra,
   providerListingFromDir,
@@ -64,6 +65,20 @@ assert.equal(
   specialEntryIcon({ name: "alias", path: "C:\\targets\\alias", kind: "dir", isLink: false }),
   null,
 );
+// Activation policy: links go to the directory they point to (target itself).
+assert.equal(isLinkEntry({ name: "alias", isLink: true }), true);
+assert.equal(isLinkEntry({ name: "Edge.LNK" }), true);
+assert.equal(isLinkEntry({ name: "plain.txt" }), false);
+assert.equal(
+  linkTargetForEntry({ name: "alias", isLink: true, linkTarget: " C:\\targets\\alias-dir " }),
+  "C:\\targets\\alias-dir",
+);
+assert.equal(
+  linkTargetForEntry({ name: "Edge.lnk", linkTarget: "C:\\shortcuts\\target-dir" }),
+  "C:\\shortcuts\\target-dir",
+);
+assert.equal(linkTargetForEntry({ name: "plain.txt", linkTarget: "C:\\targets" }), null);
+assert.equal(linkTargetForEntry({ name: "alias", isLink: true }), null);
 // Provider / recycle semantics win over the generic link glyph.
 assert.equal(
   specialEntryIcon({

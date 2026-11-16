@@ -21,6 +21,9 @@ pub struct NavigatorEntry {
     /// ordinary listings keep their current payload size.
     #[serde(default, skip_serializing_if = "is_false")]
     pub is_link: bool,
+    /// Path the link points to — double-click navigates into this directory.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub link_target: Option<String>,
     pub size: u64,
     /// Last write time as Unix epoch milliseconds (when the FS reports it).
     pub modified_ms: Option<u64>,
@@ -97,6 +100,13 @@ pub fn list_directory(path: &str, show_hidden: bool) -> Result<NavigatorListing,
         let size = if metadata.is_file() { metadata.len() } else { 0 };
         let name = entry.file_name().to_string_lossy().to_string();
         let modified_ms = metadata.modified().ok().and_then(system_time_ms);
+        // Only links pay for the extra stat; ordinary rows stay on the hot path.
+        // `info.target` is the directory the link points to (not its parent).
+        let link_target = if is_link || name.to_ascii_lowercase().ends_with(".lnk") {
+            super::stat::entry_link_info(&entry_path).and_then(|info| info.target)
+        } else {
+            None
+        };
 
         // Directory junctions/symlinks: expose the real target as `path` so
         // Navigator tabs open the original folder (AIA-210 / C4).
@@ -121,6 +131,7 @@ pub fn list_directory(path: &str, show_hidden: bool) -> Result<NavigatorListing,
             path,
             kind,
             is_link,
+            link_target,
             size,
             modified_ms,
         });
@@ -349,8 +360,13 @@ mod tests {
         assert_eq!(listing.entries.len(), 1);
         assert_eq!(listing.entries[0].name, "alias");
         assert!(listing.entries[0].is_link, "junction must be flagged on the wire");
+        // Double-click must land in the linked directory itself, not its parent.
+        let expected_target = real_s.clone();
+        assert_eq!(listing.entries[0].link_target.as_deref(), Some(expected_target.as_str()));
         let wire = serde_json::to_value(&listing).unwrap();
         assert_eq!(wire["entries"][0]["isLink"], true);
+        assert_eq!(wire["entries"][0]["linkTarget"], expected_target);
+        assert!(wire["entries"][0].get("linkTargetDir").is_none());
         // Wire may omit path when equal to parent\name; canonicalize still follows junctions.
         let open_raw = listing.entries[0].path.clone().unwrap_or_else(|| {
             format!(

@@ -16,6 +16,8 @@ const navigatorBrowse = readFileSync(join(root, "src/state/navigatorBrowse.ts"),
 const rustList = readFileSync(join(root, "src-tauri/src/navigator/list.rs"), "utf8");
 const rustSearch = readFileSync(join(root, "src-tauri/src/navigator/search.rs"), "utf8");
 const previewPane = readFileSync(join(root, "src/components/navigator/PreviewPane.vue"), "utf8");
+const linkTarget = readFileSync(join(root, "src/state/linkTarget.ts"), "utf8");
+const rustStat = readFileSync(join(root, "src-tauri/src/navigator/stat.rs"), "utf8");
 const registerUrl = pathToFileURL(join(root, "scripts/register-ts-resolve.mjs")).href;
 
 for (const id of ["shortcut", "bookmark", "provider"]) {
@@ -45,6 +47,33 @@ assert.ok(rustList.includes("file_type.is_symlink()"));
 assert.ok(rustSearch.includes("entry.file_type().is_symlink()"));
 assert.ok(navigatorBrowse.includes("isLink: entry.isLink ?? null"));
 assert.ok(entryIcon.includes('if (entry.isLink) return "link";'));
+
+// The link's own target directory is resolved natively and wins on double-click.
+assert.ok(rustStat.includes("pub(crate) fn entry_link_info"));
+assert.ok(rustList.includes("pub link_target: Option<String>"));
+assert.ok(rustList.includes("link_target,"));
+assert.ok(rustList.includes("super::stat::entry_link_info(&entry_path)"));
+assert.ok(rustList.includes("info.target)"), "list.rs must use the target itself, not target_dir");
+assert.ok(rustSearch.includes("link_target,"));
+assert.ok(rustSearch.includes("super::stat::entry_link_info(entry.path())"));
+assert.ok(rustSearch.includes("info.target)"), "search.rs must use the target itself");
+assert.ok(linkTarget.includes('entryExtension(entry.name) === "lnk"'));
+assert.ok(navigatorBrowse.includes("linkTarget: entry.linkTarget ?? null"));
+
+const openEntrySrc = navigatorBrowse.slice(navigatorBrowse.indexOf("export async function openEntry"));
+const openLinkPos = openEntrySrc.indexOf("linkTargetForEntry(entry)");
+const openDirPos = openEntrySrc.indexOf('if (entry.kind === "dir")');
+assert.ok(openLinkPos > 0 && openDirPos > openLinkPos, "links must navigate into the target dir before dir branch");
+const secondarySrc = navigatorView.slice(
+  navigatorView.indexOf("function onActivateSecondary"),
+  navigatorView.indexOf("function focusEntryRow"),
+);
+const secondaryLinkPos = secondarySrc.indexOf("linkTargetForEntry(entry)");
+const secondaryDirPos = secondarySrc.indexOf('if (entry.kind === "dir")');
+assert.ok(
+  secondaryLinkPos > 0 && secondaryDirPos > secondaryLinkPos,
+  "secondary pane must also navigate into the target dir before dir branch",
+);
 
 // Both Navigator panes route special entries before enqueuing a shell icon.
 assert.ok(navigatorView.includes('v-if="specialEntryIcon(item.entry, currentPath)"'));

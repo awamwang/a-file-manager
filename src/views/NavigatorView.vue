@@ -142,6 +142,7 @@ import {
 } from "../state/navigatorViewMode";
 import { entryTypeLabel } from "../state/entryType";
 import { specialEntryIcon } from "../state/entryIcon";
+import { linkTargetForEntry } from "../state/linkTarget";
 import {
   DEFAULT_DETAILS_COLUMN_WIDTHS,
   detailsGridTemplate,
@@ -1434,6 +1435,12 @@ function onActivate(entry: NavigatorEntry) {
 
 function onActivateSecondary(entry: NavigatorEntry) {
   setActivePane("secondary");
+  // Links navigate into their target directory in both panes.
+  const target = linkTargetForEntry(entry);
+  if (target) {
+    void navigateSecondary(target);
+    return;
+  }
   if (entry.kind === "dir") {
     void navigateSecondary(entry.path);
     return;

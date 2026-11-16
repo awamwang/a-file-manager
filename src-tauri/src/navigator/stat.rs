@@ -73,7 +73,7 @@ fn dir_totals(path: &PathBuf) -> (u64, u64, u64, bool) {
 
 /// Link metadata for the 属性 panel: reparse points (junction / symlink) and
 /// `.lnk` shortcuts. Regular files and directories return `None`.
-fn entry_link_info(pb: &Path) -> Option<PreviewLinkInfo> {
+pub(crate) fn entry_link_info(pb: &Path) -> Option<PreviewLinkInfo> {
     if let Some(info) = reparse_link_info(pb) {
         return Some(info);
     }

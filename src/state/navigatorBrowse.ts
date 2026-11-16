@@ -3,6 +3,7 @@
 import { ref, shallowRef } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { linkTargetForEntry } from "./linkTarget.ts";
 import {
   activeStripTab,
   activeWorkGroupId,
@@ -90,6 +91,8 @@ export type NavigatorEntry = {
   providerKind?: string | null;
   /** Symlink / junction / reparse point reported by the native listing. */
   isLink?: boolean | null;
+  /** Directory the link points to; double-click navigates into it. */
+  linkTarget?: string | null;
 };
 
 export type NavigatorListing = {
@@ -140,6 +143,7 @@ export function hydrateNavigatorListing(listing: NavigatorListingWire): Navigato
         modifiedMs: entry.modifiedMs,
         providerKind: entry.providerKind ?? null,
         isLink: entry.isLink ?? null,
+        linkTarget: entry.linkTarget ?? null,
         path: trimmed || joinListingChildPath(parent, entry.name),
       };
     }),
@@ -1023,6 +1027,13 @@ async function openPathWithSystemDefault(path: string): Promise<void> {
 }
 
 export async function openEntry(entry: NavigatorEntry): Promise<void> {
+  // Links activate into the directory they point to, before the dir/file
+  // branch would follow the link path or open the target with a file action.
+  const target = linkTargetForEntry(entry);
+  if (target) {
+    await navigateTo(target);
+    return;
+  }
   if (entry.kind === "dir") {
     // AIA-150: in-list folder activate stays in the current tab (context Open
     // already did; open-or-focus remains for shell places / Discovery / etc.).
