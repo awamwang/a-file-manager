@@ -41,7 +41,8 @@
       "dmg"
     ],
     "resources": [
-      "icons/32x32.png"
+      "icons/32x32.png",
+      "resources/macos-open-help.txt"
     ],
     "icon": [
       "icons/32x32.png",

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
- * 7.25 guard: macOS packages must be buildable on GitHub Actions without any
- * Developer ID secret, while the existing Windows NSIS flow stays untouched.
- * This is a static contract — a real .dmg can only be produced on a macOS
- * runner, never in the sandbox this repo is developed in.
+ * 7.25 guard: macOS packages build on GitHub Actions; Windows NSIS flow is
+ * untouched. 7.26: Developer ID signing + notarization is opt-in behind the
+ * mac_signing gate — ad-hoc stays the zero-config default. Static contract:
+ * a real .dmg (signed or not) can only be produced on a macOS runner.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -32,6 +32,8 @@ const buildFlavor = code(read("scripts/build-flavor.mjs"));
 const assets = code(read("scripts/release-assets.mjs"));
 const pkg = JSON.parse(read("package.json"));
 const conf = JSON.parse(read("src-tauri/tauri.conf.json"));
+const helpText = read("src-tauri/resources/macos-open-help.txt");
+const finalizeAdhoc = code(read("scripts/finalize-macos-adhoc.mjs"));
 
 // 1. CI is a real two-OS matrix, not a Windows job with a Mac afterthought.
 assert.ok(ci.includes("runs-on: ${{ matrix.os }}"), "CI must select runner from matrix");
@@ -75,11 +77,105 @@ assert.ok(release.includes("build-app-macos.result"), "finalize must check the m
     "finalize must check out the repo before `gh release edit`",
   );
 }
+// 2b. 7.26 opt-in signing: APPLE_* secrets are allowed, but ONLY behind the
+// mac_signing gate. Ad-hoc must remain the zero-config default, and a partial
+// credential set must never hard-fail the build.
+assert.ok(release.includes("mac_signing:"), "prepare must expose a mac_signing output");
 assert.ok(
-  !release.includes("secrets.APPLE_"),
-  "no APPLE_* secret may be required — signing/notarization stays opt-in",
+  release.includes("echo \"mac_signing=${MAC_SIGNING}\""),
+  "prepare must publish the derived signing boolean",
+);
+for (const secret of [
+  "APPLE_CERTIFICATE",
+  "APPLE_CERTIFICATE_PASSWORD",
+  "APPLE_ID",
+  "APPLE_PASSWORD",
+  "APPLE_TEAM_ID",
+]) {
+  assert.ok(
+    release.includes(`secrets.${secret}`),
+    `signing must wire the ${secret} secret`,
+  );
+}
+assert.ok(
+  release.includes("if: needs.prepare.outputs.mac_signing == 'true'"),
+  "certificate import must be gated on the signing boolean",
+);
+assert.ok(
+  release.includes("security import") && release.includes("-T /usr/bin/codesign"),
+  "import step must install the Developer ID for codesign",
+);
+assert.ok(
+  release.includes("security set-key-partition-list"),
+  "codesign must be allowed to use the imported key (partition list)",
+);
+assert.ok(
+  release.includes("unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID"),
+  "ad-hoc builds must unset empty APPLE_* vars (Tauri treats set-but-empty as configured)",
+);
+assert.ok(
+  release.includes('if [ "${MAC_SIGNING}" != "true" ]'),
+  "ad-hoc fallback must be the default when signing is off",
+);
+assert.ok(
+  release.includes("直接双击打开") && release.includes("右键 → 打开只在部分 macOS 版本有效"),
+  "release notes must describe both signed and ad-hoc first-launch behavior",
+);
+assert.ok(
+  release.includes("xattr -dr com.apple.quarantine") && release.includes("仍要打开"),
+  "unsigned release notes must give a fallback that works when right-click Open fails",
 );
 assert.ok(release.includes(".dmg"), "release notes must mention macOS assets");
+
+// 2c. 7.27: the zero-credential path must not ship a completely unsigned app,
+// and the help file must exist both in the bundle and at DMG/Release level.
+assert.ok(
+  release.includes("Apple signing credentials incomplete or absent — macOS builds use ad-hoc fallback"),
+  "prepare must log the automatic no-certificate fallback",
+);
+assert.ok(
+  release.includes("finalize-macos-adhoc.mjs") &&
+    release.includes("if: needs.prepare.outputs.mac_signing != 'true'"),
+  "unsigned builds must run the ad-hoc + in-package-help finalizer",
+);
+assert.ok(
+  release.includes("A.File.Manager_${VERSION}_macos-open-help.txt") &&
+    release.includes("macos-open-help.txt"),
+  "help file must be published as a canonical release asset",
+);
+assert.ok(
+  conf.bundle.resources.includes("resources/macos-open-help.txt"),
+  "bundle.resources must embed the help file so signed builds ship it too",
+);
+assert.ok(
+  finalizeAdhoc.includes('codesign", ["--force", "--deep", "--sign", "-", "--timestamp=none", appPath]') &&
+    finalizeAdhoc.includes('Signature=adhoc') &&
+    finalizeAdhoc.includes('run("codesign", ["--verify", "--deep", "--strict"'),
+  "finalizer must create and verify an explicit ad-hoc signature",
+);
+assert.ok(
+    finalizeAdhoc.includes('copyFileSync(helpPath, join(staging, "打开帮助.txt"))') &&
+    finalizeAdhoc.includes('"-volname"') &&
+    finalizeAdhoc.includes('"-o"') &&
+    finalizeAdhoc.includes('run("hdiutil", ["verify", dmgPath])'),
+  "finalizer must rebuild a DMG with root-level help and verify the image",
+);
+assert.ok(
+  finalizeAdhoc.includes("Contents\", \"Resources\", \"resources\", \"macos-open-help.txt") &&
+    finalizeAdhoc.includes("请检查 tauri.conf.json 的 bundle.resources"),
+  "finalizer must fail fast if the app bundle lost its embedded help",
+);
+for (const phrase of [
+  "系统设置",
+  "隐私与安全性",
+  "仍要打开",
+  "xattr -dr com.apple.quarantine",
+  "不要点“移到废纸篓”",
+  "右键 → 打开",
+  "Developer ID",
+]) {
+  assert.ok(helpText.includes(phrase), `macOS help text must explain: ${phrase}`);
+}
 
 // 3. Build entry reuses the existing flavor logic, only the bundle set differs.
 assert.ok(buildFlavor.includes("--target"), "build-flavor must forward --target");
@@ -112,4 +208,4 @@ assert.equal(conf.bundle.macOS.signingIdentity, undefined, "signing stays opt-in
 assert.ok(pkg.scripts.test.includes("npm run test:macos-bundle"));
 assert.ok(pkg.scripts.test.includes("npm run test:ci-macos"));
 
-console.log("CI macOS packaging checks OK (7.25).");
+console.log("CI macOS packaging checks OK (7.25 + 7.26 opt-in signing + 7.27 ad-hoc help).");
