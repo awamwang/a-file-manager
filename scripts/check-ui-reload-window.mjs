@@ -35,7 +35,7 @@ assert.ok(
 );
 assert.ok(app.includes("KeepAlive"), "KeepAlive remains (cleared by shell remount)");
 
-assert.ok(shell.includes("titlebar-leading"), "reload control on left of titlebar");
+assert.ok(!shell.includes("titlebar-leading"), "left leading reload container is removed");
 assert.ok(shell.includes("titlebar-reload-window"), "stable test id for titlebar reload");
 assert.ok(shell.includes("reloadWindow"), "AppShell wires reloadWindow");
 assert.ok(
@@ -44,13 +44,20 @@ assert.ok(
 );
 {
   const header = shell.slice(shell.indexOf("<header"), shell.indexOf("</header>"));
-  const leading = header.indexOf("titlebar-leading");
   const drag = header.indexOf("titlebar-drag");
   const actions = header.indexOf("titlebar-actions");
-  assert.ok(leading >= 0 && drag > leading, "leading reload must be left of drag region");
-  assert.ok(actions > drag, "commands stay right of drag region");
+  const windowControls = header.indexOf("window-controls");
+  const commandsBtn = header.indexOf('name="commands"');
+  const reloadBtn = header.indexOf("titlebar-reload-window");
+  assert.ok(actions > drag, "actions stay right of drag region");
+  assert.ok(windowControls > actions, "window controls stay right of actions");
+  assert.ok(commandsBtn > actions, "Command Panel button lives in actions region");
   assert.ok(
-    !header.slice(leading, leading + 400).includes("data-tauri-drag-region"),
+    reloadBtn > commandsBtn && reloadBtn < windowControls,
+    "reload control must sit after the Command Panel button, before window controls",
+  );
+  assert.ok(
+    !header.slice(reloadBtn, reloadBtn + 400).includes("data-tauri-drag-region"),
     "reload button must not be a drag region",
   );
 }

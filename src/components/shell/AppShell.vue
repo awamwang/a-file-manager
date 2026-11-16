@@ -1831,22 +1831,6 @@ onUnmounted(() => {
         @dblclick.prevent="toggleMaximizeWindow"
       />
       <div
-        class="titlebar-leading"
-        role="group"
-        :aria-label="t('chrome.reloadWindow')"
-      >
-        <button
-          type="button"
-          class="fluent-control titlebar-action"
-          data-testid="titlebar-reload-window"
-          :title="t('chrome.reloadWindowTitle')"
-          :aria-label="t('chrome.reloadWindow')"
-          @click="reloadWindow"
-        >
-          <FluentIcon name="refresh" size="sm" />
-        </button>
-      </div>
-      <div
         class="titlebar-drag"
         data-tauri-drag-region
         :title="t('chrome.titleBar')"
@@ -1877,6 +1861,16 @@ onUnmounted(() => {
           @click="toggleCommandPanel"
         >
           <FluentIcon name="commands" size="sm" />
+        </button>
+        <button
+          type="button"
+          class="fluent-control titlebar-action"
+          data-testid="titlebar-reload-window"
+          :title="t('chrome.reloadWindowTitle')"
+          :aria-label="t('chrome.reloadWindow')"
+          @click="reloadWindow"
+        >
+          <FluentIcon name="refresh" size="sm" />
         </button>
       </div>
       <div class="window-controls" :aria-label="t('chrome.windowControls')">
@@ -2727,16 +2721,6 @@ onUnmounted(() => {
 .shell.mac-overlay-titlebar .window-controls {
   display: none;
 }
-
-.titlebar-leading {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-  padding-inline-start: var(--fluent-space-xs);
-  -webkit-app-region: no-drag;
-  app-region: no-drag;
-}
-
 .titlebar-drag {
   display: flex;
   flex: 1;
