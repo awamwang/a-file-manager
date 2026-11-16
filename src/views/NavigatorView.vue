@@ -106,6 +106,11 @@ import {
   moveSelectionByArrow,
 } from "../state/navigatorKeyboardNav";
 import {
+  hitTestMarqueeEntries,
+  marqueeHitMode,
+  type MarqueeHitEntry,
+} from "../state/marqueeHitTest";
+import {
   DETAILS_HEADER_HEIGHT_PX,
   estimatePlaceholderCount,
   ICON_CAPTION_EXTRA_PX,
@@ -1943,7 +1948,10 @@ function onMarqueeMove(event: MouseEvent) {
   const w = Math.abs(x - marqueeOrigin.x);
   const h = Math.abs(y - marqueeOrigin.y);
   marquee.value = { x: left, y: top, w, h };
-  const hit = hitTestRows(left, top, w, h);
+  // 命中用视口坐标，与 getBoundingClientRect 同源；避免 offsetLeft/Top 在 .list__canvas grid 下错位。
+  const clientLeft = left - root.scrollLeft + rect.left;
+  const clientTop = top - root.scrollTop + rect.top;
+  const hit = hitTestRowsClient(clientLeft, clientTop, w, h);
   setSelection(hit, hit[0] ?? null);
 }
 
@@ -1953,24 +1961,38 @@ function onMarqueeEnd() {
   marquee.value = null;
 }
 
-function hitTestRows(x: number, y: number, w: number, h: number): string[] {
+/** 框选命中：图标/平铺按 `.kind` 图标槽相交，其它视图按整行。 */
+function hitTestRowsClient(clientLeft: number, clientTop: number, w: number, h: number): string[] {
   const root = listRoot.value;
   if (!root || w < 2 || h < 2) return [];
-  const box = { left: x, top: y, right: x + w, bottom: y + h };
-  const hits: string[] = [];
+  const box = {
+    left: clientLeft,
+    top: clientTop,
+    right: clientLeft + w,
+    bottom: clientTop + h,
+  };
+  const mode = marqueeHitMode({
+    isIconView: isIconView.value,
+    isTilesView: isTilesView.value,
+  });
+  const entries: MarqueeHitEntry[] = [];
   const rows = root.querySelectorAll<HTMLElement>("[data-entry-path]");
   for (const row of rows) {
     const path = row.dataset.entryPath;
     if (!path) continue;
-    const top = row.offsetTop;
-    const left = row.offsetLeft;
-    const right = left + row.offsetWidth;
-    const bottom = top + row.offsetHeight;
-    if (left < box.right && right > box.left && top < box.bottom && bottom > box.top) {
-      hits.push(path);
-    }
+    const target =
+      mode === "icon"
+        ? (row.querySelector<HTMLElement>(".kind") ?? row)
+        : row;
+    const r = target.getBoundingClientRect();
+    // 跳过尚未布局或不可见占位（宽高为 0）的项，避免误选。
+    if (r.width <= 0 || r.height <= 0) continue;
+    entries.push({
+      path,
+      hitRect: { left: r.left, top: r.top, right: r.right, bottom: r.bottom },
+    });
   }
-  return hits;
+  return hitTestMarqueeEntries(box, entries);
 }
 
 /* —— Drag in (AFM + Explorer/external) · drag out (OLE / CF_HDROP + link) —— */
