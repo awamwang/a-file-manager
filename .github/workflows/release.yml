@@ -141,6 +141,11 @@ jobs:
              [ -n "${APPLE_ID:-}" ] && [ -n "${APPLE_PASSWORD:-}" ] && [ -n "${APPLE_TEAM_ID:-}" ]; then
             MAC_SIGNING=true
           fi
+          if [ "${MAC_SIGNING}" = "true" ]; then
+            echo "Apple signing credentials complete — macOS builds will be signed + notarized"
+          else
+            echo "Apple signing credentials incomplete or absent — macOS builds use ad-hoc fallback"
+          fi
 
           {
             echo "tag=${TAG}"
@@ -222,7 +227,11 @@ jobs:
             if [ "${MAC_SIGNING}" = "true" ]; then
               echo "macOS 包已用 Developer ID 签名并经 Apple 公证（notarized + stapled），可直接双击打开。"
             else
-              echo "macOS 包目前为未签名 / ad-hoc（未配置 Developer ID 与公证）；首次打开需右键 → 打开。"
+              echo "macOS 包为 ad-hoc 签名（未配置 Developer ID / 公证），首次打开可能被 Gatekeeper 拦截。"
+              echo '右键 → 打开只在部分 macOS 版本有效；若没有“打开”按钮或仍打不开，请按包内《打开帮助.txt》：'
+              echo '1) 双击 App 一次 → 系统设置 → 隐私与安全性 → 安全性 → 仍要打开 → 打开；'
+              echo '2) 或终端执行 `xattr -dr com.apple.quarantine "/Applications/A File Manager.app"`。'
+              echo "独立帮助文件也作为 Release 资产 A.File.Manager_${VERSION}_macos-open-help.txt 提供。"
             fi
             echo "### Install"
             echo
@@ -246,6 +255,19 @@ jobs:
                 --notes-file "${NOTES_FILE}" --target "${GITHUB_SHA}" "${PRE_ARGS[@]}"
             fi
           fi
+
+      - name: Upload macOS open help as release asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEST="${RUNNER_TEMP}/A.File.Manager_${VERSION}_macos-open-help.txt"
+          cp src-tauri/resources/macos-open-help.txt "${DEST}"
+          gh release upload "${TAG}" "${DEST}" --clobber
+          echo "Uploaded $(basename "${DEST}")"
 
   build-app:
     needs: prepare
@@ -421,11 +443,31 @@ jobs:
           set -euo pipefail
           if [ "${MAC_SIGNING}" != "true" ]; then
             unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID
-            echo "No Apple credentials — building ad-hoc bundle"
+            echo "No Apple credentials — Tauri builds unsigned; ad-hoc finalize follows"
           else
             echo "Apple credentials present — Tauri will sign + notarize + staple"
           fi
           node scripts/build-flavor.mjs "${{ matrix.flavor }}" --bundle --target "${{ matrix.target }}"
+
+      # 7.27: without Developer ID, Tauri leaves the .app completely unsigned.
+      # Explicit ad-hoc signing plus a DMG that carries 打开帮助.txt makes the
+      # zero-credential path usable; signed/notarized builds skip this step.
+      - name: Finalize unsigned macOS bundle (ad-hoc + in-package help)
+        if: needs.prepare.outputs.mac_signing != 'true'
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          ARCH: ${{ matrix.arch }}
+          TARGET: ${{ matrix.target }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUNDLE="src-tauri/target/${TARGET}/release/bundle"
+          APP="${BUNDLE}/macos/A File Manager.app"
+          DMG="${BUNDLE}/dmg/A File Manager_${VERSION}_${ARCH}.dmg"
+          node scripts/finalize-macos-adhoc.mjs \
+            --app "${APP}" \
+            --dmg "${DMG}" \
+            --help-file src-tauri/resources/macos-open-help.txt
 
       - name: Collect canonical assets
         id: asset

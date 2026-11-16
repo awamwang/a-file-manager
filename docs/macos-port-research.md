@@ -1044,6 +1044,35 @@
 
 ---
 
+### 7.27 无证书路径收口：显式 ad-hoc + 包内打开帮助（第 22 轮）
+
+**触发**：用户确认「没有配置 Apple ID / password 就自动用无证书方式打包」，并反馈 v0.3.0 用右键→打开也打不开。通过 GitHub API 下载真实 `A.File.Manager_0.3.0_x64.app.zip` 实测：
+
+```
+codesign -dv --verbose=4 'A File Manager.app'
+  → code object is not signed at all
+spctl -a -vvv 'A File Manager.app'
+  → rejected / source=no usable signature
+```
+
+也就是说 7.26 的无证书路径虽然能出包，但产物是**完全未签名**，不是 ad-hoc。Apple 的支持文档与近期实践都表明：右键→打开只对部分系统版本/部分拦截形态有效；macOS 15/26 上「Apple 无法验证…」常常只给「完成 / 移到废纸篓」，此时必须走「系统设置 → 隐私与安全性 → 仍要打开」或移除 `com.apple.quarantine`。
+
+**实现**：
+
+| 落点 | 内容 |
+|---|---|
+| `.github/workflows/release.yml` | 保留 7.26 的 `mac_signing` 门控：5 个 `APPLE_*` 任一缺失/为空 → `mac_signing=false`，build 里 `unset` 全部变量，绝不因半套凭据失败；新增明确日志 `Apple signing credentials incomplete or absent — macOS builds use ad-hoc fallback`。构建后新增 `Finalize unsigned macOS bundle` 步骤（仅 `mac_signing != true` 时运行），调用 7.27 收尾脚本。Release Notes 改为可操作的三步：系统设置仍要打开 / `xattr -dr com.apple.quarantine` / 右键打开（注明仅部分版本有效，不要点「移到废纸篓」）。 |
+| `scripts/finalize-macos-adhoc.mjs` | 新增。`codesign --force --deep --sign - --timestamp=none` 给 `.app` 显式 ad-hoc 签名并严格校验；重建 Tauri 生成的 DMG：把签名后的 `.app`、根目录 `打开帮助.txt`、`/Applications` 拖放目标放进临时 staging，用 `hdiutil create ... -format UDZO -o <dmg>` 覆盖输出，再 `hdiutil verify`。签名/公证路径明确不调用此脚本，避免破坏 Developer ID 签名。 |
+| `src-tauri/resources/macos-open-help.txt` | 新增包内帮助：来源核验、系统设置仍要打开、`xattr` 命令（含拖 App 到终端的用法）、右键打开的适用边界、为何需要 Developer ID + 公证、文件在 DMG/`.app`/Release 中的位置。 |
+| `src-tauri/tauri.conf.json` | `bundle.resources` 加入帮助文件，签名构建也会把它一起签进 `.app`；ad-hoc 构建由收尾脚本保证它存在。 |
+| `scripts/check-ci-macos.mjs` | 新增 2c 契约：回退日志、收尾步骤门控、帮助文件同时出现在 bundle resources / DMG / Release 资产、finalizer 的 codesign + `hdiutil verify` + `-o` 输出、帮助文案包含「仍要打开 / xattr / 右键 → 打开 / 不要点移到废纸篓」等关键指引。 |
+
+**本机演练（真实资产，非模拟）**：用 v0.3.0 的 x64 `.app` 复制成 Tauri 产物布局，先造一个未签名 DMG，再跑收尾脚本。结果：`codesign -dv` 显示 `Signature=adhoc`、`TeamIdentifier=not set`，`codesign --verify --deep --strict` 输出 `valid on disk` / `satisfies its Designated Requirement`；`hdiutil verify` 校验和 VALID；挂载后根目录可见 `打开帮助.txt`、`A File Manager.app`、`Applications` 软链。演练中还发现 `hdiutil create` 用位置参数指定输出时在本机产生瞬时文件、脚本随后读不到，已改为显式 `-o` 并写入契约。
+
+**边界（勿误判为完成）**：ad-hoc 只提供完整性印章，**不能替代 Developer ID + 公证**，double-click 仍可能被 Gatekeeper 拦；它改善的是「无 usable signature」状态，并让包内明确携带可操作的帮助。7.27 尚未在新 tag 的 GitHub Actions 上真实跑过；签名/公证路径仍未验证。帮助里的命令按「拖 App 到终端」设计，避免用户手敲路径出错。
+
+---
+
 ## 附录 A · 关键证据索引（便于复核）
 
 | 主题 | 文件 |
