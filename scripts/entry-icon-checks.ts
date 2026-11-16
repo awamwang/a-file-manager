@@ -17,12 +17,16 @@ for (const id of ["shortcut", "bookmark", "provider"] as const) {
   assert.equal(glyph.svgOnly, true, `${id} must force SVG on Windows`);
   assert.ok(glyph.paths.length >= 1, `${id} missing SVG path`);
 }
-const specialCodepoints = ["shortcut", "bookmark", "provider"].map(
+// Symlinks reuse the existing Segoe link glyph shown in PreviewPane.
+assert.equal(FLUENT_GLYPHS.link.codepoint, "\uE71B");
+assert.notEqual(FLUENT_GLYPHS.link.svgOnly, true);
+const specialIds = ["shortcut", "bookmark", "provider"];
+const specialCodepoints = specialIds.map(
   (id) => FLUENT_GLYPHS[id as "shortcut"].codepoint,
 );
-assert.equal(new Set(specialCodepoints).size, 3);
+assert.equal(new Set(specialCodepoints).size, specialIds.length);
 for (const [id, glyph] of Object.entries(FLUENT_GLYPHS)) {
-  if (specialCodepoints.includes(glyph.codepoint) && !["shortcut", "bookmark", "provider"].includes(id)) {
+  if (specialCodepoints.includes(glyph.codepoint) && !specialIds.includes(id)) {
     assert.fail(`${id} collides with a special-entry codepoint`);
   }
 }
@@ -41,6 +45,39 @@ assert.equal(
 assert.equal(
   specialEntryIcon({ name: "Shortcut", path: "C:\\Work\\Shortcut", kind: "dir" }),
   null,
+);
+// Filesystem links (symlink / junction) carry isLink from the native listing.
+assert.equal(
+  specialEntryIcon({
+    name: "smart-review",
+    path: "C:\\Users\\Administrator\\.cursor\\skills\\smart-review",
+    kind: "dir",
+    isLink: true,
+  }),
+  "link",
+);
+assert.equal(
+  specialEntryIcon({ name: "alias.txt", path: "C:\\targets\\alias.txt", kind: "file", isLink: true }),
+  "link",
+);
+assert.equal(
+  specialEntryIcon({ name: "alias", path: "C:\\targets\\alias", kind: "dir", isLink: false }),
+  null,
+);
+// Provider / recycle semantics win over the generic link glyph.
+assert.equal(
+  specialEntryIcon({
+    name: "alias",
+    path: "awam://knowledge/alias",
+    kind: "dir",
+    providerKind: "virtual",
+    isLink: true,
+  }),
+  "provider",
+);
+assert.equal(
+  specialEntryIcon({ name: "old", path: "C:\\old", kind: "dir", isLink: true }, RECYCLE_PATH),
+  "recycle",
 );
 
 // Provider entries never reach the shell-icon queue (they have no native icon).
@@ -109,6 +146,7 @@ assert.equal(
 
 for (const result of [
   specialEntryIcon({ name: "a.lnk", path: "C:\\a.lnk", kind: "file" }),
+  specialEntryIcon({ name: "alias", path: "C:\\target", kind: "dir", isLink: true }),
   specialEntryIcon({ name: "b", path: "awam://browser/b", kind: "file" }),
   specialEntryIcon({ name: "c", path: "C:\\c", kind: "file" }, RECYCLE_PATH),
 ]) {

@@ -6,7 +6,7 @@
  * virtual items, Recycle Bin items pointing at deleted originals). Previously
  * those rows stayed on `shell-icon-slot` forever — the grey loading placeholder
  * looked exactly like "icon failed to load". Others deserve a semantic glyph
- * instead of a generic system icon (Windows `.lnk` shortcuts).
+ * instead of a generic system icon (`.lnk` shortcuts, symlinks / junctions).
  *
  * Returning `null` keeps `ShellIconImg`: local entries still show the soft slot
  * until their shell icon / thumbnail arrives, with no two-stage glyph swap.
@@ -23,6 +23,8 @@ export type IconEntry = {
   kind: string;
   /** Semantic marker forwarded from a provider backend's `extra` bag. */
   providerKind?: string | null;
+  /** Symlink / junction / reparse point reported by the native listing. */
+  isLink?: boolean | null;
 };
 
 /** Provider entries that are really links / URL bookmarks, not files. */
@@ -51,7 +53,10 @@ export function specialEntryIcon(
   }
   // Recycle Bin items resolve to deleted originals; shell icons cannot load.
   if (isRecyclePath(parentPath)) return "recycle";
-  // Link types: Windows shortcuts (.lnk).
+  // Symlinks / junctions: the shell often shows a blank page for these, and
+  // the entry path may already point at the target rather than the link.
+  if (entry.isLink) return "link";
+  // Windows shortcut files are regular .lnk files, not filesystem links.
   if (entry.kind !== "dir" && entryExtension(entry.name) === "lnk") {
     return "shortcut";
   }

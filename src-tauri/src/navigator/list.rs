@@ -17,6 +17,10 @@ pub struct NavigatorEntry {
     pub path: Option<String>,
     /// `"dir"` or `"file"` (symlinks reported by target kind when possible).
     pub kind: String,
+    /// Symlink / junction / reparse point. Omitted on the wire when false so
+    /// ordinary listings keep their current payload size.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub is_link: bool,
     pub size: u64,
     /// Last write time as Unix epoch milliseconds (when the FS reports it).
     pub modified_ms: Option<u64>,
@@ -29,6 +33,10 @@ pub struct NavigatorListing {
     pub entries: Vec<NavigatorEntry>,
     pub dir_count: u64,
     pub file_count: u64,
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 pub(crate) fn entry_is_hidden(metadata: &fs::Metadata) -> bool {
@@ -80,6 +88,12 @@ pub fn list_directory(path: &str, show_hidden: bool) -> Result<NavigatorListing,
 
         let is_dir = metadata.is_dir();
         let kind = if is_dir { "dir" } else { "file" }.to_string();
+        // DirEntry::file_type() does not follow the link, so junctions and
+        // symlinks are reported as links even when their target is a folder.
+        let is_link = entry
+            .file_type()
+            .map(|file_type| file_type.is_symlink())
+            .unwrap_or(false);
         let size = if metadata.is_file() { metadata.len() } else { 0 };
         let name = entry.file_name().to_string_lossy().to_string();
         let modified_ms = metadata.modified().ok().and_then(system_time_ms);
@@ -106,6 +120,7 @@ pub fn list_directory(path: &str, show_hidden: bool) -> Result<NavigatorListing,
             name,
             path,
             kind,
+            is_link,
             size,
             modified_ms,
         });
@@ -234,6 +249,10 @@ mod tests {
                 entry.get("path").is_none(),
                 "wire JSON must skip path for default children: {entry}"
             );
+            assert!(
+                entry.get("isLink").is_none(),
+                "wire JSON must skip isLink for plain entries: {entry}"
+            );
             assert!(entry.get("name").is_some());
         }
 
@@ -257,8 +276,10 @@ mod tests {
         assert_eq!(listing.file_count, 1);
         assert_eq!(listing.entries[0].kind, "dir");
         assert_eq!(listing.entries[0].name, "alpha-dir");
+        assert!(!listing.entries[0].is_link);
         assert_eq!(listing.entries[1].name, "beta.txt");
         assert_eq!(listing.entries[1].kind, "file");
+        assert!(!listing.entries[1].is_link);
 
         let _ = fs::remove_dir_all(&dir);
     }
@@ -327,6 +348,9 @@ mod tests {
         let listing = list_directory(&members.to_string_lossy(), true).unwrap();
         assert_eq!(listing.entries.len(), 1);
         assert_eq!(listing.entries[0].name, "alias");
+        assert!(listing.entries[0].is_link, "junction must be flagged on the wire");
+        let wire = serde_json::to_value(&listing).unwrap();
+        assert_eq!(wire["entries"][0]["isLink"], true);
         // Wire may omit path when equal to parent\name; canonicalize still follows junctions.
         let open_raw = listing.entries[0].path.clone().unwrap_or_else(|| {
             format!(

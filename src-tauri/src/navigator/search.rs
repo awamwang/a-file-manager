@@ -105,6 +105,7 @@ pub fn search_directory(root: &str, query: &str, show_hidden: bool) -> Result<Na
         };
         let is_dir = metadata.is_dir();
         let kind = if is_dir { "dir" } else { "file" };
+        let is_link = entry.file_type().is_symlink();
         let size = if metadata.is_file() { metadata.len() } else { 0 };
         let modified_ms = metadata.modified().ok().and_then(system_time_ms);
 
@@ -117,6 +118,7 @@ pub fn search_directory(root: &str, query: &str, show_hidden: bool) -> Result<Na
             // Search hits are not under a single list parent join — always send path.
             path: Some(display_path(entry.path())),
             kind: kind.to_string(),
+            is_link,
             size,
             modified_ms,
         });

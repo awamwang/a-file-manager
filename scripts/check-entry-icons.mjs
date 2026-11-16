@@ -13,11 +13,17 @@ const navigatorView = readFileSync(join(root, "src/views/NavigatorView.vue"), "u
 const entryIcon = readFileSync(join(root, "src/state/entryIcon.ts"), "utf8");
 const providerListing = readFileSync(join(root, "src/state/provider/listing.ts"), "utf8");
 const navigatorBrowse = readFileSync(join(root, "src/state/navigatorBrowse.ts"), "utf8");
+const rustList = readFileSync(join(root, "src-tauri/src/navigator/list.rs"), "utf8");
+const rustSearch = readFileSync(join(root, "src-tauri/src/navigator/search.rs"), "utf8");
+const previewPane = readFileSync(join(root, "src/components/navigator/PreviewPane.vue"), "utf8");
 const registerUrl = pathToFileURL(join(root, "scripts/register-ts-resolve.mjs")).href;
 
 for (const id of ["shortcut", "bookmark", "provider"]) {
   assert.ok(glyphs.includes(`  ${id}: {`), `missing glyph ${id}`);
 }
+assert.equal(glyphs.match(/^  link: \{/gm)?.length, 1, "link glyph must be defined exactly once");
+assert.ok(previewPane.includes('<FluentIcon name="link" size="lg" />'));
+assert.ok(glyphs.includes('"\\uE71B"'), "PreviewPane link glyph codepoint must stay intact");
 assert.ok(glyphs.includes("svgOnly?: boolean;"), "glyph catalog must support svgOnly");
 assert.ok(glyphs.includes("AFM-internal ID"), "special glyphs need documented internal codepoints");
 assert.ok(
@@ -32,6 +38,13 @@ assert.ok(entryIcon.includes('from "./provider/path.ts"') || entryIcon.includes(
 assert.ok(entryIcon.includes('from "./recycle/path.ts"') || entryIcon.includes("./recycle/path"));
 assert.ok(providerListing.includes("providerKind: providerKindFromExtra(entry.extra)"));
 assert.ok(navigatorBrowse.includes("providerKind: entry.providerKind ?? null"));
+// Symlink / junction flag travels from both native listings to row routing.
+assert.ok(rustList.includes("pub is_link: bool"));
+assert.ok(rustList.includes('skip_serializing_if = "is_false"'));
+assert.ok(rustList.includes("file_type.is_symlink()"));
+assert.ok(rustSearch.includes("entry.file_type().is_symlink()"));
+assert.ok(navigatorBrowse.includes("isLink: entry.isLink ?? null"));
+assert.ok(entryIcon.includes('if (entry.isLink) return "link";'));
 
 // Both Navigator panes route special entries before enqueuing a shell icon.
 assert.ok(navigatorView.includes('v-if="specialEntryIcon(item.entry, currentPath)"'));

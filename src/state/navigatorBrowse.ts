@@ -88,6 +88,8 @@ export type NavigatorEntry = {
   modifiedMs?: number | null;
   /** Provider `extra` semantic marker (bookmark / virtual / backend), if any. */
   providerKind?: string | null;
+  /** Symlink / junction / reparse point reported by the native listing. */
+  isLink?: boolean | null;
 };
 
 export type NavigatorListing = {
@@ -137,6 +139,7 @@ export function hydrateNavigatorListing(listing: NavigatorListingWire): Navigato
         size: entry.size,
         modifiedMs: entry.modifiedMs,
         providerKind: entry.providerKind ?? null,
+        isLink: entry.isLink ?? null,
         path: trimmed || joinListingChildPath(parent, entry.name),
       };
     }),

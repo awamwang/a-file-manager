@@ -391,9 +391,11 @@ export const FLUENT_GLYPHS: Record<FluentGlyphId, FluentGlyph> = {
   },
   /**
    * Special-entry glyphs (no system shell icon exists for these kinds).
-   * All three are svgOnly: they are AFM-specific metaphors, not Segoe symbols.
+   * These three are svgOnly: they are AFM-specific metaphors, not Segoe symbols.
+   * Reuse the existing Segoe `link` glyph for symlinks / junctions so rows
+   * match the icon already shown in PreviewPane.
    */
-  /** Windows `.lnk` shortcut / reparse-point link: page + jump arrow. */
+  /** Windows `.lnk` shortcut: page + jump arrow. */
   shortcut: {
     // AFM-internal ID (never rendered through Segoe because of svgOnly).
     codepoint: "\uE900",
