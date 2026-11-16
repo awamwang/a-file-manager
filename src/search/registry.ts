@@ -24,7 +24,7 @@ export function buildSearchSources(deps: SearchPaletteDeps): SearchSource[] {
     createCommandsSource(deps.commands),
     createFilesSource(deps.router),
     createProjectsSource(deps.router),
-    createWorkgroupsSource(),
+    createWorkgroupsSource(deps.router),
     createToolsSource(deps.router),
     createExtensionsSource({ router: deps.router, t: deps.t }),
   ];

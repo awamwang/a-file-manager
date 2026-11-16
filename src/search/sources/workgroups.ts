@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-/** 工作组源：仅匹配名称，Enter 静默切换；REQUIRE_SAVE_PROMPT 关面板 + toast。 */
+/** 工作组源：仅匹配名称，Enter 切到目标工作组并跳 `/work-groups` 配置页；REQUIRE_SAVE_PROMPT 关面板 + toast。 */
 
+import type { Router } from "vue-router";
 import {
   activeWorkGroupId,
   hydrateWorkGroups,
@@ -17,7 +18,7 @@ import type {
   SearchResultItem,
 } from "../types.ts";
 
-export function createWorkgroupsSource(): SearchSource {
+export function createWorkgroupsSource(router: Router): SearchSource {
   return {
     id: "workgroups",
     labelKey: "searchPalette.scopes.workgroups",
@@ -44,17 +45,20 @@ export function createWorkgroupsSource(): SearchSource {
         subtitleKey: "searchPalette.workGroupMembers",
         subtitleParams: { count: entry.memberPaths.length },
         activate: async () => {
-          if (entry.id === activeWorkGroupId.value) return;
-          const result = await silentSwitchWorkGroup(entry.id);
-          if (
-            result?.requireSavePrompt ||
-            workGroupChromeError.value === "REQUIRE_SAVE_PROMPT"
-          ) {
-            return {
-              toastKey: "workGroups.errorSavePrompt",
-              kind: "error" as const,
-            };
+          if (entry.id !== activeWorkGroupId.value) {
+            const result = await silentSwitchWorkGroup(entry.id);
+            if (
+              result?.requireSavePrompt ||
+              workGroupChromeError.value === "REQUIRE_SAVE_PROMPT"
+            ) {
+              return {
+                toastKey: "workGroups.errorSavePrompt",
+                kind: "error" as const,
+              };
+            }
           }
+          // 切到目标工作组后跳到配置页；切换会因 REQUIRE_SAVE_PROMPT 提前返回。
+          await router.push({ name: "work-groups" });
           return undefined;
         },
       }));
