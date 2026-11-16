@@ -108,6 +108,7 @@ import {
 import {
   hitTestMarqueeEntries,
   marqueeHitMode,
+  resolveMarqueeHitRect,
   type MarqueeHitEntry,
 } from "../state/marqueeHitTest";
 import {
@@ -377,6 +378,13 @@ let secondarySizeObserver: ResizeObserver | null = null;
 const marquee = ref<{ x: number; y: number; w: number; h: number } | null>(null);
 let marqueeOrigin: { x: number; y: number } | null = null;
 let marqueeActive = false;
+/** 本次按下后选框是否已超过命中阈值（用于区分空单击与拖选）。 */
+let marqueeDidDrag = false;
+/**
+ * 拖选结束后吞掉紧随的 click：否则空白处 click.self 会清空选中，
+ * 或落在条目上的 click 会 selectOnly 冲掉多选（表现为「一个也选不中」）。
+ */
+let suppressClickAfterMarquee = false;
 const dragOverPath = ref<string | null>(null);
 
 /** Windows Explorer–style inline rename (no modal). */
@@ -1520,6 +1528,8 @@ function onRowMouseDown(event: MouseEvent, entry: NavigatorEntry) {
 function onRowClick(event: MouseEvent, entry: NavigatorEntry) {
   // 单击无拖势：清掉按下时登记的出站路径。
   clearOutboundPathsForPress();
+  // 框选拖动手势结束后的合成 click 不得改写多选结果。
+  if (consumeMarqueeClickGuard()) return;
   // 改名会话占有焦点：框外 pointerdown 已先提交并清空 renamingPath；
   // 拖选文字后在框外松开触发的 click 仍带着 renamingPath，忽略以免抢焦点。
   if (renamingPath.value) return;
@@ -1923,6 +1933,18 @@ function unregisterNavFileShortcuts() {
 }
 
 /* —— Marquee (box) select —— */
+function consumeMarqueeClickGuard(): boolean {
+  if (!suppressClickAfterMarquee) return false;
+  suppressClickAfterMarquee = false;
+  return true;
+}
+
+/** 空白处单击清空；框选拖动后的合成 click 保留选中。 */
+function onListEmptyClick() {
+  if (consumeMarqueeClickGuard()) return;
+  clearSelection();
+}
+
 function onListMouseDown(event: MouseEvent) {
   if (event.button !== 0) return;
   if (event.target !== event.currentTarget) return;
@@ -1931,6 +1953,7 @@ function onListMouseDown(event: MouseEvent) {
   const rect = root.getBoundingClientRect();
   marqueeOrigin = { x: event.clientX - rect.left + root.scrollLeft, y: event.clientY - rect.top + root.scrollTop };
   marqueeActive = true;
+  marqueeDidDrag = false;
   marquee.value = { x: marqueeOrigin.x, y: marqueeOrigin.y, w: 0, h: 0 };
   if (!event.ctrlKey && !event.metaKey && !event.shiftKey) {
     clearSelection();
@@ -1948,6 +1971,7 @@ function onMarqueeMove(event: MouseEvent) {
   const w = Math.abs(x - marqueeOrigin.x);
   const h = Math.abs(y - marqueeOrigin.y);
   marquee.value = { x: left, y: top, w, h };
+  if (w >= 2 || h >= 2) marqueeDidDrag = true;
   // 命中用视口坐标，与 getBoundingClientRect 同源；避免 offsetLeft/Top 在 .list__canvas grid 下错位。
   const clientLeft = left - root.scrollLeft + rect.left;
   const clientTop = top - root.scrollTop + rect.top;
@@ -1956,7 +1980,11 @@ function onMarqueeMove(event: MouseEvent) {
 }
 
 function onMarqueeEnd() {
+  if (marqueeActive && marqueeDidDrag) {
+    suppressClickAfterMarquee = true;
+  }
   marqueeActive = false;
+  marqueeDidDrag = false;
   marqueeOrigin = null;
   marquee.value = null;
 }
@@ -1980,17 +2008,21 @@ function hitTestRowsClient(clientLeft: number, clientTop: number, w: number, h: 
   for (const row of rows) {
     const path = row.dataset.entryPath;
     if (!path) continue;
-    const target =
-      mode === "icon"
-        ? (row.querySelector<HTMLElement>(".kind") ?? row)
-        : row;
-    const r = target.getBoundingClientRect();
-    // 跳过尚未布局或不可见占位（宽高为 0）的项，避免误选。
-    if (r.width <= 0 || r.height <= 0) continue;
-    entries.push({
-      path,
-      hitRect: { left: r.left, top: r.top, right: r.right, bottom: r.bottom },
-    });
+    const rowRect = row.getBoundingClientRect();
+    const kindEl = mode === "icon" ? row.querySelector<HTMLElement>(".kind") : null;
+    const kindRect = kindEl
+      ? (() => {
+          const r = kindEl.getBoundingClientRect();
+          return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+        })()
+      : null;
+    const hitRect = resolveMarqueeHitRect(
+      mode,
+      { left: rowRect.left, top: rowRect.top, right: rowRect.right, bottom: rowRect.bottom },
+      kindRect,
+    );
+    if (!hitRect) continue;
+    entries.push({ path, hitRect });
   }
   return hitTestMarqueeEntries(box, entries);
 }
@@ -2164,7 +2196,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
       @scroll="onPrimaryListScroll"
       @contextmenu="onListContextMenu"
       @mousedown="onListMouseDown"
-      @click.self="clearSelection()"
+      @click.self="onListEmptyClick"
       @dragover="onListDragOver($event, currentPath)"
       @dragleave="onListDragLeave($event, currentPath)"
       @drop="onListDrop($event, currentPath)"
@@ -2174,7 +2206,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         class="list__canvas"
         :style="primaryCanvasStyle"
         @mousedown.self="onListMouseDown($event)"
-        @click.self="clearSelection()"
+        @click.self="onListEmptyClick"
       >
       <div
         v-if="isDetailsView"
@@ -2339,6 +2371,8 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
       />
       </template>
 
+      </div>
+      <!-- 选框挂在 .list（position:relative）下，避免作为 grid 子项参与 .list__canvas 轨道。 -->
       <div
         v-if="marquee"
         class="marquee"
@@ -2349,7 +2383,6 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           height: `${marquee.h}px`,
         }"
       />
-      </div>
     </div>
     </div>
     </div>

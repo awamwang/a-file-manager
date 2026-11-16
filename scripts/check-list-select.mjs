@@ -15,16 +15,22 @@ const en = JSON.parse(readFileSync(join(root, "src/i18n/locales/en.json"), "utf8
 assert.ok(view.includes("toggleSort"));
 assert.ok(view.includes("onListMouseDown"));
 assert.ok(view.includes("marquee"));
-// FIL-71：框选按视口坐标 + 图标槽相交，不再用 offsetLeft/Top（grid 画布下会漏选）。
+// FIL-71/73：框选按视口坐标 + 图标槽相交，不再用 offsetLeft/Top（grid 画布下会漏选）。
 assert.ok(view.includes("hitTestRowsClient") || view.includes("hitTestMarqueeEntries"));
 assert.ok(view.includes("getBoundingClientRect"));
+assert.ok(view.includes("resolveMarqueeHitRect"));
 assert.ok(
   !/const top = row\.offsetTop[\s\S]*offsetLeft/.test(view),
   "marquee must not hit-test via offsetTop/offsetLeft",
 );
+// FIL-73：拖选结束后必须吞掉合成 click，否则空白 click.self / 行 click 会清掉选中。
+assert.ok(view.includes("suppressClickAfterMarquee") || view.includes("consumeMarqueeClickGuard"));
+assert.ok(view.includes("onListEmptyClick"));
+assert.ok(!view.includes('@click.self="clearSelection()"'));
 const marqueeHit = readFileSync(join(root, "src/state/marqueeHitTest.ts"), "utf8");
 assert.ok(marqueeHit.includes("hitTestMarqueeEntries"));
 assert.ok(marqueeHit.includes("marqueeHitMode"));
+assert.ok(marqueeHit.includes("resolveMarqueeHitRect"));
 // AIA-205：AFM MIME 常量集中在 dnd/paths.ts（AFM_MIME）。
 assert.ok(dndPaths.includes("application/x-afm-paths"));
 assert.ok(fileClipboard.includes("transferEntries"));

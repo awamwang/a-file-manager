@@ -32,9 +32,32 @@ export type MarqueeHitEntry = {
   hitRect: RectLike;
 };
 
+function rectAreaPositive(rect: RectLike): boolean {
+  return rect.right > rect.left && rect.bottom > rect.top;
+}
+
+/**
+ * 解析单条命中矩形。
+ * 图标模式优先用图标槽；若槽宽高为 0（如 content-visibility 跳过子树），回退整行，避免框选全滅。
+ */
+export function resolveMarqueeHitRect(
+  mode: MarqueeHitMode,
+  rowRect: RectLike,
+  kindRect: RectLike | null,
+): RectLike | null {
+  if (mode === "icon" && kindRect && rectAreaPositive(kindRect)) {
+    return kindRect;
+  }
+  if (rectAreaPositive(rowRect)) {
+    return rowRect;
+  }
+  return null;
+}
+
 /**
  * 框选命中路径列表（保持 DOM 遍历顺序）。
  * `box` 与 `hitRect` 须为同一坐标系（通常为视口 client 坐标）。
+ * 选框任一边小于 minSize 视为空选，不命中任何项。
  */
 export function hitTestMarqueeEntries(
   box: RectLike,
