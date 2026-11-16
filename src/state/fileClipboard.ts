@@ -118,9 +118,12 @@ export async function transferEntries(
         ? `${baseName(source)} - Shortcut.lnk`
         : baseName(source);
     const destFile = `${destDir.replace(/[\\/]+$/, "")}\\${name}`;
+    // 同目录粘贴：copy 仍走重名确认弹窗（「保留两者」可生成 - Copy 副本）；
+    // cut 保持 Explorer 式无操作，link 的目标名不同不受影响。
+    const selfPaste = samePath(source, destFile);
     let conflict = "keep";
-    if (!samePath(source, destFile)) {
-      const exists = await invoke<boolean>("file_ops_name_exists", { destDir, name });
+    if (!selfPaste || mode === "copy") {
+      const exists = selfPaste || (await invoke<boolean>("file_ops_name_exists", { destDir, name }));
       if (exists) {
         const choice = await resolveNameConflictChoice(name);
         if (choice === "cancel") {

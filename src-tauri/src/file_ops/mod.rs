@@ -162,10 +162,19 @@ fn place_dest(
 ) -> Result<Option<DestPlan>, String> {
     let exact = parent.join(file_name);
     if exact == source {
-        return Ok(Some(DestPlan {
-            path: exact,
-            replace: false,
-        }));
+        // 同目录粘贴自身（剪贴板复制 / Ctrl 拖放）：keep 生成「name - Copy」副本；
+        // replace 对自身是无操作；skip 跳过。剪切移动不会走到这里（同父目录已提前跳过）。
+        return match conflict {
+            NameConflict::KeepBoth => Ok(Some(DestPlan {
+                path: unique_dest_path(parent, file_name),
+                replace: false,
+            })),
+            NameConflict::Skip => Ok(None),
+            NameConflict::Replace => Ok(Some(DestPlan {
+                path: exact,
+                replace: false,
+            })),
+        };
     }
     if !exact.exists() {
         return Ok(Some(DestPlan {
@@ -671,6 +680,64 @@ mod tests {
         .unwrap();
         assert!(skipped.is_empty());
         assert_eq!(fs::read(dest.join("note.txt")).unwrap(), b"new");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn same_dir_paste_keep_creates_copy() {
+        let dir = temp_workspace("self-copy");
+        fs::write(dir.join("a.txt"), b"1").unwrap();
+        fs::create_dir_all(dir.join("sub")).unwrap();
+        fs::write(dir.join("sub").join("n.txt"), b"x").unwrap();
+
+        // 同目录粘贴文件：keep 生成「a - Copy.txt」，原件保留。
+        let copied = copy_paths(
+            &[display_path(&dir.join("a.txt"))],
+            &display_path(&dir),
+            NameConflict::KeepBoth,
+        )
+        .unwrap();
+        assert_eq!(copied.len(), 1);
+        assert_eq!(Path::new(&copied[0]).file_name().unwrap(), "a - Copy.txt");
+        assert!(Path::new(&copied[0]).is_file());
+        assert_eq!(fs::read(dir.join("a.txt")).unwrap(), b"1");
+        assert!(fs::read(&copied[0]).map(|b| b == b"1").unwrap_or(false));
+
+        // 同目录粘贴文件夹：keep 生成「sub - Copy」，内容完整。
+        let copied_dir = copy_paths(
+            &[display_path(&dir.join("sub"))],
+            &display_path(&dir),
+            NameConflict::KeepBoth,
+        )
+        .unwrap();
+        assert_eq!(copied_dir.len(), 1);
+        assert_eq!(
+            Path::new(&copied_dir[0]).file_name().unwrap(),
+            "sub - Copy"
+        );
+        assert!(Path::new(&copied_dir[0]).join("n.txt").is_file());
+
+        // skip：不产生任何新条目。
+        let skipped = copy_paths(
+            &[display_path(&dir.join("a.txt"))],
+            &display_path(&dir),
+            NameConflict::Skip,
+        )
+        .unwrap();
+        assert!(skipped.is_empty());
+        assert!(!dir.join("a - Copy (2).txt").exists());
+
+        // replace（对自身）：无操作成功，不产生副本。
+        let replaced = copy_paths(
+            &[display_path(&dir.join("a.txt"))],
+            &display_path(&dir),
+            NameConflict::Replace,
+        )
+        .unwrap();
+        assert_eq!(replaced.len(), 1);
+        assert_eq!(Path::new(&replaced[0]).file_name().unwrap(), "a.txt");
+        assert!(!dir.join("a - Copy (2).txt").exists());
+
         let _ = fs::remove_dir_all(&dir);
     }
 

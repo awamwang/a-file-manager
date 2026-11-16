@@ -57,6 +57,16 @@ assert.ok(lib.includes("file_ops_clipboard_get"));
 assert.ok(lib.includes("file_ops_name_exists"));
 assert.ok(rust.includes("NameConflict::Replace"));
 assert.ok(rust.includes("NameConflict::Skip"));
+// 同目录粘贴：copy 仍走重名弹窗，「保留两者」生成 - Copy 副本（cut 保持无操作）。
+assert.ok(clip.includes("selfPaste"), "same-dir paste dialog gate");
+assert.ok(
+  clip.includes('mode === "copy"'),
+  "same-dir copy paste must still prompt for conflict",
+);
+assert.ok(
+  rust.includes("unique_dest_path(parent, file_name)"),
+  "same-dir paste keep-both must create a - Copy duplicate",
+);
 const conflictHost = readFileSync(
   join(root, "src/components/shell/NameConflictDialogHost.vue"),
   "utf8",
