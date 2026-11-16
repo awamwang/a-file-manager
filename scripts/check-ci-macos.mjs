@@ -66,6 +66,15 @@ assert.ok(
 );
 assert.ok(release.includes("ditto -c -k --keepParent"), "app bundle must be zipped with ditto");
 assert.ok(release.includes("build-app-macos.result"), "finalize must check the macOS job");
+// v0.3.0 第二轮实测：finalize 未 checkout 时 `gh release edit` 报
+// "fatal: not a git repository"，所有构建都成功却无法 undraft。
+{
+  const finalize = release.slice(release.indexOf("  finalize:"));
+  assert.ok(
+    finalize.includes("actions/checkout@v4"),
+    "finalize must check out the repo before `gh release edit`",
+  );
+}
 assert.ok(
   !release.includes("secrets.APPLE_"),
   "no APPLE_* secret may be required — signing/notarization stays opt-in",
