@@ -206,6 +206,15 @@ impl PlatformCapabilities {
     }
 }
 
+/// OS-neutral RGBA bitmap. Adapters own every platform image type; callers only
+/// see pixels, so `shell_icons` can stay free of `#[cfg]` (7.23).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RgbaIcon {
+    pub width: u32,
+    pub height: u32,
+    pub pixels: Vec<u8>,
+}
+
 /// The neutral contract. Implementations live in `windows.rs` / `macos.rs`.
 pub trait Platform: Send + Sync {
     fn id(&self) -> &'static str;
@@ -252,6 +261,16 @@ pub trait Platform: Send + Sync {
         max_results: u32,
         offset: u32,
     ) -> Result<SearchQueryResult, String>;
+    /// Terminate a process together with its descendants (rclone → ssh, sidecars).
+    /// Windows keeps `taskkill /F /T`; Unix walks the PPID graph via `sysinfo`.
+    fn kill_process_tree(&self, pid: u32);
+    /// Default interpreter for MCP sidecars (`python` on Windows, `python3` on Unix).
+    fn python_command(&self) -> &'static str;
+    /// Native file-type icon in RGBA form, without leaking OS image types.
+    fn file_icon(&self, path: &std::path::Path, size: u16) -> Result<RgbaIcon, String>;
+    /// Native content thumbnail when the host exposes one; otherwise `Err` and
+    /// callers fall back to `file_icon`.
+    fn system_thumbnail(&self, path: &std::path::Path, size: u16) -> Result<RgbaIcon, String>;
 }
 
 static CURRENT: Lazy<Box<dyn Platform>> = Lazy::new(|| {
@@ -344,6 +363,22 @@ pub fn global_search(
     offset: u32,
 ) -> Result<SearchQueryResult, String> {
     current().global_search(query, max_results, offset)
+}
+
+pub fn kill_process_tree(pid: u32) {
+    current().kill_process_tree(pid);
+}
+
+pub fn python_command() -> &'static str {
+    current().python_command()
+}
+
+pub fn file_icon(path: &std::path::Path, size: u16) -> Result<RgbaIcon, String> {
+    current().file_icon(path, size)
+}
+
+pub fn system_thumbnail(path: &std::path::Path, size: u16) -> Result<RgbaIcon, String> {
+    current().system_thumbnail(path, size)
 }
 
 /// macOS-only finishing touch for `WindowChrome::MacOverlay`: let the webview

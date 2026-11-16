@@ -3,13 +3,89 @@
 //! drive letters / UNC, case-insensitive comparison, HKCU Run, Win32 icons.
 
 use super::{
-    has_uri_scheme, GlobalSearchEngine, LaunchTarget, Platform, PlatformCapabilities, SearchProbe,
-    SearchQueryResult, Volume, VolumeKind, VolumeSpace, WindowChrome,
+    has_uri_scheme, GlobalSearchEngine, LaunchTarget, Platform, PlatformCapabilities, RgbaIcon,
+    SearchProbe, SearchQueryResult, Volume, VolumeKind, VolumeSpace, WindowChrome,
 };
+use std::ffi::c_void;
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
+use std::process::Stdio;
+use windows::{
+    core::HSTRING,
+    Win32::Foundation::SIZE,
+    Win32::Graphics::Gdi::{
+        CreateCompatibleDC, DeleteDC, DeleteObject, GetDIBits, GetObjectW, BITMAP, BITMAPINFO,
+        BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HBITMAP,
+    },
+    Win32::System::Com::{CoInitializeEx, COINIT_APARTMENTTHREADED},
+    Win32::UI::Shell::{
+        IShellItemImageFactory, SHCreateItemFromParsingName, SIIGBF_BIGGERSIZEOK,
+        SIIGBF_INCACHEONLY, SIIGBF_RESIZETOFIT, SIIGBF_THUMBNAILONLY,
+    },
+};
 
 pub struct WindowsPlatform;
+
+/// COM is thread-apartment scoped; do not CoUninitialize (the host may own it).
+fn ensure_com_sta() {
+    let _ = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
+}
+
+fn hbitmap_to_rgba(hbitmap: HBITMAP) -> Option<(u32, u32, Vec<u8>)> {
+    unsafe {
+        let mut bmp: BITMAP = std::mem::zeroed();
+        if GetObjectW(
+            hbitmap.into(),
+            std::mem::size_of::<BITMAP>() as i32,
+            Some((&raw mut bmp).cast::<c_void>()),
+        ) == 0
+        {
+            let _ = DeleteObject(hbitmap.into());
+            return None;
+        }
+
+        let width = bmp.bmWidth.max(0) as u32;
+        let height = bmp.bmHeight.max(0) as u32;
+        if width == 0 || height == 0 {
+            let _ = DeleteObject(hbitmap.into());
+            return None;
+        }
+
+        let mut bi: BITMAPINFO = std::mem::zeroed();
+        bi.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as u32;
+        bi.bmiHeader.biWidth = bmp.bmWidth;
+        bi.bmiHeader.biHeight = -bmp.bmHeight;
+        bi.bmiHeader.biPlanes = 1;
+        bi.bmiHeader.biBitCount = 32;
+        bi.bmiHeader.biCompression = BI_RGB.0;
+
+        let mut pixels_bgra = vec![0u8; (width * height * 4) as usize];
+        let hdc = CreateCompatibleDC(None);
+        if hdc.is_invalid() {
+            let _ = DeleteObject(hbitmap.into());
+            return None;
+        }
+        let lines = GetDIBits(
+            hdc,
+            hbitmap,
+            0,
+            height,
+            Some(pixels_bgra.as_mut_ptr().cast::<c_void>()),
+            &mut bi,
+            DIB_RGB_COLORS,
+        );
+        let _ = DeleteDC(hdc);
+        let _ = DeleteObject(hbitmap.into());
+        if lines == 0 {
+            return None;
+        }
+
+        for chunk in pixels_bgra.chunks_exact_mut(4) {
+            chunk.swap(0, 2);
+        }
+        Some((width, height, pixels_bgra))
+    }
+}
 
 impl Platform for WindowsPlatform {
     fn id(&self) -> &'static str {
@@ -261,6 +337,65 @@ impl Platform for WindowsPlatform {
             .spawn()
             .map(|_| ())
             .map_err(|err| format!("Failed to launch IDE: {err}"))
+    }
+
+    fn kill_process_tree(&self, pid: u32) {
+        // `/T` kills descendants too; CREATE_NO_WINDOW keeps the console hidden.
+        let _ = crate::win_process::command("taskkill")
+            .args(["/F", "/T", "/PID", &pid.to_string()])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+
+    fn python_command(&self) -> &'static str {
+        "python"
+    }
+
+    fn file_icon(&self, path: &Path, size: u16) -> Result<RgbaIcon, String> {
+        ensure_com_sta();
+        let icon = file_icon_provider::get_file_icon(path, size)
+            .map_err(|err| format!("shell icon failed: {err:?}"))?;
+        Ok(RgbaIcon {
+            width: icon.width,
+            height: icon.height,
+            pixels: icon.pixels,
+        })
+    }
+
+    /// Prefer Explorer's thumbnail cache / installed handlers (AIA-143), then
+    /// let callers fall back to `file_icon`. Never self-decode file bytes.
+    fn system_thumbnail(&self, path: &Path, size: u16) -> Result<RgbaIcon, String> {
+        let hstring = HSTRING::from(path.as_os_str());
+        let edge = i32::from(size);
+        let sz = SIZE { cx: edge, cy: edge };
+
+        unsafe {
+            ensure_com_sta();
+            let factory: IShellItemImageFactory = SHCreateItemFromParsingName(&hstring, None)
+                .map_err(|err| format!("SHCreateItemFromParsingName: {err}"))?;
+            let attempts = [
+                SIIGBF_INCACHEONLY | SIIGBF_THUMBNAILONLY | SIIGBF_RESIZETOFIT,
+                SIIGBF_THUMBNAILONLY | SIIGBF_BIGGERSIZEOK | SIIGBF_RESIZETOFIT,
+            ];
+            let mut last_err = String::from("no thumbnail");
+            for flags in attempts {
+                match factory.GetImage(sz, flags) {
+                    Ok(hbmp) => {
+                        if let Some((w, h, pixels)) = hbitmap_to_rgba(hbmp) {
+                            return Ok(RgbaIcon {
+                                width: w,
+                                height: h,
+                                pixels,
+                            });
+                        }
+                        last_err = "HBITMAP convert failed".into();
+                    }
+                    Err(err) => last_err = format!("GetImage: {err}"),
+                }
+            }
+            Err(last_err)
+        }
     }
 
     fn global_search_engine(&self) -> GlobalSearchEngine {

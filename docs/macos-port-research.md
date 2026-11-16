@@ -322,6 +322,8 @@
 > **7.20 再回收一项**：P1 第一行「终端 / IDE」的发现与启动也归位适配层（trait 12 → 17 个方法），macOS 用 `.app` + `/usr/bin/open -a`，Windows 侧逐字搬迁。仍未归位的是图标 / 废纸篓 / 剪贴板 / 搜索四个 provider，以及静态 bool 能力层。
 >
 > **7.21 回收「搜索」**：全局索引后端（Spotlight / Everything）归位适配层（trait 17 → 20 个方法），并新增能力字段 `global_search_engine` 让 UI 按真实引擎出文案——这是 6.5 第 4 条「能力层绑定实现」的第一小步，但字段值仍是静态枚举、**不是**由已注册 provider 动态回报。仍未归位：图标 / 废纸篓 / 剪贴板三个 provider，以及静态 bool 能力层本身。
+>
+> **7.23 回收「图标 provider + 进程树」**：trait 20 → 24 个方法，新增中立 `RgbaIcon`；Windows COM / `IShellItemImageFactory` 与 macOS `file_icon_provider` 各自落在适配器，`shell_icons` 只剩中立编码与缓存；进程树终止与 sidecar 解释器也归位适配层（`sysinfo` 的 `system` feature；Windows 保留 `taskkill /T`）。**仍未归位：废纸篓 / 剪贴板两个 provider，以及静态 bool 能力层本身**；macOS 内容缩略图按 7.23 的实测结果显式降级，不是已实现。
 
 > 表中 ⚠️ / ❌ 是复盘当时的状态；其中 3 项代码级浪费已在第二轮（7.7）回收，最新状态以 7.7 为准。第三轮（7.8）把能力层的**前端契约**接上，并用静态断言守住 TS/Rust 字段同步；社区插件与 `sysinfo` 等排期仍按 6.5 执行。
 
@@ -643,7 +645,7 @@
 
 **仍待用户实机确认**：`set_title("")` 对窗口菜单的影响、「此电脑」卷列表呈现、dot-file 隐藏开关、磁盘空间用量条。交通灯落点与 78px 留白已在 7.17 实机截图验证并补齐：初版只做了水平避让，垂直方向仍错开约 26pt。其余项沙箱内无法截图。
 
-**下一轮候选（按 6.5 门禁逐项判定，勿误判为已完成）**：Rust 侧仍有约 20 处 `replace('/', "\\")` 规范化（`visit_stats` / `projects` / `favorites` / `discovery` / `ai/*` / `file_ops` / `terminal` 等）。多数是比较键 / 缓存键，不产生交给后端的真实路径；但 `terminal/mod.rs:142`、`ai/open_editor.rs:58`、`ai/harness.rs:28`、`file_ops/recycle.rs:26` 疑似产出真实路径，需逐个确认后再平台化。P1 的终端/IDE `open -a`、废纸篓 TCC（或改 `~/.Trash` 移动）、全局搜索 Spotlight、进程树清理，以及 P2 的 i18n Windows 名词 / 原生菜单，仍按原排期。**（7.20 已逐个确认并把「真实路径」类收口：终端 / IDE 归位适配层、`ai/*` 与 `open_editor` / `harness` / `visit_stats` / `projects/index` 委托 `crate::paths`；`recycle` / `safe_io` / Windows-only 模块确认为可豁免，见 7.20。7.21 已完成「全局搜索」Spotlight 归位，并纠正了当时把 `discovery/blacklist` 判为「仅比较键」的遗漏——它其实会回显到设置页。**7.22 已回收 24 组主文案的 P2 i18n Windows 名词（系统文件管理器 / 废纸篓 / 此电脑 / 快捷键 / 默认路径），但仍有示例路径、后端硬编码中文等残留，见 7.22 边界。仍未排期：废纸篓 TCC / `~/.Trash` 列表还原、进程树清理、原生菜单。）**
+**下一轮候选（按 6.5 门禁逐项判定，勿误判为已完成）**：Rust 侧仍有约 20 处 `replace('/', "\\")` 规范化（`visit_stats` / `projects` / `favorites` / `discovery` / `ai/*` / `file_ops` / `terminal` 等）。多数是比较键 / 缓存键，不产生交给后端的真实路径；但 `terminal/mod.rs:142`、`ai/open_editor.rs:58`、`ai/harness.rs:28`、`file_ops/recycle.rs:26` 疑似产出真实路径，需逐个确认后再平台化。P1 的终端/IDE `open -a`、废纸篓 TCC（或改 `~/.Trash` 移动）、全局搜索 Spotlight、进程树清理，以及 P2 的 i18n Windows 名词 / 原生菜单，仍按原排期。**（7.20 已逐个确认并把「真实路径」类收口：终端 / IDE 归位适配层、`ai/*` 与 `open_editor` / `harness` / `visit_stats` / `projects/index` 委托 `crate::paths`；`recycle` / `safe_io` / Windows-only 模块确认为可豁免，见 7.20。7.21 已完成「全局搜索」Spotlight 归位，并纠正了当时把 `discovery/blacklist` 判为「仅比较键」的遗漏——它其实会回显到设置页。**7.22 已回收 24 组主文案的 P2 i18n Windows 名词（系统文件管理器 / 废纸篓 / 此电脑 / 快捷键 / 默认路径），但仍有示例路径、后端硬编码中文等残留，见 7.22 边界。仍未排期：废纸篓 TCC / `~/.Trash` 列表还原、原生菜单；进程树清理与 sidecar 解释器已于 7.23 归位适配层。）**
 
 ### 7.16 架构收口（第 11 轮）：把第 7~10 轮的旁路压回适配层
 
@@ -909,6 +911,36 @@
 **验证**：`npm test` 全量 exit 0（含 `test:platform-terms`、Rust **310 passed / 0 failed / 2 ignored**）；`npm run build`（`vue-tsc --noEmit` + vite）通过；`git diff --check` 通过；5 个 locale 各只 +28 行，Windows 正文 diff 为 0。运行时单测 `platform copy merge checks OK`，契约 `24 keys × 5 locales, 108 non-identical`。
 
 **边界（勿误判为完成）**：本轮**未启动 GUI**，macOS 上实际显示的「访达 / 废纸篓 / 这台 Mac / ⌘+⇧+P」需用户实机确认；P2 表第 97 行列的 `C:\Windows`、`\\server\share`、`WebView2 Runtime`、AI 文案里的 `APPDATA` 概念词、`blacklistPlaceholder` / `installPathPlaceholder` / `networkEmpty` 示例路径、extensions 里日语「この PC」仍未平台化；`deps_probe` 后端的依赖标题 / 说明是**硬编码中文**、不走 i18n；F 键被 macOS 媒体键占用、原生菜单栏 / Cmd+Q / Cmd+W、字体与 `color-mix()` 仍按原 P2 排期。7.21 结尾列的废纸篓 TCC / 列表还原、进程树清理、三个 provider 归位、静态 bool 能力层、`DriveInfo.letter` 均**未动**。
+
+### 7.23 P1 收尾：进程树清理 + 图标 provider 归位（第 18 轮）
+
+**触发**：用户在 7.22 之后的两项候选中选了「P1 收尾」（进程树 + 图标 provider）。7.22 的文档边界与 P1 表第 87 行都明确：`win_process::kill_process_tree` 非 Windows 是空实现，rclone 超时后子进程会泄漏；sidecar 默认命令写死 `python`；图标实现散在 `shell_icons` 的 `#[cfg(windows)]` 里，macOS 没有内容缩略图。
+
+**先过 6.5 第 1 / 6 条门禁**：
+
+| 缺口 | 四选一 | 依据 |
+|---|---|---|
+| 进程树终止 | **复用**已引入的 `sysinfo 0.40.3`（`features` 加 `system`，`Cargo.lock` 仅 +11 行） | `Process::parent()` / `kill()` 已覆盖 OS 细节；只自写「按根收集后代、逆序杀、防环」这一层语义，不重新实现进程枚举。Windows 的 `taskkill /F /T` 原样保留 |
+| sidecar 解释器 | **复用**新增的能力层契约 `python_command()` | 纯字符串差异，不需要新 crate；Windows 仍返回 `python` |
+| 文件类型图标 | **复用**已装的 `file_icon_provider`（NSWorkspace / freedesktop），只做归位 | 6.4 矩阵第 306 行已确认该 crate 覆盖 macOS 图标，重复实现只会引入 ObjC 细节 |
+| 系统内容缩略图 | **降级**，保持显式 `Err` + 类型图标兜底 | 本机实测 `/usr/bin/qlmanage -t` 返回 `sandbox initialization failed: Operation not permitted`（退出码 255，无输出文件）；`QLThumbnailGenerator` 需异步 ObjC run loop + 新依赖。宁可明确降级，也不引入无法在本会话验证的代码；契约禁止静默加 `qlmanage` 调用 |
+
+**改动**：
+
+| 落点 | 内容 |
+|---|---|
+| `platform/mod.rs` | 新增中立 `RgbaIcon { width, height, pixels }`；trait **20 → 24 个方法**（`kill_process_tree` / `python_command` / `file_icon` / `system_thumbnail`），OS 图像类型不越过适配层 |
+| `platform/windows.rs` | 从 `shell_icons` **逐字搬迁** COM STA、`HBITMAP→RGBA`、`IShellItemImageFactory` 的 cache-only → handler 两次尝试；进程树仍走 `taskkill /F /T /PID`（经 `win_process::command`，CREATE_NO_WINDOW 不变）；`python_command()` 返回 `python` |
+| `platform/macos.rs` | `sysinfo` 构建 PPID 图 → 纯函数 `collect_process_tree()` 深度优先收集（带 visited 防环）→ **叶到根** `Process::kill()`，避免父先死造成孤儿；`file_icon_provider` 出 NSWorkspace 图标；`system_thumbnail()` 返回明确错误；`python_command()` 返回 `python3` |
+| `win_process.rs` / `tool_runtime/sidecar.rs` | `kill_process_tree()` 变薄委托，零 `#[cfg]`；sidecar 默认贡献与两处测试断言改用 `platform::python_command()`，Windows 语义不变 |
+| `shell_icons/mod.rs` | 删掉全部 Win32 imports、`ensure_com_sta`、`hbitmap_to_rgba` 与两个 cfg 版 `system_thumbnail_data_url`，只保留中立的 RGBA→PNG 编码 + 缓存 + `thumbnail → file_icon` 兜底；业务模块不再出现 OS 图像类型 |
+| 静态契约 | `check-shell-icons.mjs` 与 `check-no-console-flash.mjs` 的断言**改指向适配层但未放宽**：SIIGBF 缓存优先、禁止自解码、`taskkill /T`、`child.kill()`、CREATE_NO_WINDOW 全部保留；新增「`shell_icons` 不得含 `use windows::` / `HBITMAP`」「两端必须实现 4 个新方法」「macOS 不得调用 `qlmanage`」「python/python3 不能被写回业务模块」 |
+
+**本机实测**：`qlmanage -t -s 64 -o <tmp> <png>` → exit 255、stderr `sandbox initialization failed: Operation not permitted`、输出目录为空（因此缩略图降级，非文档推断）。
+
+**验证**：`cargo check`（默认 / `--no-default-features`）均 0 警告；`cargo test --lib` **332 passed / 0 failed / 2 ignored**（上一轮 310，+22）；`npm test` 全量 exit 0（含 `test:shell-icons` / `test:no-console-flash` / `test:platform-terms`）；`npm run build`、`rustfmt --check`（`skip_children=true`）、`git diff --check` 全通过。
+
+**边界（勿误判为完成）**：Windows 适配器的**类型检查仍待 Windows CI**（本机无 `x86_64-w64-mingw32-gcc`，同 7.20/7.21；本轮只做了 `rustfmt --check` 语法级校验）；macOS 内容缩略图仍是**降级**，Quick Look 未在真实 app（非会话沙箱）验证；进程树用 `Process::kill()`（Unix SIGKILL），没有优雅退出 / 超时退避，也没有真实子进程的集成测试（只测了纯 PPID walk 的防环与顺序）；`RgbaIcon → PNG` 编码仍在业务模块，但已是中立像素操作；`PlatformCapabilities` 仍是静态 bool（6.5 第 4 条未完），废纸篓 / 剪贴板两个 provider 未归位，`DriveInfo.letter` 未清洗，原生菜单与 P2 其余项未动。
 
 ---
 

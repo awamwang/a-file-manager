@@ -44,7 +44,7 @@ tauri-plugin-drag = "2"
 # Direct dep so AIA-261/264 host subclass can read OLE / deferred-activate / drag-gesture flags.
 drag = "2.1.1"
 ureq = { version = "3.5.1", features = ["json"] }
-sysinfo = { version = "0.40.3", default-features = false, features = ["disk"] }
+sysinfo = { version = "0.40.3", default-features = false, features = ["disk", "system"] }
 
 # AppKit bindings are macOS-only; Tauri/tao already pull the same versions.
 [target.'cfg(target_os = "macos")'.dependencies]

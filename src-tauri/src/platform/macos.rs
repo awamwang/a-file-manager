@@ -8,13 +8,36 @@
 #[cfg(target_os = "macos")]
 use super::SearchHit;
 use super::{
-    has_uri_scheme, GlobalSearchEngine, LaunchTarget, Platform, PlatformCapabilities, SearchProbe,
-    SearchQueryResult, Volume, VolumeKind, VolumeSpace, WindowChrome,
+    has_uri_scheme, GlobalSearchEngine, LaunchTarget, Platform, PlatformCapabilities, RgbaIcon,
+    SearchProbe, SearchQueryResult, Volume, VolumeKind, VolumeSpace, WindowChrome,
 };
+use std::collections::{HashMap, HashSet};
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
+use sysinfo::{Pid, ProcessesToUpdate, System};
 
 pub struct MacosPlatform;
+
+/**
+ * Walk the PPID graph once, then collect a root's descendants depth-first.
+ * Kept pure (no `System`, no signals) so the traversal is testable without
+ * spawning sacrificial processes; `Pid` is a sysinfo newtype.
+ */
+fn collect_process_tree(children: &HashMap<Pid, Vec<Pid>>, root: Pid) -> Vec<Pid> {
+    let mut seen = HashSet::new();
+    let mut stack = vec![root];
+    let mut order = Vec::new();
+    while let Some(pid) = stack.pop() {
+        if !seen.insert(pid) {
+            continue;
+        }
+        if let Some(kids) = children.get(&pid) {
+            stack.extend(kids.iter().copied());
+        }
+        order.push(pid);
+    }
+    order
+}
 
 /// Self-drawn caption height, mirrored from `--fluent-titlebar-height` in
 /// `src/styles/fluent-tokens.css`. The native traffic lights are centred on
@@ -367,6 +390,52 @@ impl Platform for MacosPlatform {
             let _ = (target, path);
             Err("IDE launch is only supported on macOS".to_string())
         }
+    }
+
+    fn kill_process_tree(&self, pid: u32) {
+        // sysinfo's `system` feature reuses the process table already present
+        // on macOS/Linux; no `taskkill` equivalent or shelling out needed.
+        let Ok(mut sys) = System::new_all() else {
+            return;
+        };
+        sys.refresh_processes(ProcessesToUpdate::All, false);
+        let mut children: HashMap<Pid, Vec<Pid>> = HashMap::new();
+        for (child, process) in sys.processes() {
+            if let Some(parent) = process.parent() {
+                children.entry(parent).or_default().push(*child);
+            }
+        }
+        let tree = collect_process_tree(&children, Pid::from_u32(pid));
+        // Leaf-first: killing a parent first can reparent/orphan its children.
+        for target in tree.into_iter().rev() {
+            if let Some(process) = sys.processes().get(&target) {
+                let _ = process.kill();
+            }
+        }
+    }
+
+    fn python_command(&self) -> &'static str {
+        // macOS ships `python3`; bare `python` may be absent or Python 2.
+        "python3"
+    }
+
+    fn file_icon(&self, path: &Path, size: u16) -> Result<RgbaIcon, String> {
+        // `file_icon_provider` wraps NSWorkspace (UTI) on macOS and the
+        // freedesktop icon theme elsewhere; no ObjC leaks out of this adapter.
+        let icon = file_icon_provider::get_file_icon(path, size)
+            .map_err(|err| format!("file icon failed: {err:?}"))?;
+        Ok(RgbaIcon {
+            width: icon.width,
+            height: icon.height,
+            pixels: icon.pixels,
+        })
+    }
+
+    fn system_thumbnail(&self, _path: &Path, _size: u16) -> Result<RgbaIcon, String> {
+        // Deliberate downgrade: qlmanage failed with `sandbox initialization
+        // failed` on the dev host (7.23), and QLThumbnailGenerator needs an
+        // async ObjC run loop. Callers fall back to the NSWorkspace type icon.
+        Err("System thumbnails are unavailable on macOS; using the file-type icon".to_string())
     }
 
     fn global_search_engine(&self) -> GlobalSearchEngine {
@@ -759,5 +828,34 @@ mod tests {
             .is_none());
 
         let _ = fs::remove_dir_all(std::env::temp_dir().join(format!("afm-launch-{stamp}")));
+    }
+
+    #[test]
+    fn python_command_is_python3_on_unix() {
+        assert_eq!(MacosPlatform.python_command(), "python3");
+    }
+
+    #[test]
+    fn process_tree_collection_is_cycle_safe_and_includes_descendants() {
+        let mut children: HashMap<Pid, Vec<Pid>> = HashMap::new();
+        children.insert(
+            Pid::from_u32(10),
+            vec![Pid::from_u32(11), Pid::from_u32(12)],
+        );
+        children.insert(Pid::from_u32(11), vec![Pid::from_u32(13)]);
+        children.insert(Pid::from_u32(13), vec![Pid::from_u32(10)]); // cycle guard
+        let tree = collect_process_tree(&children, Pid::from_u32(10));
+        assert_eq!(tree.len(), 4, "each pid visited exactly once");
+        assert_eq!(tree[0].as_u32(), 10, "root must come first (killed last)");
+        let ids: HashSet<u32> = tree.iter().map(|pid| pid.as_u32()).collect();
+        assert_eq!(ids, HashSet::from([10, 11, 12, 13]));
+    }
+
+    #[test]
+    fn system_thumbnail_downgrade_is_explicit() {
+        let err = MacosPlatform
+            .system_thumbnail(Path::new("/tmp/afm-no-such-file"), 32)
+            .unwrap_err();
+        assert!(err.contains("unavailable"), "{err}");
     }
 }

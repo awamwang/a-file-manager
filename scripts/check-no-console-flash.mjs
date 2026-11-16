@@ -15,6 +15,8 @@ const ide = read("src-tauri/src/ide_launch/mod.rs");
 // 7.20: launcher discovery / spawn moved into the platform adapters.
 const windowsAdapter = read("src-tauri/src/platform/windows.rs");
 const macosAdapter = read("src-tauri/src/platform/macos.rs");
+const platformMod = read("src-tauri/src/platform/mod.rs");
+const sidecar = read("src-tauri/src/tool_runtime/sidecar.rs");
 const rclone = read("src-tauri/src/providers/rclone.rs");
 const openWith = read("src-tauri/src/open_with/mod.rs");
 const menu = read("src/components/navigator/NavigatorContextMenu.vue");
@@ -28,6 +30,36 @@ assert.ok(lib.includes("mod win_process"), "lib must register win_process");
 assert.ok(
   winProcess.includes("CREATE_NO_WINDOW") && winProcess.includes("resolve_on_path"),
   "win_process must expose CREATE_NO_WINDOW + PATH resolve",
+);
+// 7.23: process-tree termination and the default sidecar interpreter are host
+// capabilities, not `#[cfg]` branches in business code.
+assert.ok(
+  winProcess.includes("crate::platform::kill_process_tree")
+    && !/\bkill_process_tree[\s\S]{0,200}taskkill/.test(winProcess),
+  "win_process::kill_process_tree must delegate to the platform adapter",
+);
+assert.ok(
+  platformMod.includes("fn kill_process_tree") && platformMod.includes("fn python_command"),
+  "process-tree kill / python interpreter must be part of the neutral contract",
+);
+assert.ok(
+  windowsAdapter.includes("fn kill_process_tree") && windowsAdapter.includes("taskkill")
+    && macosAdapter.includes("fn kill_process_tree") && macosAdapter.includes("sysinfo"),
+  "Windows keeps /T; Unix walks the PPID graph via sysinfo",
+);
+const pythonFnBody = (source) => {
+  const start = source.indexOf("fn python_command(");
+  return start < 0 ? "" : source.slice(start, start + 220);
+};
+assert.ok(
+  pythonFnBody(windowsAdapter).includes('"python"')
+    && pythonFnBody(macosAdapter).includes('"python3"'),
+  "sidecar interpreter must stay python on Windows and python3 on Unix",
+);
+assert.ok(
+  sidecar.includes("crate::platform::python_command()")
+    && !sidecar.includes('command: "python".to_string()'),
+  "sidecar default contribution must come from the platform contract",
 );
 
 assert.ok(

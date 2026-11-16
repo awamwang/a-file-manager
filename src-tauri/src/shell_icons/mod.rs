@@ -1,36 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Windows shell icons + system thumbnails (AIA-65 · AIA-143).
+//! Platform-neutral icon / thumbnail encoding and bounded cache (AIA-65 · AIA-143).
 //!
-//! Prefer Windows Shell `IShellItemImageFactory` results (Explorer thumbnail
-//! cache / installed handlers). Do **not** self-decode files into thumbnails.
+//! OS image types and Shell/AppKit calls live in `platform/` (7.23); this module
+//! only encodes neutral RGBA to PNG and caches it. Do **not** self-decode files
+//! into thumbnails.
 
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
-use file_icon_provider::get_file_icon;
 use image::codecs::png::PngEncoder;
 use image::{ColorType, ImageEncoder};
 use once_cell::sync::Lazy;
 use serde::Serialize;
 use std::collections::{HashMap, VecDeque};
-#[cfg(windows)]
-use std::ffi::c_void;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-// Win32 bindings are compiled only on Windows; `windows` is an empty crate elsewhere.
-#[cfg(windows)]
-use windows::{
-    core::HSTRING,
-    Win32::Foundation::SIZE,
-    Win32::Graphics::Gdi::{
-        CreateCompatibleDC, DeleteDC, DeleteObject, GetDIBits, GetObjectW, BI_RGB, BITMAP,
-        BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, HBITMAP,
-    },
-    Win32::System::Com::{CoInitializeEx, COINIT_APARTMENTTHREADED},
-    Win32::UI::Shell::{
-        IShellItemImageFactory, SHCreateItemFromParsingName, SIIGBF_BIGGERSIZEOK,
-        SIIGBF_INCACHEONLY, SIIGBF_RESIZETOFIT, SIIGBF_THUMBNAILONLY,
-    },
-};
 
 /// Bound process-side Shell results so extreme folders cannot retain every PNG data URL (AIA-279).
 const MAX_ICON_CACHE_ENTRIES: usize = 384;
@@ -103,7 +86,10 @@ fn encode_rgba_png_data_url(width: u32, height: u32, pixels: &[u8]) -> Result<St
             .write_image(pixels, width, height, ColorType::Rgba8.into())
             .map_err(|err| format!("PNG encode failed: {err}"))?;
     }
-    Ok(format!("data:image/png;base64,{}", BASE64.encode(png_bytes)))
+    Ok(format!(
+        "data:image/png;base64,{}",
+        BASE64.encode(png_bytes)
+    ))
 }
 
 fn cache_key(path: &str, size: u16, kind: &str) -> String {
@@ -187,124 +173,17 @@ fn icon_source_path(path: &Path) -> PathBuf {
     path.to_path_buf()
 }
 
-#[cfg(windows)]
-fn ensure_com_sta() {
-    // Ensure COM for this thread; do not CoUninitialize (host may own it).
-    let _ = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
-}
-
-#[cfg(not(windows))]
-fn ensure_com_sta() {
-    // WKWebView / NSWorkspace need no COM apartment.
-}
-
 fn shell_icon_data_url(path: &Path, size: u16) -> Result<String, String> {
-    ensure_com_sta();
-    let icon = get_file_icon(path, size).map_err(|err| format!("shell icon failed: {err:?}"))?;
+    let icon = crate::platform::file_icon(path, size)?;
     encode_rgba_png_data_url(icon.width, icon.height, &icon.pixels)
 }
 
-#[cfg(windows)]
-fn hbitmap_to_rgba(hbitmap: HBITMAP) -> Option<(u32, u32, Vec<u8>)> {
-    unsafe {
-        let mut bmp: BITMAP = std::mem::zeroed();
-        if GetObjectW(
-            hbitmap.into(),
-            std::mem::size_of::<BITMAP>() as i32,
-            Some((&raw mut bmp).cast::<c_void>()),
-        ) == 0
-        {
-            let _ = DeleteObject(hbitmap.into());
-            return None;
-        }
-
-        let width = bmp.bmWidth.max(0) as u32;
-        let height = bmp.bmHeight.max(0) as u32;
-        if width == 0 || height == 0 {
-            let _ = DeleteObject(hbitmap.into());
-            return None;
-        }
-
-        let mut bi: BITMAPINFO = std::mem::zeroed();
-        bi.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as u32;
-        bi.bmiHeader.biWidth = bmp.bmWidth;
-        bi.bmiHeader.biHeight = -bmp.bmHeight;
-        bi.bmiHeader.biPlanes = 1;
-        bi.bmiHeader.biBitCount = 32;
-        bi.bmiHeader.biCompression = BI_RGB.0;
-
-        let mut pixels_bgra = vec![0u8; (width * height * 4) as usize];
-        let hdc = CreateCompatibleDC(None);
-        if hdc.is_invalid() {
-            let _ = DeleteObject(hbitmap.into());
-            return None;
-        }
-        let lines = GetDIBits(
-            hdc,
-            hbitmap,
-            0,
-            height,
-            Some(pixels_bgra.as_mut_ptr().cast::<c_void>()),
-            &mut bi,
-            DIB_RGB_COLORS,
-        );
-        let _ = DeleteDC(hdc);
-        let _ = DeleteObject(hbitmap.into());
-        if lines == 0 {
-            return None;
-        }
-
-        // BGRA → RGBA
-        for chunk in pixels_bgra.chunks_exact_mut(4) {
-            chunk.swap(0, 2);
-        }
-        Some((width, height, pixels_bgra))
-    }
-}
-
-/// Probe Shell thumbnail cache / handlers via `IShellItemImageFactory`.
-/// Tries cache-only first, then allows handlers to produce a thumbnail.
-#[cfg(windows)]
+/// Windows Shell cache / handlers live in `platform/windows.rs`; macOS and
+/// other Unix hosts downgrade to the NSWorkspace type icon (7.23). Callers keep
+/// the `thumbnail → file icon` fallback unchanged.
 fn system_thumbnail_data_url(path: &Path, size: u16) -> Result<String, String> {
-    let hstring = HSTRING::from(path.as_os_str());
-    let edge = i32::from(size);
-    let sz = SIZE { cx: edge, cy: edge };
-
-    unsafe {
-        ensure_com_sta();
-
-        let factory: IShellItemImageFactory = SHCreateItemFromParsingName(&hstring, None)
-            .map_err(|err| format!("SHCreateItemFromParsingName: {err}"))?;
-
-        let attempts = [
-            SIIGBF_INCACHEONLY | SIIGBF_THUMBNAILONLY | SIIGBF_RESIZETOFIT,
-            SIIGBF_THUMBNAILONLY | SIIGBF_BIGGERSIZEOK | SIIGBF_RESIZETOFIT,
-        ];
-
-        let mut last_err = String::from("no thumbnail");
-        for flags in attempts {
-            match factory.GetImage(sz, flags) {
-                Ok(hbmp) => {
-                    if let Some((w, h, pixels)) = hbitmap_to_rgba(hbmp) {
-                        return encode_rgba_png_data_url(w, h, &pixels);
-                    }
-                    last_err = "HBITMAP convert failed".into();
-                }
-                Err(err) => {
-                    last_err = format!("GetImage: {err}");
-                }
-            }
-        }
-
-        Err(last_err)
-    }
-}
-
-/// No Win32 Shell thumbnail handler on other platforms. `file_icon_provider`
-/// still supplies the type icon, so callers degrade instead of failing.
-#[cfg(not(windows))]
-fn system_thumbnail_data_url(_path: &Path, _size: u16) -> Result<String, String> {
-    Err("System thumbnails are Windows-only".to_string())
+    let icon = crate::platform::system_thumbnail(path, size)?;
+    encode_rgba_png_data_url(icon.width, icon.height, &icon.pixels)
 }
 
 pub fn resolve_icon(path: &str, size: u16, prefer_thumbnail: bool) -> ShellIconResult {
@@ -443,7 +322,9 @@ mod tests {
         }
         assert_eq!(cache.len(), MAX_ICON_CACHE_ENTRIES);
         assert!(cache.get("k0").is_none(), "oldest entries must be evicted");
-        assert!(cache.get(&format!("k{}", MAX_ICON_CACHE_ENTRIES + 9)).is_some());
+        assert!(cache
+            .get(&format!("k{}", MAX_ICON_CACHE_ENTRIES + 9))
+            .is_some());
     }
 
     #[test]
@@ -593,7 +474,11 @@ mod tests {
         let result = resolve_icon(&file.to_string_lossy(), 16, false);
         assert_eq!(result.kind, "icon");
         assert!(
-            result.data_url.as_ref().map(|u| u.starts_with("data:image/png")).unwrap_or(false),
+            result
+                .data_url
+                .as_ref()
+                .map(|u| u.starts_with("data:image/png"))
+                .unwrap_or(false),
             "expected png data url, got {:?}",
             result.data_url
         );
