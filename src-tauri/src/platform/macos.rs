@@ -8,8 +8,9 @@
 #[cfg(target_os = "macos")]
 use super::SearchHit;
 use super::{
-    has_uri_scheme, GlobalSearchEngine, LaunchTarget, Platform, PlatformCapabilities, RgbaIcon,
-    SearchProbe, SearchQueryResult, Volume, VolumeKind, VolumeSpace, WindowChrome,
+    has_uri_scheme, ClipboardProvider, GlobalSearchEngine, LaunchTarget, Platform,
+    PlatformCapabilities, RgbaIcon, SearchProbe, SearchQueryResult, TrashProvider, Volume,
+    VolumeKind, VolumeSpace, WindowChrome,
 };
 use std::collections::{HashMap, HashSet};
 use std::fs::Metadata;
@@ -186,11 +187,8 @@ impl Platform for MacosPlatform {
         caps.shell_icons = true; // file_icon_provider (NSWorkspace)
                                  // trash 5.2 moves items via Finder automation on macOS; it needs the
                                  // app to hold Automation/Finder TCC permission (see research doc 7.5).
-        caps.trash_delete = true;
-        // trash::os_limited (list/restore/purge) is Windows + freedesktop only;
-        // macOS is explicitly excluded by the crate, so keep this off and let
-        // the UI offer `open_recycle_bin_system()` (`~/.Trash`) instead.
-        caps.trash_list_restore = false;
+                                 // `trash_delete` / `trash_list_restore` / `shell_clipboard` are derived
+                                 // from the registered providers by `apply_provider_capabilities` below.
         caps.system_tray = true; // Tauri TrayIconBuilder → NSStatusItem
                                  // 7.13: the AppKit drag-out command in `tauri-plugin-drag` aborts the
                                  // process on macOS, so `native_drag_out` stays false. The working
@@ -203,11 +201,23 @@ impl Platform for MacosPlatform {
         // macOS-only — Linux must keep reporting "none".
         #[cfg(target_os = "macos")]
         {
-            caps.global_search = true;
             caps.global_search_engine = "spotlight".to_string();
         }
+        // Provider-backed bits (trash / clipboard / search) come from the
+        // registered providers, not hand-written booleans (7.24).
+        caps.apply_provider_capabilities(self);
         // Deliberately false until implemented: see docs/macos-port-research.md.
         caps
+    }
+
+    fn trash_provider(&self) -> Option<&dyn TrashProvider> {
+        Some(&super::NATIVE_TRASH)
+    }
+
+    fn clipboard_provider(&self) -> Option<&dyn ClipboardProvider> {
+        // No CF_HDROP / Preferred DropEffect backend on Unix. The neutral
+        // `clipboard_*` free functions degrade without panicking (7.24).
+        None
     }
 
     /// Moved from `navigator::places::list_drives` (7.16). `sysinfo::Disks`
@@ -685,6 +695,11 @@ mod tests {
     use super::*;
 
     #[test]
+    fn macos_adapter_honours_the_shared_provider_contract() {
+        super::super::assert_provider_capability_contract(&MacosPlatform);
+    }
+
+    #[test]
     fn unix_paths_are_not_rewritten() {
         let p = MacosPlatform;
         assert_eq!(
@@ -704,7 +719,8 @@ mod tests {
         let caps = MacosPlatform.capabilities();
         assert!(!caps.registry_autostart);
         assert!(!caps.os_shell_verb);
-        assert!(!caps.trash_list_restore);
+        // trashListRestore is now checked against the registered provider by
+        // `assert_provider_capability_contract`, not duplicated here (7.24).
         assert!(!caps.system_thumbnails);
         assert!(!caps.webview2_required);
         assert_eq!(caps.path_separator, "/");

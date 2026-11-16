@@ -3,8 +3,9 @@
 //! drive letters / UNC, case-insensitive comparison, HKCU Run, Win32 icons.
 
 use super::{
-    has_uri_scheme, GlobalSearchEngine, LaunchTarget, Platform, PlatformCapabilities, RgbaIcon,
-    SearchProbe, SearchQueryResult, Volume, VolumeKind, VolumeSpace, WindowChrome,
+    has_uri_scheme, ClipboardProvider, GlobalSearchEngine, LaunchTarget, Platform,
+    PlatformCapabilities, RgbaIcon, SearchProbe, SearchQueryResult, TrashProvider, Volume,
+    VolumeKind, VolumeSpace, WindowChrome,
 };
 use std::ffi::c_void;
 use std::fs::Metadata;
@@ -158,14 +159,14 @@ impl Platform for WindowsPlatform {
         caps.case_insensitive_paths = self.case_insensitive_paths();
         caps.shell_icons = true;
         caps.system_thumbnails = true;
-        caps.trash_delete = true;
-        caps.trash_list_restore = true;
         caps.native_open_with_dialog = true;
         caps.native_context_menu = true;
         caps.os_shell_verb = true;
         caps.registry_autostart = true;
         caps.single_instance = true;
-        caps.global_search = true;
+        // Provider-backed bits (trash / clipboard / search) come from the
+        // registered providers, not hand-written booleans (7.24).
+        caps.apply_provider_capabilities(self);
         caps.global_search_engine = "everything".to_string();
         caps.quick_look_preview = true;
         caps.ole_drag_out = true;
@@ -175,6 +176,14 @@ impl Platform for WindowsPlatform {
         caps.system_tray = true;
         caps.webview2_required = true;
         caps
+    }
+
+    fn trash_provider(&self) -> Option<&dyn TrashProvider> {
+        Some(&super::NATIVE_TRASH)
+    }
+
+    fn clipboard_provider(&self) -> Option<&dyn ClipboardProvider> {
+        Some(&super::NATIVE_CLIPBOARD)
     }
 
     /// Moved verbatim from `navigator::places::list_drives` (7.16): the
@@ -675,6 +684,11 @@ fn volume_root(path: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn windows_adapter_honours_the_shared_provider_contract() {
+        super::super::assert_provider_capability_contract(&WindowsPlatform);
+    }
 
     #[test]
     fn windows_drive_and_uri() {

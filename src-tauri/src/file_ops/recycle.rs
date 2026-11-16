@@ -7,7 +7,9 @@
 //! capability bit `trashListRestore` stays false, so the UI must hide these
 //! commands and offer `open_recycle_bin_system()` (`~/.Trash` in Finder).
 
-use serde::Serialize;
+// 7.24: the payload DTO is neutral and lives in `platform/`; this module is
+// the Windows Shell.Application backend behind `TrashProvider`.
+pub use crate::platform::RecycleBinItem;
 #[cfg(any(windows, test))]
 use std::fs;
 #[cfg(windows)]
@@ -16,15 +18,6 @@ use std::path::Path;
 use std::path::PathBuf;
 #[cfg(windows)]
 use std::process::Command;
-
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct RecycleBinItem {
-    pub name: String,
-    pub original_path: String,
-    /// Shell item path inside the bin (used for restore).
-    pub recycle_path: String,
-}
 
 /// List Recycle Bin entries (name + original path).
 pub fn list_recycle_bin() -> Result<Vec<RecycleBinItem>, String> {
@@ -199,9 +192,7 @@ pub fn restore_original_paths(original_paths: &[String]) -> Result<Vec<String>, 
 
 #[cfg(windows)]
 fn restore_original_paths_with_list(wanted_file: &Path) -> Result<Vec<String>, String> {
-    let escaped = wanted_file
-        .to_string_lossy()
-        .replace('\'', "''");
+    let escaped = wanted_file.to_string_lossy().replace('\'', "''");
     let script = format!(
         r#"
 $ErrorActionPreference = 'Stop'
@@ -276,7 +267,9 @@ mod tests {
             vec![r"C:\a.txt".to_string()]
         );
         assert_eq!(
-            parse_restored_paths(r#"["C:\\a.txt","D:\\b.txt"]"#).unwrap().len(),
+            parse_restored_paths(r#"["C:\\a.txt","D:\\b.txt"]"#)
+                .unwrap()
+                .len(),
             2
         );
     }

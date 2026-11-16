@@ -25,6 +25,8 @@ export type PlatformCapabilities = {
   systemThumbnails: boolean;
   trashDelete: boolean;
   trashListRestore: boolean;
+  /** File clipboard provider registered (CF_HDROP on Windows). 7.24. */
+  shellClipboard: boolean;
   nativeOpenWithDialog: boolean;
   nativeContextMenu: boolean;
   osShellVerb: boolean;
@@ -65,6 +67,7 @@ export const NEUTRAL_PLATFORM: PlatformCapabilities = {
   systemThumbnails: false,
   trashDelete: false,
   trashListRestore: false,
+  shellClipboard: false,
   nativeOpenWithDialog: false,
   nativeContextMenu: false,
   osShellVerb: false,

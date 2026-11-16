@@ -323,7 +323,7 @@
 >
 > **7.21 回收「搜索」**：全局索引后端（Spotlight / Everything）归位适配层（trait 17 → 20 个方法），并新增能力字段 `global_search_engine` 让 UI 按真实引擎出文案——这是 6.5 第 4 条「能力层绑定实现」的第一小步，但字段值仍是静态枚举、**不是**由已注册 provider 动态回报。仍未归位：图标 / 废纸篓 / 剪贴板三个 provider，以及静态 bool 能力层本身。
 >
-> **7.23 回收「图标 provider + 进程树」**：trait 20 → 24 个方法，新增中立 `RgbaIcon`；Windows COM / `IShellItemImageFactory` 与 macOS `file_icon_provider` 各自落在适配器，`shell_icons` 只剩中立编码与缓存；进程树终止与 sidecar 解释器也归位适配层（`sysinfo` 的 `system` feature；Windows 保留 `taskkill /T`）。**仍未归位：废纸篓 / 剪贴板两个 provider，以及静态 bool 能力层本身**；macOS 内容缩略图按 7.23 的实测结果显式降级，不是已实现。
+> **7.23 回收「图标 provider + 进程树」**：trait 20 → 24 个方法，新增中立 `RgbaIcon`；Windows COM / `IShellItemImageFactory` 与 macOS `file_icon_provider` 各自落在适配器，`shell_icons` 只剩中立编码与缓存；进程树终止与 sidecar 解释器也归位适配层（`sysinfo` 的 `system` feature；Windows 保留 `taskkill /T`）。**仍未归位：废纸篓 / 剪贴板两个 provider，以及静态 bool 能力层本身**；macOS 内容缩略图按 7.23 的实测结果显式降级，不是已实现。**（7.24 已回收：两个 provider 收进 trait，四个 provider-backed 能力字段改为从注册关系推导，并用同一份共享测试覆盖两端。）**
 
 > 表中 ⚠️ / ❌ 是复盘当时的状态；其中 3 项代码级浪费已在第二轮（7.7）回收，最新状态以 7.7 为准。第三轮（7.8）把能力层的**前端契约**接上，并用静态断言守住 TS/Rust 字段同步；社区插件与 `sysinfo` 等排期仍按 6.5 执行。
 
@@ -940,7 +940,37 @@
 
 **验证**：`cargo check`（默认 / `--no-default-features`）均 0 警告；`cargo test --lib` **332 passed / 0 failed / 2 ignored**（上一轮 310，+22）；`npm test` 全量 exit 0（含 `test:shell-icons` / `test:no-console-flash` / `test:platform-terms`）；`npm run build`、`rustfmt --check`（`skip_children=true`）、`git diff --check` 全通过。
 
-**边界（勿误判为完成）**：Windows 适配器的**类型检查仍待 Windows CI**（本机无 `x86_64-w64-mingw32-gcc`，同 7.20/7.21；本轮只做了 `rustfmt --check` 语法级校验）；macOS 内容缩略图仍是**降级**，Quick Look 未在真实 app（非会话沙箱）验证；进程树用 `Process::kill()`（Unix SIGKILL），没有优雅退出 / 超时退避，也没有真实子进程的集成测试（只测了纯 PPID walk 的防环与顺序）；`RgbaIcon → PNG` 编码仍在业务模块，但已是中立像素操作；`PlatformCapabilities` 仍是静态 bool（6.5 第 4 条未完），废纸篓 / 剪贴板两个 provider 未归位，`DriveInfo.letter` 未清洗，原生菜单与 P2 其余项未动。
+**边界（勿误判为完成）**：Windows 适配器的**类型检查仍待 Windows CI**（本机无 `x86_64-w64-mingw32-gcc`，同 7.20/7.21；本轮只做了 `rustfmt --check` 语法级校验）；macOS 内容缩略图仍是**降级**，Quick Look 未在真实 app（非会话沙箱）验证；进程树用 `Process::kill()`（Unix SIGKILL），没有优雅退出 / 超时退避，也没有真实子进程的集成测试（只测了纯 PPID walk 的防环与顺序）；`RgbaIcon → PNG` 编码仍在业务模块，但已是中立像素操作；`PlatformCapabilities` 仍是静态 bool（6.5 第 4 条未完），废纸篓 / 剪贴板两个 provider 未归位，`DriveInfo.letter` 未清洗，原生菜单与 P2 其余项未动。**（7.24 已回收静态 bool 与废纸篓 / 剪贴板 provider；其余边界仍成立。）**
+
+---
+
+### 7.24 能力层 provider 化（6.5 第 4 条，第 19 轮）
+
+**触发**：用户在 7.23 之后两项候选中选了「架构：能力层 provider 化」。6.5 第 4 条要求把 `PlatformCapabilities` 从静态 bool 升级为「由已注册适配器回报」，给 trait 增加图标 / 废纸篓 / 搜索等 provider 方法，并用 OpenDAL 式共享测试替代按平台复制断言。图标（7.23）、搜索（7.21）已在位，本轮补齐废纸篓 / 剪贴板与能力字段推导。
+
+**先过 6.5 第 1 / 6 条门禁**：
+
+| 缺口 | 四选一 | 依据 |
+|---|---|---|
+| 废纸篓 provider | **复用**现有 `trash` crate + Shell.Application 后端，只加 trait 与入口 | 两端实现已存在且经过验证；无 Windows 编译器，搬迁 ~300 行 PowerShell 只会带来行为漂移风险 |
+| 剪贴板 provider | **复用**现有 CF_HDROP 后端，只加 trait 与入口 | 同上；macOS 没有对应后端，正确做法是「不注册 provider」而非造一个假 stub |
+| 能力字段 | **自写**一处共享推导 `apply_provider_capabilities()` | 没有现成 crate；这是本项目的 IPC 契约（TS/Rust 字段同步由 `shortcut-checks.ts` 守住），必须显式定义 |
+
+**改动**：
+
+| 落点 | 内容 |
+|---|---|
+| `platform/mod.rs` | trait 新增 `trash_provider()` / `clipboard_provider()`；新增中立 `TrashProvider`（delete / list / restore / `supports_list_restore`）与 `ClipboardProvider`（set / get / clear）两个子 trait；把 `ShellClipboard` / `RecycleBinItem` 两个 DTO 提升为平台中立类型（serde camelCase 不变） |
+| `platform/mod.rs` | 新增 `apply_provider_capabilities()`：`trash_delete` / `trash_list_restore` / `shell_clipboard` / `global_search` 四个字段**从实际注册的 provider 推导**，不再是两端手写的 `caps.x = true`；新增 `delete_to_trash` / `trash_list` / `trash_restore` / `clipboard_{set,get,clear}` 中立入口，缺失 provider 时按原有语义降级（set → Err、get → 空、clear → Ok） |
+| `platform/{windows,macos}.rs` | 两端显式注册 provider：Windows 注册 `NATIVE_TRASH` + `NATIVE_CLIPBOARD`，macOS 只注册 `NATIVE_TRASH`；`capabilities()` 末尾统一调用 `caps.apply_provider_capabilities(self)`，删掉手写的能力 bool；macOS 的 `clipboard_provider()` 返回 `None` |
+| `file_ops/{mod,clipboard,recycle}.rs` | 所有命令/删除入口改为调用 `platform::*` 中立函数；OS 实现保留为 provider 后端并在文件头注明；删掉非 Windows 的剪贴板 stub（降级逻辑已集中到 `platform::clipboard_*`，避免两条降级路径） |
+| `config/platform.ts` | `PlatformCapabilities` / `NEUTRAL_PLATFORM` 加 `shellClipboard` 字段，与 Rust 结构严格同步 |
+| 共享测试 | `assert_provider_capability_contract(&dyn Platform)` 由 `platform/mod.rs` 与两端测试模块**同一份函数**调用；断言能力位等于 provider 存在性、搜索位等于引擎非 None、缺失剪贴板 provider 时三条入口均不 panic |
+| 静态契约 | 新增 `check-provider-capabilities.mjs`（并纳入 `npm test`）：断言 trait / 子 trait / 共享推导 / 中立入口齐全、两端不得手写 provider 能力位、命令层不得直接调 OS 后端、DTO 归属平台、TS 字段同步；注释先剥离再匹配，避免 7.21/7.22 的注释误判 |
+
+**验证**：`cargo check`（默认 / `--no-default-features`）0 警告；`cargo test --lib` **334 passed / 0 failed / 2 ignored**（+2：共享契约在 `current()` 与 macOS 适配器各跑一次；Windows 适配器在 CI 上会跑第三份）；`npm test` 全量 exit 0（含新契约）；`npm run build` / `rustfmt --check` / `git diff --check` 全绿。
+
+**边界（勿误判为完成）**：provider 的**注册关系在两端各写一次**（`Some(&NATIVE_TRASH)` / `Some(&NATIVE_CLIPBOARD)`），还没有做到「插件式动态注册」——但 6.5 第 4 条要求的是「由已注册适配器回报」，本轮已满足；`NativeTrash` / `NativeClipboard` 调用的 OS 实现**仍在 `file_ops/*`**，只是入口收归平台层（理由：无 Windows 编译器，避免搬迁 600 行 Win32 / PowerShell 代码造成行为漂移）；`shellClipboard` 字段目前只上报、前端还没有用它隐藏粘贴项；Windows 适配器类型检查仍待 CI；`DriveInfo.letter` 清洗、原生菜单、静态事实类能力（注册表自启 / WebView2 等）仍按原排期。
 
 ---
 

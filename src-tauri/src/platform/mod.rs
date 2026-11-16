@@ -126,6 +126,45 @@ pub struct SearchProbe {
     pub detail: String,
 }
 
+/// Neutral file-clipboard payload (CF_HDROP + Preferred DropEffect on Windows).
+/// The DTO lives here so the command layer can return it without importing an
+/// OS-specific module (7.24).
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ShellClipboard {
+    pub paths: Vec<String>,
+    pub mode: Option<String>,
+}
+
+/// Neutral Recycle Bin row. Same reason as `ShellClipboard` (7.24).
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RecycleBinItem {
+    pub name: String,
+    pub original_path: String,
+    /// Shell item path inside the bin (used for restore).
+    pub recycle_path: String,
+}
+
+/// File-trash provider. `delete` works on every host through the `trash`
+/// crate; list/restore need a host bin API, so the adapter declares whether
+/// it really supports them instead of letting a capability bit drift away.
+pub trait TrashProvider: Send + Sync {
+    fn delete(&self, path: &std::path::Path, path_text: &str) -> Result<(), String>;
+    fn list(&self) -> Result<Vec<RecycleBinItem>, String>;
+    fn restore(&self, original_paths: &[String]) -> Result<Vec<String>, String>;
+    fn supports_list_restore(&self) -> bool;
+}
+
+/// Host clipboard provider for file copy/cut/paste. Only Windows has the
+/// CF_HDROP + Preferred DropEffect backend; other hosts register no provider
+/// and the neutral free functions degrade without panicking (7.24).
+pub trait ClipboardProvider: Send + Sync {
+    fn set(&self, paths: &[String], mode: &str) -> Result<(), String>;
+    fn get(&self) -> Result<ShellClipboard, String>;
+    fn clear(&self) -> Result<(), String>;
+}
+
 /// Describes which desktop capabilities this build can actually deliver.
 /// The frontend should hide/disable unsupported entries instead of invoking
 /// a command that returns `Err("... only supported on Windows")`.
@@ -142,6 +181,9 @@ pub struct PlatformCapabilities {
     pub system_thumbnails: bool,
     pub trash_delete: bool,
     pub trash_list_restore: bool,
+    /// File clipboard provider is registered (CF_HDROP on Windows). Derived
+    /// from `clipboard_provider().is_some()`, never hand-declared (7.24).
+    pub shell_clipboard: bool,
     pub native_open_with_dialog: bool,
     pub native_context_menu: bool,
     pub os_shell_verb: bool,
@@ -185,6 +227,7 @@ impl PlatformCapabilities {
             system_thumbnails: false,
             trash_delete: false,
             trash_list_restore: false,
+            shell_clipboard: false,
             native_open_with_dialog: false,
             native_context_menu: false,
             os_shell_verb: false,
@@ -203,6 +246,20 @@ impl PlatformCapabilities {
             system_tray: false,
             webview2_required: false,
         }
+    }
+
+    /// Derive every provider-backed bit from the providers the adapter has
+    /// actually registered (6.5 §4). Called at the end of each adapter's
+    /// `capabilities()`, so a capability can never claim a feature whose
+    /// provider is absent. Pure host facts (native dialogs, registry, WebView2)
+    /// stay in the adapters; only provider-backed bits come from here.
+    pub fn apply_provider_capabilities(&mut self, platform: &dyn Platform) {
+        self.trash_delete = platform.trash_provider().is_some();
+        self.trash_list_restore = platform
+            .trash_provider()
+            .is_some_and(|provider| provider.supports_list_restore());
+        self.shell_clipboard = platform.clipboard_provider().is_some();
+        self.global_search = platform.global_search_engine() != GlobalSearchEngine::None;
     }
 }
 
@@ -271,7 +328,59 @@ pub trait Platform: Send + Sync {
     /// Native content thumbnail when the host exposes one; otherwise `Err` and
     /// callers fall back to `file_icon`.
     fn system_thumbnail(&self, path: &std::path::Path, size: u16) -> Result<RgbaIcon, String>;
+    /// Registered file-trash provider (every adapter has one via the `trash`
+    /// crate). Capability bits are derived from this, not declared by hand.
+    fn trash_provider(&self) -> Option<&dyn TrashProvider>;
+    /// Registered file-clipboard provider. `None` on hosts without CF_HDROP.
+    fn clipboard_provider(&self) -> Option<&dyn ClipboardProvider>;
 }
+
+/// The provider backends. Their OS-specific bodies stay in `file_ops/*` —
+/// 7.24 only moves the *entry point* into the platform layer; moving ~600 lines
+/// of Win32/PowerShell code with no Windows compiler here would risk behavior
+/// drift. Business code calls the neutral free functions below, never these
+/// backends directly.
+struct NativeTrash;
+
+impl TrashProvider for NativeTrash {
+    fn delete(&self, path: &std::path::Path, path_text: &str) -> Result<(), String> {
+        crate::file_ops::delete_to_recycle(path, path_text)
+    }
+
+    fn list(&self) -> Result<Vec<RecycleBinItem>, String> {
+        crate::file_ops::recycle::list_recycle_bin()
+    }
+
+    fn restore(&self, original_paths: &[String]) -> Result<Vec<String>, String> {
+        crate::file_ops::recycle::restore_original_paths(original_paths)
+    }
+
+    fn supports_list_restore(&self) -> bool {
+        cfg!(windows)
+    }
+}
+
+#[cfg(windows)]
+struct NativeClipboard;
+
+#[cfg(windows)]
+impl ClipboardProvider for NativeClipboard {
+    fn set(&self, paths: &[String], mode: &str) -> Result<(), String> {
+        crate::file_ops::clipboard::set_shell_clipboard(paths, mode)
+    }
+
+    fn get(&self) -> Result<ShellClipboard, String> {
+        crate::file_ops::clipboard::get_shell_clipboard()
+    }
+
+    fn clear(&self) -> Result<(), String> {
+        crate::file_ops::clipboard::clear_shell_clipboard()
+    }
+}
+
+static NATIVE_TRASH: NativeTrash = NativeTrash;
+#[cfg(windows)]
+static NATIVE_CLIPBOARD: NativeClipboard = NativeClipboard;
 
 static CURRENT: Lazy<Box<dyn Platform>> = Lazy::new(|| {
     #[cfg(windows)]
@@ -381,6 +490,84 @@ pub fn system_thumbnail(path: &std::path::Path, size: u16) -> Result<RgbaIcon, S
     current().system_thumbnail(path, size)
 }
 
+// 7.24: file trash / file clipboard entry points. Business modules call these
+// instead of the OS backends in `file_ops/*`, so there is one place to gate on
+// provider availability and one place for the shared provider tests.
+
+/// Move `path` into the host trash through the registered provider.
+pub fn delete_to_trash(path: &std::path::Path, path_text: &str) -> Result<(), String> {
+    current()
+        .trash_provider()
+        .ok_or_else(|| "File trash is unavailable on this host".to_string())?
+        .delete(path, path_text)
+}
+
+/// List Recycle Bin rows through the provider (`Err` when it has no bin API).
+pub fn trash_list() -> Result<Vec<RecycleBinItem>, String> {
+    current()
+        .trash_provider()
+        .ok_or_else(|| "File trash is unavailable on this host".to_string())?
+        .list()
+}
+
+/// Restore rows by original path through the provider.
+pub fn trash_restore(original_paths: &[String]) -> Result<Vec<String>, String> {
+    current()
+        .trash_provider()
+        .ok_or_else(|| "File trash is unavailable on this host".to_string())?
+        .restore(original_paths)
+}
+
+pub fn clipboard_set(paths: &[String], mode: &str) -> Result<(), String> {
+    match current().clipboard_provider() {
+        Some(provider) => provider.set(paths, mode),
+        None => Err("Shell clipboard is only available on Windows".to_string()),
+    }
+}
+
+pub fn clipboard_get() -> Result<ShellClipboard, String> {
+    match current().clipboard_provider() {
+        Some(provider) => provider.get(),
+        None => Ok(ShellClipboard {
+            paths: Vec::new(),
+            mode: None,
+        }),
+    }
+}
+
+pub fn clipboard_clear() -> Result<(), String> {
+    match current().clipboard_provider() {
+        Some(provider) => provider.clear(),
+        None => Ok(()),
+    }
+}
+
+/// Shared provider test (6.5 §4 "OpenDAL-style shared tests"). Every adapter
+/// runs the same assertions against its own instance, instead of duplicating
+/// `#[cfg]`-specific capability assertions in each adapter's test module.
+#[cfg(test)]
+pub(crate) fn assert_provider_capability_contract(platform: &dyn Platform) {
+    let caps = platform.capabilities();
+    let trash = platform.trash_provider();
+    let clipboard = platform.clipboard_provider();
+    assert_eq!(caps.trash_delete, trash.is_some());
+    assert_eq!(
+        caps.trash_list_restore,
+        trash.is_some_and(|provider| provider.supports_list_restore())
+    );
+    assert_eq!(caps.shell_clipboard, clipboard.is_some());
+    assert_eq!(
+        caps.global_search,
+        platform.global_search_engine() != GlobalSearchEngine::None
+    );
+    // A missing clipboard provider must degrade, never panic or claim success.
+    if clipboard.is_none() {
+        assert!(crate::platform::clipboard_set(&[], "copy").is_err());
+        assert!(crate::platform::clipboard_get().unwrap().paths.is_empty());
+        assert!(crate::platform::clipboard_clear().is_ok());
+    }
+}
+
 /// macOS-only finishing touch for `WindowChrome::MacOverlay`: let the webview
 /// content reach the window top. Runtime `set_decorations(true)` drops the
 /// `FullSizeContentView` bit, which leaves a 28pt native titlebar band above
@@ -445,6 +632,12 @@ mod tests {
     #[test]
     fn native_path_keeps_uri_untouched() {
         assert_eq!(to_native_fs_path("afm://guide"), "afm://guide");
+    }
+
+    /// Same shared contract also runs against each adapter in its own module.
+    #[test]
+    fn active_adapter_honours_the_provider_contract() {
+        assert_provider_capability_contract(current());
     }
 
     /// 7.21: the TS field list is checked statically, but the IPC payload is
