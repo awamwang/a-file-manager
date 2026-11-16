@@ -193,6 +193,8 @@ pub fn projects_workspace_activate(
     let dir = config_dir(&app)?;
     let index = load_index(&app)?;
     let root = std::path::PathBuf::from(&index.projects_root);
+    // FIL-68：pin 与 openState 同住 work-groups.json，写前持共享文档锁防并发覆盖。
+    let _wg_guard = wg_store::lock_document()?;
     let wgs = wg_store::load_from_path(&dir)?;
     let mut result = workspace::activate_workspace(
         &root,
@@ -415,6 +417,8 @@ pub fn projects_workspace_copy(
     let dir = config_dir(&app)?;
     let index = load_index(&app)?;
     let root = std::path::PathBuf::from(&index.projects_root);
+    // FIL-68：绑定 WG 可能复制 openState 写回 work-groups.json，持共享文档锁防并发覆盖。
+    let _wg_guard = wg_store::lock_document()?;
     let wgs = wg_store::load_from_path(&dir)?;
     let (result, wgs_next) = lifecycle::copy_workspace(&root, &wgs, &slug)?;
     if result.copied_work_group.is_some() {

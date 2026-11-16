@@ -61,6 +61,7 @@ pub fn default_document() -> UserWorkGroups {
     UserWorkGroups {
         work_groups: vec![create_default_work_group(None)],
         active_work_group_id: DEFAULT_WORK_GROUP_ID.to_string(),
+        pinned_tab: None,
     }
 }
 
@@ -206,6 +207,7 @@ pub fn reorder_work_groups_in_list(
     Ok(UserWorkGroups {
         work_groups: groups,
         active_work_group_id: document.active_work_group_id.clone(),
+        pinned_tab: document.pinned_tab.clone(),
     })
 }
 
@@ -450,6 +452,7 @@ pub fn silent_switch_work_group(
         document: UserWorkGroups {
             work_groups: next_groups,
             active_work_group_id: target.id.clone(),
+            pinned_tab: document.pinned_tab.clone(),
         },
         open_state_to_restore: Some(restored_with_members),
         require_save_prompt: false,
@@ -547,6 +550,7 @@ mod tests {
         let document = UserWorkGroups {
             work_groups: vec![default, previous.clone(), target.clone()],
             active_work_group_id: previous.id.clone(),
+            pinned_tab: None,
         };
         let live = open_state(&["D:/live-left"]);
         let result = silent_switch_work_group(&document, &target.id, Some(&live)).unwrap();
@@ -570,6 +574,39 @@ mod tests {
             .relative_member_paths_to_open
             .iter()
             .any(|p| p == "D:/target-only"));
+    }
+
+    #[test]
+    fn silent_switch_and_reorder_keep_pinned_tab() {
+        let default = create_default_work_group(Some(open_state(&["D:/default"])));
+        let other = WorkGroup {
+            id: "wg-other".into(),
+            name: "Other".into(),
+            is_default: false,
+            member_paths: vec!["D:/other".to_string()],
+            open_state: Some(open_state(&["D:/other-tab"])),
+        };
+        let pinned = crate::work_groups::types::PinnedTab {
+            path: r"D:\pinned".to_string(),
+            name: "pinned".to_string(),
+            tab_type: "directory".to_string(),
+            strip_index: 0,
+        };
+        let document = UserWorkGroups {
+            work_groups: vec![default.clone(), other.clone()],
+            active_work_group_id: default.id.clone(),
+            pinned_tab: Some(pinned.clone()),
+        };
+
+        // FIL-68：pin 不归属工作组，切换 / 排序均须原样保留。
+        let switched =
+            silent_switch_work_group(&document, &other.id, Some(&open_state(&["D:/live"])))
+                .unwrap();
+        assert_eq!(switched.document.pinned_tab, Some(pinned.clone()));
+
+        let reordered = reorder_work_groups_in_list(&document, &other.id, &default.id).unwrap();
+        assert_eq!(reordered.pinned_tab, Some(pinned));
+        assert_eq!(reordered.work_groups[0].id, other.id);
     }
 
     #[test]
@@ -601,6 +638,7 @@ mod tests {
         let document = UserWorkGroups {
             work_groups: vec![default.clone(), a.clone(), b.clone()],
             active_work_group_id: a.id.clone(),
+            pinned_tab: None,
         };
         let next = reorder_work_groups_in_list(&document, &b.id, &default.id).unwrap();
         assert_eq!(
@@ -633,6 +671,7 @@ mod tests {
         let document = UserWorkGroups {
             work_groups: vec![create_default_work_group(None), source.clone()],
             active_work_group_id: DEFAULT_WORK_GROUP_ID.to_string(),
+            pinned_tab: None,
         };
         let (next, created) = copy_work_group_in_list(&document, &source.id).unwrap();
         assert_eq!(created.name, "Focus (copy)");
@@ -677,6 +716,7 @@ mod tests {
         let document = UserWorkGroups {
             work_groups: vec![previous.clone()],
             active_work_group_id: previous.id.clone(),
+            pinned_tab: None,
         };
         let live = open_state(&["D:/live"]);
         let (switch, created) =

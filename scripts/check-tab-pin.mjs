@@ -60,7 +60,9 @@ if (!shell.includes("border-left: 3px solid") || !tabPinCss.includes("pointer-ev
 const browse = readFileSync(join(root, "src/state/navigatorBrowse.ts"), "utf8");
 const session = readFileSync(join(root, "src/state/openState/session.ts"), "utf8");
 const persistIdx = session.indexOf("export async function persistOpenStateNow");
-const persistSlice = persistIdx >= 0 ? session.slice(persistIdx, persistIdx + 500) : "";
+// FIL-68 added pin-flush comments/calls ahead of the invoke; widen the slice so
+// snapshotLeavingOpenState() stays inside the window (snapshotLiveOpenState must not).
+const persistSlice = persistIdx >= 0 ? session.slice(persistIdx, persistIdx + 650) : "";
 if (
   !persistSlice.includes("work_groups_save_open_state") ||
   !persistSlice.includes("snapshotLeavingOpenState()") ||

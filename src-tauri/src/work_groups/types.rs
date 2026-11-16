@@ -79,11 +79,26 @@ pub struct WorkGroup {
     pub open_state: Option<WorkGroupOpenState>,
 }
 
+/// 固定标签快照（FIL-68）：存于 work-groups.json 顶层，不归属任何工作组；
+/// 按 path 持久化，跨重启 / 跨工作组恢复。
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PinnedTab {
+    pub path: String,
+    pub name: String,
+    #[serde(rename = "type")]
+    pub tab_type: String,
+    #[serde(deserialize_with = "deserialize_open_state_index")]
+    pub strip_index: usize,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct UserWorkGroups {
     pub work_groups: Vec<WorkGroup>,
     pub active_work_group_id: String,
+    #[serde(default)]
+    pub pinned_tab: Option<PinnedTab>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

@@ -17,7 +17,7 @@ import {
   rememberHydratedWorkGroups,
   removePathsFromListings,
   restoreWorkGroupOpenState,
-  snapshotLiveOpenState,
+  snapshotLeavingOpenState,
 } from "../../state/navigatorBrowse";
 import { afterFileMutation } from "../../state/fileMutation";
 import { dualPaneEnabled, openInSecondPane } from "../../state/dualPane";
@@ -500,9 +500,10 @@ async function runAddToWorkGroup(workGroupId: string, entry: NavigatorEntry) {
       return;
     }
     const displayName = workGroupDisplayName(target, t("workGroups.defaultName"));
+    // AIA-245：活跃组传剥离固定标签后的 live state，避免 pin 组写入该组 openState 落盘。
     let liveForTarget: WorkGroupOpenState | null =
       workGroupId === activeWorkGroupId.value
-        ? snapshotLiveOpenState()
+        ? snapshotLeavingOpenState()
         : target.openState;
     let lastOpen: WorkGroupOpenState | null = null;
     for (const memberPath of paths) {
@@ -847,6 +848,11 @@ async function run(id: string) {
         const result = await restoreRecyclePaths(paths);
         if (!result.ok) {
           emit("notice", result.error ?? t("contextMenu.opFailed"));
+          return;
+        }
+        if (!result.paths.length) {
+          // 条目已不在回收站（被还原/清空）：静默刷新即可。
+          await refreshListing();
           return;
         }
         emit("notice", t("recycleBin.restored", { count: result.paths.length }));

@@ -11,7 +11,12 @@ import {
   stripTabsFromOpenState,
   type WorkGroupOpenState,
 } from "./model.ts";
-import { commitPinnedPersistence, pinnedIdSet } from "../tabPins.ts";
+import {
+  commitPinnedPersistence,
+  flushPinnedPersistence,
+  pinnedIdSet,
+  type PinnedTabWire,
+} from "../tabPins.ts";
 
 export type UserWorkGroupsDoc = {
   workGroups: Array<{
@@ -22,6 +27,8 @@ export type UserWorkGroupsDoc = {
     openState: WorkGroupOpenState | null;
   }>;
   activeWorkGroupId: string;
+  /** FIL-68：固定标签快照（work-groups.json 顶层，与打开标签同存储级别）。 */
+  pinnedTab?: PinnedTabWire;
 };
 
 /** Runtime Open State for the active Work Group (Navigator tab strip). */
@@ -63,8 +70,10 @@ export function cancelOpenStatePersist(): void {
 export async function persistOpenStateNow(): Promise<void> {
   if (!activeWorkGroupId.value) return;
   try {
-    // FIL-68：固定身份按路径另存；WG openState 仍剥离 pin（AIA-245）。
+    // FIL-68：固定身份存 work-groups.json 顶层；先等 pin 写落盘再写 openState，
+    // 避免同一文件的两次 load→save 互相覆盖。
     commitPinnedPersistence(liveOpenState.value);
+    await flushPinnedPersistence();
     // AIA-245: never persist session pins onto the active WG (same strip as silent switch).
     await invoke<UserWorkGroupsDoc>("work_groups_save_open_state", {
       workGroupId: activeWorkGroupId.value,

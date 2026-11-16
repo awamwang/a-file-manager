@@ -63,6 +63,7 @@ mod tests {
         let wgs = UserWorkGroups {
             work_groups: list,
             active_work_group_id: DEFAULT_WORK_GROUP_ID.to_string(),
+            pinned_tab: None,
         };
         assert_eq!(
             validate_bindable_work_group(&wgs, DEFAULT_WORK_GROUP_ID).unwrap_err(),

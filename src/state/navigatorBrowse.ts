@@ -54,6 +54,7 @@ import {
   forgetPinnedTabs,
   hydratePersistedPins,
   pinnedIdSet,
+  seedPersistedPinFromDoc,
 } from "./tabPins.ts";
 import { clearSelection } from "./navigatorSelection.ts";
 import { normalizePathKey, toNativeFsPath } from "./pathKey.ts";
@@ -178,6 +179,8 @@ export function bootstrapNavigatorOpenState(): Promise<void> {
       try {
         const doc = await hydrateWorkGroups();
         activeWorkGroupId.value = doc.activeWorkGroupId;
+        // FIL-68：固定标签存 work-groups.json 顶层，启动先种入内存再合并进 strip。
+        seedPersistedPinFromDoc(doc.pinnedTab);
         const active = doc.workGroups.find((g) => g.id === doc.activeWorkGroupId);
         // FIL-68：固定标签按路径持久化，冷启动合并进 strip（不写入各 WG 硬状态）。
         const hydrated = hydratePersistedPins(
@@ -614,7 +617,13 @@ export async function navigateTo(
 }
 
 export async function openPathsAsNavigatorTabs(paths: string[]): Promise<void> {
-  const next = openStateFromPaths(paths);
+  // FIL-68：固定标签不随 strip 整体替换丢失 —— 按 merge 语义保留在原 strip 位置。
+  const preferredPin = activeStripTab(liveOpenState.value)?.id ?? null;
+  const next = mergePinnedIntoOpenState(
+    openStateFromPaths(paths),
+    liveOpenState.value,
+    pinnedIdSet(preferredPin),
+  );
   applyLiveOpenState(next, { persist: true, immediatePersist: false });
   const active = activeStripTab(liveOpenState.value);
   if (active?.path) {

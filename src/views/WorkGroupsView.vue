@@ -292,7 +292,8 @@ async function addMember() {
   >("work_groups_add_member", {
     workGroupId: active.value.id,
     memberPath: memberPath.value.trim(),
-    liveOpenState: snapshotLiveOpenState(),
+    // AIA-245：剥离固定标签，避免 pin 组被写入该工作组的 openState 落盘。
+    liveOpenState: snapshotLeavingOpenState(),
   });
   document.value = nextDoc;
   if (soft) {

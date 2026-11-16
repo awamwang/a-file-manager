@@ -443,6 +443,7 @@ mod tests {
             UserWorkGroups {
                 work_groups: list,
                 active_work_group_id: DEFAULT_WORK_GROUP_ID.to_string(),
+                pinned_tab: None,
             },
             created.id,
         )

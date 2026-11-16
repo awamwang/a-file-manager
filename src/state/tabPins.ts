@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-/** 标签固定：会话内跨工作组保留；按路径持久化以便重启后恢复，并在新工作组中打开同一固定标签。 */
+/** 标签固定：会话内跨工作组保留；按路径持久化到 work-groups.json 顶层（与工作组打开标签同存储级别），重启后恢复并带入新工作组。 */
 
 import { ref } from "vue";
+import { invoke } from "@tauri-apps/api/core";
 import {
   clampOpenStateIndices,
   createDirectoryTab,
@@ -21,7 +22,25 @@ export type PinnedTabSnapshot = {
   stripIndex: number;
 };
 
-const STORAGE_KEY = "afm.pinnedTabs.v1";
+/** work-groups.json 顶层 `pinnedTab` 的 wire 形状（camelCase）。 */
+export type PinnedTabWire = {
+  path: string;
+  name: string;
+  type: string;
+  stripIndex: number;
+} | null;
+
+/** 旧存储键（localStorage）：仅用于一次性迁移到 work-groups.json。 */
+const LEGACY_STORAGE_KEY = "afm.pinnedTabs.v1";
+
+/** 内存中的持久化快照：启动时由 work-groups.json 种入，写入时同步更新。 */
+let persistedPin: PinnedTabSnapshot | null = null;
+/** 种子完成前禁止清空持久化 pin，避免 bootstrap 失败回退路径误抹已有固定标签。 */
+let pinSeedReady = false;
+/** 串行化后端写请求，保证 pin 写与 openState 写的落盘顺序。 */
+let pinWriteChain: Promise<unknown> = Promise.resolve();
+/** 上一次已排队的 wire 值，跳过无变化写入。 */
+let lastQueuedWire: PinnedTabWire = null;
 
 /** Pick one id from a multi-pin list: preferred if present, else first. */
 export function pickSinglePinnedId(
@@ -84,59 +103,120 @@ function snapshotFromTab(
   };
 }
 
-/** 读取持久化固定标签快照（同步 localStorage，不阻塞 UI）。 */
-export function readPinnedSnapshots(): PinnedTabSnapshot[] {
+function normalizeWirePinnedTab(raw: unknown): PinnedTabSnapshot | null {
+  if (!raw || typeof raw !== "object") return null;
+  const row = raw as Record<string, unknown>;
+  const path = typeof row.path === "string" ? toNativeFsPath(row.path) : "";
+  if (!path) return null;
+  return {
+    path,
+    type: typeof row.type === "string" && row.type ? row.type : "directory",
+    name: typeof row.name === "string" && row.name ? row.name : path,
+    stripIndex:
+      typeof row.stripIndex === "number" && Number.isFinite(row.stripIndex)
+        ? Math.max(0, Math.trunc(row.stripIndex))
+        : 0,
+  };
+}
+
+function wireFromSnapshot(snap: PinnedTabSnapshot | null): PinnedTabWire {
+  if (!snap?.path) return null;
+  return {
+    path: toNativeFsPath(snap.path),
+    type: snap.type || "directory",
+    name: snap.name || snap.path,
+    stripIndex: Math.max(0, Math.trunc(snap.stripIndex) || 0),
+  };
+}
+
+function wireEquals(a: PinnedTabWire, b: PinnedTabWire): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.path === b.path &&
+    a.name === b.name &&
+    a.type === b.type &&
+    a.stripIndex === b.stripIndex
+  );
+}
+
+/** 一次性迁移：localStorage 旧固定标签 → work-groups.json。 */
+function migrateLegacySnapshot(): PinnedTabSnapshot | null {
   try {
-    const raw = globalThis.localStorage?.getItem(STORAGE_KEY);
-    if (!raw) return [];
+    const raw = globalThis.localStorage?.getItem(LEGACY_STORAGE_KEY);
+    if (!raw) return null;
     const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    const out: PinnedTabSnapshot[] = [];
-    for (const item of parsed) {
-      if (!item || typeof item !== "object") continue;
-      const row = item as Record<string, unknown>;
-      const path = typeof row.path === "string" ? toNativeFsPath(row.path) : "";
-      if (!path) continue;
-      out.push({
-        path,
-        type: typeof row.type === "string" && row.type ? row.type : "directory",
-        name: typeof row.name === "string" && row.name ? row.name : path,
-        stripIndex:
-          typeof row.stripIndex === "number" && Number.isFinite(row.stripIndex)
-            ? Math.max(0, Math.trunc(row.stripIndex))
-            : 0,
-      });
-      // AIA-260：最多保留一条
-      break;
-    }
-    return out;
+    if (!Array.isArray(parsed) || !parsed.length) return null;
+    return normalizeWirePinnedTab(parsed[0]);
   } catch {
-    return [];
+    return null;
   }
 }
 
-/** 写入或清除固定标签快照。 */
-export function writePinnedSnapshots(snapshots: readonly PinnedTabSnapshot[]): void {
+function clearLegacySnapshot(): void {
   try {
-    const single = snapshots[0];
-    if (!single?.path) {
-      globalThis.localStorage?.removeItem(STORAGE_KEY);
-      return;
-    }
-    globalThis.localStorage?.setItem(
-      STORAGE_KEY,
-      JSON.stringify([
-        {
-          path: toNativeFsPath(single.path),
-          type: single.type || "directory",
-          name: single.name || single.path,
-          stripIndex: Math.max(0, Math.trunc(single.stripIndex) || 0),
-        },
-      ]),
-    );
+    globalThis.localStorage?.removeItem(LEGACY_STORAGE_KEY);
   } catch {
     /* quota / private mode */
   }
+}
+
+/** 把 wire 值串行写入后端 work-groups.json（跳过无变化写入）。 */
+function queuePinWireWrite(wire: PinnedTabWire): void {
+  if (wireEquals(wire, lastQueuedWire)) return;
+  lastQueuedWire = wire;
+  pinWriteChain = pinWriteChain
+    .then(() => invoke("work_groups_set_pinned_tab", { pinned: wire }))
+    .catch(() => undefined);
+}
+
+/** 等待已排队的 pin 写全部落盘（quit/hide flush 与 openState 落盘前调用）。 */
+export function flushPinnedPersistence(): Promise<unknown> {
+  return pinWriteChain;
+}
+
+/**
+ * 冷启动种子：把 work-groups.json 顶层 `pinnedTab` 读入内存。
+ * 后端没有且 localStorage 有旧数据时执行一次性迁移。
+ */
+export function seedPersistedPinFromDoc(pinnedTab: unknown): void {
+  pinSeedReady = true;
+  const fromDoc = normalizeWirePinnedTab(pinnedTab);
+  if (fromDoc) {
+    persistedPin = fromDoc;
+    lastQueuedWire = wireFromSnapshot(fromDoc);
+    clearLegacySnapshot();
+    return;
+  }
+  const legacy = migrateLegacySnapshot();
+  if (legacy) {
+    persistedPin = legacy;
+    queuePinWireWrite(wireFromSnapshot(legacy));
+    void flushPinnedPersistence().then(clearLegacySnapshot);
+    return;
+  }
+  persistedPin = null;
+  lastQueuedWire = null;
+}
+
+/** 读取持久化固定标签快照（内存缓存，启动时由 work-groups.json 种入）。 */
+export function readPinnedSnapshots(): PinnedTabSnapshot[] {
+  return persistedPin ? [persistedPin] : [];
+}
+
+/** 写入或清除固定标签快照：同步更新内存，异步串行写穿 work-groups.json。 */
+export function writePinnedSnapshots(snapshots: readonly PinnedTabSnapshot[]): void {
+  const single = snapshots[0];
+  persistedPin = single?.path
+    ? { ...single, path: toNativeFsPath(single.path) }
+    : null;
+  const wire = wireFromSnapshot(persistedPin);
+  if (!wire) {
+    // 种子完成前不允许清空：bootstrap 失败回退不应抹掉已有固定标签。
+    if (!pinSeedReady) return;
+    clearLegacySnapshot();
+  }
+  queuePinWireWrite(wire);
 }
 
 /**
@@ -158,7 +238,7 @@ export function commitPinnedPersistence(state: WorkGroupOpenState): void {
       return;
     }
   }
-  writePinnedSnapshots([]);
+  // pin id 暂时不在 strip（瞬态替换）：保留现有快照，避免固定标签被误清。
 }
 
 /**
