@@ -1815,22 +1815,6 @@ onUnmounted(() => {
   <div class="shell fluent-chrome">
     <header class="titlebar" data-tauri-frame-tb :aria-label="t('chrome.titleBar')">
       <div
-        class="titlebar-leading"
-        role="group"
-        :aria-label="t('chrome.reloadWindow')"
-      >
-        <button
-          type="button"
-          class="fluent-control titlebar-action"
-          data-testid="titlebar-reload-window"
-          :title="t('chrome.reloadWindowTitle')"
-          :aria-label="t('chrome.reloadWindow')"
-          @click="reloadWindow"
-        >
-          <FluentIcon name="refresh" size="sm" />
-        </button>
-      </div>
-      <div
         class="titlebar-drag"
         data-tauri-drag-region
         :title="t('chrome.titleBar')"
@@ -1860,6 +1844,16 @@ onUnmounted(() => {
           @click="toggleCommandPanel"
         >
           <FluentIcon name="commands" size="sm" />
+        </button>
+        <button
+          type="button"
+          class="fluent-control titlebar-action"
+          data-testid="titlebar-reload-window"
+          :title="t('chrome.reloadWindowTitle')"
+          :aria-label="t('chrome.reloadWindow')"
+          @click="reloadWindow"
+        >
+          <FluentIcon name="refresh" size="sm" />
         </button>
       </div>
       <div class="window-controls" :aria-label="t('chrome.windowControls')">
@@ -2697,15 +2691,6 @@ onUnmounted(() => {
   border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   background: var(--fluent-color-fill-control);
   user-select: none;
-}
-
-.titlebar-leading {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-  padding-inline-start: var(--fluent-space-xs);
-  -webkit-app-region: no-drag;
-  app-region: no-drag;
 }
 
 .titlebar-drag {
