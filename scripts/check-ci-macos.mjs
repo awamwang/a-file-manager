@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
- * 7.25 guard: macOS packages must be buildable on GitHub Actions without any
- * Developer ID secret, while the existing Windows NSIS flow stays untouched.
- * This is a static contract — a real .dmg can only be produced on a macOS
- * runner, never in the sandbox this repo is developed in.
+ * 7.25 guard: macOS packages build on GitHub Actions; Windows NSIS flow is
+ * untouched. 7.26: Developer ID signing + notarization is opt-in behind the
+ * mac_signing gate — ad-hoc stays the zero-config default. Static contract:
+ * a real .dmg (signed or not) can only be produced on a macOS runner.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -75,9 +75,49 @@ assert.ok(release.includes("build-app-macos.result"), "finalize must check the m
     "finalize must check out the repo before `gh release edit`",
   );
 }
+// 2b. 7.26 opt-in signing: APPLE_* secrets are allowed, but ONLY behind the
+// mac_signing gate. Ad-hoc must remain the zero-config default, and a partial
+// credential set must never hard-fail the build.
+assert.ok(release.includes("mac_signing:"), "prepare must expose a mac_signing output");
 assert.ok(
-  !release.includes("secrets.APPLE_"),
-  "no APPLE_* secret may be required — signing/notarization stays opt-in",
+  release.includes("echo \"mac_signing=${MAC_SIGNING}\""),
+  "prepare must publish the derived signing boolean",
+);
+for (const secret of [
+  "APPLE_CERTIFICATE",
+  "APPLE_CERTIFICATE_PASSWORD",
+  "APPLE_ID",
+  "APPLE_PASSWORD",
+  "APPLE_TEAM_ID",
+]) {
+  assert.ok(
+    release.includes(`secrets.${secret}`),
+    `signing must wire the ${secret} secret`,
+  );
+}
+assert.ok(
+  release.includes("if: needs.prepare.outputs.mac_signing == 'true'"),
+  "certificate import must be gated on the signing boolean",
+);
+assert.ok(
+  release.includes("security import") && release.includes("-T /usr/bin/codesign"),
+  "import step must install the Developer ID for codesign",
+);
+assert.ok(
+  release.includes("security set-key-partition-list"),
+  "codesign must be allowed to use the imported key (partition list)",
+);
+assert.ok(
+  release.includes("unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID"),
+  "ad-hoc builds must unset empty APPLE_* vars (Tauri treats set-but-empty as configured)",
+);
+assert.ok(
+  release.includes('if [ "${MAC_SIGNING}" != "true" ]'),
+  "ad-hoc fallback must be the default when signing is off",
+);
+assert.ok(
+  release.includes("直接双击打开") && release.includes("首次打开需右键"),
+  "release notes must describe both signed and ad-hoc first-launch behavior",
 );
 assert.ok(release.includes(".dmg"), "release notes must mention macOS assets");
 
@@ -112,4 +152,4 @@ assert.equal(conf.bundle.macOS.signingIdentity, undefined, "signing stays opt-in
 assert.ok(pkg.scripts.test.includes("npm run test:macos-bundle"));
 assert.ok(pkg.scripts.test.includes("npm run test:ci-macos"));
 
-console.log("CI macOS packaging checks OK (7.25).");
+console.log("CI macOS packaging checks OK (7.25 + 7.26 opt-in signing).");

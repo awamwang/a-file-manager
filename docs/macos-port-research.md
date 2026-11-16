@@ -1001,11 +1001,46 @@
 
 **边界（勿误判为完成）**：
 
-- 产物是**未签名 / ad-hoc**，没有 `signingIdentity` / hardened runtime / entitlements / notarytool；用户首次打开需右键 → 打开。签名公证仍是 P3 后半段，需要证书和 secrets。
+- 产物是**未签名 / ad-hoc**，没有 `signingIdentity` / entitlements；用户首次打开需右键 → 打开。（7.26 已搭好 opt-in 签名公证骨架，但签名路径尚未在真实 CI 上验证过，详见 7.26。）
 - `rust-toolchain.toml` 未加 apple targets（由 workflow 注入），本机开发者不会被迫下载；若将来要本地交叉编译需自己 `rustup target add x86_64-apple-darwin`。
 - `prepare-release.mjs` / `build-release-artifacts.mjs` 的 dry-run 输出还没列出 Mac 资产（release.yml 的 notes 与实际上传已覆盖）；`check-multi-pack-release.mjs` 尚未断言 Mac 资产。
 - `macos-latest` 目前是 Apple Silicon runner，交叉编 `x64` 依赖 Xcode 提供的 linker；这条路只有 GitHub Actions 能验证。Tauri 的 dmg 文件名按 v2 约定（`<产品名>_<版本>_<架构>.dmg`）推导，未在真实产物上核对。
 - `ci.yml` 的 macOS runner 跑 `npm test` 包含 `test:rust`（334 用例）与 Provider 共享测试；Windows runner 额外跑 `test:packaging-flavors`，两边不再共享 PowerShell 步骤。
+
+---
+
+### 7.26 签名公证 opt-in 骨架（第 21 轮）
+
+**触发**：v0.3.0 上线后用户实测 macOS 弹 Gatekeeper「Apple 无法验证…是否包含恶意软件」（只有「完成 / 移到废纸篓」），确认未签名包无法双击打开。用户选择「先搭 CI 签名骨架」——配好 secrets 就签、没配保持 ad-hoc。
+
+**机制（查 Tauri CLI 2.12.4 源码与官方文档确认）**：
+
+- `hardenedRuntime` 在 config schema 里**默认 true**，不必显式写；`tauri.conf.json` 保持无 `signingIdentity`，签不签完全由环境变量决定。
+- Tauri CLI 能从 `APPLE_CERTIFICATE`（base64 `.p12`）**自动推断签名身份**，无需手填 `APPLE_SIGNING_IDENTITY`（2.12 的 changelog 明确支持）。
+- 公证二选一：`APPLE_ID` + `APPLE_PASSWORD` + `APPLE_TEAM_ID`（app 专用密码，Team ID 现在必填），或 `APPLE_API_KEY` + `APPLE_API_ISSUER` + `APPLE_API_KEY_PATH`。本轮用前者。
+- 凭证齐全时 `tauri build` 自动完成 codesign → notarize → staple，无需手写 `xcrun notarytool` / `stapler`。
+
+**实现**：
+
+| 文件 | 改动 |
+|---|---|
+| `.github/workflows/release.yml` | `prepare` 读取 5 个 `APPLE_*` secret、只在全齐时输出 `mac_signing=true`（部分提供视为未配置，不硬失败）；`build-app-macos` 新增条件化「Import Apple Developer Certificate」步骤（临时 keychain，`set-key-partition-list` 放通 codesign）；build 步骤把凭证传给 Tauri，**ad-hoc 路径显式 `unset` 全部 `APPLE_*`**（Tauri 把「设置了但为空」当成已配置，会尝试解码空证书而失败）；release notes 按 `mac_signing` 出「可直接双击」/「需右键打开」两种文案。 |
+| `scripts/check-ci-macos.mjs` | 把旧的「禁止任何 `secrets.APPLE_`」断言改为 opt-in 契约：5 个 secret 都接线、导入步骤 gated、partition-list 存在、ad-hoc 分支 unset、notes 双文案；注释剥离后匹配，避免注释满足断言。 |
+
+**需在 GitHub 仓库配置的 Secrets**（Settings → Secrets and variables → Actions）：
+
+| Secret | 值 |
+|---|---|
+| `APPLE_CERTIFICATE` | `openssl base64 -A -in cert.p12` 的输出 |
+| `APPLE_CERTIFICATE_PASSWORD` | 导出 `.p12` 时设的密码 |
+| `APPLE_ID` | Apple ID 邮箱 |
+| `APPLE_PASSWORD` | App 专用密码（不是登录密码） |
+| `APPLE_TEAM_ID` | Membership Details 里的 Team ID |
+| `KEYCHAIN_PASSWORD`（可选） | 临时 keychain 密码，缺省用固定值即可 |
+
+**本机验证**：`npm test` 全量 exit 0（334 Rust 用例 + 新契约）；两个 workflow YAML 解析通过；逐段 `bash -n` 全 OK；`git diff --check` 通过。
+
+**边界（勿误判为完成）**：签名路径**从未真实跑过**——本机 `security find-identity` 为 0，无 Apple 开发者账号，签名/公证只能在配好 secrets 的 GitHub Actions 上验证；填完 secrets 后应打一个新 tag 走 CI，检查 `security find-identity` 输出、Tauri 的 notarize/staple 日志，并下载 dmg 实机双击确认 Gatekeeper 不再拦截。尚未支持 App Store Connect API key 认证路径（`APPLE_API_KEY` 三件套），只做了 app 专用密码路径。临时 keychain 用 `RUNNER_TEMP`，不污染 runner 登录 keychain。`KEYCHAIN_PASSWORD` 有缺省固定值，若追求严格可将其也设为 secret。
 
 ---
 
