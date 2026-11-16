@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# 构建期门禁：声明的 Node/Rust 工具链 + 前端构建 + Rust 测试，确保发版流水线可过。
+# 构建期门禁：声明的 Node/Rust 工具链 + 前端构建 + 全量契约与 Rust 测试。
+# 7.25: Windows + macOS 双平台矩阵；Windows 专属断言只在该 runner 上跑。
 name: CI
 
 on:
@@ -11,9 +12,21 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            rust_target: aarch64-apple-darwin
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,33 +39,39 @@ jobs:
 
       - name: Install Rust (respects rust-toolchain.toml)
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
 
-      - name: Rust cache
+      - name: Rust cache (OS + target scoped)
         uses: swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
+          shared-key: ci-${{ matrix.os }}-${{ matrix.rust_target }}
 
       - name: Install frontend dependencies
         run: npm ci
 
       - name: Declare engines / toolchain surface
         run: |
+          set -euo pipefail
           node -e "const p=require('./package.json'); if(!p.engines?.node) process.exit(1); console.log('engines.node=', p.engines.node)"
-          if (!(Test-Path rust-toolchain.toml)) { throw "missing rust-toolchain.toml" }
-          if (!(Test-Path src-tauri/tauri.conf.json)) { throw "missing tauri.conf.json" }
-          $conf = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
-          if ($conf.bundle.windows.webviewInstallMode.type -ne "embedBootstrapper") {
-            throw "webviewInstallMode must be embedBootstrapper for auto WebView2 install"
-          }
+          test -f rust-toolchain.toml
+          test -f src-tauri/tauri.conf.json
 
       - name: Frontend typecheck + build
         run: npm run build
 
-      - name: Dependency surface checks
-        run: npm run test:deps-surface
+      - name: Full contract + Rust test chain
+        run: npm test
 
-      - name: Packaging flavor + focused Rust tests
+      - name: Adapter compiles for ${{ matrix.rust_target }}
+        run: cargo check --manifest-path src-tauri/Cargo.toml --target ${{ matrix.rust_target }}
+
+      # WebView2 bootstrapper is meaningless on macOS; keep the assertion on
+      # Windows only so the matrix never hides a real Windows regression.
+      - name: Windows-only release surface
+        if: runner.os == 'Windows'
         run: |
+          set -euo pipefail
+          node -e "const c=require('./src-tauri/tauri.conf.json'); if(c.bundle?.windows?.webviewInstallMode?.type!=='embedBootstrapper') process.exit(1)"
           npm run test:packaging-flavors
-          cargo test --manifest-path src-tauri/Cargo.toml --lib deps_probe
-          cargo test --manifest-path src-tauri/Cargo.toml --lib health_get_returns_ok_payload

@@ -42,6 +42,7 @@ jobs:
       want_ai: ${{ steps.meta.outputs.want_ai }}
       want_feature_pack: ${{ steps.meta.outputs.want_feature_pack }}
       flavor_matrix: ${{ steps.meta.outputs.flavor_matrix }}
+      mac_matrix: ${{ steps.meta.outputs.mac_matrix }}
       publish: ${{ steps.meta.outputs.publish }}
     steps:
       - name: Checkout
@@ -111,6 +112,12 @@ jobs:
             if (kinds.includes('ai')) rows.push({ flavor: 'ai', vite_ai: '1' });
             process.stdout.write(JSON.stringify(rows));
           ")"
+          # 7.25: macOS 每个 flavor 出两个原生架构，沿用同一份 packs 选择。
+          MAC_JSON="$(node --input-type=module -e "
+            import { macReleaseMatrix } from './scripts/release-assets.mjs';
+            const kinds = (process.env.PACKS_CSV || '').split(',').filter(Boolean);
+            process.stdout.write(JSON.stringify(macReleaseMatrix(kinds)));
+          ")"
 
           PUBLISH=true
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ "${INPUT_PUBLISH}" = "false" ]; then
@@ -126,9 +133,10 @@ jobs:
             echo "want_ai=${WANT_AI}"
             echo "want_feature_pack=${WANT_FP}"
             echo "flavor_matrix=${FLAVOR_JSON}"
+            echo "mac_matrix=${MAC_JSON}"
             echo "publish=${PUBLISH}"
           } >> "$GITHUB_OUTPUT"
-          echo "Resolved tag=${TAG} version=${VERSION} packs=${PACKS_CSV} matrix=${FLAVOR_JSON} publish=${PUBLISH}"
+          echo "Resolved tag=${TAG} version=${VERSION} packs=${PACKS_CSV} matrix=${FLAVOR_JSON} mac=${MAC_JSON} publish=${PUBLISH}"
 
       - name: Sync version into package / tauri / cargo
         shell: bash
@@ -186,11 +194,15 @@ jobs:
             echo "|---|---|"
             echo "| \`A.File.Manager_${VERSION}_x64-setup.exe\` | **Core**（无 AI Add-on） |"
             echo "| \`A.File.Manager_${VERSION}_x64-ai-setup.exe\` | **AI**（默认含 ai-addon） |"
+            echo "| \`A.File.Manager_${VERSION}_{aarch64|x64}[-ai].dmg\` | **macOS**（Apple Silicon / Intel，Core / AI） |"
+            echo "| \`A.File.Manager_${VERSION}_{aarch64|x64}[-ai].app.zip\` | **macOS 应用包**（与对应 DMG 同源） |"
             echo "| \`A.File.Manager_${VERSION}_feature-pack-*.zip\` | **Feature Pack**（本机 zip 安装） |"
             echo
+            echo
+            echo "macOS 包目前为未签名 / ad-hoc（未配置 Developer ID 与公证）；首次打开需右键 → 打开。"
             echo "### Install"
             echo
-            echo "Download a Windows NSIS \`.exe\` or Feature Pack \`.zip\` below."
+            echo "Download a Windows NSIS \`.exe\`, a macOS \`.dmg\` / \`.app.zip\`, or Feature Pack \`.zip\` below."
             echo
             echo "All builds: https://github.com/${{ github.repository }}/releases"
           } > "${NOTES_FILE}"
@@ -292,6 +304,108 @@ jobs:
           gh release upload "${{ needs.prepare.outputs.tag }}" \
             "dist/release/${{ steps.asset.outputs.file }}" --clobber
 
+  # 7.25: macOS packages on real macOS runners. No Developer ID / APPLE_* secrets
+  # are needed — bundles are unsigned/ad-hoc by design; notarization is a later
+  # opt-in step. Windows jobs above keep their exact NSIS behavior.
+  build-app-macos:
+    needs: prepare
+    if: needs.prepare.outputs.mac_matrix != '[]'
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.prepare.outputs.mac_matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sync version
+        shell: bash
+        run: node scripts/sync-version.mjs "${{ needs.prepare.outputs.version }}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install Rust (target ${{ matrix.target }})
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust cache (flavor + arch scoped)
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+          shared-key: release-macos-${{ matrix.flavor }}-${{ matrix.arch }}
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Verify macOS bundle contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e "const c=require('./src-tauri/tauri.conf.json'); for (const t of ['app','dmg']) if (!c.bundle.targets.includes(t)) process.exit(1)"
+          npm run test:macos-bundle
+
+      - name: Build macOS bundles (${{ matrix.flavor }} / ${{ matrix.arch }})
+        env:
+          VITE_AFM_AI_ADDON: ${{ matrix.vite_ai }}
+        shell: bash
+        run: node scripts/build-flavor.mjs "${{ matrix.flavor }}" --bundle --target "${{ matrix.target }}"
+
+      - name: Collect canonical assets
+        id: asset
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          FLAVOR: ${{ matrix.flavor }}
+          ARCH: ${{ matrix.arch }}
+          TARGET: ${{ matrix.target }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/release
+          BUNDLE="src-tauri/target/${TARGET}/release/bundle"
+          DMG_SRC="${BUNDLE}/dmg/A File Manager_${VERSION}_${ARCH}.dmg"
+          APP_SRC="${BUNDLE}/macos/A File Manager.app"
+          if [ ! -f "${DMG_SRC}" ]; then
+            echo "Missing DMG: ${DMG_SRC}"
+            ls -la "${BUNDLE}/dmg" || true
+            exit 1
+          fi
+          if [ ! -d "${APP_SRC}" ]; then
+            echo "Missing app bundle: ${APP_SRC}"
+            ls -la "${BUNDLE}/macos" || true
+            exit 1
+          fi
+          DMG_DEST="$(node --input-type=module -e "
+            import { dmgAssetName } from './scripts/release-assets.mjs';
+            process.stdout.write(dmgAssetName(process.env.VERSION, process.env.FLAVOR, process.env.ARCH));
+          ")"
+          ZIP_DEST="$(node --input-type=module -e "
+            import { appZipAssetName } from './scripts/release-assets.mjs';
+            process.stdout.write(appZipAssetName(process.env.VERSION, process.env.FLAVOR, process.env.ARCH));
+          ")"
+          cp "${DMG_SRC}" "dist/release/${DMG_DEST}"
+          ditto -c -k --keepParent "${APP_SRC}" "dist/release/${ZIP_DEST}"
+          echo "dmg=${DMG_DEST}" >> "$GITHUB_OUTPUT"
+          echo "app_zip=${ZIP_DEST}" >> "$GITHUB_OUTPUT"
+          echo "Collected ${DMG_DEST} and ${ZIP_DEST}"
+
+      - name: Upload to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release upload "${{ needs.prepare.outputs.tag }}" \
+            "dist/release/${{ steps.asset.outputs.dmg }}" \
+            "dist/release/${{ steps.asset.outputs.app_zip }}" --clobber
+
   build-feature-packs:
     needs: prepare
     if: needs.prepare.outputs.want_feature_pack == 'true'
@@ -325,7 +439,7 @@ jobs:
           gh release upload "${{ needs.prepare.outputs.tag }}" "${files[@]}" --clobber
 
   finalize:
-    needs: [prepare, build-app, build-feature-packs]
+    needs: [prepare, build-app, build-app-macos, build-feature-packs]
     if: always() && needs.prepare.result == 'success'
     runs-on: ubuntu-latest
     steps:
@@ -334,14 +448,18 @@ jobs:
         run: |
           set -euo pipefail
           echo "build-app=${{ needs.build-app.result }}"
+          echo "build-app-macos=${{ needs.build-app-macos.result }}"
           echo "build-feature-packs=${{ needs.build-feature-packs.result }}"
           app="${{ needs.build-app.result }}"
+          mac="${{ needs.build-app-macos.result }}"
           fp="${{ needs.build-feature-packs.result }}"
           ok_app=false
+          ok_mac=false
           ok_fp=false
           [[ "$app" == "success" || "$app" == "skipped" ]] && ok_app=true
+          [[ "$mac" == "success" || "$mac" == "skipped" ]] && ok_mac=true
           [[ "$fp" == "success" || "$fp" == "skipped" ]] && ok_fp=true
-          if [ "$ok_app" != true ] || [ "$ok_fp" != true ]; then
+          if [ "$ok_app" != true ] || [ "$ok_mac" != true ] || [ "$ok_fp" != true ]; then
             echo "One or more build jobs failed; leaving release as draft"
             exit 1
           fi

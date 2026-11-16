@@ -6,6 +6,8 @@
  *   - Core:         A.File.Manager_${ver}_x64-setup.exe
  *   - AI:           A.File.Manager_${ver}_x64-ai-setup.exe
  *   - Feature Pack: A.File.Manager_${ver}_feature-pack-${dir}.zip
+ *   - macOS Core:   A.File.Manager_${ver}_${arch}.dmg / .app.zip
+ *   - macOS AI:     A.File.Manager_${ver}_${arch}-ai.dmg / -ai.app.zip
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -31,6 +33,49 @@ export function nsisAssetName(version, flavor) {
     return `${PRODUCT_ASSET_PREFIX}_${version}_x64-setup.exe`;
   }
   throw new Error(`未知 NSIS flavor: ${flavor}`);
+}
+
+/** macOS CI 构建矩阵：每个 flavor × 两个原生架构（7.25）。 */
+export const MAC_ARCHES = [
+  { target: "aarch64-apple-darwin", arch: "aarch64" },
+  { target: "x86_64-apple-darwin", arch: "x64" },
+];
+
+/** Tauri DMG 默认输出文件名（含空格）：产品名_版本_架构.dmg */
+export function tauriDmgFileName(version, arch) {
+  if (!MAC_ARCHES.some((item) => item.arch === arch)) {
+    throw new Error(`未知 macOS 架构: ${arch}`);
+  }
+  return `A File Manager_${version}_${arch}.dmg`;
+}
+
+/** GitHub Release 上的规范 DMG 资产名。 */
+export function dmgAssetName(version, flavor, arch) {
+  if (flavor !== "core" && flavor !== "ai") throw new Error(`未知 macOS flavor: ${flavor}`);
+  tauriDmgFileName(version, arch);
+  const suffix = flavor === "ai" ? "-ai" : "";
+  return `${PRODUCT_ASSET_PREFIX}_${version}_${arch}${suffix}.dmg`;
+}
+
+/** 与 DMG 同源的 .app 压缩包资产名（ditto -c -k --keepParent）。 */
+export function appZipAssetName(version, flavor, arch) {
+  if (flavor !== "core" && flavor !== "ai") throw new Error(`未知 macOS flavor: ${flavor}`);
+  tauriDmgFileName(version, arch);
+  const suffix = flavor === "ai" ? "-ai" : "";
+  return `${PRODUCT_ASSET_PREFIX}_${version}_${arch}${suffix}.app.zip`;
+}
+
+/** 供 release.yml 的 mac_matrix 使用；只保留 packs 选中的 flavor。 */
+export function macReleaseMatrix(packKinds) {
+  const kinds = Array.isArray(packKinds) ? packKinds : [];
+  const rows = [];
+  for (const flavor of APP_FLAVORS) {
+    if (!kinds.includes(flavor)) continue;
+    for (const { target, arch } of MAC_ARCHES) {
+      rows.push({ flavor, vite_ai: flavor === "ai" ? "1" : "0", target, arch });
+    }
+  }
+  return rows;
 }
 
 /** @param {string} version @param {string} packDirName packs/ 下目录名 */

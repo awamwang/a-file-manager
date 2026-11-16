@@ -70,7 +70,7 @@
 | P0-5 | 双击打开：`open_with/mod.rs:42-56` 的非 Windows 分支一律 `success:false`；改用已注册的 `tauri-plugin-opener`（`open_path` / `reveal_item_in_dir`），`open_recycle_bin_system` → `open ~/.Trash` | `lib.rs:101`、`capabilities/default.json` | 【运行】 |
 | P0-6 | `tauri.conf.json`：`targets: ["nsis"]` → `["app","dmg"]`，补 `bundle.macOS`、`bundle.resources`（否则 `dragOut.ts:21` 的 `resolveResource("icons/32x32.png")` 打包后缺拖影）、`titleBarStyle: Overlay` + `hiddenTitle`；`bundle.windows.webviewInstallMode` 对 macOS 无意义 | :24-25, :35-50 | 【运行】 |
 | P0-7 | `deps_probe.rs:64-90` 把 WebView2 当 required，非 Windows 恒 `false` → 健康页永远报红并给出「安装 WebView2 / NSIS bootstrapper」的错误指引 | :471-490 | 【行为】 |
-| P0-8 | CI 加 `macos-latest` matrix、去掉 WebView2/NSIS 断言、release 产 `.dmg`/`.app`；`rust-toolchain.toml` 补两个 apple targets | ci.yml / release.yml | 【运行】 |
+| P0-8 | CI 加 `macos-latest` matrix、去掉 WebView2/NSIS 断言、release 产 `.dmg`/`.app`；`rust-toolchain.toml` 补两个 apple targets | ci.yml / release.yml | 【运行】（7.25 已做双平台矩阵 + Mac 打包 job；WebView2/NSIS 断言改为**仅 Windows 执行**而非删除；apple targets 由 workflow 的 `dtolnay/rust-toolchain` 按矩阵注入，未写进 `rust-toolchain.toml` 以免所有开发者被迫下载） |
 
 ### P1 · 主要功能（约 12–20 人日）
 
@@ -160,7 +160,7 @@
 
 **可执行改造清单（构建 → 打包 → 签名 → CI → 发版）**
 
-1. `rust-toolchain.toml` 加 `targets = ["aarch64-apple-darwin","x86_64-apple-darwin"]`；文档补 Xcode CLT 前置。
+1. `rust-toolchain.toml` 加 `targets = ["aarch64-apple-darwin","x86_64-apple-darwin"]`；文档补 Xcode CLT 前置。**（7.25 改为 workflow 按 job 注入 target，理由见 P0-8；`rust-toolchain.toml` 不动。）**
 2. `Cargo.toml` 把 `windows` 移入 target 门控；修 `autostart.rs:6` / `favorites/shell_verb.rs:7` / `shell_icons/mod.rs:18-28` 三处阻塞。
 3. macOS 实机跑 `cargo check --target aarch64-apple-darwin`（Core `--no-default-features`、AI 默认）+ `npm run build`。
 4. `check-packaging-flavors.mjs` 的 cargo 命令支持 `--target`；`check-deps-surface.mjs` 的断言改为仅 Windows 生效。
@@ -170,11 +170,11 @@
 8. 申请 Developer ID 证书 + App Store Connect / Apple ID；CI 注入 `APPLE_*` secrets。
 9. 配 `signingIdentity` + `hardenedRuntime` + entitlements；CI 加 `codesign` → `notarytool submit --wait` → `stapler staple`。
 10. 更新 SKILL.md:86 的「当前无代码签名证书」与 README Requirements。
-11. `ci.yml` 拆 `windows-latest` + `macos-latest` matrix；PowerShell 步骤改 Node 脚本 / bash；缓存键加 OS/target。
-12. `release.yml` 的 `flavor_matrix` 扩为 `{flavor, vite_ai, os, runner, target, bundles, asset_kind}`；新增 `build-app-macos` job；移除 macOS 侧 WebView2 校验。
+11. `ci.yml` 拆 `windows-latest` + `macos-latest` matrix；PowerShell 步骤改 Node 脚本 / bash；缓存键加 OS/target。**（7.25 已完成。）**
+12. `release.yml` 的 `flavor_matrix` 扩为 `{flavor, vite_ai, os, runner, target, bundles, asset_kind}`；新增 `build-app-macos` job；移除 macOS 侧 WebView2 校验。**（7.25 已完成主体：新增独立的 `mac_matrix` 输出与 `build-app-macos` job，WebView2 校验条件化到 Windows；未额外扩 `flavor_matrix` 字段，避免碰 Windows 既有矩阵。）**
 13. 同步更新 `check-multi-pack-release.mjs` / `check-autostart.mjs` / `check-arch-optimize.mjs` 的契约断言。
-14. `release-assets.mjs` 命名中枢加 dmg/app 资产名函数（含 arch 维度）；`prepare-release.mjs` / dry-run 输出随之更新。
-15. `release.yml:187-195` release notes 按平台列资产；复用现有 `gh release upload --clobber` 机制。
+14. `release-assets.mjs` 命名中枢加 dmg/app 资产名函数（含 arch 维度）；`prepare-release.mjs` / dry-run 输出随之更新。**（7.25 已加 `tauriDmgFileName` / `dmgAssetName` / `appZipAssetName` / `macReleaseMatrix`；`prepare-release.mjs` 未改。）**
+15. `release.yml:187-195` release notes 按平台列资产；复用现有 `gh release upload --clobber` 机制。**（7.25 已完成。）**
 16. 更新 README / SKILL.md；**新增 ADR（建议 0015「macOS 支持范围与签名/公证策略」）**，明确是否支持 MAS 沙箱、universal binary，以及 Windows 基线能力的替代方案。
 
 ---
@@ -971,6 +971,41 @@
 **验证**：`cargo check`（默认 / `--no-default-features`）0 警告；`cargo test --lib` **334 passed / 0 failed / 2 ignored**（+2：共享契约在 `current()` 与 macOS 适配器各跑一次；Windows 适配器在 CI 上会跑第三份）；`npm test` 全量 exit 0（含新契约）；`npm run build` / `rustfmt --check` / `git diff --check` 全绿。
 
 **边界（勿误判为完成）**：provider 的**注册关系在两端各写一次**（`Some(&NATIVE_TRASH)` / `Some(&NATIVE_CLIPBOARD)`），还没有做到「插件式动态注册」——但 6.5 第 4 条要求的是「由已注册适配器回报」，本轮已满足；`NativeTrash` / `NativeClipboard` 调用的 OS 实现**仍在 `file_ops/*`**，只是入口收归平台层（理由：无 Windows 编译器，避免搬迁 600 行 Win32 / PowerShell 代码造成行为漂移）；`shellClipboard` 字段目前只上报、前端还没有用它隐藏粘贴项；Windows 适配器类型检查仍待 CI；`DriveInfo.letter` 清洗、原生菜单、静态事实类能力（注册表自启 / WebView2 等）仍按原排期。
+
+---
+
+### 7.25 GitHub CI 双平台 + macOS 打包 job（第 20 轮）
+
+**触发**：用户问「将来要实现 GitHub CI 打包，Mac 包可以吗」，并选了「CI 矩阵 + Mac 打包 job」。结论是**可以**，但本轮只能交付「流水线正确 + 静态契约守住」，真实 `.dmg` 必须在 GitHub 的 macOS runner 上才能产出（本机 `hdiutil` 挂载卷操作被沙箱拒绝，见 7.9）。
+
+**先过 6.5 第 1 / 6 条门禁**：
+
+| 缺口 | 四选一 | 依据 |
+|---|---|---|
+| CI 双平台 | **复用**现有 `npm test` 全量链与 `dtolnay/rust-toolchain` / `swatinem/rust-cache` | 不为 Mac 复制一套测试步骤；矩阵只切 runner 与 target，两条分支跑同一条链 |
+| Mac 打包入口 | **复用**`build-flavor.mjs` 的 flavor / Cargo feature 逻辑，只按 `process.platform` 切 bundle 集合并转发 `--target` | Windows NSIS 行为逐字保留；不新写构建脚本 |
+| 签名 / 公证 | **降级并显式写明** | 没有 Developer ID / `APPLE_*` secrets，本机无法验证；契约断言 workflow **不引用**任何 `APPLE_*`，保持 opt-in |
+
+**改动**：
+
+| 落点 | 内容 |
+|---|---|
+| `.github/workflows/ci.yml` | 单 job 双 runner 矩阵（`windows-latest` + `x86_64-pc-windows-msvc`、`macos-latest` + `aarch64-apple-darwin`）；全局 `shell: bash` 替掉 PowerShell；缓存键 `ci-${{ matrix.os }}-${{ matrix.rust_target }}`；两端跑 `npm run build` + `npm test` + `cargo check --target`；WebView2 / `test:packaging-flavors` **条件化到 Windows**（不是删除） |
+| `.github/workflows/release.yml` | `prepare` 新增 `mac_matrix` 输出（由 `macReleaseMatrix(packs)` 生成，feature-pack-only 时为空并跳过）；新增 `build-app-macos` job：原生双架构 × 两个 flavor = 4 个构建，构建 `app,dmg`、把 `.app` 用 `ditto -c -k --keepParent` 压成 zip、`gh release upload --clobber` 挂到同一 Release；`finalize` 的 `needs` 与结果检查纳入该 job；release notes 加 Mac 资产表与「未签名需右键打开」说明 |
+| `scripts/build-flavor.mjs` | 新增 `--target <triple>`；`--bundle` 时按宿主选 bundle（win32→`nsis`，darwin→`app,dmg`，其他→`appimage`）；Windows 默认 `nsis` 一字未改 |
+| `scripts/release-assets.mjs` | 新增 `MAC_ARCHES`、`tauriDmgFileName`、`dmgAssetName`、`appZipAssetName`、`macReleaseMatrix`；Tauri 源名含空格 `A File Manager_<ver>_<arch>.dmg`，GitHub 资产名沿用「空格→点 + flavor 后缀」约定 |
+| `scripts/check-ci-macos.mjs` | 新增静态契约并纳入 `npm test`：双 runner / 缓存维度 / Windows 断言门控 / Mac job 的 target 与资产命名 / `finalize` 依赖 / 不引用 `APPLE_*` / 命名函数精确值；`test:macos-bundle` 也纳入全量链 |
+| `docs/macos-port-research.md` | P0-8、3.3 清单第 1/11/12/14/15 项标注本轮状态与偏离理由 |
+
+**本机验证**：两个 workflow 用 Ruby Psych 解析通过；逐段抽出全部 `run` 脚本做 `bash -n`，27 段全 OK；`npm test` 全量 exit 0（334 Rust 用例 + 新增契约）；`git diff --check` 通过。**不代表 CI 已跑过**——GitHub Actions、实机 `.dmg` 生成、跨架构交叉编译都还没执行。
+
+**边界（勿误判为完成）**：
+
+- 产物是**未签名 / ad-hoc**，没有 `signingIdentity` / hardened runtime / entitlements / notarytool；用户首次打开需右键 → 打开。签名公证仍是 P3 后半段，需要证书和 secrets。
+- `rust-toolchain.toml` 未加 apple targets（由 workflow 注入），本机开发者不会被迫下载；若将来要本地交叉编译需自己 `rustup target add x86_64-apple-darwin`。
+- `prepare-release.mjs` / `build-release-artifacts.mjs` 的 dry-run 输出还没列出 Mac 资产（release.yml 的 notes 与实际上传已覆盖）；`check-multi-pack-release.mjs` 尚未断言 Mac 资产。
+- `macos-latest` 目前是 Apple Silicon runner，交叉编 `x64` 依赖 Xcode 提供的 linker；这条路只有 GitHub Actions 能验证。Tauri 的 dmg 文件名按 v2 约定（`<产品名>_<版本>_<架构>.dmg`）推导，未在真实产物上核对。
+- `ci.yml` 的 macOS runner 跑 `npm test` 包含 `test:rust`（334 用例）与 Provider 共享测试；Windows runner 额外跑 `test:packaging-flavors`，两边不再共享 PowerShell 步骤。
 
 ---
 
