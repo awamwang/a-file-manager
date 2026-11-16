@@ -109,16 +109,77 @@ fn cache_key(path: &str, size: u16, kind: &str) -> String {
 }
 
 /// Shared shell-icon key for the same file type (extension / dir), not per-path.
-fn type_icon_cache_key(path: &Path, size: u16) -> String {
+///
+/// `None` means the icon is file-specific and must stay on the per-path cache:
+/// executables and shortcuts each carry their own application icon, so sharing
+/// one glyph across the whole extension would render every app identically.
+fn type_icon_cache_key(path: &Path, size: u16) -> Option<String> {
+    // Per-file icons — two .exe / .lnk files have distinct application images.
+    const PER_FILE_EXTS: &[&str] = &[
+        "exe", "dll", "lnk", "ico", "msi", "scr", "cpl", "app", "bat", "cmd", "com", "ps1",
+    ];
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    if PER_FILE_EXTS.contains(&ext.as_str()) {
+        return None;
+    }
     if path.is_dir() {
-        return format!("icon|{size}|type:dir");
+        return Some(format!("icon|{size}|type:dir"));
     }
-    match path.extension().and_then(|e| e.to_str()) {
-        Some(ext) if !ext.is_empty() => {
-            format!("icon|{size}|type:{}", ext.to_ascii_lowercase())
+    if !ext.is_empty() {
+        Some(format!("icon|{size}|type:{ext}"))
+    } else {
+        Some(format!("icon|{size}|type:none"))
+    }
+}
+
+/// Resolve the path whose icon should actually be rendered for a link-like entry.
+///
+/// - Windows `.lnk`: read the stored target (exe / file / folder) so the app's
+///   own image is shown instead of a generic shortcut leaf. The shortcut arrow
+///   is added by the frontend as an overlay, so the target icon stays bare.
+/// - Filesystem symlinks (junctions on directories are already resolved to the
+///   real target by the navigator listing): follow to the target when present.
+///
+/// Falls back to `path` itself for broken links, non-Windows, or read failures.
+fn icon_source_path(path: &Path) -> PathBuf {
+    let is_lnk = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.eq_ignore_ascii_case("lnk"))
+        .unwrap_or(false);
+
+    if is_lnk {
+        if let Ok(target) = crate::file_ops::shortcut::read_shortcut_target(path) {
+            let target = target.trim();
+            if !target.is_empty() {
+                let candidate = PathBuf::from(target.replace('/', "\\"));
+                if candidate.exists() {
+                    return candidate;
+                }
+            }
         }
-        _ => format!("icon|{size}|type:none"),
     }
+
+    if let Ok(meta) = std::fs::symlink_metadata(path) {
+        if meta.file_type().is_symlink() {
+            if let Ok(target) = std::fs::read_link(path) {
+                let resolved = if target.is_absolute() {
+                    target
+                } else {
+                    path.parent().unwrap_or_else(|| Path::new("")).join(target)
+                };
+                if resolved.exists() {
+                    return resolved;
+                }
+            }
+        }
+    }
+
+    path.to_path_buf()
 }
 
 fn ensure_com_sta() {
@@ -230,10 +291,13 @@ pub fn resolve_icon(path: &str, size: u16, prefer_thumbnail: bool) -> ShellIconR
     let trimmed = path.trim();
     let pb = PathBuf::from(trimmed.replace('/', "\\"));
     let size = size.clamp(8, 256);
-    let want_thumb = prefer_thumbnail && pb.is_file();
+    // Links render their target's icon (app image for .lnk); the shortcut arrow
+    // is an overlay drawn by the frontend, so this icon stays bare.
+    let source = icon_source_path(&pb);
+    let want_thumb = prefer_thumbnail && source.is_file();
     let kind = if want_thumb { "thumbnail" } else { "icon" };
     let path_key = cache_key(trimmed, size, kind);
-    let type_key = type_icon_cache_key(&pb, size);
+    let type_key = type_icon_cache_key(&source, size);
 
     if let Ok(cache) = ICON_CACHE.lock() {
         if let Some(hit) = cache.get(&path_key) {
@@ -243,25 +307,28 @@ pub fn resolve_icon(path: &str, size: u16, prefer_thumbnail: bool) -> ShellIconR
                 kind: kind.to_string(),
             };
         }
-        // Shell icons (and thumb→icon fallbacks) share one glyph per file type.
+        // Shell icons (and thumb→icon fallbacks) share one glyph per file type,
+        // except file-specific icons (exe/lnk/…) which stay on the path cache.
         if !want_thumb {
-            if let Some(hit) = cache.get(&type_key) {
-                return ShellIconResult {
-                    path: trimmed.to_string(),
-                    data_url: Some(hit.clone()),
-                    kind: "icon".to_string(),
-                };
+            if let Some(ref type_key) = type_key {
+                if let Some(hit) = cache.get(type_key) {
+                    return ShellIconResult {
+                        path: trimmed.to_string(),
+                        data_url: Some(hit.clone()),
+                        kind: "icon".to_string(),
+                    };
+                }
             }
         }
     }
 
     let data_url = if want_thumb {
         // AIA-143：系统缩略图（含 SageThumbs 等）优先；批内必须串行 COM。
-        system_thumbnail_data_url(&pb, size)
-            .or_else(|_| shell_icon_data_url(&pb, size))
+        system_thumbnail_data_url(&source, size)
+            .or_else(|_| shell_icon_data_url(&source, size))
             .ok()
-    } else if pb.exists() {
-        shell_icon_data_url(&pb, size).ok()
+    } else if source.exists() {
+        shell_icon_data_url(&source, size).ok()
     } else {
         None
     };
@@ -279,7 +346,9 @@ pub fn resolve_icon(path: &str, size: u16, prefer_thumbnail: bool) -> ShellIconR
         if let Ok(mut cache) = ICON_CACHE.lock() {
             cache.insert(path_key, url.clone());
             if !want_thumb {
-                cache.insert(type_key, url.clone());
+                if let Some(ref type_key) = type_key {
+                    cache.insert(type_key.clone(), url.clone());
+                }
             }
         }
     }
@@ -373,7 +442,10 @@ mod tests {
         let type_key = type_icon_cache_key(&a, 16);
         {
             let cache = ICON_CACHE.lock().unwrap();
-            assert!(cache.get(&type_key).is_some(), "type cache must fill after shell icon");
+            assert!(
+                type_key.as_ref().and_then(|k| cache.get(k)).is_some(),
+                "type cache must fill after shell icon"
+            );
         }
         let second = resolve_icon(&b.to_string_lossy(), 16, false);
         assert_eq!(first.data_url, second.data_url);
@@ -444,6 +516,48 @@ mod tests {
             "AFM_PERF shell_icon_batch n=8 thumb=1 cold_samples_ms={cold_thumb:?} cold_median_ms={:.1} warm_ms={warm_thumb_ms:.1}",
             cold_thumb[cold_thumb.len() / 2]
         );
+    }
+
+    #[test]
+    fn per_file_exts_do_not_share_type_icon() {
+        // exe/lnk and friends carry per-application icons — must not collapse
+        // into one shared type glyph.
+        assert_eq!(type_icon_cache_key(Path::new(r"C:\a\one.exe"), 20), None);
+        assert_eq!(type_icon_cache_key(Path::new(r"C:\a\two.lnk"), 20), None);
+        // Ordinary extensions still share one glyph.
+        assert_eq!(
+            type_icon_cache_key(Path::new(r"C:\a\one.txt"), 20).as_deref(),
+            Some("icon|20|type:txt")
+        );
+    }
+
+    #[test]
+    fn broken_link_icon_source_falls_back_to_link_path() {
+        // A nonexistent .lnk has no readable target; source stays the input path.
+        let missing = PathBuf::from(r"C:\definitely\missing\shortcut-name.lnk");
+        assert_eq!(icon_source_path(&missing), missing);
+    }
+
+    #[test]
+    fn symlink_icon_source_follows_target() {
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::symlink_file;
+            let dir = std::env::temp_dir().join(format!("afm-link-icon-{}", std::process::id()));
+            let _ = fs::remove_dir_all(&dir);
+            fs::create_dir_all(&dir).unwrap();
+            let target = dir.join("target.txt");
+            fs::write(&target, "hello").unwrap();
+            let link = dir.join("alias.txt");
+            if symlink_file(&target, &link).is_ok() {
+                let resolved = icon_source_path(&link);
+                assert_eq!(
+                    crate::paths::normalize_path_for_comparison(&resolved.to_string_lossy()),
+                    crate::paths::normalize_path_for_comparison(&target.to_string_lossy())
+                );
+            }
+            let _ = fs::remove_dir_all(&dir);
+        }
     }
 
     #[test]

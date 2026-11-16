@@ -46,7 +46,14 @@ assert.ok(rustList.includes('skip_serializing_if = "is_false"'));
 assert.ok(rustList.includes("file_type.is_symlink()"));
 assert.ok(rustSearch.includes("entry.file_type().is_symlink()"));
 assert.ok(navigatorBrowse.includes("isLink: entry.isLink ?? null"));
-assert.ok(entryIcon.includes('if (entry.isLink) return "link";'));
+// Local links now render through ShellIconImg (real target icon + arrow overlay),
+// so entryIcon must NOT intercept them with a semantic glyph.
+assert.ok(!entryIcon.includes('if (entry.isLink) return "link";'));
+assert.ok(shellIcon.includes("isLink"));
+assert.ok(shellIcon.includes("shell-icon-link-badge"));
+assert.ok(navigatorView.includes(':is-link="isLinkEntry(item.entry)"'));
+assert.ok(navigatorView.includes(':is-link="isLinkEntry(entry)"'));
+assert.ok(navigatorView.includes("isLinkEntry, linkTargetForEntry"));
 
 // The link's own target directory is resolved natively and wins on double-click.
 assert.ok(rustStat.includes("pub(crate) fn entry_link_info"));

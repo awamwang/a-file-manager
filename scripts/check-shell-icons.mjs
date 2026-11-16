@@ -34,6 +34,16 @@ assert.ok(
 );
 assert.ok(rust.includes("type_icon_cache_key"), "same-extension shell icon reuse (icon-only)");
 assert.ok(
+  rust.includes("icon_source_path")
+    && rust.includes("read_shortcut_target")
+    && rust.includes("symlink_metadata"),
+  "links must resolve their target so the real app/target icon is shown",
+);
+assert.ok(
+  rust.includes("PER_FILE_EXTS") && rust.includes('"exe"') && rust.includes('"lnk"'),
+  "per-application icons (exe/lnk) must not share an extension-wide glyph",
+);
+assert.ok(
   rust.includes("system_thumbnail_data_url")
     && /system_thumbnail_data_url[\s\S]*?\.or_else/.test(rust),
   "thumbnail path must try Shell handlers then fall back to shell icon",

@@ -35,13 +35,16 @@ for (const [id, glyph] of Object.entries(FLUENT_GLYPHS)) {
 // Local entries keep the shell-icon slot — only special kinds get a final glyph.
 assert.equal(specialEntryIcon({ name: "Projects", path: "C:\\Work\\Projects", kind: "dir" }), null);
 assert.equal(specialEntryIcon({ name: "notes.txt", path: "C:\\Work\\notes.txt", kind: "file" }), null);
+// Local links (.lnk, symlink, junction) ALSO use the shell-icon channel now:
+// the native side resolves the target for its real icon and the view draws the
+// shortcut arrow overlay. They must NOT be replaced by a semantic glyph.
 assert.equal(
   specialEntryIcon({ name: "Edge.lnk", path: "C:\\Users\\Public\\Edge.lnk", kind: "file" }),
-  "shortcut",
+  null,
 );
 assert.equal(
   specialEntryIcon({ name: "EDGE.LNK", path: "C:\\Users\\Public\\EDGE.LNK", kind: "file" }),
-  "shortcut",
+  null,
 );
 assert.equal(
   specialEntryIcon({ name: "Shortcut", path: "C:\\Work\\Shortcut", kind: "dir" }),
@@ -55,11 +58,11 @@ assert.equal(
     kind: "dir",
     isLink: true,
   }),
-  "link",
+  null,
 );
 assert.equal(
   specialEntryIcon({ name: "alias.txt", path: "C:\\targets\\alias.txt", kind: "file", isLink: true }),
-  "link",
+  null,
 );
 assert.equal(
   specialEntryIcon({ name: "alias", path: "C:\\targets\\alias", kind: "dir", isLink: false }),
@@ -159,9 +162,10 @@ assert.equal(
   "recycle",
 );
 
+// Local links are intentionally NOT glyphs (null → ShellIconImg + arrow overlay).
+assert.equal(specialEntryIcon({ name: "a.lnk", path: "C:\\a.lnk", kind: "file" }), null);
+assert.equal(specialEntryIcon({ name: "alias", path: "C:\\target", kind: "dir", isLink: true }), null);
 for (const result of [
-  specialEntryIcon({ name: "a.lnk", path: "C:\\a.lnk", kind: "file" }),
-  specialEntryIcon({ name: "alias", path: "C:\\target", kind: "dir", isLink: true }),
   specialEntryIcon({ name: "b", path: "awam://browser/b", kind: "file" }),
   specialEntryIcon({ name: "c", path: "C:\\c", kind: "file" }, RECYCLE_PATH),
 ]) {

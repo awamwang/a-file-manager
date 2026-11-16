@@ -3,17 +3,17 @@
  * Navigator row-icon routing.
  *
  * Some entries can never receive a Windows shell icon (provider `awam://`
- * virtual items, Recycle Bin items pointing at deleted originals). Previously
- * those rows stayed on `shell-icon-slot` forever — the grey loading placeholder
- * looked exactly like "icon failed to load". Others deserve a semantic glyph
- * instead of a generic system icon (`.lnk` shortcuts, symlinks / junctions).
+ * virtual items, Recycle Bin items pointing at deleted originals); those keep
+ * a semantic glyph. Local links (`.lnk` shortcuts, symlinks / junctions) now
+ * ALSO return `null`: they render through `ShellIconImg` so they show their
+ * target's real icon (an app's own image for `.lnk`) with a Windows-style
+ * shortcut-arrow overlay drawn by `ShellIconImg` via the `isLink` flag.
  *
  * Returning `null` keeps `ShellIconImg`: local entries still show the soft slot
  * until their shell icon / thumbnail arrives, with no two-stage glyph swap.
  */
 
 import type { FluentGlyphId } from "../components/icons/glyphs.ts";
-import { entryExtension } from "./entryType.ts";
 import { isProviderPath } from "./provider/path.ts";
 import { isRecyclePath } from "./recycle/path.ts";
 
@@ -53,12 +53,8 @@ export function specialEntryIcon(
   }
   // Recycle Bin items resolve to deleted originals; shell icons cannot load.
   if (isRecyclePath(parentPath)) return "recycle";
-  // Symlinks / junctions: the shell often shows a blank page for these, and
-  // the entry path may already point at the target rather than the link.
-  if (entry.isLink) return "link";
-  // Windows shortcut files are regular .lnk files, not filesystem links.
-  if (entry.kind !== "dir" && entryExtension(entry.name) === "lnk") {
-    return "shortcut";
-  }
+  // Local links (symlinks / junctions / .lnk) deliberately fall through to
+  // `ShellIconImg`: the native side resolves the target so the real icon (an
+  // app's own image for a .lnk) is shown, with an arrow overlay from the view.
   return null;
 }

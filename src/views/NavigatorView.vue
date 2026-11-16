@@ -142,7 +142,7 @@ import {
 } from "../state/navigatorViewMode";
 import { entryTypeLabel } from "../state/entryType";
 import { specialEntryIcon } from "../state/entryIcon";
-import { linkTargetForEntry } from "../state/linkTarget";
+import { isLinkEntry, linkTargetForEntry } from "../state/linkTarget";
 import {
   DEFAULT_DETAILS_COLUMN_WIDTHS,
   detailsGridTemplate,
@@ -2271,6 +2271,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
               :path="item.entry.path"
               :size="iconPixelSize"
               :is-dir="item.entry.kind === 'dir'"
+              :is-link="isLinkEntry(item.entry)"
             />
           </span>
           <textarea
@@ -2440,6 +2441,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
               :path="entry.path"
               :size="iconPixelSize"
               :is-dir="entry.kind === 'dir'"
+              :is-link="isLinkEntry(entry)"
             />
           </span>
           <span class="name-block">
