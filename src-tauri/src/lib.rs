@@ -23,6 +23,7 @@ mod projects;
 mod providers;
 mod settings;
 mod shell_menu;
+mod shortcuts;
 mod system_tray;
 mod terminal;
 mod tool_runtime;
@@ -237,6 +238,8 @@ health_get,
                     settings::settings_schema_get,
                     settings::settings_get,
                     settings::settings_set,
+                    shortcuts::shortcuts_overrides_get,
+                    shortcuts::shortcuts_overrides_set,
                     discovery::discovery_status,
                     discovery::discovery_estimate_count,
                     discovery::discovery_set_fallback_enabled,

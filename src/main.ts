@@ -11,6 +11,7 @@ import { hydrateSettings } from "./state/settingsHydrate.ts";
 import { startupMark } from "./state/startupTiming.ts";
 import { applyUiChromeFromValues } from "./state/uiChrome.ts";
 import { vActionTip } from "./shortcuts/actionTip.ts";
+import { hydrateShortcutOverridesFromBackend } from "./shortcuts/config.ts";
 import "./styles/fluent-tokens.css";
 import "./styles/base.css";
 import "./styles/path-cards.css";
@@ -37,6 +38,8 @@ document.addEventListener(
  */
 async function bootstrap(): Promise<void> {
   startupMark("bootstrap:start");
+  // 快捷键覆盖落盘 shortcut-overrides.json，与设置并行拉取。
+  const overridesReady = hydrateShortcutOverridesFromBackend().catch(() => undefined);
   let values: Record<string, unknown> = {};
   try {
     const doc = await hydrateSettings();
@@ -48,6 +51,8 @@ async function bootstrap(): Promise<void> {
   applyUiChromeFromValues(values);
   applyAppLocaleFromValues(values);
   applySessionSettingsFromValues(values);
+  // 挂载前等快捷键覆盖就绪，dispatch map / Settings 页首帧即为持久化状态。
+  await overridesReady;
 
   try {
     await hydrateFeaturePackContributions();
