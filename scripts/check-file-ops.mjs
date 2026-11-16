@@ -30,6 +30,21 @@ assert.ok(rust.includes("create_empty_file"));
 assert.ok(rust.includes("delete_to_recycle"));
 assert.ok(rust.includes("path_can_use_recycle_bin"));
 assert.ok(rust.includes("trash::delete"));
+// FIL-69: 删除 junction/symlink 只卸链接，不跟随目标；损坏链接仍可删。
+assert.ok(rust.includes("unlink_reparse_point"));
+assert.ok(rust.includes("ensure_deletable"));
+assert.ok(rust.includes("delete_permanent_one"));
+assert.ok(rust.includes("permanent_delete_junction_removes_link_only"));
+const listRs = readFileSync(join(root, "src-tauri/src/navigator/list.rs"), "utf8");
+assert.ok(
+  !listRs.includes("expose the real target as `path`"),
+  "listing must not rewrite junction path to the target (delete would hit the real folder)",
+);
+assert.ok(
+  listRs.includes("path` 始终是链接/条目自身路径") ||
+    listRs.includes("Never rewritten to the reparse target"),
+  "listing path must stay on the link entry",
+);
 // 大目录删除/复制/移动不得同步阻塞 UI 线程。
 for (const name of [
   "file_ops_delete",

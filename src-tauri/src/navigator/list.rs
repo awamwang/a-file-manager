@@ -11,8 +11,10 @@ use std::time::SystemTime;
 #[serde(rename_all = "camelCase")]
 pub struct NavigatorEntry {
     pub name: String,
-    /// Full open path. Omitted on the wire when equal to `join(listing.path, name)`
-    /// (Phase C IPC trim). Junctions / reparse targets that differ stay `Some`.
+    /// Link/entry path itself. Omitted on the wire when equal to
+    /// `join(listing.path, name)` (Phase C IPC trim). Never rewritten to the
+    /// reparse target — delete/rename/cut must address the link entry; open
+    /// uses `link_target` instead (FIL-69).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub path: Option<String>,
     /// `"dir"` or `"file"` (symlinks reported by target kind when possible).
@@ -21,7 +23,7 @@ pub struct NavigatorEntry {
     /// ordinary listings keep their current payload size.
     #[serde(default, skip_serializing_if = "is_false")]
     pub is_link: bool,
-    /// Path the link points to — double-click navigates into this directory.
+    /// Path the link points to — double-click / Open navigates into this directory.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub link_target: Option<String>,
     pub size: u64,
@@ -108,22 +110,15 @@ pub fn list_directory(path: &str, show_hidden: bool) -> Result<NavigatorListing,
             None
         };
 
-        // Directory junctions/symlinks: expose the real target as `path` so
-        // Navigator tabs open the original folder (AIA-210 / C4).
-        let open_path = if is_dir {
-            crate::projects::members::resolve_reparse_to_target(&entry_path)
-                .unwrap_or(entry_path.clone())
-        } else {
-            entry_path.clone()
-        };
-
-        let open_display = display_path(&open_path);
+        // `path` 始终是链接/条目自身路径；目标只放在 `link_target`。
+        // 若把 path 解析成目标，删除/重命名会打到真实目录（FIL-69）。
+        let entry_display = display_path(&entry_path);
         let default_child = display_path(&root.join(&name));
         // Phase C: skip serializing path when the FE can reconstruct parent\name.
-        let path = if display_paths_equal(&open_display, &default_child) {
+        let path = if display_paths_equal(&entry_display, &default_child) {
             None
         } else {
-            Some(open_display)
+            Some(entry_display)
         };
 
         entries.push(NavigatorEntry {
@@ -367,23 +362,33 @@ mod tests {
         assert_eq!(wire["entries"][0]["isLink"], true);
         assert_eq!(wire["entries"][0]["linkTarget"], expected_target);
         assert!(wire["entries"][0].get("linkTargetDir").is_none());
-        // Wire may omit path when equal to parent\name; canonicalize still follows junctions.
-        let open_raw = listing.entries[0].path.clone().unwrap_or_else(|| {
+        // FIL-69: wire path is the junction entry (or omitted = parent\name), never the target.
+        let entry_raw = listing.entries[0].path.clone().unwrap_or_else(|| {
             format!(
                 "{}\\{}",
                 listing.path.trim_end_matches('\\'),
                 listing.entries[0].name
             )
         });
-        let open = PathBuf::from(&open_raw);
-        let open_canon = fs::canonicalize(&open).unwrap();
-        let real_canon = fs::canonicalize(&real).unwrap();
-        assert_eq!(open_canon, real_canon);
+        assert!(
+            display_paths_equal(&entry_raw, &display_path(&link)),
+            "listing path must be the link entry ({}); got {}",
+            display_path(&link),
+            entry_raw
+        );
+        assert!(
+            !display_paths_equal(&entry_raw, &display_path(&real)),
+            "listing path must not be rewritten to the junction target"
+        );
+        let link_meta = fs::symlink_metadata(PathBuf::from(&entry_raw)).unwrap();
+        assert!(link_meta.file_type().is_symlink());
 
         let via_junction = list_directory(&link.to_string_lossy(), true).unwrap();
         let via_canon = fs::canonicalize(PathBuf::from(&via_junction.path)).unwrap();
+        let real_canon = fs::canonicalize(&real).unwrap();
         assert_eq!(via_canon, real_canon);
 
+        let _ = fs::remove_dir(&link);
         let _ = fs::remove_dir_all(&dir);
     }
 

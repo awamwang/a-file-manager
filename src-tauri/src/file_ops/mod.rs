@@ -53,6 +53,75 @@ fn ensure_existing(path: &str) -> Result<PathBuf, String> {
     Ok(pb)
 }
 
+/// 删除用：目标不存在的损坏 junction/symlink 仍视为存在，以便只删链接项。
+fn ensure_deletable(path: &str) -> Result<PathBuf, String> {
+    assert_os_path(path)?;
+    let pb = PathBuf::from(path.trim());
+    if fs::symlink_metadata(&pb).is_ok() {
+        return Ok(pb);
+    }
+    if pb.exists() {
+        return Ok(pb);
+    }
+    Err(format!("Path does not exist: {path}"))
+}
+
+/// 路径是否为重解析点（junction / symlink），不跟随目标。
+fn is_reparse_point(path: &Path) -> bool {
+    let Ok(meta) = fs::symlink_metadata(path) else {
+        return false;
+    };
+    if meta.file_type().is_symlink() {
+        return true;
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
+        return meta.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0;
+    }
+    #[cfg(not(windows))]
+    {
+        false
+    }
+}
+
+/// 只删除链接/重解析点本身，不进入、不删除目标内容。
+fn unlink_reparse_point(path: &Path) -> Result<(), String> {
+    let meta = fs::symlink_metadata(path)
+        .map_err(|err| format!("Failed to stat link for delete: {err}"))?;
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        const FILE_ATTRIBUTE_DIRECTORY: u32 = 0x10;
+        if meta.file_attributes() & FILE_ATTRIBUTE_DIRECTORY != 0 {
+            // 目录 junction / 目录符号链接：RemoveDirectory 只拆链接。
+            return fs::remove_dir(path)
+                .map_err(|err| format!("Failed to delete directory link: {err}"));
+        }
+        return fs::remove_file(path)
+            .map_err(|err| format!("Failed to delete file link: {err}"));
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = meta;
+        fs::remove_file(path).map_err(|err| format!("Failed to delete link: {err}"))
+    }
+}
+
+/// 永久删除：链接只卸链接；普通目录才 `remove_dir_all`。
+fn delete_permanent_one(path: &Path) -> Result<(), String> {
+    if is_reparse_point(path) {
+        return unlink_reparse_point(path);
+    }
+    let meta = fs::metadata(path).map_err(|err| format!("Failed to permanently delete: {err}"))?;
+    if meta.is_dir() {
+        fs::remove_dir_all(path).map_err(|err| format!("Failed to permanently delete: {err}"))
+    } else {
+        fs::remove_file(path).map_err(|err| format!("Failed to permanently delete: {err}"))
+    }
+}
+
 fn ensure_dir(path: &str) -> Result<PathBuf, String> {
     let pb = ensure_existing(path)?;
     if !pb.is_dir() {
@@ -381,14 +450,23 @@ pub fn create_empty_file(parent: &str, name: &str) -> Result<String, String> {
 pub fn delete_paths(paths: &[String]) -> Result<Vec<String>, String> {
     let mut deleted = Vec::new();
     for path in paths {
-        let pb = ensure_existing(path)?;
+        let pb = ensure_deletable(path)?;
         safe_io::refuse_volume_root(&pb).map_err(|err| {
             err.replace(
                 "destructive op on a volume root",
                 "move to Recycle Bin for a volume root",
             )
         })?;
-        delete_to_recycle(&pb, path)?;
+        // 回收站路径必须是链接项本身；若 Shell 对损坏重解析点失败则直接卸链接。
+        match delete_to_recycle(&pb, path) {
+            Ok(()) => {}
+            Err(err) if is_reparse_point(&pb) => {
+                unlink_reparse_point(&pb).map_err(|unlink_err| {
+                    format!("{err}; link-only fallback also failed: {unlink_err}")
+                })?;
+            }
+            Err(err) => return Err(err),
+        }
         deleted.push(display_path(&pb));
     }
     Ok(deleted)
@@ -397,18 +475,14 @@ pub fn delete_paths(paths: &[String]) -> Result<Vec<String>, String> {
 pub fn delete_permanent_paths(paths: &[String]) -> Result<Vec<String>, String> {
     let mut deleted = Vec::new();
     for path in paths {
-        let pb = ensure_existing(path)?;
+        let pb = ensure_deletable(path)?;
         safe_io::refuse_volume_root(&pb).map_err(|err| {
             err.replace(
                 "destructive op on a volume root",
                 "permanently delete a volume root",
             )
         })?;
-        if pb.is_dir() {
-            fs::remove_dir_all(&pb).map_err(|err| format!("Failed to permanently delete: {err}"))?;
-        } else {
-            fs::remove_file(&pb).map_err(|err| format!("Failed to permanently delete: {err}"))?;
-        }
+        delete_permanent_one(&pb)?;
         deleted.push(display_path(&pb));
     }
     Ok(deleted)
@@ -763,6 +837,82 @@ mod tests {
         assert!(!file.exists());
         let err = delete_permanent_paths(&[r"C:\".to_string()]).unwrap_err();
         assert!(err.contains("root"));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn permanent_delete_junction_removes_link_only() {
+        use std::process::Command;
+
+        let dir = temp_workspace("junc-del");
+        let real = dir.join("real-target");
+        let parent = dir.join("skills");
+        fs::create_dir_all(&real).unwrap();
+        fs::create_dir_all(&parent).unwrap();
+        fs::write(real.join("keep-me.txt"), b"important").unwrap();
+        let link = parent.join("stock-code-list");
+        let real_s = fs::canonicalize(&real)
+            .unwrap()
+            .to_string_lossy()
+            .trim_start_matches(r"\\?\")
+            .to_string();
+        let status = Command::new("cmd")
+            .args(["/C", "mklink", "/J", &link.to_string_lossy(), &real_s])
+            .status()
+            .unwrap();
+        assert!(status.success());
+
+        let removed = delete_permanent_paths(&[display_path(&link)]).unwrap();
+        assert_eq!(removed.len(), 1);
+        assert!(
+            fs::symlink_metadata(&link).is_err(),
+            "junction entry must be gone"
+        );
+        assert!(real.is_dir(), "target directory must remain");
+        assert_eq!(
+            fs::read(real.join("keep-me.txt")).unwrap(),
+            b"important",
+            "target contents must remain"
+        );
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn permanent_delete_broken_junction_still_unlinks() {
+        use std::process::Command;
+
+        let dir = temp_workspace("junc-broken");
+        let real = dir.join("real-target");
+        let parent = dir.join("skills");
+        fs::create_dir_all(&real).unwrap();
+        fs::create_dir_all(&parent).unwrap();
+        let link = parent.join("broken-link");
+        let real_s = fs::canonicalize(&real)
+            .unwrap()
+            .to_string_lossy()
+            .trim_start_matches(r"\\?\")
+            .to_string();
+        let status = Command::new("cmd")
+            .args(["/C", "mklink", "/J", &link.to_string_lossy(), &real_s])
+            .status()
+            .unwrap();
+        assert!(status.success());
+        fs::remove_dir_all(&real).unwrap();
+        assert!(
+            fs::symlink_metadata(&link).is_ok(),
+            "broken junction node must still exist"
+        );
+        assert!(!link.exists(), "exists() follows missing target");
+
+        delete_permanent_paths(&[display_path(&link)]).unwrap();
+        assert!(
+            fs::symlink_metadata(&link).is_err(),
+            "broken junction must be unlinked"
+        );
+
         let _ = fs::remove_dir_all(&dir);
     }
 
