@@ -21,6 +21,22 @@ assert.ok(ops.includes("file_ops_restore"));
 assert.equal(en.shortcuts.items.navigatorUndo, "Undo last file action");
 assert.equal(en.contextMenu.undone, "Undone");
 
+// AIA-192: Ctrl+Z with nothing undoable must stay silent.
+const fileUndo = readFileSync(join(root, "src/state/fileUndo/index.ts"), "utf8");
+assert.ok(
+  view.includes('"Nothing to undo"'),
+  "undo must silently ignore 'Nothing to undo'",
+);
+assert.ok(
+  fileUndo.includes("Nothing to undo") && fileUndo.includes("popRecord"),
+  "stale delete records (Recycle Bin items gone) must be popped silently",
+);
+const recycle = readFileSync(join(root, "src-tauri/src/file_ops/recycle.rs"), "utf8");
+assert.ok(
+  !recycle.includes("No matching items found in Recycle Bin"),
+  "restore no-match must be a silent no-op, not an error",
+);
+
 const mutation = readFileSync(join(root, "src/state/fileMutation.ts"), "utf8");
 assert.ok(mutation.includes("afterFileMutation"));
 assert.ok(mutation.includes("afterUndoMutation"));

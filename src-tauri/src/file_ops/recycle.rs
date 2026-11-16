@@ -100,6 +100,9 @@ fn run_powershell(script: &str) -> Result<String, String> {
 }
 
 /// Restore Recycle Bin items whose original path matches any of `original_paths`.
+/// No matching items means they are already gone from the bin (restored or
+/// emptied elsewhere): return an empty list instead of an error so callers can
+/// treat it as a silent no-op (e.g. Ctrl+Z undo).
 pub fn restore_original_paths(original_paths: &[String]) -> Result<Vec<String>, String> {
     if original_paths.is_empty() {
         return Ok(Vec::new());
@@ -114,9 +117,6 @@ pub fn restore_original_paths(original_paths: &[String]) -> Result<Vec<String>, 
         }
         restore_recycle_item(&item.recycle_path)?;
         restored.push(item.original_path);
-    }
-    if restored.is_empty() {
-        return Err("No matching items found in Recycle Bin".to_string());
     }
     Ok(restored)
 }

@@ -1411,6 +1411,11 @@ async function restoreSelection() {
       onNotice(result.error ?? t("contextMenu.opFailed"), "error");
       return;
     }
+    if (!result.paths.length) {
+      // 条目已不在回收站（被还原/清空）：静默刷新即可。
+      await refreshListing();
+      return;
+    }
     onNotice(t("recycleBin.restored", { count: result.paths.length }));
     clearSelection();
     await refreshListing();

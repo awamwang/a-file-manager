@@ -64,6 +64,12 @@ export async function undoLast(): Promise<FileOpsResult & { undone: UndoRecord |
       result = await invoke<FileOpsResult>("file_ops_restore", {
         paths: record.originalPaths,
       });
+      // 回收站里已无对应条目（已被还原/清空）：该记录失效，
+      // 静默弹出并按“无可撤销”处理，避免报错且不阻塞更早的撤销。
+      if (result.ok && !result.paths.length) {
+        stack.value = popRecord(stack.value).stack;
+        return { ok: false, paths: [], error: "Nothing to undo", undone: null };
+      }
       break;
   }
 
