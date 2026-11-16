@@ -166,9 +166,16 @@ function taskPercent(task: LongTask): number | null {
 }
 
 function kindLabel(task: LongTask): string {
-  return task.kind === "move"
-    ? t("taskCenter.kindMove")
-    : t("taskCenter.kindCopy");
+  switch (task.kind) {
+    case "move":
+      return t("taskCenter.kindMove");
+    case "restore":
+      return t("taskCenter.kindRestore");
+    case "delete":
+      return t("taskCenter.kindDelete");
+    default:
+      return t("taskCenter.kindCopy");
+  }
 }
 
 function statusLabel(status: LongTaskStatus): string {

@@ -36,6 +36,30 @@ assert.ok(
   !recycle.includes("No matching items found in Recycle Bin"),
   "restore no-match must be a silent no-op, not an error",
 );
+assert.ok(
+  recycle.includes("afm-restore-wanted-") &&
+    recycle.includes("DoIt()") &&
+    recycle.includes("还原"),
+  "FIL-70: batch restore must DoIt() Restore/还原 in one PowerShell pass (InvokeVerb is a no-op)",
+);
+assert.ok(
+  !recycle.includes("fn restore_recycle_item"),
+  "FIL-70: per-item PowerShell restore helper must be removed (UI freeze on many files)",
+);
+assert.ok(
+  fileUndo.includes("restoreRecyclePaths"),
+  "FIL-70: undo-delete must use restoreRecyclePaths (task center + async restore)",
+);
+const restoreBridge = readFileSync(join(root, "src/state/recycle/bin.ts"), "utf8");
+assert.ok(
+  restoreBridge.includes('beginLongTask("restore"') &&
+    restoreBridge.includes("file_ops_restore"),
+  "FIL-70: recycle restore must enter the long-task queue",
+);
+assert.ok(
+  /#\[tauri::command\][\s\S]*?pub async fn file_ops_restore[\s\S]*?spawn_blocking/.test(ops),
+  "FIL-70: file_ops_restore must be async + spawn_blocking",
+);
 
 const mutation = readFileSync(join(root, "src/state/fileMutation.ts"), "utf8");
 assert.ok(mutation.includes("afterFileMutation"));

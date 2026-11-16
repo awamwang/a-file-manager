@@ -632,11 +632,14 @@ pub fn file_ops_recycle_list() -> Result<Vec<recycle::RecycleBinItem>, String> {
     recycle::list_recycle_bin()
 }
 
+/// 批量从回收站还原不得占用 Tauri 同步命令线程（多文件撤销删除会扫回收站）。
 #[tauri::command]
-pub fn file_ops_restore(paths: Vec<String>) -> FileOpsResult {
-    match recycle::restore_original_paths(&paths) {
-        Ok(restored) => ok_paths(restored),
-        Err(error) => err_msg(error),
+pub async fn file_ops_restore(paths: Vec<String>) -> FileOpsResult {
+    match tauri::async_runtime::spawn_blocking(move || recycle::restore_original_paths(&paths)).await
+    {
+        Ok(Ok(restored)) => ok_paths(restored),
+        Ok(Err(error)) => err_msg(error),
+        Err(error) => err_msg(format!("file_ops_restore worker failed: {error}")),
     }
 }
 

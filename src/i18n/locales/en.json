@@ -431,6 +431,8 @@
     "settings": "Task list settings",
     "kindCopy": "Copy",
     "kindMove": "Move",
+    "kindRestore": "Restore",
+    "kindDelete": "Delete",
     "statusRunning": "Running",
     "statusCompleted": "Completed",
     "statusFailed": "Failed",

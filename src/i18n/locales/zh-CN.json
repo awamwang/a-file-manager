@@ -431,6 +431,8 @@
     "settings": "任务列表设置",
     "kindCopy": "复制",
     "kindMove": "移动",
+    "kindRestore": "还原",
+    "kindDelete": "删除",
     "statusRunning": "进行中",
     "statusCompleted": "已完成",
     "statusFailed": "失败",

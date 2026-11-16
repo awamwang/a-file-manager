@@ -51,6 +51,7 @@ for (const name of [
   "file_ops_delete_permanent",
   "file_ops_copy",
   "file_ops_move",
+  "file_ops_restore",
 ]) {
   const re = new RegExp(
     String.raw`#\[tauri::command\][\s\S]*?pub async fn ${name}[\s\S]*?spawn_blocking`,

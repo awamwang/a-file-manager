@@ -585,6 +585,8 @@
     "settings": "Einstellungen der Aufgabenliste",
     "kindCopy": "Kopieren",
     "kindMove": "Verschieben",
+    "kindRestore": "Wiederherstellen",
+    "kindDelete": "Löschen",
     "statusRunning": "Läuft",
     "statusCompleted": "Abgeschlossen",
     "statusFailed": "Fehlgeschlagen",

@@ -585,6 +585,8 @@
     "settings": "Paramètres de la liste des tâches",
     "kindCopy": "Copier",
     "kindMove": "Déplacer",
+    "kindRestore": "Restaurer",
+    "kindDelete": "Supprimer",
     "statusRunning": "En cours",
     "statusCompleted": "Terminé",
     "statusFailed": "Échec",

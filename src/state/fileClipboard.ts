@@ -175,7 +175,26 @@ export async function deleteEntries(
   permanent = false,
 ): Promise<FileOpsResult> {
   const command = permanent ? "file_ops_delete_permanent" : "file_ops_delete";
-  return invoke<FileOpsResult>(command, { paths });
+  if (!paths.length) {
+    return { ok: true, paths: [], error: null };
+  }
+  // 批量删除进入任务中心；Rust 侧已 async + spawn_blocking。
+  const taskId = beginLongTask("delete", paths, "");
+  try {
+    const result = await invoke<FileOpsResult>(command, { paths });
+    finishLongTask(
+      taskId,
+      result.ok,
+      result.error,
+      result.paths.length,
+      result.paths,
+    );
+    return result;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    finishLongTask(taskId, false, message, 0);
+    throw err;
+  }
 }
 
 export async function pathsWithoutRecycle(paths: string[]): Promise<string[]> {

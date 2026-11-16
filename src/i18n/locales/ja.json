@@ -585,6 +585,8 @@
     "settings": "タスク一覧の設定",
     "kindCopy": "コピー",
     "kindMove": "移動",
+    "kindRestore": "復元",
+    "kindDelete": "削除",
     "statusRunning": "実行中",
     "statusCompleted": "完了",
     "statusFailed": "失敗",
