@@ -1050,6 +1050,7 @@
     "errorUnknown": "Diese Funktion kann nicht geändert werden",
     "blockedCount": "{count} Zuweisungen werden von einer früheren Registrierung blockiert",
     "overridden": "Angepasst",
+    "change": "Klicken, um diese Tastenkombination zu ändern",
     "items": {
       "commandPanelToggle": "Suchpalette umschalten",
       "discoveryGlobalSearch": "Discovery-Suche öffnen",

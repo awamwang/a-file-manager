@@ -25,6 +25,9 @@ assert.ok(settings.includes("listShortcutActionsForDisplay"));
 assert.ok(settings.includes("setActionChords"));
 assert.ok(settings.includes("chordFromEvent"));
 assert.ok(settings.includes("validateNewChord"));
+assert.ok(settings.includes("recordingBindingIndex"), "click-to-remap state missing");
+assert.ok(settings.includes("startRecording(row.id, index)"), "chord click must start remap");
+assert.ok(settings.includes("chord--recording"), "remap target highlight missing");
 
 // Floating hints must resolve FINAL chords and be wired on nav + explorer actions.
 assert.ok(main.includes("vActionTip"), "global v-action-tip directive missing");

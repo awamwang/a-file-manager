@@ -1050,6 +1050,7 @@
     "errorUnknown": "Cette fonction ne peut pas être modifiée",
     "blockedCount": "{count} assignations sont masquées par un enregistrement antérieur",
     "overridden": "Personnalisé",
+    "change": "Cliquer pour modifier ce raccourci",
     "items": {
       "commandPanelToggle": "Basculer la palette de recherche",
       "discoveryGlobalSearch": "Ouvrir la recherche Discovery",

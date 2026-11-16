@@ -1050,6 +1050,7 @@
     "errorUnknown": "该功能不可修改",
     "blockedCount": "共 {count} 个绑定被先注册者挡住",
     "overridden": "已自定义",
+    "change": "点击修改此快捷键",
     "items": {
       "commandPanelToggle": "切换搜索面板",
       "discoveryGlobalSearch": "打开 Discovery 搜索",

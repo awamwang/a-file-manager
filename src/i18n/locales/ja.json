@@ -1050,6 +1050,7 @@
     "errorUnknown": "この機能は変更できません",
     "blockedCount": "{count} 件の割り当てが先の登録によって無効です",
     "overridden": "カスタマイズ済み",
+    "change": "クリックしてこのショートカットを変更",
     "items": {
       "commandPanelToggle": "検索パレットの切り替え",
       "discoveryGlobalSearch": "Discovery 検索を開く",

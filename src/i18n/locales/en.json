@@ -1050,6 +1050,7 @@
     "errorUnknown": "This function cannot be changed",
     "blockedCount": "{count} bindings are shadowed by an earlier registration",
     "overridden": "Customized",
+    "change": "Click to change this chord",
     "items": {
       "commandPanelToggle": "Toggle Search Palette",
       "discoveryGlobalSearch": "Open Discovery search",
