@@ -193,6 +193,8 @@ const shortcutBlockedCount = computed(() => {
 });
 
 const recordingActionId = ref<string | null>(null);
+/** null = adding a new chord; a number = replacing that existing binding. */
+const recordingBindingIndex = ref<number | null>(null);
 const shortcutNotice = ref<string | null>(null);
 let recordingListenerAttached = false;
 
@@ -200,10 +202,11 @@ function currentChords(actionId: string): ShortcutChord[] {
   return effectiveChordsForId(actionId);
 }
 
-function startRecording(actionId: string) {
+function startRecording(actionId: string, index: number | null = null) {
   stopRecording();
   shortcutNotice.value = null;
   recordingActionId.value = actionId;
+  recordingBindingIndex.value = index;
   // Capture phase: the combo must never reach the global shortcut dispatcher.
   window.addEventListener("keydown", onRecordKeydown, true);
   recordingListenerAttached = true;
@@ -215,6 +218,7 @@ function stopRecording() {
     recordingListenerAttached = false;
   }
   recordingActionId.value = null;
+  recordingBindingIndex.value = null;
 }
 
 function noticeForValidation(result: ShortcutValidationResult): string {
@@ -244,15 +248,35 @@ function onRecordKeydown(event: KeyboardEvent) {
   if (!chord) return;
   const result = validateNewChord(actionId, chord);
   if (!result.ok) {
+    // Re-recording the very same chord is a no-op, not a duplicate error.
+    const replaceIndex = recordingBindingIndex.value;
+    const oldChord = replaceIndex === null ? null : currentChords(actionId)[replaceIndex];
+    if (
+      result.reason === "duplicate" &&
+      oldChord &&
+      chordKey(oldChord) === chordKey(chord)
+    ) {
+      stopRecording();
+      return;
+    }
     shortcutNotice.value = noticeForValidation(result);
     return;
   }
-  setActionChords(actionId, [...currentChords(actionId), chord]);
+  const replaceIndex = recordingBindingIndex.value;
+  const chords = currentChords(actionId);
+  if (replaceIndex !== null && replaceIndex >= 0 && replaceIndex < chords.length) {
+    const next = chords.slice();
+    next[replaceIndex] = chord;
+    setActionChords(actionId, next);
+  } else {
+    setActionChords(actionId, [...chords, chord]);
+  }
   shortcutNotice.value = null;
   stopRecording();
 }
 
 function removeChord(actionId: string, chord: ShortcutChord) {
+  stopRecording();
   const key = chordKey(chord);
   setActionChords(
     actionId,
@@ -723,18 +747,35 @@ onMounted(() => {
 
           <div class="shortcut-bindings">
             <span
-              v-for="binding in row.bindings"
+              v-for="(binding, index) in row.bindings"
               :key="binding.label"
               class="shortcut-binding"
             >
               <kbd
                 class="chord"
-                :class="{ 'chord--blocked': Boolean(binding.blockedBy) }"
+                :class="{
+                  'chord--blocked': Boolean(binding.blockedBy),
+                  'chord--editable': row.configurable,
+                  'chord--recording':
+                    recordingActionId === row.id && recordingBindingIndex === index,
+                }"
+                :role="row.configurable ? 'button' : undefined"
+                :tabindex="row.configurable ? 0 : undefined"
                 :title="
                   binding.blockedBy
                     ? t('shortcuts.blockedBy', { id: binding.blockedBy })
+                    : row.configurable
+                      ? t('shortcuts.change')
+                      : undefined
+                "
+                :aria-label="
+                  row.configurable
+                    ? `${binding.label} — ${t('shortcuts.change')}`
                     : undefined
                 "
+                @click="row.configurable && startRecording(row.id, index)"
+                @keydown.enter.prevent="row.configurable && startRecording(row.id, index)"
+                @keydown.space.prevent="row.configurable && startRecording(row.id, index)"
                 >{{ binding.label }}</kbd
               >
               <button
@@ -1102,9 +1143,6 @@ onMounted(() => {
 .chord {
   flex-shrink: 0;
   padding: var(--fluent-space-xs) var(--fluent-space-sm);
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: var(--fluent-radius-sm);
-  background: var(--fluent-color-fill-subtle);
   font-family: var(--fluent-font-family-mono);
   font-size: var(--fluent-font-size-caption);
 }
@@ -1145,10 +1183,14 @@ onMounted(() => {
   max-width: 26rem;
 }
 
+/* Chord + its remove button share one frame, so × reads as part of the chip. */
 .shortcut-binding {
   display: inline-flex;
-  align-items: center;
-  gap: 2px;
+  align-items: stretch;
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: var(--fluent-radius-sm);
+  background: var(--fluent-color-fill-subtle);
+  overflow: hidden;
 }
 
 .binding-remove {
@@ -1156,10 +1198,11 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   width: 1.25rem;
-  height: 1.25rem;
+  align-self: stretch;
   padding: 0;
   border: 0;
-  border-radius: var(--fluent-radius-sm);
+  border-left: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: 0;
   background: transparent;
   color: var(--fluent-color-text-secondary);
   font: inherit;
@@ -1169,6 +1212,20 @@ onMounted(() => {
 .binding-remove:hover {
   background: var(--fluent-color-fill-control-hover);
   color: var(--fluent-color-status-danger);
+}
+
+.chord--editable {
+  cursor: pointer;
+}
+
+.chord--editable:hover {
+  background: var(--fluent-color-fill-control-hover);
+}
+
+.chord--recording {
+  background: var(--fluent-color-fill-selected);
+  outline: 2px solid var(--fluent-color-stroke-accent-soft);
+  outline-offset: -2px;
 }
 
 .chord--blocked {

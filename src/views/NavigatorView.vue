@@ -32,7 +32,7 @@ import {
   afterFileMutation,
   afterUndoMutation,
 } from "../state/fileMutation";
-import { revealItemsInNavigator } from "../state/revealInNavigator";
+import { revealItemsInNavigator, scrollSelectionIntoView } from "../state/revealInNavigator";
 import {
   dirEntryFromPath,
   folderContextMenuRequest,
@@ -42,6 +42,7 @@ import { isRecyclePath } from "../state/recycle";
 import { isProviderPath } from "../state/provider";
 import { restoreRecyclePaths } from "../state/recycle";
 import NavigatorGuide from "../components/navigator/NavigatorGuide.vue";
+import FluentIcon from "../components/icons/FluentIcon.vue";
 import { hydrateSettings } from "../state/settingsHydrate";
 import {
   cancelShellIconRequests,
@@ -92,6 +93,7 @@ import {
 import {
   clearSelection,
   isSelected,
+  nextSelectionAfterRemoval,
   selectOnly,
   selectRange,
   selectionAnchor,
@@ -103,6 +105,12 @@ import {
   arrowDirectionFromKey,
   moveSelectionByArrow,
 } from "../state/navigatorKeyboardNav";
+import {
+  hitTestMarqueeEntries,
+  marqueeHitMode,
+  resolveMarqueeHitRect,
+  type MarqueeHitEntry,
+} from "../state/marqueeHitTest";
 import {
   DETAILS_HEADER_HEIGHT_PX,
   estimatePlaceholderCount,
@@ -139,6 +147,8 @@ import {
   VIEW_ICON_SIZE,
 } from "../state/navigatorViewMode";
 import { entryTypeLabel } from "../state/entryType";
+import { specialEntryIcon } from "../state/entryIcon";
+import { isLinkEntry, linkTargetForEntry } from "../state/linkTarget";
 import {
   DEFAULT_DETAILS_COLUMN_WIDTHS,
   detailsGridTemplate,
@@ -369,6 +379,13 @@ let secondarySizeObserver: ResizeObserver | null = null;
 const marquee = ref<{ x: number; y: number; w: number; h: number } | null>(null);
 let marqueeOrigin: { x: number; y: number } | null = null;
 let marqueeActive = false;
+/** 本次按下后选框是否已超过命中阈值（用于区分空单击与拖选）。 */
+let marqueeDidDrag = false;
+/**
+ * 拖选结束后吞掉紧随的 click：否则空白处 click.self 会清空选中，
+ * 或落在条目上的 click 会 selectOnly 冲掉多选（表现为「一个也选不中」）。
+ */
+let suppressClickAfterMarquee = false;
 const dragOverPath = ref<string | null>(null);
 
 /** Windows Explorer–style inline rename (no modal). */
@@ -644,6 +661,13 @@ function entryLocation(path: string): string {
 }
 
 const orderedPaths = computed(() => visibleEntries.value.map((e) => e.path));
+
+/** 删除后保持选中：按活动窗格取可见顺序（键盘删除可能发生在双栏副窗格）。 */
+const activeOrderedPaths = computed(() =>
+  activePane.value === "secondary" && dualPaneEnabled.value
+    ? secondaryEntries.value.map((e) => e.path)
+    : orderedPaths.value,
+);
 
 function isCompactListDensity(): boolean {
   try {
@@ -1401,6 +1425,11 @@ async function restoreSelection() {
       onNotice(result.error ?? t("contextMenu.opFailed"), "error");
       return;
     }
+    if (!result.paths.length) {
+      // 条目已不在回收站（被还原/清空）：静默刷新即可。
+      await refreshListing();
+      return;
+    }
     onNotice(t("recycleBin.restored", { count: result.paths.length }));
     clearSelection();
     await refreshListing();
@@ -1425,6 +1454,12 @@ function onActivate(entry: NavigatorEntry) {
 
 function onActivateSecondary(entry: NavigatorEntry) {
   setActivePane("secondary");
+  // Links navigate into their target directory in both panes.
+  const target = linkTargetForEntry(entry);
+  if (target) {
+    void navigateSecondary(target);
+    return;
+  }
   if (entry.kind === "dir") {
     void navigateSecondary(entry.path);
     return;
@@ -1494,6 +1529,8 @@ function onRowMouseDown(event: MouseEvent, entry: NavigatorEntry) {
 function onRowClick(event: MouseEvent, entry: NavigatorEntry) {
   // 单击无拖势：清掉按下时登记的出站路径。
   clearOutboundPathsForPress();
+  // 框选拖动手势结束后的合成 click 不得改写多选结果。
+  if (consumeMarqueeClickGuard()) return;
   // 改名会话占有焦点：框外 pointerdown 已先提交并清空 renamingPath；
   // 拖选文字后在框外松开触发的 click 仍带着 renamingPath，忽略以免抢焦点。
   if (renamingPath.value) return;
@@ -1718,12 +1755,18 @@ async function shortcutNewFile() {
 }
 
 async function afterShortcutDelete(paths: string[], notice: string) {
+  // 先用删除前的可见顺序算出下一个应选中条目（Explorer 习惯），再清列表。
+  const nextPath = nextSelectionAfterRemoval(activeOrderedPaths.value, paths);
   clearSelection();
   clearClipboard();
   removePathsFromListings(paths);
   bumpFolderTreeRevision();
   onNotice(notice);
   await refreshListing();
+  if (nextPath) {
+    selectOnly(nextPath);
+    scrollSelectionIntoView(nextPath);
+  }
 }
 
 async function shortcutDelete(permanent = false) {
@@ -1891,6 +1934,18 @@ function unregisterNavFileShortcuts() {
 }
 
 /* —— Marquee (box) select —— */
+function consumeMarqueeClickGuard(): boolean {
+  if (!suppressClickAfterMarquee) return false;
+  suppressClickAfterMarquee = false;
+  return true;
+}
+
+/** 空白处单击清空；框选拖动后的合成 click 保留选中。 */
+function onListEmptyClick() {
+  if (consumeMarqueeClickGuard()) return;
+  clearSelection();
+}
+
 function onListMouseDown(event: MouseEvent) {
   if (event.button !== 0) return;
   if (event.target !== event.currentTarget) return;
@@ -1899,6 +1954,7 @@ function onListMouseDown(event: MouseEvent) {
   const rect = root.getBoundingClientRect();
   marqueeOrigin = { x: event.clientX - rect.left + root.scrollLeft, y: event.clientY - rect.top + root.scrollTop };
   marqueeActive = true;
+  marqueeDidDrag = false;
   marquee.value = { x: marqueeOrigin.x, y: marqueeOrigin.y, w: 0, h: 0 };
   if (!event.ctrlKey && !event.metaKey && !event.shiftKey) {
     clearSelection();
@@ -1916,34 +1972,60 @@ function onMarqueeMove(event: MouseEvent) {
   const w = Math.abs(x - marqueeOrigin.x);
   const h = Math.abs(y - marqueeOrigin.y);
   marquee.value = { x: left, y: top, w, h };
-  const hit = hitTestRows(left, top, w, h);
+  if (w >= 2 || h >= 2) marqueeDidDrag = true;
+  // 命中用视口坐标，与 getBoundingClientRect 同源；避免 offsetLeft/Top 在 .list__canvas grid 下错位。
+  const clientLeft = left - root.scrollLeft + rect.left;
+  const clientTop = top - root.scrollTop + rect.top;
+  const hit = hitTestRowsClient(clientLeft, clientTop, w, h);
   setSelection(hit, hit[0] ?? null);
 }
 
 function onMarqueeEnd() {
+  if (marqueeActive && marqueeDidDrag) {
+    suppressClickAfterMarquee = true;
+  }
   marqueeActive = false;
+  marqueeDidDrag = false;
   marqueeOrigin = null;
   marquee.value = null;
 }
 
-function hitTestRows(x: number, y: number, w: number, h: number): string[] {
+/** 框选命中：图标/平铺按 `.kind` 图标槽相交，其它视图按整行。 */
+function hitTestRowsClient(clientLeft: number, clientTop: number, w: number, h: number): string[] {
   const root = listRoot.value;
   if (!root || w < 2 || h < 2) return [];
-  const box = { left: x, top: y, right: x + w, bottom: y + h };
-  const hits: string[] = [];
+  const box = {
+    left: clientLeft,
+    top: clientTop,
+    right: clientLeft + w,
+    bottom: clientTop + h,
+  };
+  const mode = marqueeHitMode({
+    isIconView: isIconView.value,
+    isTilesView: isTilesView.value,
+  });
+  const entries: MarqueeHitEntry[] = [];
   const rows = root.querySelectorAll<HTMLElement>("[data-entry-path]");
   for (const row of rows) {
     const path = row.dataset.entryPath;
     if (!path) continue;
-    const top = row.offsetTop;
-    const left = row.offsetLeft;
-    const right = left + row.offsetWidth;
-    const bottom = top + row.offsetHeight;
-    if (left < box.right && right > box.left && top < box.bottom && bottom > box.top) {
-      hits.push(path);
-    }
+    const rowRect = row.getBoundingClientRect();
+    const kindEl = mode === "icon" ? row.querySelector<HTMLElement>(".kind") : null;
+    const kindRect = kindEl
+      ? (() => {
+          const r = kindEl.getBoundingClientRect();
+          return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+        })()
+      : null;
+    const hitRect = resolveMarqueeHitRect(
+      mode,
+      { left: rowRect.left, top: rowRect.top, right: rowRect.right, bottom: rowRect.bottom },
+      kindRect,
+    );
+    if (!hitRect) continue;
+    entries.push({ path, hitRect });
   }
-  return hits;
+  return hitTestMarqueeEntries(box, entries);
 }
 
 /* —— Drag in (AFM + Explorer/external) · drag out (OLE / CF_HDROP + link) —— */
@@ -2131,7 +2213,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
       @scroll="onPrimaryListScroll"
       @contextmenu="onListContextMenu"
       @mousedown="onListMouseDown"
-      @click.self="clearSelection()"
+      @click.self="onListEmptyClick"
       @dragover="onListDragOver($event, currentPath)"
       @dragleave="onListDragLeave($event, currentPath)"
       @drop="onListDrop($event, currentPath)"
@@ -2141,7 +2223,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         class="list__canvas"
         :style="primaryCanvasStyle"
         @mousedown.self="onListMouseDown($event)"
-        @click.self="clearSelection()"
+        @click.self="onListEmptyClick"
       >
       <div
         v-if="isDetailsView"
@@ -2255,10 +2337,17 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           @drop="onDrop($event, item.entry)"
         >
           <span class="kind" :data-kind="item.entry.kind">
+            <FluentIcon
+              v-if="specialEntryIcon(item.entry, currentPath)"
+              :name="specialEntryIcon(item.entry, currentPath)!"
+              class="entry-special-icon"
+            />
             <ShellIconImg
+              v-else
               :path="item.entry.path"
               :size="iconPixelSize"
               :is-dir="item.entry.kind === 'dir'"
+              :is-link="isLinkEntry(item.entry)"
             />
           </span>
           <textarea
@@ -2299,6 +2388,8 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
       />
       </template>
 
+      </div>
+      <!-- 选框挂在 .list（position:relative）下，避免作为 grid 子项参与 .list__canvas 轨道。 -->
       <div
         v-if="marquee"
         class="marquee"
@@ -2309,7 +2400,6 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           height: `${marquee.h}px`,
         }"
       />
-      </div>
     </div>
     </div>
     </div>
@@ -2418,10 +2508,17 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           @drop="onDrop($event, entry)"
         >
           <span class="kind" :data-kind="entry.kind">
+            <FluentIcon
+              v-if="specialEntryIcon(entry, secondaryPath)"
+              :name="specialEntryIcon(entry, secondaryPath)!"
+              class="entry-special-icon"
+            />
             <ShellIconImg
+              v-else
               :path="entry.path"
               :size="iconPixelSize"
               :is-dir="entry.kind === 'dir'"
+              :is-link="isLinkEntry(entry)"
             />
           </span>
           <span class="name-block">
@@ -2466,6 +2563,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
       :empty-area="menuEmpty"
       :x="menuX"
       :y="menuY"
+      :ordered-paths="activeOrderedPaths"
       @close="closeMenu"
       @notice="onNotice"
       @favorites-changed="loadFavorites"
@@ -2881,6 +2979,15 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   width: var(--nav-icon-size, 16px);
   height: var(--nav-icon-size, 16px);
   font-size: var(--nav-icon-size, 16px);
+}
+
+/*
+ * Special-entry glyphs (provider / bookmark / shortcut / recycle) are final
+ * icons, not the grey `shell-icon-slot`. Accent tint makes the distinction
+ * obvious; ordinary local rows keep the loading slot until their shell icon.
+ */
+.kind :deep(.entry-special-icon) {
+  color: var(--fluent-color-fill-accent);
 }
 
 .shell-icon {

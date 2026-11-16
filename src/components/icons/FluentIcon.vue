@@ -17,13 +17,15 @@ const props = withDefaults(
   },
 );
 
+const glyph = computed(() => FLUENT_GLYPHS[props.name]);
+
 const preferSegoe = computed(() => {
   if (props.forceSvg) return false;
+  // AFM-specific metaphors have no matching Segoe glyph — keep the SVG.
+  if (glyph.value.svgOnly) return false;
   if (typeof navigator === "undefined") return false;
   return /Windows/i.test(navigator.userAgent || "");
 });
-
-const glyph = computed(() => FLUENT_GLYPHS[props.name]);
 
 const decorative = computed(() => !props.label);
 </script>

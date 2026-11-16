@@ -24,6 +24,7 @@ mod projects;
 mod providers;
 mod settings;
 mod shell_menu;
+mod shortcuts;
 mod system_tray;
 mod terminal;
 mod tool_runtime;
@@ -306,6 +307,8 @@ pub fn run() {
                     settings::settings_schema_get,
                     settings::settings_get,
                     settings::settings_set,
+                    shortcuts::shortcuts_overrides_get,
+                    shortcuts::shortcuts_overrides_set,
                     discovery::discovery_status,
                     discovery::discovery_estimate_count,
                     discovery::discovery_set_fallback_enabled,
@@ -327,6 +330,7 @@ pub fn run() {
                     providers::provider_preload,
                     providers::provider_cache_invalidate,
                     work_groups::work_groups_get,
+                    work_groups::work_groups_set_pinned_tab,
                     work_groups::work_groups_create,
                     work_groups::work_groups_add_member,
                     work_groups::work_groups_remove_member,

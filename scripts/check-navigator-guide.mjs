@@ -61,6 +61,23 @@ const guideVue = readFileSync(
 );
 assert.ok(guideVue.includes("PROVIDER_ROOT"), "guide must expose provider root entry");
 assert.ok(guideVue.includes("listProviderBackends"), "guide loads provider backends");
+// FIL-72：引导页目录项双击进入（与 Navigator 列表一致）；保留 Enter。
+assert.ok(guideVue.includes('@dblclick="onOpen'), "guide cards open on double-click");
+assert.ok(
+  guideVue.includes("@keydown.enter.prevent=\"onOpen") ||
+    guideVue.includes("@keydown.enter.prevent='onOpen"),
+  "guide cards open on Enter",
+);
+assert.equal(
+  (guideVue.match(/@click="onOpen/g) || []).length,
+  0,
+  "guide cards must not open on single-click (Explorer-style dblclick)",
+);
+assert.equal(
+  (guideVue.match(/@dblclick="onOpen/g) || []).length,
+  10,
+  "all guide destination cards bind dblclick",
+);
 // FIL-44: per-storage colors/icons + Windows-style drive capacity bar.
 assert.ok(guideVue.includes("guide-card-icon"), "guide cards use toned icon wash");
 assert.ok(guideVue.includes("guide-card--drive-fixed"), "fixed drives get distinct tone");

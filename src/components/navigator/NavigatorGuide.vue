@@ -205,6 +205,7 @@ watch(drivesList, () => {
   refreshDriveSpaces();
 });
 
+/** 与 Navigator 列表一致：双击进入目录；键盘 Enter 同等打开。 */
 function onOpen(path: string) {
   void props.openPath(path);
 }
@@ -227,7 +228,8 @@ function onOpen(path: string) {
           class="guide-card fluent-surface"
           :class="`guide-card--${FOLDER_TONE[item.id]}`"
           :title="item.path"
-          @click="onOpen(item.path)"
+          @dblclick="onOpen(item.path)"
+          @keydown.enter.prevent="onOpen(item.path)"
         >
           <span class="guide-card-icon" aria-hidden="true">
             <FluentIcon :name="FOLDER_ICON[item.id]" size="md" />
@@ -248,7 +250,8 @@ function onOpen(path: string) {
           type="button"
           class="guide-card fluent-surface guide-card--recent"
           :title="item.path"
-          @click="onOpen(item.path)"
+          @dblclick="onOpen(item.path)"
+          @keydown.enter.prevent="onOpen(item.path)"
         >
           <span class="guide-card-icon" aria-hidden="true">
             <FluentIcon name="folderOpen" size="md" />
@@ -269,7 +272,8 @@ function onOpen(path: string) {
           type="button"
           class="guide-card fluent-surface guide-card--favorites"
           :title="fav.path"
-          @click="onOpen(fav.path)"
+          @dblclick="onOpen(fav.path)"
+          @keydown.enter.prevent="onOpen(fav.path)"
         >
           <span class="guide-card-icon" aria-hidden="true">
             <FluentIcon name="star" size="md" />
@@ -293,7 +297,8 @@ function onOpen(path: string) {
           class="guide-card fluent-surface guide-card--drive"
           :class="`guide-card--${driveTone(drive.kind)}`"
           :title="drive.path"
-          @click="onOpen(drive.path)"
+          @dblclick="onOpen(drive.path)"
+          @keydown.enter.prevent="onOpen(drive.path)"
         >
           <span class="guide-card-icon" aria-hidden="true">
             <FluentIcon :name="driveIcon(drive.kind)" size="md" />
@@ -332,7 +337,8 @@ function onOpen(path: string) {
           type="button"
           class="guide-card fluent-surface guide-card--recycle"
           :title="t('recycleBin.subtitle')"
-          @click="onOpen(RECYCLE_PATH)"
+          @dblclick="onOpen(RECYCLE_PATH)"
+          @keydown.enter.prevent="onOpen(RECYCLE_PATH)"
         >
           <span class="guide-card-icon" aria-hidden="true">
             <FluentIcon name="recycle" size="md" />
@@ -350,7 +356,8 @@ function onOpen(path: string) {
           type="button"
           class="guide-card fluent-surface guide-card--providers"
           :title="PROVIDER_ROOT"
-          @click="onOpen(PROVIDER_ROOT)"
+          @dblclick="onOpen(PROVIDER_ROOT)"
+          @keydown.enter.prevent="onOpen(PROVIDER_ROOT)"
         >
           <span class="guide-card-icon" aria-hidden="true">
             <FluentIcon name="cloud" size="md" />
@@ -364,7 +371,8 @@ function onOpen(path: string) {
           type="button"
           class="guide-card fluent-surface guide-card--providers"
           :title="`awam://${backend.id}`"
-          @click="onOpen(`awam://${backend.id}`)"
+          @dblclick="onOpen(`awam://${backend.id}`)"
+          @keydown.enter.prevent="onOpen(`awam://${backend.id}`)"
         >
           <span class="guide-card-icon" aria-hidden="true">
             <FluentIcon name="cloud" size="md" />
@@ -389,7 +397,8 @@ function onOpen(path: string) {
           type="button"
           class="guide-card fluent-surface guide-card--onedrive"
           :title="shellPlaces.onedrive"
-          @click="onOpen(shellPlaces.onedrive)"
+          @dblclick="onOpen(shellPlaces.onedrive)"
+          @keydown.enter.prevent="onOpen(shellPlaces.onedrive)"
         >
           <span class="guide-card-icon" aria-hidden="true">
             <FluentIcon name="cloud" size="md" />
@@ -413,7 +422,8 @@ function onOpen(path: string) {
           type="button"
           class="guide-card fluent-surface guide-card--libraries"
           :title="lib.path"
-          @click="onOpen(lib.path)"
+          @dblclick="onOpen(lib.path)"
+          @keydown.enter.prevent="onOpen(lib.path)"
         >
           <span class="guide-card-icon" aria-hidden="true">
             <FluentIcon name="library" size="md" />
@@ -433,7 +443,8 @@ function onOpen(path: string) {
           type="button"
           class="guide-card fluent-surface guide-card--network"
           :title="item.path"
-          @click="onOpen(item.path)"
+          @dblclick="onOpen(item.path)"
+          @keydown.enter.prevent="onOpen(item.path)"
         >
           <span class="guide-card-icon" aria-hidden="true">
             <FluentIcon name="globe" size="md" />

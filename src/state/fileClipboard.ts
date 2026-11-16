@@ -118,9 +118,12 @@ export async function transferEntries(
         ? `${baseName(source)} - Shortcut.lnk`
         : baseName(source);
     const destFile = `${destDir.replace(/[\\/]+$/, "")}\\${name}`;
+    // 同目录粘贴：copy 仍走重名确认弹窗（「保留两者」可生成 - Copy 副本）；
+    // cut 保持 Explorer 式无操作，link 的目标名不同不受影响。
+    const selfPaste = samePath(source, destFile);
     let conflict = "keep";
-    if (!samePath(source, destFile)) {
-      const exists = await invoke<boolean>("file_ops_name_exists", { destDir, name });
+    if (!selfPaste || mode === "copy") {
+      const exists = selfPaste || (await invoke<boolean>("file_ops_name_exists", { destDir, name }));
       if (exists) {
         const choice = await resolveNameConflictChoice(name);
         if (choice === "cancel") {
@@ -172,7 +175,26 @@ export async function deleteEntries(
   permanent = false,
 ): Promise<FileOpsResult> {
   const command = permanent ? "file_ops_delete_permanent" : "file_ops_delete";
-  return invoke<FileOpsResult>(command, { paths });
+  if (!paths.length) {
+    return { ok: true, paths: [], error: null };
+  }
+  // 批量删除进入任务中心；Rust 侧已 async + spawn_blocking。
+  const taskId = beginLongTask("delete", paths, "");
+  try {
+    const result = await invoke<FileOpsResult>(command, { paths });
+    finishLongTask(
+      taskId,
+      result.ok,
+      result.error,
+      result.paths.length,
+      result.paths,
+    );
+    return result;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    finishLongTask(taskId, false, message, 0);
+    throw err;
+  }
 }
 
 export async function pathsWithoutRecycle(paths: string[]): Promise<string[]> {

@@ -8,6 +8,12 @@
 //! commands and offer `open_recycle_bin_system()` (`~/.Trash` in Finder).
 
 use serde::Serialize;
+#[cfg(any(windows, test))]
+use std::fs;
+#[cfg(windows)]
+use std::path::Path;
+#[cfg(any(windows, test))]
+use std::path::PathBuf;
 #[cfg(windows)]
 use std::process::Command;
 
@@ -18,14 +24,6 @@ pub struct RecycleBinItem {
     pub original_path: String,
     /// Shell item path inside the bin (used for restore).
     pub recycle_path: String,
-}
-
-#[cfg(any(windows, test))]
-fn normalize_path(path: &str) -> String {
-    path.trim()
-        .replace('/', "\\")
-        .trim_end_matches('\\')
-        .to_ascii_lowercase()
 }
 
 /// List Recycle Bin entries (name + original path).
@@ -87,12 +85,14 @@ fn parse_recycle_json(raw: &str) -> Result<Vec<RecycleBinItem>, String> {
             .unwrap_or("")
             .to_string();
         let original_path = item
-            .get("originalPath")
+            .get("original_path")
+            .or_else(|| item.get("originalPath"))
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
         let recycle_path = item
-            .get("recyclePath")
+            .get("recycle_path")
+            .or_else(|| item.get("recyclePath"))
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
@@ -121,7 +121,62 @@ fn run_powershell(script: &str) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
+#[cfg(any(windows, test))]
+fn write_wanted_paths_file(original_paths: &[String]) -> Result<PathBuf, String> {
+    let mut path = std::env::temp_dir();
+    path.push(format!(
+        "afm-restore-wanted-{}-{}.txt",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or(0)
+    ));
+    let mut body = String::new();
+    for item in original_paths {
+        let trimmed = item.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        body.push_str(&trimmed.replace('/', "\\"));
+        body.push('\n');
+    }
+    fs::write(&path, body).map_err(|err| format!("Failed to write restore path list: {err}"))?;
+    Ok(path)
+}
+
+#[cfg(any(windows, test))]
+fn parse_restored_paths(raw: &str) -> Result<Vec<String>, String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || trimmed == "null" || trimmed == "[]" {
+        return Ok(Vec::new());
+    }
+    let value: serde_json::Value = serde_json::from_str(trimmed)
+        .map_err(|err| format!("Failed to parse restore result: {err}"))?;
+    match value {
+        serde_json::Value::Array(items) => Ok(items
+            .into_iter()
+            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+            .filter(|s| !s.is_empty())
+            .collect()),
+        serde_json::Value::String(one) => {
+            if one.is_empty() {
+                Ok(Vec::new())
+            } else {
+                Ok(vec![one])
+            }
+        }
+        _ => Ok(Vec::new()),
+    }
+}
+
 /// Restore Recycle Bin items whose original path matches any of `original_paths`.
+/// No matching items means they are already gone from the bin (restored or
+/// emptied elsewhere): return an empty list instead of an error so callers can
+/// treat it as a silent no-op (e.g. Ctrl+Z undo).
+///
+/// 在一次 PowerShell 会话中完成「列举 + 匹配 + 还原」，避免按文件反复拉起
+/// 进程并全量扫描回收站（多文件撤销时会严重阻塞）。
 pub fn restore_original_paths(original_paths: &[String]) -> Result<Vec<String>, String> {
     #[cfg(not(windows))]
     {
@@ -130,45 +185,72 @@ pub fn restore_original_paths(original_paths: &[String]) -> Result<Vec<String>, 
             "Recycle Bin restore is unavailable on macOS; use Finder's Trash instead".to_string(),
         );
     }
-
     #[cfg(windows)]
     {
         if original_paths.is_empty() {
             return Ok(Vec::new());
         }
-        let wanted: Vec<String> = original_paths.iter().map(|p| normalize_path(p)).collect();
-        let items = list_recycle_bin()?;
-        let mut restored = Vec::new();
-        for item in items {
-            let key = normalize_path(&item.original_path);
-            if !wanted.iter().any(|w| w == &key) {
-                continue;
-            }
-            restore_recycle_item(&item.recycle_path)?;
-            restored.push(item.original_path);
-        }
-        if restored.is_empty() {
-            return Err("No matching items found in Recycle Bin".to_string());
-        }
-        Ok(restored)
+        let wanted_file = write_wanted_paths_file(original_paths)?;
+        let result = restore_original_paths_with_list(&wanted_file);
+        let _ = fs::remove_file(&wanted_file);
+        result
     }
 }
 
 #[cfg(windows)]
-fn restore_recycle_item(recycle_path: &str) -> Result<(), String> {
-    let escaped = recycle_path.replace('\'', "''");
+fn restore_original_paths_with_list(wanted_file: &Path) -> Result<Vec<String>, String> {
+    let escaped = wanted_file
+        .to_string_lossy()
+        .replace('\'', "''");
     let script = format!(
         r#"
 $ErrorActionPreference = 'Stop'
+function Normalize-PathKey([string]$p) {{
+  if (-not $p) {{ return '' }}
+  $n = $p.Trim().Replace('/', '\').TrimEnd('\')
+  $parent = Split-Path -Parent $n
+  $leaf = Split-Path -Leaf $n
+  if ($parent -and $leaf -and (Test-Path -LiteralPath $parent)) {{
+    try {{
+      $fso = New-Object -ComObject Scripting.FileSystemObject
+      $n = Join-Path $fso.GetFolder($parent).Path $leaf
+    }} catch {{}}
+  }}
+  return $n.ToLowerInvariant()
+}}
+$wantedSet = New-Object 'System.Collections.Generic.HashSet[string]'
+Get-Content -LiteralPath '{escaped}' -Encoding UTF8 | ForEach-Object {{
+  $key = Normalize-PathKey $_
+  if ($key) {{ [void]$wantedSet.Add($key) }}
+}}
+if ($wantedSet.Count -eq 0) {{ '[]'; exit 0 }}
 $shell = New-Object -ComObject Shell.Application
 $bin = $shell.NameSpace(10)
-$item = $bin.Items() | Where-Object {{ $_.Path -eq '{escaped}' }} | Select-Object -First 1
-if (-not $item) {{ throw 'Recycle item not found' }}
-$item.InvokeVerb('restore')
+if (-not $bin) {{ '[]'; exit 0 }}
+$restored = New-Object System.Collections.Generic.List[string]
+foreach ($item in $bin.Items()) {{
+  if ($wantedSet.Count -eq 0) {{ break }}
+  $origDir = $item.ExtendedProperty('System.Recycle.DeletedFrom')
+  if (-not $origDir) {{ $origDir = $bin.GetDetailsOf($item, 1) }}
+  $name = $item.Name
+  $orig = if ($origDir) {{ Join-Path $origDir $name }} else {{ $name }}
+  $key = Normalize-PathKey $orig
+  if (-not $wantedSet.Contains($key)) {{ continue }}
+  $verb = $null
+  foreach ($v in $item.Verbs()) {{
+    $label = ($v.Name -replace '&','').Trim()
+    if ($label -eq 'Restore' -or $label -eq '还原') {{ $verb = $v; break }}
+  }}
+  if (-not $verb) {{ continue }}
+  $verb.DoIt()
+  [void]$restored.Add($orig)
+  [void]$wantedSet.Remove($key)
+}}
+if ($restored.Count -eq 0) {{ '[]' }} elseif ($restored.Count -eq 1) {{ ConvertTo-Json -Compress -InputObject @($restored[0]) }} else {{ $restored | ConvertTo-Json -Compress }}
 "#
     );
-    let _ = run_powershell(&script)?;
-    Ok(())
+    let output = run_powershell(&script)?;
+    parse_restored_paths(&output)
 }
 
 #[cfg(test)]
@@ -187,7 +269,30 @@ mod tests {
     }
 
     #[test]
-    fn normalize_compares_case() {
-        assert_eq!(normalize_path(r"C:\Foo\"), r"c:\foo");
+    fn parse_restored_paths_shapes() {
+        assert!(parse_restored_paths("[]").unwrap().is_empty());
+        assert_eq!(
+            parse_restored_paths(r#""C:\\a.txt""#).unwrap(),
+            vec![r"C:\a.txt".to_string()]
+        );
+        assert_eq!(
+            parse_restored_paths(r#"["C:\\a.txt","D:\\b.txt"]"#).unwrap().len(),
+            2
+        );
+    }
+
+    #[test]
+    fn write_wanted_paths_file_roundtrip() {
+        let file = write_wanted_paths_file(&[
+            r"C:\Temp\a.txt".into(),
+            "D:/Temp/b.txt".into(),
+            "  ".into(),
+        ])
+        .unwrap();
+        let body = fs::read_to_string(&file).unwrap();
+        let _ = fs::remove_file(&file);
+        assert!(body.contains(r"C:\Temp\a.txt"));
+        assert!(body.contains(r"D:\Temp\b.txt"));
+        assert!(!body.contains("D:/Temp/b.txt"));
     }
 }

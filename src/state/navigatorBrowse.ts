@@ -3,6 +3,7 @@
 import { ref, shallowRef } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { linkTargetForEntry } from "./linkTarget.ts";
 import {
   activeStripTab,
   activeWorkGroupId,
@@ -53,6 +54,7 @@ import {
   forgetPinnedTabs,
   hydratePersistedPins,
   pinnedIdSet,
+  seedPersistedPinFromDoc,
 } from "./tabPins.ts";
 import { clearSelection } from "./navigatorSelection.ts";
 import { normalizePathKey, toNativeFsPath } from "./pathKey.ts";
@@ -87,6 +89,12 @@ export type NavigatorEntry = {
   size: number;
   /** Last write time as Unix epoch milliseconds when reported. */
   modifiedMs?: number | null;
+  /** Provider `extra` semantic marker (bookmark / virtual / backend), if any. */
+  providerKind?: string | null;
+  /** Symlink / junction / reparse point reported by the native listing. */
+  isLink?: boolean | null;
+  /** Directory the link points to; double-click navigates into it. */
+  linkTarget?: string | null;
 };
 
 export type NavigatorListing = {
@@ -135,6 +143,9 @@ export function hydrateNavigatorListing(listing: NavigatorListingWire): Navigato
         kind: entry.kind,
         size: entry.size,
         modifiedMs: entry.modifiedMs,
+        providerKind: entry.providerKind ?? null,
+        isLink: entry.isLink ?? null,
+        linkTarget: entry.linkTarget ?? null,
         path: trimmed || joinListingChildPath(parent, entry.name),
       };
     }),
@@ -169,6 +180,8 @@ export function bootstrapNavigatorOpenState(): Promise<void> {
       try {
         const doc = await hydrateWorkGroups();
         activeWorkGroupId.value = doc.activeWorkGroupId;
+        // FIL-68：固定标签存 work-groups.json 顶层，启动先种入内存再合并进 strip。
+        seedPersistedPinFromDoc(doc.pinnedTab);
         const active = doc.workGroups.find((g) => g.id === doc.activeWorkGroupId);
         // FIL-68：固定标签按路径持久化，冷启动合并进 strip（不写入各 WG 硬状态）。
         const hydrated = hydratePersistedPins(
@@ -605,7 +618,13 @@ export async function navigateTo(
 }
 
 export async function openPathsAsNavigatorTabs(paths: string[]): Promise<void> {
-  const next = openStateFromPaths(paths);
+  // FIL-68：固定标签不随 strip 整体替换丢失 —— 按 merge 语义保留在原 strip 位置。
+  const preferredPin = activeStripTab(liveOpenState.value)?.id ?? null;
+  const next = mergePinnedIntoOpenState(
+    openStateFromPaths(paths),
+    liveOpenState.value,
+    pinnedIdSet(preferredPin),
+  );
   applyLiveOpenState(next, { persist: true, immediatePersist: false });
   const active = activeStripTab(liveOpenState.value);
   if (active?.path) {
@@ -1018,6 +1037,13 @@ async function openPathWithSystemDefault(path: string): Promise<void> {
 }
 
 export async function openEntry(entry: NavigatorEntry): Promise<void> {
+  // Links activate into the directory they point to, before the dir/file
+  // branch would follow the link path or open the target with a file action.
+  const target = linkTargetForEntry(entry);
+  if (target) {
+    await navigateTo(target);
+    return;
+  }
   if (entry.kind === "dir") {
     // AIA-150: in-list folder activate stays in the current tab (context Open
     // already did; open-or-focus remains for shell places / Discovery / etc.).

@@ -33,8 +33,9 @@ export {
 export {
   MAX_CHORDS_PER_ACTION,
   SHORTCUT_OVERRIDES_STORAGE_KEY,
+  flushShortcutOverridesPersistence,
   getShortcutOverrides,
-  loadShortcutOverrides,
+  hydrateShortcutOverridesFromBackend,
   normalizeShortcutOverrides,
   resetActionChords,
   resetAllShortcutOverrides,

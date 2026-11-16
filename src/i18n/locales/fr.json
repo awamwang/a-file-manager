@@ -614,6 +614,8 @@
     "settings": "Paramètres de la liste des tâches",
     "kindCopy": "Copier",
     "kindMove": "Déplacer",
+    "kindRestore": "Restaurer",
+    "kindDelete": "Supprimer",
     "statusRunning": "En cours",
     "statusCompleted": "Terminé",
     "statusFailed": "Échec",
@@ -1079,6 +1081,7 @@
     "errorUnknown": "Cette fonction ne peut pas être modifiée",
     "blockedCount": "{count} assignations sont masquées par un enregistrement antérieur",
     "overridden": "Personnalisé",
+    "change": "Cliquer pour modifier ce raccourci",
     "items": {
       "commandPanelToggle": "Basculer la palette de recherche",
       "discoveryGlobalSearch": "Ouvrir la recherche Discovery",

@@ -17,7 +17,7 @@ import {
   rememberHydratedWorkGroups,
   removePathsFromListings,
   restoreWorkGroupOpenState,
-  snapshotLiveOpenState,
+  snapshotLeavingOpenState,
 } from "../../state/navigatorBrowse";
 import { afterFileMutation } from "../../state/fileMutation";
 import { dualPaneEnabled, openInSecondPane } from "../../state/dualPane";
@@ -36,7 +36,7 @@ import {
   refreshClipboardFromSystem,
   setClipboard,
 } from "../../state/fileClipboard";
-import { clearSelection } from "../../state/navigatorSelection";
+import { clearSelection, selectOnly } from "../../state/navigatorSelection";
 import {
   recordCopyUndo,
   recordCreateUndo,
@@ -56,6 +56,8 @@ import {
   newFileTemplates,
 } from "../../state/newFileTemplates";
 import { selectedEntries, selectedPaths } from "../../state/navigatorSelection";
+import { nextSelectionAfterRemoval } from "../../state/navigatorSelection";
+import { scrollSelectionIntoView } from "../../state/revealInNavigator";
 import {
   isFavoritePath,
   toggleFavorite,
@@ -83,6 +85,8 @@ const props = defineProps<{
   y: number;
   open: boolean;
   emptyArea?: boolean;
+  /** 当前可见顺序（活动窗格）；删除后据此把选中移到下一个条目。 */
+  orderedPaths?: string[];
 }>();
 
 const emit = defineEmits<{
@@ -496,9 +500,10 @@ async function runAddToWorkGroup(workGroupId: string, entry: NavigatorEntry) {
       return;
     }
     const displayName = workGroupDisplayName(target, t("workGroups.defaultName"));
+    // AIA-245：活跃组传剥离固定标签后的 live state，避免 pin 组写入该组 openState 落盘。
     let liveForTarget: WorkGroupOpenState | null =
       workGroupId === activeWorkGroupId.value
-        ? snapshotLiveOpenState()
+        ? snapshotLeavingOpenState()
         : target.openState;
     let lastOpen: WorkGroupOpenState | null = null;
     for (const memberPath of paths) {
@@ -527,17 +532,30 @@ async function runAddToWorkGroup(workGroupId: string, entry: NavigatorEntry) {
   }
 }
 
-async function afterDeleteSuccess(paths: string[], notice: string) {
+async function afterDeleteSuccess(
+  paths: string[],
+  notice: string,
+  orderedSnapshot: string[],
+) {
+  // orderedSnapshot 是删除前的可见顺序：据此把选中移到被删块的下一个条目。
+  const nextPath = orderedSnapshot.length
+    ? nextSelectionAfterRemoval(orderedSnapshot, paths)
+    : null;
   clearSelection();
   clearClipboard();
   removePathsFromListings(paths);
   bumpFolderTreeRevision();
   emit("notice", notice);
   await refreshListing();
+  if (nextPath) {
+    selectOnly(nextPath);
+    scrollSelectionIntoView(nextPath);
+  }
 }
 
 async function runDelete(entry: NavigatorEntry) {
   const paths = pathsForClipboard(entry);
+  const orderedSnapshot = [...(props.orderedPaths ?? [])];
   try {
     const blocked = await pathsWithoutRecycle(paths);
     const label =
@@ -572,7 +590,7 @@ async function runDelete(entry: NavigatorEntry) {
         return;
       }
       done.push(...blocked);
-      await afterDeleteSuccess(done, t("contextMenu.deletedPermanent"));
+      await afterDeleteSuccess(done, t("contextMenu.deletedPermanent"), orderedSnapshot);
       return;
     }
     const ok = await confirmDeleteIfNeeded({
@@ -588,7 +606,7 @@ async function runDelete(entry: NavigatorEntry) {
       return;
     }
     recordDeleteUndo(paths);
-    await afterDeleteSuccess(paths, t("contextMenu.deleted"));
+    await afterDeleteSuccess(paths, t("contextMenu.deleted"), orderedSnapshot);
   } catch (err) {
     emit("notice", err instanceof Error ? err.message : String(err));
     await refreshListing();
@@ -830,6 +848,11 @@ async function run(id: string) {
         const result = await restoreRecyclePaths(paths);
         if (!result.ok) {
           emit("notice", result.error ?? t("contextMenu.opFailed"));
+          return;
+        }
+        if (!result.paths.length) {
+          // 条目已不在回收站（被还原/清空）：静默刷新即可。
+          await refreshListing();
           return;
         }
         emit("notice", t("recycleBin.restored", { count: result.paths.length }));

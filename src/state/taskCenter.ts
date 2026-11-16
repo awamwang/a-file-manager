@@ -9,7 +9,7 @@
 import { computed, ref } from "vue";
 import { listen } from "@tauri-apps/api/event";
 
-export type LongTaskKind = "copy" | "move";
+export type LongTaskKind = "copy" | "move" | "restore" | "delete";
 
 export type LongTaskStatus = "running" | "completed" | "failed" | "interrupted";
 

@@ -25,6 +25,31 @@ assert.ok(settings.includes("listShortcutActionsForDisplay"));
 assert.ok(settings.includes("setActionChords"));
 assert.ok(settings.includes("chordFromEvent"));
 assert.ok(settings.includes("validateNewChord"));
+assert.ok(settings.includes("recordingBindingIndex"), "click-to-remap state missing");
+assert.ok(settings.includes("startRecording(row.id, index)"), "chord click must start remap");
+assert.ok(settings.includes("chord--recording"), "remap target highlight missing");
+
+// Shortcut overrides persist to shortcut-overrides.json via the Rust backend,
+// not localStorage (legacy key is a one-time migration source only).
+const shortcutsConfig = read("src/shortcuts/config.ts");
+const shortcutsRs = read("src-tauri/src/shortcuts/mod.rs");
+const libRs = read("src-tauri/src/lib.rs");
+assert.ok(shortcutsConfig.includes("shortcuts_overrides_get"), "config must seed from backend");
+assert.ok(shortcutsConfig.includes("shortcuts_overrides_set"), "config must write through backend");
+assert.ok(shortcutsConfig.includes("hydrateShortcutOverridesFromBackend"));
+assert.ok(
+  !shortcutsConfig.includes("localStorage.setItem"),
+  "localStorage must be migration source only",
+);
+assert.ok(
+  main.includes("hydrateShortcutOverridesFromBackend"),
+  "bootstrap must hydrate overrides before mount",
+);
+assert.ok(shortcutsRs.includes("shortcut-overrides.json"));
+assert.ok(shortcutsRs.includes("sanitize_overrides"));
+assert.ok(shortcutsRs.includes("MAX_CHORDS_PER_ACTION"));
+assert.ok(libRs.includes("shortcuts::shortcuts_overrides_get"));
+assert.ok(libRs.includes("shortcuts::shortcuts_overrides_set"));
 
 // Floating hints must resolve FINAL chords and be wired on nav + explorer actions.
 assert.ok(main.includes("vActionTip"), "global v-action-tip directive missing");

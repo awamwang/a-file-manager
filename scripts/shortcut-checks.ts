@@ -22,6 +22,7 @@ import {
   validateNewChord,
 } from "../src/shortcuts/registry.ts";
 import {
+  flushShortcutOverridesPersistence,
   normalizeShortcutOverrides,
   resetAllShortcutOverrides,
   setActionChords,
@@ -484,6 +485,9 @@ assert.deepEqual(
   rustFields,
   "TS PlatformCapabilities must mirror the Rust struct exactly",
 );
+
+// 无 Tauri 后端（Node）时写链静默失败，flush 不抛错、不阻断会话内配置。
+await flushShortcutOverridesPersistence();
 
 console.log(
   `Shortcut registry checks OK (${BUILTIN_SHORTCUTS.length} builtins, ${SHORTCUT_ACTIONS.length} actions, config + backtick + conflict + match, macOS primary modifier, capability contract).`,

@@ -35,7 +35,7 @@ async function ensureNavigatorRoute(): Promise<void> {
 }
 
 /** 列表行按 data-entry-path 渲染；滚动首个选中行进入可视区。 */
-function scrollSelectionIntoView(path: string, attempts = 10): void {
+export function scrollSelectionIntoView(path: string, attempts = 10): void {
   requestAnimationFrame(() => {
     const row = document.querySelector<HTMLElement>(
       `[data-entry-path="${CSS.escape(path)}"]`,
