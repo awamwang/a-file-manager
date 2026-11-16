@@ -1081,9 +1081,6 @@ onMounted(() => {
 .chord {
   flex-shrink: 0;
   padding: var(--fluent-space-xs) var(--fluent-space-sm);
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  border-radius: var(--fluent-radius-sm);
-  background: var(--fluent-color-fill-subtle);
   font-family: var(--fluent-font-family-mono);
   font-size: var(--fluent-font-size-caption);
 }
@@ -1124,10 +1121,14 @@ onMounted(() => {
   max-width: 26rem;
 }
 
+/* Chord + its remove button share one frame, so × reads as part of the chip. */
 .shortcut-binding {
   display: inline-flex;
-  align-items: center;
-  gap: 2px;
+  align-items: stretch;
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: var(--fluent-radius-sm);
+  background: var(--fluent-color-fill-subtle);
+  overflow: hidden;
 }
 
 .binding-remove {
@@ -1135,10 +1136,11 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   width: 1.25rem;
-  height: 1.25rem;
+  align-self: stretch;
   padding: 0;
   border: 0;
-  border-radius: var(--fluent-radius-sm);
+  border-left: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: 0;
   background: transparent;
   color: var(--fluent-color-text-secondary);
   font: inherit;
