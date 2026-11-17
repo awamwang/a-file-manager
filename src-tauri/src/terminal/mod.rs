@@ -79,7 +79,15 @@ pub fn open_in_terminal(
                     launcher: Some(target.id),
                 }
             }
-            Err(error) => last_error = Some(error),
+            // 用户在 UAC 弹窗点了“否”：立即停止，不给下一个终端再弹一次 UAC。
+            Err(platform::TerminalLaunchError::Cancelled) => {
+                return OpenInTerminalResult {
+                    success: false,
+                    error: Some("已取消管理员授权".to_string()),
+                    launcher: None,
+                }
+            }
+            Err(error) => last_error = Some(error.message()),
         }
         if requested.is_some() {
             break;

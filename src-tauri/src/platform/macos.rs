@@ -9,8 +9,8 @@
 use super::SearchHit;
 use super::{
     has_uri_scheme, ClipboardProvider, GlobalSearchEngine, LaunchTarget, Platform,
-    PlatformCapabilities, RgbaIcon, SearchProbe, SearchQueryResult, TrashProvider, Volume,
-    VolumeKind, VolumeSpace, WindowChrome,
+    PlatformCapabilities, RgbaIcon, SearchProbe, SearchQueryResult, TerminalLaunchError,
+    TrashProvider, Volume, VolumeKind, VolumeSpace, WindowChrome,
 };
 use std::collections::{HashMap, HashSet};
 use std::fs::Metadata;
@@ -344,13 +344,18 @@ impl Platform for MacosPlatform {
         target: &LaunchTarget,
         dir: &Path,
         _elevated: bool,
-    ) -> Result<(), String> {
+    ) -> Result<(), TerminalLaunchError> {
         #[cfg(target_os = "macos")]
         {
             let app = target
                 .resolved_path
                 .as_ref()
-                .ok_or_else(|| format!("Terminal not available: {}", target.id))?;
+                .ok_or_else(|| {
+                    TerminalLaunchError::Failed(format!(
+                        "Terminal not available: {}",
+                        target.id
+                    ))
+                })?;
             // Terminal.app / iTerm2 open a shell at the directory passed to
             // `open -a`. There is no UAC equivalent on macOS, so `elevated`
             // is intentionally ignored (supports_elevation = false).
@@ -361,17 +366,19 @@ impl Platform for MacosPlatform {
                 .spawn()
                 .map(|_| ())
                 .map_err(|err| {
-                    format!(
+                    TerminalLaunchError::Failed(format!(
                         "Could not launch {} for {}: {err}",
                         target.name,
                         dir.display()
-                    )
+                    ))
                 })
         }
         #[cfg(not(target_os = "macos"))]
         {
             let _ = (target, dir);
-            Err("Terminal launch is only supported on macOS".to_string())
+            Err(TerminalLaunchError::Failed(
+                "Terminal launch is only supported on macOS".to_string(),
+            ))
         }
     }
 

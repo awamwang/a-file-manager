@@ -4,8 +4,8 @@
 
 use super::{
     has_uri_scheme, ClipboardProvider, GlobalSearchEngine, LaunchTarget, Platform,
-    PlatformCapabilities, RgbaIcon, SearchProbe, SearchQueryResult, TrashProvider, Volume,
-    VolumeKind, VolumeSpace, WindowChrome,
+    PlatformCapabilities, RgbaIcon, SearchProbe, SearchQueryResult, TerminalLaunchError,
+    TrashProvider, Volume, VolumeKind, VolumeSpace, WindowChrome,
 };
 use std::ffi::c_void;
 use std::fs::Metadata;
@@ -306,17 +306,23 @@ impl Platform for WindowsPlatform {
         target: &LaunchTarget,
         dir: &Path,
         elevated: bool,
-    ) -> Result<(), String> {
+    ) -> Result<(), TerminalLaunchError> {
         let exe = target
             .resolved_path
             .as_ref()
             .map(PathBuf::from)
-            .ok_or_else(|| format!("Terminal not available: {}", target.id))?;
+            .ok_or_else(|| {
+                TerminalLaunchError::Failed(format!("Terminal not available: {}", target.id))
+            })?;
         let dir_str = dir.to_string_lossy().replace('/', "\\");
         let args = terminal_args(&target.id, &dir_str);
         // Terminal UIs must remain visible — do not apply CREATE_NO_WINDOW here.
         let launched = if elevated {
-            spawn_elevated(&exe, &args, dir)
+            match spawn_elevated(&exe, &args, dir) {
+                ElevateOutcome::Launched => true,
+                ElevateOutcome::Cancelled => return Err(TerminalLaunchError::Cancelled),
+                ElevateOutcome::Failed => false,
+            }
         } else {
             std::process::Command::new(&exe)
                 .args(&args)
@@ -327,11 +333,11 @@ impl Platform for WindowsPlatform {
         if launched {
             Ok(())
         } else {
-            Err(format!(
+            Err(TerminalLaunchError::Failed(format!(
                 "Could not launch {} for {}",
                 target.name,
                 dir.display()
-            ))
+            )))
         }
     }
 
@@ -561,11 +567,20 @@ fn terminal_args(terminal_id: &str, dir_str: &str) -> Vec<String> {
     }
 }
 
-fn spawn_elevated(exe: &Path, args: &[String], dir: &Path) -> bool {
+/// `spawn_elevated` 的三种结局：成功 / 用户在 UAC 弹窗取消 / 失败。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ElevateOutcome {
+    Launched,
+    Cancelled,
+    Failed,
+}
+
+fn spawn_elevated(exe: &Path, args: &[String], dir: &Path) -> ElevateOutcome {
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
     use windows::core::PCWSTR;
-    use windows::Win32::UI::Shell::{ShellExecuteExW, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW};
+    use windows::Win32::Foundation::{GetLastError, ERROR_CANCELLED};
+    use windows::Win32::UI::Shell::{ShellExecuteExW, SHELLEXECUTEINFOW};
     use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 
     let verb: Vec<u16> = OsStr::new("runas")
@@ -577,13 +592,15 @@ fn spawn_elevated(exe: &Path, args: &[String], dir: &Path) -> bool {
         .encode_wide()
         .chain(std::iter::once(0))
         .collect();
+    // lpParameters 引号规则：参数内的 `"` 翻倍转义；含空格/引号的参数整体加引号。
     let params_owned = args
         .iter()
         .map(|a| {
-            if a.contains(' ') {
-                format!("\"{a}\"")
+            let escaped = a.replace('"', "\"\"");
+            if escaped.contains(' ') || escaped.contains('"') {
+                format!("\"{escaped}\"")
             } else {
-                a.clone()
+                escaped
             }
         })
         .collect::<Vec<_>>()
@@ -606,8 +623,16 @@ fn spawn_elevated(exe: &Path, args: &[String], dir: &Path) -> bool {
         sei.lpParameters = PCWSTR(params.as_ptr());
         sei.lpDirectory = PCWSTR(dir_wide.as_ptr());
         sei.nShow = SW_SHOWNORMAL.0;
-        sei.fMask = SEE_MASK_NOCLOSEPROCESS;
-        ShellExecuteExW(&mut sei).is_ok()
+        // 不传 SEE_MASK_NOCLOSEPROCESS：返回的 hProcess 无人关闭，只会泄漏句柄。
+        if ShellExecuteExW(&mut sei).is_ok() {
+            return ElevateOutcome::Launched;
+        }
+        // runas 被拒绝时 GetLastError() == ERROR_CANCELLED（用户点了“否”）。
+        if GetLastError() == ERROR_CANCELLED {
+            ElevateOutcome::Cancelled
+        } else {
+            ElevateOutcome::Failed
+        }
     }
 }
 

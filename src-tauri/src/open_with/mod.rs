@@ -317,7 +317,7 @@ mod windows_impl {
     use std::os::windows::ffi::OsStrExt;
     use windows::core::PCWSTR;
     use windows::Win32::UI::Shell::{
-        ShellExecuteExW, SEE_MASK_ASYNCOK, SEE_MASK_INVOKEIDLIST, SHELLEXECUTEINFOW,
+        ShellExecuteExW, SEE_MASK_NOASYNC, SEE_MASK_INVOKEIDLIST, SHELLEXECUTEINFOW,
     };
     use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 
@@ -383,15 +383,19 @@ mod windows_impl {
             .chain(std::iter::once(0))
             .collect();
 
-        // Tauri sync commands run off the UI apartment (no message pump).
-        // ShellExecuteEx without SEE_MASK_ASYNCOK waits for DDE / async
-        // activation to finish — MKV player associations commonly DDE, and a
-        // pump-less wait times out around ~30s before returning. Ask the shell
-        // to return immediately; Explorer-like open latency.
+        // This runs on a pump-less `spawn_blocking` worker. Per the
+        // SHELLEXECUTEINFO docs, calls from background threads without a
+        // message loop MUST pass SEE_MASK_NOASYNC so ShellExecuteEx finishes
+        // the DDE conversation before returning — an abandoned conversation
+        // "can result in an unsuccessful launch". The old SEE_MASK_ASYNCOK
+        // trick relied on the shell returning early, but the docs note the
+        // flag is ignored "in certain cases", leaving the launch unreliable.
+        // Worst case a hung DDE server blocks this worker ~30s; the UI
+        // thread is unaffected (FIL-30 keeps this off the main thread).
         unsafe {
             let mut sei: SHELLEXECUTEINFOW = std::mem::zeroed();
             sei.cbSize = std::mem::size_of::<SHELLEXECUTEINFOW>() as u32;
-            sei.fMask = SEE_MASK_ASYNCOK;
+            sei.fMask = SEE_MASK_NOASYNC;
             sei.lpVerb = PCWSTR(verb_wide.as_ptr());
             sei.lpFile = PCWSTR(file_wide.as_ptr());
             sei.nShow = SW_SHOWNORMAL.0;

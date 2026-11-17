@@ -76,6 +76,25 @@ pub struct LaunchTarget {
     pub supports_elevation: bool,
 }
 
+/// `launch_terminal` 的失败细分。`Cancelled` 表示用户在 UAC 授权弹窗点了
+/// “否”——调用方应立即停止尝试其它终端，而不是给下一个终端再弹一次 UAC。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TerminalLaunchError {
+    /// 用户取消了 UAC 授权（elevated 启动）。
+    Cancelled,
+    /// 启动失败，附带人话错误。
+    Failed(String),
+}
+
+impl TerminalLaunchError {
+    pub fn message(&self) -> String {
+        match self {
+            Self::Cancelled => "已取消管理员授权".to_string(),
+            Self::Failed(msg) => msg.clone(),
+        }
+    }
+}
+
 /// How the main window chrome is composed. The window setup code reads this
 /// instead of hardcoding `#[cfg(target_os = "macos")]` branches (7.16).
 // Some variants are only constructed by the adapter for another target.
@@ -302,7 +321,7 @@ pub trait Platform: Send + Sync {
         target: &LaunchTarget,
         dir: &std::path::Path,
         elevated: bool,
-    ) -> Result<(), String>;
+    ) -> Result<(), TerminalLaunchError>;
     fn launch_ide(&self, target: &LaunchTarget, path: &std::path::Path) -> Result<(), String>;
     /// Host-wide index selection (7.21). `EverythingIpc` means the discovery
     /// service keeps its original Windows backend; `Spotlight` means it should
@@ -448,7 +467,7 @@ pub fn launch_terminal(
     target: &LaunchTarget,
     dir: &std::path::Path,
     elevated: bool,
-) -> Result<(), String> {
+) -> Result<(), TerminalLaunchError> {
     current().launch_terminal(target, dir, elevated)
 }
 
