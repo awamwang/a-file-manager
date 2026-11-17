@@ -15,6 +15,7 @@
 
 import type { FluentGlyphId } from "../components/icons/glyphs.ts";
 import { isProviderPath } from "./provider/path.ts";
+import { isCloudFileEntry, providerFileGlyph } from "./providerFileIcon.ts";
 import { isRecyclePath } from "./recycle/path.ts";
 
 export type IconEntry = {
@@ -43,12 +44,11 @@ export function specialEntryIcon(
   const path = entry.path ?? "";
   const providerKind = (entry.providerKind ?? "").trim().toLowerCase();
 
-  // Provider virtual entries have no local shell icon — never enqueue one.
-  if (isProviderPath(path)) {
-    return PROVIDER_LINK_KINDS.has(providerKind) ? "bookmark" : "provider";
-  }
-  // Provider child whose path was rewritten to a local path keeps its marker.
-  if (isProviderPath(parentPath)) {
+  // Ordinary cloud files show their real type glyph (document / picture / …)
+  // and get a cloud badge in the view; virtual / bookmark / backend / root
+  // cards keep their dedicated semantic glyph.
+  if (isProviderPath(path) || isProviderPath(parentPath)) {
+    if (isCloudFileEntry(entry, parentPath)) return providerFileGlyph(entry.name, entry.kind);
     return PROVIDER_LINK_KINDS.has(providerKind) ? "bookmark" : "provider";
   }
   // Recycle Bin items resolve to deleted originals; shell icons cannot load.

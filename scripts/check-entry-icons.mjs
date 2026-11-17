@@ -18,6 +18,8 @@ const rustSearch = readFileSync(join(root, "src-tauri/src/navigator/search.rs"),
 const previewPane = readFileSync(join(root, "src/components/navigator/PreviewPane.vue"), "utf8");
 const linkTarget = readFileSync(join(root, "src/state/linkTarget.ts"), "utf8");
 const rustStat = readFileSync(join(root, "src-tauri/src/navigator/stat.rs"), "utf8");
+const providerFileIcon = readFileSync(join(root, "src/state/providerFileIcon.ts"), "utf8");
+const cloudFileIcon = readFileSync(join(root, "src/components/navigator/CloudFileIcon.vue"), "utf8");
 const registerUrl = pathToFileURL(join(root, "scripts/register-ts-resolve.mjs")).href;
 
 for (const id of ["shortcut", "bookmark", "provider"]) {
@@ -88,6 +90,22 @@ assert.ok(navigatorView.includes('v-if="specialEntryIcon(entry, secondaryPath)"'
 assert.ok(navigatorView.includes("class=\"entry-special-icon\""));
 assert.ok(navigatorView.includes(".kind :deep(.entry-special-icon)"));
 assert.ok(navigatorView.includes("font-size: var(--nav-icon-size, 16px)"));
+
+// Ordinary cloud files use real type glyphs + a cloud origin badge.
+assert.ok(providerFileIcon.includes('if (kind === "dir") return "folder"'));
+assert.ok(providerFileIcon.includes('return "document"'), "unknown cloud ext falls back to document");
+assert.ok(providerFileIcon.includes('IMAGE_EXTS.has(ext)'));
+assert.ok(providerFileIcon.includes('AUDIO_EXTS.has(ext)'));
+assert.ok(providerFileIcon.includes('VIDEO_EXTS.has(ext)'));
+assert.ok(providerFileIcon.includes("export function isCloudFileEntry"));
+assert.ok(entryIcon.includes("isCloudFileEntry(entry, parentPath)"));
+assert.ok(entryIcon.includes("providerFileGlyph(entry.name, entry.kind)"));
+assert.ok(cloudFileIcon.includes("FluentIcon"));
+assert.ok(cloudFileIcon.includes('v-if="cloudBadge"'));
+assert.ok(cloudFileIcon.includes("cloud-file-badge"));
+assert.ok(navigatorView.includes("CloudFileIcon"));
+assert.ok(navigatorView.includes(":cloud-badge=\"isCloudFileEntry(item.entry, currentPath)\""));
+assert.ok(navigatorView.includes(":cloud-badge=\"isCloudFileEntry(entry, secondaryPath)\""));
 
 const result = spawnSync(
   process.execPath,

@@ -42,7 +42,6 @@ import { isRecyclePath } from "../state/recycle";
 import { isProviderPath } from "../state/provider";
 import { restoreRecyclePaths } from "../state/recycle";
 import NavigatorGuide from "../components/navigator/NavigatorGuide.vue";
-import FluentIcon from "../components/icons/FluentIcon.vue";
 import ProviderErrorBanner from "../components/common/ProviderErrorBanner.vue";
 import { hydrateSettings } from "../state/settingsHydrate";
 import {
@@ -149,6 +148,7 @@ import {
 } from "../state/navigatorViewMode";
 import { entryTypeLabel } from "../state/entryType";
 import { specialEntryIcon } from "../state/entryIcon";
+import { isCloudFileEntry } from "../state/providerFileIcon";
 import { isLinkEntry, linkTargetForEntry } from "../state/linkTarget";
 import {
   DEFAULT_DETAILS_COLUMN_WIDTHS,
@@ -206,6 +206,7 @@ import PreviewPane from "../components/navigator/PreviewPane.vue";
 import DetailsPane from "../components/navigator/DetailsPane.vue";
 import PropertiesPanel from "../components/navigator/PropertiesPanel.vue";
 import ShellIconImg from "../components/navigator/ShellIconImg.vue";
+import CloudFileIcon from "../components/navigator/CloudFileIcon.vue";
 
 /** KeepAlive include name in App.vue (AIA-276). */
 defineOptions({ name: "NavigatorView" });
@@ -2351,9 +2352,11 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           @drop="onDrop($event, item.entry)"
         >
           <span class="kind" :data-kind="item.entry.kind">
-            <FluentIcon
+            <CloudFileIcon
               v-if="specialEntryIcon(item.entry, currentPath)"
               :name="specialEntryIcon(item.entry, currentPath)!"
+              :size="iconPixelSize"
+              :cloud-badge="isCloudFileEntry(item.entry, currentPath)"
               class="entry-special-icon"
             />
             <ShellIconImg
@@ -2520,9 +2523,11 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           @drop="onDrop($event, entry)"
         >
           <span class="kind" :data-kind="entry.kind">
-            <FluentIcon
+            <CloudFileIcon
               v-if="specialEntryIcon(entry, secondaryPath)"
               :name="specialEntryIcon(entry, secondaryPath)!"
+              :size="iconPixelSize"
+              :cloud-badge="isCloudFileEntry(entry, secondaryPath)"
               class="entry-special-icon"
             />
             <ShellIconImg

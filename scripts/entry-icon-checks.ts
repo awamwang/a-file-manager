@@ -4,6 +4,7 @@
 import assert from "node:assert/strict";
 import { FLUENT_GLYPHS } from "../src/components/icons/glyphs.ts";
 import { specialEntryIcon } from "../src/state/entryIcon.ts";
+import { isCloudFileEntry, providerFileGlyph } from "../src/state/providerFileIcon.ts";
 import { isLinkEntry, linkTargetForEntry } from "../src/state/linkTarget.ts";
 import {
   providerKindFromExtra,
@@ -147,9 +148,11 @@ assert.equal(
   ),
   "bookmark",
 );
+// An ordinary cloud file (even with a rewritten local-looking path) shows its
+// real type glyph, not the generic provider cloud.
 assert.equal(
-  specialEntryIcon({ name: "Doc", path: "C:\\cache\\provider\\Doc", kind: "file" }, "awam://knowledge/space"),
-  "provider",
+  specialEntryIcon({ name: "Doc.md", path: "C:\\cache\\provider\\Doc.md", kind: "file" }, "awam://knowledge/space"),
+  "document",
 );
 // Provider-only markers must not hijack ordinary local rows.
 assert.equal(
@@ -234,5 +237,31 @@ const roots = providerRootEntriesFromBackends([
 ]);
 assert.equal(roots[0]?.providerKind, "backend");
 assert.equal(specialEntryIcon(roots[0]!, "awam://root"), "provider");
+
+// Ordinary cloud files map to real type glyphs; virtual/backend cards and
+// bookmarks keep their dedicated glyphs (no cloud badge).
+assert.equal(providerFileGlyph("notes.md", "file"), "document");
+assert.equal(providerFileGlyph("report.PDF", "file"), "document");
+assert.equal(providerFileGlyph("archive.zip", "file"), "document");
+assert.equal(providerFileGlyph("photo.PNG", "file"), "picture");
+assert.equal(providerFileGlyph("clip.webm", "file"), "video");
+assert.equal(providerFileGlyph("track.mp3", "file"), "musicNote");
+assert.equal(providerFileGlyph("collection", "dir"), "folder");
+// The screenshot case: knowledge backend .md pages under a nested path.
+const cloudPage = { name: "建库思路.md", path: "awam://knowledge/kingbase/program/建库思路.md", kind: "file" };
+assert.equal(isCloudFileEntry(cloudPage), true);
+assert.equal(specialEntryIcon(cloudPage, "awam://knowledge/kingbase/program"), "document");
+// Containers / links / root never get the cloud badge.
+assert.equal(isCloudFileEntry({ name: "GitHub", path: "awam://browser/bookmarks/GitHub", kind: "file", providerKind: "bookmark" }), false);
+assert.equal(isCloudFileEntry({ name: "Collections", path: "awam://knowledge/collections", kind: "dir", providerKind: "virtual" }), false);
+assert.equal(isCloudFileEntry({ name: "Remote", path: "awam://rclone/remote", kind: "dir", providerKind: "backend" }), false);
+assert.equal(isCloudFileEntry({ name: "Root", path: "awam://root", kind: "dir" }), false);
+assert.equal(isCloudFileEntry({ name: "knowledge", path: "awam://knowledge", kind: "dir" }), false);
+assert.equal(isCloudFileEntry({ name: "notes.txt", path: "C:\\Work\\notes.txt", kind: "file" }), false);
+// A cloud folder also gets its real glyph.
+assert.equal(
+  specialEntryIcon({ name: "program", path: "awam://knowledge/kingbase/program", kind: "dir" }),
+  "folder",
+);
 
 console.log("entry-icon-checks: ok");
