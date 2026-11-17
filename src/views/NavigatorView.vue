@@ -216,6 +216,8 @@ const { t } = useI18n();
 const menuOpen = ref(false);
 const menuEntry = ref<NavigatorEntry | null>(null);
 const menuEmpty = ref(false);
+/** 空白区菜单的新建/粘贴目标目录；行内/面包屑菜单为 null（沿用当前标签页）。 */
+const menuBaseDir = ref<string | null>(null);
 const menuX = ref(0);
 const menuY = ref(0);
 const propertiesOpen = ref(false);
@@ -1579,26 +1581,47 @@ function onContextMenu(event: MouseEvent, entry: NavigatorEntry) {
   openFolderMenu(entry, event.clientX, event.clientY);
 }
 
-function openFolderMenu(entry: NavigatorEntry, x: number, y: number) {
+function openFolderMenu(
+  entry: NavigatorEntry,
+  x: number,
+  y: number,
+  /** 新建/粘贴的目标目录（空白区菜单 = 该文件夹自身）。 */
+  baseDir?: string | null,
+) {
   menuEntry.value = entry;
   menuEmpty.value = false;
+  menuBaseDir.value = baseDir ?? null;
   menuX.value = x;
   menuY.value = y;
   menuOpen.value = true;
 }
 
 function onListContextMenu(event: MouseEvent) {
-  // Background / empty listing: same folder verbs as the current directory entry.
-  if (event.target !== event.currentTarget) return;
+  // 空白区域：展示当前文件夹自身的右键菜单（与右键该文件夹所在行一致）。
+  // 行内右键已 stopPropagation，能冒泡到这里的都是背景（滚动容器 / 虚拟
+  // canvas / 占位 spacer）；仅详细信息视图的列头保持中性。
+  const target = event.target as Element | null;
+  if (target?.closest(".list-header")) return;
   event.preventDefault();
   const path = currentPath.value;
   if (!path || isGuidePath(path)) return;
-  openFolderMenu(dirEntryFromPath(path), event.clientX, event.clientY);
+  openFolderMenu(dirEntryFromPath(path), event.clientX, event.clientY, path);
+}
+
+function onSecondaryListContextMenu(event: MouseEvent) {
+  // 副栏空白区：同样展示副栏文件夹自身的右键菜单。
+  const target = event.target as Element | null;
+  if (target?.closest(".list-header")) return;
+  event.preventDefault();
+  const path = secondaryPath.value;
+  if (!path || isGuidePath(path)) return;
+  openFolderMenu(dirEntryFromPath(path), event.clientX, event.clientY, path);
 }
 
 function closeMenu() {
   menuOpen.value = false;
   menuEmpty.value = false;
+  menuBaseDir.value = null;
 }
 
 watch(folderContextMenuRequest, (req) => {
@@ -2457,6 +2480,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         :aria-label="secondaryLoading ? t('navigator.loading') : undefined"
         @wheel="onListWheel"
         @scroll="onSecondaryListScroll"
+        @contextmenu="onSecondaryListContextMenu"
         @dragover="onListDragOver($event, secondaryPath)"
         @dragleave="onListDragLeave($event, secondaryPath)"
         @drop="onListDrop($event, secondaryPath)"
@@ -2579,6 +2603,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
       :open="menuOpen"
       :entry="menuEntry"
       :empty-area="menuEmpty"
+      :base-dir="menuBaseDir"
       :x="menuX"
       :y="menuY"
       :ordered-paths="activeOrderedPaths"

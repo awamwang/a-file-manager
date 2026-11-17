@@ -85,6 +85,8 @@ const props = defineProps<{
   y: number;
   open: boolean;
   emptyArea?: boolean;
+  /** 空白区菜单的新建/粘贴目标目录（= 菜单对应文件夹自身）；其余菜单缺省。 */
+  baseDir?: string | null;
   /** 当前可见顺序（活动窗格）；删除后据此把选中移到下一个条目。 */
   orderedPaths?: string[];
 }>();
@@ -341,7 +343,7 @@ async function refreshListing(options?: {
 }
 
 async function runPaste() {
-  const dest = currentPath.value;
+  const dest = props.baseDir || currentPath.value;
   if (!dest) {
     emit("notice", t("contextMenu.pasteNoFolder"));
     return;
@@ -370,7 +372,7 @@ async function runPaste() {
 }
 
 async function runNewFolder() {
-  const parent = currentPath.value;
+  const parent = props.baseDir || currentPath.value;
   if (!parent) {
     emit("notice", t("contextMenu.pasteNoFolder"));
     return;
@@ -400,7 +402,7 @@ async function runNewFolder() {
 }
 
 async function runNewFile(defaultName?: string) {
-  const parent = currentPath.value;
+  const parent = props.baseDir || currentPath.value;
   if (!parent) {
     emit("notice", t("contextMenu.pasteNoFolder"));
     return;
