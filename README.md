@@ -29,6 +29,13 @@ NSIS 安装包内嵌 **WebView2 bootstrapper**：目标机没有 WebView2 Runtim
 
 本地知识库目录请设环境变量 `AFM_KNOWLEDGE_ROOT` 或 `AWAM_KNOWLEDGE_ROOT`（不再默认绑定本机盘符）。MCP 需自行导入，不会写入开发机绝对路径。
 
+### 依赖项目
+
+| 项目 | 作用 |
+|------|------|
+| [awam-tool-manager](https://github.com/awamwang/awam-tool-manager) | 本机工具名单的统一入口（MCP）：查找文件/应用/游戏/快捷动作/包，或调用其他 MCP 后端的子工具 |
+| [awam-file](https://github.com/awamwang/awam-file) | 文件网关（运行可选依赖；设置 → 健康 可体检） |
+
 ## Run
 
 ```bash
