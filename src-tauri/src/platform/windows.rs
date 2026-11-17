@@ -568,15 +568,39 @@ fn resolve_auto(id: &str) -> Option<PathBuf> {
     from_candidates
 }
 
-/// QwenWork lives under `C:\Program Files\QwenWorkCN\<version>\QwenWorkCN.exe`.
-/// Pick the highest versioned folder rather than a single hardcoded release, so
-/// an in-place upgrade keeps working. The optional `PROGRAMFILES` override lets
-/// a relocated install be discovered without a configured path.
-fn resolve_qwenwork_exe() -> Option<PathBuf> {
+/// QwenWork install root — `C:\Program Files\QwenWorkCN` (or the relocated
+/// `PROGRAMFILES` sibling). The optional override lets a non-default install be
+/// discovered without a configured path.
+fn qwenwork_install_base() -> Option<PathBuf> {
     let base = match std::env::var("PROGRAMFILES") {
         Ok(root) if !root.trim().is_empty() => PathBuf::from(root).join("QwenWorkCN"),
         _ => PathBuf::from(r"C:\Program Files\QwenWorkCN"),
     };
+    if base.is_dir() {
+        Some(base)
+    } else {
+        None
+    }
+}
+
+/// Resolve the executable used to LAUNCH QwenWork with a path argument.
+///
+/// QwenWork uses an NSIS + `updater.cfg` versioned layout:
+/// `…\QwenWorkCN\Launcher.exe` reads `updater.cfg` (`currentVersion`,
+/// `appExecutableName`) and starts the current version's `QwenWorkCN.exe`.
+/// We launch the version-stable `Launcher.exe`, NOT the versioned app exe
+/// directly: an already-running Electron instance forwards a second process's
+/// argv over its single-instance IPC, so the versioned exe only appears to work
+/// when the app is already open and does nothing on a cold start. `Launcher.exe`
+/// is the supported entry that bootstraps a new instance either way and still
+/// passes the folder/file path through. Falls back to the highest-versioned
+/// `QwenWorkCN.exe` only when no Launcher is present.
+fn resolve_qwenwork_exe() -> Option<PathBuf> {
+    let base = qwenwork_install_base()?;
+    let launcher = base.join("Launcher.exe");
+    if launcher.is_file() {
+        return Some(launcher);
+    }
     let entries = std::fs::read_dir(base).ok()?;
     let mut best: Option<(Vec<u64>, PathBuf)> = None;
     for entry in entries.flatten() {
