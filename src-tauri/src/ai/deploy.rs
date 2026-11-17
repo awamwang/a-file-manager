@@ -5,9 +5,9 @@
 //! - 有 `project_workspace`：仅写入该项目启用集的项目相对目录
 //! - 部署方式由 `skillDeployMode` 决定：默认 Junction，可选复制
 
+use super::agent_paths::{expand_agent_path, join_agent_relative};
 use super::agents::{
-    expand_agent_path, normalize_skill_deploy_mode, AgentTarget, AiConfigDocument,
-    SKILL_DEPLOY_MODE_COPY,
+    normalize_skill_deploy_mode, AgentTarget, AiConfigDocument, SKILL_DEPLOY_MODE_COPY,
 };
 use super::project_ai::{resolve_global_agents, resolve_project_agents};
 use super::skills::{
@@ -151,6 +151,19 @@ fn is_afm_copy_deploy(path: &Path) -> bool {
     path.join(AFM_SKILL_MARKER).is_file()
 }
 
+/// 判断项目 Agent skills 目录下的一个条目是否为 AFM 部署产物：
+/// junction 模式是符号链接，copy 模式是带 `_afm_deploy.json` 标记的目录。
+/// 供项目面板只读扫描「已添加」状态使用——普通目录（用户自建 skill、
+/// `node_modules` 等）不能被误判为已部署，否则无法再勾选补齐到其他 Agent。
+pub fn is_afm_deployed_skill(path: &Path) -> bool {
+    let Ok(meta) = fs::symlink_metadata(path) else {
+        return false;
+    };
+    if meta.file_type().is_symlink() {
+        return true;
+    }
+    meta.is_dir() && is_afm_copy_deploy(path)
+}
 fn write_afm_marker(dest: &Path, skill_name: &str) -> Result<(), String> {
     let marker = dest.join(AFM_SKILL_MARKER);
     let body = format!(
@@ -235,9 +248,16 @@ fn deploy_one(
                     if let Ok(current) = fs::read_link(&dest) {
                         let cur = normalize_path_string(&current).to_ascii_lowercase();
                         let want = normalize_path_string(Path::new(&skill.path)).to_ascii_lowercase();
-                        if cur == want
-                            || cur.ends_with(&format!("\\{}", skill.name.to_ascii_lowercase()))
-                        {
+                        // Compare the final component, not a `\`-suffixed string:
+                        // macOS symlink targets use `/`, so a hardcoded `\` suffix
+                        // never matched and a repeat deploy was reported as a conflict.
+                        let same_leaf = Path::new(&current)
+                            .file_name()
+                            .map(|leaf| {
+                                leaf.to_string_lossy().eq_ignore_ascii_case(&skill.name)
+                            })
+                            .unwrap_or(false);
+                        if cur == want || same_leaf {
                             return Ok(Some(SkillDeployment {
                                 skill_name: skill.name.clone(),
                                 agent_id: agent.id.clone(),
@@ -310,7 +330,7 @@ pub fn deploy_skill(
                 skipped.push(format!("{}: empty project skills dir", agent.id));
                 continue;
             }
-            let project_skills = crate::paths::join_relative(&ws_path, rel);
+            let project_skills = join_agent_relative(&ws_path, rel);
             let raw = normalize_path_string(&project_skills);
             match deploy_one(agent, &skill, &raw, "project", &mode) {
                 Ok(Some(d)) => deployments.push(d),
@@ -352,7 +372,7 @@ pub fn undeploy_skill(
             if rel.is_empty() {
                 continue;
             }
-            let link = crate::paths::join_relative(Path::new(ws), rel).join(&skill.name);
+            let link = join_agent_relative(Path::new(ws), rel).join(&skill.name);
             if link.exists() {
                 match remove_deployed_skill(&link) {
                     Ok(()) => deployments.push(SkillDeployment {
@@ -412,7 +432,7 @@ pub fn search_project_skills(workspace: &str) -> Result<Vec<ProjectSkillCandidat
     // Shallow + one-level common dirs (skills/, .cursor/skills, etc.)
     let mut roots = vec![root.clone()];
     for child in ["skills", ".cursor/skills", ".agents/skills", ".claude/skills"] {
-        let p = crate::paths::join_relative(&root, child);
+        let p = join_agent_relative(&root, child);
         if p.is_dir() {
             roots.push(p);
         }

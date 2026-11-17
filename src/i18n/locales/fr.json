@@ -24,7 +24,34 @@
       "searchPalette.hint": "↑↓ déplacer · Entrée ouvrir · ⌥+1–9 périmètre · Échap fermer · ⌘+⇧+P",
       "detailsPane.multiHint": "Sélectionnez un élément pour les détails complets, ou ouvrez Propriétés (⌥+Entrée).",
       "discovery.meta": "Rechercher sur ce Mac par nom ou chemin",
-      "discovery.everythingConfigHint": "Utilise l’index {engine} de ce Mac. Excluez ci-dessous les dossiers à ignorer."
+      "discovery.everythingConfigHint": "Utilise l’index {engine} de ce Mac. Excluez ci-dessous les dossiers à ignorer.",
+      "settings.fields.preview.externalProvider.description": "La barre d’espace utilise en priorité Quick Look intégré à macOS, sinon l’aperçu intégré.",
+      "settings.fields.preview.externalProvider.options.auto": "Automatique (Quick Look → intégré)",
+      "settings.fields.preview.externalProvider.options.quicklook": "Quick Look du système",
+      "shortcuts.items.navigatorPreviewBridge": "Apercevoir la sélection (Quick Look / intégré)",
+      "health.deps.meta": "Composants requis et optionnels. Un composant optionnel manquant dégrade seulement sa fonction, sans bloquer le gestionnaire de fichiers local.",
+      "health.deps.items.quicklook.title": "Quick Look (système)",
+      "health.deps.items.quicklook.detail": "Quick Look est fourni par macOS, aucune installation supplémentaire n’est nécessaire.",
+      "virtualInfo.kindRecycle": "Corbeille",
+      "virtualInfo.recycleName": "Corbeille",
+      "preview.linkKindShortcut": "Alias macOS",
+      "guide.drive": "Volume local ({letter})",
+      "guide.driveRemovable": "Volume amovible ({letter})",
+      "guide.driveRemote": "Volume réseau ({letter})",
+      "guide.driveCdrom": "Volume CD/DVD ({letter})",
+      "guide.driveRamdisk": "Disque RAM ({letter})",
+      "guide.emptyDrives": "Aucun volume trouvé",
+      "guide.sections.drives": "Volumes",
+      "discovery.blacklistPlaceholder": "/Users/me/Library\n/Volumes/Externe",
+      "extensions.installPathPlaceholder": "/path/to/pack ou pack.zip",
+      "settings.fields.core.launchAtStartup.description": "Démarrer A File Manager à la connexion à macOS",
+      "settings.fields.core.navigatorViewMode.description": "Icônes, liste, détails, tuiles ou contenu",
+      "settings.fields.core.openTool.vscode.path.description": "Chemin de l’application si la détection automatique échoue",
+      "settings.fields.core.openTool.cursor.path.description": "Chemin de l’application si la détection automatique échoue",
+      "settings.fields.core.openTool.trae.path.description": "Chemin de l’application si la détection automatique échoue",
+      "settings.fields.core.openTool.qoder.path.description": "Chemin de l’application si la détection automatique échoue",
+      "providers.searchBlocked": "Spotlight est connecté à la recherche. Utilisez la page Recherche plutôt que le backend du fournisseur.",
+      "settings.favoritesMeta": "Menu contextuel Finder → Ajouter aux favoris AFM"
     }
   },
   "app": {
@@ -183,8 +210,6 @@
     "meta": "Module IA — cibles Agent, MCP / Skills publics et fournisseurs de modèles",
     "usageHint": "Gérez les cibles Agent ici. MCP public, Skills et fournisseurs IA arriveront dans des tranches ultérieures.",
     "shellStatus": "Coque module IA v{version} · couche {layer}",
-    "sectionPlaceholder": "Plus tard",
-    "sectionReady": "Prêt",
     "sections": {
       "providers": {
         "title": "Fournisseurs IA",
@@ -217,6 +242,8 @@
       "kindBuiltin": "Intégré",
       "kindCustom": "Personnalisé",
       "badgeDiscovered": "trouvé sur le disque",
+      "installed": "Installé",
+      "notInstalled": "Non installé",
       "fieldName": "Nom affiché",
       "fieldId": "Id (facultatif)",
       "fieldIdHint": "ascii-id — laisser vide pour dériver du nom",
@@ -238,6 +265,8 @@
       "errorBuiltinRemove": "Les cibles Agent intégrées ne peuvent pas être supprimées",
       "errorIdConflict": "Cet id entre en conflit avec une cible Agent intégrée",
       "defaultInProjectsHint": "La valeur par défaut du projet préremplit les ensembles d'agents des nouveaux projets ; « Activé » contrôle la distribution globale.",
+      "installHint": "Installé = répertoire Skills global ou fichier MCP présent sur le disque. Seuls les agents installés apparaissent dans l'import MCP/Skill et la configuration du projet.",
+      "noInstalledHint": "Aucun agent installé détecté. Installez un agent ou actualisez la détection avant d'importer des MCP/Skills ou de configurer un projet.",
       "defaultInProjectsOff": "Valeur par défaut du projet : désactivée",
       "defaultInProjectsOn": "Valeur par défaut du projet : activée"
     },
@@ -572,7 +601,9 @@
           "title": "Knowledge root"
         },
         "quicklook": {
-          "title": "QuickLook"
+          "title": "QuickLook",
+          "detail": "État du pont QuickLook / Peek.",
+          "fix": "Aucune action si l’aperçu fonctionne."
         },
         "powertoys_peek": {
           "title": "PowerToys Peek"
@@ -588,6 +619,9 @@
         },
         "ai_addon": {
           "title": "AI Add-on package"
+        },
+        "webview": {
+          "title": "WebView système"
         }
       }
     }

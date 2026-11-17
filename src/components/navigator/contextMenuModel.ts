@@ -3,6 +3,7 @@
 
 import type { FluentGlyphId } from "../icons/glyphs.ts";
 import type { NavigatorEntry } from "../../state/navigatorBrowse.ts";
+import type { PlatformCapabilities } from "../../config/platform.ts";
 
 export type ContextMenuActionId =
   | "open"
@@ -74,6 +75,11 @@ export type ContextMenuBuildOptions = {
     available: boolean;
     supportsElevation?: boolean;
   }>;
+  /**
+   * Host capabilities from `platform_capabilities`. Omitted/unknown keeps the
+   * Windows-first menu intact; an answered IPC hides verbs the host cannot do.
+   */
+  caps?: PlatformCapabilities;
   /** ShellNew-backed new-file templates. */
   newFileTemplates?: Array<{ extension: string; label: string; defaultName: string }>;
   /**
@@ -180,12 +186,14 @@ export function buildContextMenuItems(
       enabled: true,
       icon: "folderOpen",
     });
-    openWithChildren.push({
-      id: "openWithNative",
-      labelKey: "contextMenu.openWithChoose",
-      enabled: true,
-      icon: "view",
-    });
+    if (options.caps?.nativeOpenWithDialog !== false) {
+      openWithChildren.push({
+        id: "openWithNative",
+        labelKey: "contextMenu.openWithChoose",
+        enabled: true,
+        icon: "view",
+      });
+    }
   }
   if (ideChildren.length) {
     openWithChildren.push(
@@ -244,14 +252,19 @@ export function buildContextMenuItems(
     },
     ...buildAddToWorkGroupItems(isDir, options.workGroups),
     ...buildAddAsSkillItems(isDir),
-    {
-      // AIA-224 / FIL-53: 无 systemMenuShow 跳转；悬停弹出原生系统菜单。
-      id: "systemMenu",
-      labelKey: "contextMenu.systemMenu",
-      enabled: true,
-      icon: "viewAll",
-      shellCascade: true,
-    },
+    // AIA-224 / FIL-53: no systemMenuShow jump; hover opens the native menu.
+    // macOS has no Win32 shell cascade; hide it once capabilities are known.
+    ...(options.caps?.nativeContextMenu === false
+      ? []
+      : [
+          {
+            id: "systemMenu",
+            labelKey: "contextMenu.systemMenu",
+            enabled: true,
+            icon: "viewAll" as FluentGlyphId,
+            shellCascade: true,
+          },
+        ]),
     // Clipboard / rename / copy-path live in the Windows-style top toolbar.
     { id: "newFolder", labelKey: "contextMenu.newFolder", enabled: true, separatorBefore: true, icon: "folder" },
     buildNewFileMenuItem(options.newFileTemplates),

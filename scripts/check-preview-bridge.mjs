@@ -37,9 +37,18 @@ assert.ok(bridgeRs.includes("pick_auto_backend"));
 assert.ok(bridgeRs.includes("auto_prefers_quicklook_before_peek"));
 assert.ok(bridgeRs.includes("auto_falls_back_to_peek_when_quicklook_missing"));
 assert.ok(
-  bridgeRs.includes("QuickLook pipe first") ||
+  bridgeRs.includes("Windows tries classic QuickLook Named Pipe first") ||
     bridgeRs.includes("try classic QuickLook Named Pipe first"),
-  "auto must document QL-before-Peek (AIA-254)",
+  "Windows auto must document QL-before-Peek (AIA-254)",
+);
+assert.ok(
+  bridgeRs.includes("host-native Quick Look provider") &&
+    bridgeRs.includes("crate::platform::preview_provider()"),
+  "macOS preview must go through the registered platform provider",
+);
+assert.ok(
+  read("src-tauri/src/settings/platform_policy.rs").includes("allowed_preview_values"),
+  "preview values must come from the platform policy, not a static OS-agnostic enum",
 );
 assert.ok(
   bridgeRs.includes("not a claim") ||

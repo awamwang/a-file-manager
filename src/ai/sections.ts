@@ -13,6 +13,12 @@ export const AI_MENU_SECTIONS: readonly AiMenuSectionDef[] = [
     icon: "cloud",
   },
   {
+    id: "agents",
+    titleKey: "ai.sections.agents.title",
+    bodyKey: "ai.sections.agents.body",
+    icon: "viewAll",
+  },
+  {
     id: "mcp",
     titleKey: "ai.sections.mcp.title",
     bodyKey: "ai.sections.mcp.body",
@@ -23,12 +29,6 @@ export const AI_MENU_SECTIONS: readonly AiMenuSectionDef[] = [
     titleKey: "ai.sections.skills.title",
     bodyKey: "ai.sections.skills.body",
     icon: "link",
-  },
-  {
-    id: "agents",
-    titleKey: "ai.sections.agents.title",
-    bodyKey: "ai.sections.agents.body",
-    icon: "viewAll",
   },
   {
     id: "harness",

@@ -295,19 +295,24 @@ onMounted(() => {
           :aria-selected="agent.id === selectedId"
           @click="selectedId = agent.id"
         >
-          <div class="agents-list-main">
-            <strong>{{ agent.displayName }}</strong>
-            <span class="agents-list-meta">
-              {{ agent.id }}
-              ·
-              {{
-                agent.kind === "custom"
-                  ? t("ai.agents.kindCustom")
-                  : t("ai.agents.kindBuiltin")
-              }}
-              <template v-if="agent.discovered"> · {{ t("ai.agents.badgeDiscovered") }}</template>
+          <div class="agents-item-top">
+            <strong class="agents-item-name">{{ agent.displayName }}</strong>
+            <span
+              class="fluent-chip agents-install-chip"
+              :class="agent.discovered ? 'fluent-chip--ok' : 'fluent-chip--stub'"
+            >
+              {{ agent.discovered ? t("ai.agents.installed") : t("ai.agents.notInstalled") }}
             </span>
           </div>
+          <span class="agents-list-meta">
+            {{ agent.id }}
+            ·
+            {{
+              agent.kind === "custom"
+                ? t("ai.agents.kindCustom")
+                : t("ai.agents.kindBuiltin")
+            }}
+          </span>
           <div class="agents-list-toggles">
             <button
               type="button"
@@ -332,7 +337,16 @@ onMounted(() => {
       </ul>
 
       <div v-if="selected" class="fluent-surface agents-detail">
-        <h3 class="agents-subhead">{{ selected.displayName }}</h3>
+        <div class="agents-detail-head">
+          <h3 class="agents-subhead">{{ selected.displayName }}</h3>
+          <span
+            class="fluent-chip"
+            :class="selected.discovered ? 'fluent-chip--ok' : 'fluent-chip--stub'"
+          >
+            {{ selected.discovered ? t("ai.agents.installed") : t("ai.agents.notInstalled") }}
+          </span>
+        </div>
+        <p class="agents-hint">{{ t("ai.agents.installHint") }}</p>
         <p class="agents-hint">{{ t("ai.agents.defaultInProjectsHint") }}</p>
         <label class="agents-field">
           <span>{{ t("ai.agents.fieldName") }}</span>
@@ -415,7 +429,7 @@ onMounted(() => {
 
 .agents-layout {
   display: grid;
-  grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
+  grid-template-columns: minmax(15rem, 19rem) minmax(0, 1fr);
   gap: var(--fluent-space-md);
 }
 
@@ -438,8 +452,9 @@ onMounted(() => {
 
 .agents-list-item {
   display: flex;
-  align-items: center;
-  gap: var(--fluent-space-sm);
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--fluent-space-xs);
   padding: var(--fluent-space-sm) var(--fluent-space-md);
   border-radius: var(--fluent-radius-md);
   background: var(--fluent-color-fill-subtle);
@@ -457,30 +472,40 @@ onMounted(() => {
   box-shadow: inset 3px 0 0 var(--fluent-color-stroke-accent-soft);
 }
 
-.agents-list-main {
-  flex: 1;
-  min-width: 0;
+.agents-item-top {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fluent-space-xs);
+  min-width: 0;
+}
+
+.agents-item-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .agents-list-meta {
   color: var(--fluent-color-text-secondary);
   font-size: var(--fluent-font-size-caption);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   -webkit-user-select: text;
   user-select: text;
 }
 
 .agents-list-toggles {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex-shrink: 0;
+  flex-direction: row;
+  gap: var(--fluent-space-xs);
 }
 
 .agents-enable {
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 0;
   font-size: var(--fluent-font-size-caption);
 }
 
@@ -490,6 +515,19 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: var(--fluent-space-sm);
+}
+
+.agents-install-chip {
+  flex-shrink: 0;
+  font-size: var(--fluent-font-size-caption);
+}
+
+.agents-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fluent-space-sm);
+  flex-wrap: wrap;
 }
 
 .agents-subhead {

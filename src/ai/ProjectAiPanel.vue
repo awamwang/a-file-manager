@@ -46,6 +46,9 @@ const deployments = ref<AiProjectDeployments>({ mcpIds: [], skillNames: [] });
 /** 防止同一行在 IPC 未返回时被重复切换。 */
 const pending = ref<Set<string>>(new Set());
 
+/** 只有已安装（磁盘上探测到全局路径）的 Agent 才能配置到项目的 MCP/Skill。 */
+const installedAgents = computed(() => agents.value.filter((a) => a.discovered));
+
 const enabledSet = computed(() => new Set(projectAi.value?.enabledAgentIds ?? []));
 const deployedMcpSet = computed(() => new Set(deployments.value.mcpIds));
 const deployedSkillSet = computed(() => new Set(deployments.value.skillNames));
@@ -87,7 +90,7 @@ function mapError(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-function isPending(kind: "mcp" | "skill", id: string): boolean {
+function isPending(kind: "mcp" | "skill" | "agent", id: string): boolean {
   return pending.value.has(`${kind}:${id}`);
 }
 
@@ -133,18 +136,24 @@ async function refresh() {
 
 async function toggleAgent(id: string) {
   if (!projectAi.value) return;
+  const key = `agent:${id}`;
+  if (isPending("agent", id)) return;
+  setPending(key, true);
   error.value = null;
-  const next = new Set(projectAi.value.enabledAgentIds);
-  if (next.has(id)) next.delete(id);
-  else next.add(id);
   try {
-    projectAi.value = await aiProjectAiSetEnabledAgents(
-      props.workspacePath,
-      [...next],
-    );
+    // 始终从服务端最新状态计算，避免快速连点时读到旧快照导致丢失更新。
+    const current = await aiProjectAiGet(props.workspacePath);
+    const next = new Set(current.enabledAgentIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    projectAi.value = await aiProjectAiSetEnabledAgents(props.workspacePath, [...next]);
+    // Agent 启用集变化会改变部署目标，必须同步刷新「已添加」状态。
+    await refreshDeployments();
     toastSuccess(t("ai.project.noticeAgentsSaved"));
   } catch (err) {
     error.value = mapError(err);
+  } finally {
+    setPending(key, false);
   }
 }
 
@@ -233,14 +242,18 @@ onMounted(() => {
         <p class="project-ai-hint">{{ t("ai.project.agentsHint") }}</p>
       </div>
       <div class="project-ai-agents">
-        <label v-for="agent in agents" :key="agent.id" class="project-ai-chip">
+        <label v-for="agent in installedAgents" :key="agent.id" class="project-ai-chip">
           <input
             type="checkbox"
             :checked="enabledSet.has(agent.id)"
+            :disabled="isPending('agent', agent.id)"
             @change="toggleAgent(agent.id)"
           />
           <span>{{ agent.displayName }}</span>
         </label>
+        <p v-if="!installedAgents.length" class="project-ai-hint">
+          {{ t("ai.agents.noInstalledHint") }}
+        </p>
       </div>
     </section>
 

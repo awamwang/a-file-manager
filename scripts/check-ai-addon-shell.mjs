@@ -86,7 +86,7 @@ assert.ok(
     rustAi.includes('"skills"') &&
     rustAi.includes('"agents"') &&
     rustAi.includes('"harness"'),
-  "Rust AI section ids include Providers/MCP/Skills/Agents/Harness",
+  "Rust AI section ids include Providers/Agents/MCP/Skills/Harness",
 );
 const client = read("src/ai/client.ts");
 assert.ok(client.includes('"ai_addon_status"'), "typed client: addon status");

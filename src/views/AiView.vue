@@ -2,7 +2,7 @@
 <script setup lang="ts">
 /**
  * AIA-214 / A1 + AIA-215 / A2 + AIA-263 — AI Add-on settings shell.
- * Left nav (Settings-style) separates Providers / MCP / Skills / Agents / Harness.
+ * Left nav (Settings-style) separates Providers / Agents / MCP / Skills / Harness.
  */
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
@@ -25,14 +25,6 @@ const status = ref<AiAddonStatus | null>(null);
 const error = ref<string | null>(null);
 const loading = ref(false);
 const activeSection = ref<AiMenuSectionId>(AI_MENU_SECTIONS[0]?.id ?? "providers");
-
-const readyById = computed(() => {
-  const map = new Map<string, boolean>();
-  for (const section of status.value?.sections ?? []) {
-    map.set(section.id, section.ready);
-  }
-  return map;
-});
 
 const activeDef = computed(
   () => AI_MENU_SECTIONS.find((section) => section.id === activeSection.value) ?? null,
@@ -90,14 +82,6 @@ onMounted(() => {
             <FluentIcon :name="section.icon" size="md" />
           </span>
           <span class="ai-nav-label">{{ t(section.titleKey) }}</span>
-          <span
-            class="fluent-chip ai-nav-chip"
-            :class="readyById.get(section.id) ? 'fluent-chip--ok' : 'ai-nav-chip--later'"
-          >
-            {{
-              readyById.get(section.id) ? t("ai.sectionReady") : t("ai.sectionPlaceholder")
-            }}
-          </span>
         </button>
       </aside>
 
@@ -181,15 +165,6 @@ onMounted(() => {
   flex: 1;
   min-width: 0;
   white-space: nowrap;
-}
-
-.ai-nav-chip {
-  flex-shrink: 0;
-  pointer-events: none;
-}
-
-.ai-nav-chip--later {
-  opacity: 0.75;
 }
 
 .ai-panel {

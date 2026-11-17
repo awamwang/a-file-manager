@@ -13,7 +13,7 @@
 | 中央 MCP 目录 | APPDATA `ai-config.json`；upsert / remove / JSON 文件导入；`afm__*` merge 部署 |
 | 中央 Skills 库 | APPDATA（可改 root）；要求 `SKILL.md`；Junction 部署 / 卸载 |
 | Agent Target | 内置预设 + 自定义；全局/项目相对路径；`enabled` 控制全局部署扇出 |
-| UI | AI 设置：Providers / MCP / Skills / Agents / Harness |
+| UI | AI 设置：Providers / Agents / MCP / Skills / Harness |
 
 ## 增量设计
 

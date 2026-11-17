@@ -56,7 +56,9 @@ pub fn resolve_skills_library_root(config_dir: &Path, document: &AiConfigDocumen
     if trimmed.is_empty() {
         default_skills_library_root(config_dir)
     } else {
-        PathBuf::from(trimmed)
+        // Config may come from another OS (Windows `\` on macOS); route through
+        // the same Agent path compatibility layer used for target paths.
+        PathBuf::from(super::agent_paths::expand_agent_path(trimmed))
     }
 }
 

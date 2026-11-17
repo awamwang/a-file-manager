@@ -40,6 +40,12 @@ function depTitle(item: DependencyItem): string {
   return te(key) ? String(t(key)) : item.title;
 }
 
+/** Backend fallback copy can be Windows-flavoured; macOS overrides win. */
+function depText(item: DependencyItem, part: "detail" | "fix"): string {
+  const key = `health.deps.items.${item.id}.${part}`;
+  return te(key) ? String(t(key)) : item[part];
+}
+
 function statusLabel(status: string): string {
   const key = `health.deps.status.${status}`;
   return te(key) ? String(t(key)) : status;
@@ -164,10 +170,10 @@ onMounted(() => {
             <span class="deps-kind">{{ kindLabel(item.kind) }}</span>
             <strong class="deps-title">{{ depTitle(item) }}</strong>
           </div>
-          <p class="deps-detail">{{ item.detail }}</p>
+          <p class="deps-detail">{{ depText(item, 'detail') }}</p>
           <p class="deps-fix">
             <span class="deps-fix-label">{{ t("health.deps.fixLabel") }}</span>
-            {{ item.fix }}
+            {{ depText(item, 'fix') }}
           </p>
         </li>
       </ul>

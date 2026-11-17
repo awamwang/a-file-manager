@@ -24,7 +24,34 @@
       "searchPalette.hint": "↑↓ 移动 · Enter 打开 · ⌥+1–9 切换范围 · Esc 关闭 · ⌘+⇧+P",
       "detailsPane.multiHint": "选中单项可查看完整详细信息，或按 ⌥+Enter 打开属性。",
       "discovery.meta": "按文件名或路径搜索这台 Mac",
-      "discovery.everythingConfigHint": "使用这台 Mac 的 {engine} 索引服务。不想出现在结果中的文件夹可在下方排除。"
+      "discovery.everythingConfigHint": "使用这台 Mac 的 {engine} 索引服务。不想出现在结果中的文件夹可在下方排除。",
+      "settings.fields.preview.externalProvider.description": "空格优先使用 macOS 系统快速查看（Quick Look）；不可用时回退内置预览栏。",
+      "settings.fields.preview.externalProvider.options.auto": "自动（快速查看 → 内置）",
+      "settings.fields.preview.externalProvider.options.quicklook": "系统快速查看（Quick Look）",
+      "shortcuts.items.navigatorPreviewBridge": "预览选中项（快速查看 / 内置）",
+      "health.deps.meta": "必装与可选组件。可选组件缺失只会降级对应功能，不阻止本机文件管理器。",
+      "health.deps.items.quicklook.title": "快速查看（系统）",
+      "health.deps.items.quicklook.detail": "快速查看由 macOS 系统提供，无需额外安装。",
+      "virtualInfo.kindRecycle": "废纸篓",
+      "virtualInfo.recycleName": "废纸篓",
+      "preview.linkKindShortcut": "macOS 替身（alias）",
+      "guide.drive": "本地卷 ({letter})",
+      "guide.driveRemovable": "可移动卷 ({letter})",
+      "guide.driveRemote": "网络卷 ({letter})",
+      "guide.driveCdrom": "光盘卷 ({letter})",
+      "guide.driveRamdisk": "内存磁盘 ({letter})",
+      "guide.emptyDrives": "未找到卷",
+      "guide.sections.drives": "卷",
+      "discovery.blacklistPlaceholder": "/Users/me/Library\n/Volumes/外接盘",
+      "extensions.installPathPlaceholder": "/path/to/pack 或 pack.zip",
+      "settings.fields.core.launchAtStartup.description": "登录 macOS 时启动 A File Manager",
+      "settings.fields.core.navigatorViewMode.description": "图标、列表、详细信息、平铺或内容",
+      "settings.fields.core.openTool.vscode.path.description": "自动发现失败时的可选应用路径",
+      "settings.fields.core.openTool.cursor.path.description": "自动发现失败时的可选应用路径",
+      "settings.fields.core.openTool.trae.path.description": "自动发现失败时的可选应用路径",
+      "settings.fields.core.openTool.qoder.path.description": "自动发现失败时的可选应用路径",
+      "providers.searchBlocked": "Spotlight 已接入「搜索」，请使用搜索页，而不是提供程序中的 search 后端。",
+      "settings.favoritesMeta": "访达右键「添加到 AFM 收藏」"
     }
   },
   "app": {
@@ -228,8 +255,6 @@
     "meta": "AI 附加层 — Agent Target、公共 MCP / Skills 与模型 Providers",
     "usageHint": "在此管理 Agent Target。公共 MCP、Skills 与 AI Providers 将在后续切片落地。",
     "shellStatus": "AI Add-on 壳 v{version} · 层 {layer}",
-    "sectionPlaceholder": "稍后",
-    "sectionReady": "就绪",
     "sections": {
       "providers": {
         "title": "AI Providers",
@@ -261,10 +286,14 @@
       "defaultInProjectsOn": "项目默认：开",
       "defaultInProjectsOff": "项目默认：关",
       "defaultInProjectsHint": "「项目默认」控制新建项目的 Agent 启用集预填；「启用」控制全局部署扇出。",
+      "installHint": "「已安装」= 磁盘上存在全局 Skills 目录或 MCP 文件；只有已安装的 Agent 才会出现在 MCP/Skill 导入与项目配置中。",
+      "noInstalledHint": "未检测到已安装的 Agent。导入 MCP/Skill 或配置项目前，请先安装 Agent 或刷新发现。",
       "save": "保存",
       "kindBuiltin": "内置",
       "kindCustom": "自定义",
       "badgeDiscovered": "磁盘已找到",
+      "installed": "已安装",
+      "notInstalled": "未安装",
       "fieldName": "显示名称",
       "fieldId": "Id（可选）",
       "fieldIdHint": "小写 ascii-id — 留空则由名称生成",
@@ -849,7 +878,9 @@
           "title": "知识库根目录"
         },
         "quicklook": {
-          "title": "QuickLook"
+          "title": "QuickLook",
+          "detail": "QuickLook / Peek 桥接状态。",
+          "fix": "预览正常时无需处理。"
         },
         "powertoys_peek": {
           "title": "PowerToys Peek"
@@ -865,6 +896,9 @@
         },
         "ai_addon": {
           "title": "AI Add-on 包"
+        },
+        "webview": {
+          "title": "系统 WebView"
         }
       }
     }

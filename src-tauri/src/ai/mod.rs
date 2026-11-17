@@ -15,6 +15,7 @@
 //! - A8: open Project Workspace in IDE (Cursor dir / Qoder CONTEXT.md)
 
 mod agents;
+mod agent_paths;
 mod deploy;
 mod harness;
 mod harvest;
@@ -35,17 +36,15 @@ use tauri::AppHandle;
 use tauri::Manager;
 
 /// Stable section ids for the AI main menu shell (UI + future IPC).
-/// Order: Providers → MCP → Skills → Agents → Harness (AIA-263 left nav).
-pub const AI_MENU_SECTION_IDS: &[&str] = &["providers", "mcp", "skills", "agents", "harness"];
+/// Order: Providers → Agents → MCP → Skills → Harness (AIA-263 left nav).
+pub const AI_MENU_SECTION_IDS: &[&str] = &["providers", "agents", "mcp", "skills", "harness"];
 
-pub const AI_ADDON_SHELL_VERSION: u32 = 8;
+pub const AI_ADDON_SHELL_VERSION: u32 = 9;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct AiMenuSectionStatus {
     pub id: String,
-    /// Agents A2 · Skills A3 · MCP A5 · Providers A7.
-    pub ready: bool,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -63,10 +62,6 @@ fn config_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
         .map_err(|err| format!("Failed to resolve app config dir: {err}"))
 }
 
-fn section_ready(id: &str) -> bool {
-    matches!(id, "providers" | "mcp" | "skills" | "agents" | "harness")
-}
-
 /// Shell probe for the AI main menu.
 #[tauri::command]
 pub fn ai_addon_status() -> AiAddonStatus {
@@ -77,7 +72,6 @@ pub fn ai_addon_status() -> AiAddonStatus {
             .iter()
             .map(|id| AiMenuSectionStatus {
                 id: (*id).to_string(),
-                ready: section_ready(id),
             })
             .collect(),
     }
@@ -407,62 +401,89 @@ pub struct AiProjectDeployments {
     pub skill_names: Vec<String>,
 }
 
+/// 扫描项目内已写入的 AFM 托管 MCP / Skill。
+///
+/// 「已添加」采用**交集**语义：条目必须存在于每一个「有目标路径的启用 Agent」中。
+/// 这样新勾选一个 Agent 后，原本只在部分 Agent 的条目会重新显示为「未添加」，
+/// 用户可再次勾选把它补齐到新 Agent；若用并集，只要任一 Agent 有文件就显示
+/// 「已添加」，新 Agent 永远补不上文件。
+fn scan_project_deployments(
+    ws: &Path,
+    doc: &AiConfigDocument,
+    enabled: &[String],
+) -> AiProjectDeployments {
+    use std::collections::BTreeMap;
+    use std::fs;
+
+    let project_agents = doc
+        .agent_targets
+        .iter()
+        .filter(|agent| enabled.iter().any(|id| id == &agent.id));
+
+    let mut mcp_hits: BTreeMap<String, usize> = BTreeMap::new();
+    let mut skill_hits: BTreeMap<String, usize> = BTreeMap::new();
+    let mut mcp_slots = 0usize;
+    let mut skill_slots = 0usize;
+
+    for agent in project_agents {
+        let rel = agent.project_mcp_path.trim();
+        if !rel.is_empty() {
+            mcp_slots += 1;
+            let file = crate::paths::join_relative(ws, rel);
+            for id in mcp::managed_ids_in_file(&file) {
+                *mcp_hits.entry(id).or_insert(0) += 1;
+            }
+        }
+        let rel = agent.project_skills_dir.trim();
+        if !rel.is_empty() {
+            skill_slots += 1;
+            let skills_dir = crate::paths::join_relative(ws, rel);
+            if let Ok(entries) = fs::read_dir(&skills_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if deploy::is_afm_deployed_skill(&path) {
+                        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                            *skill_hits.entry(name.to_string()).or_insert(0) += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let mcp_ids = mcp_hits
+        .into_iter()
+        .filter(|(_, hits)| *hits == mcp_slots)
+        .map(|(id, _)| id)
+        .collect();
+    let skill_names = skill_hits
+        .into_iter()
+        .filter(|(_, hits)| *hits == skill_slots)
+        .map(|(name, _)| name)
+        .collect();
+    AiProjectDeployments {
+        mcp_ids,
+        skill_names,
+    }
+}
+
 #[tauri::command]
 pub fn ai_project_deployments(
     app: AppHandle,
     workspace_path: String,
 ) -> Result<AiProjectDeployments, String> {
-    use std::collections::BTreeSet;
-    use std::fs;
-    use std::path::PathBuf;
-
     let empty = AiProjectDeployments {
         mcp_ids: Vec::new(),
         skill_names: Vec::new(),
     };
-    let ws = PathBuf::from(workspace_path.trim());
+    let ws = Path::new(workspace_path.trim());
     if !ws.is_dir() {
         return Ok(empty);
     }
     let dir = config_dir(&app)?;
     let doc = agents::load_from_path(&dir)?;
     let enabled = project_ai::enabled_agent_ids(&workspace_path, &doc)?;
-    let project_agents = doc
-        .agent_targets
-        .iter()
-        .filter(|agent| enabled.iter().any(|id| id == &agent.id));
-
-    let mut mcp_ids = BTreeSet::new();
-    let mut skill_names = BTreeSet::new();
-    for agent in project_agents {
-        let rel = agent.project_mcp_path.trim();
-        if !rel.is_empty() {
-            let file = crate::paths::join_relative(&ws, rel);
-            for id in mcp::managed_ids_in_file(&file) {
-                mcp_ids.insert(id);
-            }
-        }
-        let rel = agent.project_skills_dir.trim();
-        if rel.is_empty() {
-            continue;
-        }
-        let skills_dir = crate::paths::join_relative(&ws, rel);
-        let Ok(entries) = fs::read_dir(&skills_dir) else {
-            continue;
-        };
-        for entry in entries.flatten() {
-            if entry.path().is_dir() {
-                let name = entry.file_name();
-                if let Some(text) = name.to_str() {
-                    skill_names.insert(text.to_string());
-                }
-            }
-        }
-    }
-    Ok(AiProjectDeployments {
-        mcp_ids: mcp_ids.into_iter().collect(),
-        skill_names: skill_names.into_iter().collect(),
-    })
+    Ok(scan_project_deployments(ws, &doc, &enabled))
 }
 
 /// Explicit Harness / Superpower init on a Project Workspace (ADR 0008).
@@ -553,7 +574,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn shell_marks_all_sections_ready() {
+    fn shell_lists_all_sections_in_order() {
         let status = ai_addon_status();
         assert_eq!(status.layer, "ai-addon");
         assert_eq!(status.shell_version, AI_ADDON_SHELL_VERSION);
@@ -565,11 +586,58 @@ mod tests {
                 .collect::<Vec<_>>(),
             AI_MENU_SECTION_IDS.to_vec()
         );
-        for id in AI_MENU_SECTION_IDS {
-            assert!(
-                status.sections.iter().find(|s| s.id == *id).unwrap().ready,
-                "{id} should be ready"
-            );
-        }
+    }
+
+    #[test]
+    fn project_status_uses_intersection_across_enabled_agents() {
+        use crate::ai::agents::AiConfigDocument;
+        use std::fs;
+
+        let ws = std::env::temp_dir().join(format!(
+            "afm-ai-project-status-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&ws);
+        fs::create_dir_all(&ws).unwrap();
+
+        let mut doc = AiConfigDocument::empty();
+        let a = crate::ai::agents::upsert_custom(
+            &doc,
+            Some("a".into()),
+            "A".into(),
+            String::new(),
+            String::new(),
+            String::new(),
+            "a/mcp.json".into(),
+            String::new(),
+        )
+        .unwrap();
+        doc = a;
+        let mut b = doc.agent_targets[0].clone();
+        b.id = "b".into();
+        b.display_name = "B".into();
+        b.project_mcp_path = "b/mcp.json".into();
+        doc.agent_targets.push(b);
+
+        // Only agent A has the managed MCP entry on disk.
+        fs::create_dir_all(ws.join("a")).unwrap();
+        fs::write(
+            ws.join("a/mcp.json"),
+            r#"{"mcpServers":{"afm__demo":{}}}"#,
+        )
+        .unwrap();
+
+        // Enabled = [A]: demo should be "added".
+        let only_a = scan_project_deployments(&ws, &doc, &["a".to_string()]);
+        assert!(only_a.mcp_ids.iter().any(|id| id == "demo"));
+
+        // Enabled = [A, B]: B has no file → demo must NOT be "added" (intersection).
+        let both = scan_project_deployments(&ws, &doc, &["a".to_string(), "b".to_string()]);
+        assert!(
+            !both.mcp_ids.iter().any(|id| id == "demo"),
+            "partial deploy must show as not-added so it can be re-checked"
+        );
+
+        let _ = fs::remove_dir_all(&ws);
     }
 }

@@ -283,67 +283,7 @@ fn write_text_atomic(path: &Path, text: &str) -> Result<(), String> {
     }
 }
 
-/// Expand `%USERPROFILE%` / `%APPDATA%` / `%LOCALAPPDATA%` / `~`.
-///
-/// Windows keeps the original env-var semantics. On macOS/Linux those vars do
-/// not exist, so fall back to `platform::home_dir()` and `directories::BaseDirs`
-/// instead of leaving the token (or worse, turning `/Users/...` into `\Users\...`).
-pub fn expand_agent_path(raw: &str) -> String {
-    let trimmed = raw.trim();
-    if trimmed.is_empty() {
-        return String::new();
-    }
-    let mut out = trimmed.to_string();
-    let home = crate::platform::home_dir().map(|p| p.to_string_lossy().into_owned());
-    let base = directories::BaseDirs::new();
-    for (key, env_key, fallback) in [
-        ("%USERPROFILE%", "USERPROFILE", home.clone()),
-        (
-            "%APPDATA%",
-            "APPDATA",
-            base.as_ref()
-                .map(|b| b.config_dir().to_string_lossy().into_owned()),
-        ),
-        (
-            "%LOCALAPPDATA%",
-            "LOCALAPPDATA",
-            base.as_ref()
-                .map(|b| b.cache_dir().to_string_lossy().into_owned()),
-        ),
-    ] {
-        if out.to_ascii_uppercase().contains(&key.to_ascii_uppercase()) {
-            if let Some(val) = std::env::var(env_key).ok().or(fallback) {
-                // Case-insensitive replace of the token.
-                let lower = out.to_ascii_lowercase();
-                let token = key.to_ascii_lowercase();
-                if let Some(idx) = lower.find(&token) {
-                    out = format!("{}{}{}", &out[..idx], val, &out[idx + key.len()..]);
-                }
-            }
-        }
-    }
-    if let Some(rest) = out.strip_prefix('~') {
-        if let Some(home) = home.as_ref() {
-            let rest = rest.trim_start_matches(['/', '\\']);
-            let sep = crate::platform::current().path_separator();
-            let expanded = if rest.is_empty() {
-                home.clone()
-            } else {
-                format!("{home}{sep}{rest}")
-            };
-            out = expanded;
-        }
-    }
-    crate::paths::to_native_fs_path(&out)
-}
-
-pub fn path_exists_expanded(raw: &str) -> bool {
-    let expanded = expand_agent_path(raw);
-    if expanded.is_empty() {
-        return false;
-    }
-    Path::new(&expanded).exists()
-}
+pub use super::agent_paths::{expand_agent_path, path_exists_expanded};
 
 pub fn refresh_discovered(target: &mut AgentTarget) {
     target.discovered = path_exists_expanded(&target.global_skills_dir)
@@ -766,8 +706,36 @@ mod tests {
     #[test]
     fn expand_userprofile_token() {
         let expanded = expand_agent_path(r"%USERPROFILE%\.cursor\skills");
-        assert!(!expanded.contains("%USERPROFILE%"));
-        assert!(expanded.to_ascii_lowercase().ends_with(r"\.cursor\skills"));
+        assert!(!expanded.contains('%'));
+        let sep = crate::platform::current().path_separator();
+        assert!(expanded.ends_with(&format!("{sep}.cursor{sep}skills")));
+    }
+
+    #[test]
+    fn every_builtin_path_expands_without_tokens_or_foreign_separators() {
+        // macOS port regression: builtins are stored in Windows convention
+        // (`%USERPROFILE%\.cursor\skills`). After expansion no `%TOKEN%` and no
+        // foreign separator may remain, otherwise discovery/deploy silently fail.
+        let foreign = if crate::platform::current().path_separator() == '/' {
+            '\\'
+        } else {
+            '/'
+        };
+        for def in BUILTIN_DEFS {
+            for raw in [
+                def.global_skills_dir,
+                def.project_skills_dir,
+                def.global_mcp_path,
+                def.project_mcp_path,
+            ] {
+                let expanded = super::expand_agent_path(raw);
+                assert!(!expanded.contains('%'), "token left in {raw} -> {expanded}");
+                assert!(
+                    !expanded.contains(foreign),
+                    "foreign separator in {raw} -> {expanded}"
+                );
+            }
+        }
     }
 
     #[test]

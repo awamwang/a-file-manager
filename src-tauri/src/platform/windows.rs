@@ -4,8 +4,8 @@
 
 use super::{
     has_uri_scheme, ClipboardProvider, GlobalSearchEngine, LaunchTarget, Platform,
-    PlatformCapabilities, RgbaIcon, SearchProbe, SearchQueryResult, TerminalLaunchError,
-    TrashProvider, Volume, VolumeKind, VolumeSpace, WindowChrome,
+    PlatformCapabilities, PreviewProvider, RgbaIcon, SearchProbe, SearchQueryResult,
+    TerminalLaunchError, TrashProvider, Volume, VolumeKind, VolumeSpace, WindowChrome,
 };
 use std::ffi::c_void;
 use std::fs::Metadata;
@@ -169,6 +169,7 @@ impl Platform for WindowsPlatform {
         caps.apply_provider_capabilities(self);
         caps.global_search_engine = "everything".to_string();
         caps.quick_look_preview = true;
+        caps.peek_preview = true;
         caps.ole_drag_out = true;
         caps.hidden_file_attributes = true;
         caps.drive_letters = true;
@@ -184,6 +185,12 @@ impl Platform for WindowsPlatform {
 
     fn clipboard_provider(&self) -> Option<&dyn ClipboardProvider> {
         Some(&super::NATIVE_CLIPBOARD)
+    }
+
+    fn preview_provider(&self) -> Option<&dyn PreviewProvider> {
+        // The Windows bridge talks to resident QuickLook via a named pipe and
+        // spawns Peek itself; there is no single host-owned preview process.
+        None
     }
 
     /// Moved verbatim from `navigator::places::list_drives` (7.16): the
