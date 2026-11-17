@@ -278,6 +278,22 @@ pub async fn provider_resolve(uri: String) -> Result<ResolveResult, String> {
         .map_err(|err| format!("provider_resolve worker failed: {err}"))?
 }
 
+/// 把虚拟远程文件落地为本机路径。下载能力在 awam-file 网关侧实现，
+/// AFM 作为 UI 接入端代理调用；网关离线时给出明确提示。
+#[tauri::command]
+pub async fn provider_download(uri: String) -> Result<gateway::GatewayDownloadResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if !gateway::is_online() {
+            return Err(
+                "下载需要 awam-file 网关在线（虚拟远程文件的通用下载能力由网关提供）".to_string(),
+            );
+        }
+        gateway::download(&uri)
+    })
+    .await
+    .map_err(|err| format!("provider_download worker failed: {err}"))?
+}
+
 /// Preload depth-1 listings: `awam://root` + each non-interface-only backend root.
 /// Wired from the frontend on idle / Providers visit (see `src/state/providerCache.ts`).
 /// Respects `power.providerPreloadKnowledge` (AIA-182).

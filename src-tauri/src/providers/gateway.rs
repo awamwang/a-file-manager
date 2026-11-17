@@ -24,6 +24,8 @@ const HEALTH_TIMEOUT: Duration = Duration::from_secs(2);
 /// `/api/backends` 与 list/stat/resolve 会触及适配器探测（qBittorrent/docker 等），
 /// 本机实测常需数秒；过短会误判网关离线并回退到内置列表。
 const HTTP_TIMEOUT: Duration = Duration::from_secs(15);
+/// 下载走网络传输（rclone copyto），网关侧已设 180s 上限，客户端留足余量。
+const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(200);
 const PROBE_TTL: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -33,6 +35,47 @@ pub struct GatewayStatus {
     pub base_url: String,
     pub detail: Option<String>,
     pub backend_count: Option<usize>,
+}
+
+/// `/api/download` 结果：虚拟文件落地后的本机路径（前端 camelCase）。
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct GatewayDownloadResult {
+    pub uri: String,
+    #[serde(default)]
+    pub local_path: Option<String>,
+    #[serde(default)]
+    pub backend: Option<String>,
+    #[serde(default)]
+    pub size: u64,
+    #[serde(default)]
+    pub ok: bool,
+    #[serde(default)]
+    pub truncated: bool,
+    #[serde(default)]
+    pub action: Option<String>,
+    #[serde(default)]
+    pub error: Option<String>,
+}
+
+/// Python 网关 `asdict` 输出 snake_case，单独解析后映射为 camelCase。
+#[derive(Debug, Deserialize)]
+struct GatewayDownloadWire {
+    uri: String,
+    #[serde(default)]
+    local_path: Option<String>,
+    #[serde(default)]
+    backend: Option<String>,
+    #[serde(default)]
+    size: u64,
+    #[serde(default)]
+    ok: bool,
+    #[serde(default)]
+    truncated: bool,
+    #[serde(default)]
+    action: Option<String>,
+    #[serde(default)]
+    error: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -390,6 +433,29 @@ pub fn resolve(uri: &str) -> Result<ResolveResult, String> {
         action: result.action,
         action_args: result.action_args,
         error: result.error,
+    })
+}
+
+/// 调用网关 `/api/download` 把虚拟文件落地为本机路径。下载可能耗时（网络传输），
+/// 使用比 list/resolve 更长的超时；调用方应在 spawn_blocking 中执行。
+pub fn download(uri: &str) -> Result<GatewayDownloadResult, String> {
+    let base_url = gateway_base_url();
+    let path = format!("/api/download?uri={}", encode_uri_query(uri));
+    let value = get_json(&base_url, &path, DOWNLOAD_TIMEOUT).map_err(|err| {
+        invalidate_probe_cache();
+        err
+    })?;
+    let wire: GatewayDownloadWire = serde_json::from_value(value)
+        .map_err(|err| format!("unexpected /api/download payload: {err}"))?;
+    Ok(GatewayDownloadResult {
+        uri: wire.uri,
+        local_path: wire.local_path,
+        backend: wire.backend,
+        size: wire.size,
+        ok: wire.ok,
+        truncated: wire.truncated,
+        action: wire.action,
+        error: wire.error,
     })
 }
 

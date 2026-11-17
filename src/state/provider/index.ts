@@ -26,8 +26,10 @@ export {
   type ProviderNavigatorListing,
 } from "./listing.ts";
 export {
+  downloadProviderEntry,
   listProviderBackends,
   loadProviderListing,
   openProviderEntry,
+  type ProviderDownloadResult,
   type ProviderResolveResult,
 } from "./browse.ts";

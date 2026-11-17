@@ -327,6 +327,7 @@ pub fn run() {
                     providers::provider_list,
                     providers::provider_stat,
                     providers::provider_resolve,
+                    providers::provider_download,
                     providers::provider_preload,
                     providers::provider_cache_invalidate,
                     work_groups::work_groups_get,

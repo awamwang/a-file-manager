@@ -4,7 +4,6 @@ import { onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import { entryKindIcon } from "../components/icons/glyphs";
 import {
@@ -18,7 +17,7 @@ import {
   refreshProviderSession,
 } from "../state/providerCache";
 import { navigateTo } from "../state/navigatorBrowse";
-import { PROVIDER_ROOT } from "../state/provider";
+import { openProviderEntry, PROVIDER_ROOT } from "../state/provider";
 import {
   hydrateSettings,
   rememberSettingsDocument,
@@ -45,14 +44,6 @@ type DirListing = {
   uri: string;
   backend: string;
   entries: ProviderEntry[];
-  error?: string | null;
-};
-
-type ResolveResult = {
-  uri: string;
-  localPath?: string | null;
-  action?: string | null;
-  actionArgs?: Record<string, unknown>;
   error?: string | null;
 };
 
@@ -156,31 +147,9 @@ async function openEntry(entry: ProviderEntry) {
     void openInExplorer(entry.uri);
     return;
   }
+  // 与 Navigator 共用统一打开流程：本地路径定位 / 远程文件下载后定位 / URL 打开。
   try {
-    const resolved = await invoke<ResolveResult>("provider_resolve", { uri: entry.uri });
-    if (resolved.error) {
-      error.value = resolved.error;
-      return;
-    }
-    const local = resolved.localPath?.trim();
-    if (local) {
-      const opened = await invoke<{ success: boolean; error: string | null }>(
-        "open_path_default",
-        { path: local },
-      );
-      if (!opened.success) {
-        error.value = opened.error ?? t("providers.openUnsupported");
-      }
-      return;
-    }
-    if (resolved.action === "open_url") {
-      const url = resolved.actionArgs?.url;
-      if (typeof url === "string" && url) {
-        await openUrl(url);
-        return;
-      }
-    }
-    error.value = t("providers.openUnsupported");
+    await openProviderEntry(entry.uri);
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   }

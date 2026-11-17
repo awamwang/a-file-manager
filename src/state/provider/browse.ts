@@ -24,6 +24,18 @@ export type ProviderResolveResult = {
   error?: string | null;
 };
 
+/** 网关 `/api/download` 结果（Rust 侧映射为 camelCase）。 */
+export type ProviderDownloadResult = {
+  uri: string;
+  localPath?: string | null;
+  backend?: string | null;
+  size?: number;
+  ok?: boolean;
+  truncated?: boolean;
+  action?: string | null;
+  error?: string | null;
+};
+
 export type { ProviderBackendInfo };
 
 /** 复用会话发现缓存；预加载完成后几乎不再打 `/api/backends`。 */
@@ -47,23 +59,48 @@ export async function loadProviderListing(
   return providerListingFromDir(listing);
 }
 
-/** 打开 Provider 非目录条目：优先本地路径，其次 open_url 动作。 */
+/** 在应用内 Navigator 定位并选中本机路径（动态 import 避免静态环）。 */
+async function revealInNavigator(localPath: string): Promise<void> {
+  const { revealItemsInNavigator } = await import("../revealInNavigator.ts");
+  await revealItemsInNavigator([localPath]);
+}
+
+/**
+ * 下载虚拟远程文件到本机。通用下载能力在 awam-file 网关侧（rclone copyto），
+ * AFM 仅通过 provider_download 代理调用，拿到 localPath 后在 Navigator 中定位。
+ */
+export async function downloadProviderEntry(uri: string): Promise<string> {
+  const result = await invoke<ProviderDownloadResult>("provider_download", {
+    uri,
+  });
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  const local = result.localPath?.trim();
+  if (!result.ok || !local) {
+    throw new Error(result.error ?? "Download did not return a local path");
+  }
+  return local;
+}
+
+/**
+ * 打开 Provider 非目录条目，统一流程：
+ * 1. resolve 已有 localPath（本地后端）→ 直接在 Navigator 定位；
+ * 2. resolve 返回 download 动作（rclone/SFTP 等虚拟文件）→ 网关下载后定位；
+ * 3. resolve 返回 open_url（浏览器书签）→ 浏览器打开。
+ */
 export async function openProviderEntry(uri: string): Promise<void> {
   const resolved = await invoke<ProviderResolveResult>("provider_resolve", {
     uri,
   });
-  if (resolved.error) {
-    throw new Error(resolved.error);
-  }
   const local = resolved.localPath?.trim();
   if (local) {
-    const result = await invoke<{ success: boolean; error: string | null }>(
-      "open_path_default",
-      { path: local },
-    );
-    if (!result.success) {
-      throw new Error(result.error ?? "Failed to open local path");
-    }
+    await revealInNavigator(local);
+    return;
+  }
+  if (resolved.action === "download") {
+    const downloaded = await downloadProviderEntry(uri);
+    await revealInNavigator(downloaded);
     return;
   }
   if (resolved.action === "open_url") {
@@ -72,6 +109,9 @@ export async function openProviderEntry(uri: string): Promise<void> {
       await openUrl(url);
       return;
     }
+  }
+  if (resolved.error) {
+    throw new Error(resolved.error);
   }
   throw new Error("This provider item cannot be opened yet.");
 }

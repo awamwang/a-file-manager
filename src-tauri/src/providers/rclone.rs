@@ -504,23 +504,25 @@ impl Provider for RcloneProvider {
 
     fn resolve(&self, uri: &AwamUri) -> ResolveResult {
         match Self::remote_spec(uri) {
-            Some(spec) => {
+            Some(spec) if !spec.ends_with(':') => {
                 let mut action_args = HashMap::new();
                 action_args.insert("rclone_spec".to_string(), Value::String(spec));
                 ResolveResult {
                     uri: uri.to_string_uri(),
                     local_path: None,
-                    action: Some("rclone_spec".to_string()),
+                    // 与网关 rclone adapter 对齐：虚拟文件统一用 download 动作，
+                    // 由 UI 调 provider_download（网关侧 rclone copyto 落地）。
+                    action: Some("download".to_string()),
                     action_args,
                     error: None,
                 }
             }
-            None => ResolveResult {
+            _ => ResolveResult {
                 uri: uri.to_string_uri(),
                 local_path: None,
                 action: None,
                 action_args: HashMap::new(),
-                error: Some("rclone root has no remote spec".to_string()),
+                error: Some("rclone root has no file spec".to_string()),
             },
         }
     }
@@ -651,13 +653,13 @@ mod tests {
 
         let resolved = provider.resolve(&AwamUri {
             backend: "rclone".to_string(),
-            path: "mysftp/var".to_string(),
+            path: "mysftp/var/readme.txt".to_string(),
             query: HashMap::new(),
         });
-        assert_eq!(resolved.action.as_deref(), Some("rclone_spec"));
+        assert_eq!(resolved.action.as_deref(), Some("download"));
         assert_eq!(
             resolved.action_args.get("rclone_spec"),
-            Some(&Value::String("mysftp:var".to_string()))
+            Some(&Value::String("mysftp:var/readme.txt".to_string()))
         );
     }
 
