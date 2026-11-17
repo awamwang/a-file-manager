@@ -103,6 +103,21 @@ assert.ok(entryIcon.includes("providerFileGlyph(entry.name, entry.kind)"));
 assert.ok(cloudFileIcon.includes("FluentIcon"));
 assert.ok(cloudFileIcon.includes('v-if="cloudBadge"'));
 assert.ok(cloudFileIcon.includes("cloud-file-badge"));
+// Cloud badge must match ShellIconImg's link badge in size AND lower-left anchor.
+assert.ok(
+  cloudFileIcon.includes("Math.max(4, Math.round(edge * 0.22))") &&
+    shellIcon.includes("Math.max(4, Math.round(edge * 0.22))"),
+  "cloud + link badges must use the same 22%/4px size formula",
+);
+assert.ok(
+  cloudFileIcon.includes("left: -12%") && shellIcon.includes("left: -12%"),
+  "cloud badge must use the link badge's left anchor",
+);
+assert.ok(
+  cloudFileIcon.includes("bottom: 1%") && shellIcon.includes("bottom: 1%"),
+  "cloud badge must use the link badge's bottom anchor",
+);
+assert.ok(!cloudFileIcon.includes("right: -10%"), "cloud badge must not sit at the lower-right");
 assert.ok(navigatorView.includes("CloudFileIcon"));
 assert.ok(navigatorView.includes(":cloud-badge=\"isCloudFileEntry(item.entry, currentPath)\""));
 assert.ok(navigatorView.includes(":cloud-badge=\"isCloudFileEntry(entry, secondaryPath)\""));

@@ -12,10 +12,10 @@ const props = defineProps<{
   cloudBadge?: boolean;
 }>();
 
-/** Badge scales with the row icon; ~44% edge, 6px floor for legibility. */
+/** Badge mirrors ShellIconImg's link badge exactly: 22% edge, 4px floor. */
 const badgeStyle = computed(() => {
   const edge = Math.max(1, props.size);
-  const px = `${Math.max(6, Math.round(edge * 0.44))}px`;
+  const px = `${Math.max(4, Math.round(edge * 0.22))}px`;
   return { width: px, height: px };
 });
 </script>
@@ -46,7 +46,7 @@ const badgeStyle = computed(() => {
 
 .cloud-file-badge {
   position: absolute;
-  right: -10%;
+  left: -12%;
   bottom: 1%;
   display: block;
   pointer-events: none;
