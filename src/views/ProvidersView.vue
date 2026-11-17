@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
 import FluentIcon from "../components/icons/FluentIcon.vue";
+import ProviderErrorBanner from "../components/common/ProviderErrorBanner.vue";
 import { entryKindIcon } from "../components/icons/glyphs";
 import {
   ensureProviderSession,
@@ -334,7 +335,7 @@ onMounted(() => {
       </button>
     </form>
 
-    <p v-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
+    <ProviderErrorBanner v-if="error" :error="error" />
     <p v-else-if="listing && listing.entries.length === 0" class="fluent-banner fluent-banner--info">
       {{ t("providers.emptyListing") }}
     </p>

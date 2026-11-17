@@ -43,6 +43,7 @@ import { isProviderPath } from "../state/provider";
 import { restoreRecyclePaths } from "../state/recycle";
 import NavigatorGuide from "../components/navigator/NavigatorGuide.vue";
 import FluentIcon from "../components/icons/FluentIcon.vue";
+import ProviderErrorBanner from "../components/common/ProviderErrorBanner.vue";
 import { hydrateSettings } from "../state/settingsHydrate";
 import {
   cancelShellIconRequests,
@@ -209,12 +210,6 @@ import ShellIconImg from "../components/navigator/ShellIconImg.vue";
 defineOptions({ name: "NavigatorView" });
 
 const { t } = useI18n();
-
-/** 将列表错误码映射为界面文案。 */
-function formatListError(error: string | null | undefined): string {
-  if (error === "PROVIDER_SEARCH_BLOCKED") return t("providers.searchBlocked");
-  return error ?? "";
-}
 
 const menuOpen = ref(false);
 const menuEntry = ref<NavigatorEntry | null>(null);
@@ -2163,7 +2158,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
     />
     <div v-if="listSurfaceMounted" v-show="!showingGuide" class="pane-list-surface">
     <p class="pane-path" :title="currentPath">{{ currentPath || t("navigator.noPath") }}</p>
-    <p v-if="listError && !listLoading" class="fluent-banner fluent-banner--error">{{ formatListError(listError) }}</p>
+    <ProviderErrorBanner v-if="listError && !listLoading" :error="listError" />
     <p v-else-if="folderSearchActive && primarySearchLoading" class="fluent-banner">
       {{ t("navigator.filterSearching") }}
     </p>
@@ -2413,12 +2408,10 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
       <p class="pane-path" :title="secondaryPath">
         {{ secondaryPath || t("navigator.noPath") }}
       </p>
-      <p
+      <ProviderErrorBanner
         v-if="secondaryError && !secondaryLoading"
-        class="fluent-banner fluent-banner--error"
-      >
-        {{ formatListError(secondaryError) }}
-      </p>
+        :error="secondaryError"
+      />
       <div
         v-if="secondaryListing || secondaryLoading"
         ref="secondaryListRoot"

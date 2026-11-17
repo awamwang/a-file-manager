@@ -880,7 +880,18 @@
     "file": "File",
     "openUnsupported": "This item cannot be opened from Providers yet.",
     "openInExplorer": "Open in Explorer",
-    "searchBlocked": "Everything is available via Search. The search provider backend is disabled here."
+    "searchBlocked": "Everything is available via Search. The search provider backend is disabled here.",
+    "error": {
+      "connectionRefused": "Cannot reach the remote service: it is not running or refused the connection (e.g. an alist/WebDAV server that is down). Start the service and try again.",
+      "timeout": "Timed out reaching the remote service: it may be unresponsive or the network is slow. Try again later.",
+      "auth": "Authentication failed: check the username, password, or token configured for this remote.",
+      "notFound": "File or folder not found: it may have been moved or deleted.",
+      "rcloneMissing": "rclone was not found: install it or check the configured executable path.",
+      "notConfigured": "No remote configured yet: run rclone config to add one first.",
+      "generic": "Could not read this location. Check whether the remote service is available.",
+      "rawDetails": "Show original error",
+      "rawGeneric": "Show technical details"
+    }
   },
   "workGroups": {
     "title": "Work Groups",

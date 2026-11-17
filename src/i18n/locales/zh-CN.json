@@ -880,7 +880,18 @@
     "file": "文件",
     "openUnsupported": "此项目暂时无法从提供程序打开。",
     "openInExplorer": "在资源管理器中打开",
-    "searchBlocked": "Everything 已接入「搜索」，请使用搜索页，而不是提供程序中的 search 后端。"
+    "searchBlocked": "Everything 已接入「搜索」，请使用搜索页，而不是提供程序中的 search 后端。",
+    "error": {
+      "connectionRefused": "无法连接远程服务：目标未启动或拒绝连接（如 alist/WebDAV 服务未运行）。请确认服务已启动后重试。",
+      "timeout": "连接远程服务超时：服务可能暂时无响应或网络较慢，请稍后重试。",
+      "auth": "认证失败：请检查该远程服务配置的用户名、密码或令牌是否正确。",
+      "notFound": "找不到该文件或目录：路径可能已被移动或删除。",
+      "rcloneMissing": "未找到 rclone 程序：请安装 rclone 或检查其可执行文件路径配置。",
+      "notConfigured": "尚未配置任何远程存储：请先运行 rclone config 添加远程项。",
+      "generic": "读取该位置失败，请检查远程服务是否可用。",
+      "rawDetails": "查看原始错误信息",
+      "rawGeneric": "查看技术细节"
+    }
   },
   "workGroups": {
     "title": "工作组",

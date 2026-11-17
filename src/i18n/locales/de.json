@@ -769,7 +769,18 @@
     "uriPlaceholder": "Anbieterpfad einfügen (z. B. Cloud- oder Wissenswurzel)",
     "openUnsupported": "Dieser Eintrag lässt sich aus Anbietern noch nicht öffnen.",
     "openInExplorer": "Im Explorer oeffnen",
-    "searchBlocked": "Everything ist über die Suche verfügbar. Das search-Anbieter-Backend ist hier deaktiviert."
+    "searchBlocked": "Everything ist über die Suche verfügbar. Das search-Anbieter-Backend ist hier deaktiviert.",
+    "error": {
+      "connectionRefused": "Verbindung zum Remotedienst fehlgeschlagen: Er läuft nicht oder verweigert die Verbindung (z. B. ein nicht laufender alist/WebDAV-Dienst). Bitte Dienst starten und erneut versuchen.",
+      "timeout": "Zeitüberschreitung beim Remotedienst: Er reagiert möglicherweise nicht oder das Netzwerk ist langsam. Bitte später erneut versuchen.",
+      "auth": "Authentifizierung fehlgeschlagen: Benutzername, Passwort oder Token für dieses Remote prüfen.",
+      "notFound": "Datei oder Ordner nicht gefunden: Möglicherweise verschoben oder gelöscht.",
+      "rcloneMissing": "rclone nicht gefunden: Bitte installieren oder den konfigurierten Pfad zur ausführbaren Datei prüfen.",
+      "notConfigured": "Noch kein Remote konfiguriert: Zuerst rclone config ausführen.",
+      "generic": "Dieser Speicherort konnte nicht gelesen werden. Bitte prüfen, ob der Remotedienst verfügbar ist.",
+      "rawDetails": "Ursprünglichen Fehler anzeigen",
+      "rawGeneric": "Technische Details anzeigen"
+    }
   },
   "settings": {
     "fields": {

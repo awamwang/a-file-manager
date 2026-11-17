@@ -769,7 +769,18 @@
     "uriPlaceholder": "Collez un chemin de fournisseur (ex. racine cloud ou connaissances)",
     "openUnsupported": "Cet élément ne peut pas encore être ouvert depuis Fournisseurs.",
     "openInExplorer": "Ouvrir dans l'Explorateur",
-    "searchBlocked": "Everything est disponible via la Recherche. Le backend search du fournisseur est désactivé ici."
+    "searchBlocked": "Everything est disponible via la Recherche. Le backend search du fournisseur est désactivé ici.",
+    "error": {
+      "connectionRefused": "Impossible de joindre le service distant : il n'est pas démarré ou refuse la connexion (par exemple un serveur alist/WebDAV arrêté). Démarrez le service et réessayez.",
+      "timeout": "Délai dépassé lors de la connexion au service distant : il peut ne pas répondre ou le réseau est lent. Réessayez plus tard.",
+      "auth": "Échec de l'authentification : vérifiez le nom d'utilisateur, le mot de passe ou le jeton configuré pour cet accès distant.",
+      "notFound": "Fichier ou dossier introuvable : il a peut-être été déplacé ou supprimé.",
+      "rcloneMissing": "rclone introuvable : installez-le ou vérifiez le chemin de l'exécutable configuré.",
+      "notConfigured": "Aucun accès distant configuré : exécutez d'abord rclone config pour en ajouter un.",
+      "generic": "Impossible de lire cet emplacement. Vérifiez que le service distant est disponible.",
+      "rawDetails": "Voir l'erreur d'origine",
+      "rawGeneric": "Voir les détails techniques"
+    }
   },
   "settings": {
     "fields": {
