@@ -1,0 +1,51 @@
+name: ✨ Feature request
+description: Suggest an idea or improvement for A File Manager.
+title: "[Feature] "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea! Tell us about the problem you're trying to solve,
+        not just the solution you have in mind.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What is hard, missing, or annoying today?
+      placeholder: I want to ... but I can't because ...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How would you like it to work?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you thought about and why they fall short.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of the app does this touch?
+      options:
+        - Navigator / file list
+        - Tabs
+        - Dual pane
+        - Search
+        - Shell integration / icons
+        - Settings
+        - Projects / work groups
+        - AI add-on
+        - Release / packaging
+        - Other
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Mockups, related issues, links, anything else.

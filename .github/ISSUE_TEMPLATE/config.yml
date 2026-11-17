@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📄 README & docs
+    url: https://github.com/awamwang/a-file-manager#readme
+    about: Setup, requirements, run and release instructions.
+  - name: 🔒 Report a security issue
+    url: https://github.com/awamwang/a-file-manager/security/advisories/new
+    about: Please report vulnerabilities privately — do not open a public issue.
