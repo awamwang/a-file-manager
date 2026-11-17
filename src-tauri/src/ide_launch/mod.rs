@@ -1,38 +1,113 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Launch folders/files in preset IDEs/Agents.
+//! Launch folders/files in preset IDEs/Agents, and surface the *same* registry
+//! to Project "open with" so the two flows share one source of truth.
+//!
 //! Auto-discover first; fall back to the Settings path when discovery fails.
 //!
 //! 7.20: the preset lists and the OS-specific spawn command moved to
-//! `platform/`. This module owns only the wire types, the settings override
-//! policy and the "auto → configured → none" resolution order.
+//! `platform/`. This module owns the wire types, the settings override policy,
+//! the "auto → configured → none" resolution order, *and* the OS-neutral
+//! project behaviour (`supports_project` / `project_open_mode` / `folders_only`
+//! / `project_args`) plus user-defined custom open tools persisted in settings.
 
 use crate::platform::{self, LaunchTarget};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 use tauri::AppHandle;
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+/// How an open tool should receive a Project workspace.
+///
+/// * `Workspace` — hand the workspace directory to the tool.
+/// * `ContextFile` — open the workspace's `CONTEXT.md` (Qoder-style agents),
+///   falling back to the directory when the file is missing.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct IdeAppInfo {
-    pub id: String,
-    pub name: String,
-    /// User toggle from Settings → Open tools (default on).
-    pub enabled: bool,
-    /// True when a launchable application was resolved (auto or configured).
-    pub available: bool,
-    pub resolved_path: Option<String>,
-    /// `auto` | `configured` | `none`
-    pub resolution: String,
-    /// Configured override path from settings (may be empty).
-    pub configured_path: String,
+pub enum ProjectOpenMode {
+    #[default]
+    Workspace,
+    ContextFile,
 }
 
-#[derive(Debug, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct IdeLaunchResult {
-    pub success: bool,
-    pub error: Option<String>,
+impl ProjectOpenMode {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Workspace => "workspace",
+            Self::ContextFile => "contextFile",
+        }
+    }
 }
+
+/// OS-neutral description of how a tool behaves when opening a Project, plus
+/// whether it may appear in the project "open with" list at all.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OpenToolMeta {
+    pub supports_project: bool,
+    pub project_open_mode: ProjectOpenMode,
+    pub folders_only: bool,
+    pub project_args: Vec<String>,
+}
+
+impl OpenToolMeta {
+    fn not_project() -> Self {
+        Self {
+            supports_project: false,
+            project_open_mode: ProjectOpenMode::Workspace,
+            folders_only: false,
+            project_args: Vec::new(),
+        }
+    }
+}
+
+/// Built-in preset project behaviour, keyed by id. Anything not listed is
+/// treated as a file-only launcher that never shows up under "open project".
+pub fn preset_meta(id: &str) -> OpenToolMeta {
+    match id {
+        "vscode" | "cursor" | "trae" | "qwenwork" => OpenToolMeta {
+            supports_project: true,
+            project_open_mode: ProjectOpenMode::Workspace,
+            folders_only: false,
+            project_args: Vec::new(),
+        },
+        // Qoder CN opens the workspace's CONTEXT.md so the agent picks up the
+        // project brief instead of a bare folder.
+        "qoder" => OpenToolMeta {
+            supports_project: true,
+            project_open_mode: ProjectOpenMode::ContextFile,
+            folders_only: false,
+            project_args: Vec::new(),
+        },
+        _ => OpenToolMeta::not_project(),
+    }
+}
+
+/// A user-defined open tool stored under `core.openTool.custom` as a JSON array.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomOpenTool {
+    pub id: String,
+    pub name: String,
+    pub path: String,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub supports_project: bool,
+    #[serde(default)]
+    pub project_open_mode: ProjectOpenMode,
+    #[serde(default)]
+    pub folders_only: bool,
+    #[serde(default)]
+    pub project_args: Vec<String>,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+/// Setting key holding the JSON-encoded array of [`CustomOpenTool`]. It is a
+/// plain string value so the schema's `String` coercion round-trips it; parsing
+/// happens here so a malformed blob degrades to "no custom tools" instead of
+/// failing the whole open-tools list.
+pub const CUSTOM_TOOLS_KEY: &str = "core.openTool.custom";
 
 pub fn ide_setting_enabled_key(id: &str) -> String {
     format!("core.openTool.{id}.enabled")
@@ -42,9 +117,205 @@ pub fn ide_setting_path_key(id: &str) -> String {
     format!("core.openTool.{id}.path")
 }
 
+/// Load + parse the persisted custom tools. Any read/parse failure yields an
+/// empty list rather than an error so the Settings page never blanks out.
+pub fn load_custom_tools(app: &AppHandle) -> Vec<CustomOpenTool> {
+    let raw = crate::settings::read_string_setting(app, CUSTOM_TOOLS_KEY);
+    parse_custom_tools(&raw)
+}
+
+fn parse_custom_tools(raw: &str) -> Vec<CustomOpenTool> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Vec::new();
+    }
+    match serde_json::from_str::<Vec<CustomOpenTool>>(trimmed) {
+        Ok(tools) => tools,
+        Err(_) => Vec::new(),
+    }
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct IdeAppInfo {
+    pub id: String,
+    pub name: String,
+    /// User toggle from Settings → Open tools (default on) or the custom record.
+    pub enabled: bool,
+    /// True when a launchable application was resolved (auto / configured / custom).
+    pub available: bool,
+    pub resolved_path: Option<String>,
+    /// `auto` | `configured` | `custom` | `none`
+    pub resolution: String,
+    /// Configured override path from settings (may be empty).
+    pub configured_path: String,
+    // ---- shared project behaviour (file + project open use the same row) ----
+    /// Built-in preset (`true`) vs a user-defined custom tool (`false`).
+    pub builtin: bool,
+    /// Whether this tool appears in the Project "open with" list.
+    pub supports_project: bool,
+    /// `workspace` | `contextFile`.
+    pub project_open_mode: String,
+    /// Only meaningful for folders/workspaces — hidden for plain files.
+    pub folders_only: bool,
+    /// Extra arguments appended before the path when opening a project.
+    pub project_args: Vec<String>,
+}
+
+#[derive(Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct IdeLaunchResult {
+    pub success: bool,
+    pub error: Option<String>,
+}
+
+impl IdeLaunchResult {
+    fn ok() -> Self {
+        Self {
+            success: true,
+            error: None,
+        }
+    }
+    fn err(error: impl Into<String>) -> Self {
+        Self {
+            success: false,
+            error: Some(error.into()),
+        }
+    }
+}
+
+/// A resolved launch target together with its project behaviour. Custom tools
+/// take precedence over presets when both share an id (they are user-owned).
+struct ResolvedTool {
+    target: LaunchTarget,
+    meta: OpenToolMeta,
+    enabled: bool,
+}
+
+fn configured_path_for(app: &AppHandle, id: &str) -> String {
+    crate::settings::read_string_setting(app, &ide_setting_path_key(id))
+}
+
+fn enabled_for(app: &AppHandle, id: &str) -> bool {
+    // Sanitized settings default to true; missing → treat as enabled.
+    crate::settings::read_bool_setting_or(app, &ide_setting_enabled_key(id), true)
+}
+
+/// Resolve an id to a launchable target + metadata, for both file and project
+/// open. Returns `None` when nothing is launchable; the `enabled` flag is
+/// carried through so callers can distinguish "disabled" from "not installed".
+fn resolve_tool(app: &AppHandle, id: &str) -> Option<ResolvedTool> {
+    if let Some(custom) = load_custom_tools(app).into_iter().find(|t| t.id == id) {
+        let target = platform::configured_launch_target(&custom.id, &custom.path)?;
+        return Some(ResolvedTool {
+            target,
+            meta: OpenToolMeta {
+                supports_project: custom.supports_project,
+                project_open_mode: custom.project_open_mode,
+                folders_only: custom.folders_only,
+                project_args: custom.project_args,
+            },
+            enabled: custom.enabled,
+        });
+    }
+
+    let discovered = platform::ide_targets();
+    if let Some(target) = discovered
+        .iter()
+        .find(|t| t.id == id && t.resolved_path.is_some())
+    {
+        return Some(ResolvedTool {
+            target: target.clone(),
+            meta: preset_meta(id),
+            enabled: enabled_for(app, id),
+        });
+    }
+    let configured = configured_path_for(app, id);
+    if let Some(target) = platform::configured_launch_target(id, &configured) {
+        return Some(ResolvedTool {
+            target,
+            meta: preset_meta(id),
+            enabled: enabled_for(app, id),
+        });
+    }
+    None
+}
+
+/// Project-facing capability snapshot used by `ai::open_editor`. `None` (from
+/// [`project_capability`]) already encodes "unknown / disabled / not installed /
+/// file-only", so the caller only needs to know *how* to open the workspace.
+pub struct ProjectCapability {
+    pub project_open_mode: ProjectOpenMode,
+}
+
+/// Report how `id` should open a Project. `None` when the id is unknown /
+/// disabled / not installed / not project-capable.
+pub fn project_capability(app: &AppHandle, id: &str) -> Option<ProjectCapability> {
+    let tool = resolve_tool(app, id)?;
+    if !tool.enabled || tool.target.resolved_path.is_none() || !tool.meta.supports_project {
+        return None;
+    }
+    Some(ProjectCapability {
+        project_open_mode: tool.meta.project_open_mode,
+    })
+}
+
+/// List every open tool — built-in presets first (in platform order) then the
+/// user's custom tools — with their resolved availability and project fields.
+#[tauri::command]
+pub fn ide_list_apps(app: AppHandle) -> Vec<IdeAppInfo> {
+    let discovered = platform::ide_targets();
+    let mut out: Vec<IdeAppInfo> = Vec::new();
+
+    for preset in &discovered {
+        let configured = configured_path_for(&app, &preset.id);
+        let enabled = enabled_for(&app, &preset.id);
+        let meta = preset_meta(&preset.id);
+        let (resolved, resolution) = resolve_preset(&preset.id, &configured, &discovered);
+        out.push(IdeAppInfo {
+            id: preset.id.clone(),
+            name: preset.name.clone(),
+            enabled,
+            available: resolved.is_some(),
+            resolved_path: resolved.and_then(|t| t.resolved_path),
+            resolution: resolution.to_string(),
+            configured_path: configured,
+            builtin: true,
+            supports_project: meta.supports_project,
+            project_open_mode: meta.project_open_mode.as_str().to_string(),
+            folders_only: meta.folders_only,
+            project_args: meta.project_args,
+        });
+    }
+
+    for custom in load_custom_tools(&app) {
+        let target = platform::configured_launch_target(&custom.id, &custom.path);
+        let available = target
+            .as_ref()
+            .and_then(|t| t.resolved_path.clone())
+            .is_some();
+        out.push(IdeAppInfo {
+            id: custom.id.clone(),
+            name: custom.name.clone(),
+            enabled: custom.enabled,
+            available,
+            resolved_path: if available { Some(custom.path.clone()) } else { None },
+            resolution: if available { "custom" } else { "none" }.to_string(),
+            configured_path: custom.path.clone(),
+            builtin: false,
+            supports_project: custom.supports_project,
+            project_open_mode: custom.project_open_mode.as_str().to_string(),
+            folders_only: custom.folders_only,
+            project_args: custom.project_args,
+        });
+    }
+
+    out
+}
+
 /// Prefer adapter discovery; a configured override is validated by the same
 /// adapter (a Windows `.exe` is a file, a macOS `.app` is a directory).
-fn resolve_ide(
+fn resolve_preset(
     id: &str,
     configured_path: &str,
     discovered: &[LaunchTarget],
@@ -61,16 +332,7 @@ fn resolve_ide(
     (None, "none")
 }
 
-fn configured_path_for(app: &AppHandle, id: &str) -> String {
-    crate::settings::read_string_setting(app, &ide_setting_path_key(id))
-}
-
-fn enabled_for(app: &AppHandle, id: &str) -> bool {
-    // Sanitized settings default to true; missing → treat as enabled.
-    crate::settings::read_bool_setting_or(app, &ide_setting_enabled_key(id), true)
-}
-
-/// 仅自动发现（不读设置覆盖），供依赖体检使用。
+/// 仅自动发现（不读设置覆盖、不含自定义），供依赖体检使用。
 pub fn ide_probe_auto() -> Vec<(String, bool, Option<String>)> {
     platform::ide_targets()
         .into_iter()
@@ -81,71 +343,58 @@ pub fn ide_probe_auto() -> Vec<(String, bool, Option<String>)> {
         .collect()
 }
 
-#[tauri::command]
-pub fn ide_list_apps(app: AppHandle) -> Vec<IdeAppInfo> {
-    let discovered = platform::ide_targets();
-    discovered
-        .iter()
-        .map(|preset| {
-            let configured = configured_path_for(&app, &preset.id);
-            let enabled = enabled_for(&app, &preset.id);
-            let (resolved, resolution) = resolve_ide(&preset.id, &configured, &discovered);
-            IdeAppInfo {
-                id: preset.id.clone(),
-                name: preset.name.clone(),
-                enabled,
-                available: resolved.is_some(),
-                resolved_path: resolved.and_then(|t| t.resolved_path),
-                resolution: resolution.to_string(),
-                configured_path: configured,
-            }
-        })
-        .collect()
-}
-
+/// Open a file/folder in a resolved tool. Project-specific args are *not*
+/// applied here (a plain file open ignores them); see [`ide_open_project_path`].
 #[tauri::command]
 pub fn ide_open_path(app: AppHandle, ide_id: String, path: String) -> IdeLaunchResult {
     let trimmed = path.trim();
     if trimmed.is_empty() {
-        return IdeLaunchResult {
-            success: false,
-            error: Some("Path is empty".to_string()),
-        };
+        return IdeLaunchResult::err("Path is empty");
     }
     let target = Path::new(trimmed);
     if !target.exists() {
-        return IdeLaunchResult {
-            success: false,
-            error: Some(format!("Path not found: {trimmed}")),
-        };
+        return IdeLaunchResult::err(format!("Path not found: {trimmed}"));
     }
 
     let id = ide_id.trim();
-    if !enabled_for(&app, id) {
-        return IdeLaunchResult {
-            success: false,
-            error: Some(format!("IDE disabled in Settings: {id}")),
-        };
+    let Some(tool) = resolve_tool(&app, id) else {
+        return IdeLaunchResult::err(format!("IDE not found: {id}"));
+    };
+    if !tool.enabled {
+        return IdeLaunchResult::err(format!("IDE disabled in Settings: {id}"));
     }
 
-    let configured = configured_path_for(&app, id);
-    let discovered = platform::ide_targets();
-    let Some(launcher) = resolve_ide(id, &configured, &discovered).0 else {
-        return IdeLaunchResult {
-            success: false,
-            error: Some(format!("IDE not found: {id}")),
-        };
-    };
+    match platform::launch_ide(&tool.target, target, &[]) {
+        Ok(()) => IdeLaunchResult::ok(),
+        Err(error) => IdeLaunchResult::err(error),
+    }
+}
 
-    match platform::launch_ide(&launcher, target) {
-        Ok(()) => IdeLaunchResult {
-            success: true,
-            error: None,
-        },
-        Err(error) => IdeLaunchResult {
-            success: false,
-            error: Some(error),
-        },
+/// Open a resolved workspace/file in a project-capable tool, appending that
+/// tool's project-specific arguments. Used by `ai::open_editor` after it has
+/// turned the workspace path into the concrete file/dir to hand over.
+pub fn ide_open_project_path(app: &AppHandle, ide_id: &str, path: &str) -> IdeLaunchResult {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return IdeLaunchResult::err("Path is empty");
+    }
+    let target = Path::new(trimmed);
+    if !target.exists() {
+        return IdeLaunchResult::err(format!("Path not found: {trimmed}"));
+    }
+    let id = ide_id.trim();
+    let Some(tool) = resolve_tool(app, id) else {
+        return IdeLaunchResult::err(format!("IDE not found: {id}"));
+    };
+    if !tool.enabled {
+        return IdeLaunchResult::err(format!("IDE disabled in Settings: {id}"));
+    }
+    if !tool.meta.supports_project {
+        return IdeLaunchResult::err(format!("IDE does not support opening projects: {id}"));
+    }
+    match platform::launch_ide(&tool.target, target, &tool.meta.project_args) {
+        Ok(()) => IdeLaunchResult::ok(),
+        Err(error) => IdeLaunchResult::err(error),
     }
 }
 
@@ -160,9 +409,9 @@ mod tests {
     }
 
     #[test]
-    fn lists_preset_ides_including_qoder() {
+    fn lists_preset_ides_including_qoder_and_qwenwork() {
         let ids: Vec<_> = discovered().into_iter().map(|t| t.id).collect();
-        assert_eq!(ids, vec!["vscode", "cursor", "trae", "qoder"]);
+        assert_eq!(ids, vec!["vscode", "cursor", "trae", "qoder", "qwenwork"]);
         assert_eq!(
             discovered().iter().find(|t| t.id == "qoder").unwrap().name,
             "Qoder CN"
@@ -170,8 +419,31 @@ mod tests {
     }
 
     #[test]
+    fn preset_meta_marks_agent_ides_project_capable() {
+        assert!(preset_meta("vscode").supports_project);
+        assert_eq!(preset_meta("qoder").project_open_mode, ProjectOpenMode::ContextFile);
+        assert!(preset_meta("qwenwork").supports_project);
+        assert!(!preset_meta("wt").supports_project);
+    }
+
+    #[test]
+    fn custom_tools_parse_and_tolerate_garbage() {
+        let json = r#"[{"id":"custom:foo","name":"Foo","path":"C:\\foo.exe","supportsProject":true,"projectOpenMode":"contextFile","foldersOnly":true,"projectArgs":["--agent"]}]"#;
+        let tools = parse_custom_tools(json);
+        assert_eq!(tools.len(), 1);
+        assert_eq!(tools[0].id, "custom:foo");
+        assert!(tools[0].enabled); // defaulted true
+        assert!(tools[0].supports_project);
+        assert_eq!(tools[0].project_open_mode, ProjectOpenMode::ContextFile);
+        assert_eq!(tools[0].project_args, vec!["--agent".to_string()]);
+        // Garbage / empty degrade to none, never panic.
+        assert!(parse_custom_tools("").is_empty());
+        assert!(parse_custom_tools("not json").is_empty());
+    }
+
+    #[test]
     fn empty_configured_path_never_resolves() {
-        let (resolved, resolution) = resolve_ide("___missing_ide___", "", &discovered());
+        let (resolved, resolution) = resolve_preset("___missing_ide___", "", &discovered());
         assert!(resolved.is_none());
         assert_eq!(resolution, "none");
     }
@@ -185,7 +457,7 @@ mod tests {
         let file = std::env::temp_dir().join(format!("afm-ide-override-{stamp}"));
         fs::write(&file, b"x").unwrap();
         let (resolved, resolution) =
-            resolve_ide("___missing_ide___", file.to_str().unwrap(), &discovered());
+            resolve_preset("___missing_ide___", file.to_str().unwrap(), &discovered());
         assert_eq!(resolution, "configured");
         assert_eq!(resolved.unwrap().resolved_path.as_deref(), file.to_str());
         let _ = fs::remove_file(&file);
@@ -193,10 +465,8 @@ mod tests {
 
     #[test]
     fn setting_key_helpers() {
-        assert_eq!(
-            ide_setting_enabled_key("cursor"),
-            "core.openTool.cursor.enabled"
-        );
+        assert_eq!(ide_setting_enabled_key("cursor"), "core.openTool.cursor.enabled");
         assert_eq!(ide_setting_path_key("vscode"), "core.openTool.vscode.path");
+        assert_eq!(CUSTOM_TOOLS_KEY, "core.openTool.custom");
     }
 }

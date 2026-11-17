@@ -161,8 +161,11 @@ assert.ok(
   "provider selected uses Fluent fill",
 );
 const openEditor = read("src-tauri/src/ai/open_editor.rs");
-assert.ok(openEditor.includes("CONTEXT.md"), "Qoder opens CONTEXT.md");
-assert.ok(openEditor.includes("ide_open_path"), "reuses ide_launch");
+assert.ok(openEditor.includes("CONTEXT.md"), "context-file tools open CONTEXT.md");
+assert.ok(
+  openEditor.includes("ide_launch"),
+  "reuses the shared ide_launch open-tool registry",
+);
 const projectsView = read("src/views/ProjectsView.vue");
 assert.ok(projectsView.includes("aiProjectOpenEditor"));
 assert.ok(projectsView.includes("openInEditor"));

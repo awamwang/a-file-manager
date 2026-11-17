@@ -341,14 +341,21 @@ impl Platform for WindowsPlatform {
         }
     }
 
-    fn launch_ide(&self, target: &LaunchTarget, path: &Path) -> Result<(), String> {
+    fn launch_ide(
+        &self,
+        target: &LaunchTarget,
+        path: &Path,
+        extra_args: &[String],
+    ) -> Result<(), String> {
         let exe = target
             .resolved_path
             .as_ref()
             .ok_or_else(|| format!("IDE not found: {}", target.id))?;
         // .cmd/.bat shims (code.cmd, cursor.cmd, …) are console hosts — hide them.
-        crate::win_process::command(exe)
-            .arg(path)
+        // Project-specific flags precede the target path (`prog [flags] <path>`).
+        let mut cmd = crate::win_process::command(exe);
+        cmd.args(extra_args);
+        cmd.arg(path)
             .spawn()
             .map(|_| ())
             .map_err(|err| format!("Failed to launch IDE: {err}"))
@@ -500,6 +507,14 @@ const IDE_DEFS: &[(&str, &str, &[&str])] = &[
             r"C:\Program Files\Corder CN\Corder CN.exe",
         ],
     ),
+    (
+        // QwenWork installs into a versioned folder (C:\Program Files\QwenWorkCN\<ver>\);
+        // the candidate list only covers an optional PATH shim. The version scan in
+        // `resolve_auto` handles the real per-version executable.
+        "qwenwork",
+        "QwenWork",
+        &["qwenwork.cmd", "qwenwork"],
+    ),
 ];
 
 fn ide_name(id: &str) -> String {
@@ -545,9 +560,51 @@ fn resolve_terminal_exe(id: &str) -> Option<PathBuf> {
 
 fn resolve_auto(id: &str) -> Option<PathBuf> {
     let def = IDE_DEFS.iter().find(|(ide_id, _, _)| *ide_id == id)?;
-    def.2
-        .iter()
-        .find_map(|candidate| resolve_candidate(candidate))
+    let from_candidates = def.2.iter().find_map(|candidate| resolve_candidate(candidate));
+    if id == "qwenwork" {
+        // Prefer an explicit PATH shim, else the newest versioned install.
+        return from_candidates.or_else(resolve_qwenwork_exe);
+    }
+    from_candidates
+}
+
+/// QwenWork lives under `C:\Program Files\QwenWorkCN\<version>\QwenWorkCN.exe`.
+/// Pick the highest versioned folder rather than a single hardcoded release, so
+/// an in-place upgrade keeps working. The optional `PROGRAMFILES` override lets
+/// a relocated install be discovered without a configured path.
+fn resolve_qwenwork_exe() -> Option<PathBuf> {
+    let base = match std::env::var("PROGRAMFILES") {
+        Ok(root) if !root.trim().is_empty() => PathBuf::from(root).join("QwenWorkCN"),
+        _ => PathBuf::from(r"C:\Program Files\QwenWorkCN"),
+    };
+    let entries = std::fs::read_dir(base).ok()?;
+    let mut best: Option<(Vec<u64>, PathBuf)> = None;
+    for entry in entries.flatten() {
+        let dir = entry.path();
+        let exe = dir.join("QwenWorkCN.exe");
+        if !exe.is_file() {
+            continue;
+        }
+        let folder = dir.file_name()?.to_string_lossy().to_string();
+        let version = parse_version_key(&folder);
+        let better = match &best {
+            Some((current, _)) => version > *current,
+            None => true,
+        };
+        if better {
+            best = Some((version, exe));
+        }
+    }
+    best.map(|(_, exe)| exe)
+}
+
+/// Turn a release folder name like `2.1.0-26111315` into a comparable numeric
+/// key `[2, 1, 0, 26111315]`. Non-numeric segments are skipped; a longer key
+/// with equal prefix sorts higher (`2.1.0-26111315` > `2.1.0`).
+fn parse_version_key(raw: &str) -> Vec<u64> {
+    raw.split(|c| c == '.' || c == '-' || c == '_')
+        .filter_map(|token| token.chars().take_while(|c| c.is_ascii_digit()).collect::<String>().parse::<u64>().ok())
+        .collect()
 }
 
 fn terminal_args(terminal_id: &str, dir_str: &str) -> Vec<String> {

@@ -382,7 +382,12 @@ impl Platform for MacosPlatform {
         }
     }
 
-    fn launch_ide(&self, target: &LaunchTarget, path: &Path) -> Result<(), String> {
+    fn launch_ide(
+        &self,
+        target: &LaunchTarget,
+        path: &Path,
+        extra_args: &[String],
+    ) -> Result<(), String> {
         #[cfg(target_os = "macos")]
         {
             let exe = target
@@ -390,12 +395,16 @@ impl Platform for MacosPlatform {
                 .as_ref()
                 .ok_or_else(|| format!("IDE not found: {}", target.id))?;
             let mut cmd = if exe.ends_with(".app") {
+                // `.app` bundles open the path as a document; CLI-only project
+                // flags do not translate, so they are intentionally dropped.
                 let mut open = std::process::Command::new("/usr/bin/open");
                 open.arg("-a").arg(exe);
                 open
             } else {
-                // PATH CLI shims (`code`, `cursor`, …) take the path directly.
-                std::process::Command::new(exe)
+                // PATH CLI shims (`code`, `cursor`, …): `[flags] <path>`.
+                let mut cli = std::process::Command::new(exe);
+                cli.args(extra_args);
+                cli
             };
             cmd.arg(path)
                 .spawn()
@@ -404,7 +413,7 @@ impl Platform for MacosPlatform {
         }
         #[cfg(not(target_os = "macos"))]
         {
-            let _ = (target, path);
+            let _ = (target, path, extra_args);
             Err("IDE launch is only supported on macOS".to_string())
         }
     }
@@ -644,6 +653,15 @@ const IDE_APPS: &[(&str, &str, &[&str])] = &[
             "qoder",
         ],
     ),
+    (
+        "qwenwork",
+        "QwenWork",
+        &[
+            "/Applications/QwenWork.app",
+            "~/Applications/QwenWork.app",
+            "qwenwork",
+        ],
+    ),
 ];
 
 fn ide_name(id: &str) -> String {
@@ -747,7 +765,7 @@ mod tests {
 
         let ides = MacosPlatform.ide_targets();
         let ids: Vec<_> = ides.iter().map(|t| t.id.as_str()).collect();
-        assert_eq!(ids, vec!["vscode", "cursor", "trae", "qoder"]);
+        assert_eq!(ids, vec!["vscode", "cursor", "trae", "qoder", "qwenwork"]);
         assert!(ides.iter().all(|t| !t.supports_elevation));
     }
 

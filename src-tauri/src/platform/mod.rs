@@ -322,7 +322,12 @@ pub trait Platform: Send + Sync {
         dir: &std::path::Path,
         elevated: bool,
     ) -> Result<(), TerminalLaunchError>;
-    fn launch_ide(&self, target: &LaunchTarget, path: &std::path::Path) -> Result<(), String>;
+    fn launch_ide(
+        &self,
+        target: &LaunchTarget,
+        path: &std::path::Path,
+        extra_args: &[String],
+    ) -> Result<(), String>;
     /// Host-wide index selection (7.21). `EverythingIpc` means the discovery
     /// service keeps its original Windows backend; `Spotlight` means it should
     /// route queries through `global_search()` instead.
@@ -471,8 +476,12 @@ pub fn launch_terminal(
     current().launch_terminal(target, dir, elevated)
 }
 
-pub fn launch_ide(target: &LaunchTarget, path: &std::path::Path) -> Result<(), String> {
-    current().launch_ide(target, path)
+pub fn launch_ide(
+    target: &LaunchTarget,
+    path: &std::path::Path,
+    extra_args: &[String],
+) -> Result<(), String> {
+    current().launch_ide(target, path, extra_args)
 }
 
 /// 7.21: host-wide search lives in the adapters; no `mdfind` / `Everything`

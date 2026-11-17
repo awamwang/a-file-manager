@@ -77,8 +77,8 @@ if (!router.includes("/settings/favorites")) {
   console.error("Router missing /settings/favorites deep-link");
   process.exit(1);
 }
-if (!settings.includes("settings/open-tools") || !settings.includes("ide_list_apps")) {
-  console.error("Settings missing Open tools section");
+if (!settings.includes("settings/open-tools") || !settings.includes("listOpenTools")) {
+  console.error("Settings missing Open tools section (shared registry client)");
   process.exit(1);
 }
 if (!router.includes("/settings/open-tools")) {

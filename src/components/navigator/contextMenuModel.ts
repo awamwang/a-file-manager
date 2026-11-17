@@ -61,7 +61,13 @@ export type ContextMenuBuildOptions = {
   emptyArea?: boolean;
   /** Recycle Bin listing: restore instead of normal file verbs. */
   recycleMode?: boolean;
-  ideApps?: Array<{ id: string; name: string; available: boolean; enabled?: boolean }>;
+  ideApps?: Array<{
+    id: string;
+    name: string;
+    available: boolean;
+    enabled?: boolean;
+    foldersOnly?: boolean;
+  }>;
   terminals?: Array<{
     id: string;
     name: string;
@@ -117,6 +123,8 @@ export function buildContextMenuItems(
   const isFavorite = Boolean(options.isFavorite);
   const ideChildren: ContextMenuItemDef[] = (options.ideApps ?? [])
     .filter((app) => app.available && app.enabled !== false)
+    // Folder-only tools (QwenWork, plain-CLI editors, …) never open a lone file.
+    .filter((app) => !app.foldersOnly || isDir)
     .map((app) => ({
       id: `openWithIde:${app.id}`,
       labelKey: "contextMenu.openWithIde",

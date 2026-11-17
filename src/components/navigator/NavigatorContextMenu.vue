@@ -23,6 +23,7 @@ import { afterFileMutation } from "../../state/fileMutation";
 import { dualPaneEnabled, openInSecondPane } from "../../state/dualPane";
 import { workGroupDisplayName } from "../../state/workGroup";
 import type { WorkGroupOpenState } from "../../state/openState";
+import type { OpenToolInfo } from "../../state/openTools";
 import {
   clearClipboard,
   clipboardMode,
@@ -112,7 +113,7 @@ let submenuCloseTimer: ReturnType<typeof setTimeout> | null = null;
 /** FIL-53 / AIA-229: 悬停稍候再弹出原生系统菜单，避免路过误触。 */
 let shellCascadeTimer: ReturnType<typeof setTimeout> | null = null;
 let shellCascadeOpening = false;
-const ideApps = ref<Array<{ id: string; name: string; available: boolean }>>([]);
+const ideApps = ref<OpenToolInfo[]>([]);
 const terminals = ref<
   Array<{ id: string; name: string; available: boolean; supportsElevation: boolean }>
 >([]);
@@ -126,15 +127,6 @@ type SoftNotice = {
   openedMemberPaths: string[];
 };
 
-type IdeAppInfo = {
-  id: string;
-  name: string;
-  available: boolean;
-  enabled?: boolean;
-  resolvedPath?: string | null;
-  resolution?: string;
-  configuredPath?: string;
-};
 type TerminalAppInfo = {
   id: string;
   name: string;
@@ -144,7 +136,7 @@ type TerminalAppInfo = {
 
 async function loadLaunchers() {
   try {
-    ideApps.value = await invoke<IdeAppInfo[]>("ide_list_apps");
+    ideApps.value = await invoke<OpenToolInfo[]>("ide_list_apps");
   } catch {
     ideApps.value = [];
   }
