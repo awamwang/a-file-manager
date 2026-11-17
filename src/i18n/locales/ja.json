@@ -24,7 +24,34 @@
       "searchPalette.hint": "↑↓ 移動 · Enter 開く · ⌥+1–9 スコープ · Esc 閉じる · ⌘+⇧+P",
       "detailsPane.multiHint": "1 件選択で詳細を表示、または ⌥+Enter でプロパティを開きます。",
       "discovery.meta": "名前やパスでこの Mac を検索",
-      "discovery.everythingConfigHint": "この Mac の {engine} 索引を使います。結果に出したくないフォルダーは下で除外できます。"
+      "discovery.everythingConfigHint": "この Mac の {engine} 索引を使います。結果に出したくないフォルダーは下で除外できます。",
+      "settings.fields.preview.externalProvider.description": "Space は macOS 標準のクイックルックを優先し、使えない場合は組み込みプレビューに切り替えます。",
+      "settings.fields.preview.externalProvider.options.auto": "自動（クイックルック → 組み込み）",
+      "settings.fields.preview.externalProvider.options.quicklook": "システムのクイックルック",
+      "shortcuts.items.navigatorPreviewBridge": "選択項目をプレビュー（クイックルック / 組み込み）",
+      "health.deps.meta": "必須と任意のコンポーネント。任意の項目が不足していても該当機能が低下するだけで、ローカルファイルマネージャーは利用できます。",
+      "health.deps.items.quicklook.title": "クイックルック（システム）",
+      "health.deps.items.quicklook.detail": "クイックルックは macOS 標準機能です。追加インストールは不要です。",
+      "virtualInfo.kindRecycle": "ゴミ箱",
+      "virtualInfo.recycleName": "ゴミ箱",
+      "preview.linkKindShortcut": "macOS エイリアス",
+      "guide.drive": "ローカルボリューム ({letter})",
+      "guide.driveRemovable": "リムーバブルボリューム ({letter})",
+      "guide.driveRemote": "ネットワークボリューム ({letter})",
+      "guide.driveCdrom": "CD/DVD ボリューム ({letter})",
+      "guide.driveRamdisk": "RAM ディスク ({letter})",
+      "guide.emptyDrives": "ボリュームが見つかりません",
+      "guide.sections.drives": "ボリューム",
+      "discovery.blacklistPlaceholder": "/Users/me/Library\n/Volumes/External",
+      "extensions.installPathPlaceholder": "/path/to/pack または pack.zip",
+      "settings.fields.core.launchAtStartup.description": "macOS にログインするときに A File Manager を起動",
+      "settings.fields.core.navigatorViewMode.description": "アイコン、リスト、詳細、タイル、コンテンツ",
+      "settings.fields.core.openTool.vscode.path.description": "自動検出できない場合のアプリのパス（任意）",
+      "settings.fields.core.openTool.cursor.path.description": "自動検出できない場合のアプリのパス（任意）",
+      "settings.fields.core.openTool.trae.path.description": "自動検出できない場合のアプリのパス（任意）",
+      "settings.fields.core.openTool.qoder.path.description": "自動検出できない場合のアプリのパス（任意）",
+      "providers.searchBlocked": "Spotlight は「検索」に接続されています。プロバイダーの search ではなく検索ページを使用してください。",
+      "settings.favoritesMeta": "Finder の右クリック → AFM お気に入りに追加"
     }
   },
   "app": {
@@ -574,7 +601,9 @@
           "title": "Knowledge root"
         },
         "quicklook": {
-          "title": "QuickLook"
+          "title": "QuickLook",
+          "detail": "QuickLook / Peek ブリッジの状態です。",
+          "fix": "プレビューが動作する場合は対応不要です。"
         },
         "powertoys_peek": {
           "title": "PowerToys Peek"
@@ -590,6 +619,9 @@
         },
         "ai_addon": {
           "title": "AI Add-on package"
+        },
+        "webview": {
+          "title": "システム WebView"
         }
       }
     }

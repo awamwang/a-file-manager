@@ -37,6 +37,8 @@ export type PlatformCapabilities = {
   /** Host-wide index: "everything" (Windows) | "spotlight" (macOS) | "none". */
   globalSearchEngine: "everything" | "spotlight" | "none";
   quickLookPreview: boolean;
+  /** PowerToys Peek CLI (Windows only); hidden from macOS preview options. */
+  peekPreview: boolean;
   oleDragOut: boolean;
   /** AppKit / OS-native drag-out. Off on macOS (7.13 command abort). */
   nativeDragOut: boolean;
@@ -77,6 +79,7 @@ export const NEUTRAL_PLATFORM: PlatformCapabilities = {
   globalSearch: false,
   globalSearchEngine: "none",
   quickLookPreview: false,
+  peekPreview: false,
   oleDragOut: false,
   nativeDragOut: false,
   webviewDragOut: false,

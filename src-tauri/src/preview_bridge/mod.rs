@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! AIA Preview Bridge — push selected local paths to QuickLook pipe / Peek CLI,
-//! or signal the frontend to open the experimental built-in preview pane.
+//! AIA Preview Bridge — push selected local paths to QuickLook pipe / Peek CLI
+//! on Windows, to the host-native Quick Look provider on macOS, or signal the
+//! frontend to open the experimental built-in preview pane.
 //!
 //! This is an AFM-side bridge (one feature surface + thin protocol backends),
 //! not a claim that every Quick Look–class tool works with zero adapter.
 //!
-//! `auto` (AIA-254): try classic QuickLook Named Pipe first (resident → fast),
-//! then PowerToys Peek spawn, then built-in. Missing QL must not hard-fail.
+//! `auto` (AIA-254): Windows tries classic QuickLook Named Pipe first (resident
+//! → fast), then PowerToys Peek spawn, then built-in. macOS uses the Quick Look
+//! provider registered in `platform/`; missing bridges always fall back to the
+//! built-in pane without hard-failing.
 //!
 //! Selection follow (AIA-174): while a Space-opened session is active, AFM can
 //! push path updates — QuickLook `Switch|path`, Peek replace-by-PID (CLI has no
@@ -16,6 +19,7 @@
 //! AIA-244: dismissing via the preview pane × (or an explicit dismiss) clears the
 //! session so selection changes alone must not re-open until Space / preview again.
 
+use crate::platform::PreviewProvider;
 use serde::Serialize;
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -118,9 +122,14 @@ fn set_session(backend: &str, peek_pid: Option<u32>) {
 fn provider_mode(app: &AppHandle) -> String {
     let raw = crate::settings::read_string_setting(app, SETTING_KEY);
     let mode = raw.trim().to_ascii_lowercase();
-    match mode.as_str() {
-        "peek" | "quicklook" | "builtin" | "off" | "auto" => mode,
-        _ => "auto".into(),
+    // Host policy is the authority: a persisted Windows-only `peek` must not
+    // become an active-but-invalid preference after moving settings to macOS.
+    let caps = crate::platform::current().capabilities();
+    let allowed = crate::settings::platform_policy::allowed_preview_values(&caps);
+    if allowed.iter().any(|candidate| candidate == &mode) {
+        mode
+    } else {
+        "auto".into()
     }
 }
 
@@ -351,6 +360,72 @@ fn close_peek_session_if_alive() -> bool {
     true
 }
 
+/// macOS path: the host owns Quick Look, so toggle / follow / dismiss all go
+/// through the registered `PreviewProvider` instead of the Windows named pipe.
+/// No `#[cfg]` here — capability negotiation picks the backend at runtime.
+fn invoke_native_bridge(mode: &str, paths: &[String]) -> PreviewBridgeResult {
+    let active_backend = SESSION
+        .lock()
+        .ok()
+        .and_then(|g| g.as_ref().map(|s| s.backend.clone()));
+    if active_backend.as_deref() == Some("quicklook") && matches!(mode, "auto" | "quicklook") {
+        let _ = crate::platform::preview_close();
+        clear_session();
+        return result_ok("quicklook", false);
+    }
+
+    let local = filter_local_paths(paths);
+    if local.is_empty() {
+        return match mode {
+            "builtin" => {
+                set_session("builtin", None);
+                result_builtin(Some("No local file selected".into()), true)
+            }
+            _ => result_none("No existing local path in selection"),
+        };
+    }
+    if mode == "builtin" {
+        set_session("builtin", None);
+        return result_builtin(None, true);
+    }
+
+    match crate::platform::preview_open(&local[0]) {
+        Ok(()) => {
+            set_session("quicklook", None);
+            result_ok("quicklook", true)
+        }
+        Err(err) => {
+            set_session("builtin", None);
+            result_builtin(Some(err), true)
+        }
+    }
+}
+
+fn switch_native_bridge(provider: &dyn PreviewProvider, paths: &[String]) -> PreviewBridgeResult {
+    let active = SESSION
+        .lock()
+        .ok()
+        .and_then(|g| g.as_ref().map(|s| s.backend.clone()));
+    if active.as_deref() == Some("builtin") {
+        return result_ok("builtin", true);
+    }
+    if active.as_deref() != Some("quicklook") {
+        return result_none("No active Quick Look session");
+    }
+    let local = filter_local_paths(paths);
+    let Some(path) = local.first() else {
+        return result_none("No existing local path in selection");
+    };
+    let _ = provider.close();
+    match provider.open(path) {
+        Ok(()) => result_ok("quicklook", true),
+        Err(err) => {
+            clear_session();
+            result_none(err)
+        }
+    }
+}
+
 /// Space / open: resolve provider preference and invoke the best available backend.
 /// If a Peek/QL/builtin session is already open, Space closes it (toggle).
 pub fn invoke_bridge(app: &AppHandle, paths: &[String]) -> PreviewBridgeResult {
@@ -358,6 +433,10 @@ pub fn invoke_bridge(app: &AppHandle, paths: &[String]) -> PreviewBridgeResult {
     if mode == "off" {
         clear_session();
         return result_off();
+    }
+
+    if crate::platform::preview_provider().is_some() {
+        return invoke_native_bridge(&mode, paths);
     }
 
     // Space-toggle close while an AFM session is already open.
@@ -469,6 +548,10 @@ pub fn switch_bridge(app: &AppHandle, paths: &[String]) -> PreviewBridgeResult {
         return result_off();
     }
 
+    if let Some(provider) = crate::platform::preview_provider() {
+        return switch_native_bridge(provider, paths);
+    }
+
     let session = match SESSION.lock() {
         Ok(g) => g.clone(),
         Err(_) => None,
@@ -518,6 +601,20 @@ pub fn switch_bridge(app: &AppHandle, paths: &[String]) -> PreviewBridgeResult {
 /// AIA-244: user dismissed preview (pane ×). End the Space session and tear down
 /// Peek/QL if AFM still owns them. Selection follow must not resurrect after this.
 pub fn dismiss_bridge() -> PreviewBridgeResult {
+    if let Some(provider) = crate::platform::preview_provider() {
+        let backend = SESSION
+            .lock()
+            .ok()
+            .and_then(|g| g.as_ref().map(|s| s.backend.clone()));
+        let _ = provider.close();
+        clear_session();
+        return if backend.as_deref() == Some("quicklook") {
+            result_ok("quicklook", false)
+        } else {
+            result_ok(backend.as_deref().unwrap_or("none"), false)
+        };
+    }
+
     let backend = SESSION
         .lock()
         .ok()

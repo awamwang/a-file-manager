@@ -175,6 +175,16 @@ pub trait TrashProvider: Send + Sync {
     fn supports_list_restore(&self) -> bool;
 }
 
+/// Host-native preview backend. Windows keeps its named-pipe / Peek bridge in
+/// `preview_bridge`; macOS registers this provider so the same setting really
+/// opens Quick Look instead of silently falling back to the built-in pane.
+pub trait PreviewProvider: Send + Sync {
+    /// Open (or focus) the preview for one local path.
+    fn open(&self, path: &str) -> Result<(), String>;
+    /// Close the window this provider owns. Must be safe to call repeatedly.
+    fn close(&self) -> Result<(), String>;
+}
+
 /// Host clipboard provider for file copy/cut/paste. Only Windows has the
 /// CF_HDROP + Preferred DropEffect backend; other hosts register no provider
 /// and the neutral free functions degrade without panicking (7.24).
@@ -215,7 +225,10 @@ pub struct PlatformCapabilities {
     /// from the bool so macOS can hide the "Prefer Everything" setting while
     /// still reporting a working global search backend.
     pub global_search_engine: String,
+    /// macOS system Quick Look / Windows third-party QuickLook pipe is usable.
     pub quick_look_preview: bool,
+    /// PowerToys Peek CLI is a valid preview backend (Windows only).
+    pub peek_preview: bool,
     pub ole_drag_out: bool,
     /// AppKit / native drag-out transport. Off on macOS since 7.13: the
     /// `tauri-plugin-drag` command aborts the process there.
@@ -235,7 +248,7 @@ pub struct PlatformCapabilities {
 
 impl PlatformCapabilities {
     /// Everything defaults to unavailable; each adapter opts in explicitly.
-    fn neutral(os: &str, primary_modifier: &str, separator: char) -> Self {
+    pub(crate) fn neutral(os: &str, primary_modifier: &str, separator: char) -> Self {
         Self {
             os: os.to_string(),
             arch: std::env::consts::ARCH.to_string(),
@@ -256,6 +269,7 @@ impl PlatformCapabilities {
             global_search: false,
             global_search_engine: "none".to_string(),
             quick_look_preview: false,
+            peek_preview: false,
             ole_drag_out: false,
             native_drag_out: false,
             webview_drag_out: false,
@@ -352,6 +366,10 @@ pub trait Platform: Send + Sync {
     fn trash_provider(&self) -> Option<&dyn TrashProvider>;
     /// Registered file-clipboard provider. `None` on hosts without CF_HDROP.
     fn clipboard_provider(&self) -> Option<&dyn ClipboardProvider>;
+    /// Host-native preview backend, if one exists. Windows returns `None`:
+    /// its QuickLook pipe / Peek CLI bridge lives in `preview_bridge` and is
+    /// selected with the `quick_look_preview` / `peek_preview` capability bits.
+    fn preview_provider(&self) -> Option<&dyn PreviewProvider>;
 }
 
 /// The provider backends. Their OS-specific bodies stay in `file_ops/*` —
@@ -559,6 +577,26 @@ pub fn clipboard_clear() -> Result<(), String> {
         Some(provider) => provider.clear(),
         None => Ok(()),
     }
+}
+
+/// Host-owned preview backend (`None` on Windows). Business code uses this
+/// single entry point instead of opening `#[cfg(target_os = "macos")]` branches.
+pub fn preview_provider() -> Option<&'static dyn PreviewProvider> {
+    current().preview_provider()
+}
+
+/// Open / close through the registered provider. Callers gate on
+/// `capabilities().quick_look_preview && preview_provider().is_some()`.
+pub fn preview_open(path: &str) -> Result<(), String> {
+    preview_provider()
+        .ok_or_else(|| "No host-native preview provider on this host".to_string())?
+        .open(path)
+}
+
+pub fn preview_close() -> Result<(), String> {
+    preview_provider()
+        .ok_or_else(|| "No host-native preview provider on this host".to_string())?
+        .close()
 }
 
 /// Shared provider test (6.5 §4 "OpenDAL-style shared tests"). Every adapter

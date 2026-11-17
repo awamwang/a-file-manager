@@ -3,6 +3,7 @@
 
 mod defaults;
 mod migrate;
+pub(crate) mod platform_policy;
 mod sanitize;
 mod store;
 mod types;

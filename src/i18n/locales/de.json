@@ -24,7 +24,34 @@
       "searchPalette.hint": "↑↓ bewegen · Enter öffnen · ⌥+1–9 Bereich · Esc schließen · ⌘+⇧+P",
       "detailsPane.multiHint": "Ein Element für volle Details wählen oder Eigenschaften (⌥+Enter) öffnen.",
       "discovery.meta": "Diesen Mac nach Name oder Pfad durchsuchen",
-      "discovery.everythingConfigHint": "Nutzt den {engine}-Index dieses Macs. Ordner unten ausschließen, wenn sie nicht in Ergebnissen erscheinen sollen."
+      "discovery.everythingConfigHint": "Nutzt den {engine}-Index dieses Macs. Ordner unten ausschließen, wenn sie nicht in Ergebnissen erscheinen sollen.",
+      "settings.fields.preview.externalProvider.description": "Leertaste nutzt bevorzugt die systemeigene Quick Look unter macOS, sonst die integrierte Vorschau.",
+      "settings.fields.preview.externalProvider.options.auto": "Automatisch (Quick Look → integriert)",
+      "settings.fields.preview.externalProvider.options.quicklook": "System-Quick Look",
+      "shortcuts.items.navigatorPreviewBridge": "Auswahl anzeigen (Quick Look / integriert)",
+      "health.deps.meta": "Pflicht- und optionale Komponenten. Eine fehlende optionale Komponente schränkt nur die jeweilige Funktion ein, nicht den lokalen Dateimanager.",
+      "health.deps.items.quicklook.title": "Quick Look (System)",
+      "health.deps.items.quicklook.detail": "Quick Look ist in macOS enthalten und benötigt keine zusätzliche Installation.",
+      "virtualInfo.kindRecycle": "Papierkorb",
+      "virtualInfo.recycleName": "Papierkorb",
+      "preview.linkKindShortcut": "macOS-Alias",
+      "guide.drive": "Lokales Volume ({letter})",
+      "guide.driveRemovable": "Wechselmedium ({letter})",
+      "guide.driveRemote": "Netzwerkvolume ({letter})",
+      "guide.driveCdrom": "CD/DVD-Volume ({letter})",
+      "guide.driveRamdisk": "RAM-Datenträger ({letter})",
+      "guide.emptyDrives": "Keine Volumes gefunden",
+      "guide.sections.drives": "Volumes",
+      "discovery.blacklistPlaceholder": "/Users/me/Library\n/Volumes/Extern",
+      "extensions.installPathPlaceholder": "/path/to/pack oder pack.zip",
+      "settings.fields.core.launchAtStartup.description": "A File Manager beim Anmelden an macOS starten",
+      "settings.fields.core.navigatorViewMode.description": "Symbole, Liste, Details, Kacheln oder Inhalt",
+      "settings.fields.core.openTool.vscode.path.description": "Optionaler App-Pfad, falls die automatische Erkennung fehlschlägt",
+      "settings.fields.core.openTool.cursor.path.description": "Optionaler App-Pfad, falls die automatische Erkennung fehlschlägt",
+      "settings.fields.core.openTool.trae.path.description": "Optionaler App-Pfad, falls die automatische Erkennung fehlschlägt",
+      "settings.fields.core.openTool.qoder.path.description": "Optionaler App-Pfad, falls die automatische Erkennung fehlschlägt",
+      "providers.searchBlocked": "Spotlight ist mit der Suche verbunden. Bitte die Suchseite statt des Provider-Backends verwenden.",
+      "settings.favoritesMeta": "Finder-Kontextmenü → Zu AFM-Favoriten hinzufügen"
     }
   },
   "app": {
@@ -574,7 +601,9 @@
           "title": "Knowledge root"
         },
         "quicklook": {
-          "title": "QuickLook"
+          "title": "QuickLook",
+          "detail": "Status der QuickLook-/Peek-Brücke.",
+          "fix": "Bei funktionierender Vorschau ist nichts zu tun."
         },
         "powertoys_peek": {
           "title": "PowerToys Peek"
@@ -590,6 +619,9 @@
         },
         "ai_addon": {
           "title": "AI Add-on package"
+        },
+        "webview": {
+          "title": "System-WebView"
         }
       }
     }

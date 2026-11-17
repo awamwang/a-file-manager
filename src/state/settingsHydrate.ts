@@ -23,6 +23,8 @@ export type SettingsSchemaManifest = {
     valueKind: "boolean" | "string" | "number" | "stringArray" | "enum";
     enumValues?: string[];
     default: unknown;
+    /** Set by the host policy; the row stays in the document but is not shown. */
+    hidden?: boolean;
   }>;
 };
 

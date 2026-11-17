@@ -24,7 +24,34 @@
       "searchPalette.hint": "↑↓ move · Enter open · ⌥+1–9 scope · Esc close · ⌘+⇧+P",
       "detailsPane.multiHint": "Select one item for full details, or open Properties (⌥+Enter).",
       "discovery.meta": "Search your Mac by name or path",
-      "discovery.everythingConfigHint": "Uses this Mac's {engine} index. Exclude folders below if you do not want them in results."
+      "discovery.everythingConfigHint": "Uses this Mac's {engine} index. Exclude folders below if you do not want them in results.",
+      "settings.fields.preview.externalProvider.description": "Space prefers the macOS system Quick Look; otherwise the built-in preview pane is used.",
+      "settings.fields.preview.externalProvider.options.auto": "Automatic (Quick Look → built-in)",
+      "settings.fields.preview.externalProvider.options.quicklook": "System Quick Look",
+      "shortcuts.items.navigatorPreviewBridge": "Preview selection (Quick Look / built-in)",
+      "health.deps.meta": "Required and optional components. A missing optional component only degrades that feature; it does not block the local file manager.",
+      "health.deps.items.quicklook.title": "Quick Look",
+      "health.deps.items.quicklook.detail": "Quick Look is provided by macOS; no extra install is needed.",
+      "virtualInfo.kindRecycle": "Trash",
+      "virtualInfo.recycleName": "Trash",
+      "preview.linkKindShortcut": "macOS alias",
+      "guide.drive": "Local volume ({letter})",
+      "guide.driveRemovable": "Removable volume ({letter})",
+      "guide.driveRemote": "Network volume ({letter})",
+      "guide.driveCdrom": "CD/DVD volume ({letter})",
+      "guide.driveRamdisk": "RAM disk ({letter})",
+      "guide.emptyDrives": "No volumes found",
+      "guide.sections.drives": "Volumes",
+      "discovery.blacklistPlaceholder": "/Users/me/Library\n/Volumes/External",
+      "extensions.installPathPlaceholder": "/path/to/pack or pack.zip",
+      "settings.fields.core.launchAtStartup.description": "Start A File Manager when you log in to macOS",
+      "settings.fields.core.navigatorViewMode.description": "Icons, list, details, tiles or content",
+      "settings.fields.core.openTool.vscode.path.description": "Optional app path when auto-discovery fails",
+      "settings.fields.core.openTool.cursor.path.description": "Optional app path when auto-discovery fails",
+      "settings.fields.core.openTool.trae.path.description": "Optional app path when auto-discovery fails",
+      "settings.fields.core.openTool.qoder.path.description": "Optional app path when auto-discovery fails",
+      "providers.searchBlocked": "Spotlight is connected to Search; use the Search page instead of the provider search backend.",
+      "settings.favoritesMeta": "Finder context menu → Add to AFM Favorites"
     }
   },
   "app": {
@@ -837,7 +864,9 @@
           "title": "Knowledge root"
         },
         "quicklook": {
-          "title": "QuickLook"
+          "title": "QuickLook",
+          "detail": "QuickLook / Peek bridge status.",
+          "fix": "No action needed unless previews fail."
         },
         "powertoys_peek": {
           "title": "PowerToys Peek"
@@ -853,6 +882,9 @@
         },
         "ai_addon": {
           "title": "AI Add-on package"
+        },
+        "webview": {
+          "title": "System WebView"
         }
       }
     }

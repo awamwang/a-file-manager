@@ -10,6 +10,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { startupMark } from "./startupTiming.ts";
+import { isMacPlatform } from "../config/platform.ts";
 
 function afterNextPaint(): Promise<void> {
   return new Promise((resolve) => {
@@ -38,9 +39,9 @@ export async function revealMainWindowAfterReady(): Promise<void> {
     // Skip the maximize dance there and just show after paint (config already
     // requests `maximized`, which WKWebView applies on show). Windows keeps the
     // DWM maximize-reassert to avoid the geometry flash.
-    const ua =
-      typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
-    const isMac = /Mac|iPhone|iPad|iPod/i.test(ua);
+    // Reuse the shared capability contract (UA is only its cold-start
+    // fallback) instead of a second, subtly different platform sniff here.
+    const isMac = isMacPlatform();
 
     const win = getCurrentWindow();
     if (!isMac) {

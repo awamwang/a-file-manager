@@ -363,9 +363,9 @@ fn current_user_sid_string() -> Result<String, String> {
 }
 
 fn browser_bookmarks_status() -> DependencyItem {
-    let local = match std::env::var_os("LOCALAPPDATA") {
-        Some(v) => PathBuf::from(v),
-        None => {
+    // Host roots come from the platform contract, never a hardcoded %VAR%.
+    let (roots, names): (Vec<PathBuf>, Vec<&str>) = if cfg!(windows) {
+        let Some(local) = std::env::var_os("LOCALAPPDATA").map(PathBuf::from) else {
             return item(
                 "browser_bookmarks",
                 "optional",
@@ -374,22 +374,53 @@ fn browser_bookmarks_status() -> DependencyItem {
                 "LOCALAPPDATA 不可用。",
                 "在常规用户会话下运行。",
             );
-        }
+        };
+        (
+            vec![
+                local.join(r"Microsoft\Edge\User Data"),
+                local.join(r"Google\Chrome\User Data"),
+            ],
+            vec!["Default", "Profile 1", "Profile 2"],
+        )
+    } else {
+        let Some(home) = crate::platform::home_dir() else {
+            return item(
+                "browser_bookmarks",
+                "optional",
+                "warn",
+                "Browser bookmarks",
+                "无法解析用户主目录。",
+                "在常规用户会话下运行。",
+            );
+        };
+        let support = home.join("Library").join("Application Support");
+        (
+            vec![
+                support.join("Google").join("Chrome"),
+                support.join("Microsoft").join("Edge"),
+            ],
+            vec!["Default", "Profile 1", "Profile 2"],
+        )
     };
-    let roots = [
-        local.join(r"Microsoft\Edge\User Data"),
-        local.join(r"Google\Chrome\User Data"),
-    ];
     let mut hits = Vec::new();
     for root in &roots {
         if !root.is_dir() {
             continue;
         }
         // 浅扫常见 profile
-        for name in ["Default", "Profile 1", "Profile 2"] {
+        for name in &names {
             let bookmarks = root.join(name).join("Bookmarks");
             if bookmarks.is_file() {
                 hits.push(bookmarks);
+            }
+        }
+    }
+    // Safari keeps a single plist outside the Chrome-style profile layout.
+    if !cfg!(windows) {
+        if let Some(home) = crate::platform::home_dir() {
+            let safari = home.join("Library").join("Safari").join("Bookmarks.plist");
+            if safari.is_file() {
+                hits.push(safari);
             }
         }
     }
@@ -515,8 +546,25 @@ pub fn probe_dependencies() -> DependencyReport {
     items.push(gateway_status());
     items.push(rclone_status());
     items.push(knowledge_root_status());
-    items.push(quicklook_status());
-    items.push(peek_status());
+    // Capability-driven dependency list: macOS has system Quick Look and no
+    // PowerToys Peek. Generate only checks that can exist on this host so the
+    // health summary cannot be polluted by permanently-missing Windows items.
+    let caps = crate::platform::current().capabilities();
+    if caps.quick_look_preview && crate::platform::preview_provider().is_some() {
+        items.push(item(
+            "quicklook",
+            "optional",
+            "ok",
+            "Quick Look",
+            "Quick Look 由 macOS 系统提供。",
+            "无需处理；空格即可预览选中文件。",
+        ));
+    } else if caps.quick_look_preview {
+        items.push(quicklook_status());
+    }
+    if caps.peek_preview {
+        items.push(peek_status());
+    }
     items.push(browser_bookmarks_status());
     items.push(terminal_status());
     items.push(ide_status());

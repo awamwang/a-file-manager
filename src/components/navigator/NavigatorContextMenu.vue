@@ -78,6 +78,7 @@ import {
   effectiveChordLabelsForId,
   shortcutOverridesVersion,
 } from "../../shortcuts/index.ts";
+import { getCachedPlatformCapabilities } from "../../config/platform.ts";
 
 const props = defineProps<{
   entry: NavigatorEntry | null;
@@ -248,6 +249,7 @@ const items = computed(() =>
     terminals: terminals.value,
     newFileTemplates: newFileTemplates.value,
     workGroups: workGroupMenuOptions.value,
+    caps: getCachedPlatformCapabilities(),
   }).map((item) => ({
     ...item,
     label: t(item.labelKey),

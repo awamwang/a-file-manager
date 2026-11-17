@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use super::platform_policy;
 use super::types::{
     SettingDefinition, SettingValueKind, SettingsDocument, SettingsSchemaManifest, SettingsTier,
     SETTINGS_SCHEMA_VERSION,
@@ -19,7 +20,19 @@ pub fn schema_manifest() -> SettingsSchemaManifest {
     }
 }
 
+/// Platform-aware definitions: the same policy feeds the schema sent to the
+/// UI and the sanitizer applied to the persisted document.
 pub fn setting_definitions() -> Vec<SettingDefinition> {
+    let caps = crate::platform::current().capabilities();
+    let mut definitions = raw_setting_definitions();
+    for definition in &mut definitions {
+        platform_policy::apply(definition, &caps);
+    }
+    definitions
+}
+
+/// Host-independent declarations. Tests inject synthetic capabilities here.
+pub(crate) fn raw_setting_definitions() -> Vec<SettingDefinition> {
     vec![
         def(
             "core.language",
@@ -53,7 +66,7 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             "core.defaultLocation",
             SettingsTier::Core,
             "Default location",
-            "OS path opened by the Home button (default: resolved USERPROFILE)",
+            "OS path opened by the Home button (default: resolved home directory)",
             SettingValueKind::String,
             None,
             json!(""),
@@ -121,7 +134,7 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             "core.launchAtStartup",
             SettingsTier::Core,
             "Launch at startup",
-            "Start A File Manager when you sign in to Windows",
+            "Start A File Manager when you sign in",
             SettingValueKind::Boolean,
             None,
             json!(false),
@@ -130,7 +143,7 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             "core.launchAtStartupHidden",
             SettingsTier::Core,
             "Start hidden to tray",
-            "When launched at login, hide the main window to the system tray (taskbar notification area)",
+            "When launched at login, hide the main window to the system tray",
             SettingValueKind::Boolean,
             None,
             json!(false),
@@ -179,7 +192,7 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             "core.fileDoubleClickAction",
             SettingsTier::Core,
             "File double-click action",
-            "What happens when double-clicking a file in Explorer (AIA-118)",
+            "What happens when double-clicking a file in the Navigator (AIA-118)",
             SettingValueKind::Enum,
             Some(vec![
                 "systemDefault".into(),
@@ -196,8 +209,8 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
         def(
             "core.navigatorViewMode",
             SettingsTier::Core,
-            "Explorer view",
-            "Windows-style icons, list, details, tiles, or content",
+            "Navigator view",
+            "Icon, list, details, tiles or content view",
             SettingValueKind::Enum,
             Some(vec![
                 "iconsExtraLarge".to_string(),
@@ -243,7 +256,7 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             "core.openTool.vscode.path",
             SettingsTier::Core,
             "VS Code path",
-            "Optional Code.exe path when auto-discovery fails",
+            "Optional VS Code app path when auto-discovery fails",
             SettingValueKind::String,
             None,
             json!(""),
@@ -261,7 +274,7 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             "core.openTool.cursor.path",
             SettingsTier::Core,
             "Cursor path",
-            "Optional Cursor.exe path when auto-discovery fails",
+            "Optional Cursor app path when auto-discovery fails",
             SettingValueKind::String,
             None,
             json!(""),
@@ -279,7 +292,7 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             "core.openTool.trae.path",
             SettingsTier::Core,
             "Trae path",
-            "Optional Trae.exe path when auto-discovery fails",
+            "Optional Trae app path when auto-discovery fails",
             SettingValueKind::String,
             None,
             json!(""),
@@ -297,7 +310,7 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             "core.openTool.qoder.path",
             SettingsTier::Core,
             "Qoder CN path",
-            "Optional Qoder CN.exe path when auto-discovery fails",
+            "Optional Qoder CN app path when auto-discovery fails",
             SettingValueKind::String,
             None,
             json!(""),
@@ -360,7 +373,7 @@ pub fn setting_definitions() -> Vec<SettingDefinition> {
             "preview.externalProvider",
             SettingsTier::Experimental,
             "Preview bridge provider",
-            "Space prefers QuickLook (Named Pipe) when available, else Peek CLI, else the built-in pane. Missing QL does not hard-fail. Not zero-adapter for every QL tool.",
+            "Space uses QuickLook (named pipe) on Windows, PowerToys Peek, or the built-in pane. On macOS it uses the system Quick Look. Missing a bridge does not hard-fail.",
             SettingValueKind::Enum,
             Some(vec![
                 "auto".to_string(),
@@ -391,6 +404,7 @@ fn def(
         value_kind,
         enum_values,
         default,
+        hidden: false,
     }
 }
 

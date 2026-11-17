@@ -47,6 +47,37 @@ const EXPECTED_KEYS = [
   "guide.rootTitle",
   // Windows-only default path example.
   "ai.skills.libraryRootHint",
+  // Preview bridge: macOS uses the system Quick Look, never PowerToys Peek.
+  "settings.fields.preview.externalProvider.description",
+  "settings.fields.preview.externalProvider.options.auto",
+  "settings.fields.preview.externalProvider.options.quicklook",
+  "shortcuts.items.navigatorPreviewBridge",
+  "health.deps.meta",
+  "health.deps.items.quicklook.title",
+  "health.deps.items.quicklook.detail",
+  // Recycle Bin wording outside the dedicated recycleBin namespace.
+  "virtualInfo.kindRecycle",
+  "virtualInfo.recycleName",
+  "preview.linkKindShortcut",
+  // Drive letters -> mounted volumes.
+  "guide.drive",
+  "guide.driveRemovable",
+  "guide.driveRemote",
+  "guide.driveCdrom",
+  "guide.driveRamdisk",
+  "guide.emptyDrives",
+  "guide.sections.drives",
+  // Windows path examples / Windows-only integrations in settings copy.
+  "discovery.blacklistPlaceholder",
+  "extensions.installPathPlaceholder",
+  "settings.fields.core.launchAtStartup.description",
+  "settings.fields.core.navigatorViewMode.description",
+  "settings.fields.core.openTool.vscode.path.description",
+  "settings.fields.core.openTool.cursor.path.description",
+  "settings.fields.core.openTool.trae.path.description",
+  "settings.fields.core.openTool.qoder.path.description",
+  "providers.searchBlocked",
+  "settings.favoritesMeta",
   // Shortcut labels (primary modifier ⌘ / Option ⌥).
   "chrome.commandsShortcut",
   "chrome.commandsTitle",
@@ -142,6 +173,25 @@ for (const id of localeIds) {
     macos["ai.skills.libraryRootHint"],
     /~\/Library\/Application Support\/com\.a-file-manager\.app\/\.agents\/skills/,
     `${id}: skills default path must be the macOS config dir`,
+  );
+  const previewOptions = macos["settings.fields.preview.externalProvider.options.auto"];
+  assert.ok(
+    !/Peek|Peek/i.test(previewOptions),
+    `${id}: macOS auto preview label must not advertise Peek`,
+  );
+  assert.match(
+    macos["settings.fields.preview.externalProvider.options.quicklook"],
+    /Quick Look|クイックルック|快速查看/i,
+    `${id}: macOS quicklook option must name the system preview`,
+  );
+  assert.match(
+    macos["guide.sections.drives"],
+    /volume|ボリューム|卷/i,
+    `${id}: drive-letter section must become volumes on macOS`,
+  );
+  assert.ok(
+    !/C:\\/.test(macos["discovery.blacklistPlaceholder"]),
+    `${id}: blacklist example must use a macOS path`,
   );
 }
 assert.ok(

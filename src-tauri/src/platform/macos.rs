@@ -9,13 +9,63 @@
 use super::SearchHit;
 use super::{
     has_uri_scheme, ClipboardProvider, GlobalSearchEngine, LaunchTarget, Platform,
-    PlatformCapabilities, RgbaIcon, SearchProbe, SearchQueryResult, TerminalLaunchError,
-    TrashProvider, Volume, VolumeKind, VolumeSpace, WindowChrome,
+    PlatformCapabilities, PreviewProvider, RgbaIcon, SearchProbe, SearchQueryResult,
+    TerminalLaunchError, TrashProvider, Volume, VolumeKind, VolumeSpace, WindowChrome,
 };
 use std::collections::{HashMap, HashSet};
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
 use sysinfo::{Pid, ProcessesToUpdate, System};
+
+/// System Quick Look backend for `preview.externalProvider = quicklook|auto`.
+/// `qlmanage -p` is the public Quick Look command-line front end: no private
+/// framework symbols and no AppKit run loop are needed. The child is owned by
+/// the provider so Space-toggle / selection-follow can close it deterministically.
+#[cfg(target_os = "macos")]
+struct NativeQuickLook {
+    child: std::sync::Mutex<Option<std::process::Child>>,
+}
+
+#[cfg(target_os = "macos")]
+impl PreviewProvider for NativeQuickLook {
+    fn open(&self, path: &str) -> Result<(), String> {
+        self.close()?;
+        let exe = "/usr/bin/qlmanage";
+        if !Path::new(exe).is_file() {
+            return Err(format!("{exe} is unavailable on this macOS version"));
+        }
+        let child = std::process::Command::new(exe)
+            .arg("-p")
+            .arg(path)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .map_err(|err| format!("Failed to open Quick Look: {err}"))?;
+        let mut guard = self
+            .child
+            .lock()
+            .map_err(|_| "Quick Look session lock poisoned".to_string())?;
+        *guard = Some(child);
+        Ok(())
+    }
+
+    fn close(&self) -> Result<(), String> {
+        let mut guard = self
+            .child
+            .lock()
+            .map_err(|_| "Quick Look session lock poisoned".to_string())?;
+        if let Some(mut child) = guard.take() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+        Ok(())
+    }
+}
+
+#[cfg(target_os = "macos")]
+static NATIVE_QUICK_LOOK: NativeQuickLook = NativeQuickLook {
+    child: std::sync::Mutex::new(None),
+};
 
 pub struct MacosPlatform;
 
@@ -202,6 +252,7 @@ impl Platform for MacosPlatform {
         #[cfg(target_os = "macos")]
         {
             caps.global_search_engine = "spotlight".to_string();
+            caps.quick_look_preview = true;
         }
         // Provider-backed bits (trash / clipboard / search) come from the
         // registered providers, not hand-written booleans (7.24).
@@ -218,6 +269,17 @@ impl Platform for MacosPlatform {
         // No CF_HDROP / Preferred DropEffect backend on Unix. The neutral
         // `clipboard_*` free functions degrade without panicking (7.24).
         None
+    }
+
+    fn preview_provider(&self) -> Option<&dyn PreviewProvider> {
+        #[cfg(target_os = "macos")]
+        {
+            Some(&NATIVE_QUICK_LOOK)
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            None
+        }
     }
 
     /// Moved from `navigator::places::list_drives` (7.16). `sysinfo::Disks`

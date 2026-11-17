@@ -311,7 +311,11 @@ const visibleDefs = computed(() =>
         !def.key.startsWith("core.openTool.") &&
         // FIL-59：过时/双入口项默认隐藏（键仍在 schema）。
         !isSettingsUiHiddenKey(def.key) &&
-        // macOS port: hide Windows-only integrations the host cannot deliver.
+        // Host policy is authoritative: settings_schema_get already narrowed
+        // enum options/defaults and marked OS-only rows (preview Peek on macOS,
+        // Everything, HKCU autostart...). The capability fallback below only
+        // matters for a cached/vite-only schema that predates that field.
+        !def.hidden &&
         !isPlatformUnsupportedSetting(def.key, platformCaps.value),
     )
     .slice()
