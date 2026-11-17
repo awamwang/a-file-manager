@@ -283,7 +283,7 @@ fn write_text_atomic(path: &Path, text: &str) -> Result<(), String> {
     }
 }
 
-pub use super::agent_paths::{expand_agent_path, join_agent_relative, path_exists_expanded};
+pub use super::agent_paths::{expand_agent_path, path_exists_expanded};
 
 pub fn refresh_discovered(target: &mut AgentTarget) {
     target.discovered = path_exists_expanded(&target.global_skills_dir)

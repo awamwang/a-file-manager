@@ -151,6 +151,19 @@ fn is_afm_copy_deploy(path: &Path) -> bool {
     path.join(AFM_SKILL_MARKER).is_file()
 }
 
+/// 判断项目 Agent skills 目录下的一个条目是否为 AFM 部署产物：
+/// junction 模式是符号链接，copy 模式是带 `_afm_deploy.json` 标记的目录。
+/// 供项目面板只读扫描「已添加」状态使用——普通目录（用户自建 skill、
+/// `node_modules` 等）不能被误判为已部署，否则无法再勾选补齐到其他 Agent。
+pub fn is_afm_deployed_skill(path: &Path) -> bool {
+    let Ok(meta) = fs::symlink_metadata(path) else {
+        return false;
+    };
+    if meta.file_type().is_symlink() {
+        return true;
+    }
+    meta.is_dir() && is_afm_copy_deploy(path)
+}
 fn write_afm_marker(dest: &Path, skill_name: &str) -> Result<(), String> {
     let marker = dest.join(AFM_SKILL_MARKER);
     let body = format!(
