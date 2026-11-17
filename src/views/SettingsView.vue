@@ -10,6 +10,14 @@ import {
 } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
+import {
+  CUSTOM_TOOLS_SETTING_KEY,
+  listOpenTools,
+  parseCustomTools,
+  type CustomOpenTool,
+  type OpenToolInfo,
+  type ProjectOpenMode,
+} from "../state/openTools";
 import { applyUiChromeFromValues } from "../state/uiChrome";
 import {
   getCachedSettingsDocument,
@@ -116,17 +124,9 @@ function enumOptionLabel(settingKey: string, option: string): string {
 type SettingsTier = "core" | "power" | "experimental";
 type SettingsSection = SettingsTier | "health" | "shortcuts" | "openTools";
 
-type IdeAppInfo = {
-  id: string;
-  name: string;
-  available: boolean;
-  enabled?: boolean;
-  resolvedPath?: string | null;
-  resolution?: string;
-  configuredPath?: string;
-};
+type IdeAppInfo = OpenToolInfo;
 
-const OPEN_TOOL_IDS = ["vscode", "cursor", "trae", "qoder"] as const;
+const OPEN_TOOL_IDS = ["vscode", "cursor", "trae", "qoder", "qwenwork"] as const;
 
 type SettingDefinition = SettingsSchemaManifest["definitions"][number];
 
@@ -171,6 +171,10 @@ const sections = computed(() => [
 
 const ideApps = ref<IdeAppInfo[]>([]);
 const ideAppsLoading = ref(false);
+/** User-defined open tools parsed from the `core.openTool.custom` setting. */
+const customTools = ref<CustomOpenTool[]>([]);
+/** Built-in preset rows (project-capable + file launchers) from the registry. */
+const builtinApps = computed(() => ideApps.value.filter((app) => app.builtin));
 
 /** One row per function, with all FINAL chords (builtins + user overrides). */
 const shortcutActionRows = computed(() => {
@@ -389,8 +393,9 @@ function openToolPathKey(id: string) {
 
 async function refreshIdeApps() {
   ideAppsLoading.value = true;
+  customTools.value = parseCustomTools(valueOf(CUSTOM_TOOLS_SETTING_KEY));
   try {
-    ideApps.value = await invoke<IdeAppInfo[]>("ide_list_apps");
+    ideApps.value = await listOpenTools();
   } catch {
     ideApps.value = OPEN_TOOL_IDS.map((id) => ({
       id,
@@ -399,6 +404,12 @@ async function refreshIdeApps() {
       enabled: Boolean(valueOf(openToolEnabledKey(id)) ?? true),
       configuredPath: String(valueOf(openToolPathKey(id)) ?? ""),
       resolution: "none",
+      resolvedPath: null,
+      builtin: true,
+      supportsProject: id !== "vscode",
+      projectOpenMode: "workspace" as ProjectOpenMode,
+      foldersOnly: false,
+      projectArgs: [],
     }));
   } finally {
     ideAppsLoading.value = false;
@@ -421,6 +432,53 @@ async function onOpenToolPathChange(id: string, event: Event) {
   const value = (event.target as HTMLInputElement).value;
   await patchValue(openToolPathKey(id), value);
   await refreshIdeApps();
+}
+
+function nextCustomToolId(existing: CustomOpenTool[]): string {
+  let index = 1;
+  const taken = new Set(existing.map((tool) => tool.id));
+  while (taken.has(`custom:tool-${index}`)) index += 1;
+  return `custom:tool-${index}`;
+}
+
+async function saveCustomTools(list: CustomOpenTool[]) {
+  customTools.value = list;
+  await patchValue(CUSTOM_TOOLS_SETTING_KEY, JSON.stringify(list));
+  await refreshIdeApps();
+}
+
+function addCustomTool() {
+  void saveCustomTools([
+    ...customTools.value,
+    {
+      id: nextCustomToolId(customTools.value),
+      name: t("settings.openTools.newCustomName"),
+      path: "",
+      enabled: true,
+      supportsProject: false,
+      projectOpenMode: "workspace",
+      foldersOnly: false,
+      projectArgs: [],
+    },
+  ]);
+}
+
+function removeCustomTool(id: string) {
+  void saveCustomTools(customTools.value.filter((tool) => tool.id !== id));
+}
+
+function patchCustomTool(id: string, patch: Partial<CustomOpenTool>) {
+  void saveCustomTools(
+    customTools.value.map((tool) => (tool.id === id ? { ...tool, ...patch } : tool)),
+  );
+}
+
+function onCustomProjectArgsChange(id: string, raw: string) {
+  patchCustomTool(id, { projectArgs: raw.split(/\s+/).filter(Boolean) });
+}
+
+function customToolAvailable(id: string): boolean {
+  return ideApps.value.find((app) => app.id === id)?.available ?? false;
 }
 
 async function onToggleOsFavoriteVerb(event: Event) {
@@ -670,7 +728,8 @@ onMounted(() => {
       <div v-else-if="activeSection === 'openTools'" class="fluent-surface open-tools-panel">
         <p class="open-tools-meta">{{ t("settings.openTools.meta") }}</p>
         <p v-if="ideAppsLoading" class="fluent-banner">{{ t("settings.loading") }}</p>
-        <div v-for="app in ideApps" :key="app.id" class="open-tool-row">
+        <h3 class="open-tools-subtitle">{{ t("settings.openTools.builtinTitle") }}</h3>
+        <div v-for="app in builtinApps" :key="app.id" class="open-tool-row">
           <div class="open-tool-text">
             <span class="title">{{ app.name }}</span>
             <p class="desc">{{ ideStatusLabel(app) }}</p>
@@ -706,6 +765,123 @@ onMounted(() => {
           @click="refreshIdeApps"
         >
           {{ t("settings.openTools.rediscover") }}
+        </button>
+
+        <h3 class="open-tools-subtitle">{{ t("settings.openTools.customTitle") }}</h3>
+        <p class="open-tools-meta">{{ t("settings.openTools.customMeta") }}</p>
+        <p v-if="!customTools.length" class="open-tools-empty">
+          {{ t("settings.openTools.customEmpty") }}
+        </p>
+        <div
+          v-for="tool in customTools"
+          :key="tool.id"
+          class="open-tool-row open-tool-custom"
+        >
+          <div class="open-tool-text open-tool-custom-fields">
+            <input
+              class="fluent-control text"
+              type="text"
+              :value="tool.name"
+              :placeholder="t('settings.openTools.customNamePlaceholder')"
+              @change="
+                patchCustomTool(tool.id, {
+                  name: ($event.target as HTMLInputElement).value,
+                })
+              "
+            />
+            <p class="desc">
+              {{
+                customToolAvailable(tool.id)
+                  ? t("settings.openTools.viaCustom")
+                  : t("settings.openTools.notFound")
+              }}
+            </p>
+            <input
+              class="fluent-control text open-tool-path"
+              type="text"
+              :value="tool.path"
+              :placeholder="t('settings.openTools.pathPlaceholder')"
+              @change="
+                patchCustomTool(tool.id, {
+                  path: ($event.target as HTMLInputElement).value,
+                })
+              "
+            />
+            <input
+              class="fluent-control text"
+              type="text"
+              :value="tool.projectArgs.join(' ')"
+              :placeholder="t('settings.openTools.projectArgsPlaceholder')"
+              @change="onCustomProjectArgsChange(tool.id, ($event.target as HTMLInputElement).value)"
+            />
+          </div>
+          <div class="open-tool-controls open-tool-custom-controls">
+            <label class="open-tool-toggle">
+              <input
+                type="checkbox"
+                class="fluent-field-check"
+                :checked="tool.enabled"
+                @change="
+                  patchCustomTool(tool.id, {
+                    enabled: ($event.target as HTMLInputElement).checked,
+                  })
+                "
+              />
+              <span>{{ t("settings.openTools.enabled") }}</span>
+            </label>
+            <label class="open-tool-toggle">
+              <input
+                type="checkbox"
+                class="fluent-field-check"
+                :checked="tool.supportsProject"
+                @change="
+                  patchCustomTool(tool.id, {
+                    supportsProject: ($event.target as HTMLInputElement).checked,
+                  })
+                "
+              />
+              <span>{{ t("settings.openTools.supportsProject") }}</span>
+            </label>
+            <label class="open-tool-toggle">
+              <input
+                type="checkbox"
+                class="fluent-field-check"
+                :checked="tool.foldersOnly"
+                @change="
+                  patchCustomTool(tool.id, {
+                    foldersOnly: ($event.target as HTMLInputElement).checked,
+                  })
+                "
+              />
+              <span>{{ t("settings.openTools.foldersOnly") }}</span>
+            </label>
+            <select
+              class="fluent-control"
+              :value="tool.projectOpenMode"
+              @change="
+                patchCustomTool(tool.id, {
+                  projectOpenMode: ($event.target as HTMLSelectElement).value as ProjectOpenMode,
+                })
+              "
+            >
+              <option value="workspace">{{ t("settings.openTools.projectModeWorkspace") }}</option>
+              <option value="contextFile">{{ t("settings.openTools.projectModeContextFile") }}</option>
+            </select>
+            <button
+              type="button"
+              class="fluent-control open-tool-remove"
+              @click="removeCustomTool(tool.id)"
+            >
+              {{ t("settings.openTools.remove") }}
+            </button>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="fluent-control open-tools-refresh"
+          @click="addCustomTool"
+        >
+          {{ t("settings.openTools.addCustom") }}
         </button>
       </div>
 
@@ -1036,6 +1212,36 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   padding: var(--fluent-space-md) 0;
+}
+
+.open-tools-subtitle {
+  margin: var(--fluent-space-md) var(--fluent-space-lg) var(--fluent-space-xs);
+  font-size: var(--fluent-font-size-body-strong);
+  font-weight: var(--fluent-font-weight-semibold);
+}
+
+.open-tools-empty {
+  margin: 0 var(--fluent-space-lg) var(--fluent-space-sm);
+  color: var(--fluent-color-text-secondary);
+  font-size: var(--fluent-font-size-caption);
+}
+
+.open-tool-custom {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.open-tool-custom-fields {
+  gap: var(--fluent-space-xs);
+}
+
+.open-tool-custom-controls {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.open-tool-remove {
+  align-self: flex-start;
 }
 
 .shortcuts-meta,

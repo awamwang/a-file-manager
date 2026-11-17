@@ -25,6 +25,11 @@ import FluentIcon from "../components/icons/FluentIcon.vue";
 import type { FluentGlyphId } from "../components/icons/glyphs";
 import { AI_ADDON_ENABLED } from "../config/flavor";
 import { aiProjectOpenEditor } from "../ai";
+import {
+  listOpenTools,
+  toolsForProject,
+  type OpenToolInfo,
+} from "../state/openTools";
 import ProjectAiPanel from "../ai/ProjectAiPanel.vue";
 
 const { t } = useI18n();
@@ -165,6 +170,8 @@ const selectedId = ref<string | null>(null);
 const viewMode = ref<"list" | "board">("board");
 const error = ref<string | null>(null);
 const loading = ref(false);
+/** Project "open with" launchers — shared with the file Navigator registry. */
+const projectOpenTools = ref<OpenToolInfo[]>([]);
 
 const newName = ref("");
 const bindWorkGroupId = ref("");
@@ -990,8 +997,20 @@ async function openPathMenuInNavigator(path: string) {
   await openLink(path);
 }
 
-/** AIA-221 / A8 — Cursor opens Workspace dir; Qoder opens CONTEXT.md. */
-async function openInEditor(ideId: "cursor" | "qoder") {
+/** Load the shared open-tool registry, narrowed to project-capable launchers. */
+async function refreshProjectOpenTools() {
+  if (!aiAddonEnabled) return;
+  try {
+    projectOpenTools.value = toolsForProject(await listOpenTools());
+  } catch {
+    projectOpenTools.value = [];
+  }
+}
+
+/** AIA-221 / A8 — open the project in any project-capable launcher from the
+ * shared registry (Cursor/Qoder/QwenWork/VS Code or a custom tool). The tool's
+ * project mode (workspace dir vs CONTEXT.md) is resolved backend-side. */
+async function openInEditor(ideId: string) {
   if (!selected.value?.path) return;
   error.value = null;
   try {
@@ -1000,9 +1019,11 @@ async function openInEditor(ideId: "cursor" | "qoder") {
       error.value = report.error || t("projects.openEditorFailed");
       return;
     }
+    const ideName =
+      projectOpenTools.value.find((tool) => tool.id === ideId)?.name ?? report.ideId;
     toastSuccess(
       t("projects.noticeOpenedEditor", {
-        ide: ideId === "qoder" ? "Qoder" : "Cursor",
+        ide: ideName,
         mode: report.mode,
       }),
     );
@@ -1041,6 +1062,7 @@ onMounted(() => {
       await router.replace({ name: "projects" });
     }
   })();
+  void refreshProjectOpenTools();
   window.addEventListener("pointerdown", onProjectDetailPointerDown, true);
 });
 
@@ -1283,24 +1305,18 @@ onUnmounted(() => {
               >
                 {{ t("contextMenu.copyPath") }}
               </button>
-              <button
-                v-if="aiAddonEnabled"
-                class="fluent-control"
-                type="button"
-                :title="t('projects.openInCursorHint')"
-                @click="openInEditor('cursor')"
-              >
-                {{ t("projects.openInCursor") }}
-              </button>
-              <button
-                v-if="aiAddonEnabled"
-                class="fluent-control"
-                type="button"
-                :title="t('projects.openInQoderHint')"
-                @click="openInEditor('qoder')"
-              >
-                {{ t("projects.openInQoder") }}
-              </button>
+              <template v-if="aiAddonEnabled && projectOpenTools.length">
+                <button
+                  v-for="tool in projectOpenTools"
+                  :key="tool.id"
+                  class="fluent-control"
+                  type="button"
+                  :title="t('projects.openInToolHint', { name: tool.name })"
+                  @click="openInEditor(tool.id)"
+                >
+                  {{ t("projects.openInTool", { name: tool.name }) }}
+                </button>
+              </template>
             </div>
 
             <h3>{{ t("projects.sessionBinding") }}</h3>

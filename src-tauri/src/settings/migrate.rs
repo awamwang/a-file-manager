@@ -185,6 +185,15 @@ fn migrate_step(
             );
             Ok(())
         }
+        (10, 11) => {
+            for (key, value) in default_document().values {
+                values.entry(key).or_insert(value);
+            }
+            notes.push(
+                "Added core.openTool.qwenwork.* + core.openTool.custom (schema v11)".to_string(),
+            );
+            Ok(())
+        }
         _ => Err(format!("No migration path from {from} → {to}")),
     }
 }
