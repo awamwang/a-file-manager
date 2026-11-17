@@ -12,7 +12,12 @@ import {
   previewPaneWidth,
   setPreviewPaneWidth,
 } from "../../state/sidePaneWidth";
-import { newNavigatorTab } from "../../state/navigatorBrowse.ts";
+import { newNavigatorTab, type NavigatorEntry } from "../../state/navigatorBrowse.ts";
+import {
+  isVirtualEntryPath,
+  virtualEntryInfo,
+  type VirtualEntryInfo,
+} from "../../state/virtualEntryInfo.ts";
 
 export type PreviewLinkInfo = {
   /** "shortcut" (.lnk) or "symlink" (reparse point). */
@@ -54,6 +59,8 @@ export type PreviewPayload = {
 const props = defineProps<{
   path: string | null;
   enabled: boolean;
+  /** Listing row for the selected path; supplies name/kind/size for virtual items. */
+  entry?: NavigatorEntry | null;
 }>();
 
 const emit = defineEmits<{ close: [] }>();
@@ -61,6 +68,7 @@ const emit = defineEmits<{ close: [] }>();
 const { t, locale } = useI18n();
 const loading = ref(false);
 const payload = ref<PreviewPayload | null>(null);
+const virtualInfo = ref<VirtualEntryInfo | null>(null);
 const copiedTarget = ref(false);
 let seq = 0;
 let copyResetTimer: number | null = null;
@@ -128,8 +136,22 @@ async function load(path: string | null) {
     window.clearTimeout(copyResetTimer);
     copyResetTimer = null;
   }
+  virtualInfo.value = null;
   if (!props.enabled || !path) {
     payload.value = null;
+    loading.value = false;
+    return;
+  }
+  // SFTP / rclone remotes, bookmarks and other `awam://` items (plus guide /
+  // recycle-bin pseudo paths) are not filesystem paths. Show the metadata we
+  // already have instead of feeding them to `preview_load` and surfacing a raw
+  // "Not a file" / "Path does not exist" error.
+  if (isVirtualEntryPath(path)) {
+    payload.value = null;
+    virtualInfo.value = virtualEntryInfo(path, props.entry, {
+      t,
+      formatTime: formatDirTime,
+    });
     loading.value = false;
     return;
   }
@@ -227,10 +249,11 @@ async function openTargetDirInNewTab() {
 }
 
 watch(
-  () => [props.enabled, props.path] as const,
+  () => [props.enabled, props.path, props.entry] as const,
   ([enabled, path]) => {
     if (!enabled) {
       payload.value = null;
+      virtualInfo.value = null;
       return;
     }
     void load(path);
@@ -275,6 +298,21 @@ watch(
     </header>
     <p v-if="!path" class="fluent-banner">{{ t("preview.empty") }}</p>
     <p v-else-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
+    <div v-else-if="virtualInfo" class="preview-link">
+      <div class="preview-link-head">
+        <span class="preview-link-icon"><FluentIcon :name="virtualInfo.glyph" size="lg" /></span>
+        <div class="preview-link-head-text">
+          <p class="preview-link-kind">{{ virtualInfo.kindLabel }}</p>
+        </div>
+      </div>
+      <p v-if="virtualInfo.hint" class="preview-info-hint">{{ virtualInfo.hint }}</p>
+      <dl class="preview-link-rows">
+        <div v-for="row in virtualInfo.rows" :key="row.key" class="preview-link-row">
+          <dt>{{ row.label }}</dt>
+          <dd :class="{ 'preview-link-path-text': row.mono }">{{ row.value }}</dd>
+        </div>
+      </dl>
+    </div>
     <template v-else-if="payload">
       <p v-if="payload.error" class="fluent-banner fluent-banner--error">{{ payload.error }}</p>
       <div
@@ -507,6 +545,15 @@ watch(
 .preview-note {
   margin: 0;
   padding: var(--fluent-space-xs) var(--fluent-space-md) var(--fluent-space-sm);
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+}
+
+.preview-info-hint {
+  margin: 0 0 var(--fluent-space-md);
+  padding: var(--fluent-space-sm);
+  border-radius: var(--fluent-radius, 6px);
+  background: color-mix(in srgb, var(--fluent-color-fill-accent) 10%, transparent);
   font-size: var(--fluent-font-size-caption);
   color: var(--fluent-color-text-secondary);
 }

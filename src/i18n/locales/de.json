@@ -1289,6 +1289,21 @@
     "noPath": "Lokale Datei zur Vorschau auswählen",
     "fallbackBuiltin": "Kein externes Vorschau-Tool — eingebaute Leiste wird angezeigt"
   },
+  "virtualInfo": {
+    "kindGuide": "Leitseite",
+    "kindRecycle": "Papierkorb",
+    "kindRemoteItem": "Remotes Element",
+    "kindProviderRoot": "Remotedienste",
+    "kindBookmark": "Lesezeichen",
+    "kindBackend": "Remoteverbindung",
+    "kindRemoteFolder": "Remoteordner",
+    "kindRemoteFile": "Remotedatei",
+    "recycleName": "Papierkorb",
+    "remoteServicesName": "Remotedienste",
+    "backend": "Backend",
+    "hintSpecial": "Dies ist ein virtueller Ort ohne lokale Datei. Die folgenden Angaben stammen aus den Daten der Anwendung.",
+    "hintRemote": "Remoteelemente lassen sich nicht lokal in der Vorschau anzeigen. Unten stehen die Verbindungsdaten aus der Liste."
+  },
   "guide": {
     "title": "Dieser PC",
     "subtitle": "Zu gaengigen Ordnern, zuletzt verwendet, Favoriten oder Laufwerken springen",

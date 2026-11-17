@@ -1289,6 +1289,21 @@
     "noPath": "プレビューするローカルファイルを選択してください",
     "fallbackBuiltin": "外部プレビューツールがありません — 組み込みペインを表示します"
   },
+  "virtualInfo": {
+    "kindGuide": "ガイドページ",
+    "kindRecycle": "ごみ箱",
+    "kindRemoteItem": "リモート項目",
+    "kindProviderRoot": "リモートサービス",
+    "kindBookmark": "ブックマーク",
+    "kindBackend": "リモート接続",
+    "kindRemoteFolder": "リモートフォルダー",
+    "kindRemoteFile": "リモートファイル",
+    "recycleName": "ごみ箱",
+    "remoteServicesName": "リモートサービス",
+    "backend": "バックエンド",
+    "hintSpecial": "これは仮想の場所で、ローカルファイルはありません。以下の情報はアプリ自身のデータから取得しています。",
+    "hintRemote": "リモート項目はローカルでプレビューできません。一覧に表示された接続情報を以下に示します。"
+  },
   "guide": {
     "title": "このPC",
     "subtitle": "よく使うフォルダー、最近の場所、お気に入り、ドライブへ移動",

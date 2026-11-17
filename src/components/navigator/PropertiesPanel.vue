@@ -5,7 +5,12 @@ import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import FluentIcon from "../icons/FluentIcon.vue";
 import { toastSuccess } from "../../state/toast";
-import { newNavigatorTab } from "../../state/navigatorBrowse.ts";
+import { newNavigatorTab, type NavigatorEntry } from "../../state/navigatorBrowse.ts";
+import {
+  isVirtualEntryPath,
+  virtualEntryInfo,
+  type VirtualEntryInfo,
+} from "../../state/virtualEntryInfo.ts";
 import type { PreviewLinkInfo } from "./PreviewPane.vue";
 
 export type EntryStat = {
@@ -28,6 +33,8 @@ export type EntryStat = {
 const props = defineProps<{
   path: string | null;
   open: boolean;
+  /** Listing row for the path; supplies metadata for virtual/remote items. */
+  entry?: NavigatorEntry | null;
 }>();
 
 const emit = defineEmits<{ close: []; attributesChanged: [] }>();
@@ -37,6 +44,7 @@ const loading = ref(false);
 const saving = ref(false);
 const error = ref<string | null>(null);
 const stat = ref<EntryStat | null>(null);
+const virtualInfo = ref<VirtualEntryInfo | null>(null);
 const draftReadonly = ref(false);
 const draftHidden = ref(false);
 
@@ -130,6 +138,12 @@ const rows = computed(() => {
   return list;
 });
 
+// Virtual/provider items have no `navigator_stat` result; show the metadata
+// derived from the listing instead (same rows as the preview info card).
+const displayRows = computed(() =>
+  virtualInfo.value ? virtualInfo.value.rows : rows.value,
+);
+
 const dirty = computed(() => {
   if (!stat.value) return false;
   return (
@@ -151,8 +165,19 @@ function formatTime(ms: number | null): string {
 }
 
 async function load() {
-  if (!props.path) {
-    stat.value = null;
+  stat.value = null;
+  virtualInfo.value = null;
+  if (!props.path) return;
+  // SFTP / rclone remotes, bookmarks and other `awam://` items (plus guide /
+  // recycle-bin pseudo paths) are not filesystem paths — `navigator_stat`
+  // would fail with "Path does not exist". Show the listing metadata instead.
+  if (isVirtualEntryPath(props.path)) {
+    virtualInfo.value = virtualEntryInfo(props.path, props.entry, {
+      t,
+      formatTime,
+    });
+    error.value = null;
+    loading.value = false;
     return;
   }
   loading.value = true;
@@ -204,7 +229,7 @@ async function applyAttributes() {
 }
 
 watch(
-  () => [props.open, props.path] as const,
+  () => [props.open, props.path, props.entry] as const,
   ([open]) => {
     if (open) void load();
   },
@@ -229,9 +254,10 @@ watch(
         </header>
         <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
         <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
-        <template v-else-if="stat">
+        <template v-else-if="stat || virtualInfo">
+          <p v-if="virtualInfo?.hint" class="props-hint">{{ virtualInfo.hint }}</p>
           <ul class="props-list">
-            <li v-for="row in rows" :key="row.key" class="props-row">
+            <li v-for="row in displayRows" :key="row.key" class="props-row">
               <span class="props-label">{{ row.label }}</span>
               <span class="props-value" :class="{ mono: row.mono }" :title="row.value">{{ row.value }}</span>
             </li>
@@ -272,7 +298,7 @@ watch(
                 </span>
               </li>
             </template>
-            <li class="props-row props-row--attrs">
+            <li v-if="stat" class="props-row props-row--attrs">
               <span class="props-label">{{ t("properties.attributes") }}</span>
               <div class="props-attrs">
                 <label class="props-check">
@@ -335,6 +361,15 @@ watch(
   margin: 0;
   font-size: var(--fluent-font-size-subtitle);
   font-weight: var(--fluent-font-weight-semibold);
+}
+
+.props-hint {
+  margin: var(--fluent-space-sm) var(--fluent-space-lg) 0;
+  padding: var(--fluent-space-sm);
+  border-radius: var(--fluent-radius, 6px);
+  background: color-mix(in srgb, var(--fluent-color-fill-accent) 10%, transparent);
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
 }
 
 .props-list {

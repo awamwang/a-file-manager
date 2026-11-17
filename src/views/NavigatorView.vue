@@ -196,6 +196,7 @@ import {
   previewBridgeSessionActive,
   switchPreviewBridge,
 } from "../state/previewBridge";
+import { isVirtualEntryPath } from "../state/virtualEntryInfo.ts";
 import {
   registerShortcutHandler,
   unregisterShortcutHandler,
@@ -264,6 +265,15 @@ async function shortcutPreviewBridge() {
   if (isGuidePath(currentPath.value)) return;
   const paths = selectedPaths.value;
   if (!paths.length) return;
+  // SFTP / rclone remotes and other virtual items have no local file for
+  // QuickLook / Peek. Toggle the built-in pane so its info card is shown
+  // instead of a "No existing local path in selection" toast.
+  if (paths.every((path) => isVirtualEntryPath(path))) {
+    previewBridgeForcePane.value = !previewBridgeForcePane.value;
+    return;
+  }
+  // Local selection: hand preview back to QuickLook / Peek / built-in bridge.
+  previewBridgeForcePane.value = false;
   try {
     const result = await invokePreviewBridge(paths);
     if (result.backend === "off") return;
@@ -631,6 +641,15 @@ const visibleEntries = computed(() => {
   if (!listing.value) return [];
   return sortedEntries(listing.value.entries);
 });
+
+/** Listing rows backing the preview/properties panels (virtual-entry info source). */
+function findVisibleEntry(path: string | null): NavigatorEntry | null {
+  if (!path) return null;
+  return visibleEntries.value.find((entry) => entry.path === path) ?? null;
+}
+
+const previewEntry = computed(() => findVisibleEntry(previewPath.value));
+const propertiesEntry = computed(() => findVisibleEntry(propertiesPath.value));
 
 const secondaryEntries = computed(() => {
   if (folderSearchActive.value) {
@@ -2540,6 +2559,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
     <PreviewPane
       :enabled="previewPaneEnabled"
       :path="previewPath"
+      :entry="previewEntry"
       @close="closePreviewPane"
     />
     <DetailsPane
@@ -2567,6 +2587,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
     <PropertiesPanel
       :open="propertiesOpen"
       :path="propertiesPath"
+      :entry="propertiesEntry"
       @close="closeProperties"
       @attributes-changed="refreshListing"
     />

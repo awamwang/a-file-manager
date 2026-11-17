@@ -7,6 +7,11 @@ import FluentIcon from "../icons/FluentIcon.vue";
 import { formatBytes } from "../../state/formatBytes";
 import type { NavigatorEntry } from "../../state/navigatorBrowse";
 import {
+  isVirtualEntryPath,
+  virtualEntryInfo,
+  type VirtualEntryInfo,
+} from "../../state/virtualEntryInfo.ts";
+import {
   SIDE_PANE_MAX_WIDTH,
   SIDE_PANE_MIN_WIDTH,
   applyDetailsPaneWidth,
@@ -38,6 +43,7 @@ const { t, locale } = useI18n();
 const loading = ref(false);
 const error = ref<string | null>(null);
 const stat = ref<EntryStat | null>(null);
+const virtualInfo = ref<VirtualEntryInfo | null>(null);
 let seq = 0;
 
 const resizing = ref(false);
@@ -97,6 +103,13 @@ function onSplitterKey(event: KeyboardEvent) {
 
 const singlePath = computed(() => (props.paths.length === 1 ? props.paths[0]! : null));
 
+/** Listing row for the single selection, used as virtual-entry metadata source. */
+const singleEntry = computed(() => {
+  const path = singlePath.value;
+  if (!path) return null;
+  return (props.entries ?? []).find((entry) => entry.path === path) ?? null;
+});
+
 const multiSummary = computed(() => {
   if (props.paths.length <= 1) return null;
   const known = (props.entries ?? []).filter((entry) => props.paths.includes(entry.path));
@@ -130,6 +143,11 @@ const rows = computed(() => {
   ];
 });
 
+// Virtual/provider items skip `navigator_stat`; show listing-derived metadata.
+const displayRows = computed(() =>
+  virtualInfo.value ? virtualInfo.value.rows : rows.value,
+);
+
 function formatTime(ms: number | null): string {
   if (ms == null) return t("detailsPane.unknown");
   try {
@@ -141,8 +159,20 @@ function formatTime(ms: number | null): string {
 
 async function load(path: string | null) {
   const my = ++seq;
+  stat.value = null;
+  virtualInfo.value = null;
   if (!props.enabled || !path) {
-    stat.value = null;
+    error.value = null;
+    loading.value = false;
+    return;
+  }
+  // Remote/virtual entries have no local file to stat — surface the listing
+  // metadata rather than a "Path does not exist" error.
+  if (isVirtualEntryPath(path)) {
+    virtualInfo.value = virtualEntryInfo(path, singleEntry.value, {
+      t,
+      formatTime,
+    });
     error.value = null;
     loading.value = false;
     return;
@@ -163,10 +193,11 @@ async function load(path: string | null) {
 }
 
 watch(
-  () => [props.enabled, singlePath.value] as const,
+  () => [props.enabled, singlePath.value, singleEntry.value] as const,
   ([enabled, path]) => {
     if (!enabled) {
       stat.value = null;
+      virtualInfo.value = null;
       return;
     }
     void load(path);
@@ -227,14 +258,17 @@ watch(
     <template v-else>
       <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
       <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
-      <ul v-else-if="stat" class="details-list">
-        <li v-for="row in rows" :key="row.key" class="details-row">
-          <span class="details-label">{{ row.label }}</span>
-          <span class="details-value" :class="{ mono: row.mono }" :title="row.value">{{
-            row.value
-          }}</span>
-        </li>
-      </ul>
+      <template v-else-if="stat || virtualInfo">
+        <p v-if="virtualInfo?.hint" class="details-hint">{{ virtualInfo.hint }}</p>
+        <ul class="details-list">
+          <li v-for="row in displayRows" :key="row.key" class="details-row">
+            <span class="details-label">{{ row.label }}</span>
+            <span class="details-value" :class="{ mono: row.mono }" :title="row.value">{{
+              row.value
+            }}</span>
+          </li>
+        </ul>
+      </template>
     </template>
   </aside>
 </template>

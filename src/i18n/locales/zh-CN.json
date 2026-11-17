@@ -1289,6 +1289,21 @@
     "noPath": "请选择本地文件以预览",
     "fallbackBuiltin": "未检测到外部预览工具 — 已显示内置预览栏"
   },
+  "virtualInfo": {
+    "kindGuide": "引导页",
+    "kindRecycle": "回收站",
+    "kindRemoteItem": "远程项目",
+    "kindProviderRoot": "远程服务",
+    "kindBookmark": "收藏",
+    "kindBackend": "远程连接",
+    "kindRemoteFolder": "远程文件夹",
+    "kindRemoteFile": "远程文件",
+    "recycleName": "回收站",
+    "remoteServicesName": "远程服务",
+    "backend": "后端",
+    "hintSpecial": "这是虚拟位置，没有对应的本地文件。以下信息来自应用自身的数据。",
+    "hintRemote": "远程项目无法在本地预览，下方显示列表中的连接信息。"
+  },
   "guide": {
     "title": "此电脑",
     "subtitle": "快速打开常用文件夹、近期访问、收藏、驱动器与 Providers",

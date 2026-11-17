@@ -1289,6 +1289,21 @@
     "noPath": "Sélectionnez un fichier local pour l’aperçu",
     "fallbackBuiltin": "Aucun outil d’aperçu externe — affichage du volet intégré"
   },
+  "virtualInfo": {
+    "kindGuide": "Page guide",
+    "kindRecycle": "Corbeille",
+    "kindRemoteItem": "Élément distant",
+    "kindProviderRoot": "Services distants",
+    "kindBookmark": "Favori",
+    "kindBackend": "Connexion distante",
+    "kindRemoteFolder": "Dossier distant",
+    "kindRemoteFile": "Fichier distant",
+    "recycleName": "Corbeille",
+    "remoteServicesName": "Services distants",
+    "backend": "Backend",
+    "hintSpecial": "Ceci est un emplacement virtuel sans fichier local. Les informations ci-dessous proviennent des données de l’application.",
+    "hintRemote": "Les éléments distants ne peuvent pas être prévisualisés localement. Les informations de connexion de la liste sont affichées ci-dessous."
+  },
   "guide": {
     "title": "Ce PC",
     "subtitle": "Acceder aux dossiers courants, recents, favoris ou lecteurs",
