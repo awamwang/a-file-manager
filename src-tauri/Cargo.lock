@@ -6,7 +6,7 @@ version = 4
 name = "a-file-manager"
 version = "0.3.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "directories",
  "drag",
  "file_icon_provider",
