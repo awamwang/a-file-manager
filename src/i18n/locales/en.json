@@ -228,8 +228,6 @@
     "meta": "AI Add-on — Agent targets, public MCP & Skills, and model providers",
     "usageHint": "Manage Agent Targets here. Public MCP, Skills, and AI Providers land in later slices.",
     "shellStatus": "AI Add-on shell v{version} · layer {layer}",
-    "sectionPlaceholder": "Later",
-    "sectionReady": "Ready",
     "sections": {
       "providers": {
         "title": "AI Providers",
@@ -261,10 +259,14 @@
       "defaultInProjectsOn": "Project default: on",
       "defaultInProjectsOff": "Project default: off",
       "defaultInProjectsHint": "Project default pre-fills new project agent sets; Enable controls global deploy fan-out.",
+      "installHint": "Installed = global Skills dir or MCP file found on disk; only installed agents appear in MCP/Skill import and project configuration.",
+      "noInstalledHint": "No installed agents detected. Install an agent (or refresh discovery) before importing MCP/Skills or configuring a project.",
       "save": "Save",
       "kindBuiltin": "Built-in",
       "kindCustom": "Custom",
       "badgeDiscovered": "found on disk",
+      "installed": "Installed",
+      "notInstalled": "Not installed",
       "fieldName": "Display name",
       "fieldId": "Id (optional)",
       "fieldIdHint": "ascii-id — leave blank to derive from name",

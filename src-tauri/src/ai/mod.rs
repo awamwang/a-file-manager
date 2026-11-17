@@ -39,14 +39,12 @@ use tauri::Manager;
 /// Order: Providers → Agents → MCP → Skills → Harness (AIA-263 left nav).
 pub const AI_MENU_SECTION_IDS: &[&str] = &["providers", "agents", "mcp", "skills", "harness"];
 
-pub const AI_ADDON_SHELL_VERSION: u32 = 8;
+pub const AI_ADDON_SHELL_VERSION: u32 = 9;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct AiMenuSectionStatus {
     pub id: String,
-    /// Agents A2 · Skills A3 · MCP A5 · Providers A7.
-    pub ready: bool,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -64,10 +62,6 @@ fn config_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
         .map_err(|err| format!("Failed to resolve app config dir: {err}"))
 }
 
-fn section_ready(id: &str) -> bool {
-    matches!(id, "providers" | "agents" | "mcp" | "skills" | "harness")
-}
-
 /// Shell probe for the AI main menu.
 #[tauri::command]
 pub fn ai_addon_status() -> AiAddonStatus {
@@ -78,7 +72,6 @@ pub fn ai_addon_status() -> AiAddonStatus {
             .iter()
             .map(|id| AiMenuSectionStatus {
                 id: (*id).to_string(),
-                ready: section_ready(id),
             })
             .collect(),
     }
@@ -554,7 +547,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn shell_marks_all_sections_ready() {
+    fn shell_lists_all_sections_in_order() {
         let status = ai_addon_status();
         assert_eq!(status.layer, "ai-addon");
         assert_eq!(status.shell_version, AI_ADDON_SHELL_VERSION);
@@ -566,11 +559,5 @@ mod tests {
                 .collect::<Vec<_>>(),
             AI_MENU_SECTION_IDS.to_vec()
         );
-        for id in AI_MENU_SECTION_IDS {
-            assert!(
-                status.sections.iter().find(|s| s.id == *id).unwrap().ready,
-                "{id} should be ready"
-            );
-        }
     }
 }

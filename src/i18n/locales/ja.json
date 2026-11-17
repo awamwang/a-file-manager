@@ -183,8 +183,6 @@
     "meta": "AI アドオン — Agent Target、共有 MCP / Skills、モデル Providers",
     "usageHint": "ここで Agent Target を管理します。共有 MCP / Skills / AI Providers は後続スライスです。",
     "shellStatus": "AI Add-on シェル v{version} · レイヤー {layer}",
-    "sectionPlaceholder": "後日",
-    "sectionReady": "準備完了",
     "sections": {
       "providers": {
         "title": "AI Providers",
@@ -217,6 +215,8 @@
       "kindBuiltin": "組み込み",
       "kindCustom": "カスタム",
       "badgeDiscovered": "ディスク上で検出",
+      "installed": "インストール済み",
+      "notInstalled": "未インストール",
       "fieldName": "表示名",
       "fieldId": "Id（任意）",
       "fieldIdHint": "ascii-id — 空なら名前から生成",
@@ -238,6 +238,8 @@
       "errorBuiltinRemove": "組み込み Agent Target は削除できません",
       "errorIdConflict": "その id は組み込み Agent Target と衝突します",
       "defaultInProjectsHint": "プロジェクトの既定値は新規プロジェクトのエージェント設定を事前入力します。有効にするとグローバル配布の範囲を制御します。",
+      "installHint": "インストール済み = グローバル Skills ディレクトリまたは MCP ファイルがディスク上に存在。インストール済みのエージェントのみ MCP/Skill のインポートとプロジェクト設定に表示されます。",
+      "noInstalledHint": "インストール済みのエージェントが見つかりません。MCP/Skill のインポートやプロジェクト設定の前にエージェントをインストールするか、検出を更新してください。",
       "defaultInProjectsOff": "プロジェクトの既定値：オフ",
       "defaultInProjectsOn": "プロジェクトの既定値：オン"
     },

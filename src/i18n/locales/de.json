@@ -183,8 +183,6 @@
     "meta": "AI-Add-on — Agent Targets, gemeinsame MCP/Skills und Modell-Provider",
     "usageHint": "Agent Targets hier verwalten. Öffentliches MCP, Skills und AI-Provider folgen in späteren Slices.",
     "shellStatus": "AI-Add-on-Shell v{version} · Schicht {layer}",
-    "sectionPlaceholder": "Später",
-    "sectionReady": "Bereit",
     "sections": {
       "providers": {
         "title": "AI-Provider",
@@ -217,6 +215,8 @@
       "kindBuiltin": "Integriert",
       "kindCustom": "Benutzerdefiniert",
       "badgeDiscovered": "auf Datenträger gefunden",
+      "installed": "Installiert",
+      "notInstalled": "Nicht installiert",
       "fieldName": "Anzeigename",
       "fieldId": "Id (optional)",
       "fieldIdHint": "ascii-id — leer lassen zum Ableiten vom Namen",
@@ -238,6 +238,8 @@
       "errorBuiltinRemove": "Integrierte Agent Targets können nicht entfernt werden",
       "errorIdConflict": "Diese Id kollidiert mit einem integrierten Agent Target",
       "defaultInProjectsHint": "Der Projektstandard befüllt die Agent-Sätze neuer Projekte vor; „Aktiviert“ steuert die globale Verteilung.",
+      "installHint": "Installiert = globales Skills-Verzeichnis oder MCP-Datei auf Datenträger vorhanden. Nur installierte Agents erscheinen beim MCP/Skill-Import und in der Projektkonfiguration.",
+      "noInstalledHint": "Keine installierten Agents erkannt. Installieren Sie einen Agent bzw. aktualisieren Sie die Erkennung, bevor Sie MCP/Skills importieren oder ein Projekt konfigurieren.",
       "defaultInProjectsOff": "Projektstandard: aus",
       "defaultInProjectsOn": "Projektstandard: ein"
     },

@@ -5,7 +5,6 @@ export type AiMenuSectionId = "providers" | "agents" | "mcp" | "skills" | "harne
 
 export type AiMenuSectionStatus = {
   id: AiMenuSectionId | string;
-  ready: boolean;
 };
 
 export type AiAddonStatus = {

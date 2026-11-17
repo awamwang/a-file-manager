@@ -43,6 +43,9 @@ const agents = ref<AgentTarget[]>([]);
 const harvestAgentId = ref("");
 const harvestCandidates = ref<HarvestSkillCandidate[]>([]);
 const harvestSelected = ref<Record<string, boolean>>({});
+
+/** 只有已安装（磁盘上探测到全局路径）的 Agent 才能作为导入来源。 */
+const installedAgents = computed(() => agents.value.filter((a) => a.discovered));
 const showTools = ref(false);
 const projects = ref<ProjectOption[]>([]);
 const targetProjectPath = ref("");
@@ -104,8 +107,12 @@ async function refresh() {
       const active = projectList.options.find((p) => p.slug === projectList.activeSlug);
       targetProjectPath.value = active?.path ?? projectList.options[0]?.path ?? "";
     }
-    if (!harvestAgentId.value && agents.value.length) {
-      harvestAgentId.value = agents.value[0]?.id ?? "";
+    if (installedAgents.value.length) {
+      if (!installedAgents.value.some((a) => a.id === harvestAgentId.value)) {
+        harvestAgentId.value = installedAgents.value[0]?.id ?? "";
+      }
+    } else {
+      harvestAgentId.value = "";
     }
     if (
       selectedName.value &&
@@ -341,11 +348,16 @@ onMounted(() => {
           <h3 class="skills-subhead">{{ t("ai.harvest.skillsTitle") }}</h3>
           <div class="skills-row">
             <select v-model="harvestAgentId" class="fluent-control skills-grow">
-              <option v-for="agent in agents" :key="agent.id" :value="agent.id">
+              <option v-for="agent in installedAgents" :key="agent.id" :value="agent.id">
                 {{ agent.displayName }}
               </option>
             </select>
-            <button type="button" class="fluent-control" @click="scanHarvest">
+            <button
+              type="button"
+              class="fluent-control"
+              :disabled="!harvestAgentId"
+              @click="scanHarvest"
+            >
               {{ t("ai.harvest.scan") }}
             </button>
             <button

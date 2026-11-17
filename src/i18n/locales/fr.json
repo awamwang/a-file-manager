@@ -183,8 +183,6 @@
     "meta": "Module IA — cibles Agent, MCP / Skills publics et fournisseurs de modèles",
     "usageHint": "Gérez les cibles Agent ici. MCP public, Skills et fournisseurs IA arriveront dans des tranches ultérieures.",
     "shellStatus": "Coque module IA v{version} · couche {layer}",
-    "sectionPlaceholder": "Plus tard",
-    "sectionReady": "Prêt",
     "sections": {
       "providers": {
         "title": "Fournisseurs IA",
@@ -217,6 +215,8 @@
       "kindBuiltin": "Intégré",
       "kindCustom": "Personnalisé",
       "badgeDiscovered": "trouvé sur le disque",
+      "installed": "Installé",
+      "notInstalled": "Non installé",
       "fieldName": "Nom affiché",
       "fieldId": "Id (facultatif)",
       "fieldIdHint": "ascii-id — laisser vide pour dériver du nom",
@@ -238,6 +238,8 @@
       "errorBuiltinRemove": "Les cibles Agent intégrées ne peuvent pas être supprimées",
       "errorIdConflict": "Cet id entre en conflit avec une cible Agent intégrée",
       "defaultInProjectsHint": "La valeur par défaut du projet préremplit les ensembles d'agents des nouveaux projets ; « Activé » contrôle la distribution globale.",
+      "installHint": "Installé = répertoire Skills global ou fichier MCP présent sur le disque. Seuls les agents installés apparaissent dans l'import MCP/Skill et la configuration du projet.",
+      "noInstalledHint": "Aucun agent installé détecté. Installez un agent ou actualisez la détection avant d'importer des MCP/Skills ou de configurer un projet.",
       "defaultInProjectsOff": "Valeur par défaut du projet : désactivée",
       "defaultInProjectsOn": "Valeur par défaut du projet : activée"
     },
