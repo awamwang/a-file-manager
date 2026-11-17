@@ -26,6 +26,9 @@ const HEALTH_TIMEOUT: Duration = Duration::from_secs(2);
 const HTTP_TIMEOUT: Duration = Duration::from_secs(15);
 /// 下载走网络传输（rclone copyto），网关侧已设 180s 上限，客户端留足余量。
 const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(200);
+/// resolve 会给 Prowlarr 结果补一个种子/magnet（网关侧最多两次 10s 抓取），
+/// 比 list/stat 慢，但仍给 UI 一个可感知的失败上限。
+const RESOLVE_TIMEOUT: Duration = Duration::from_secs(30);
 const PROBE_TTL: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -421,7 +424,7 @@ pub fn stat(uri: &str) -> Result<StatResult, String> {
 pub fn resolve(uri: &str) -> Result<ResolveResult, String> {
     let base_url = gateway_base_url();
     let path = format!("/api/resolve?uri={}", encode_uri_query(uri));
-    let value = get_json(&base_url, &path, HTTP_TIMEOUT).map_err(|err| {
+    let value = get_json(&base_url, &path, RESOLVE_TIMEOUT).map_err(|err| {
         invalidate_probe_cache();
         err
     })?;

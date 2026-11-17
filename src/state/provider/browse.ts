@@ -88,7 +88,8 @@ export async function downloadProviderEntry(uri: string): Promise<string> {
  * 1. resolve 已有 localPath（本地后端）→ 直接在 Navigator 定位；
  * 2. resolve 返回 download 动作（rclone/SFTP 等虚拟文件）→ 网关下载后定位；
  * 3. resolve 返回 open_url（浏览器书签）→ 浏览器打开；
- * 4. resolve 返回 push_to_downloads（Prowlarr 结果）→ magnet / .torrent 交给系统默认程序。
+ * 4. resolve 返回 push_to_downloads（Prowlarr 结果）→ 真 magnet / 网关取回的 .torrent 字节
+ *    交给系统默认程序（Prowlarr 自己的 downloadUrl 需要 API Key，不能直接开）。
  */
 export async function openProviderEntry(uri: string): Promise<void> {
   const resolved = await invoke<ProviderResolveResult>("provider_resolve", {
@@ -112,26 +113,55 @@ export async function openProviderEntry(uri: string): Promise<void> {
     }
   }
   if (resolved.action === "push_to_downloads") {
-    const magnet = resolved.actionArgs?.magnetUrl;
-    const downloadUrl = resolved.actionArgs?.downloadUrl;
-    const target =
-      typeof magnet === "string" && magnet.trim()
-        ? magnet.trim()
-        : typeof downloadUrl === "string" && downloadUrl.trim()
-          ? downloadUrl.trim()
-          : "";
-    if (!target) {
-      throw new Error("Search result has no magnet or download URL");
-    }
+    const args = resolved.actionArgs ?? {};
+    const magnet = typeof args.magnetUrl === "string" ? args.magnetUrl.trim() : "";
+    const torrentB64 =
+      typeof args.torrentB64 === "string" ? args.torrentB64.trim() : "";
+    const downloadUrl =
+      typeof args.downloadUrl === "string" ? args.downloadUrl.trim() : "";
     const title = getProviderQuery(uri).title || null;
-    const result = await invoke<{ success: boolean; error: string | null }>(
-      "open_torrent_target",
-      { url: target, title },
-    );
-    if (!result.success) {
-      throw new Error(result.error ?? "Failed to open torrent with the system default app");
+    // 网关（awam-file）已经把 Prowlarr 的代理地址解析成真 magnet 或 .torrent 字节：
+    // 优先用它，避免把需要 API Key 的下载地址直接丢给浏览器。
+    if (magnet.startsWith("magnet:")) {
+      const result = await invoke<{ success: boolean; error: string | null }>(
+        "open_torrent_target",
+        { url: magnet, title },
+      );
+      if (!result.success) {
+        throw new Error(
+          result.error ?? "Failed to open magnet with the system default app",
+        );
+      }
+      return;
     }
-    return;
+    if (torrentB64) {
+      const name =
+        typeof args.torrentName === "string" && args.torrentName
+          ? args.torrentName
+          : title;
+      const result = await invoke<{ success: boolean; error: string | null }>(
+        "open_torrent_data",
+        { name, data: torrentB64 },
+      );
+      if (!result.success) {
+        throw new Error(
+          result.error ?? "Failed to open .torrent with the system default app",
+        );
+      }
+      return;
+    }
+    // 最后退路：直链种子地址（少数索引器不校验登录）。
+    if (/^https?:\/\//i.test(downloadUrl)) {
+      const result = await invoke<{ success: boolean; error: string | null }>(
+        "open_torrent_target",
+        { url: downloadUrl, title },
+      );
+      if (result.success) return;
+      throw new Error(result.error ?? "Failed to open torrent");
+    }
+    throw new Error(
+      "This search result has no usable magnet or .torrent (the indexer may require login or an API key)",
+    );
   }
   if (resolved.error) {
     throw new Error(resolved.error);

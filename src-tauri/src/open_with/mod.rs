@@ -101,7 +101,12 @@ fn sanitize_torrent_stem(raw: Option<&str>) -> String {
             stem.push(ch);
         }
     }
-    let stem = stem.trim().trim_matches(|c| c == '.' || c == ' ').to_string();
+    let mut stem = stem.trim().trim_matches(|c| c == '.' || c == ' ').to_string();
+    // 调用方可能直接给 "Title.torrent"；临时文件名末尾还会补 -时间戳.torrent。
+    if stem.to_ascii_lowercase().ends_with(".torrent") {
+        stem.truncate(stem.len() - ".torrent".len());
+        stem = stem.trim().trim_matches(|c| c == '.' || c == ' ').to_string();
+    }
     if stem.is_empty() {
         "torrent".to_string()
     } else {
@@ -143,17 +148,34 @@ fn download_torrent_to_temp(url: &str, title: Option<&str>) -> Result<PathBuf, S
         .limit(MAX_TORRENT_BYTES)
         .read_to_vec()
         .map_err(|err| format!("读取种子文件失败: {err}"))?;
+    write_torrent_temp(&bytes, title)
+}
+
+/// 把种子字节写到临时目录（`%TEMP%/a-file-manager-torrents`），返回落盘路径。
+fn write_torrent_temp(bytes: &[u8], title: Option<&str>) -> Result<PathBuf, String> {
     if bytes.is_empty() {
         return Err("种子文件为空".to_string());
     }
-
+    // bencode 字典以 'd' 开头；'<' 说明拿到的是 XML/HTML（登录页、索引器错误页）。
+    if bytes[0] == b'<' {
+        return Err("下载地址返回的是网页而不是种子文件（可能需要登录或 API Key）".to_string());
+    }
     let path = torrent_temp_path(&sanitize_torrent_stem(title));
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|err| format!("创建种子临时目录失败: {err}"))?;
+        std::fs::create_dir_all(parent).map_err(|err| format!("创建种子临时目录失败: {err}"))?;
     }
     std::fs::write(&path, bytes).map_err(|err| format!("写入种子文件失败: {err}"))?;
     Ok(path)
+}
+
+/// 网关（awam-file）已经用 Prowlarr 的 API Key 取回种子字节，这里解码落盘后
+/// 交给系统 `.torrent` 关联——省掉二次 HTTP，也不再依赖白令牌地址。
+fn write_torrent_from_base64(name: Option<&str>, data: &str) -> Result<PathBuf, String> {
+    use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+    let bytes = B64
+        .decode(data.trim())
+        .map_err(|err| format!("种子数据解码失败: {err}"))?;
+    write_torrent_temp(&bytes, name)
 }
 
 fn torrent_failure(error: impl Into<String>) -> OpenWithResult {
@@ -203,6 +225,25 @@ pub async fn open_torrent_target(url: String, title: Option<String>) -> OpenWith
     tauri::async_runtime::spawn_blocking(move || open_torrent_target_inner(url, title))
         .await
         .unwrap_or_else(|err| torrent_failure(format!("open_torrent_target worker failed: {err}")))
+}
+
+/// 种子的原始字节已经由网关取回（base64 编码）：落盘后交给系统 `.torrent` 关联。
+#[tauri::command]
+pub async fn open_torrent_data(name: Option<String>, data: String) -> OpenWithResult {
+    tauri::async_runtime::spawn_blocking(move || open_torrent_data_inner(name, data))
+        .await
+        .unwrap_or_else(|err| torrent_failure(format!("open_torrent_data worker failed: {err}")))
+}
+
+fn open_torrent_data_inner(name: Option<String>, data: String) -> OpenWithResult {
+    if data.trim().is_empty() {
+        return torrent_failure("种子数据为空");
+    }
+    let path = match write_torrent_from_base64(name.as_deref(), &data) {
+        Ok(path) => path,
+        Err(err) => return torrent_failure(err),
+    };
+    open_path_default_inner(path.to_string_lossy().into_owned())
 }
 
 /// 用系统资源管理器打开回收站（`shell:RecycleBinFolder`），避免 AFM 内慢路径枚举。
@@ -501,10 +542,12 @@ mod tests {
     fn torrent_stem_is_safe_and_non_empty() {
         assert_eq!(
             sanitize_torrent_stem(Some(r"Ubuntu 24.04:desktop?<>.torrent")),
-            "Ubuntu 24.04_desktop___.torrent"
+            "Ubuntu 24.04_desktop___"
         );
+        assert_eq!(sanitize_torrent_stem(Some("Ubuntu 24.04_desktop___.TORRENT")), "Ubuntu 24.04_desktop___");
         assert_eq!(sanitize_torrent_stem(None), "torrent");
         assert_eq!(sanitize_torrent_stem(Some("  ...  ")), "torrent");
+        assert_eq!(sanitize_torrent_stem(Some(".torrent")), "torrent");
     }
 
     #[test]
@@ -512,5 +555,36 @@ mod tests {
         let path = torrent_temp_path("demo");
         assert!(path.to_string_lossy().ends_with(".torrent"));
         assert!(path.file_name().unwrap().to_string_lossy().starts_with("demo-"));
+    }
+
+    #[test]
+    fn base64_torrent_is_written_with_torrent_suffix() {
+        use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+        let body = b"d8:announce14:http://tracker4:infod4:name4:testee";
+        let path = write_torrent_from_base64(Some("Some Release.torrent"), &B64.encode(body))
+            .expect("base64 torrent should be written");
+        assert!(path.to_string_lossy().ends_with(".torrent"));
+        assert!(path
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .starts_with("Some Release-"));
+        assert_eq!(std::fs::read(&path).unwrap(), body);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn base64_garbage_and_html_are_rejected() {
+        assert!(write_torrent_from_base64(Some("x"), "not base64!!").is_err());
+        use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+        let html = B64.encode(b"<!doctype html><title>login</title>");
+        let err = write_torrent_from_base64(Some("x"), &html).expect_err("html must not pass");
+        assert!(err.contains("网页"));
+    }
+
+    #[test]
+    fn empty_base64_torrent_fails() {
+        let result = open_torrent_data_inner(Some("x".into()), "   ".into());
+        assert!(!result.success);
     }
 }

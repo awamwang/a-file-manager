@@ -468,6 +468,7 @@ pub fn run() {
                     open_with::open_recycle_bin_system,
                     open_with::open_native_open_with_dialog,
                     open_with::open_torrent_target,
+                    open_with::open_torrent_data,
                     preview::preview_load,
                     preview_bridge::preview_bridge_invoke,
                     preview_bridge::preview_bridge_switch,
