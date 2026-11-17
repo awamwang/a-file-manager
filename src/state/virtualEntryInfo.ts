@@ -39,6 +39,8 @@ export type VirtualInfoRow = {
   label: string;
   value: string;
   mono?: boolean;
+  /** Long machine-generated values (e.g. magnet) get a click-to-copy control. */
+  copyable?: boolean;
 };
 
 export type VirtualEntryInfo = {
@@ -180,7 +182,13 @@ export function virtualEntryInfo(
   let shown = 0;
   for (const [key, value] of Object.entries(query)) {
     if (shown >= MAX_QUERY_ROWS) break;
-    rows.push({ key: `query:${key}`, label: key, value, mono: true });
+    rows.push({
+      key: `query:${key}`,
+      label: key,
+      value,
+      mono: true,
+      copyable: key.toLowerCase() === "magnet" && Boolean(value.trim()),
+    });
     shown += 1;
   }
 

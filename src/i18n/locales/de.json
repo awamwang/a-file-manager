@@ -1302,7 +1302,8 @@
     "remoteServicesName": "Remotedienste",
     "backend": "Backend",
     "hintSpecial": "Dies ist ein virtueller Ort ohne lokale Datei. Die folgenden Angaben stammen aus den Daten der Anwendung.",
-    "hintRemote": "Remoteelemente lassen sich nicht lokal in der Vorschau anzeigen. Unten stehen die Verbindungsdaten aus der Liste."
+    "hintRemote": "Remoteelemente lassen sich nicht lokal in der Vorschau anzeigen. Unten stehen die Verbindungsdaten aus der Liste.",
+    "copyMagnet": "Magnet-Link zum Kopieren anklicken"
   },
   "guide": {
     "title": "Dieser PC",

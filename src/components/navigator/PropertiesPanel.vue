@@ -4,6 +4,7 @@ import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import FluentIcon from "../icons/FluentIcon.vue";
+import CopyableFieldValue from "../common/CopyableFieldValue.vue";
 import { toastSuccess } from "../../state/toast";
 import { newNavigatorTab, type NavigatorEntry } from "../../state/navigatorBrowse.ts";
 import {
@@ -97,8 +98,20 @@ async function openLinkTargetDirInNewTab() {
 
 const rows = computed(() => {
   const s = stat.value;
-  if (!s) return [] as Array<{ key: string; label: string; value: string; mono?: boolean }>;
-  const list: Array<{ key: string; label: string; value: string; mono?: boolean }> = [
+  if (!s) return [] as Array<{
+    key: string;
+    label: string;
+    value: string;
+    mono?: boolean;
+    copyable?: boolean;
+  }>;
+  const list: Array<{
+    key: string;
+    label: string;
+    value: string;
+    mono?: boolean;
+    copyable?: boolean;
+  }> = [
     { key: "name", label: t("properties.name"), value: s.name },
     { key: "kind", label: t("properties.kind"), value: kindLabel.value },
     { key: "path", label: t("properties.path"), value: s.path, mono: true },
@@ -259,7 +272,14 @@ watch(
           <ul class="props-list">
             <li v-for="row in displayRows" :key="row.key" class="props-row">
               <span class="props-label">{{ row.label }}</span>
-              <span class="props-value" :class="{ mono: row.mono }" :title="row.value">{{ row.value }}</span>
+              <span class="props-value" :class="{ mono: row.mono }" :title="row.value">
+                <CopyableFieldValue
+                  v-if="row.copyable"
+                  :value="row.value"
+                  :label="t('virtualInfo.copyMagnet')"
+                />
+                <template v-else>{{ row.value }}</template>
+              </span>
             </li>
             <template v-if="link">
               <li class="props-row">

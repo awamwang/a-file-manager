@@ -4,6 +4,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import FluentIcon from "../icons/FluentIcon.vue";
+import CopyableFieldValue from "../common/CopyableFieldValue.vue";
 import {
   SIDE_PANE_MAX_WIDTH,
   SIDE_PANE_MIN_WIDTH,
@@ -309,7 +310,14 @@ watch(
       <dl class="preview-link-rows">
         <div v-for="row in virtualInfo.rows" :key="row.key" class="preview-link-row">
           <dt>{{ row.label }}</dt>
-          <dd :class="{ 'preview-link-path-text': row.mono }">{{ row.value }}</dd>
+          <dd :class="{ 'preview-link-path-text': row.mono }">
+            <CopyableFieldValue
+              v-if="row.copyable"
+              :value="row.value"
+              :label="t('virtualInfo.copyMagnet')"
+            />
+            <template v-else>{{ row.value }}</template>
+          </dd>
         </div>
       </dl>
     </div>

@@ -1302,7 +1302,8 @@
     "remoteServicesName": "Remote services",
     "backend": "Backend",
     "hintSpecial": "This is a virtual location with no local file. The details below come from the application's own data.",
-    "hintRemote": "Remote items cannot be previewed locally. Connection details from the listing are shown below."
+    "hintRemote": "Remote items cannot be previewed locally. Connection details from the listing are shown below.",
+    "copyMagnet": "Click to copy magnet link"
   },
   "guide": {
     "title": "This PC",

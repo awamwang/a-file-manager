@@ -1302,7 +1302,8 @@
     "remoteServicesName": "Services distants",
     "backend": "Backend",
     "hintSpecial": "Ceci est un emplacement virtuel sans fichier local. Les informations ci-dessous proviennent des données de l’application.",
-    "hintRemote": "Les éléments distants ne peuvent pas être prévisualisés localement. Les informations de connexion de la liste sont affichées ci-dessous."
+    "hintRemote": "Les éléments distants ne peuvent pas être prévisualisés localement. Les informations de connexion de la liste sont affichées ci-dessous.",
+    "copyMagnet": "Cliquer pour copier le lien magnet"
   },
   "guide": {
     "title": "Ce PC",

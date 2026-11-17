@@ -1302,7 +1302,8 @@
     "remoteServicesName": "远程服务",
     "backend": "后端",
     "hintSpecial": "这是虚拟位置，没有对应的本地文件。以下信息来自应用自身的数据。",
-    "hintRemote": "远程项目无法在本地预览，下方显示列表中的连接信息。"
+    "hintRemote": "远程项目无法在本地预览，下方显示列表中的连接信息。",
+    "copyMagnet": "点击复制 magnet 链接"
   },
   "guide": {
     "title": "此电脑",

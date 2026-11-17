@@ -4,6 +4,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import FluentIcon from "../icons/FluentIcon.vue";
+import CopyableFieldValue from "../common/CopyableFieldValue.vue";
 import { formatBytes } from "../../state/formatBytes";
 import type { NavigatorEntry } from "../../state/navigatorBrowse";
 import {
@@ -125,7 +126,14 @@ const multiSummary = computed(() => {
 
 const rows = computed(() => {
   const s = stat.value;
-  if (!s) return [] as Array<{ key: string; label: string; value: string; mono?: boolean }>;
+  if (!s)
+    return [] as Array<{
+      key: string;
+      label: string;
+      value: string;
+      mono?: boolean;
+      copyable?: boolean;
+    }>;
   return [
     { key: "name", label: t("detailsPane.name"), value: s.name },
     {
@@ -263,9 +271,14 @@ watch(
         <ul class="details-list">
           <li v-for="row in displayRows" :key="row.key" class="details-row">
             <span class="details-label">{{ row.label }}</span>
-            <span class="details-value" :class="{ mono: row.mono }" :title="row.value">{{
-              row.value
-            }}</span>
+            <span class="details-value" :class="{ mono: row.mono }" :title="row.value">
+              <CopyableFieldValue
+                v-if="row.copyable"
+                :value="row.value"
+                :label="t('virtualInfo.copyMagnet')"
+              />
+              <template v-else>{{ row.value }}</template>
+            </span>
           </li>
         </ul>
       </template>

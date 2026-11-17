@@ -18,6 +18,7 @@ const props = read("src/components/navigator/PropertiesPanel.vue");
 const details = read("src/components/navigator/DetailsPane.vue");
 const nav = read("src/views/NavigatorView.vue");
 const glyphs = read("src/components/icons/glyphs.ts");
+const copyComponent = read("src/components/common/CopyableFieldValue.vue");
 
 // Shared module: recognizes provider / guide / recycle paths and builds rows.
 assert.ok(module.includes("export function isVirtualEntryPath"));
@@ -34,6 +35,11 @@ assert.ok(module.includes("getProviderQuery(raw)"));
 assert.ok(module.includes("providerLeafName(path)"));
 assert.ok(module.includes("formatBytes(entry.size)"));
 assert.ok(module.includes("MAX_QUERY_ROWS = 8"));
+assert.ok(module.includes("copyable?: boolean"), "VirtualInfoRow must carry a copyable flag");
+assert.ok(
+  module.includes('key.toLowerCase() === "magnet"'),
+  "only magnet query rows should be click-to-copy",
+);
 for (const kind of [
   "kindGuide",
   "kindRecycle",
@@ -97,6 +103,22 @@ assert.ok(
 assert.ok(details.includes('v-else-if="stat || virtualInfo"'));
 assert.ok(details.includes("displayRows"));
 
+// magnet fields: all three panes render the shared click-to-copy control.
+for (const [name, source] of [
+  ["preview", preview],
+  ["properties", props],
+  ["details", details],
+]) {
+  assert.ok(source.includes('v-if="row.copyable"'), `${name}: gate on row.copyable`);
+  assert.ok(source.includes("CopyableFieldValue"), `${name}: use shared copy control`);
+  assert.ok(
+    source.includes(':label="t(\'virtualInfo.copyMagnet\')"'),
+    `${name}: localized copy tooltip`,
+  );
+}
+assert.ok(copyComponent.includes("navigator.clipboard.writeText(props.value)"));
+assert.ok(copyComponent.includes(":name=\"copied ? 'check' : 'copy'\""), "inline copy feedback");
+
 // NavigatorView: Space preview on an all-virtual selection toggles the
 // built-in pane (info card) instead of a raw "no local path" toast.
 assert.ok(nav.includes("paths.every((path) => isVirtualEntryPath(path))"));
@@ -124,6 +146,7 @@ const keys = [
   "backend",
   "hintSpecial",
   "hintRemote",
+  "copyMagnet",
 ];
 for (const locale of locales) {
   const data = JSON.parse(read(`src/i18n/locales/${locale}.json`));
