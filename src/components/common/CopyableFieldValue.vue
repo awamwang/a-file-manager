@@ -2,7 +2,9 @@
 <script setup lang="ts">
 /** Click-to-copy for long machine-generated field values (e.g. magnet links). */
 import { onBeforeUnmount, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import FluentIcon from "../icons/FluentIcon.vue";
+import { toastError, toastSuccess } from "../../state/toast";
 
 const props = withDefaults(
   defineProps<{
@@ -12,22 +14,55 @@ const props = withDefaults(
   { label: "" },
 );
 
+const { t } = useI18n();
 const copied = ref(false);
 let resetTimer: ReturnType<typeof setTimeout> | null = null;
 
+/**
+ * WebView2 rejects `navigator.clipboard` when the document is not focused or
+ * the permission policy disallows it. Fall back to the legacy selection copy so
+ * a click never silently does nothing.
+ */
+function copyViaSelection(text: string): boolean {
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.setAttribute("readonly", "");
+  area.style.position = "fixed";
+  area.style.top = "-1000px";
+  area.style.opacity = "0";
+  document.body.appendChild(area);
+  let ok = false;
+  try {
+    area.select();
+    ok = document.execCommand("copy");
+  } catch {
+    ok = false;
+  } finally {
+    document.body.removeChild(area);
+  }
+  return ok;
+}
+
 async function copyValue() {
   if (!props.value) return;
+  let ok = false;
   try {
     await navigator.clipboard.writeText(props.value);
-    copied.value = true;
-    if (resetTimer !== null) clearTimeout(resetTimer);
-    resetTimer = setTimeout(() => {
-      copied.value = false;
-      resetTimer = null;
-    }, 1400);
+    ok = true;
   } catch {
-    /* Clipboard may be blocked; the original value stays selectable in the field. */
+    ok = copyViaSelection(props.value);
   }
+  if (!ok) {
+    toastError(t("virtualInfo.copyFailed"));
+    return;
+  }
+  copied.value = true;
+  toastSuccess(t("virtualInfo.copied"));
+  if (resetTimer !== null) clearTimeout(resetTimer);
+  resetTimer = setTimeout(() => {
+    copied.value = false;
+    resetTimer = null;
+  }, 1400);
 }
 
 onBeforeUnmount(() => {

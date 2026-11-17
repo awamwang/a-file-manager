@@ -1303,7 +1303,9 @@
     "backend": "Backend",
     "hintSpecial": "This is a virtual location with no local file. The details below come from the application's own data.",
     "hintRemote": "Remote items cannot be previewed locally. Connection details from the listing are shown below.",
-    "copyMagnet": "Click to copy magnet link"
+    "copyMagnet": "Click to copy magnet link",
+    "copied": "Copied to clipboard",
+    "copyFailed": "Copy failed — select the text and copy manually"
   },
   "guide": {
     "title": "This PC",

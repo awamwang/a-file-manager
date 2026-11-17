@@ -1303,7 +1303,9 @@
     "backend": "后端",
     "hintSpecial": "这是虚拟位置，没有对应的本地文件。以下信息来自应用自身的数据。",
     "hintRemote": "远程项目无法在本地预览，下方显示列表中的连接信息。",
-    "copyMagnet": "点击复制 magnet 链接"
+    "copyMagnet": "点击复制 magnet 链接",
+    "copied": "已复制到剪贴板",
+    "copyFailed": "复制失败，请手动选中文本复制"
   },
   "guide": {
     "title": "此电脑",

@@ -1303,7 +1303,9 @@
     "backend": "Backend",
     "hintSpecial": "Ceci est un emplacement virtuel sans fichier local. Les informations ci-dessous proviennent des données de l’application.",
     "hintRemote": "Les éléments distants ne peuvent pas être prévisualisés localement. Les informations de connexion de la liste sont affichées ci-dessous.",
-    "copyMagnet": "Cliquer pour copier le lien magnet"
+    "copyMagnet": "Cliquer pour copier le lien magnet",
+    "copied": "Copié dans le presse-papiers",
+    "copyFailed": "Échec de la copie — sélectionnez le texte et copiez manuellement"
   },
   "guide": {
     "title": "Ce PC",

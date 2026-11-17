@@ -118,6 +118,15 @@ for (const [name, source] of [
 }
 assert.ok(copyComponent.includes("navigator.clipboard.writeText(props.value)"));
 assert.ok(copyComponent.includes(":name=\"copied ? 'check' : 'copy'\""), "inline copy feedback");
+// WebView2 can reject the async clipboard API (unfocused document / permission
+// policy); the control must fall back to the legacy selection copy and report
+// failures, otherwise a click looks like a no-op.
+assert.ok(
+  copyComponent.includes('document.execCommand("copy")'),
+  "fall back to document.execCommand when the clipboard API is denied",
+);
+assert.ok(copyComponent.includes('t("virtualInfo.copied")'), "success feedback");
+assert.ok(copyComponent.includes('t("virtualInfo.copyFailed")'), "failure feedback");
 
 // NavigatorView: Space preview on an all-virtual selection toggles the
 // built-in pane (info card) instead of a raw "no local path" toast.
@@ -147,6 +156,8 @@ const keys = [
   "hintSpecial",
   "hintRemote",
   "copyMagnet",
+  "copied",
+  "copyFailed",
 ];
 for (const locale of locales) {
   const data = JSON.parse(read(`src/i18n/locales/${locale}.json`));
