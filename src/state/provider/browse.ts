@@ -14,7 +14,7 @@ import {
   type ProviderDirListingWire,
   type ProviderNavigatorListing,
 } from "./listing.ts";
-import { PROVIDER_ROOT, toProviderUri } from "./path.ts";
+import { getProviderQuery, PROVIDER_ROOT, toProviderUri } from "./path.ts";
 
 export type ProviderResolveResult = {
   uri: string;
@@ -87,7 +87,8 @@ export async function downloadProviderEntry(uri: string): Promise<string> {
  * 打开 Provider 非目录条目，统一流程：
  * 1. resolve 已有 localPath（本地后端）→ 直接在 Navigator 定位；
  * 2. resolve 返回 download 动作（rclone/SFTP 等虚拟文件）→ 网关下载后定位；
- * 3. resolve 返回 open_url（浏览器书签）→ 浏览器打开。
+ * 3. resolve 返回 open_url（浏览器书签）→ 浏览器打开；
+ * 4. resolve 返回 push_to_downloads（Prowlarr 结果）→ magnet / .torrent 交给系统默认程序。
  */
 export async function openProviderEntry(uri: string): Promise<void> {
   const resolved = await invoke<ProviderResolveResult>("provider_resolve", {
@@ -109,6 +110,28 @@ export async function openProviderEntry(uri: string): Promise<void> {
       await openUrl(url);
       return;
     }
+  }
+  if (resolved.action === "push_to_downloads") {
+    const magnet = resolved.actionArgs?.magnetUrl;
+    const downloadUrl = resolved.actionArgs?.downloadUrl;
+    const target =
+      typeof magnet === "string" && magnet.trim()
+        ? magnet.trim()
+        : typeof downloadUrl === "string" && downloadUrl.trim()
+          ? downloadUrl.trim()
+          : "";
+    if (!target) {
+      throw new Error("Search result has no magnet or download URL");
+    }
+    const title = getProviderQuery(uri).title || null;
+    const result = await invoke<{ success: boolean; error: string | null }>(
+      "open_torrent_target",
+      { url: target, title },
+    );
+    if (!result.success) {
+      throw new Error(result.error ?? "Failed to open torrent with the system default app");
+    }
+    return;
   }
   if (resolved.error) {
     throw new Error(resolved.error);

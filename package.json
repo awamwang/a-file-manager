@@ -88,6 +88,7 @@
     "test:provider-cache": "node scripts/check-provider-cache.mjs",
     "test:provider-path": "node scripts/check-provider-path.mjs",
     "test:provider-nonblocking": "node scripts/check-provider-nonblocking.mjs",
+    "test:provider-torrent-open": "node scripts/check-provider-torrent-open.mjs",
     "test:navigator-nonblocking": "node scripts/check-navigator-nonblocking.mjs",
     "test:browser-bookmarks": "node scripts/check-browser-bookmarks.mjs",
     "test:navigator-status-bar": "node scripts/check-navigator-status-bar.mjs",

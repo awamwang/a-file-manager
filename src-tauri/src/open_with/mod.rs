@@ -2,7 +2,8 @@
 //! Native Windows "Open with" dialog (AIA-58). Day-1: OS dialog only (no app list submenu).
 
 use serde::Serialize;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -65,6 +66,143 @@ fn open_path_default_inner(path: String) -> OpenWithResult {
             },
         }
     }
+}
+
+/// 把 Prowlarr 搜索结果交给系统默认程序：magnet 走协议关联，.torrent 下载链接
+/// 先落地为临时 `.torrent` 再走文件关联。AFM 不猜具体下载器，交给系统关联。
+const TORRENT_DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(60);
+const MAX_TORRENT_BYTES: u64 = 32 * 1024 * 1024;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TorrentTargetKind {
+    Magnet,
+    Http,
+    Unsupported,
+}
+
+fn classify_torrent_target(raw: &str) -> TorrentTargetKind {
+    let value = raw.trim().to_ascii_lowercase();
+    if value.starts_with("magnet:") {
+        TorrentTargetKind::Magnet
+    } else if value.starts_with("http://") || value.starts_with("https://") {
+        TorrentTargetKind::Http
+    } else {
+        TorrentTargetKind::Unsupported
+    }
+}
+
+/// 用作临时种子文件名：去掉路径分隔符等非法字符，超长截断。
+fn sanitize_torrent_stem(raw: Option<&str>) -> String {
+    let mut stem = String::new();
+    for ch in raw.unwrap_or("").trim().chars().take(80) {
+        if ch.is_control() || matches!(ch, '\\' | '/' | ':' | '*' | '?' | '"' | '<' | '>' | '|') {
+            stem.push('_');
+        } else {
+            stem.push(ch);
+        }
+    }
+    let stem = stem.trim().trim_matches(|c| c == '.' || c == ' ').to_string();
+    if stem.is_empty() {
+        "torrent".to_string()
+    } else {
+        stem
+    }
+}
+
+fn torrent_temp_path(stem: &str) -> PathBuf {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    std::env::temp_dir()
+        .join("a-file-manager-torrents")
+        .join(format!("{stem}-{nanos}.torrent"))
+}
+
+fn download_torrent_to_temp(url: &str, title: Option<&str>) -> Result<PathBuf, String> {
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .timeout_global(Some(TORRENT_DOWNLOAD_TIMEOUT))
+        .build()
+        .into();
+    let mut response = agent
+        .get(url)
+        .call()
+        .map_err(|err| format!("下载种子失败: {err}"))?;
+    if let Some(content_type) = response
+        .headers()
+        .get("content-type")
+        .and_then(|value| value.to_str().ok())
+    {
+        if content_type.to_ascii_lowercase().contains("text/html") {
+            return Err("下载地址返回的是网页而不是种子文件（可能需要登录或 API Key）".to_string());
+        }
+    }
+    let bytes = response
+        .body_mut()
+        .with_config()
+        .limit(MAX_TORRENT_BYTES)
+        .read_to_vec()
+        .map_err(|err| format!("读取种子文件失败: {err}"))?;
+    if bytes.is_empty() {
+        return Err("种子文件为空".to_string());
+    }
+
+    let path = torrent_temp_path(&sanitize_torrent_stem(title));
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|err| format!("创建种子临时目录失败: {err}"))?;
+    }
+    std::fs::write(&path, bytes).map_err(|err| format!("写入种子文件失败: {err}"))?;
+    Ok(path)
+}
+
+fn torrent_failure(error: impl Into<String>) -> OpenWithResult {
+    OpenWithResult {
+        success: false,
+        error: Some(error.into()),
+    }
+}
+
+fn open_torrent_target_inner(url: String, title: Option<String>) -> OpenWithResult {
+    let target = url.trim();
+    match classify_torrent_target(target) {
+        TorrentTargetKind::Magnet => {
+            #[cfg(windows)]
+            {
+                // ShellExecute 的 "open" 会按 magnet: 协议关联启动默认下载器。
+                windows_impl::open_default(target)
+            }
+            #[cfg(not(windows))]
+            {
+                match tauri_plugin_opener::open_url(target, None::<&str>) {
+                    Ok(()) => OpenWithResult {
+                        success: true,
+                        error: None,
+                    },
+                    Err(err) => torrent_failure(format!("打开 magnet 失败: {err}")),
+                }
+            }
+        }
+        TorrentTargetKind::Http => {
+            let path = match download_torrent_to_temp(target, title.as_deref()) {
+                Ok(path) => path,
+                Err(err) => return torrent_failure(err),
+            };
+            // 复用本地文件默认关联（Windows ShellExecute / 其它平台 opener）。
+            open_path_default_inner(path.to_string_lossy().into_owned())
+        }
+        TorrentTargetKind::Unsupported => {
+            torrent_failure("只支持 magnet: 链接或 http(s) 种子下载地址")
+        }
+    }
+}
+
+/// Provider 结果（如 Prowlarr）投递到系统默认下载器。
+#[tauri::command]
+pub async fn open_torrent_target(url: String, title: Option<String>) -> OpenWithResult {
+    tauri::async_runtime::spawn_blocking(move || open_torrent_target_inner(url, title))
+        .await
+        .unwrap_or_else(|err| torrent_failure(format!("open_torrent_target worker failed: {err}")))
 }
 
 /// 用系统资源管理器打开回收站（`shell:RecycleBinFolder`），避免 AFM 内慢路径枚举。
@@ -344,5 +482,35 @@ mod tests {
         }
         #[cfg(not(windows))]
         assert!(!result.success);
+    }
+
+    #[test]
+    fn torrent_target_kind_detects_magnet_and_http() {
+        assert_eq!(
+            classify_torrent_target("  MAGNET:?xt=urn:btih:abc "),
+            TorrentTargetKind::Magnet
+        );
+        assert_eq!(
+            classify_torrent_target("https://indexer.example/download/1.torrent"),
+            TorrentTargetKind::Http
+        );
+        assert_eq!(classify_torrent_target("ftp://x/y"), TorrentTargetKind::Unsupported);
+    }
+
+    #[test]
+    fn torrent_stem_is_safe_and_non_empty() {
+        assert_eq!(
+            sanitize_torrent_stem(Some(r"Ubuntu 24.04:desktop?<>.torrent")),
+            "Ubuntu 24.04_desktop___.torrent"
+        );
+        assert_eq!(sanitize_torrent_stem(None), "torrent");
+        assert_eq!(sanitize_torrent_stem(Some("  ...  ")), "torrent");
+    }
+
+    #[test]
+    fn torrent_temp_path_keeps_torrent_extension() {
+        let path = torrent_temp_path("demo");
+        assert!(path.to_string_lossy().ends_with(".torrent"));
+        assert!(path.file_name().unwrap().to_string_lossy().starts_with("demo-"));
     }
 }
