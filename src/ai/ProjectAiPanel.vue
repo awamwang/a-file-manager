@@ -51,8 +51,8 @@ const deployedMcpSet = computed(() => new Set(deployments.value.mcpIds));
 const deployedSkillSet = computed(() => new Set(deployments.value.skillNames));
 
 /**
- * 已添加（启用）优先；用原始下标兜底，避免依赖运行时排序稳定性，
- * 也保证筛选结果在切换勾选前后只有「上移 / 下移」，组内次序不变。
+ * 已添加（启用）优先；用原始下标兜底，避免依赖运行时排序稳定性，组内次序不变。
+ * 仅在「未输入筛选词」的默认浏览下使用；正在筛选时保持目录原序，避免勾选中间项时整列跳序。
  */
 function addedFirst<T>(items: T[], isAdded: (item: T) => boolean): T[] {
   return items
@@ -73,12 +73,14 @@ const filteredMcp = computed(() => {
 
 const filteredSkills = computed(() => {
   const q = skillFilter.value.trim().toLowerCase();
-  const matched = q
-    ? skills.value.filter(
-        (s) => s.name.toLowerCase().includes(q) || s.path.toLowerCase().includes(q),
-      )
-    : [...skills.value];
-  return addedFirst(matched, (s) => deployedSkillSet.value.has(s.name));
+  if (!q) {
+    // 默认浏览：已添加置顶，组内保持目录原序。
+    return addedFirst([...skills.value], (s) => deployedSkillSet.value.has(s.name));
+  }
+  // 正在筛选：命中项保持目录原序，勾选中项时就地切换、不再顶到最前打乱筛选视图。
+  return skills.value.filter(
+    (s) => s.name.toLowerCase().includes(q) || s.path.toLowerCase().includes(q),
+  );
 });
 
 function mapError(err: unknown): string {
