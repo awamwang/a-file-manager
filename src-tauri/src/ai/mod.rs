@@ -15,6 +15,7 @@
 //! - A8: open Project Workspace in IDE (Cursor dir / Qoder CONTEXT.md)
 
 mod agents;
+mod agent_paths;
 mod deploy;
 mod harness;
 mod harvest;
@@ -35,8 +36,8 @@ use tauri::AppHandle;
 use tauri::Manager;
 
 /// Stable section ids for the AI main menu shell (UI + future IPC).
-/// Order: Providers → MCP → Skills → Agents → Harness (AIA-263 left nav).
-pub const AI_MENU_SECTION_IDS: &[&str] = &["providers", "mcp", "skills", "agents", "harness"];
+/// Order: Providers → Agents → MCP → Skills → Harness (AIA-263 left nav).
+pub const AI_MENU_SECTION_IDS: &[&str] = &["providers", "agents", "mcp", "skills", "harness"];
 
 pub const AI_ADDON_SHELL_VERSION: u32 = 8;
 
@@ -64,7 +65,7 @@ fn config_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
 }
 
 fn section_ready(id: &str) -> bool {
-    matches!(id, "providers" | "mcp" | "skills" | "agents" | "harness")
+    matches!(id, "providers" | "agents" | "mcp" | "skills" | "harness")
 }
 
 /// Shell probe for the AI main menu.

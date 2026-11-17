@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /** AI Add-on front-end types (AIA-214 / A1 · AIA-215 / A2 · AIA-263). Core FM must not import these for Workspace ops. */
 
-export type AiMenuSectionId = "providers" | "mcp" | "skills" | "agents" | "harness";
+export type AiMenuSectionId = "providers" | "agents" | "mcp" | "skills" | "harness";
 
 export type AiMenuSectionStatus = {
   id: AiMenuSectionId | string;

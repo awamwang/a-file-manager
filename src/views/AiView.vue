@@ -2,7 +2,7 @@
 <script setup lang="ts">
 /**
  * AIA-214 / A1 + AIA-215 / A2 + AIA-263 — AI Add-on settings shell.
- * Left nav (Settings-style) separates Providers / MCP / Skills / Agents / Harness.
+ * Left nav (Settings-style) separates Providers / Agents / MCP / Skills / Harness.
  */
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
