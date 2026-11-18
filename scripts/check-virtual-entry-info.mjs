@@ -69,7 +69,11 @@ for (const glyph of [
 }
 
 // Preview: virtual branch runs BEFORE the local preview_load IPC call.
-assert.ok(preview.includes("import {\n  isVirtualEntryPath,"));
+// 不绑定具体换行：Windows checkout 可能是 CRLF，字面量 "\n" 会误杀。
+assert.ok(
+  /import\s*\{[^}]*\bisVirtualEntryPath\b/.test(preview),
+  "PreviewPane imports isVirtualEntryPath",
+);
 assert.ok(preview.includes("virtualInfo.value = virtualEntryInfo(path, props.entry"));
 assert.ok(
   preview.indexOf("isVirtualEntryPath(path)") <
