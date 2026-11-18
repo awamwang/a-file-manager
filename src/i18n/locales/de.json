@@ -1229,10 +1229,11 @@
     "error": {
       "busy": "Eine Sprachaufnahme ist bereits aktiv",
       "noDevice": "Kein Mikrofon gefunden",
-      "permission": "Mikrofonzugriff ist blockiert",
+      "permission": "Mikrofonzugriff ist blockiert — unter Windows über Einstellungen → Datenschutz und Sicherheit → Mikrofon aktivieren",
       "notConfigured": "Sprache-zu-Text ist noch nicht konfiguriert (Einstellungen → Suche → Spracheingabe)",
       "empty": "Keine Sprache erkannt — bitte erneut versuchen",
-      "noAudio": "Keine Audiodaten vom Mikrofon aufgenommen — Windows-Datenschutzeinstellungen für das Mikrofon und das Standardeingabegerät prüfen",
+      "noAudio": "Das Mikrofon lieferte keine Audiodaten — prüfen, ob das Eingabegerät aktiviert und nicht exklusiv von einer anderen App belegt ist",
+      "noSpeech": "Audio aufgenommen, aber keine Sprache erkannt — prüfen, ob das Mikrofon stummgeschaltet ist, und erneut versuchen",
       "network": "Transkriptionsdienst nicht erreichbar",
       "unauthorized": "Transkriptionsdienst hat den API-Schlüssel abgelehnt",
       "server": "Fehler des Transkriptionsdiensts"

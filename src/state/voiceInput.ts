@@ -142,6 +142,8 @@ export function voiceErrorMessageKey(code: string): string {
       return "voice.error.empty";
     case "no-audio":
       return "voice.error.noAudio";
+    case "no-speech":
+      return "voice.error.noSpeech";
     case "network":
       return "voice.error.network";
     case "unauthorized":

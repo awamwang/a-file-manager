@@ -47,8 +47,11 @@ scripts/check-voice-input.mjs     跨层接线门禁（test:voice-input）
    no-op——前端 `togglePaletteVoice` / `stopSelfTest` 在该阶段不动作，等待结果事件自然落地。
 3. **错误分发**：命令同步失败走 invoke 拒绝（前端 toast / selftest 内联回显）；上传等异步失败走
    `voice://error` 事件。错误码集固定为
-   `busy / no-device / permission / not-configured / empty / network / unauthorized / server`，
+   `busy / no-device / permission / not-configured / empty / no-audio / no-speech / network / unauthorized / server`，
    前端 `voiceErrorMessageKey` 一一映射 i18n 键；新增错误码必须同步 5 locale。
+   场景区分：`permission` = 开流前注册表预检 ConsentStore Deny（未授权，附设置路径）；
+   `no-device` = 无输入设备；`no-audio` = 开流成功但 1.5s 零采样死流（看门狗原子 take）；
+   `empty` = 误触过短（<0.3s）；`no-speech` = 录到音频但转写结果为空（多为麦克风静音）。
 4. **转写追加不替换**：palette 转写文本**追加**进 query（非空补一个空格），不自动触发搜索；
    selftest 结果只内联回显。
 5. **面板生命周期**：`power.voiceSearchAutoStart` 为真 → 面板打开自动起录；面板关闭（含 Esc、

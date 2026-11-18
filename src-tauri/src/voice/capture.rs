@@ -22,6 +22,71 @@ pub enum CaptureError {
     Permission(String),
 }
 
+// ---------------------------------------------------------------------------
+// Windows 麦克风隐私授权预检（CapabilityAccessManager ConsentStore）
+// ---------------------------------------------------------------------------
+
+/// 桌面（Win32）应用受两道系统开关控制：全局「麦克风访问」（HKLM 主键）
+/// 与「允许桌面应用访问麦克风」（HKCU NonPackaged 子键）。任一为 Deny
+/// 即判定未授权；键/值缺失（旧系统）不拦截，交给开流失败兜底。
+/// 非 Windows 平台恒返回 None（本应用不做系统级授权预检）。
+#[cfg(windows)]
+pub fn microphone_consent_denied() -> Option<String> {
+    use windows::core::{w, PCWSTR};
+    use windows::Win32::System::Registry::{
+        RegGetValueW, HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ,
+    };
+
+    fn denied(root: HKEY, subkey: PCWSTR) -> Option<bool> {
+        let mut buffer = [0u16; 16];
+        let mut size = (buffer.len() * 2) as u32;
+        let result = unsafe {
+            RegGetValueW(
+                root,
+                subkey,
+                w!("Value"),
+                RRF_RT_REG_SZ,
+                None,
+                Some(buffer.as_mut_ptr().cast()),
+                Some(&mut size),
+            )
+        };
+        if result.0 != 0 {
+            return None;
+        }
+        let chars = ((size as usize) / 2).min(buffer.len());
+        let text = String::from_utf16_lossy(&buffer[..chars]);
+        Some(text.trim_end_matches('\0').trim().eq_ignore_ascii_case("deny"))
+    }
+
+    if denied(
+        HKEY_LOCAL_MACHINE,
+        w!(r"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone"),
+    ) == Some(true)
+    {
+        return Some(
+            "microphone access is disabled system-wide (Windows Settings → Privacy & security → Microphone)"
+                .to_string(),
+        );
+    }
+    if denied(
+        HKEY_CURRENT_USER,
+        w!(r"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone\NonPackaged"),
+    ) == Some(true)
+    {
+        return Some(
+            "desktop apps are not allowed to access the microphone (Windows Settings → Privacy & security → Microphone → Let desktop apps access your microphone)"
+                .to_string(),
+        );
+    }
+    None
+}
+
+#[cfg(not(windows))]
+pub fn microphone_consent_denied() -> Option<String> {
+    None
+}
+
 fn stream_error(error: cpal::StreamError) {
     eprintln!("voice capture stream error: {error}");
 }
@@ -178,6 +243,12 @@ impl CaptureError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn consent_check_smoke() {
+        // 查询路径可执行且不 panic；返回值随系统授权状态而变，不断言。
+        let _ = microphone_consent_denied();
+    }
 
     #[test]
     fn push_mono_downmixes_stereo_and_caps_buffer() {

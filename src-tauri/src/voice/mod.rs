@@ -160,6 +160,11 @@ fn emit_error(app: &AppHandle, code: &str, source: &str, message: impl Into<Stri
 async fn start_session(app: &AppHandle, source: &str) -> Result<(), VoiceError> {
     // 快速失败：麦克风点下去立刻知道配置缺失，而不是录完才发现。
     engine::read_config(app)?;
+    // Windows 麦克风隐私预检：ConsentStore 任一 Deny 时 WASAPI 只给
+    // 死流或开流失败，直接报 permission（含设置路径），不浪费一次开流。
+    if let Some(detail) = capture::microphone_consent_denied() {
+        return Err(VoiceError::permission(detail));
+    }
     {
         let guard = SESSION.lock().map_err(|_| VoiceError::busy())?;
         if guard.is_some() {
@@ -310,6 +315,18 @@ async fn finalize(app: &AppHandle, cancel: bool) -> Result<(), VoiceError> {
         };
         match engine::transcribe(&config, &wav) {
             Ok(text) => {
+                // 录到音频但转写为空：多为麦克风静音或只收到环境音，
+                // 报 no-speech，与误触的 empty 区分。
+                if text.trim().is_empty() {
+                    emit_error(
+                        &handle,
+                        "no-speech",
+                        &source,
+                        "transcription returned no speech content",
+                    );
+                    emit_state(&handle, "idle", &source);
+                    return;
+                }
                 let _ = handle.emit(
                     TRANSCRIPT_EVENT,
                     VoiceTranscriptEvent {

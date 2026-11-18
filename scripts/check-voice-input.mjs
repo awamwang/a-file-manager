@@ -41,9 +41,14 @@ for (const event of ["voice://state", "voice://transcript", "voice://error"]) {
   assert.ok(voiceMod.includes(`"${event}"`), `voice event constant: ${event}`);
 }
 // Stable error codes consumed by the frontend i18n mapping.
-for (const code of ["busy", "no-device", "permission", "not-configured", "empty", "no-audio", "network", "unauthorized", "server"]) {
+for (const code of ["busy", "no-device", "permission", "not-configured", "empty", "no-audio", "no-speech", "network", "unauthorized", "server"]) {
   assert.ok(voiceMod.includes(`"${code}"`), `voice error code: ${code}`);
 }
+
+// Windows microphone consent pre-check: registry ConsentStore read before opening the device.
+const voiceCapture = read("src-tauri/src/voice/capture.rs");
+assert.ok(voiceCapture.includes("microphone_consent_denied"), "consent check entry point");
+assert.ok(voiceCapture.includes("CapabilityAccessManager"), "consent store registry path queried");
 
 const voiceEngine = read("src-tauri/src/voice/engine.rs");
 assert.ok(voiceEngine.includes("pub fn normalize_base_url"), "engine normalizes base URL");
@@ -195,6 +200,7 @@ const voiceI18nKeys = [
   "voice.error.notConfigured",
   "voice.error.empty",
   "voice.error.noAudio",
+  "voice.error.noSpeech",
   "voice.error.network",
   "voice.error.unauthorized",
   "voice.error.server",

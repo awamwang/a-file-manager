@@ -1229,10 +1229,11 @@
     "error": {
       "busy": "Un enregistrement vocal est déjà actif",
       "noDevice": "Aucun micro trouvé",
-      "permission": "L'accès au micro est bloqué",
+      "permission": "L’accès au micro est bloqué — activez-le dans Windows via Paramètres → Confidentialité et sécurité → Micro",
       "notConfigured": "La voix vers texte n'est pas encore configurée (Paramètres → Recherche → Saisie vocale)",
       "empty": "Aucune voix détectée — réessayez",
-      "noAudio": "Aucun son capté par le micro — vérifiez les paramètres de confidentialité du micro Windows et le périphérique d’entrée par défaut",
+      "noAudio": "Le micro n’a produit aucun son — vérifiez que le périphérique d’entrée est activé et non réservé par une autre application",
+      "noSpeech": "Audio enregistré mais aucune voix reconnue — vérifiez que le micro n’est pas en sourdine et réessayez",
       "network": "Service de transcription inaccessible",
       "unauthorized": "Le service de transcription a refusé la clé API",
       "server": "Erreur du service de transcription"

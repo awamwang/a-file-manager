@@ -1229,10 +1229,11 @@
     "error": {
       "busy": "A voice recording is already active",
       "noDevice": "No microphone found",
-      "permission": "Microphone access is blocked",
+      "permission": "Microphone access is blocked — enable it in Windows Settings → Privacy & security → Microphone",
       "notConfigured": "Speech-to-text is not configured yet (Settings → Search → Voice input)",
       "empty": "No speech detected — try again",
-      "noAudio": "No audio captured from the microphone — check Windows microphone privacy settings and the default input device",
+      "noAudio": "The microphone produced no audio — check the input device is enabled and not exclusive to another app",
+      "noSpeech": "Audio recorded but no speech recognized — check the microphone is not muted and try again",
       "network": "Transcription service unreachable",
       "unauthorized": "Transcription service rejected the API key",
       "server": "Transcription service error"
