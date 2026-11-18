@@ -408,7 +408,7 @@ function riskChipClass(risk: string): string {
         :class="status.reachable ? 'fluent-banner--success' : 'fluent-banner--warning'"
       >
         <span
-          class="fluent-chip status-chip"
+          class="fluent-chip fluent-chip--status status-chip"
           :class="status.reachable ? 'fluent-chip--ok' : 'fluent-chip--down'"
           >{{ status.reachable ? t("common.yes") : t("common.no") }}</span
         >
@@ -483,7 +483,7 @@ function riskChipClass(risk: string): string {
           >
             <div class="row-title">
               <strong class="name" :title="tool.name">{{ tool.name }}</strong>
-              <span class="fluent-chip status-chip fluent-chip--stub">{{ tool.kind }}</span>
+              <span class="fluent-chip fluent-chip--sm status-chip fluent-chip--stub">{{ tool.kind }}</span>
             </div>
             <span class="detail" :title="tool.description || tool.id">{{
               tool.description || tool.id
@@ -551,7 +551,7 @@ function riskChipClass(risk: string): string {
               selectedCapability.name
             }}</strong>
             <span
-              class="fluent-chip status-chip"
+              class="fluent-chip fluent-chip--status status-chip"
               :class="riskChipClass(selectedCapability.risk)"
             >
               {{ riskLabel(selectedCapability.risk) }}
@@ -667,7 +667,7 @@ function riskChipClass(risk: string): string {
   display: inline-flex;
   align-items: center;
   max-width: 100%;
-  min-height: var(--fluent-control-height-standard);
+  min-height: 22px;
   pointer-events: none;
   cursor: default;
   font-size: var(--fluent-font-size-caption);
