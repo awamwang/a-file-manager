@@ -100,7 +100,7 @@
     "newTab": "Neue Registerkarte",
     "newTabLater": "Neue Registerkarte folgt später",
     "path": "Pfad",
-    "pathPlaceholder": "Nativer OS-Pfad (Kernel) — Enter zum Öffnen",
+    "pathPlaceholder": "Ordnerpfad eingeben und mit Enter öffnen",
     "refreshHealth": "Health aktualisieren",
     "reloadWindow": "Fenster neu laden",
     "reloadWindowTitle": "Fenster neu laden — UI aktualisieren, Daten behalten",
@@ -253,7 +253,7 @@
       },
       "mcp": {
         "title": "Öffentliches MCP",
-        "body": "Gemeinsamer MCP-Katalog in APPDATA-AI-Konfiguration. Merge-Deploy schreibt nur afm__*-Schlüssel — kein Ganzdatei-Overwrite."
+        "body": "Die gemeinsame Tool-Liste liegt in der lokalen KI-Konfiguration. Beim Hinzufügen werden Einträge zusammengeführt, statt die ganze Datei zu überschreiben."
       },
       "skills": {
         "title": "Öffentliche Skills",
@@ -362,7 +362,7 @@
       "targetProject": "Zielprojekt"
     },
     "mcp": {
-      "mergeHint": "Katalog nur in APPDATA. Deploy mergt afm__<id> in aktivierte Agent-MCP-JSON-Dateien.",
+      "mergeHint": "Die Liste wird lokal gespeichert. Die globale Einrichtung führt sie mit aktivierten Tools zusammen; für Projekte wird die Tool-Auswahl des Projekts verwendet. Verwaltete Einträge werden automatisch gepflegt.",
       "add": "Neuer Eintrag",
       "empty": "Noch keine MCP-Einträge.",
       "fieldName": "Anzeigename",
@@ -386,7 +386,7 @@
       "errorTargetInvalid": "MCP-Zielpfad / JSON ungültig",
       "errorImportInvalid": "MCP-Importdatei fehlt oder ungültig (mcpServers-Objekt nötig)",
       "addToProject": "Zum ausgewählten Projekt hinzufügen",
-      "confirmRemoveMessage": "Entfernt „{name}“ aus dem zentralen Katalog. Bereits an Agents geschriebene afm__*-Schlüssel werden nicht automatisch bereinigt.",
+      "confirmRemoveMessage": "Entfernt „{name}“ aus der gemeinsamen Liste. Bereits zu Tools hinzugefügte Einträge werden nicht automatisch bereinigt.",
       "confirmRemoveTitle": "MCP aus dem Katalog entfernen?",
       "deployGlobal": "Global bereitstellen",
       "errorPickProject": "Zuerst ein Zielprojekt auswählen",
@@ -553,17 +553,17 @@
     "fsHooksMeta": "Nur Metadaten — ProviderRegistry bleibt die FS-Autorität.",
     "hostPrefix": "ExtensionHost {version}",
     "hostStatus": "Host-Status",
-    "installDemo": "Lokale Demo installieren (vNext)",
+    "installDemo": "Beispiel lokal installieren",
     "installed": "Installiert",
     "marketplace": "Marktplatz",
     "marketplaceFlags": "Marktplatz leer: {empty} · Remote-Abruf: {remote}",
-    "marketplacePolicy": "Legacy-Marktplatzpakete werden abgelehnt (apiVersion vnext.1 erforderlich). Keine Remote-Registry wird kontaktiert.",
+    "marketplacePolicy": "Ältere Erweiterungspakete werden nicht unterstützt. Erweiterungen werden nur aus lokalen Dateien installiert; es wird nichts automatisch heruntergeladen.",
     "meta": "Optionale Erweiterungen für zusätzliche Quellen und Befehle",
     "noHooks": "Keine Hooks registriert",
     "noInstalled": "Keine Erweiterungen installiert.",
     "noticeHelloFail": "Befehl fehlgeschlagen: {error}",
     "noticeHelloOk": "Befehl hello auf {id} ok",
-    "noticeInstalled": "{id} installiert (vNext lokaler Stub)",
+    "noticeInstalled": "{id} installiert (Beispielerweiterung)",
     "noticeUninstalled": "{id} deinstalliert",
     "registered": "(registriert {value})",
     "runHello": "hello ausführen",
@@ -593,7 +593,7 @@
     "noticePackDisabled": "{id} deaktiviert. Seitenleiste aktualisiert.",
     "noticePackUninstalled": "{id} deinstalliert. Seitenleiste aktualisiert.",
     "reloadHint": "Aktivieren oder Deaktivieren eines Packs aktualisiert Seitenleiste und Routen automatisch.",
-    "demoTitle": "vNext-Demoerweiterungen",
+    "demoTitle": "Beispielerweiterungen",
     "demoMeta": "In-Memory-Demo-Host — getrennt von Feature Packs. Kein Store."
   },
   "health": {
@@ -846,7 +846,7 @@
     "gatewayUrlSaving": "Speichern…",
     "refresh": "Aktualisieren",
     "refreshing": "Aktualisieren…",
-    "interfaceOnly": "nur Schnittstelle",
+    "interfaceOnly": "Nur Vorschau",
     "list": "Auflisten",
     "listing": "Liste wird geladen…",
     "meta": "Cloud- und virtuelle Ordner neben lokalen Laufwerken",
@@ -919,7 +919,7 @@
           "title": "Listendichte"
         },
         "showHidden": {
-          "description": "Versteckte Dateien/Ordner in Kernel-Listen einbeziehen",
+          "description": "Versteckte Dateien und Ordner in Dateilisten anzeigen",
           "title": "Versteckte Elemente anzeigen"
         },
         "theme": {
@@ -1085,7 +1085,7 @@
         },
         "awamKnowledgeServiceUrl": {
           "title": "awam-knowledge-Dienst-URL",
-          "description": "HTTP-Basis-URL des Wissen/Secret-Dienstes (Standard http://127.0.0.1:18790). Genutzt von der Wissensquelle der Palette (ADR 0016)."
+          "description": "Adresse des Wissensdienstes (Standard http://127.0.0.1:18790), verwendet von der Quelle „Wissen“ in der Suchpalette."
         },
         "awamKnowledgeServiceToken": {
           "title": "awam-knowledge-Dienst-Token",
@@ -1127,7 +1127,7 @@
       "probeTitle": "Discovery-Probe",
       "probeMeta": "Enginestatus, Ordnerausschlüsse und eine einmalige Testsuche — nicht der tägliche Haupteinstieg.",
       "knowledgeTitle": "Knowledge-Dienst (Inhalte & Secrets)",
-      "knowledgeMeta": "Der awam-knowledge-HTTP-Dienst hinter der Knowledge-Quelle der Suchpalette (Alt+7) — durchsucht Notizinhalte und Secret-Einträge (ADR 0016).",
+      "knowledgeMeta": "Der Wissensdienst hinter der Quelle „Wissen“ der Suchpalette (Alt+7) — durchsucht Notizinhalte und gespeicherte Einträge.",
       "knowledgeStatusOnlineVault": "Verbunden · Vault-Kanal konfiguriert",
       "knowledgeStatusOnlineNoVault": "Verbunden · Vault-Kanal nicht konfiguriert",
       "knowledgeStatusOffline": "Offline · Dienst läuft nicht oder URL/Token falsch",
@@ -1339,7 +1339,7 @@
     "newFolder": "Neuer Ordner",
     "copyPath": "Pfad kopieren",
     "delete": "Löschen",
-    "deleteStub": "Löschen ist im Kernel noch nicht angebunden.",
+    "deleteStub": "Löschen ist hier noch nicht verfügbar.",
     "copiedPath": "Pfad kopiert",
     "copied": "In die Zwischenablage kopiert",
     "cutDone": "In die Zwischenablage ausgeschnitten",
@@ -1619,4 +1619,166 @@
     "authorTitle": "Autor",
     "authorLabel": "Entwickelt von"
   }
+,
+    "help": {
+      "navLabel": "Hilfe",
+      "title": "Hilfe & Anleitung",
+      "meta": "Nachlesen, wie eine Funktion arbeitet, kurze Hinweise lesen oder eine Schritt-für-Schritt-Demo erneut abspielen.",
+      "browseTitle": "Nach Aufgabe sortiert",
+      "browseMeta": "Wählen Sie eine Funktion, um Hilfetext, Hinweis oder Demo zu sehen.",
+      "quickStartTitle": "Schnellstart",
+      "category": {
+        "browse": "Durchsuchen & finden",
+        "organize": "Arbeit organisieren",
+        "connect": "Verbinden & erweitern",
+        "ai": "KI-Funktionen"
+      },
+      "hintLabel": "Einstiegshinweis",
+    "hintDismiss": "Verstanden",
+      "articleLabel": "Hilfeartikel",
+      "tourLabel": "Geführte Demonstration",
+      "replay": "Demonstration erneut abspielen",
+      "replayHint": "Das erneute Abspielen verändert keinen gespeicherten Fortschritt.",
+      "noTour": "Für diese Funktion gibt es noch keine Demonstration.",
+      "openEntry": "Hilfe zu dieser Funktion öffnen",
+      "reset": "Gesamten Einstiegsfortschritt zurücksetzen",
+      "resetTitle": "Einstiegsfortschritt zurücksetzen",
+      "resetConfirm": "Gesamten Einstiegsfortschritt zurücksetzen?",
+      "resetHint": "Es wird nur gelöscht, welche Hinweise und Demos Sie gesehen haben. Dateien und Einstellungen bleiben unverändert.",
+      "resetCancel": "Abbrechen",
+      "resetConfirmYes": "Fortschritt zurücksetzen",
+      "resetDone": "Der Einstiegsfortschritt wurde zurückgesetzt.",
+      "entries": {
+        "navigator": {
+          "title": "Dateien durchsuchen",
+          "hint": "Hier öffnen Sie Ordner und Dateien. Über die Pfadleiste springen Sie zu einem Ort, über das Sterne-Menü kehren Sie zu häufig genutzten Ordnern zurück."
+        },
+        "search": {
+          "title": "Einheitliche Suche",
+          "hint": "Die Suche durchsucht Dateien, Ordner und weitere Inhalte gleichzeitig. Quellfilter grenzen die Ergebnisse ein."
+        },
+        "workGroups": {
+          "title": "Arbeitsgruppen",
+          "hint": "Eine Arbeitsgruppe bündelt die Ordner zu einer Aufgabe. Beim Wechseln sind alle diese Orte wieder verfügbar."
+        },
+        "projects": {
+          "title": "Projekte",
+          "hint": "Ein Projekt enthält Ordner, Links und Aufgaben zu einer laufenden Arbeit an einem Ort."
+        },
+        "providers": {
+          "title": "Providers (Verbindungen)",
+          "hint": "Mit Providers durchsuchen Sie Orte außerhalb dieses Computers, etwa Cloud-Speicher, wie normale Ordner."
+        },
+        "ai": {
+          "title": "KI-Funktionen",
+          "hint": "KI-Funktionen sind optional und nur in KI-Builds vorhanden. Ohne sie lässt sich die App vollständig nutzen."
+        }
+      }
+    },
+    "tour": {
+      "step": "Schritt {current} von {total}",
+      "skip": "Überspringen",
+      "previous": "Zurück",
+      "next": "Weiter",
+      "finish": "Fertig",
+      "clickTarget": "Hervorgehobenen Bereich anklicken",
+      "quickStart": {
+        "browse": {
+          "title": "Beginnen Sie mit Ihren Dateien",
+          "body": "Diese Liste zeigt den Inhalt des aktuellen Ordners. Ein Doppelklick öffnet einen Ordner."
+        },
+        "search": {
+          "title": "Schnell etwas finden",
+          "body": "Diese Schaltfläche öffnet die einheitliche Suche. Wenige Buchstaben genügen."
+        },
+        "tags": {
+          "title": "Häufige Orte griffbereit",
+          "body": "Das Sterne-Menü sammelt kürzlich besuchte und favorisierte Orte – ähnlich wie Labels."
+        }
+      },
+      "navigator": {
+        "list": {
+          "title": "Die Dateiliste",
+          "body": "Wählen Sie hier eine Datei für Details oder öffnen Sie sie per Doppelklick. Spaltenüberschriften sortieren die Liste."
+        },
+        "path": {
+          "title": "Aktueller Ort",
+          "body": "Diese Zeile zeigt den aktuellen Ordner. Klicken Sie oben auf die Pfadleiste, um einen anderen Ort einzugeben."
+        },
+        "help": {
+          "title": "Hilfe ist immer dabei",
+          "body": "Über dieses Fragezeichen öffnen Sie jederzeit diese Erklärungen. Klicken Sie jetzt darauf."
+        }
+      },
+      "search": {
+        "open": {
+          "title": "Eine Suche für alles",
+          "body": "Diese Schaltfläche öffnet die Suche. Das Tastenkürzel steht in der Hinweisanzeige."
+        },
+        "input": {
+          "title": "Geben Sie ein, woran Sie sich erinnern",
+          "body": "Ein Teil des Namens reicht. Klicken Sie hier und beginnen Sie zu tippen."
+        },
+        "scopes": {
+          "title": "Suchbereich wählen",
+          "body": "Diese Filter legen fest, welche Quellen durchsucht werden. Unerwünschte Quellen einfach ausschalten."
+        }
+      },
+      "workGroups": {
+        "header": {
+          "title": "Was ist eine Arbeitsgruppe?",
+          "body": "Sie bündelt zusammengehörige Ordner, etwa alles zu einem Kunden."
+        },
+        "list": {
+          "title": "Ihre Arbeitsgruppen",
+          "body": "Wählen Sie links eine Gruppe, um ihre Ordner zu laden. Ziehen ändert die Reihenfolge."
+        },
+        "group": {
+          "title": "Gruppe wechseln",
+          "body": "Ein Klick aktiviert die Gruppe und zeigt rechts ihre Ordner. Klicken Sie jetzt auf die markierte Gruppe."
+        }
+      },
+      "projects": {
+        "header": {
+          "title": "Was ist ein Projekt?",
+          "body": "Ein Projekt vereint Ordner, Links und Aufgaben zu einer Sache."
+        },
+        "list": {
+          "title": "Ihre Projekte",
+          "body": "Wählen Sie links ein Projekt für die Details. Ziehen ändert die Reihenfolge."
+        },
+        "group": {
+          "title": "Projekt öffnen",
+          "body": "Ein Klick lädt die Arbeitsordner und Aufgaben des Projekts. Klicken Sie jetzt auf das markierte Projekt."
+        }
+      },
+      "providers": {
+        "gateway": {
+          "title": "Dienst verbinden",
+          "body": "Geben Sie hier die Adresse des Dienstes ein und speichern Sie sie. „Aktualisieren“ prüft die Verbindung."
+        },
+        "backends": {
+          "title": "Verfügbare Orte",
+          "body": "Diese Karten sind die durchsuchbaren Dienste. Ein Klick öffnet sie wie einen lokalen Ordner."
+        },
+        "refresh": {
+          "title": "Verbindung prüfen",
+          "body": "Wenn ein Dienst nicht erreichbar wirkt, klicken Sie auf „Aktualisieren“. Dabei werden keine Dateien geändert. Klicken Sie jetzt."
+        }
+      },
+      "ai": {
+        "header": {
+          "title": "Optionale KI-Funktionen",
+          "body": "Diese Seite gibt es nur in KI-Builds. Core-Builds zeigen keine KI-Optionen."
+        },
+        "nav": {
+          "title": "Bereich wählen",
+          "body": "Jeder Bereich links fasst eine KI-Funktion und ihre Einstellungen zusammen."
+        },
+        "panel": {
+          "title": "Erst lesen, dann einstellen",
+          "body": "Die Beschreibung erklärt die gewählte Funktion und die benötigten Dienste."
+        }
+      }
+    }
 }

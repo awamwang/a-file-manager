@@ -43,6 +43,8 @@ import { isProviderPath } from "../state/provider";
 import { restoreRecyclePaths } from "../state/recycle";
 import NavigatorGuide from "../components/navigator/NavigatorGuide.vue";
 import ProviderErrorBanner from "../components/common/ProviderErrorBanner.vue";
+import HelpLink from "../help/components/HelpLink.vue";
+import HintBubble from "../help/components/HintBubble.vue";
 import { hydrateSettings } from "../state/settingsHydrate";
 import {
   cancelShellIconRequests,
@@ -2427,7 +2429,8 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
       :open-path="(path) => navigateTo(path)"
     />
     <div v-if="listSurfaceMounted" v-show="!showingGuide" class="pane-list-surface">
-    <p class="pane-path" :title="currentPath">{{ currentPath || t("navigator.noPath") }}</p>
+    <p class="pane-path" data-tour-id="tour-navigator-path" :title="currentPath">{{ currentPath || t("navigator.noPath") }}</p>
+    <HelpLink entry-id="navigator" tour data-tour-id="tour-navigator-help" />
     <ProviderErrorBanner v-if="listError && !listLoading" :error="listError" />
     <p v-else-if="folderSearchActive && primarySearchLoading" class="fluent-banner">
       {{ t("navigator.filterSearching") }}
@@ -2451,6 +2454,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
     <div
       v-if="listing || listLoading"
       ref="listRoot"
+      data-tour-id="tour-navigator-list"
       class="fluent-surface list"
       :class="{
         'list--details': isDetailsView,
@@ -2848,6 +2852,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
       @close="closeProperties"
       @attributes-changed="refreshListing"
     />
+    <HintBubble entry-id="navigator" />
   </section>
 </template>
 

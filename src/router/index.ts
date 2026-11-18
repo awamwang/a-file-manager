@@ -20,6 +20,11 @@ const routes: RouteRecordRaw[] = [
   },
   { path: "/navigator", name: "navigator", component: NavigatorView },
   {
+    path: "/help",
+    name: "help",
+    component: () => import("../views/HelpView.vue"),
+  },
+  {
     path: "/providers",
     name: "providers",
     component: () => import("../views/ProvidersView.vue"),

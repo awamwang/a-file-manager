@@ -64,6 +64,14 @@ Notes:
 
 - Fill in the PR template; link the issue you are addressing.
 - Include before/after screenshots or a short recording for user-visible UI changes.
+- For a new or changed user-visible feature, register it in `src/help/registry.ts`
+  (help article, getting-started hint and, where useful, guided tour) so the
+  Help & Guidance hub can discover it.
+- Put all user-facing copy in i18n under `help.*` / `tour.*` (or the existing
+  namespace) and add a real translation to **all five locales**: `en`, `zh-CN`,
+  `ja`, `de`, `fr`. Never leave a locale falling back to English.
+- Prefer user language over developer terms (no internal IDs, ADR numbers or
+  code names in descriptions, hints, tooltips or confirmations).
 - Ensure CI is green. A maintainer will review and squash-merge when ready.
 
 ## Reporting bugs & requesting features

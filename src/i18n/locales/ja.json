@@ -100,7 +100,7 @@
     "newTab": "新しいタブ",
     "newTabLater": "新しいタブは後日対応",
     "path": "パス",
-    "pathPlaceholder": "ネイティブ OS パス（カーネル）— Enter で移動",
+    "pathPlaceholder": "フォルダーのパスを入力し、Enter で移動",
     "refreshHealth": "ヘルスを更新",
     "reloadWindow": "ウィンドウの再読み込み",
     "reloadWindowTitle": "ウィンドウの再読み込み — UI を更新しデータを保持",
@@ -253,7 +253,7 @@
       },
       "mcp": {
         "title": "共有 MCP",
-        "body": "APPDATA AI 設定の共有 MCP カタログ。マージ配備は afm__* キーのみ（ファイル全体の上書き禁止）。"
+        "body": "共有ツール一覧はローカルの AI 設定に保存されます。追加時はマージされ、設定ファイル全体は上書きされません。"
       },
       "skills": {
         "title": "共有 Skills",
@@ -362,7 +362,7 @@
       "targetProject": "対象プロジェクト"
     },
     "mcp": {
-      "mergeHint": "カタログは APPDATA のみ。有効な Agent の MCP JSON に afm__<id> をマージします。",
+      "mergeHint": "一覧はローカルに保存されます。全体に追加すると有効なツールへマージされ、プロジェクトへの追加ではそのプロジェクトのツール設定に書き込まれます。管理対象の項目は自動で維持されます。",
       "add": "新規",
       "empty": "MCP エントリはまだありません。",
       "fieldName": "表示名",
@@ -386,7 +386,7 @@
       "errorTargetInvalid": "MCP 対象パス / JSON が無効",
       "errorImportInvalid": "MCP インポートファイルが無い、または無効（mcpServers オブジェクトが必要）",
       "addToProject": "選択したプロジェクトに追加",
-      "confirmRemoveMessage": "中央カタログから「{name}」を削除します。エージェントへ書き込み済みの afm__* キーは自動的にクリーンアップされません。",
+      "confirmRemoveMessage": "共有一覧から「{name}」を削除します。各ツールへ追加済みの項目は自動では削除されません。",
       "confirmRemoveTitle": "カタログから MCP を削除しますか？",
       "deployGlobal": "グローバルに配布",
       "errorPickProject": "先に対象プロジェクトを選択してください",
@@ -553,17 +553,17 @@
     "fsHooksMeta": "メタデータのみ — FS の権威は ProviderRegistry のままです。",
     "hostPrefix": "ExtensionHost {version}",
     "hostStatus": "ホスト状態",
-    "installDemo": "ローカルデモをインストール（vNext）",
+    "installDemo": "サンプルをローカルにインストール",
     "installed": "インストール済み",
     "marketplace": "マーケット",
     "marketplaceFlags": "マーケット空: {empty} · リモート取得: {remote}",
-    "marketplacePolicy": "レガシーマーケットパッケージは拒否されます（apiVersion vnext.1 が必要）。リモートレジストリには接続しません。",
+    "marketplacePolicy": "古い形式の拡張パッケージは使用できません。拡張はローカル ファイルからのみインストールされ、自動ダウンロードは行われません。",
     "meta": "追加のファイル源やコマンド向けのオプション拡張",
     "noHooks": "フックは登録されていません",
     "noInstalled": "拡張機能はインストールされていません。",
     "noticeHelloFail": "コマンド失敗: {error}",
     "noticeHelloOk": "{id} でコマンド hello 成功",
-    "noticeInstalled": "{id} をインストールしました（vNext ローカルスタブ）",
+    "noticeInstalled": "{id} をインストールしました（サンプル拡張）",
     "noticeUninstalled": "{id} をアンインストールしました",
     "registered": "（登録済み {value}）",
     "runHello": "hello を実行",
@@ -593,7 +593,7 @@
     "noticePackDisabled": "{id} を無効にしました。サイドナビを更新しました。",
     "noticePackUninstalled": "{id} をアンインストールしました。サイドナビを更新しました。",
     "reloadHint": "Pack の有効/無効切替でサイドナビとルートが自動更新されます。",
-    "demoTitle": "vNext デモ拡張",
+    "demoTitle": "サンプル拡張",
     "demoMeta": "メモリ上のデモホスト — Feature Pack とは別です。ストアではありません。"
   },
   "health": {
@@ -846,7 +846,7 @@
     "gatewayUrlSaving": "保存中…",
     "refresh": "更新",
     "refreshing": "更新中…",
-    "interfaceOnly": "インターフェースのみ",
+    "interfaceOnly": "プレビューのみ",
     "list": "一覧",
     "listing": "一覧取得中…",
     "meta": "クラウドや仮想フォルダーをローカルと並べて閲覧",
@@ -919,7 +919,7 @@
           "title": "一覧の密度"
         },
         "showHidden": {
-          "description": "カーネル一覧に隠しファイル/フォルダーを含める",
+          "description": "ファイル一覧に隠しファイルとフォルダーを表示する",
           "title": "隠し項目を表示"
         },
         "theme": {
@@ -1085,7 +1085,7 @@
         },
         "awamKnowledgeServiceUrl": {
           "title": "awam-knowledge サービス URL",
-          "description": "ナレッジ・コンテンツ/シークレットサービスの HTTP ベース URL（既定 http://127.0.0.1:18790）。検索パレットのナレッジソースで使用（ADR 0016）。"
+          "description": "ナレッジ サービスのアドレス（既定 http://127.0.0.1:18790）。検索パレットのナレッジソースで使用します。"
         },
         "awamKnowledgeServiceToken": {
           "title": "awam-knowledge サービストークン",
@@ -1127,7 +1127,7 @@
       "probeTitle": "Discovery 検証",
       "probeMeta": "エンジン状態・除外フォルダーと一度きりの試行検索 — 日常の主入口ではありません。",
       "knowledgeTitle": "ナレッジサービス（コンテンツとシークレット）",
-      "knowledgeMeta": "検索パレットの知識ソース（Alt+7）を支える awam-knowledge HTTP サービス——ノート本文とシークレット項目を検索します（ADR 0016）。",
+      "knowledgeMeta": "検索パレットの知識ソース（Alt+7）が使うナレッジ サービスです。ノート本文と保存済みの項目を検索します。",
       "knowledgeStatusOnlineVault": "接続済み · シークレットチャネル設定済み",
       "knowledgeStatusOnlineNoVault": "接続済み · シークレットチャネル未設定",
       "knowledgeStatusOffline": "未接続 · サービス未起動、または URL/トークン不一致",
@@ -1338,7 +1338,7 @@
     "newFolder": "新しいフォルダー",
     "copyPath": "パスをコピー",
     "delete": "削除",
-    "deleteStub": "カーネルに削除は未接続です。",
+    "deleteStub": "この場所ではまだ削除できません。",
     "copiedPath": "パスをコピーしました",
     "copied": "クリップボードにコピーしました",
     "cutDone": "クリップボードに切り取りました",
@@ -1619,4 +1619,166 @@
     "authorTitle": "作者",
     "authorLabel": "開発者"
   }
+,
+    "help": {
+      "navLabel": "ヘルプ",
+      "title": "ヘルプとガイダンス",
+      "meta": "機能の使い方を調べ、短いヒントを読み、手順つきのデモを再生できます。",
+      "browseTitle": "目的から探す",
+      "browseMeta": "下から機能を選ぶと、ヘルプ記事・ヒント・デモを確認できます。",
+      "quickStartTitle": "はじめての使い方",
+      "category": {
+        "browse": "参照と検索",
+        "organize": "作業の整理",
+        "connect": "接続と拡張",
+        "ai": "AI 機能"
+      },
+      "hintLabel": "はじめてのヒント",
+    "hintDismiss": "わかりました",
+      "articleLabel": "ヘルプ記事",
+      "tourLabel": "ガイド付き操作",
+      "replay": "この操作を再生",
+      "replayHint": "再生しても記録済みの進捗は変わりません。",
+      "noTour": "この機能の操作デモはまだありません。",
+      "openEntry": "この機能のヘルプを開く",
+      "reset": "すべての開始時進捗をリセット",
+      "resetTitle": "開始時進捗のリセット",
+      "resetConfirm": "すべての開始時進捗をリセットしますか？",
+      "resetHint": "表示済みのヒントとデモの記録だけを消します。ファイルや設定には影響しません。",
+      "resetCancel": "キャンセル",
+      "resetConfirmYes": "進捗をリセット",
+      "resetDone": "開始時進捗をリセットしました。",
+      "entries": {
+        "navigator": {
+          "title": "ファイルの参照",
+          "hint": "ここでフォルダーやファイルを開きます。パスバーで場所に移動し、星マークのメニューからよく使う場所に戻れます。"
+        },
+        "search": {
+          "title": "統合検索",
+          "hint": "検索はファイルやフォルダーなどをまとめて探します。ソースのタグで結果を絞り込めます。"
+        },
+        "workGroups": {
+          "title": "ワークグループ",
+          "hint": "ワークグループは一つの作業に関係するフォルダーをまとめます。切り替えるとそれらの場所が一度に戻ります。"
+        },
+        "projects": {
+          "title": "プロジェクト",
+          "hint": "プロジェクトは作業中の内容に関するフォルダー、リンク、タスクを一か所にまとめます。"
+        },
+        "providers": {
+          "title": "Providers（接続先）",
+          "hint": "Providers を使うと、クラウドなどの外部の場所を通常のフォルダーのように参照できます。"
+        },
+        "ai": {
+          "title": "AI 機能",
+          "hint": "AI 機能は任意で、AI ビルドにのみ表示されます。使わなくてもアプリはすべて利用できます。"
+        }
+      }
+    },
+    "tour": {
+      "step": "{total} ステップ中 {current}",
+      "skip": "スキップ",
+      "previous": "戻る",
+      "next": "次へ",
+      "finish": "完了",
+      "clickTarget": "ハイライト部分をクリック",
+      "quickStart": {
+        "browse": {
+          "title": "ファイルから始めましょう",
+          "body": "この一覧は現在のフォルダーの中身です。フォルダーをダブルクリックすると入ります。"
+        },
+        "search": {
+          "title": "すばやく探す",
+          "body": "このボタンで統合検索を開きます。数文字入力するだけで探せます。"
+        },
+        "tags": {
+          "title": "よく使う場所を近くに",
+          "body": "星マークのメニューには最近使った場所とお気に入りが並びます。ラベルのように使えます。"
+        }
+      },
+      "navigator": {
+        "list": {
+          "title": "ファイル一覧",
+          "body": "ここでファイルを選ぶと詳細が表示され、ダブルクリックで開きます。列見出しで並べ替えできます。"
+        },
+        "path": {
+          "title": "現在の場所",
+          "body": "この行に現在のフォルダーが表示されます。上のパスバーをクリックすると別の場所を入力できます。"
+        },
+        "help": {
+          "title": "ヘルプはいつでも近くに",
+          "body": "この疑問符をクリックすれば、いつでも説明を開けます。試しにクリックしてください。"
+        }
+      },
+      "search": {
+        "open": {
+          "title": "一か所で検索",
+          "body": "このボタンで検索パネルを開きます。ヒントに表示されるショートカットでも開けます。"
+        },
+        "input": {
+          "title": "覚えている一部を入力",
+          "body": "名前の一部だけで十分です。ここをクリックして入力を始めてください。"
+        },
+        "scopes": {
+          "title": "検索対象を選ぶ",
+          "body": "これらのタグで検索するソースを切り替えます。不要なタグをオフにすると結果が整理的になります。"
+        }
+      },
+      "workGroups": {
+        "header": {
+          "title": "ワークグループとは？",
+          "body": "一つの作業に関係するフォルダーをまとめたものです。顧客ごとの資料などに使えます。"
+        },
+        "list": {
+          "title": "ワークグループ一覧",
+          "body": "左でグループを選ぶとそのフォルダーが読み込まれます。ドラッグで並び替えもできます。"
+        },
+        "group": {
+          "title": "グループを切り替える",
+          "body": "グループをクリックすると有効になり、右側にフォルダーが表示されます。ハイライトをクリックしてください。"
+        }
+      },
+      "projects": {
+        "header": {
+          "title": "プロジェクトとは？",
+          "body": "作業中の内容に関するフォルダー、リンク、タスクをまとめたものです。"
+        },
+        "list": {
+          "title": "プロジェクト一覧",
+          "body": "左でプロジェクトを選ぶと詳細を表示します。ドラッグで並び替えられます。"
+        },
+        "group": {
+          "title": "プロジェクトを開く",
+          "body": "ここでプロジェクトをクリックすると作業フォルダーとタスクが読み込まれます。ハイライトをクリックしてください。"
+        }
+      },
+      "providers": {
+        "gateway": {
+          "title": "サービスを接続",
+          "body": "ここにサービスの URL を入力して保存し、「更新」で接続を確認します。"
+        },
+        "backends": {
+          "title": "利用できる場所",
+          "body": "これらのカードが参照できるサービスです。クリックするとローカルフォルダーのように開けます。"
+        },
+        "refresh": {
+          "title": "接続を確認",
+          "body": "サービスが使えない見え方のときは「更新」を押してください。状態を再確認するだけでファイルは変わりません。"
+        }
+      },
+      "ai": {
+        "header": {
+          "title": "任意の AI 機能",
+          "body": "このページは AI ビルドだけで表示されます。コア ビルドには AI 設定はありません。"
+        },
+        "nav": {
+          "title": "項目を選ぶ",
+          "body": "左の一覧は AI 機能ごとの設定です。"
+        },
+        "panel": {
+          "title": "設定の前に読む",
+          "body": "ここには選択した機能の用途と必要なサービスが説明されています。"
+        }
+      }
+    }
 }

@@ -22,6 +22,8 @@ import { openConfirmDialog } from "../state/confirmDialog";
 import { toastError, toastInfo, toastSuccess } from "../state/toast";
 import { createListPointerReorder } from "../state/listPointerReorder";
 import FluentIcon from "../components/icons/FluentIcon.vue";
+import HelpLink from "../help/components/HelpLink.vue";
+import HintBubble from "../help/components/HintBubble.vue";
 import type { FluentGlyphId } from "../components/icons/glyphs";
 import { AI_ADDON_ENABLED } from "../config/flavor";
 import { aiProjectOpenEditor } from "../ai";
@@ -1074,10 +1076,11 @@ onUnmounted(() => {
 
 <template>
   <section class="fluent-page">
-    <header class="fluent-page-header">
+    <header class="fluent-page-header" data-tour-id="tour-projects-header">
       <h1 class="fluent-page-title">{{ t("projects.title") }}</h1>
       <p class="fluent-page-meta">{{ t("projects.meta") }}</p>
       <p class="fluent-page-meta usage-hint">{{ t("projects.usageHint") }}</p>
+      <HelpLink entry-id="projects" tour />
     </header>
 
     <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
@@ -1086,6 +1089,7 @@ onUnmounted(() => {
     <div v-if="document" class="layout">
       <aside
         ref="masterListEl"
+        data-tour-id="tour-projects-list"
         class="master-list"
         :class="{ 'master-list--reordering': listDragMoved && listDragFromId != null }"
       >
@@ -1106,6 +1110,7 @@ onUnmounted(() => {
             }"
             role="button"
             tabindex="0"
+            data-tour-id="tour-projects-group"
             :data-list-item-id="project.id"
             :title="t('projects.dragReorderHint')"
             @pointerdown="onListPointerDown($event, project.id)"
@@ -1160,7 +1165,7 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <form class="create" @submit.prevent="createProject">
+        <form class="create" data-tour-id="tour-projects-create" @submit.prevent="createProject">
           <input
             v-model="newName"
             class="fluent-control"
@@ -1671,6 +1676,7 @@ onUnmounted(() => {
         </button>
       </div>
     </Teleport>
+    <HintBubble entry-id="projects" />
   </section>
 </template>
 

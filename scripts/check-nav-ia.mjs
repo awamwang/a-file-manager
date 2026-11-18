@@ -26,8 +26,9 @@ assert.deepEqual(
     "providers",
     "extensions",
     "settings",
+    "help",
   ],
-  "expected IA order: AI after Projects; Providers/Extensions; no top-level health or discovery",
+  "expected IA order: AI after Projects; Providers/Extensions; Help last; no top-level health or discovery",
 );
 assert.ok(
   sideNav.includes("export const SIDE_NAV_ITEMS"),

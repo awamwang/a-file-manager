@@ -26,6 +26,7 @@ const SIDE_NAV_ALL: SideNavItem[] = [
   { id: "providers", labelKey: "nav.providers", to: "/providers" },
   { id: "extensions", labelKey: "nav.extensions", to: "/extensions" },
   { id: "settings", labelKey: "nav.settings", to: "/settings" },
+  { id: "help", labelKey: "help.navLabel", to: "/help" },
 ];
 
 function builtinSideNavItems(): SideNavItem[] {

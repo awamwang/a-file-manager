@@ -5,6 +5,8 @@ import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
 import FluentIcon from "../components/icons/FluentIcon.vue";
+import HelpLink from "../help/components/HelpLink.vue";
+import HintBubble from "../help/components/HintBubble.vue";
 import ProviderErrorBanner from "../components/common/ProviderErrorBanner.vue";
 import { entryKindIcon } from "../components/icons/glyphs";
 import {
@@ -212,9 +214,10 @@ onMounted(() => {
 
 <template>
   <section class="fluent-page">
-    <header class="fluent-page-header">
+    <header class="fluent-page-header" data-tour-id="tour-providers-header">
       <h1 class="fluent-page-title">{{ t("providers.title") }}</h1>
       <p class="fluent-page-meta">{{ t("providers.meta") }}</p>
+      <HelpLink entry-id="providers" tour />
     </header>
 
     <p
@@ -233,7 +236,7 @@ onMounted(() => {
       }}</span>
     </p>
 
-    <form class="uri-row gateway-row" @submit.prevent="saveGatewayUrl">
+    <form class="uri-row gateway-row" data-tour-id="tour-providers-gateway" @submit.prevent="saveGatewayUrl">
       <label class="gateway-label" for="providers-gateway-url">{{
         t("providers.gatewayUrlLabel")
       }}</label>
@@ -255,6 +258,7 @@ onMounted(() => {
       </button>
       <button
         class="fluent-control gateway-refresh"
+        data-tour-id="tour-providers-refresh"
         type="button"
         :disabled="refreshing || gatewayUrlSaving || providerSessionHydrating"
         :title="t('providers.refresh')"
@@ -269,7 +273,7 @@ onMounted(() => {
     <p v-if="!backends.length" class="fluent-banner fluent-banner--info">
       {{ t("providers.emptyBackends") }}
     </p>
-    <div v-else class="backends">
+    <div v-else class="backends" data-tour-id="tour-providers-backends">
       <button
         v-for="backend in backends"
         :key="backend.id"
@@ -356,6 +360,7 @@ onMounted(() => {
         <span class="path">{{ entrySecondary(entry) }}</span>
       </button>
     </div>
+    <HintBubble entry-id="providers" />
   </section>
 </template>
 

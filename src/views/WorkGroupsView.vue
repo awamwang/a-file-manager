@@ -22,6 +22,8 @@ import { ensureWorkGroupActive, pendingRenameWorkGroupId, workGroupDisplayName }
 import { workGroupsDoc } from "../state/workGroup";
 import { createListPointerReorder } from "../state/listPointerReorder";
 import FluentIcon from "../components/icons/FluentIcon.vue";
+import HelpLink from "../help/components/HelpLink.vue";
+import HintBubble from "../help/components/HintBubble.vue";
 import { openConfirmDialog } from "../state/confirmDialog";
 import { toastError, toastInfo, toastSuccess } from "../state/toast";
 
@@ -667,12 +669,13 @@ onUnmounted(() => {
 
 <template>
   <section class="fluent-page">
-    <header class="fluent-page-header">
+    <header class="fluent-page-header" data-tour-id="tour-workgroups-header">
       <h1 id="work-groups-page-title" class="fluent-page-title" tabindex="-1">
         {{ t("workGroups.title") }}
       </h1>
       <p class="fluent-page-meta">{{ t("workGroups.meta") }}</p>
       <p class="fluent-page-meta usage-hint">{{ t("workGroups.usageHint") }}</p>
+      <HelpLink entry-id="work-groups" tour />
     </header>
 
     <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
@@ -680,6 +683,7 @@ onUnmounted(() => {
     <div v-if="document" class="layout">
       <aside
         ref="masterListEl"
+        data-tour-id="tour-workgroups-list"
         class="master-list"
         :class="{ 'master-list--reordering': listDragMoved && listDragFromId != null }"
       >
@@ -700,6 +704,7 @@ onUnmounted(() => {
             }"
             role="button"
             tabindex="0"
+            data-tour-id="tour-workgroups-group"
             :data-list-item-id="group.id"
             :title="t('workGroups.dragReorderHint')"
             @pointerdown="onListPointerDown($event, group.id)"
@@ -748,7 +753,7 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <form class="create" @submit.prevent="createGroup">
+        <form class="create" data-tour-id="tour-workgroups-create" @submit.prevent="createGroup">
           <input
             v-model="newName"
             class="fluent-control"
@@ -1057,6 +1062,7 @@ onUnmounted(() => {
         </button>
       </div>
     </Teleport>
+    <HintBubble entry-id="work-groups" />
   </section>
 </template>
 

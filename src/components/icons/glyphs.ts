@@ -58,7 +58,8 @@ export type FluentGlyphId =
   | "bookmark"
   | "provider"
   | "lock"
-  | "mic";
+  | "mic"
+  | "help";
 
 export type FluentGlyph = {
   /** Segoe Fluent Icons / MDL2 private-use codepoint */
@@ -444,6 +445,13 @@ export const FLUENT_GLYPHS: Record<FluentGlyphId, FluentGlyph> = {
       "M3.8 6.5v2a4.2 4.2 0 0 0 3.5 4.15V15h1.4v-2.35A4.2 4.2 0 0 0 12.2 8.5v-2h-1.3v2a2.9 2.9 0 0 1-5.8 0v-2H3.8z",
     ],
   },
+  /** Segoe Help — in-app help & guidance entry. */
+  help: {
+    codepoint: "\uE897",
+    paths: [
+      "M8 2.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11zm0 1.3a4.2 4.2 0 1 1 0 8.4 4.2 4.2 0 0 1 0-8.4zM8 4.6a1.7 1.7 0 0 1 1.7 1.7l-1.2.5c-.1-.5-.3-.8-.7-.8-.5 0-.8.3-.8.7 0 .4.2.6.7.9.7.4 1 .9 1 1.7v.3H7.4v-.3c0-.4-.2-.6-.7-.9-.6-.4-.9-.9-.9-1.6A1.8 1.8 0 0 1 8 4.6zM7.4 10.6h1.2v1.2H7.4v-1.2z",
+    ],
+  },
 };
 
 export const NAV_ICON_BY_ID: Record<string, FluentGlyphId> = {
@@ -456,6 +464,7 @@ export const NAV_ICON_BY_ID: Record<string, FluentGlyphId> = {
   extensions: "puzzle",
   settings: "settings",
   health: "heartPulse",
+  help: "help",
 };
 
 export const SETTINGS_ICON_BY_KEY: Record<string, FluentGlyphId> = {

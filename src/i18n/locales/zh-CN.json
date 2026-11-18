@@ -118,7 +118,7 @@
     "reloadWindowTitle": "重新加载窗口 — 刷新界面，保留数据",
     "address": "地址栏",
     "path": "路径",
-    "pathPlaceholder": "本机路径（内核）— 按 Enter 前往",
+    "pathPlaceholder": "输入文件夹路径，按 Enter 前往",
     "go": "前往",
     "providerQueryApply": "查询",
     "tabs": "标签页",
@@ -298,7 +298,7 @@
       },
       "mcp": {
         "title": "公共 MCP",
-        "body": "公共 MCP 目录存 APPDATA AI 配置。合并部署只写 afm__* 键，禁止整文件覆盖。"
+        "body": "共享工具目录保存在本地 AI 配置中。添加工具时采用合并方式，不会覆盖整个配置文件。"
       },
       "skills": {
         "title": "公共 Skills",
@@ -407,7 +407,7 @@
       "errorPickProject": "请先选择要添加的目标项目"
     },
     "mcp": {
-      "mergeHint": "目录仅在 APPDATA。全局部署合并进已启用 Agent；添加到项目则按该项目启用集写入项目相对 MCP。托管键 afm__*。",
+      "mergeHint": "目录保存在本地。全局添加会合并到已启用的工具中；添加到项目则按该项目的工具集合写入，托管条目由应用自动维护。",
       "add": "新建条目",
       "empty": "尚无 MCP 条目。",
       "fieldName": "显示名称",
@@ -425,7 +425,7 @@
       "hideTools": "收起工具",
       "projectDefaultHint": "项目默认不启用任何 MCP；请选择单个项目后再添加。",
       "confirmRemoveTitle": "从目录移除 MCP？",
-      "confirmRemoveMessage": "将删除中央目录中的「{name}」。不会自动清理已写入各 Agent 的 afm__* 键。",
+      "confirmRemoveMessage": "将从共享目录中移除「{name}」。已经添加到各工具中的条目不会自动清理。",
       "undeploy": "移除托管键",
       "import": "导入 mcp.json",
       "importPathHint": "Cursor/VS Code mcp.json 路径（mcpServers 映射）",
@@ -631,7 +631,7 @@
       "probeTitle": "Discovery 探测",
       "probeMeta": "引擎状态、排除文件夹与一次性试搜——不是日常主入口。",
       "knowledgeTitle": "知识服务（内容与密钥）",
-      "knowledgeMeta": "搜索面板知识源（Alt+7）连接的 awam-knowledge HTTP 服务——检索笔记内容与密钥条目（ADR 0016）。",
+      "knowledgeMeta": "搜索面板知识源（Alt+7）所连接的知识服务——可检索笔记正文和已保存的条目。",
       "knowledgeStatusOnlineVault": "已连接 · 密钥通道已配置",
       "knowledgeStatusOnlineNoVault": "已连接 · 密钥通道未配置",
       "knowledgeStatusOffline": "未连接 · 服务未启动或地址/令牌不匹配",
@@ -682,7 +682,7 @@
         },
         "showHidden": {
           "title": "显示隐藏项",
-          "description": "在内核列表中包含隐藏文件/文件夹"
+          "description": "在文件列表中显示隐藏的文件和文件夹"
         },
         "listDensity": {
           "title": "列表密度",
@@ -831,7 +831,7 @@
         },
         "awamKnowledgeServiceUrl": {
           "title": "awam-knowledge 服务地址",
-          "description": "知识内容/密钥服务的 HTTP 地址，默认 http://127.0.0.1:18790。用于搜索面板知识内容源（ADR 0016）。"
+          "description": "知识服务的地址，默认为 http://127.0.0.1:18790，供搜索面板的知识内容源使用。"
         },
         "awamKnowledgeServiceToken": {
           "title": "awam-knowledge 服务令牌",
@@ -1003,7 +1003,7 @@
   "providers": {
     "title": "提供程序",
     "meta": "浏览云盘与虚拟文件夹，与本地磁盘并列",
-    "interfaceOnly": "仅接口",
+    "interfaceOnly": "仅可预览",
     "statusOk": "正常",
     "statusDown": "不可用",
     "sourceGateway": "awam-file",
@@ -1176,7 +1176,7 @@
     "marketplaceFlags": "市场为空：{empty} · 远程拉取：{remote}",
     "marketplace": "市场",
     "catalogEmpty": "目录按设计为空",
-    "marketplacePolicy": "旧市场包会被拒绝（需要 apiVersion vnext.1）。不会联系远程注册表。",
+    "marketplacePolicy": "不支持旧格式的扩展包。扩展只能从本地文件安装，不会自动从网络下载。",
     "installed": "已安装",
     "packsTitle": "Feature Pack",
     "packsMeta": "仅本机安装 Feature Pack。这不是商店或在线市场。",
@@ -1201,9 +1201,9 @@
     "noticePackDisabled": "已禁用 {id}。侧栏已更新。",
     "noticePackUninstalled": "已卸载 {id}。侧栏已更新。",
     "reloadHint": "启用或禁用 Pack 后，侧栏与路由会自动刷新。",
-    "demoTitle": "vNext 演示扩展",
+    "demoTitle": "示例扩展",
     "demoMeta": "内存演示宿主 — 与 Feature Pack 分开。不是商店。",
-    "installDemo": "安装本地演示（vNext）",
+    "installDemo": "在本地安装示例",
     "noInstalled": "尚未安装扩展。",
     "runHello": "运行 hello",
     "enable": "启用",
@@ -1215,7 +1215,7 @@
     "noHooks": "未注册钩子",
     "errorRemoteFetch": "意外的远程市场拉取标志",
     "errorInstallFailed": "安装失败",
-    "noticeInstalled": "已安装 {id}（vNext 本地存根）",
+    "noticeInstalled": "已安装 {id}（示例扩展）",
     "noticeUninstalled": "已卸载 {id}",
     "noticeHelloOk": "命令 hello 在 {id} 上成功",
     "noticeHelloFail": "命令失败：{error}",
@@ -1341,7 +1341,7 @@
     "newFileCustom": "自定义名称…",
     "copyPath": "复制路径",
     "delete": "删除",
-    "deleteStub": "内核尚未接入删除。",
+    "deleteStub": "这里暂时不支持删除。",
     "copiedPath": "已复制路径",
     "copied": "已复制到剪贴板",
     "cutDone": "已剪切到剪贴板",
@@ -1619,4 +1619,166 @@
     "authorTitle": "作者",
     "authorLabel": "开发者"
   }
+,
+    "help": {
+      "navLabel": "帮助",
+      "title": "帮助与导引",
+      "meta": "查询功能怎么用、阅读简短提示，或重播一步步的操作演示。",
+      "browseTitle": "按使用目标浏览",
+      "browseMeta": "选择下面的功能，查看帮助文档、上手提示，或重播教学。",
+      "quickStartTitle": "快速上手",
+      "category": {
+        "browse": "浏览与查找",
+        "organize": "整理工作",
+        "connect": "连接与扩展",
+        "ai": "AI 功能"
+      },
+      "hintLabel": "上手提示",
+    "hintDismiss": "知道了",
+      "articleLabel": "帮助文档",
+      "tourLabel": "引导教学",
+      "replay": "重播此教学",
+      "replayHint": "重播不会改变我们记住的进度。",
+      "noTour": "这个功能暂时还没有教学。",
+      "openEntry": "查看此功能的帮助",
+      "reset": "重置所有上手进度",
+      "resetTitle": "重置上手进度",
+      "resetConfirm": "要重置所有上手进度吗？",
+      "resetHint": "只会清除你看过哪些提示和教学，不会改动你的文件和设置。",
+      "resetCancel": "取消",
+      "resetConfirmYes": "重置进度",
+      "resetDone": "上手进度已重置。",
+      "entries": {
+        "navigator": {
+          "title": "浏览文件",
+          "hint": "这里用来打开文件夹和文件。点击路径栏可跳转到指定位置，点击星标菜单可回到常用位置。"
+        },
+        "search": {
+          "title": "统一搜索",
+          "hint": "搜索会同时查找文件、文件夹和其他内容。用来源标签可以缩小查找范围。"
+        },
+        "workGroups": {
+          "title": "工作组",
+          "hint": "工作组把同一件事相关的文件夹聚在一起，切换工作组就能一次找回这些位置。"
+        },
+        "projects": {
+          "title": "项目",
+          "hint": "项目把某件正在做的事情涉及的文件夹、链接和任务放在一处。"
+        },
+        "providers": {
+          "title": "Providers（位置服务）",
+          "hint": "位置服务让你像浏览本地文件夹一样浏览云端等外部位置。"
+        },
+        "ai": {
+          "title": "AI 功能",
+          "hint": "AI 功能是可选的，只在 AI 版本中出现；不使用它也能完整使用本应用。"
+        }
+      }
+    },
+    "tour": {
+      "step": "第 {current} 步，共 {total} 步",
+      "skip": "跳过",
+      "previous": "上一步",
+      "next": "下一步",
+      "finish": "完成",
+      "clickTarget": "点击高亮的位置",
+      "quickStart": {
+        "browse": {
+          "title": "从文件开始",
+          "body": "这个列表显示当前文件夹里的内容。双击文件夹可以继续进入。"
+        },
+        "search": {
+          "title": "快速找到东西",
+          "body": "这个按钮会打开统一搜索。输入几个字就能找到文件和文件夹。"
+        },
+        "tags": {
+          "title": "常用位置随手可达",
+          "body": "星标菜单收集了最近访问和收藏的位置，像标签一样帮你回到常用文件夹。"
+        }
+      },
+      "navigator": {
+        "list": {
+          "title": "文件列表",
+          "body": "在这里选中文件可以查看详细信息，双击可以打开；点击列标题可以排序。"
+        },
+        "path": {
+          "title": "你所在的位置",
+          "body": "这一行显示当前文件夹。点击顶部的路径栏可以输入其他位置。"
+        },
+        "help": {
+          "title": "帮助一直都在",
+          "body": "随时点击这个问号都能重新打开这些说明。现在请点一下。"
+        }
+      },
+      "search": {
+        "open": {
+          "title": "一个入口搜所有",
+          "body": "这个按钮打开搜索面板，也可以用它提示里显示的快捷键打开。"
+        },
+        "input": {
+          "title": "输入记得的部分",
+          "body": "只需要名字的一部分。点击这里开始输入，就能看到匹配结果。"
+        },
+        "scopes": {
+          "title": "选择搜索范围",
+          "body": "这些标签控制搜索哪些来源。关掉某个标签，它的结果就不会干扰你。"
+        }
+      },
+      "workGroups": {
+        "header": {
+          "title": "什么是工作组？",
+          "body": "工作组把属于同一件事的文件夹放在一起，例如某个客户的所有资料。"
+        },
+        "list": {
+          "title": "你的工作组",
+          "body": "在左侧选择一个工作组即可载入它的文件夹；拖动可以调整顺序。"
+        },
+        "group": {
+          "title": "切换工作组",
+          "body": "点击某个工作组后会激活它，右侧显示其中的文件夹。现在请点击高亮的工作组。"
+        }
+      },
+      "projects": {
+        "header": {
+          "title": "什么是项目？",
+          "body": "项目保存某件事涉及的文件夹、链接和任务。"
+        },
+        "list": {
+          "title": "你的项目",
+          "body": "在左侧选择项目可以查看细节，也可以拖动调整顺序。"
+        },
+        "group": {
+          "title": "打开项目",
+          "body": "点击这里的项目即可载入它的工作目录和任务。现在请点击高亮的项目。"
+        }
+      },
+      "providers": {
+        "gateway": {
+          "title": "连接服务",
+          "body": "在这里填写服务地址并保存，然后用「刷新」检查连接是否正常。"
+        },
+        "backends": {
+          "title": "可用的位置",
+          "body": "这些卡片是可以浏览的服务。点击其中一个，就能像本地文件夹一样打开。"
+        },
+        "refresh": {
+          "title": "检查连接",
+          "body": "服务看起来不可用时点击「刷新」。它只重新检查状态，不会改动文件。现在请点一下。"
+        }
+      },
+      "ai": {
+        "header": {
+          "title": "可选的 AI 功能",
+          "body": "这个页面只在 AI 版本出现；核心版本不会显示 AI 选项。"
+        },
+        "nav": {
+          "title": "选择分区",
+          "body": "左侧每个分区对应一种 AI 能力及其设置。"
+        },
+        "panel": {
+          "title": "先读说明再设置",
+          "body": "这里的说明会告诉你所选能力的作用，以及它依赖哪些服务。"
+        }
+      }
+    }
 }

@@ -100,7 +100,7 @@
     "newTab": "Nouvel onglet",
     "newTabLater": "Nouvel onglet plus tard",
     "path": "Chemin",
-    "pathPlaceholder": "Chemin OS natif (noyau) — Entrée pour y aller",
+    "pathPlaceholder": "Chemin du dossier — appuyez sur Entrée pour y aller",
     "refreshHealth": "Actualiser la santé",
     "reloadWindow": "Recharger la fenêtre",
     "reloadWindowTitle": "Recharger la fenêtre — actualiser l’UI, conserver les données",
@@ -253,7 +253,7 @@
       },
       "mcp": {
         "title": "MCP public",
-        "body": "Catalogue MCP partagé dans la config IA APPDATA. Le déploiement par fusion n’écrit que les clés afm__* — jamais d’écrasement de fichier entier."
+        "body": "Le catalogue d'outils partagé est stocké dans la configuration IA locale. L'ajout fusionne les entrées sans écraser tout le fichier."
       },
       "skills": {
         "title": "Skills publics",
@@ -362,7 +362,7 @@
       "targetProject": "Projet cible"
     },
     "mcp": {
-      "mergeHint": "Catalogue APPDATA uniquement. Le déploiement fusionne afm__<id> dans les JSON MCP des Agents activés.",
+      "mergeHint": "Le catalogue est stocké localement. L'ajout global le fusionne avec les outils activés ; l'ajout à un projet utilise les outils de ce projet. Les entrées gérées sont maintenues automatiquement.",
       "add": "Nouvelle entrée",
       "empty": "Aucune entrée MCP pour l’instant.",
       "fieldName": "Nom affiché",
@@ -386,7 +386,7 @@
       "errorTargetInvalid": "Chemin / JSON MCP cible invalide",
       "errorImportInvalid": "Fichier d’import MCP manquant ou invalide (objet mcpServers requis)",
       "addToProject": "Ajouter au projet sélectionné",
-      "confirmRemoveMessage": "Retire « {name} » du catalogue central. Les clés afm__* déjà écrites vers les agents ne sont pas nettoyées automatiquement.",
+      "confirmRemoveMessage": "Retire « {name} » du catalogue partagé. Les entrées déjà ajoutées aux outils ne sont pas supprimées automatiquement.",
       "confirmRemoveTitle": "Retirer le MCP du catalogue ?",
       "deployGlobal": "Déployer globalement",
       "errorPickProject": "Choisissez d'abord un projet cible",
@@ -553,17 +553,17 @@
     "fsHooksMeta": "Métadonnées uniquement — ProviderRegistry reste l’autorité FS.",
     "hostPrefix": "ExtensionHost {version}",
     "hostStatus": "État de l’hôte",
-    "installDemo": "Installer la démo locale (vNext)",
+    "installDemo": "Installer l'exemple localement",
     "installed": "Installées",
     "marketplace": "Marketplace",
     "marketplaceFlags": "Marketplace vide : {empty} · récupération distante : {remote}",
-    "marketplacePolicy": "Les paquets marketplace hérités sont rejetés (apiVersion vnext.1 requis). Aucun registre distant n’est contacté.",
+    "marketplacePolicy": "Les anciens formats d'extension ne sont pas pris en charge. Les extensions s'installent depuis des fichiers locaux ; rien n'est téléchargé automatiquement.",
     "meta": "Modules optionnels pour sources et commandes supplémentaires",
     "noHooks": "Aucun hook enregistré",
     "noInstalled": "Aucune extension installée.",
     "noticeHelloFail": "Échec de la commande : {error}",
     "noticeHelloOk": "Commande hello OK sur {id}",
-    "noticeInstalled": "{id} installée (stub local vNext)",
+    "noticeInstalled": "{id} installée (extension d'exemple)",
     "noticeUninstalled": "{id} désinstallée",
     "registered": "(enregistré {value})",
     "runHello": "Exécuter hello",
@@ -593,7 +593,7 @@
     "noticePackDisabled": "{id} désactivé. Barre latérale mise à jour.",
     "noticePackUninstalled": "{id} désinstallé. Barre latérale mise à jour.",
     "reloadHint": "Activer ou désactiver un pack actualise automatiquement la barre latérale et les routes.",
-    "demoTitle": "Extensions démo vNext",
+    "demoTitle": "Extensions d'exemple",
     "demoMeta": "Hôte démo en mémoire — distinct des Feature Packs. Pas une boutique."
   },
   "health": {
@@ -846,7 +846,7 @@
     "gatewayUrlSaving": "Enregistrement…",
     "refresh": "Actualiser",
     "refreshing": "Actualisation…",
-    "interfaceOnly": "interface seule",
+    "interfaceOnly": "Aperçu uniquement",
     "list": "Lister",
     "listing": "Listage…",
     "meta": "Parcourir cloud et dossiers virtuels à côté du disque local",
@@ -919,7 +919,7 @@
           "title": "Densité de liste"
         },
         "showHidden": {
-          "description": "Inclure les fichiers/dossiers masqués dans les listes du noyau",
+          "description": "Afficher les fichiers et dossiers masqués dans les listes",
           "title": "Afficher les éléments masqués"
         },
         "theme": {
@@ -1085,7 +1085,7 @@
         },
         "awamKnowledgeServiceUrl": {
           "title": "URL du service awam-knowledge",
-          "description": "URL HTTP de base du service connaissances/secrets (défaut http://127.0.0.1:18790). Utilisée par la source Connaissances de la palette (ADR 0016)."
+          "description": "Adresse du service de connaissances (par défaut http://127.0.0.1:18790), utilisée par la source « Connaissances » de la palette."
         },
         "awamKnowledgeServiceToken": {
           "title": "Jeton du service awam-knowledge",
@@ -1127,7 +1127,7 @@
       "probeTitle": "Sonde Discovery",
       "probeMeta": "État des moteurs, exclusions de dossiers et requête d’essai — pas l’entrée quotidienne principale.",
       "knowledgeTitle": "Service de connaissances (contenu et secrets)",
-      "knowledgeMeta": "Le service HTTP awam-knowledge derrière la source connaissances de la palette (Alt+7) — recherche le contenu des notes et les entrées secrètes (ADR 0016).",
+      "knowledgeMeta": "Le service de connaissances utilisé par la source « Connaissances » de la palette (Alt+7) — recherche le contenu des notes et les entrées enregistrées.",
       "knowledgeStatusOnlineVault": "Connecté · canal vault configuré",
       "knowledgeStatusOnlineNoVault": "Connecté · canal vault non configuré",
       "knowledgeStatusOffline": "Hors ligne · service arrêté ou URL/jeton incorrect",
@@ -1339,7 +1339,7 @@
     "newFolder": "Nouveau dossier",
     "copyPath": "Copier le chemin",
     "delete": "Supprimer",
-    "deleteStub": "La suppression n’est pas encore branchée au Kernel.",
+    "deleteStub": "La suppression n'est pas encore disponible ici.",
     "copiedPath": "Chemin copié",
     "copied": "Copié dans le presse-papiers",
     "cutDone": "Coupé dans le presse-papiers",
@@ -1619,4 +1619,166 @@
     "authorTitle": "Auteur",
     "authorLabel": "Développé par"
   }
+,
+    "help": {
+      "navLabel": "Aide",
+      "title": "Aide et accompagnement",
+      "meta": "Consultez le fonctionnement d'une fonctionnalité, lisez un court conseil ou rejouez une démonstration étape par étape.",
+      "browseTitle": "Parcourir par usage",
+      "browseMeta": "Choisissez une fonctionnalité pour lire son article, voir son conseil ou rejouer sa démonstration.",
+      "quickStartTitle": "Premiers pas",
+      "category": {
+        "browse": "Parcourir et chercher",
+        "organize": "Organiser son travail",
+        "connect": "Connecter et étendre",
+        "ai": "Fonctions IA"
+      },
+      "hintLabel": "Conseil de démarrage",
+    "hintDismiss": "Compris",
+      "articleLabel": "Article d'aide",
+      "tourLabel": "Démonstration guidée",
+      "replay": "Rejouer cette démonstration",
+      "replayHint": "Le rejeu ne modifie jamais la progression enregistrée.",
+      "noTour": "Aucune démonstration n'est encore disponible pour cette fonctionnalité.",
+      "openEntry": "Ouvrir l'aide de cette fonctionnalité",
+      "reset": "Réinitialiser toute la progression d'accueil",
+      "resetTitle": "Réinitialiser la progression d'accueil",
+      "resetConfirm": "Réinitialiser toute la progression d'accueil ?",
+      "resetHint": "Seuls les conseils et démonstrations déjà vus sont effacés. Vos fichiers et réglages restent inchangés.",
+      "resetCancel": "Annuler",
+      "resetConfirmYes": "Réinitialiser",
+      "resetDone": "La progression d'accueil a été réinitialisée.",
+      "entries": {
+        "navigator": {
+          "title": "Parcourir les fichiers",
+          "hint": "Ouvrez ici vos dossiers et fichiers. La barre de chemin permet de sauter à un emplacement, le menu étoile de revenir aux lieux fréquents."
+        },
+        "search": {
+          "title": "Recherche unifiée",
+          "hint": "La recherche couvre fichiers, dossiers et autres contenus en une fois. Les filtres de source affinent les résultats."
+        },
+        "workGroups": {
+          "title": "Groupes de travail",
+          "hint": "Un groupe de travail rassemble les dossiers d'une même tâche. Changer de groupe retrouve tous ces lieux d'un coup."
+        },
+        "projects": {
+          "title": "Projets",
+          "hint": "Un projet réunit les dossiers, liens et tâches d'un travail en cours au même endroit."
+        },
+        "providers": {
+          "title": "Providers (services connectés)",
+          "hint": "Les Providers permettent de parcourir des lieux externes, comme un stockage cloud, comme des dossiers ordinaires."
+        },
+        "ai": {
+          "title": "Fonctions IA",
+          "hint": "Les fonctions IA sont optionnelles et n'apparaissent que dans les versions IA. L'application reste entièrement utilisable sans elles."
+        }
+      }
+    },
+    "tour": {
+      "step": "Étape {current} sur {total}",
+      "skip": "Ignorer",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "finish": "Terminer",
+      "clickTarget": "Cliquez sur la zone surlignée",
+      "quickStart": {
+        "browse": {
+          "title": "Commencez par vos fichiers",
+          "body": "Cette liste montre le contenu du dossier actuel. Double-cliquez sur un dossier pour l'ouvrir."
+        },
+        "search": {
+          "title": "Trouver vite",
+          "body": "Ce bouton ouvre la recherche unifiée. Quelques lettres suffisent pour trouver des fichiers et dossiers."
+        },
+        "tags": {
+          "title": "Gardez vos lieux à portée",
+          "body": "Le menu étoile rassemble les lieux récents et favoris, comme des étiquettes pour vos dossiers fréquents."
+        }
+      },
+      "navigator": {
+        "list": {
+          "title": "La liste de fichiers",
+          "body": "Sélectionnez un fichier pour voir ses détails ou double-cliquez pour l'ouvrir. Les en-têtes de colonne trient la liste."
+        },
+        "path": {
+          "title": "Où vous êtes",
+          "body": "Cette ligne indique le dossier actuel. Cliquez sur la barre de chemin en haut pour saisir un autre emplacement."
+        },
+        "help": {
+          "title": "L'aide est toujours proche",
+          "body": "Ce point d'interrogation rouvre ces explications à tout moment. Cliquez dessus maintenant."
+        }
+      },
+      "search": {
+        "open": {
+          "title": "Une seule recherche",
+          "body": "Ce bouton ouvre le panneau de recherche. Le raccourci est indiqué dans l'infobulle."
+        },
+        "input": {
+          "title": "Saisissez ce dont vous vous souvenez",
+          "body": "Une partie du nom suffit. Cliquez ici et commencez à taper."
+        },
+        "scopes": {
+          "title": "Choisir où chercher",
+          "body": "Ces filtres déterminent les sources interrogées. Désactivez ceux qui vous gênent."
+        }
+      },
+      "workGroups": {
+        "header": {
+          "title": "Qu'est-ce qu'un groupe de travail ?",
+          "body": "Il rassemble les dossiers liés à une même tâche, par exemple tout un client."
+        },
+        "list": {
+          "title": "Vos groupes de travail",
+          "body": "Choisissez un groupe à gauche pour charger ses dossiers. Glissez pour changer l'ordre."
+        },
+        "group": {
+          "title": "Changer de groupe",
+          "body": "Un clic active le groupe et affiche ses dossiers à droite. Cliquez sur le groupe surligné."
+        }
+      },
+      "projects": {
+        "header": {
+          "title": "Qu'est-ce qu'un projet ?",
+          "body": "Un projet rassemble les dossiers, liens et tâches d'un travail en cours."
+        },
+        "list": {
+          "title": "Vos projets",
+          "body": "Sélectionnez un projet à gauche pour voir ses détails. Glissez pour réordonner."
+        },
+        "group": {
+          "title": "Ouvrir un projet",
+          "body": "Cliquez sur un projet pour charger ses dossiers et ses tâches. Cliquez sur le projet surligné."
+        }
+      },
+      "providers": {
+        "gateway": {
+          "title": "Connecter un service",
+          "body": "Saisissez l'adresse du service ici, enregistrez-la, puis utilisez Actualiser pour vérifier la connexion."
+        },
+        "backends": {
+          "title": "Lieux disponibles",
+          "body": "Ces cartes représentent les services que vous pouvez parcourir. Cliquez pour les ouvrir comme un dossier local."
+        },
+        "refresh": {
+          "title": "Vérifier la connexion",
+          "body": "Si un service semble indisponible, cliquez sur Actualiser. Cela ne modifie aucun fichier. Cliquez maintenant."
+        }
+      },
+      "ai": {
+        "header": {
+          "title": "Fonctions IA optionnelles",
+          "body": "Cette page n'existe que dans les versions IA. Les versions Core n'affichent aucune option IA."
+        },
+        "nav": {
+          "title": "Choisir une section",
+          "body": "Chaque section à gauche regroupe une fonction IA et ses réglages."
+        },
+        "panel": {
+          "title": "Lire avant de configurer",
+          "body": "La description indique le rôle de la fonction choisie et les services nécessaires."
+        }
+      }
+    }
 }

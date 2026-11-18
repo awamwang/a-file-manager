@@ -6,6 +6,7 @@
 - [Feature Pack / 工具管理运行时](./docs/glossary-feature-pack.md)：可后装产品附加包，以及 AFM 对本机工具网关的薄客户端面。
 - [Core 搜索面板（Search Palette）](./docs/glossary-search-palette.md)：Ctrl+Shift+P 的统一检索入口，按搜索源分组并组合范围。
 - [语音输入套件（Voice Input Suite）](./docs/glossary-voice-input.md)：全应用「说话转文字」能力：统一语音服务 + 可配置引擎；当前唯一接入点是搜索面板。
+- [帮助与导引（Help & Guidance）](./docs/glossary-help-guidance.md)：应用内帮助体系：帮助文档 / 上手提示 / 引导教学三层；共用一份声明式导引定义，供新特性沿用。
 
 ## Relationships
 

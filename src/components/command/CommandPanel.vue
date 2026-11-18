@@ -36,6 +36,7 @@ import type {
   SearchResultItem,
 } from "../../search/types.ts";
 import FluentIcon from "../icons/FluentIcon.vue";
+import HelpLink from "../../help/components/HelpLink.vue";
 import {
   commandGroupIcon,
   type FluentGlyphId,
@@ -381,6 +382,7 @@ function onPanelKeydown(event: KeyboardEvent) {
           <input
             id="command-panel-input"
             ref="inputEl"
+            data-tour-id="tour-search-input"
             v-model="query"
             class="cmd-input"
             type="text"
@@ -401,9 +403,11 @@ function onPanelKeydown(event: KeyboardEvent) {
           >
             <FluentIcon name="mic" size="sm" />
           </button>
+          <HelpLink entry-id="search" tour data-tour-id="tour-search-help" />
         </div>
         <div
           v-if="scopeChips.length"
+          data-tour-id="tour-search-scopes"
           class="cmd-scopes"
           role="group"
           :aria-label="t('searchPalette.scopesLabel')"
@@ -424,6 +428,7 @@ function onPanelKeydown(event: KeyboardEvent) {
         <div
           id="command-panel-list"
           ref="listEl"
+          data-tour-id="tour-search-results"
           class="cmd-list"
           role="listbox"
           :aria-label="t('searchPalette.results')"

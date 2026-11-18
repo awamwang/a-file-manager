@@ -25,11 +25,37 @@ function flatten(obj, prefix = "", out = []) {
   return out;
 }
 
-const enKeys = flatten(catalogs.en).sort();
+const keySets = Object.fromEntries(
+  localeIds.map((id) => [id, flatten(catalogs[id]).sort()]),
+);
+const enKeys = keySets.en;
+
+/** A registry key missing from any catalog would render as a raw key at runtime. */
 let failed = false;
+const registrySource = readFileSync(join(root, "src/help/registry.ts"), "utf8");
+const registryKeys = [
+  ...new Set(
+    [...registrySource.matchAll(/\b(?:titleKey|hintKey|bodyKey):\s*"([^"]+)"/g)].map(
+      (match) => match[1],
+    ),
+  ),
+].sort();
+for (const key of registryKeys) {
+  for (const id of localeIds) {
+    if (!keySets[id].includes(key)) {
+      failed = true;
+      console.error(`Guidance registry key missing in ${id}: ${key}`);
+    }
+  }
+}
+if (!registryKeys.length) {
+  failed = true;
+  console.error("Guidance registry keys could not be extracted from src/help/registry.ts");
+}
+
 for (const id of localeIds) {
   if (id === "en") continue;
-  const keys = flatten(catalogs[id]).sort();
+  const keys = keySets[id];
   const missing = enKeys.filter((k) => !keys.includes(k));
   const extra = keys.filter((k) => !enKeys.includes(k));
   if (missing.length || extra.length) {
@@ -51,5 +77,5 @@ if (result.stderr) process.stderr.write(result.stderr);
 if (result.status !== 0) process.exit(result.status ?? 1);
 
 console.log(
-  `i18n locale parity OK (${enKeys.length} keys × ${localeIds.join("/")}).`,
+  `i18n locale parity OK (${enKeys.length} keys × ${localeIds.join("/")}; ${registryKeys.length} guidance registry keys).`,
 );

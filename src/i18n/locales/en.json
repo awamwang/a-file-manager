@@ -118,7 +118,7 @@
     "reloadWindowTitle": "Reload Window — refresh UI, keep data",
     "address": "Address bar",
     "path": "Path",
-    "pathPlaceholder": "Native OS path (Kernel) — Enter to go",
+    "pathPlaceholder": "Folder path — press Enter to go",
     "go": "Go",
     "providerQueryApply": "Apply",
     "tabs": "Tabs",
@@ -298,7 +298,7 @@
       },
       "mcp": {
         "title": "Public MCP",
-        "body": "Shared MCP catalog in APPDATA AI config. Merge-deploy writes only afm__* keys — never whole-file overwrite."
+        "body": "Shared tool catalog stored in the AI configuration. Adding tools merges entries instead of replacing the whole file."
       },
       "skills": {
         "title": "Public Skills",
@@ -407,7 +407,7 @@
       "errorPickProject": "Choose a target project first"
     },
     "mcp": {
-      "mergeHint": "Catalog is APPDATA-only. Global deploy merges into enabled agents; Add to project uses that project's agent set. Managed keys: afm__*.",
+      "mergeHint": "The catalog is stored locally. Global setup merges it into the tools you have enabled; adding to a project uses that project's tool set. Managed entries are updated automatically.",
       "add": "New entry",
       "empty": "No MCP entries yet.",
       "fieldName": "Display name",
@@ -425,7 +425,7 @@
       "hideTools": "Hide tools",
       "projectDefaultHint": "Projects start with no MCP; pick one project, then add.",
       "confirmRemoveTitle": "Remove MCP from catalog?",
-      "confirmRemoveMessage": "Removes \"{name}\" from the central catalog. Does not automatically clean afm__* keys already written to agents.",
+      "confirmRemoveMessage": "Removes \"{name}\" from the shared catalog. Entries already added to your tools are not removed automatically.",
       "undeploy": "Remove managed keys",
       "import": "Import mcp.json",
       "importPathHint": "Path to Cursor/VS Code mcp.json (mcpServers map)",
@@ -631,7 +631,7 @@
       "probeTitle": "Discovery probe",
       "probeMeta": "Engine status, folder exclusions, and a one-off test query — not the primary daily search.",
       "knowledgeTitle": "Knowledge service (content & secrets)",
-      "knowledgeMeta": "The awam-knowledge HTTP service behind the search palette knowledge source (Alt+7) — searches note content and secret entries (ADR 0016).",
+      "knowledgeMeta": "The knowledge service behind the search panel's knowledge source (Alt+7) — searches the content of your notes and stored entries.",
       "knowledgeStatusOnlineVault": "Connected · vault channel configured",
       "knowledgeStatusOnlineNoVault": "Connected · vault channel not configured",
       "knowledgeStatusOffline": "Offline · service not running or URL/token mismatch",
@@ -682,7 +682,7 @@
         },
         "showHidden": {
           "title": "Show hidden items",
-          "description": "Include hidden files/folders in Kernel listings"
+          "description": "Show hidden files and folders in file listings"
         },
         "listDensity": {
           "title": "List density",
@@ -831,7 +831,7 @@
         },
         "awamKnowledgeServiceUrl": {
           "title": "awam-knowledge service URL",
-          "description": "HTTP base URL for the knowledge content/vault service (default http://127.0.0.1:18790). Used by the palette Knowledge source (ADR 0016)."
+          "description": "Address of the knowledge service (default http://127.0.0.1:18790), used by the Knowledge source in the search panel."
         },
         "awamKnowledgeServiceToken": {
           "title": "awam-knowledge service token",
@@ -1003,7 +1003,7 @@
   "providers": {
     "title": "Providers",
     "meta": "Browse cloud and virtual folders alongside local disks",
-    "interfaceOnly": "interface-only",
+    "interfaceOnly": "Preview only",
     "statusOk": "ok",
     "statusDown": "down",
     "sourceGateway": "awam-file",
@@ -1176,7 +1176,7 @@
     "marketplaceFlags": "Marketplace empty: {empty} · remote fetch: {remote}",
     "marketplace": "Marketplace",
     "catalogEmpty": "Catalog is empty by design",
-    "marketplacePolicy": "Legacy marketplace packages are rejected (require apiVersion vnext.1). No remote registry is contacted.",
+    "marketplacePolicy": "Older extension packages are not supported. Extensions are installed from local files only; nothing is downloaded automatically.",
     "installed": "Installed",
     "packsTitle": "Feature Packs",
     "packsMeta": "Local-only Feature Pack install. This is not a marketplace or store.",
@@ -1201,9 +1201,9 @@
     "noticePackDisabled": "Disabled {id}. Side nav updated.",
     "noticePackUninstalled": "Uninstalled {id}. Side nav updated.",
     "reloadHint": "Enabling or disabling a pack refreshes the side nav and routes automatically.",
-    "demoTitle": "vNext demo extensions",
+    "demoTitle": "Sample extensions",
     "demoMeta": "In-memory demo host — separate from Feature Packs. Not a store.",
-    "installDemo": "Install local demo (vNext)",
+    "installDemo": "Install sample locally",
     "noInstalled": "No extensions installed.",
     "runHello": "Run hello",
     "enable": "Enable",
@@ -1215,7 +1215,7 @@
     "noHooks": "No hooks registered",
     "errorRemoteFetch": "Unexpected remote marketplace fetch flag",
     "errorInstallFailed": "Install failed",
-    "noticeInstalled": "Installed {id} (vNext local stub)",
+    "noticeInstalled": "Installed {id} (sample extension)",
     "noticeUninstalled": "Uninstalled {id}",
     "noticeHelloOk": "Command hello ok on {id}",
     "noticeHelloFail": "Command failed: {error}",
@@ -1341,7 +1341,7 @@
     "newFileCustom": "Custom name…",
     "copyPath": "Copy path",
     "delete": "Delete",
-    "deleteStub": "Delete is not wired in Kernel yet.",
+    "deleteStub": "Delete is not available here yet.",
     "copiedPath": "Path copied",
     "copied": "Copied to clipboard",
     "cutDone": "Cut to clipboard",
@@ -1619,4 +1619,166 @@
     "authorTitle": "Author",
     "authorLabel": "Developed by"
   }
+,
+    "help": {
+      "navLabel": "Help",
+      "title": "Help & Guidance",
+      "meta": "Look up how a feature works, read a short tip, or replay a step-by-step walkthrough.",
+      "browseTitle": "Browse by what you do",
+      "browseMeta": "Choose a feature below to read its help article, see its tip, or replay its walkthrough.",
+      "quickStartTitle": "Quick start",
+      "category": {
+        "browse": "Browse & find",
+        "organize": "Organize your work",
+        "connect": "Connect & extend",
+        "ai": "AI features"
+      },
+      "hintLabel": "Getting-started tip",
+    "hintDismiss": "Got it",
+      "articleLabel": "Help article",
+      "tourLabel": "Guided tour",
+      "replay": "Replay this walkthrough",
+      "replayHint": "Replaying never changes the progress we remember.",
+      "noTour": "No walkthrough is available for this feature yet.",
+      "openEntry": "Open help for this feature",
+      "reset": "Reset all onboarding progress",
+      "resetTitle": "Reset onboarding progress",
+      "resetConfirm": "Reset all onboarding progress?",
+      "resetHint": "This only clears which tips and walkthroughs you have seen. Your files and settings are left alone.",
+      "resetCancel": "Cancel",
+      "resetConfirmYes": "Reset progress",
+      "resetDone": "Onboarding progress has been reset.",
+      "entries": {
+        "navigator": {
+          "title": "Browsing files",
+          "hint": "This is where you open folders and files. Use the path bar to jump to a location, or the star menu to get back to places you use often."
+        },
+        "search": {
+          "title": "Unified search",
+          "hint": "Search looks across files, folders and other content at once. Switch source tags to narrow down what you see."
+        },
+        "workGroups": {
+          "title": "Work Groups",
+          "hint": "A Work Group gathers the folders for one piece of work. Switching groups brings all of those places back at once."
+        },
+        "projects": {
+          "title": "Projects",
+          "hint": "A Project keeps the folders, links and tasks for something you are working on in one place."
+        },
+        "providers": {
+          "title": "Providers",
+          "hint": "Providers let you browse places outside this computer, such as cloud storage, just like ordinary folders."
+        },
+        "ai": {
+          "title": "AI features",
+          "hint": "AI features are optional and only appear in AI builds. You can use the whole app without them."
+        }
+      }
+    },
+    "tour": {
+      "step": "Step {current} of {total}",
+      "skip": "Skip",
+      "previous": "Previous",
+      "next": "Next",
+      "finish": "Finish",
+      "clickTarget": "Click the highlighted item",
+      "quickStart": {
+        "browse": {
+          "title": "Start with your files",
+          "body": "This list shows what is inside the current folder. Double-click a folder to go deeper."
+        },
+        "search": {
+          "title": "Find anything fast",
+          "body": "This button opens unified search. Type a few letters to find files, folders and more."
+        },
+        "tags": {
+          "title": "Keep places close",
+          "body": "The star menu collects recent and favourite places — like labels for the folders you use most."
+        }
+      },
+      "navigator": {
+        "list": {
+          "title": "The file list",
+          "body": "Select a file here to see its details, or double-click to open it. Column headers let you sort the list."
+        },
+        "path": {
+          "title": "Where you are",
+          "body": "This line shows the current folder. Click the path bar at the top to type a different location."
+        },
+        "help": {
+          "title": "Help is always nearby",
+          "body": "Click this question mark to reopen these explanations at any time. Go ahead and click it now."
+        }
+      },
+      "search": {
+        "open": {
+          "title": "One place to search",
+          "body": "This button opens the search panel. You can also use the shortcut shown in its tooltip."
+        },
+        "input": {
+          "title": "Type what you remember",
+          "body": "A part of a name is enough. Click here and start typing to see matching results."
+        },
+        "scopes": {
+          "title": "Choose where to look",
+          "body": "These tags control which sources are searched. Turn one off to keep its results out of the way."
+        }
+      },
+      "workGroups": {
+        "header": {
+          "title": "What is a Work Group?",
+          "body": "A Work Group is a bundle of folders that belong together — for example everything for one client."
+        },
+        "list": {
+          "title": "Your Work Groups",
+          "body": "Pick a group on the left to load its folders. Drag a group to change the order."
+        },
+        "group": {
+          "title": "Switch groups",
+          "body": "Click a group to make it active. Its folders appear in the details on the right. Click the highlighted group now."
+        }
+      },
+      "projects": {
+        "header": {
+          "title": "What is a Project?",
+          "body": "A Project holds the folders, links and tasks for one thing you are working on."
+        },
+        "list": {
+          "title": "Your Projects",
+          "body": "Select a project on the left to see its details. You can drag projects to reorder them."
+        },
+        "group": {
+          "title": "Open a project",
+          "body": "Click a project here to load its work directories and tasks. Click the highlighted project now."
+        }
+      },
+      "providers": {
+        "gateway": {
+          "title": "Connect a service",
+          "body": "Enter the service address here and save it. Use Refresh to check whether the connection works."
+        },
+        "backends": {
+          "title": "Available locations",
+          "body": "These cards are the services you can browse. Click one to open its files like a local folder."
+        },
+        "refresh": {
+          "title": "Check the connection",
+          "body": "Click Refresh whenever a service looks unavailable. It only re-checks status and does not change your files. Click it now."
+        }
+      },
+      "ai": {
+        "header": {
+          "title": "Optional AI features",
+          "body": "This page only exists in AI builds. Core builds do not show AI options at all."
+        },
+        "nav": {
+          "title": "Pick a section",
+          "body": "Each section on the left groups one AI capability and its settings."
+        },
+        "panel": {
+          "title": "Read before you configure",
+          "body": "The description here explains what the selected capability does and which services it needs."
+        }
+      }
+    }
 }

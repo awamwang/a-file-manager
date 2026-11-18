@@ -18,6 +18,8 @@ import McpCatalogPanel from "../ai/McpCatalogPanel.vue";
 import HarnessInitPanel from "../ai/HarnessInitPanel.vue";
 import ProvidersPanel from "../ai/ProvidersPanel.vue";
 import FluentIcon from "../components/icons/FluentIcon.vue";
+import HelpLink from "../help/components/HelpLink.vue";
+import HintBubble from "../help/components/HintBubble.vue";
 
 const { t } = useI18n();
 
@@ -53,10 +55,11 @@ onMounted(() => {
 
 <template>
   <section class="fluent-page" data-ai-settings>
-    <header class="fluent-page-header">
+    <header class="fluent-page-header" data-tour-id="tour-ai-header">
       <h1 class="fluent-page-title">{{ t("ai.title") }}</h1>
       <p class="fluent-page-meta">{{ t("ai.meta") }}</p>
       <p class="fluent-page-meta usage-hint">{{ t("ai.usageHint") }}</p>
+      <HelpLink entry-id="ai" tour />
     </header>
 
     <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
@@ -66,7 +69,7 @@ onMounted(() => {
     </p>
 
     <div class="ai-layout">
-      <aside class="ai-nav fluent-surface" role="tablist" :aria-label="t('ai.title')">
+      <aside class="ai-nav fluent-surface" data-tour-id="tour-ai-nav" role="tablist" :aria-label="t('ai.title')">
         <button
           v-for="section in AI_MENU_SECTIONS"
           :key="section.id"
@@ -91,7 +94,7 @@ onMounted(() => {
         role="tabpanel"
         :data-ai-section="activeDef.id"
       >
-        <header class="ai-panel-head">
+        <header class="ai-panel-head" data-tour-id="tour-ai-panel">
           <span class="fluent-icon-wash">
             <FluentIcon :name="activeDef.icon" size="md" />
           </span>
@@ -108,6 +111,7 @@ onMounted(() => {
         <HarnessInitPanel v-else-if="activeDef.id === 'harness'" />
       </article>
     </div>
+    <HintBubble entry-id="ai" />
   </section>
 </template>
 

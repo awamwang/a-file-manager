@@ -16,6 +16,8 @@ import NameConflictDialogHost from "./NameConflictDialogHost.vue";
 import PromptDialogHost from "./PromptDialogHost.vue";
 import KnowledgeDocDialog from "../knowledge/KnowledgeDocDialog.vue";
 import FluentIcon from "../icons/FluentIcon.vue";
+import HelpTourHost from "../../help/components/HelpTourHost.vue";
+import { useFirstRunTour } from "../../help/useFirstRunTour.ts";
 import FolderTree from "./FolderTree.vue";
 import { toastError, toastInfo, toastSuccess } from "../../state/toast";
 import { initTaskCenter } from "../../state/taskCenter";
@@ -194,6 +196,8 @@ type HealthPayload = {
 
 const route = useRoute();
 const router = useRouter();
+// First-run quick start is a detached timer; it never awaits settings hydration.
+useFirstRunTour();
 
 const addressDraft = ref("");
 const addressEditing = ref(false);
@@ -1980,6 +1984,7 @@ onUnmounted(() => {
         <button
           type="button"
           class="fluent-control titlebar-action"
+          data-tour-id="tour-global-search"
           v-action-tip="{ label: t('chrome.commands'), actionId: 'commandPanel.toggle' }"
           :title="platformShortcutLabel(String(t('chrome.commandsTitle')))"
           :aria-label="t('chrome.commands')"
@@ -2313,6 +2318,7 @@ onUnmounted(() => {
             <button
               type="button"
               class="fluent-control nav-icon-btn places-trigger"
+              data-tour-id="tour-quick-tags"
               :class="{ 'nav-icon-btn--active': placesMenuOpen }"
               :title="t('chrome.placesMenu')"
               :aria-label="t('chrome.placesMenu')"
@@ -2859,6 +2865,7 @@ onUnmounted(() => {
     <TaskCenterHost />
     <ActionTipHost />
     <CommandPanel :commands="panelCommands" />
+    <HelpTourHost />
   </div>
 </template>
 
