@@ -158,7 +158,8 @@
     "openSettings": "Einstellungen öffnen",
     "openWorkGroups": "Arbeitsgruppen öffnen",
     "refreshHealth": "Health-Status aktualisieren",
-    "reloadWindow": "Fenster neu laden"
+    "reloadWindow": "Fenster neu laden",
+    "lockVaultWindow": "Secret-Fenster sperren"
   },
   "searchPalette": {
     "title": "Suchpalette",
@@ -181,7 +182,8 @@
       "workgroups": "Arbeitsgruppen",
       "tools": "Werkzeuge",
       "bookmarks": "Browser-Lesezeichen",
-      "extensions": "Erweiterungen"
+      "extensions": "Erweiterungen",
+      "knowledge": "Wissen"
     },
     "types": {
       "command": "Befehl",
@@ -192,7 +194,8 @@
       "tool": "Werkzeug",
       "capability": "Fähigkeit",
       "bookmark": "Lesezeichen",
-      "extension": "Erweiterung"
+      "extension": "Erweiterung",
+      "secret": "Secret"
     },
     "status": {
       "loading": "Suche läuft…",
@@ -207,7 +210,25 @@
       "bookmarksUnavailable": "Browser-Lesezeichen nicht verfügbar (awam-file-Gateway erforderlich)",
       "bookmarksStale": "Lesezeichen-Snapshot veraltet (nur lesen)",
       "refreshBookmarks": "Lesezeichen aktualisieren",
-      "extensionsUnavailable": "Erweiterungsquelle nicht verfügbar"
+      "extensionsUnavailable": "Erweiterungsquelle nicht verfügbar",
+      "knowledgeUnavailable": "Wissensquelle nicht verfügbar (awam-knowledge-Dienst aus oder nicht autorisiert)"
+    },
+    "vault": {
+      "copied": "Secret kopiert (Klartext liegt in der Zwischenablage)",
+      "unlockTitle": "Secret-Fenster entsperren",
+      "unlockMessage": "Zum Übernehmen eines Secrets muss das Entsperr-Fenster geöffnet werden (standardmäßig 10 Minuten). Während des Fensters können Secrets kopiert oder kurz angezeigt werden, vollständig auditiert. Fortfahren?",
+      "unlockConfirm": "Entsperren",
+      "unlockFailed": "Entsperren fehlgeschlagen",
+      "unauthorized": "Dienst-Authentifizierung fehlgeschlagen (Token fehlt oder ist falsch)",
+      "rateLimited": "Zu viele Anfragen, später erneut versuchen",
+      "failed": "Secret-Abfrage fehlgeschlagen",
+      "lockTitle": "Secret-Fenster sperren",
+      "lockMessage": "Entsperr-Fenster jetzt schließen? Kopieren / Anzeigen erfordert dann ein erneutes Entsperren.",
+      "lockConfirm": "Sperren",
+      "locked": "Secret-Fenster gesperrt",
+      "lockFailed": "Sperren fehlgeschlagen",
+      "lockCheckFailed": "Zustand des Secret-Fensters konnte nicht gelesen werden",
+      "lockNotActive": "Secret-Fenster ist derzeit nicht geöffnet"
     }
   },
   "ai": {
@@ -1036,6 +1057,14 @@
         "awamGatewayUrl": {
           "title": "awam-file-Gateway-URL",
           "description": "HTTP-Basis-URL des Ressourcen-Gateways (Standard http://127.0.0.1:18787). Änderungen gelten sofort für Providers."
+        },
+        "awamKnowledgeServiceUrl": {
+          "title": "awam-knowledge-Dienst-URL",
+          "description": "HTTP-Basis-URL des Wissen/Secret-Dienstes (Standard http://127.0.0.1:18790). Genutzt von der Wissensquelle der Palette (ADR 0016)."
+        },
+        "awamKnowledgeServiceToken": {
+          "title": "awam-knowledge-Dienst-Token",
+          "description": "Bearer-Token des Wissensdienstes (KM_SERVICE_TOKEN); leer = Aufrufe ohne Authentifizierung."
         }
       }
     },

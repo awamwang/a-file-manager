@@ -88,6 +88,8 @@
   --fluent-color-chip-stub: #5d5d5d;
   --fluent-color-chip-stub-bg: #f0f0f0;
   --fluent-color-icon-wash: #eef3f9;
+  /* vault 紫：搜索面板密钥行专用（ADR 0016）。 */
+  --afm-vault-purple: #8b5cf6;
 
   /* NavigatorGuide card tones (light); dark overrides below. */
   --fluent-guide-tone-home: var(--fluent-color-fill-accent);
@@ -523,6 +525,10 @@ html[data-list-density="compact"] .fluent-list-row--density {
 }
 
 .fluent-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   min-height: var(--fluent-control-height-standard);
   padding-inline: var(--fluent-space-md);
   border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
@@ -531,6 +537,34 @@ html[data-list-density="compact"] .fluent-list-row--density {
   color: var(--fluent-color-text-secondary);
   font: inherit;
   cursor: pointer;
+}
+
+/* Compact, non-interactive label variant (metadata tags). */
+.fluent-chip--sm {
+  min-height: 22px;
+  padding-inline: var(--fluent-space-sm);
+  font-size: var(--fluent-font-size-caption);
+  cursor: default;
+  pointer-events: none;
+}
+
+/* Compact status label: leading dot tinted with the state color + text. */
+.fluent-chip--status {
+  gap: 6px;
+  min-height: 22px;
+  padding-inline: var(--fluent-space-sm);
+  font-size: var(--fluent-font-size-caption);
+  cursor: default;
+  pointer-events: none;
+}
+
+.fluent-chip--status::before {
+  content: "";
+  inline-size: 7px;
+  block-size: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
 }
 
 .fluent-chip--active {

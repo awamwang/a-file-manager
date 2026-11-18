@@ -7,6 +7,7 @@ import { createBookmarksSource } from "./sources/bookmarks.ts";
 import { createCommandsSource } from "./sources/commands.ts";
 import { createExtensionsSource } from "./sources/extensions.ts";
 import { createFilesSource } from "./sources/files.ts";
+import { createKnowledgeSource } from "./sources/knowledge.ts";
 import { createProjectsSource } from "./sources/projects.ts";
 import { createToolsSource } from "./sources/tools.ts";
 import { createWorkgroupsSource } from "./sources/workgroups.ts";
@@ -28,6 +29,7 @@ export function buildSearchSources(deps: SearchPaletteDeps): SearchSource[] {
     createWorkgroupsSource(deps.router),
     createToolsSource(deps.router),
     createBookmarksSource(),
+    createKnowledgeSource(deps.t),
     createExtensionsSource({ router: deps.router, t: deps.t }),
   ];
 }

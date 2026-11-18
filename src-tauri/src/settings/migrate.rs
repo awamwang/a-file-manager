@@ -194,6 +194,16 @@ fn migrate_step(
             );
             Ok(())
         }
+        (11, 12) => {
+            for (key, value) in default_document().values {
+                values.entry(key).or_insert(value);
+            }
+            notes.push(
+                "Added power.awamKnowledgeServiceUrl + power.awamKnowledgeServiceToken (schema v12)"
+                    .to_string(),
+            );
+            Ok(())
+        }
         _ => Err(format!("No migration path from {from} → {to}")),
     }
 }

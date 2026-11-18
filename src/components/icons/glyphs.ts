@@ -56,7 +56,8 @@ export type FluentGlyphId =
   | "library"
   | "shortcut"
   | "bookmark"
-  | "provider";
+  | "provider"
+  | "lock";
 
 export type FluentGlyph = {
   /** Segoe Fluent Icons / MDL2 private-use codepoint */
@@ -420,6 +421,14 @@ export const FLUENT_GLYPHS: Record<FluentGlyphId, FluentGlyph> = {
     paths: [
       "M5.2 4.9a2.8 2.8 0 0 1 5.4-.8A2.6 2.6 0 0 1 12.5 8.6H4.2a2.3 2.3 0 0 1 1-3.7z",
       "M3.5 10.4h2.2v2.2H3.5v-2.2zm3.4 0h2.2v2.2H6.9v-2.2zm3.4 0h2.2v2.2h-2.2v-2.2z",
+    ],
+  },
+  /** Vault ref row (ADR 0016): padlock. */
+  lock: {
+    codepoint: "\uE72E",
+    svgOnly: true,
+    paths: [
+      "M5.25 5a2.75 2.75 0 0 1 5.5 0v2h1.25v7H4v-7h1.25V5zM6.5 5v2h3V5a1.5 1.5 0 0 0-3 0z",
     ],
   },
 };

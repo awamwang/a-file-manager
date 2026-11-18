@@ -16,6 +16,10 @@ import {
   type PaletteRow,
 } from "../../search/useSearchPalette.ts";
 import { iconUrlFor } from "../../state/shellIcons.ts";
+import {
+  isSecretRevealed,
+  revealedValueOf,
+} from "../../state/vaultChannel.ts";
 import type {
   SearchActivateNotice,
   SearchItemType,
@@ -68,6 +72,7 @@ const ITEM_TYPE_ICON: Record<SearchItemType, FluentGlyphId> = {
   capability: "flash",
   bookmark: "bookmark",
   extension: "puzzle",
+  secret: "lock",
 };
 
 /** 分组图标缺省映射。 */
@@ -79,6 +84,7 @@ const SOURCE_ICON: Record<SearchSourceId, FluentGlyphId> = {
   tools: "settings",
   bookmarks: "bookmark",
   extensions: "puzzle",
+  knowledge: "library",
 };
 
 function itemIcon(item: SearchResultItem): FluentGlyphId {
@@ -102,6 +108,26 @@ function rowTitle(group: PaletteGroup, row: PaletteRow): string {
 function itemSubtitle(item: SearchResultItem): string | null {
   if (item.subtitleKey) return t(item.subtitleKey, item.subtitleParams ?? {});
   return item.subtitle ?? null;
+}
+
+/** 密钥行短显中：副标题临时替换为明文（5s 自动回掩码，ADR 0016）。 */
+function rowSubtitleText(item: SearchResultItem): string | null {
+  if (
+    item.type === "secret" &&
+    item.secretEntry &&
+    isSecretRevealed(item.secretEntry)
+  ) {
+    return revealedValueOf(item.secretEntry);
+  }
+  return itemSubtitle(item);
+}
+
+function isSecretRevealedRow(item: SearchResultItem): boolean {
+  return (
+    item.type === "secret" &&
+    !!item.secretEntry &&
+    isSecretRevealed(item.secretEntry)
+  );
 }
 
 function itemTypeLabel(item: SearchResultItem): string {
@@ -138,7 +164,11 @@ async function runItem(
   item: SearchResultItem,
   ctrl = false,
 ): Promise<void> {
-  closeCommandPanel();
+  // Ctrl+Enter 密钥短显：保持面板打开 5 秒展示明文，到期自动回掩码。
+  const keepOpen = ctrl && item.type === "secret";
+  if (!keepOpen) {
+    closeCommandPanel();
+  }
   const notice = await item.activate({ ctrl });
   if (notice) {
     showNotice(notice);
@@ -298,6 +328,8 @@ function onPanelKeydown(event: KeyboardEvent) {
                 :class="{
                   'cmd-item--active': row.index === activeIndex,
                   'cmd-view-all': row.viewAll,
+                  'cmd-item--secret': row.item.type === 'secret',
+                  'cmd-item--revealed': isSecretRevealedRow(row.item),
                 }"
                 :data-palette-index="row.index"
                 :aria-selected="row.index === activeIndex"
@@ -321,9 +353,10 @@ function onPanelKeydown(event: KeyboardEvent) {
                 <span class="cmd-item-main">
                   <span class="cmd-item-title">{{ rowTitle(group, row) }}</span>
                   <span
-                    v-if="!row.viewAll && itemSubtitle(row.item)"
+                    v-if="!row.viewAll && rowSubtitleText(row.item)"
                     class="cmd-item-subtitle"
-                  >{{ itemSubtitle(row.item) }}</span>
+                    :class="{ 'cmd-item-value': isSecretRevealedRow(row.item) }"
+                  >{{ rowSubtitleText(row.item) }}</span>
                 </span>
                 <span v-if="!row.viewAll" class="cmd-item-type">{{
                   itemTypeLabel(row.item)
@@ -580,6 +613,24 @@ function onPanelKeydown(event: KeyboardEvent) {
   border-radius: 999px;
   font-size: var(--fluent-font-size-caption);
   color: var(--fluent-color-text-secondary);
+}
+
+/* 密钥行（ADR 0016）：vault 紫 + 锁图标；短显值等宽展示。 */
+.cmd-item--secret .cmd-item-title,
+.cmd-item--secret .cmd-item-icon {
+  color: var(--afm-vault-purple);
+}
+
+.cmd-item--revealed .cmd-item-title,
+.cmd-item--revealed .cmd-item-icon {
+  color: var(--afm-vault-purple);
+  font-weight: var(--fluent-font-weight-semibold);
+}
+
+.cmd-item-value {
+  font-family: ui-monospace, Consolas, monospace;
+  color: var(--afm-vault-purple);
+  letter-spacing: 0.02em;
 }
 
 .cmd-item--active .cmd-item-type {

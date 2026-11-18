@@ -203,7 +203,8 @@
     "openSettings": "打开设置",
     "openHealth": "打开设置 · 健康",
     "refreshHealth": "刷新健康状态",
-    "reloadWindow": "重新加载窗口"
+    "reloadWindow": "重新加载窗口",
+    "lockVaultWindow": "锁定密钥窗口"
   },
   "searchPalette": {
     "title": "搜索面板",
@@ -226,7 +227,8 @@
       "workgroups": "工作组",
       "tools": "工具",
       "bookmarks": "浏览器书签",
-      "extensions": "扩展"
+      "extensions": "扩展",
+      "knowledge": "知识内容"
     },
     "types": {
       "command": "命令",
@@ -237,7 +239,8 @@
       "tool": "工具",
       "capability": "能力",
       "bookmark": "书签",
-      "extension": "扩展"
+      "extension": "扩展",
+      "secret": "密钥"
     },
     "status": {
       "loading": "正在搜索…",
@@ -252,7 +255,25 @@
       "bookmarksUnavailable": "浏览器书签暂不可用（需 awam-file 网关）",
       "bookmarksStale": "书签快照已过期（只读）",
       "refreshBookmarks": "刷新书签",
-      "extensionsUnavailable": "扩展源暂不可用"
+      "extensionsUnavailable": "扩展源暂不可用",
+      "knowledgeUnavailable": "知识内容源暂不可用（awam-knowledge 服务未运行或鉴权失败）"
+    },
+    "vault": {
+      "copied": "已复制密钥（明文已进入剪贴板）",
+      "unlockTitle": "解锁密钥窗口",
+      "unlockMessage": "密钥取用需要先开启解锁窗口（默认 10 分钟），期间可复制或短显密钥，全程留有审计。是否继续？",
+      "unlockConfirm": "解锁",
+      "unlockFailed": "解锁失败",
+      "unauthorized": "服务鉴权失败（token 未配置或不正确）",
+      "rateLimited": "请求过于频繁，请稍后再试",
+      "failed": "密钥取用失败",
+      "lockTitle": "锁定密钥窗口",
+      "lockMessage": "立即关闭密钥取用窗口？关闭后复制 / 短显需重新解锁。",
+      "lockConfirm": "锁定",
+      "locked": "密钥窗口已锁定",
+      "lockFailed": "锁定失败",
+      "lockCheckFailed": "无法获取密钥窗口状态",
+      "lockNotActive": "密钥窗口当前未开启"
     }
   },
   "ai": {
@@ -787,6 +808,14 @@
         "awamGatewayUrl": {
           "title": "awam-file 网关地址",
           "description": "资源网关 HTTP 地址，默认 http://127.0.0.1:18787。改后立即用于 Providers 发现。"
+        },
+        "awamKnowledgeServiceUrl": {
+          "title": "awam-knowledge 服务地址",
+          "description": "知识内容/密钥服务的 HTTP 地址，默认 http://127.0.0.1:18790。用于搜索面板知识内容源（ADR 0016）。"
+        },
+        "awamKnowledgeServiceToken": {
+          "title": "awam-knowledge 服务令牌",
+          "description": "知识服务的 Bearer token（KM_SERVICE_TOKEN）；留空则不带鉴权调用。"
         }
       },
       "experimental": {

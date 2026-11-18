@@ -3,6 +3,7 @@
 import type { Router } from "vue-router";
 import { AI_ADDON_ENABLED } from "../config/flavor.ts";
 import { getCommandExtras } from "../state/featurePack/contributions.ts";
+import { lockVaultWindowAction } from "../search/sources/knowledge.ts";
 import type { AppCommand } from "./types.ts";
 
 export type TranslateFn = (key: string) => string;
@@ -120,6 +121,21 @@ export function buildAppCommands(deps: CommandPanelDeps): AppCommand[] {
         "刷新窗口",
       ],
       run: () => deps.reloadWindow(),
+    },
+    {
+      id: "action.lock-vault-window",
+      title: t("commands.lockVaultWindow"),
+      group: "Actions",
+      keywords: [
+        "vault",
+        "secret",
+        "lock",
+        "knowledge",
+        "密钥",
+        "锁定",
+        "解锁窗口",
+      ],
+      run: () => lockVaultWindowAction(deps.t)(),
     },
   ];
 

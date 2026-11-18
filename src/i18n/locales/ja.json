@@ -158,7 +158,8 @@
     "openSettings": "設定を開く",
     "openWorkGroups": "ワークグループを開く",
     "refreshHealth": "ヘルス状態を更新",
-    "reloadWindow": "ウィンドウの再読み込み"
+    "reloadWindow": "ウィンドウの再読み込み",
+    "lockVaultWindow": "シークレットウィンドウをロック"
   },
   "searchPalette": {
     "title": "検索パレット",
@@ -181,7 +182,8 @@
       "workgroups": "ワークグループ",
       "tools": "ツール",
       "bookmarks": "ブラウザブックマーク",
-      "extensions": "拡張機能"
+      "extensions": "拡張機能",
+      "knowledge": "ナレッジ"
     },
     "types": {
       "command": "コマンド",
@@ -192,7 +194,8 @@
       "tool": "ツール",
       "capability": "機能",
       "bookmark": "ブックマーク",
-      "extension": "拡張機能"
+      "extension": "拡張機能",
+      "secret": "シークレット"
     },
     "status": {
       "loading": "検索中…",
@@ -207,7 +210,25 @@
       "bookmarksUnavailable": "ブラウザブックマークは利用できません（awam-file ゲートウェイが必要）",
       "bookmarksStale": "ブックマークのスナップショットは期限切れです（読み取り専用）",
       "refreshBookmarks": "ブックマークを更新",
-      "extensionsUnavailable": "拡張機能ソースは利用できません"
+      "extensionsUnavailable": "拡張機能ソースは利用できません",
+      "knowledgeUnavailable": "ナレッジソースは利用できません（awam-knowledge サービスが停止または認証失敗）"
+    },
+    "vault": {
+      "copied": "シークレットをコピーしました（平文はクリップボードにあります）",
+      "unlockTitle": "シークレットウィンドウのロック解除",
+      "unlockMessage": "シークレットの取得にはロック解除ウィンドウ（既定 10 分）が必要です。ウィンドウ中はコピー・短時間表示が可能で、監査されます。続行しますか？",
+      "unlockConfirm": "ロック解除",
+      "unlockFailed": "ロック解除に失敗しました",
+      "unauthorized": "サービス認証に失敗しました（トークン未設定または不正）",
+      "rateLimited": "リクエストが多すぎます。後でもう一度お試しください",
+      "failed": "シークレットの取得に失敗しました",
+      "lockTitle": "シークレットウィンドウをロック",
+      "lockMessage": "シークレットのロック解除ウィンドウを今すぐ閉じますか？コピー・表示には再ロック解除が必要になります。",
+      "lockConfirm": "ロック",
+      "locked": "シークレットウィンドウをロックしました",
+      "lockFailed": "ロックに失敗しました",
+      "lockCheckFailed": "シークレットウィンドウの状態を取得できません",
+      "lockNotActive": "シークレットウィンドウは開いていません"
     }
   },
   "ai": {
@@ -1036,6 +1057,14 @@
         "awamGatewayUrl": {
           "title": "awam-file ゲートウェイ URL",
           "description": "リソースゲートウェイの HTTP ベース URL（既定 http://127.0.0.1:18787）。変更は Providers 探索に即反映。"
+        },
+        "awamKnowledgeServiceUrl": {
+          "title": "awam-knowledge サービス URL",
+          "description": "ナレッジ・コンテンツ/シークレットサービスの HTTP ベース URL（既定 http://127.0.0.1:18790）。検索パレットのナレッジソースで使用（ADR 0016）。"
+        },
+        "awamKnowledgeServiceToken": {
+          "title": "awam-knowledge サービストークン",
+          "description": "ナレッジサービスの Bearer トークン（KM_SERVICE_TOKEN）。空の場合は認証なしで呼び出します。"
         }
       }
     },

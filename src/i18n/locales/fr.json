@@ -158,7 +158,8 @@
     "openSettings": "Ouvrir les Paramètres",
     "openWorkGroups": "Ouvrir les Groupes de travail",
     "refreshHealth": "Actualiser l’état de santé",
-    "reloadWindow": "Recharger la fenêtre"
+    "reloadWindow": "Recharger la fenêtre",
+    "lockVaultWindow": "Verrouiller la fenêtre des secrets"
   },
   "searchPalette": {
     "title": "Palette de recherche",
@@ -181,7 +182,8 @@
       "workgroups": "Groupes de travail",
       "tools": "Outils",
       "bookmarks": "Favoris du navigateur",
-      "extensions": "Extensions"
+      "extensions": "Extensions",
+      "knowledge": "Connaissances"
     },
     "types": {
       "command": "Commande",
@@ -192,7 +194,8 @@
       "tool": "Outil",
       "capability": "Capacité",
       "bookmark": "Favori",
-      "extension": "Extension"
+      "extension": "Extension",
+      "secret": "Secret"
     },
     "status": {
       "loading": "Recherche en cours…",
@@ -207,7 +210,25 @@
       "bookmarksUnavailable": "Favoris du navigateur indisponibles (passerelle awam-file requise)",
       "bookmarksStale": "Instantané des favoris obsolète (lecture seule)",
       "refreshBookmarks": "Actualiser les favoris",
-      "extensionsUnavailable": "Source Extensions indisponible"
+      "extensionsUnavailable": "Source Extensions indisponible",
+      "knowledgeUnavailable": "Source Connaissances indisponible (service awam-knowledge arrêté ou non autorisé)"
+    },
+    "vault": {
+      "copied": "Secret copié (le texte en clair est dans le presse-papiers)",
+      "unlockTitle": "Déverrouiller la fenêtre des secrets",
+      "unlockMessage": "Obtenir un secret exige d’ouvrir la fenêtre de déverrouillage (10 minutes par défaut). Pendant la fenêtre, les secrets peuvent être copiés ou brièvement affichés, avec audit complet. Continuer ?",
+      "unlockConfirm": "Déverrouiller",
+      "unlockFailed": "Échec du déverrouillage",
+      "unauthorized": "Échec de l’authentification du service (jeton manquant ou incorrect)",
+      "rateLimited": "Trop de requêtes, réessayez plus tard",
+      "failed": "Échec de la demande de secret",
+      "lockTitle": "Verrouiller la fenêtre des secrets",
+      "lockMessage": "Fermer maintenant la fenêtre de déverrouillage ? Copier / afficher exigera un nouveau déverrouillage.",
+      "lockConfirm": "Verrouiller",
+      "locked": "Fenêtre des secrets verrouillée",
+      "lockFailed": "Échec du verrouillage",
+      "lockCheckFailed": "Impossible de lire l’état de la fenêtre des secrets",
+      "lockNotActive": "La fenêtre des secrets n’est pas ouverte"
     }
   },
   "ai": {
@@ -1036,6 +1057,14 @@
         "awamGatewayUrl": {
           "title": "URL de la passerelle awam-file",
           "description": "URL HTTP de base de la passerelle (défaut http://127.0.0.1:18787). Les changements s’appliquent aussitôt à Providers."
+        },
+        "awamKnowledgeServiceUrl": {
+          "title": "URL du service awam-knowledge",
+          "description": "URL HTTP de base du service connaissances/secrets (défaut http://127.0.0.1:18790). Utilisée par la source Connaissances de la palette (ADR 0016)."
+        },
+        "awamKnowledgeServiceToken": {
+          "title": "Jeton du service awam-knowledge",
+          "description": "Jeton Bearer du service connaissances (KM_SERVICE_TOKEN) ; vide = appels sans authentification."
         }
       }
     },

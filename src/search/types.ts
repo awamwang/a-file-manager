@@ -11,9 +11,10 @@ export type SearchSourceId =
   | "workgroups"
   | "tools"
   | "bookmarks"
-  | "extensions";
+  | "extensions"
+  | "knowledge";
 
-/** 范围 chip / Alt+数字顺序：命令 → 文件 → 项目 → 工作组 → 工具 → 书签 → 扩展。 */
+/** 范围 chip / Alt+数字顺序：命令 → 文件 → 项目 → 工作组 → 工具 → 书签 → 知识内容 → 扩展。 */
 export const SEARCH_SOURCE_ORDER: readonly SearchSourceId[] = [
   "commands",
   "files",
@@ -21,10 +22,11 @@ export const SEARCH_SOURCE_ORDER: readonly SearchSourceId[] = [
   "workgroups",
   "tools",
   "bookmarks",
+  "knowledge",
   "extensions",
 ];
 
-/** 结果分组显示顺序：文件组排最后（chip 顺序仍按 SEARCH_SOURCE_ORDER，不受影响）。 */
+/** 结果分组显示顺序：知识内容组排在文件组之前，文件组排最后（ADR 0016）。 */
 export const SEARCH_RESULT_GROUP_ORDER: readonly SearchSourceId[] = [
   "commands",
   "projects",
@@ -32,13 +34,14 @@ export const SEARCH_RESULT_GROUP_ORDER: readonly SearchSourceId[] = [
   "tools",
   "bookmarks",
   "extensions",
+  "knowledge",
   "files",
 ];
 
 /** 每组结果上限。 */
 export const SEARCH_GROUP_LIMIT = 8;
 
-/** 行尾类型标签：命令 / 文件 / 文件夹 / 项目 / 工作组 / 工具 / 能力 / 书签 / 扩展。 */
+/** 行尾类型标签：命令 / 文件 / 文件夹 / 项目 / 工作组 / 工具 / 能力 / 书签 / 扩展 / 密钥。 */
 export type SearchItemType =
   | "command"
   | "file"
@@ -48,7 +51,8 @@ export type SearchItemType =
   | "tool"
   | "capability"
   | "bookmark"
-  | "extension";
+  | "extension"
+  | "secret";
 
 export type SearchActivateOptions = {
   /** Ctrl+Enter（按源定义的备用动作，如文件在资源管理器定位）。 */
@@ -80,6 +84,8 @@ export type SearchResultItem = {
   iconPath?: string;
   /** 命令行的分组（Navigate/View/Actions），供 commandGroupIcon。 */
   group?: string;
+  /** 密钥行专用：vault/REDACTED 条目名（复制 / 短显取用键，ADR 0016）。 */
+  secretEntry?: string;
   activate(options: SearchActivateOptions):
     | Promise<SearchActivateOutcome>
     | SearchActivateOutcome;

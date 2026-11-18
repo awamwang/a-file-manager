@@ -4,12 +4,14 @@
 mod ai;
 mod archive;
 mod autostart;
+mod clipboard;
 mod deps_probe;
 mod discovery;
 mod extension_host;
 mod favorites;
 mod visit_stats;
 mod file_ops;
+mod knowledge_service;
 mod navigator;
 mod perf_log;
 mod paths;
@@ -227,6 +229,19 @@ pub fn run() {
                 providers::gateway::set_configured_gateway_url(Some(url.as_str()));
             }
 
+            // 加载 awam-knowledge 服务地址与鉴权 token 设置，供搜索面板知识源使用（ADR 0016）。
+            {
+                let url = settings::read_string_setting(
+                    app.handle(),
+                    knowledge_service::URL_SETTING_KEY,
+                );
+                let token = settings::read_string_setting(
+                    app.handle(),
+                    knowledge_service::TOKEN_SETTING_KEY,
+                );
+                knowledge_service::set_configured(Some(url.as_str()), Some(token.as_str()));
+            }
+
             // 从 APPDATA 加载本机 Feature Pack。
             match app.path().app_config_dir() {
                 Ok(dir) => {
@@ -315,6 +330,13 @@ pub fn run() {
                     discovery::discovery_search,
                     discovery::discovery_set_blacklist,
                     palette::palette_get_config,
+                    knowledge_service::knowledge_service_status,
+                    knowledge_service::knowledge_service_search,
+                    knowledge_service::knowledge_service_vault_status,
+                    knowledge_service::knowledge_service_reveal,
+                    knowledge_service::knowledge_service_copy,
+                    knowledge_service::knowledge_service_unlock,
+                    knowledge_service::knowledge_service_lock,
                     providers::provider_backends,
                     providers::provider_gateway_status,
                     tool_runtime::tool_runtime_get_config,

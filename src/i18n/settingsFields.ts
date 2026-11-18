@@ -33,6 +33,8 @@ export const SCHEMA_SETTING_KEYS = [
   "power.perPathOverridesEnabled",
   "power.providerPreloadKnowledge",
   "power.awamGatewayUrl",
+  "power.awamKnowledgeServiceUrl",
+  "power.awamKnowledgeServiceToken",
   "experimental.debugStatusInTitlebar",
   "experimental.previewPane",
   "preview.externalProvider",

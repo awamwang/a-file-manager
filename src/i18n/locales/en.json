@@ -202,8 +202,9 @@
     "openExtensions": "Open Extensions",
     "openSettings": "Open Settings",
     "openHealth": "Open Settings · Health",
-    "refreshHealth": "Refresh health status",
-    "reloadWindow": "Reload Window"
+    "refreshHealth": "Refresh health",
+    "reloadWindow": "Reload window",
+    "lockVaultWindow": "Lock secret window"
   },
   "searchPalette": {
     "title": "Search Palette",
@@ -226,7 +227,8 @@
       "workgroups": "Work Groups",
       "tools": "Tools",
       "bookmarks": "Browser Bookmarks",
-      "extensions": "Extensions"
+      "extensions": "Extensions",
+      "knowledge": "Knowledge"
     },
     "types": {
       "command": "Command",
@@ -237,7 +239,8 @@
       "tool": "Tool",
       "capability": "Capability",
       "bookmark": "Bookmark",
-      "extension": "Extension"
+      "extension": "Extension",
+      "secret": "Secret"
     },
     "status": {
       "loading": "Searching…",
@@ -252,7 +255,25 @@
       "bookmarksUnavailable": "Browser bookmarks unavailable (awam-file gateway required)",
       "bookmarksStale": "Bookmark snapshot is stale (read-only)",
       "refreshBookmarks": "Refresh bookmarks",
-      "extensionsUnavailable": "Extensions unavailable"
+      "extensionsUnavailable": "Extensions unavailable",
+      "knowledgeUnavailable": "Knowledge source unavailable (awam-knowledge service down or unauthorized)"
+    },
+    "vault": {
+      "copied": "Secret copied (plaintext is in the clipboard)",
+      "unlockTitle": "Unlock secret window",
+      "unlockMessage": "Taking a secret requires opening the unlock window (10 minutes by default). During the window secrets can be copied or briefly revealed, fully audited. Continue?",
+      "unlockConfirm": "Unlock",
+      "unlockFailed": "Unlock failed",
+      "unauthorized": "Service authentication failed (token missing or incorrect)",
+      "rateLimited": "Too many requests, try again later",
+      "failed": "Secret request failed",
+      "lockTitle": "Lock secret window",
+      "lockMessage": "Close the secret unlock window now? Copy / reveal will require unlocking again.",
+      "lockConfirm": "Lock",
+      "locked": "Secret window locked",
+      "lockFailed": "Lock failed",
+      "lockCheckFailed": "Could not read the secret window state",
+      "lockNotActive": "Secret window is not open"
     }
   },
   "ai": {
@@ -787,6 +808,14 @@
         "awamGatewayUrl": {
           "title": "awam-file gateway URL",
           "description": "HTTP base URL for the resource gateway (default http://127.0.0.1:18787). Changes apply to Providers discovery immediately."
+        },
+        "awamKnowledgeServiceUrl": {
+          "title": "awam-knowledge service URL",
+          "description": "HTTP base URL for the knowledge content/vault service (default http://127.0.0.1:18790). Used by the palette Knowledge source (ADR 0016)."
+        },
+        "awamKnowledgeServiceToken": {
+          "title": "awam-knowledge service token",
+          "description": "Bearer token for the knowledge service (KM_SERVICE_TOKEN); empty sends unauthenticated calls."
         }
       },
       "experimental": {

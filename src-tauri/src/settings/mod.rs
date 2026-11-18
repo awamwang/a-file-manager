@@ -86,6 +86,8 @@ pub fn settings_set(
         .get(crate::providers::gateway::GATEWAY_URL_SETTING_KEY)
         .and_then(|value| value.as_str())
         .map(str::to_string);
+    let sync_knowledge_service = patch.contains_key(crate::knowledge_service::URL_SETTING_KEY)
+        || patch.contains_key(crate::knowledge_service::TOKEN_SETTING_KEY);
     let document = set_values_at_path(&dir, patch)?;
     if sync_blacklist {
         crate::discovery::sync_blacklist_from_settings(&app);
@@ -98,6 +100,21 @@ pub fn settings_set(
         crate::providers::gateway::set_configured_gateway_url(gateway_url_patch.as_deref());
         // 网关地址变更后清空发现/列表会话缓存，下次进入 Providers 时重新探测。
         crate::providers::invalidate_provider_session();
+    }
+    if sync_knowledge_service {
+        // awam-knowledge 服务地址/token 变更后同步运行时配置（ADR 0016）。
+        // 从 patch 后的 document 取值，避免 patch 只含其中一项时清掉另一项。
+        let url = document
+            .values
+            .get(crate::knowledge_service::URL_SETTING_KEY)
+            .and_then(|value| value.as_str())
+            .map(str::to_string);
+        let token = document
+            .values
+            .get(crate::knowledge_service::TOKEN_SETTING_KEY)
+            .and_then(|value| value.as_str())
+            .map(str::to_string);
+        crate::knowledge_service::set_configured(url.as_deref(), token.as_deref());
     }
     Ok(document)
 }

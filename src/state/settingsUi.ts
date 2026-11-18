@@ -70,6 +70,9 @@ const KEY_GROUP: Record<string, SettingsUiGroupId> = {
   "power.confirmBeforeDelete": "safety",
   "power.perPathOverridesEnabled": "advanced",
   "power.providerPreloadKnowledge": "advanced",
+  // ADR 0016：知识服务地址/令牌只在 Power（advanced）组暴露，无独立页面入口。
+  "power.awamKnowledgeServiceUrl": "advanced",
+  "power.awamKnowledgeServiceToken": "advanced",
 
   "experimental.previewPane": "preview",
   "preview.externalProvider": "preview",
