@@ -265,8 +265,13 @@ fn peek_status() -> DependencyItem {
 fn quicklook_status() -> DependencyItem {
     #[cfg(windows)]
     {
-        // 轻量探测：尝试打开命名管道（不写消息）。管道名与 preview_bridge 一致。
+        // 与 preview_bridge 的实际用法对齐：管道是 QuickLook 的单实例服务，当它正被
+        // 一个连接占用时，裸 open 会返回 ERROR_PIPE_BUSY 而不是「不存在」。因此只有
+        // ERROR_FILE_NOT_FOUND 才代表 QuickLook 未运行；其它失败（忙 / 拒绝访问）说明
+        // 管道实例存在，视为运行中。短暂重试兜住 QuickLook 刚启动、管道尚未建立的瞬间，
+        // 避免预览明明正常却报「缺失」。
         use std::fs::OpenOptions;
+        const ERROR_FILE_NOT_FOUND: i32 = 2;
         let sid = match current_user_sid_string() {
             Ok(s) => s,
             Err(err) => {
@@ -281,24 +286,44 @@ fn quicklook_status() -> DependencyItem {
             }
         };
         let pipe = format!(r"\\.\pipe\QuickLook.App.Pipe.{sid}");
-        match OpenOptions::new().write(true).open(&pipe) {
-            Ok(_) => item(
-                "quicklook",
-                "optional",
-                "ok",
-                "QuickLook",
-                format!("命名管道可用：{pipe}"),
-                "无需处理。",
-            ),
-            Err(_) => item(
-                "quicklook",
-                "optional",
-                "missing",
-                "QuickLook",
-                "未检测到 QuickLook 命名管道（通常表示未运行）。",
-                "安装并启动 QuickLook；缺失时会尝试 Peek，再回退内置预览。",
-            ),
+        for attempt in 0..3u8 {
+            match OpenOptions::new().write(true).open(&pipe) {
+                Ok(_) => {
+                    return item(
+                        "quicklook",
+                        "optional",
+                        "ok",
+                        "QuickLook",
+                        format!("命名管道可用：{pipe}"),
+                        "无需处理。",
+                    );
+                }
+                Err(err) => {
+                    if err.raw_os_error() != Some(ERROR_FILE_NOT_FOUND) {
+                        return item(
+                            "quicklook",
+                            "optional",
+                            "ok",
+                            "QuickLook",
+                            format!("命名管道存在，当前不可连接（{err}）：{pipe}"),
+                            "无需处理。",
+                        );
+                    }
+                    // ERROR_FILE_NOT_FOUND：QuickLook 可能正在启动，短暂重试。
+                    if attempt < 2 {
+                        std::thread::sleep(std::time::Duration::from_millis(40));
+                    }
+                }
+            }
         }
+        item(
+            "quicklook",
+            "optional",
+            "missing",
+            "QuickLook",
+            "未检测到 QuickLook 命名管道（通常表示未运行）。",
+            "安装并启动 QuickLook；缺失时会尝试 Peek，再回退内置预览。",
+        )
     }
     #[cfg(not(windows))]
     {
