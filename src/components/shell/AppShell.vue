@@ -35,7 +35,12 @@ import { SIDE_NAV_ITEMS, isSideNavActive, sideNavIcon } from "../../shell/sideNa
 import { buildAppCommands } from "../../commands/registry";
 import { toggleCommandPanel, commandPanelOpen } from "../../state/commandPanel";
 import { AI_ADDON_ENABLED } from "../../config/flavor.ts";
-import { togglePaletteVoice } from "../../state/voiceInput.ts";
+import {
+  paletteVoiceActive,
+  stopPaletteVoice,
+  togglePaletteVoice,
+  voicePhase,
+} from "../../state/voiceInput.ts";
 import { reloadWindow } from "../../state/uiReload";
 import { requestGlobalSearchFocus } from "../../state/globalSearch";
 import {
@@ -804,6 +809,15 @@ function onDocumentPointerDown(event: PointerEvent) {
 
 function registerShellShortcuts() {
   registerShortcutHandler("commandPanel.toggle", () => {
+    // 面板已开且录音中：开关快捷键 = 结束录音并转写，不关面板（Esc 仍是取消不出文本）。
+    if (
+      commandPanelOpen.value &&
+      paletteVoiceActive.value &&
+      voicePhase.value === "recording"
+    ) {
+      void stopPaletteVoice();
+      return;
+    }
     toggleCommandPanel();
   });
   /** ADR 0018：Ctrl+M 仅在搜索面板打开时切语音（Core 包 / 面板关闭时静默）。 */

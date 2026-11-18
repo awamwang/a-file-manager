@@ -54,9 +54,10 @@ scripts/check-voice-input.mjs     跨层接线门禁（test:voice-input）
    `empty` = 误触过短（<0.3s）；`no-speech` = 录到音频但转写结果为空（多为麦克风静音）。
 4. **转写追加不替换**：palette 转写文本**追加**进 query（非空补一个空格），不自动触发搜索；
    selftest 结果只内联回显。
-5. **面板生命周期**：`power.voiceSearchAutoStart` 为真 → 面板打开自动起录；面板关闭（含 Esc、
-   backdrop、runItem）→ 录音中 `cancelVoice` 断会话。录音中 Esc 先取消语音、不关面板；
-   识别中 Esc 直接关面板（上传已脱管）。
+ 5. **面板生命周期**：`power.voiceSearchAutoStart` 为真 → 面板打开自动起录；面板关闭（含 Esc、
+    backdrop、runItem）→ 录音中 `cancelVoice` 断会话。录音中 Esc 先取消语音、不关面板；
+    识别中 Esc 直接关面板（上传已脱管）。录音中按面板开关快捷键（Ctrl+Shift+P / 反引号 /
+    用户改键，`commandPanel.toggle` handler）= 结束录音并转写、不关面板——与 Esc 取消互补。
 6. **自动截止**：录音 60s 自动 finalize 进转写；<0.3s 返回 `empty`。
 7. **Core 包静默**：cpal 与 voice 命令全部挂 `ai-addon` feature；`VITE_AFM_AI_ADDON=0` 时
    `AI_ADDON_ENABLED=false`，麦克风按钮、语音设置区、快捷键 handler 全部静默不渲染/不动作，
@@ -84,6 +85,8 @@ scripts/check-voice-input.mjs     跨层接线门禁（test:voice-input）
 - [ ] Ctrl+Shift+P 打开面板：麦克风按钮出现；点击（或 Ctrl+M）开始录音，按钮红色脉冲、
       placeholder 切「正在聆听」；再按停止转写，placeholder 切「正在识别」，结果追加进搜索框。
 - [ ] 录音中 Esc 只取消语音不关面板；再按 Esc 才关面板。
+- [ ] 录音中按 Ctrl+Shift+P（或反引号/改键）：结束录音进转写、面板保持打开，文本追加进搜索框；
+      非录音态按 Ctrl+Shift+P 照常开关面板。
 - [ ] 「自动录音」开启时打开面板自动起录；关闭面板后录音停止（无悬空会话，再次起录不报 busy）。
 - [ ] 断网 / 错误 apiKey / 空白录音分别得到 network / unauthorized / empty toast（palette）或
       内联回显（自检）。

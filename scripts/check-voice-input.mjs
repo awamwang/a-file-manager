@@ -161,6 +161,14 @@ assert.ok(
   "voiceToggle handler gated on commandPanelOpen",
 );
 assert.ok(appShell.includes('"commandPanel.voiceToggle"'), "voiceToggle unregistered on teardown");
+// The Search Palette toggle chord (Ctrl+Shift+P / backtick / remap) finalizes an
+// active recording instead of closing the panel: stop → transcribe → append query.
+assert.ok(
+  /commandPanel\.toggle", \(\) => \{[\s\S]*?paletteVoiceActive\.value[\s\S]*?voicePhase\.value === "recording"[\s\S]*?stopPaletteVoice\(\)/.test(
+    appShell,
+  ),
+  "palette toggle chord stops recording instead of closing the panel",
+);
 
 // ---------------------------------------------------------------------------
 // 5. Settings UI: hidden keys, voice section, self-test
