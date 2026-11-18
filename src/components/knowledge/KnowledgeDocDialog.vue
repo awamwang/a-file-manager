@@ -1,31 +1,40 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
-  知识页（ADR 0017）：搜索命中知识文件 Enter 进入本页；
+  知识弹窗（ADR 0017，单实例）：搜索命中知识文件行 Enter 打开；
   - Rust `knowledge_service_read_doc` 读取索引根下文档全文（服务端强制路径边界）；
   - markdown 渲染（marked + DOMPurify 消毒）；
   - 文内掩码 token（[REDACTED:label:hash8] / [vault:label:hash8]）→ 私用区占位符 →
     消毒后替换为 chip 槽位，手动挂载 KnowledgeSecretChip（复制 / 5s 短显）。
+  - 单实例：重复打开复用同一弹窗并替换内容；z-index 1050——面板(1000)之上、
+    解锁确认框(1100)之下，chip 解锁确认不被遮挡。
   明文边界：明文只经 Rust 返回值进 vaultChannel 非响应式 Map（5s 自动回掩码）。
 -->
 <script setup lang="ts">
 import {
   computed,
   nextTick,
-  onBeforeUnmount,
+  onMounted,
+  onUnmounted,
   ref,
   watch,
   type VNode,
 } from "vue";
-import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { createVNode, render } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import DOMPurify from "dompurify";
 import { marked } from "marked";
-import KnowledgeSecretChip from "../components/knowledge/KnowledgeSecretChip.vue";
-import FluentIcon from "../components/icons/FluentIcon.vue";
-import { vaultErrorCode } from "../state/vaultAccess.ts";
+import KnowledgeSecretChip from "./KnowledgeSecretChip.vue";
+import FluentIcon from "../icons/FluentIcon.vue";
+import { vaultErrorCode } from "../../state/vaultAccess.ts";
+import {
+  closeKnowledgeDoc,
+  knowledgeDocFile,
+  knowledgeDocOpen,
+} from "../../state/knowledgeDoc.ts";
+import { confirmDialogOpen } from "../../state/confirmDialog.ts";
+import { promptDialogOpen } from "../../state/promptDialog.ts";
 
 /** 掩码 token（两种形态归一到条目名 [REDACTED:label:hash8]）。 */
 const TOKEN_RX = /\[(?:REDACTED|vault):([A-Za-z0-9_-]+):([0-9a-f]{8})\]/g;
@@ -46,13 +55,9 @@ type KnowledgeDoc = {
   content: string;
 };
 
-const route = useRoute();
 const { t } = useI18n();
 
-const fileQuery = computed(() => {
-  const file = route.query.file;
-  return typeof file === "string" ? file.trim() : "";
-});
+const fileQuery = computed(() => knowledgeDocFile.value);
 
 const loading = ref(false);
 /** 加载失败 i18n key（空串 = 无错）。 */
@@ -65,7 +70,7 @@ const chipInfos = ref<ChipInfo[]>([]);
 
 const docEl = ref<HTMLElement | null>(null);
 
-/** 手动挂载的 chip 实例槽位（文档切换/卸载时释放）。 */
+/** 手动挂载的 chip 实例槽位（文档切换/弹窗关闭时释放）。 */
 let mountedSlots: HTMLElement[] = [];
 
 let loadEpoch = 0;
@@ -198,6 +203,26 @@ watch(
   { immediate: true },
 );
 
+function onKeydown(event: KeyboardEvent): void {
+  if (!knowledgeDocOpen.value) return;
+  // chip 解锁确认框 / 输入框打开时由各自 Host 优先接管 Esc。
+  if (confirmDialogOpen.value || promptDialogOpen.value) return;
+  if (event.key === "Escape") {
+    closeKnowledgeDoc();
+    event.preventDefault();
+    event.stopPropagation();
+  }
+}
+
+onMounted(() => {
+  window.addEventListener("keydown", onKeydown, true);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("keydown", onKeydown, true);
+  unmountChips();
+});
+
 function onRevealInExplorer(): void {
   if (absPath.value) void revealItemInDir(absPath.value);
 }
@@ -216,64 +241,97 @@ function onDocClick(event: MouseEvent): void {
     void openUrl(href);
   }
 }
-
-onBeforeUnmount(() => {
-  unmountChips();
-});
 </script>
 
 <template>
-  <div class="knowledge-view">
-    <header class="knowledge-header">
-      <FluentIcon name="library" size="sm" class="knowledge-header-icon" />
-      <div class="knowledge-header-main">
-        <h1 class="knowledge-title">{{ docTitle || t("knowledgeView.title") }}</h1>
-        <p v-if="docRelPath" class="knowledge-path">{{ docRelPath }}</p>
-      </div>
-      <button
-        v-if="absPath"
-        type="button"
-        class="knowledge-action fluent-control"
-        @click="onRevealInExplorer"
-      >
-        {{ t("knowledgeView.openInExplorer") }}
-      </button>
-      <button
-        v-if="fileQuery"
-        type="button"
-        class="knowledge-action fluent-control"
-        @click="onReload"
-      >
-        {{ t("knowledgeView.reload") }}
-      </button>
-    </header>
-    <main class="knowledge-body">
-      <p v-if="!fileQuery && !loading" class="knowledge-empty">
-        {{ t("knowledgeView.empty") }}
-      </p>
-      <p v-else-if="loading" class="knowledge-status">
-        {{ t("knowledgeView.loading") }}
-      </p>
-      <p v-else-if="loadErrorKey" class="knowledge-status knowledge-status--error">
-        {{ t(loadErrorKey) }}
-      </p>
-      <article
-        v-else
-        ref="docEl"
-        class="knowledge-doc"
-        @click="onDocClick"
-        v-html="renderedHtml"
-      ></article>
-    </main>
+  <div
+    v-if="knowledgeDocOpen"
+    class="knowledge-dialog-backdrop"
+    role="presentation"
+    @click.self="closeKnowledgeDoc"
+  >
+    <div
+      class="knowledge-dialog fluent-surface"
+      role="dialog"
+      aria-modal="true"
+      :aria-label="docTitle || t('knowledgeView.title')"
+    >
+      <header class="knowledge-header">
+        <FluentIcon name="library" size="sm" class="knowledge-header-icon" />
+        <div class="knowledge-header-main">
+          <h1 class="knowledge-title">
+            {{ docTitle || t("knowledgeView.title") }}
+          </h1>
+          <p v-if="docRelPath" class="knowledge-path">{{ docRelPath }}</p>
+        </div>
+        <button
+          v-if="absPath"
+          type="button"
+          class="knowledge-action fluent-control"
+          @click="onRevealInExplorer"
+        >
+          {{ t("knowledgeView.openInExplorer") }}
+        </button>
+        <button
+          v-if="fileQuery"
+          type="button"
+          class="knowledge-action fluent-control"
+          @click="onReload"
+        >
+          {{ t("knowledgeView.reload") }}
+        </button>
+        <button
+          type="button"
+          class="knowledge-action fluent-control"
+          @click="closeKnowledgeDoc"
+        >
+          {{ t("chrome.close") }}
+        </button>
+      </header>
+      <main class="knowledge-body">
+        <p v-if="loading" class="knowledge-status">
+          {{ t("knowledgeView.loading") }}
+        </p>
+        <p
+          v-else-if="loadErrorKey"
+          class="knowledge-status knowledge-status--error"
+        >
+          {{ t(loadErrorKey) }}
+        </p>
+        <article
+          v-else
+          ref="docEl"
+          class="knowledge-doc"
+          @click="onDocClick"
+          v-html="renderedHtml"
+        ></article>
+      </main>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.knowledge-view {
-  height: 100%;
+.knowledge-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  /* 面板 1000 之上、解锁确认框 1100 之下：chip 解锁确认始终盖在本弹窗上（ADR 0017）。 */
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--fluent-space-lg);
+  background: color-mix(in srgb, var(--fluent-color-text-primary) 28%, transparent);
+}
+
+.knowledge-dialog {
+  width: min(56rem, 100%);
+  height: min(44rem, 100%);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: var(--fluent-radius-md);
+  box-shadow: var(--fluent-shadow-flyout, 0 12px 32px rgba(0, 0, 0, 0.22));
 }
 
 .knowledge-header {
@@ -326,7 +384,6 @@ onBeforeUnmount(() => {
   padding: var(--fluent-space-lg);
 }
 
-.knowledge-empty,
 .knowledge-status {
   margin: var(--fluent-space-xl) auto;
   max-width: 44rem;
@@ -345,6 +402,8 @@ onBeforeUnmount(() => {
   font-size: var(--fluent-font-size-body);
   line-height: 1.7;
   word-wrap: break-word;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .knowledge-doc :deep(h1),

@@ -14,6 +14,7 @@ import TaskCenterHost from "./TaskCenterHost.vue";
 import ConfirmDialogHost from "./ConfirmDialogHost.vue";
 import NameConflictDialogHost from "./NameConflictDialogHost.vue";
 import PromptDialogHost from "./PromptDialogHost.vue";
+import KnowledgeDocDialog from "../knowledge/KnowledgeDocDialog.vue";
 import FluentIcon from "../icons/FluentIcon.vue";
 import FolderTree from "./FolderTree.vue";
 import { toastError, toastInfo, toastSuccess } from "../../state/toast";
@@ -2684,6 +2685,7 @@ onUnmounted(() => {
     <ConfirmDialogHost />
     <NameConflictDialogHost />
     <PromptDialogHost />
+    <KnowledgeDocDialog />
     <ToastHost />
     <TaskCenterHost />
     <ActionTipHost />

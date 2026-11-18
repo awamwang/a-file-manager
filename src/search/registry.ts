@@ -29,7 +29,7 @@ export function buildSearchSources(deps: SearchPaletteDeps): SearchSource[] {
     createWorkgroupsSource(deps.router),
     createToolsSource(deps.router),
     createBookmarksSource(),
-    createKnowledgeSource(deps.router),
+    createKnowledgeSource(),
     createExtensionsSource({ router: deps.router, t: deps.t }),
   ];
 }

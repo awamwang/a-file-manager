@@ -3,15 +3,15 @@
  * 知识内容源（ADR 0016 / ADR 0017 / glossary「知识内容源」）：
  * - 经 awam-knowledge HTTP 服务（Rust `knowledge_service_search`）做 BM25 内容检索；
  * - 服务端 dedup=file：按文件去重出单行（每文件取最高分 chunk，再 topk）；
- * - 文件行 Enter → 打开知识页（/knowledge?file=…，markdown 渲染 + 掩码 chip 交互）；
+ * - 文件行 Enter → 打开单实例知识弹窗（openKnowledgeDoc，markdown 渲染 + 掩码 chip 交互）；
  *   Ctrl+Enter → 资源管理器定位（响应 root 拼绝对路径，ADR 0017）；
- * - 密钥取用不在搜索面板进行（ADR 0017：密钥行已移除），改由知识页 chip 承载；
+ * - 密钥取用不在搜索面板进行（ADR 0017：密钥行已移除），改由知识弹窗 chip 承载；
  * - 服务离线 / 鉴权失败出状态行，不阻塞其它源。
  */
 
 import { invoke } from "@tauri-apps/api/core";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import type { Router } from "vue-router";
+import { openKnowledgeDoc } from "../../state/knowledgeDoc.ts";
 import { requestShellIcons } from "../../state/shellIcons.ts";
 import type {
   SearchActivateOutcome,
@@ -62,7 +62,7 @@ function responseRoot(result: KnowledgeSearchResponse): string | null {
   return result.root ?? result.index?.root ?? null;
 }
 
-export function createKnowledgeSource(router: Router): SearchSource {
+export function createKnowledgeSource(): SearchSource {
   return {
     id: "knowledge",
     labelKey: "searchPalette.scopes.knowledge",
@@ -106,7 +106,7 @@ export function createKnowledgeSource(router: Router): SearchSource {
               void revealItemInDir(absPath);
               return;
             }
-            router.push({ path: "/knowledge", query: { file: hit.path } });
+            openKnowledgeDoc(hit.path);
           },
         };
       });
