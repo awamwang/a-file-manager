@@ -11,8 +11,8 @@ import {
   type UserWorkGroupsDoc,
 } from "../openState/index.ts";
 import {
-  openMembersIntoOpenState,
   openOrFocusNavigatorTab,
+  restoreWorkGroupOpenState,
   silentSwitchWorkGroup as runSilentWorkGroupSwitch,
   type SilentSwitchResult,
   type SoftSyncNotice,
@@ -112,19 +112,46 @@ export async function saveActiveMembersFromTabsHard(): Promise<boolean> {
 }
 
 /** Soft-sync active WG hard members into the live Open State strip (Sigma-style). */
-export async function openActiveMembersIntoOpenState(): Promise<string[] | null> {
-  const active = activeWorkGroup.value;
-  if (!active?.memberPaths.length) return [];
+/**
+ * 新建工作组快捷方式：把当前打开的标签直接作为新组成员，建立并激活新工作组。
+ * 返回新工作组 id；失败返回 null（busy/error 状态照常维护）。
+ */
+export async function createWorkGroupFromLiveTabs(): Promise<string | null> {
   workGroupChromeBusy.value = true;
   workGroupChromeError.value = null;
   try {
-    return await openMembersIntoOpenState(active.memberPaths);
+    const snapshot = snapshotLiveOpenState();
+    const result = await invoke<SilentSwitchResult>("work_groups_create", {
+      name: null,
+      liveOpenState: snapshot,
+    });
+    if (result.requireSavePrompt) return null;
+    const newId = result.document.activeWorkGroupId;
+    // 当前打开的标签写为新工作组的硬成员。
+    const doc = await invoke<UserWorkGroupsDoc>(
+      "work_groups_save_members_from_open_state",
+      { workGroupId: newId, liveOpenState: snapshot },
+    );
+    rememberHydratedWorkGroups(doc);
+    workGroupsDoc.value = doc;
+    // 保持当前标签带不丢：把快照刷回运行时 Open State。
+    await restoreWorkGroupOpenState(newId, snapshot);
+    return newId;
   } catch (err) {
     workGroupChromeError.value = err instanceof Error ? err.message : String(err);
     return null;
   } finally {
     workGroupChromeBusy.value = false;
   }
+}
+
+/** 新建工作组后请求 WorkGroupsView 进入改名状态的一次性信号（消费后自动清空）。 */
+export const pendingRenameWorkGroupId = ref<string | null>(null);
+
+export function consumePendingRenameWorkGroupId(): string | null {
+  const id = pendingRenameWorkGroupId.value;
+  pendingRenameWorkGroupId.value = null;
+  return id;
 }
 
 /**

@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { useRouter } from "vue-router";
@@ -18,7 +18,7 @@ import {
 } from "../state/navigatorBrowse";
 import { displayNameFromPath } from "../state/openState";
 import type { WorkGroupOpenState } from "../state/openState";
-import { ensureWorkGroupActive, workGroupDisplayName } from "../state/workGroup";
+import { ensureWorkGroupActive, pendingRenameWorkGroupId, workGroupDisplayName } from "../state/workGroup";
 import { workGroupsDoc } from "../state/workGroup";
 import { createListPointerReorder } from "../state/listPointerReorder";
 import FluentIcon from "../components/icons/FluentIcon.vue";
@@ -641,8 +641,22 @@ async function promoteToProject() {
 }
 
 onMounted(() => {
-  void refresh();
+  void refresh().then(() => consumePendingRename());
   window.addEventListener("pointerdown", onDetailPointerDown, true);
+});
+
+/** 新建工作组跳转过来时：让新工作组直接进入改名状态并聚焦名称输入。 */
+function consumePendingRename() {
+  const targetId = pendingRenameWorkGroupId.value;
+  if (!targetId) return;
+  pendingRenameWorkGroupId.value = null;
+  if (document.value?.activeWorkGroupId === targetId && !active.value?.isDefault) {
+    startInlineRename();
+  }
+}
+
+watch(pendingRenameWorkGroupId, (id) => {
+  if (id && document.value) consumePendingRename();
 });
 
 onUnmounted(() => {

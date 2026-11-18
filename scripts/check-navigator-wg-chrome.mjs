@@ -14,8 +14,9 @@ for (const needle of [
   "navigator-work-group-menu",
   "silentSwitchWorkGroup",
   "saveActiveMembersFromTabsHard",
-  "openActiveMembersIntoOpenState",
-  "onOpenMembersIntoOpenState",
+  "createWorkGroupFromLiveTabs",
+  "chrome.workGroupNew",
+  "wg-popover",
   "chrome.workGroupMenu",
 ]) {
   if (!shell.includes(needle)) {
@@ -34,6 +35,11 @@ for (const [label, text] of [
     process.exit(1);
   }
 }
+// Open-members→OpenState button removed from the WG dropdown; two-column popover instead.
+if (shell.includes("workGroups.openMembersIntoOpenState")) {
+  console.error("AppShell must not expose the Open-members→OpenState dropdown item");
+  process.exit(1);
+}
 if (chrome.includes("saveActiveOpenStateHard") || chrome.includes("work_groups_save_open_state")) {
   console.error("workGroupChrome must not wrap explicit OpenState save (silent via silent_switch / browse persist)");
   process.exit(1);
@@ -41,8 +47,8 @@ if (chrome.includes("saveActiveOpenStateHard") || chrome.includes("work_groups_s
 
 for (const needle of [
   "work_groups_save_members_from_open_state",
-  "openActiveMembersIntoOpenState",
-  "openMembersIntoOpenState",
+  "createWorkGroupFromLiveTabs",
+  "pendingRenameWorkGroupId",
   "silentSwitchWorkGroup",
 ]) {
   if (!chrome.includes(needle)) {

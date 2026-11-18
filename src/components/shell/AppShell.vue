@@ -134,9 +134,10 @@ import {
 } from "../../state/navigatorViewMode";
 import {
   activeWorkGroup,
+  createWorkGroupFromLiveTabs,
   dismissWorkGroupSoftNotice,
   loadWorkGroupsChrome,
-  openActiveMembersIntoOpenState,
+  pendingRenameWorkGroupId,
   saveActiveMembersFromTabsHard,
   silentSwitchWorkGroup,
   workGroupChromeBusy,
@@ -547,17 +548,14 @@ async function onSaveMembersFromTabs() {
   await saveActiveMembersFromTabsHard();
 }
 
-async function onOpenMembersIntoOpenState() {
+async function onCreateWorkGroupFromTabs() {
   closeWorkGroupMenu();
-  await ensureNavigatorRoute();
-  const opened = await openActiveMembersIntoOpenState();
-  if (opened === null) return;
-  if (opened.length) {
-    toastSuccess(t("workGroups.openMembersDone", { count: opened.length }));
-  } else if (!(activeWorkGroup.value?.memberPaths.length)) {
-    toastInfo(t("workGroups.openMembersEmpty"));
-  } else {
-    toastInfo(t("workGroups.openMembersNone"));
+  const newId = await createWorkGroupFromLiveTabs();
+  if (!newId) return;
+  // 跳到工作组配置页并让新工作组直接进入改名状态。
+  pendingRenameWorkGroupId.value = newId;
+  if (route.path !== "/work-groups") {
+    await router.push("/work-groups");
   }
 }
 
@@ -2185,68 +2183,73 @@ onUnmounted(() => {
             </button>
             <div
               v-if="workGroupMenuOpen"
-              class="places-popover fluent-surface"
+              class="places-popover fluent-surface wg-popover"
               role="menu"
               :aria-label="t('chrome.workGroupMenu')"
             >
-              <p class="places-heading">{{ t("chrome.workGroupSwitch") }}</p>
-              <button
-                v-for="(group, groupIndex) in workGroupsDoc?.workGroups ?? []"
-                :key="'wg-' + group.id"
-                type="button"
-                class="fluent-list-row places-item"
-                :class="{ 'places-item--active': group.id === workGroupsDoc?.activeWorkGroupId }"
-                role="menuitem"
-                :disabled="workGroupChromeBusy || group.id === workGroupsDoc?.activeWorkGroupId"
-                v-action-tip="{
-                  label: workGroupDisplayName(group, t('workGroups.defaultName')),
-                  actionId: `workGroup.switch${groupIndex + 1}`,
-                }"
-                @click="onSilentSwitchWorkGroup(group.id)"
-              >
-                <FluentIcon :name="group.isDefault ? 'home' : 'viewAll'" size="sm" />
-                <span class="places-item-label">{{
-                  workGroupDisplayName(group, t("workGroups.defaultName"))
-                }}</span>
-                <span
-                  v-if="workGroupChordLabel(groupIndex)"
-                  class="places-item-chord"
-                >{{ workGroupChordLabel(groupIndex) }}</span>
-              </button>
-              <p v-if="!(workGroupsDoc?.workGroups.length)" class="places-empty">
-                {{ t("chrome.workGroupEmpty") }}
-              </p>
-
-              <p class="places-heading places-heading--fav">{{ t("chrome.workGroupSave") }}</p>
-              <button
-                type="button"
-                class="fluent-list-row places-item"
-                role="menuitem"
-                :disabled="workGroupChromeBusy || !activeWorkGroup?.memberPaths.length"
-                @click="onOpenMembersIntoOpenState"
-              >
-                <FluentIcon name="folderOpen" size="sm" />
-                <span>{{ t("workGroups.openMembersIntoOpenState") }}</span>
-              </button>
-              <button
-                type="button"
-                class="fluent-list-row places-item"
-                role="menuitem"
-                :disabled="workGroupChromeBusy || !activeWorkGroup"
-                @click="onSaveMembersFromTabs"
-              >
-                <FluentIcon name="folder" size="sm" />
-                <span>{{ t("workGroups.saveMembersFromTabs") }}</span>
-              </button>
-              <button
-                type="button"
-                class="fluent-list-row places-item"
-                role="menuitem"
-                @click="openWorkGroupsPage"
-              >
-                <FluentIcon name="settings" size="sm" />
-                <span>{{ t("chrome.workGroupManage") }}</span>
-              </button>
+              <div class="wg-popover-list">
+                <p class="places-heading">{{ t("chrome.workGroupSwitch") }}</p>
+                <div class="wg-popover-scroll">
+                  <button
+                    v-for="(group, groupIndex) in workGroupsDoc?.workGroups ?? []"
+                    :key="'wg-' + group.id"
+                    type="button"
+                    class="fluent-list-row places-item"
+                    :class="{ 'places-item--active': group.id === workGroupsDoc?.activeWorkGroupId }"
+                    role="menuitem"
+                    :disabled="workGroupChromeBusy || group.id === workGroupsDoc?.activeWorkGroupId"
+                    v-action-tip="{
+                      label: workGroupDisplayName(group, t('workGroups.defaultName')),
+                      actionId: `workGroup.switch${groupIndex + 1}`,
+                    }"
+                    @click="onSilentSwitchWorkGroup(group.id)"
+                  >
+                    <FluentIcon :name="group.isDefault ? 'home' : 'viewAll'" size="sm" />
+                    <span class="places-item-label">{{
+                      workGroupDisplayName(group, t("workGroups.defaultName"))
+                    }}</span>
+                    <span
+                      v-if="workGroupChordLabel(groupIndex)"
+                      class="places-item-chord"
+                    >{{ workGroupChordLabel(groupIndex) }}</span>
+                  </button>
+                  <p v-if="!(workGroupsDoc?.workGroups.length)" class="places-empty">
+                    {{ t("chrome.workGroupEmpty") }}
+                  </p>
+                </div>
+              </div>
+              <div class="wg-popover-actions">
+                <p class="places-heading">{{ t("chrome.workGroupSave") }}</p>
+                <button
+                  type="button"
+                  class="fluent-list-row places-item"
+                  role="menuitem"
+                  :disabled="workGroupChromeBusy || !activeWorkGroup"
+                  @click="onSaveMembersFromTabs"
+                >
+                  <FluentIcon name="folder" size="sm" />
+                  <span>{{ t("workGroups.saveMembersFromTabs") }}</span>
+                </button>
+                <button
+                  type="button"
+                  class="fluent-list-row places-item"
+                  role="menuitem"
+                  :disabled="workGroupChromeBusy"
+                  @click="onCreateWorkGroupFromTabs"
+                >
+                  <FluentIcon name="add" size="sm" />
+                  <span>{{ t("chrome.workGroupNew") }}</span>
+                </button>
+                <button
+                  type="button"
+                  class="fluent-list-row places-item"
+                  role="menuitem"
+                  @click="openWorkGroupsPage"
+                >
+                  <FluentIcon name="settings" size="sm" />
+                  <span>{{ t("chrome.workGroupManage") }}</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -3153,6 +3156,33 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--fluent-font-size-caption);
+}
+
+/* 工作组下拉两列布局：左列组列表（自带滚动），右列操作。 */
+.wg-popover {
+  display: grid;
+  grid-template-columns: minmax(11rem, 1fr) minmax(9rem, auto);
+  align-items: start;
+  column-gap: var(--fluent-space-xs);
+  max-width: 26rem;
+  overflow: hidden;
+}
+
+.wg-popover-list {
+  min-width: 0;
+}
+
+.wg-popover-scroll {
+  max-height: min(56vh, 22rem);
+  overflow-y: auto;
+}
+
+.wg-popover-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: var(--fluent-space-sm);
+  border-left: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
 }
 
 .breadcrumbs {
