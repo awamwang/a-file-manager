@@ -63,11 +63,44 @@ export function resolveListRowHeightPx(
   return estimateRowHeightPx(mode);
 }
 
-function rowStridePx(rowHeight: number, columns: number, mode: string): number {
+export function rowStridePx(rowHeight: number, columns: number, mode: string): number {
   // 图标格行间无 gap，步进即行高；平铺/多列仍计入 LIST_GRID_GAP_PX。
   if (mode.startsWith("icons")) return rowHeight;
   const usesGap = columns > 1 || mode === "tiles";
   return rowHeight + (usesGap ? LIST_GRID_GAP_PX : 0);
+}
+
+/**
+ * 定高列表：把第 index 项（0 基）换算为应滚动到的 scrollTop。
+ * 与 `computeListVirtualWindow` 使用同一 stride，保证行落在视口附近，
+ * 触发虚拟窗口重算后再由视图聚焦目标行。供键入定位命中远项时使用。
+ */
+export function scrollTopForIndex(args: {
+  index: number;
+  columns: number;
+  mode: string;
+  rowHeight: number;
+}): number {
+  if (args.index <= 0) return 0;
+  const cols = Math.max(1, Math.floor(args.columns) || 1);
+  const stride = rowStridePx(Math.max(1, args.rowHeight), cols, args.mode);
+  const row = Math.floor(args.index / cols);
+  return row * stride;
+}
+
+/**
+ * 变高列表（分组纵向）：累加第 index 项之前的项高，得到应滚动到的 scrollTop。
+ * `heights` 来自 `virtItemHeightPx`，与 `computeVariableListVirtualWindow` 的前缀和一致。
+ */
+export function scrollTopForVirtIndex(
+  heights: readonly number[],
+  index: number,
+): number {
+  if (index <= 0) return 0;
+  const end = Math.min(index, heights.length);
+  let top = 0;
+  for (let i = 0; i < end; i += 1) top += Math.max(0, heights[i] ?? 0);
+  return top;
 }
 
 /**

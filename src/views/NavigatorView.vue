@@ -104,7 +104,14 @@ import {
 import {
   arrowDirectionFromKey,
   moveSelectionByArrow,
+  primarySelectionIndex,
 } from "../state/navigatorKeyboardNav";
+import {
+  feedChar,
+  findTypeAheadMatch,
+  initialTypeAheadState,
+  resetTypeAhead,
+} from "../state/navigatorTypeAhead";
 import {
   hitTestMarqueeEntries,
   marqueeHitMode,
@@ -124,6 +131,8 @@ import {
   computeVariableListVirtualWindow,
   estimateListColumns,
   resolveListRowHeightPx,
+  scrollTopForIndex,
+  scrollTopForVirtIndex,
   type ListVirtualWindow,
 } from "../state/listVirtualWindow";
 import {
@@ -367,6 +376,12 @@ function closeProperties() {
 
 const listRoot = ref<HTMLElement | null>(null);
 const secondaryListRoot = ref<HTMLElement | null>(null);
+/**
+ * 键入定位缓冲（type-ahead，仅主栏）。collator 与 navigatorSort 同配置，
+ * 保证定位顺序 = 视觉排序顺序（大小写/重音不敏感）。
+ */
+const TYPE_AHEAD_COLLATOR = new Intl.Collator(undefined, { sensitivity: "base" });
+let typeAheadState = initialTypeAheadState();
 /** AIA-267: measure list surface so loading placeholders match the viewport. */
 const listViewport = ref({ w: 0, h: 0 });
 const secondaryViewport = ref({ w: 0, h: 0 });
@@ -663,7 +678,19 @@ const secondaryEntries = computed(() => {
 });
 
 watch([navigatorFilterQuery, currentPath], () => {
+  // 目录或搜索词变化会让可见顺序失效，重置键入定位缓冲。
+  typeAheadState = resetTypeAhead();
   scheduleFolderSearch("primary", currentPath.value);
+});
+
+// 排序变化同样改变可见顺序，重置缓冲（排序按钮直接调用 toggleSort，无集中入口）。
+watch([sortColumn, sortDirection], () => {
+  typeAheadState = resetTypeAhead();
+});
+
+// 主栏失去焦点（切到副栏/其它区域）时重置缓冲，避免跨区域累积前缀。
+watch(activePane, () => {
+  typeAheadState = resetTypeAhead();
 });
 
 watch([navigatorFilterQuery, secondaryPath, dualPaneEnabled], () => {
@@ -1506,11 +1533,139 @@ function onListWheel(event: WheelEvent) {
   void setNavigatorViewMode(next);
 }
 
+/**
+ * 键入定位命中远项：先按几何把目标行滚入虚拟窗口，待行挂载后再聚焦。
+ * `focusEntryRow` 依赖 DOM 中已挂载目标行，虚拟列表 > 阈值时需先设 scrollTop
+ * 触发 primaryVirtual 重算，再用有界 rAF 重试聚焦（参考 scrollSelectionIntoView）。
+ */
+function revealTypeAheadRow(index: number, path: string): void {
+  const root = listRoot.value;
+  if (!root) return;
+  const mode = navigatorViewMode.value;
+  const columnCount = isIconView.value
+    ? paneColumns(listViewport.value.w, primaryGridGeometry.value)
+    : 1;
+  const rowHeight = paneRowHeight(primaryGridGeometry.value);
+
+  let targetTop: number;
+  if (navigatorGroupByType.value) {
+    // 分组视图 virt item 含组头：先按 path 找到展平后的真实索引。
+    const virtIndex = primaryVirtItems.value.findIndex(
+      (item) => item.kind === "entry" && item.entry.path === path,
+    );
+    const flatIndex = virtIndex < 0 ? index : virtIndex;
+    if (!isIconView.value && mode !== "tiles") {
+      // 纵向列表：组头变高，用变高前缀和（对齐 computeVariableListVirtualWindow）。
+      const heights = primaryVirtItems.value.map((item) =>
+        virtItemHeightPx(item, rowHeight),
+      );
+      targetTop = scrollTopForVirtIndex(heights, flatIndex);
+    } else {
+      // 分组图标/平铺：flatten 后定高单列窗口（对齐 list--virt-flat）。
+      targetTop = scrollTopForIndex({
+        index: flatIndex,
+        columns: 1,
+        mode: "list",
+        rowHeight,
+      });
+    }
+  } else {
+    targetTop = scrollTopForIndex({
+      index,
+      columns: columnCount,
+      mode,
+      rowHeight,
+    });
+  }
+
+  root.scrollTop = Math.max(0, targetTop);
+  let attempts = 10;
+  const tryFocus = () => {
+    const row = root.querySelector<HTMLElement>(
+      `[data-entry-path="${CSS.escape(path)}"]`,
+    );
+    if (row) {
+      row.focus({ preventScroll: true });
+      row.scrollIntoView({ block: "nearest", inline: "nearest" });
+      return;
+    }
+    if (attempts > 1) {
+      attempts -= 1;
+      requestAnimationFrame(tryFocus);
+    }
+  };
+  void nextTick(() => requestAnimationFrame(tryFocus));
+}
+
+/**
+ * 键入定位：单个字母/数字字符 → 累积缓冲 → 前缀匹配 → 选中并滚动到命中项。
+ * IME 组字期（isComposing / keyCode 229 / Process / Unidentified）一律忽略，
+ * 避免拼音/假名上屏前的字母被当作定位键。
+ */
+function onTypeAheadKey(event: KeyboardEvent): boolean {
+  // IME 组字期放过（WebView2 对非编辑元素可能只送 229，无 composition 事件）。
+  if (
+    event.isComposing ||
+    event.keyCode === 229 ||
+    event.key === "Process" ||
+    event.key === "Unidentified"
+  ) {
+    return false;
+  }
+  const key = event.key;
+  // 单码点、字母或数字；空格与反引号有裸键快捷键，排除。
+  const points = Array.from(key);
+  if (points.length !== 1 || !/[\p{L}\p{N}]/u.test(key)) return false;
+  if (key === " " || key === "`") return false;
+
+  const entries = visibleEntries.value;
+  if (!entries.length) return false;
+
+  const now =
+    typeof performance !== "undefined" && typeof performance.now === "function"
+      ? performance.now()
+      : Date.now();
+  typeAheadState = feedChar(typeAheadState, key, now);
+  const names = entries.map((entry) => entry.name);
+  const primaryIndex = primarySelectionIndex(
+    orderedPaths.value,
+    selectedPaths.value,
+    selectionAnchor.value,
+  );
+  const matched = findTypeAheadMatch({
+    names,
+    buffer: typeAheadState.buffer,
+    fromIndex: typeAheadState.cycle
+      ? typeAheadState.lastMatchedIndex
+      : primaryIndex,
+    collator: TYPE_AHEAD_COLLATOR,
+    cycle: typeAheadState.cycle,
+  });
+  if (matched < 0) return false;
+
+  const path = orderedPaths.value[matched]!;
+  selectOnly(path);
+  typeAheadState = { ...typeAheadState, lastMatchedIndex: matched };
+  event.preventDefault();
+  event.stopPropagation();
+  revealTypeAheadRow(matched, path);
+  return true;
+}
+
 function onListKeyDown(event: KeyboardEvent) {
   if (event.altKey || event.metaKey || event.ctrlKey) return;
   if (isEditableTarget(event.target)) return;
+  // Escape 清空键入缓冲（不拦截事件本身，仍交给弹窗/其它处理器）。
+  if (event.key === "Escape") {
+    typeAheadState = resetTypeAhead();
+    return;
+  }
   const direction = arrowDirectionFromKey(event.key);
-  if (!direction) return;
+  if (!direction) {
+    onTypeAheadKey(event);
+    return;
+  }
+  typeAheadState = resetTypeAhead();
   const columns = isIconView.value
     ? paneColumns(listViewport.value.w, primaryGridGeometry.value)
     : 1;
