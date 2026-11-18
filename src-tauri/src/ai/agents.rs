@@ -179,6 +179,18 @@ const BUILTIN_DEFS: &[BuiltinDef] = &[
         global_mcp_path: r"%USERPROFILE%\.qoder\mcp.json",
         project_mcp_path: r".qoder\mcp.json",
     },
+    // QwenWork (QwenWorkCN desktop, e.g. `C:\Program Files\QwenWorkCN\<ver>\QwenWorkCN.exe`).
+    // Global skills live under the app home `~/.qwenworkcn/skills`. MCP servers are managed
+    // inside the app (no user-editable global/project `mcp.json` file), so MCP paths are empty
+    // and only the skills directory drives discovery + deploy — same shape as the `cline` preset.
+    BuiltinDef {
+        id: "qwenwork",
+        display_name: "QwenWork",
+        global_skills_dir: r"%USERPROFILE%\.qwenworkcn\skills",
+        project_skills_dir: r".qwenworkcn\skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
     BuiltinDef {
         id: "workbuddy",
         display_name: "WorkBuddy",
