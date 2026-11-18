@@ -250,6 +250,23 @@ mod tests {
         let _ = microphone_consent_denied();
     }
 
+    /// 手动硬件探针：直接从默认输入设备采 2s，验证 cpal 链路是否拿到采样。
+    /// 诊断麦克风死流：`cargo test probe_default_mic -- --ignored --nocapture`
+    #[test]
+    #[ignore = "hardware probe: run manually with --ignored --nocapture"]
+    fn probe_default_mic() {
+        let handle = match spawn_capture() {
+            Ok(handle) => handle,
+            Err(_) => panic!("default input device failed to open"),
+        };
+        std::thread::sleep(Duration::from_secs(2));
+        let _ = handle.stop_tx.send(());
+        let _ = handle.done_rx.recv_timeout(Duration::from_secs(2));
+        let count = handle.samples.lock().map(|buf| buf.len()).unwrap_or(0);
+        println!("default mic produced {count} samples @ {} Hz in 2s", handle.sample_rate);
+        assert!(count > 0, "default mic produced ZERO samples in 2s (dead stream)");
+    }
+
     #[test]
     fn push_mono_downmixes_stereo_and_caps_buffer() {
         let buf = Mutex::new(Vec::<f32>::new());
