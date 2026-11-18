@@ -619,7 +619,15 @@
       "fuzzyHint": "Default fuzzy matching for Search Palette queries (Everything-style subsequence for files).",
       "scopesHint": "Which sources participate by default. An empty selection means all sources.",
       "probeTitle": "Discovery probe",
-      "probeMeta": "Engine status, folder exclusions, and a one-off test query — not the primary daily search."
+      "probeMeta": "Engine status, folder exclusions, and a one-off test query — not the primary daily search.",
+      "knowledgeTitle": "Knowledge service (content & secrets)",
+      "knowledgeMeta": "The awam-knowledge HTTP service behind the search palette knowledge source (Alt+7) — searches note content and secret entries (ADR 0016).",
+      "knowledgeStatusOnlineVault": "Connected · vault channel configured",
+      "knowledgeStatusOnlineNoVault": "Connected · vault channel not configured",
+      "knowledgeStatusOffline": "Offline · service not running or URL/token mismatch",
+      "knowledgeSave": "Save configuration",
+      "knowledgeSaving": "Saving…",
+      "knowledgeSaved": "Knowledge service configuration saved"
     },
     "fields": {
       "core": {

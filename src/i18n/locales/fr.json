@@ -1084,7 +1084,15 @@
       "fuzzyHint": "Correspondance floue par défaut dans la palette (sous-séquence style Everything pour les fichiers).",
       "scopesHint": "Sources participantes par défaut. Tout coché équivaut à « Toutes ».",
       "probeTitle": "Sonde Discovery",
-      "probeMeta": "État des moteurs, exclusions de dossiers et requête d’essai — pas l’entrée quotidienne principale."
+      "probeMeta": "État des moteurs, exclusions de dossiers et requête d’essai — pas l’entrée quotidienne principale.",
+      "knowledgeTitle": "Service de connaissances (contenu et secrets)",
+      "knowledgeMeta": "Le service HTTP awam-knowledge derrière la source connaissances de la palette (Alt+7) — recherche le contenu des notes et les entrées secrètes (ADR 0016).",
+      "knowledgeStatusOnlineVault": "Connecté · canal vault configuré",
+      "knowledgeStatusOnlineNoVault": "Connecté · canal vault non configuré",
+      "knowledgeStatusOffline": "Hors ligne · service arrêté ou URL/jeton incorrect",
+      "knowledgeSave": "Enregistrer la configuration",
+      "knowledgeSaving": "Enregistrement…",
+      "knowledgeSaved": "Configuration du service de connaissances enregistrée"
     },
     "title": "Paramètres",
     "sectionFavorites": "Favoris",

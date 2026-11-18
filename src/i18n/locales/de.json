@@ -1084,7 +1084,15 @@
       "fuzzyHint": "Standard-Fuzzy-Suche in der Suchpalette (Everything-ähnliche Teilfolge für Dateien).",
       "scopesHint": "Welche Quellen standardmäßig teilnehmen. Alles ausgewählt bedeutet „Alle“.",
       "probeTitle": "Discovery-Probe",
-      "probeMeta": "Enginestatus, Ordnerausschlüsse und eine einmalige Testsuche — nicht der tägliche Haupteinstieg."
+      "probeMeta": "Enginestatus, Ordnerausschlüsse und eine einmalige Testsuche — nicht der tägliche Haupteinstieg.",
+      "knowledgeTitle": "Knowledge-Dienst (Inhalte & Secrets)",
+      "knowledgeMeta": "Der awam-knowledge-HTTP-Dienst hinter der Knowledge-Quelle der Suchpalette (Alt+7) — durchsucht Notizinhalte und Secret-Einträge (ADR 0016).",
+      "knowledgeStatusOnlineVault": "Verbunden · Vault-Kanal konfiguriert",
+      "knowledgeStatusOnlineNoVault": "Verbunden · Vault-Kanal nicht konfiguriert",
+      "knowledgeStatusOffline": "Offline · Dienst läuft nicht oder URL/Token falsch",
+      "knowledgeSave": "Konfiguration speichern",
+      "knowledgeSaving": "Speichern…",
+      "knowledgeSaved": "Knowledge-Dienst-Konfiguration gespeichert"
     },
     "title": "Einstellungen",
     "sectionFavorites": "Favoriten",

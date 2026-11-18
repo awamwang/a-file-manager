@@ -619,7 +619,15 @@
       "fuzzyHint": "搜索面板查询的默认模糊匹配（文件源使用 Everything 风格子序列）。",
       "scopesHint": "默认参与检索的搜索源；全部勾选等价于「全部」。",
       "probeTitle": "Discovery 探测",
-      "probeMeta": "引擎状态、排除文件夹与一次性试搜——不是日常主入口。"
+      "probeMeta": "引擎状态、排除文件夹与一次性试搜——不是日常主入口。",
+      "knowledgeTitle": "知识服务（内容与密钥）",
+      "knowledgeMeta": "搜索面板知识源（Alt+7）连接的 awam-knowledge HTTP 服务——检索笔记内容与密钥条目（ADR 0016）。",
+      "knowledgeStatusOnlineVault": "已连接 · 密钥通道已配置",
+      "knowledgeStatusOnlineNoVault": "已连接 · 密钥通道未配置",
+      "knowledgeStatusOffline": "未连接 · 服务未启动或地址/令牌不匹配",
+      "knowledgeSave": "保存配置",
+      "knowledgeSaving": "保存中…",
+      "knowledgeSaved": "知识服务配置已保存"
     },
     "fields": {
       "core": {

@@ -1,7 +1,8 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, defineAsyncComponent, ref } from "vue";
+import { computed, defineAsyncComponent, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import { invoke } from "@tauri-apps/api/core";
 import {
   loadFuzzy,
   loadScopes,
@@ -14,6 +15,12 @@ import {
   SEARCH_SOURCE_ORDER,
   type SearchSourceId,
 } from "../../search/types.ts";
+import {
+  hydrateSettings,
+  rememberSettingsDocument,
+  type SettingsDocument,
+} from "../../state/settingsHydrate";
+import { toastError, toastSuccess } from "../../state/toast";
 
 /** AIA-276：进入搜索设置分区时再加载 Discovery 探测页。 */
 const DiscoveryView = defineAsyncComponent(
@@ -82,6 +89,88 @@ function onEverythingPreferredChange(event: Event) {
     (event.target as HTMLInputElement).checked,
   );
 }
+
+const KNOWLEDGE_URL_SETTING_KEY = "power.awamKnowledgeServiceUrl";
+const KNOWLEDGE_TOKEN_SETTING_KEY = "power.awamKnowledgeServiceToken";
+const KNOWLEDGE_DEFAULT_URL = "http://127.0.0.1:18790";
+
+type KnowledgeServiceStatus = {
+  online: boolean;
+  baseUrl: string;
+  detail: string | null;
+  vaultConfigured: boolean;
+};
+
+const knowledgeStatus = ref<KnowledgeServiceStatus | null>(null);
+const knowledgeUrlDraft = ref(KNOWLEDGE_DEFAULT_URL);
+const knowledgeTokenDraft = ref("");
+const knowledgeSaving = ref(false);
+
+const knowledgeStatusText = computed(() => {
+  const status = knowledgeStatus.value;
+  if (!status) return "";
+  if (!status.online) return t("settings.search.knowledgeStatusOffline");
+  return status.vaultConfigured
+    ? t("settings.search.knowledgeStatusOnlineVault")
+    : t("settings.search.knowledgeStatusOnlineNoVault");
+});
+
+function normalizeKnowledgeUrlInput(raw: string): string {
+  return raw.trim().replace(/\/+$/, "");
+}
+
+async function refreshKnowledgeStatus() {
+  try {
+    knowledgeStatus.value = await invoke<KnowledgeServiceStatus>(
+      "knowledge_service_status",
+    );
+  } catch {
+    knowledgeStatus.value = null;
+  }
+}
+
+async function loadKnowledgeDrafts() {
+  try {
+    const doc = await hydrateSettings();
+    const url = doc.values[KNOWLEDGE_URL_SETTING_KEY];
+    if (typeof url === "string" && url.trim()) {
+      knowledgeUrlDraft.value = normalizeKnowledgeUrlInput(url);
+    }
+    const token = doc.values[KNOWLEDGE_TOKEN_SETTING_KEY];
+    if (typeof token === "string") {
+      knowledgeTokenDraft.value = token;
+    }
+  } catch {
+    // 设置读取失败时保留默认 URL / 空令牌草稿。
+  }
+}
+
+async function saveKnowledgeService() {
+  knowledgeSaving.value = true;
+  try {
+    const doc = await invoke<SettingsDocument>("settings_set", {
+      patch: {
+        [KNOWLEDGE_URL_SETTING_KEY]:
+          normalizeKnowledgeUrlInput(knowledgeUrlDraft.value) ||
+          KNOWLEDGE_DEFAULT_URL,
+        [KNOWLEDGE_TOKEN_SETTING_KEY]: knowledgeTokenDraft.value.trim(),
+      },
+    });
+    rememberSettingsDocument(doc);
+    await refreshKnowledgeStatus();
+    toastSuccess(t("settings.search.knowledgeSaved"));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    toastError(msg);
+  } finally {
+    knowledgeSaving.value = false;
+  }
+}
+
+onMounted(() => {
+  void loadKnowledgeDrafts();
+  void refreshKnowledgeStatus();
+});
 </script>
 
 <template>
@@ -153,6 +242,68 @@ function onEverythingPreferredChange(event: Event) {
       </label>
     </section>
 
+    <section class="fluent-surface search-settings-block">
+      <h2 class="search-settings-title">
+        {{ t("settings.search.knowledgeTitle") }}
+      </h2>
+      <p class="search-settings-meta">
+        {{ t("settings.search.knowledgeMeta") }}
+      </p>
+      <p
+        class="search-settings-meta"
+        :data-knowledge-online="knowledgeStatus?.online ? 'true' : 'false'"
+      >
+        {{ knowledgeStatusText }}
+      </p>
+
+      <label class="search-settings-field">
+        <span class="search-settings-field-label">{{
+          t("settings.fields.power.awamKnowledgeServiceUrl.title")
+        }}</span>
+        <input
+          v-model="knowledgeUrlDraft"
+          class="fluent-control"
+          type="text"
+          spellcheck="false"
+          :placeholder="KNOWLEDGE_DEFAULT_URL"
+        />
+        <span class="search-settings-desc">{{
+          t("settings.fields.power.awamKnowledgeServiceUrl.description")
+        }}</span>
+      </label>
+
+      <label class="search-settings-field">
+        <span class="search-settings-field-label">{{
+          t("settings.fields.power.awamKnowledgeServiceToken.title")
+        }}</span>
+        <input
+          v-model="knowledgeTokenDraft"
+          class="fluent-control"
+          type="text"
+          spellcheck="false"
+          autocomplete="off"
+        />
+        <span class="search-settings-desc">{{
+          t("settings.fields.power.awamKnowledgeServiceToken.description")
+        }}</span>
+      </label>
+
+      <div>
+        <button
+          type="button"
+          class="fluent-control fluent-control--accent"
+          :disabled="knowledgeSaving"
+          @click="saveKnowledgeService"
+        >
+          {{
+            knowledgeSaving
+              ? t("settings.search.knowledgeSaving")
+              : t("settings.search.knowledgeSave")
+          }}
+        </button>
+      </div>
+    </section>
+
     <section class="search-settings-probe">
       <h2 class="search-settings-title">{{ t("settings.search.probeTitle") }}</h2>
       <p class="search-settings-meta">{{ t("settings.search.probeMeta") }}</p>
@@ -201,6 +352,17 @@ function onEverythingPreferredChange(event: Event) {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
+}
+
+.search-settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.search-settings-field-label {
+  font-weight: var(--fluent-font-weight-semibold);
+  font-size: var(--fluent-font-size-caption);
 }
 
 .search-settings-scopes {

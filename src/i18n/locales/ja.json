@@ -1084,7 +1084,15 @@
       "fuzzyHint": "検索パレットの既定ファジー一致（ファイルは Everything 風サブシーケンス）。",
       "scopesHint": "既定で参加する検索ソース。すべて選択は「すべて」と同じです。",
       "probeTitle": "Discovery 検証",
-      "probeMeta": "エンジン状態・除外フォルダーと一度きりの試行検索 — 日常の主入口ではありません。"
+      "probeMeta": "エンジン状態・除外フォルダーと一度きりの試行検索 — 日常の主入口ではありません。",
+      "knowledgeTitle": "ナレッジサービス（コンテンツとシークレット）",
+      "knowledgeMeta": "検索パレットの知識ソース（Alt+7）を支える awam-knowledge HTTP サービス——ノート本文とシークレット項目を検索します（ADR 0016）。",
+      "knowledgeStatusOnlineVault": "接続済み · シークレットチャネル設定済み",
+      "knowledgeStatusOnlineNoVault": "接続済み · シークレットチャネル未設定",
+      "knowledgeStatusOffline": "未接続 · サービス未起動、または URL/トークン不一致",
+      "knowledgeSave": "設定を保存",
+      "knowledgeSaving": "保存中…",
+      "knowledgeSaved": "ナレッジサービス設定を保存しました"
     },
     "title": "設定",
     "sectionFavorites": "お気に入り",
