@@ -132,6 +132,11 @@ fn error_from_response(status: u16, value: &serde_json::Value) -> KnowledgeError
 fn agent(timeout: Duration) -> Agent {
     Agent::config_builder()
         .timeout_global(Some(timeout))
+        // 非 2xx 不作为传输错误：必须由 post_json 读响应体里的 {code, reason} 统一映射。
+        // ureq 3 默认 http_status_as_error=true，423/404 等会变成 Err(StatusCode(u16))
+        // 且丢失响应体——服务端 unlock_required 等错误码全被吞成 "offline"，
+        // 解锁确认框永远不弹（ADR 0017 解锁链路回归修复）。
+        .http_status_as_error(false)
         .build()
         .into()
 }
@@ -493,6 +498,9 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    /// 串行化会改全局（env / CONFIGURED_*）的测试，避免并行互踩。
+    static GLOBALS_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn normalize_service_url_trims_and_strips_slash() {
         assert_eq!(
@@ -599,6 +607,7 @@ mod tests {
 
     #[test]
     fn base_url_env_overrides_configured() {
+        let _g = GLOBALS_LOCK.lock().unwrap();
         let prev = std::env::var_os("AFM_KNOWLEDGE_SERVICE_URL");
         std::env::set_var("AFM_KNOWLEDGE_SERVICE_URL", "http://10.0.0.9:19999/");
         assert_eq!(base_url(), "http://10.0.0.9:19999");
@@ -610,6 +619,79 @@ mod tests {
         assert_eq!(base_url(), DEFAULT_BASE_URL);
         assert_eq!(token(), None);
         match prev {
+            Some(v) => std::env::set_var("AFM_KNOWLEDGE_SERVICE_URL", v),
+            None => std::env::remove_var("AFM_KNOWLEDGE_SERVICE_URL"),
+        }
+    }
+
+    /// 回归（ADR 0017 解锁链路）：非 2xx 响应体里的 {code} 必须透传到 KnowledgeError——
+    /// ureq 3 默认 http_status_as_error=true 会把 423 吞成 Err(StatusCode(u16)) 丢掉响应体，
+    /// 导致 unlock_required 变 "offline"、解锁确认框永远不弹。
+    #[test]
+    fn post_json_carries_non_2xx_body_code() {
+        use std::io::{Read, Write};
+        let _g = GLOBALS_LOCK.lock().unwrap();
+        let prev_env = std::env::var_os("AFM_KNOWLEDGE_SERVICE_URL");
+        std::env::remove_var("AFM_KNOWLEDGE_SERVICE_URL");
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let handle = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            // 读完整请求（头 + Content-Length body）再响应：带未读数据关连接会触发
+            // RST（os error 10053），高并发测试下时序敏感。
+            let mut req: Vec<u8> = Vec::new();
+            let mut chunk = [0u8; 2048];
+            let mut header_end: Option<usize> = None;
+            let mut content_length = 0usize;
+            while req.len() < 64 * 1024 {
+                let n = stream.read(&mut chunk).expect("mock read request");
+                if n == 0 {
+                    break;
+                }
+                req.extend_from_slice(&chunk[..n]);
+                let text = String::from_utf8_lossy(&req);
+                if header_end.is_none() {
+                    if let Some(pos) = text.find("\r\n\r\n") {
+                        header_end = Some(pos + 4);
+                        content_length = text
+                            .lines()
+                            .find_map(|l| {
+                                l.to_ascii_lowercase()
+                                    .strip_prefix("content-length:")
+                                    .and_then(|v| v.trim().parse::<usize>().ok())
+                            })
+                            .unwrap_or(0);
+                    }
+                }
+                if let Some(start) = header_end {
+                    if req.len() >= start + content_length {
+                        break;
+                    }
+                }
+            }
+            let body = r#"{"code":"unlock_required","reason":"vault locked"}"#;
+            let resp = format!(
+                "HTTP/1.1 423 Locked\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            stream.write_all(resp.as_bytes()).unwrap();
+            stream.flush().unwrap();
+        });
+        set_configured(Some(&format!("http://{addr}")), Some("t"));
+        let error = post_json(
+            "/vault/reveal",
+            json!({"entry": "[REDACTED:k:1a2b3c4d]"}),
+            Duration::from_secs(5),
+        )
+        .err()
+        .expect("423 必须映射为 KnowledgeError 而非传输错误");
+        assert_eq!(error.code, "unlock_required");
+        assert_eq!(error.status, 423);
+        handle.join().unwrap();
+        set_configured(None, None);
+        match prev_env {
             Some(v) => std::env::set_var("AFM_KNOWLEDGE_SERVICE_URL", v),
             None => std::env::remove_var("AFM_KNOWLEDGE_SERVICE_URL"),
         }
