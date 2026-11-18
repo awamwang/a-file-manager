@@ -14,7 +14,7 @@ const checks = [
   ["src/views/DiscoveryView.vue", ["engine-card", "fluent-banner--info", "toastError"]],
   [
     "src/views/ProvidersView.vue",
-    ["fluent-accent-edge--ok", "fluent-chip--down", "backend--down", "ProviderErrorBanner"],
+    ["fluent-accent-edge--ok", "fluent-accent-edge--down", "fluent-chip--down", "fluent-chip--status", "ProviderErrorBanner"],
   ],
   ["src/components/common/ProviderErrorBanner.vue", ["fluent-banner--error"]],
   [

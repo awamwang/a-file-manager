@@ -278,9 +278,6 @@ onMounted(() => {
         type="button"
         class="backend"
         :class="{
-          'backend--ok': !backend.interfaceOnly && backend.healthy,
-          'backend--down': !backend.interfaceOnly && !backend.healthy,
-          'backend--stub': backend.interfaceOnly,
           'fluent-accent-edge--ok': !backend.interfaceOnly && backend.healthy,
           'fluent-accent-edge--down': !backend.interfaceOnly && !backend.healthy,
           'fluent-accent-edge--stub': backend.interfaceOnly,
@@ -288,28 +285,30 @@ onMounted(() => {
         @click="openInExplorer(`awam://${backend.id}`)"
       >
         <strong>{{ backend.name }}</strong>
-        <span
-          class="fluent-chip status-chip"
-          :class="{
-            'fluent-chip--stub': backend.interfaceOnly,
-            'fluent-chip--ok': !backend.interfaceOnly && backend.healthy,
-            'fluent-chip--down': !backend.interfaceOnly && !backend.healthy,
-          }"
-        >{{
-          backend.interfaceOnly
-            ? t("providers.interfaceOnly")
-            : backend.healthy
-              ? t("providers.statusOk")
-              : t("providers.statusDown")
-        }}</span>
-        <span
-          v-if="backend.source === 'gateway'"
-          class="fluent-chip status-chip fluent-chip--ok"
-        >{{ t("providers.sourceGateway") }}</span>
-        <span
-          v-else-if="backend.source === 'builtin'"
-          class="fluent-chip status-chip fluent-chip--stub"
-        >{{ t("providers.sourceBuiltin") }}</span>
+        <span class="backend-chips">
+          <span
+            class="fluent-chip fluent-chip--status"
+            :class="{
+              'fluent-chip--stub': backend.interfaceOnly,
+              'fluent-chip--ok': !backend.interfaceOnly && backend.healthy,
+              'fluent-chip--down': !backend.interfaceOnly && !backend.healthy,
+            }"
+          >{{
+            backend.interfaceOnly
+              ? t("providers.interfaceOnly")
+              : backend.healthy
+                ? t("providers.statusOk")
+                : t("providers.statusDown")
+          }}</span>
+          <span
+            v-if="backend.source === 'gateway'"
+            class="fluent-chip fluent-chip--sm"
+          >{{ t("providers.sourceGateway") }}</span>
+          <span
+            v-else-if="backend.source === 'builtin'"
+            class="fluent-chip fluent-chip--sm"
+          >{{ t("providers.sourceBuiltin") }}</span>
+        </span>
         <span class="detail">{{ backend.detail || backend.description }}</span>
       </button>
     </div>
@@ -376,6 +375,7 @@ onMounted(() => {
   gap: var(--fluent-space-xs);
   min-height: var(--fluent-control-height-comfortable);
   padding: var(--fluent-space-md);
+  padding-inline-start: var(--fluent-space-lg);
   border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   border-radius: var(--fluent-radius-md);
   background: var(--fluent-color-fill-control);
@@ -383,21 +383,23 @@ onMounted(() => {
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background-color 80ms ease;
 }
 
-.backend--ok {
-  background: color-mix(in srgb, var(--fluent-color-status-success-bg) 55%, var(--fluent-color-fill-control));
-  border-color: var(--fluent-color-status-success);
+.backend:hover {
+  background: var(--fluent-color-fill-control-hover);
 }
 
-.backend--down {
-  background: color-mix(in srgb, var(--fluent-color-status-danger-bg) 45%, var(--fluent-color-fill-control));
-  border-color: var(--fluent-color-status-danger);
+.backend > strong {
+  font-weight: var(--fluent-font-weight-semibold);
 }
 
-.backend--stub {
-  background: var(--fluent-color-fill-layer-alt);
-  opacity: 0.85;
+/* 状态点标签 + 来源标签共用一行紧凑标签，避免多枚 pill 竖向堆叠。 */
+.backend-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fluent-space-xs);
 }
 
 .detail {
@@ -407,14 +409,6 @@ onMounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
-}
-
-.status-chip {
-  justify-self: start;
-  min-height: var(--fluent-control-height-standard);
-  pointer-events: none;
-  cursor: default;
-  font-size: var(--fluent-font-size-caption);
 }
 
 .uri-row {
