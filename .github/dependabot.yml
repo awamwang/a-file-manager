@@ -11,6 +11,10 @@ updates:
     open-pull-requests-limit: 10
     commit-message:
       prefix: "chore(deps)"
+    # Major 升级需人工专项迁移，避免 Dependabot 一次开出破坏性 PR。
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       npm-minor-and-patch:
         update-types:
@@ -28,6 +32,14 @@ updates:
     open-pull-requests-limit: 10
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    groups:
+      cargo-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
 
   # GitHub Actions workflow dependencies
   - package-ecosystem: "github-actions"
@@ -39,3 +51,4 @@ updates:
       timezone: "Asia/Shanghai"
     commit-message:
       prefix: "chore(ci)"
+    # Actions major 仍允许开 PR（多为兼容升级），保持人工审。
