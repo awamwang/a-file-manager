@@ -47,7 +47,7 @@ jobs:
       mac_signing: ${{ steps.meta.outputs.mac_signing }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -279,7 +279,7 @@ jobs:
         include: ${{ fromJson(needs.prepare.outputs.flavor_matrix) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -363,7 +363,7 @@ jobs:
         include: ${{ fromJson(needs.prepare.outputs.mac_matrix) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -523,7 +523,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -557,7 +557,7 @@ jobs:
       # gh release edit/view resolve the repo from the working tree; without a
       # checkout they fail with "fatal: not a git repository".
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
