@@ -273,6 +273,33 @@ async function refreshPreviewSetting() {
   }
 }
 
+/**
+ * AIA-174: while a Space preview session is open, push selection changes.
+ * The session is bound to the directory that opened it (`previewSessionDir`):
+ * a tab switch / navigation away ends it, so a stale session cannot follow a
+ * different tab's selection and decouple the preview from the file manager.
+ */
+let followTimer: ReturnType<typeof setTimeout> | null = null;
+let followSeq = 0;
+let previewSessionDir: string | null = null;
+
+/**
+ * End the Space preview session and drop the sticky flag. Also tears down the
+ * backend Peek/QL session, so a preview the user already closed (or a tab we
+ * left) cannot be resurrected by a later selection change (AIA-244 follow-up).
+ */
+function endPreviewSession(): void {
+  if (followTimer) {
+    clearTimeout(followTimer);
+    followTimer = null;
+  }
+  followSeq += 1;
+  previewSessionDir = null;
+  if (previewBridgeSessionActive.value) {
+    void dismissPreviewBridge();
+  }
+}
+
 async function shortcutPreviewBridge() {
   if (isGuidePath(currentPath.value)) return;
   const paths = selectedPaths.value;
@@ -288,28 +315,44 @@ async function shortcutPreviewBridge() {
   previewBridgeForcePane.value = false;
   try {
     const result = await invokePreviewBridge(paths);
-    if (result.backend === "off") return;
+    if (result.backend === "off") {
+      previewSessionDir = null;
+      return;
+    }
     if (!result.success && result.backend === "none") {
+      previewSessionDir = null;
       toastInfo(result.error ?? t("previewBridge.noPath"));
       return;
     }
     if (result.fallbackBuiltin && result.error) {
       toastInfo(t("previewBridge.fallbackBuiltin"));
     }
+    // Bound the follow session to the directory that opened it. A second
+    // Space (toggle-close) leaves previewBridgeSessionActive false → clear.
+    previewSessionDir = previewBridgeSessionActive.value ? currentPath.value : null;
   } catch (err) {
+    previewSessionDir = null;
     toastError(err instanceof Error ? err.message : String(err));
   }
 }
 
-/** AIA-174: while Space preview session is open, push selection changes. */
-let followTimer: ReturnType<typeof setTimeout> | null = null;
-let followSeq = 0;
 watch(
   selectedPaths,
   (paths) => {
     if (!previewBridgeSessionActive.value) return;
+    // Tab switched or navigated away: the old session is stale — end it
+    // instead of pushing the new context's selection into the old preview.
+    if (previewSessionDir !== null && previewSessionDir !== currentPath.value) {
+      endPreviewSession();
+      return;
+    }
     if (isGuidePath(currentPath.value)) return;
-    if (!paths.length) return;
+    if (!paths.length) {
+      // Nothing selected: end the session so the next click cannot resurrect
+      // a preview the user closed outside the file manager.
+      endPreviewSession();
+      return;
+    }
     if (followTimer) clearTimeout(followTimer);
     // Debounce Peek kill/respawn under arrow-key scrubbing; QL Switch is cheap.
     followTimer = setTimeout(() => {
@@ -318,8 +361,13 @@ watch(
       const snapshot = [...paths];
       void (async () => {
         try {
-          await switchPreviewBridge(snapshot);
+          const result = await switchPreviewBridge(snapshot);
           if (my !== followSeq) return;
+          // Backend session ended (e.g. QuickLook/Peek quit, pipe died): stop
+          // following so we neither spam nor resurrect.
+          if (result && result.sessionActive === false) {
+            previewSessionDir = null;
+          }
         } catch {
           // Selection follow is best-effort; avoid toast spam while scrubbing.
         }
@@ -328,6 +376,16 @@ watch(
   },
   { deep: true },
 );
+
+// Leaving the directory that opened the preview ends the session (tab switch /
+// navigation), even when the new tab's selection happens to be identical and
+// would not otherwise fire the watcher above.
+watch(currentPath, (dir) => {
+  if (!previewBridgeSessionActive.value) return;
+  if (previewSessionDir !== null && previewSessionDir !== dir) {
+    endPreviewSession();
+  }
+});
 
 function shortcutProperties() {
   if (isGuidePath(currentPath.value) && !selectedPaths.value.length) return;
@@ -353,12 +411,8 @@ function shortcutTogglePreviewPane() {
  */
 function closePreviewPane() {
   previewPaneSession.value = false;
-  if (followTimer) {
-    clearTimeout(followTimer);
-    followTimer = null;
-  }
-  followSeq += 1;
-  void dismissPreviewBridge();
+  // Also drops the session directory so selection follow cannot resurrect it.
+  endPreviewSession();
 }
 
 function shortcutToggleDetailsPane() {
@@ -1144,6 +1198,16 @@ function onWindowFocus() {
 /** KeepAlive 保活时 onUnmounted 不跑；进出页面时挂/卸文件快捷键，避免抢走其它页的 Ctrl+C。 */
 onActivated(() => {
   registerNavFileShortcuts();
+  // Returning to the navigator (KeepAlive): if the preview session's directory
+  // no longer matches the active tab, it is stale — end it before any selection
+  // watcher fires, so a different tab's selection cannot resurrect the preview.
+  if (
+    previewBridgeSessionActive.value &&
+    previewSessionDir !== null &&
+    previewSessionDir !== currentPath.value
+  ) {
+    endPreviewSession();
+  }
 });
 
 onDeactivated(() => {
@@ -1157,7 +1221,15 @@ onMounted(() => {
   // Tauri: returning from Explorer often skips DOM focus; listen to OS focus.
   void getCurrentWindow()
     .onFocusChanged(({ payload: focused }) => {
-      if (focused) onWindowFocus();
+      if (focused) {
+        onWindowFocus();
+      } else if (previewBridgeSessionActive.value) {
+        // AFM lost OS focus while a Space session was active. QuickLook/Peek
+        // present without stealing focus, so the user has moved to (and most
+        // likely closed) the preview window — end the session so selecting the
+        // next file cannot resurrect it. Re-press Space to preview again.
+        endPreviewSession();
+      }
     })
     .then((unlisten) => {
       unlistenWindowFocus = unlisten;
