@@ -127,7 +127,9 @@ pub fn spawn_capture() -> Result<CaptureHandle, CaptureError> {
     let thread_samples = Arc::clone(&samples);
 
     std::thread::spawn(move || {
-        let setup = || -> Result<u32, CaptureError> {
+        // 返回 (采样率, Stream)：Stream 必须活出闭包作用域，
+        // cpal 的 Stream 一旦 drop 采集立即停止（这正是全程零采样死流的根因）。
+        let setup = || -> Result<(u32, cpal::Stream), CaptureError> {
             let host = cpal::default_host();
             let device = host
                 .default_input_device()
@@ -197,13 +199,13 @@ pub fn spawn_capture() -> Result<CaptureHandle, CaptureError> {
                         "input stream play failed: {error}"
                     ))
                 })?;
-            Ok(sample_rate)
+            Ok((sample_rate, stream))
         };
 
         match setup() {
-            Ok(sample_rate) => {
+            Ok((sample_rate, stream)) => {
                 let _ = ready_tx.send(Ok(sample_rate));
-                // 阻塞等停止信号；发送端 drop 视同停止。
+                // 阻塞等停止信号；发送端 drop 视同停止。期间 Stream 保持存活。
                 loop {
                     match stop_rx.recv_timeout(Duration::from_millis(250)) {
                         Ok(()) => break,
@@ -211,6 +213,7 @@ pub fn spawn_capture() -> Result<CaptureHandle, CaptureError> {
                         Err(RecvTimeoutError::Disconnected) => break,
                     }
                 }
+                drop(stream);
             }
             Err(error) => {
                 let _ = ready_tx.send(Err(error));
@@ -250,8 +253,9 @@ mod tests {
         let _ = microphone_consent_denied();
     }
 
-    /// 手动硬件探针：直接从默认输入设备采 2s，验证 cpal 链路是否拿到采样。
-    /// 诊断麦克风死流：`cargo test probe_default_mic -- --ignored --nocapture`
+    /// 手动硬件探针：直接从默认输入设备采 10s 并逐秒打印采样数时间线，
+    /// 验证 cpal 链路何时开始拿到数据（诊断慢启动设备 vs 彻底死流）。
+    /// `cargo test probe_default_mic -- --ignored --nocapture`
     #[test]
     #[ignore = "hardware probe: run manually with --ignored --nocapture"]
     fn probe_default_mic() {
@@ -259,12 +263,146 @@ mod tests {
             Ok(handle) => handle,
             Err(_) => panic!("default input device failed to open"),
         };
-        std::thread::sleep(Duration::from_secs(2));
+        let mut last = 0usize;
+        for second in 1..=10 {
+            std::thread::sleep(Duration::from_secs(1));
+            let count = handle.samples.lock().map(|buf| buf.len()).unwrap_or(0);
+            println!("t={second:>2}s samples={count} (delta {})", count - last);
+            last = count;
+        }
         let _ = handle.stop_tx.send(());
         let _ = handle.done_rx.recv_timeout(Duration::from_secs(2));
-        let count = handle.samples.lock().map(|buf| buf.len()).unwrap_or(0);
-        println!("default mic produced {count} samples @ {} Hz in 2s", handle.sample_rate);
-        assert!(count > 0, "default mic produced ZERO samples in 2s (dead stream)");
+        assert!(last > 0, "default mic produced ZERO samples in 10s (dead stream)");
+    }
+
+    /// 手动硬件探针：枚举 cpal 可见的全部输入设备逐个试采 2s，并对默认
+    /// 设备额外尝试单声道/44.1k/16k 变体，定位「默认配置死流但变体可用」。
+    /// `cargo test probe_enum_inputs -- --ignored --nocapture`
+    #[test]
+    #[ignore = "hardware probe: run manually with --ignored --nocapture"]
+    fn probe_enum_inputs() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        fn count_samples<T: cpal::SizedSample>(
+            device: &cpal::Device,
+            config: &cpal::StreamConfig,
+            secs: u64,
+        ) -> Option<usize> {
+            let count = Arc::new(AtomicUsize::new(0));
+            let sink = count.clone();
+            let stream = device
+                .build_input_stream(
+                    config,
+                    move |data: &[T], _info: &cpal::InputCallbackInfo| {
+                        sink.fetch_add(data.len(), Ordering::Relaxed);
+                    },
+                    |error| println!("    stream error: {error}"),
+                    None,
+                )
+                .ok()?;
+            stream.play().ok()?;
+            std::thread::sleep(Duration::from_secs(secs));
+            drop(stream);
+            Some(count.load(Ordering::Relaxed))
+        }
+
+        fn try_config(
+            device: &cpal::Device,
+            config: &cpal::StreamConfig,
+            format: cpal::SampleFormat,
+            secs: u64,
+        ) {
+            let got = match format {
+                cpal::SampleFormat::F32 => count_samples::<f32>(device, config, secs),
+                cpal::SampleFormat::I16 => count_samples::<i16>(device, config, secs),
+                cpal::SampleFormat::U16 => count_samples::<u16>(device, config, secs),
+                _ => None,
+            };
+            match got {
+                Some(0) => println!("    -> 0 samples in {secs}s (DEAD)"),
+                Some(n) => println!("    -> {n} samples in {secs}s (alive)"),
+                None => println!("    -> build/play failed"),
+            }
+        }
+
+        let host = cpal::default_host();
+        println!("cpal host: {:?}", host.id());
+        let devices: Vec<cpal::Device> = match host.input_devices() {
+            Ok(iter) => iter.collect(),
+            Err(error) => {
+                println!("input_devices() failed: {error}");
+                return;
+            }
+        };
+        println!("{} input devices visible to cpal", devices.len());
+        let default_name = host
+            .default_input_device()
+            .and_then(|device| device.name().ok())
+            .unwrap_or_default();
+        println!("default input device: {default_name:?}");
+        for device in &devices {
+            let name = device.name().unwrap_or_else(|_| "<name unavailable>".into());
+            println!("--- {name}");
+            let supported = match device.default_input_config() {
+                Ok(cfg) => cfg,
+                Err(error) => {
+                    println!("    default_input_config failed: {error}");
+                    continue;
+                }
+            };
+            let config: cpal::StreamConfig = supported.clone().into();
+            println!(
+                "    config: {} Hz x {}ch ({:?})",
+                config.sample_rate.0,
+                config.channels,
+                supported.sample_format()
+            );
+            try_config(device, &config, supported.sample_format(), 2);
+        }
+
+        // 默认设备的格式变体实验：单声道 / 44.1k / 16k 单声道。
+        if let Some(device) = host.default_input_device() {
+            let supported = match device.default_input_config() {
+                Ok(cfg) => cfg,
+                Err(_) => return,
+            };
+            let base: cpal::StreamConfig = supported.clone().into();
+            let format = supported.sample_format();
+            let variants: Vec<(&str, cpal::StreamConfig)> = vec![
+                (
+                    "mono",
+                    cpal::StreamConfig {
+                        channels: 1,
+                        sample_rate: base.sample_rate,
+                        buffer_size: base.buffer_size,
+                    },
+                ),
+                (
+                    "44100",
+                    cpal::StreamConfig {
+                        channels: base.channels,
+                        sample_rate: cpal::SampleRate(44100),
+                        buffer_size: base.buffer_size,
+                    },
+                ),
+                (
+                    "16000-mono",
+                    cpal::StreamConfig {
+                        channels: 1,
+                        sample_rate: cpal::SampleRate(16000),
+                        buffer_size: base.buffer_size,
+                    },
+                ),
+            ];
+            println!("--- default device format variants");
+            for (label, config) in variants {
+                println!(
+                    "    variant {label}: {} Hz x {}ch",
+                    config.sample_rate.0, config.channels
+                );
+                try_config(&device, &config, format, 2);
+            }
+        }
     }
 
     #[test]
