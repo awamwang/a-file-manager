@@ -205,8 +205,7 @@
       "tool": "Werkzeug",
       "capability": "Fähigkeit",
       "bookmark": "Lesezeichen",
-      "extension": "Erweiterung",
-      "secret": "Secret"
+      "extension": "Erweiterung"
     },
     "status": {
       "loading": "Suche läuft…",
@@ -614,13 +613,15 @@
       "title": "Laufzeitabhängigkeiten",
       "meta": "Erforderlich und optional. Fehlende optionale Komponenten mindern Features, blockieren Explorer nicht.",
       "fixLabel": "Lösung:",
+      "quicklookUnverified": "Verbindung nicht geprüft",
       "summaryAllOk": "Erforderliche und optionale Checks sind in Ordnung.",
       "summaryRequiredMissing": "{count} erforderliche Abhängigkeit fehlt — bitte vor dem UI-Host installieren.",
       "summaryOptionalMissing": "{count} optionale Komponente(n) fehlen — betroffene Features werden eingeschränkt.",
       "status": {
         "ok": "ok",
         "missing": "fehlt",
-        "warn": "Hinweis"
+        "warn": "Hinweis",
+        "unbridged": "installiert, nicht angebunden"
       },
       "kind": {
         "required": "erforderlich",
@@ -639,7 +640,23 @@
         "quicklook": {
           "title": "QuickLook",
           "detail": "Status der QuickLook-/Peek-Brücke.",
-          "fix": "Bei funktionierender Vorschau ist nichts zu tun."
+          "fix": "Bei funktionierender Vorschau ist nichts zu tun.",
+          "ok": {
+            "detail": "QuickLook läuft (Named Pipe vorhanden); die Leertaste-Vorschau läuft darüber.",
+            "fix": "Kein Handeln nötig. Vorschaubare Dateitypen hängen von den QuickLook-Plugins ab; eine kurzzeitig belegte Pipe fällt auf Peek/integrierte Vorschau zurück."
+          },
+          "missing": {
+            "detail": "QuickLook läuft nicht (Named Pipe fehlt; eine installierte, aber gestoppte QuickLook-Instanz zeigt dasselbe Bild).",
+            "fix": "QuickLook starten, um die Vorschau zu übernehmen; bis dahin probiert die Leertaste Peek und danach die integrierte Vorschau."
+          },
+          "warn": {
+            "detail": "QuickLook-Status konnte nicht ermittelt werden (SID des aktuellen Benutzers nicht auflösbar).",
+            "fix": "In einer normalen Benutzersitzung ausführen; andernfalls Peek oder die integrierte Vorschau nutzen."
+          },
+          "unbridged": {
+            "detail": "Ein QuickLook-Prozess läuft, aber es gibt keine Named Pipe, die AFM anbinden kann (AFM spricht nur das klassische QuickLook-Pipe-Protokoll; die Store-Edition stellt es nicht bereit).",
+            "fix": "Kein Handeln nötig: Die Leertaste-Vorschau liefert PowerToys Peek (oder die integrierte Vorschau). Damit AFM QuickLook direkt ansteuert, installiere die klassische QuickLook-Version von poizan42."
+          }
         },
         "powertoys_peek": {
           "title": "PowerToys Peek"

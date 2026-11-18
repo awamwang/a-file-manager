@@ -270,6 +270,7 @@ const scrambled: SearchSource[] = [
   fakeSource("commands", Array.from({ length: 12 }, (_, i) => `cmd-${i}`)),
   fakeSource("tools", ["tool-1"]),
   fakeSource("bookmarks", ["bm-1"]),
+  fakeSource("knowledge", ["kb-1"]),
   fakeSource("files", ["file-1", "file-2"]),
   fakeSource("workgroups", ["wg-1"]),
   fakeSource("projects", ["proj-1"]),
@@ -315,7 +316,7 @@ assert.notDeepEqual(
 );
 assert.deepEqual(
   palette.scopeChips.value.map((chip) => chip.index),
-  [1, 2, 3, 4, 5, 6, 7],
+  [1, 2, 3, 4, 5, 6, 7, 8],
   "Alt+N 提示从 1 起",
 );
 assert.ok(
@@ -327,7 +328,7 @@ assert.ok(
 palette.toggleScopeAt(1);
 assert.deepEqual(
   [...palette.activeScopes.value].sort(),
-  ["bookmarks", "extensions", "files", "projects", "tools", "workgroups"],
+  ["bookmarks", "extensions", "files", "knowledge", "projects", "tools", "workgroups"],
   "Alt+1 关掉命令源",
 );
 palette.toggleScopeAt(1);

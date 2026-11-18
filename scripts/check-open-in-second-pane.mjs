@@ -49,7 +49,7 @@ assert.ok(shell.includes("onOpenTabInSecondPane"));
 assert.ok(shell.includes('@click="onOpenTabInSecondPane"'));
 assert.ok(shell.includes("await openInSecondPane(path)"));
 assert.ok(shell.includes(':disabled="!tabContextHasPath"'));
-assert.ok(shell.includes("const menuHeight = 260;"));
+assert.ok(shell.includes("const menuHeight = 292;"));
 assert.match(
   shell,
   /import \{[\s\S]*?openInSecondPane,[\s\S]*?\} from "\.\.\/\.\.\/state\/dualPane"/,

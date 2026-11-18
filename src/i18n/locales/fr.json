@@ -205,8 +205,7 @@
       "tool": "Outil",
       "capability": "Capacité",
       "bookmark": "Favori",
-      "extension": "Extension",
-      "secret": "Secret"
+      "extension": "Extension"
     },
     "status": {
       "loading": "Recherche en cours…",
@@ -614,13 +613,15 @@
       "title": "Dépendances d’exécution",
       "meta": "Obligatoire et optionnel. L’absence d’optionnels dégrade une fonction, sans bloquer l’Explorateur local.",
       "fixLabel": "Correction :",
+      "quicklookUnverified": "Connexion non vérifiée",
       "summaryAllOk": "Contrôles obligatoires et optionnels OK.",
       "summaryRequiredMissing": "{count} dépendance obligatoire manquante — installez-la avant l’hôte UI.",
       "summaryOptionalMissing": "{count} composant(s) optionnel(s) manquant(s) — fonctions associées dégradées.",
       "status": {
         "ok": "ok",
         "missing": "manquant",
-        "warn": "attention"
+        "warn": "attention",
+        "unbridged": "installé, non relié"
       },
       "kind": {
         "required": "obligatoire",
@@ -639,7 +640,23 @@
         "quicklook": {
           "title": "QuickLook",
           "detail": "État du pont QuickLook / Peek.",
-          "fix": "Aucune action si l’aperçu fonctionne."
+          "fix": "Aucune action si l’aperçu fonctionne.",
+          "ok": {
+            "detail": "QuickLook est en cours d’exécution (tube nommé présent) ; l’aperçu Espace passe par lui.",
+            "fix": "Aucune action nécessaire. Les types de fichiers prévisualisables dépendent des plugins QuickLook ; un tube momentanément occupé bascule vers Peek/l’aperçu intégré."
+          },
+          "missing": {
+            "detail": "QuickLook n’est pas en cours d’exécution (tube nommé absent ; une instance installée mais arrêtée donne le même résultat).",
+            "fix": "Démarrez QuickLook pour prendre en charge l’aperçu ; en attendant, Espace essaie Peek puis le volet intégré."
+          },
+          "warn": {
+            "detail": "Impossible de déterminer l’état de QuickLook (échec de résolution du SID de l’utilisateur actuel).",
+            "fix": "Exécutez dans une session utilisateur normale ; sinon appuyez-vous sur Peek ou l’aperçu intégré."
+          },
+          "unbridged": {
+            "detail": "Un processus QuickLook tourne, mais sans tube nommé qu’AFM peut relier (AFM ne parle que le protocole de tube QuickLook classique ; l’édition Store ne l’expose pas).",
+            "fix": "Aucune action nécessaire : l’aperçu Espace est fourni par PowerToys Peek (ou le volet intégré). Pour qu’AFM pilote QuickLook directement, installez le QuickLook classique de poizan42."
+          }
         },
         "powertoys_peek": {
           "title": "PowerToys Peek"

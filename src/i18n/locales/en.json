@@ -206,7 +206,7 @@
     "openSettings": "Open Settings",
     "openHealth": "Open Settings · Health",
     "refreshHealth": "Refresh health",
-    "reloadWindow": "Reload window",
+    "reloadWindow": "Reload Window",
     "lockVaultWindow": "Lock secret window"
   },
   "searchPalette": {
@@ -250,8 +250,7 @@
       "tool": "Tool",
       "capability": "Capability",
       "bookmark": "Bookmark",
-      "extension": "Extension",
-      "secret": "Secret"
+      "extension": "Extension"
     },
     "status": {
       "loading": "Searching…",

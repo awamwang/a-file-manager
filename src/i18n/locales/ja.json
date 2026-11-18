@@ -205,8 +205,7 @@
       "tool": "ツール",
       "capability": "機能",
       "bookmark": "ブックマーク",
-      "extension": "拡張機能",
-      "secret": "シークレット"
+      "extension": "拡張機能"
     },
     "status": {
       "loading": "検索中…",
@@ -614,13 +613,15 @@
       "title": "ランタイム依存関係",
       "meta": "必須とオプション。オプション欠如は機能低下のみで、ローカル Explorer は継続します。",
       "fixLabel": "対処：",
+      "quicklookUnverified": "接続未検証",
       "summaryAllOk": "必須・オプションとも問題ありません。",
       "summaryRequiredMissing": "必須依存が {count} 件不足 — UI ホスト前にインストールしてください。",
       "summaryOptionalMissing": "オプションが {count} 件不足 — 関連機能は低下します（詳細は下）。",
       "status": {
         "ok": "OK",
         "missing": "不足",
-        "warn": "注意"
+        "warn": "注意",
+        "unbridged": "インストール済み・未ブリッジ"
       },
       "kind": {
         "required": "必須",
@@ -639,7 +640,23 @@
         "quicklook": {
           "title": "QuickLook",
           "detail": "QuickLook / Peek ブリッジの状態です。",
-          "fix": "プレビューが動作する場合は対応不要です。"
+          "fix": "プレビューが動作する場合は対応不要です。",
+          "ok": {
+            "detail": "QuickLook が起動中です（名前付きパイプあり）。Space プレビューは QuickLook 経由で行われます。",
+            "fix": "対応不要です。プレビュー可能なファイル種は QuickLook プラグイン次第です。パイプが一時的に占有されている場合は Peek / 内蔵プレビューへフォールバックします。"
+          },
+          "missing": {
+            "detail": "QuickLook が起動していません（名前付きパイプなし。インストール済みでも停止中は同じ扱いです）。",
+            "fix": "QuickLook を起動するとプレビューを引き継ぎます。それまで Space は Peek、次に内蔵プレビューを試します。"
+          },
+          "warn": {
+            "detail": "QuickLook の状態を判定できませんでした（現在のユーザー SID を解決できません）。",
+            "fix": "通常のユーザーセッションで実行してください。それ以外の場合は Peek または内蔵プレビューをご利用ください。"
+          },
+          "unbridged": {
+            "detail": "QuickLook プロセスは起動していますが、AFM がブリッジできる名前付きパイプがありません（AFM は古典的 QuickLook のパイププロトコルのみ対応。Store 版は提供しません）。",
+            "fix": "対応不要です。Space プレビューは PowerToys Peek（または内蔵プレビュー）が提供します。AFM から QuickLook を直接操作するには、古典的 poizan42 QuickLook をインストールしてください。"
+          }
         },
         "powertoys_peek": {
           "title": "PowerToys Peek"

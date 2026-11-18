@@ -250,8 +250,7 @@
       "tool": "工具",
       "capability": "能力",
       "bookmark": "书签",
-      "extension": "扩展",
-      "secret": "密钥"
+      "extension": "扩展"
     },
     "status": {
       "loading": "正在搜索…",
