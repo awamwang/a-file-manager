@@ -1505,5 +1505,22 @@
     "libraries": "Libraries",
     "network": "Network",
     "networkEmpty": "No mapped network locations. Type \\\\server\\share in the address bar."
+  },
+  "knowledgeView": {
+    "title": "Knowledge",
+    "empty": "Open a knowledge note from search to read it here (Enter on a knowledge file row).",
+    "loading": "Loading document…",
+    "loadFailed": "Failed to load document.",
+    "notFound": "Document not found in the knowledge index root.",
+    "tooLarge": "Document exceeds the 2 MiB limit.",
+    "invalidPath": "Invalid document path.",
+    "offline": "Knowledge service is unreachable.",
+    "openInExplorer": "Reveal in Explorer",
+    "reload": "Reload",
+    "chip": {
+      "copy": "Copy",
+      "show": "Show",
+      "hide": "Hide"
+    }
   }
 }

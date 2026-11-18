@@ -41,7 +41,7 @@ export const SEARCH_RESULT_GROUP_ORDER: readonly SearchSourceId[] = [
 /** 每组结果上限。 */
 export const SEARCH_GROUP_LIMIT = 8;
 
-/** 行尾类型标签：命令 / 文件 / 文件夹 / 项目 / 工作组 / 工具 / 能力 / 书签 / 扩展 / 密钥。 */
+/** 行尾类型标签：命令 / 文件 / 文件夹 / 项目 / 工作组 / 工具 / 能力 / 书签 / 扩展。 */
 export type SearchItemType =
   | "command"
   | "file"
@@ -51,8 +51,7 @@ export type SearchItemType =
   | "tool"
   | "capability"
   | "bookmark"
-  | "extension"
-  | "secret";
+  | "extension";
 
 export type SearchActivateOptions = {
   /** Ctrl+Enter（按源定义的备用动作，如文件在资源管理器定位）。 */
@@ -84,8 +83,6 @@ export type SearchResultItem = {
   iconPath?: string;
   /** 命令行的分组（Navigate/View/Actions），供 commandGroupIcon。 */
   group?: string;
-  /** 密钥行专用：vault/REDACTED 条目名（复制 / 短显取用键，ADR 0016）。 */
-  secretEntry?: string;
   activate(options: SearchActivateOptions):
     | Promise<SearchActivateOutcome>
     | SearchActivateOutcome;

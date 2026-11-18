@@ -3,7 +3,7 @@
 import type { Router } from "vue-router";
 import { AI_ADDON_ENABLED } from "../config/flavor.ts";
 import { getCommandExtras } from "../state/featurePack/contributions.ts";
-import { lockVaultWindowAction } from "../search/sources/knowledge.ts";
+import { lockVaultWindowAction } from "../state/vaultAccess.ts";
 import type { AppCommand } from "./types.ts";
 
 export type TranslateFn = (key: string) => string;

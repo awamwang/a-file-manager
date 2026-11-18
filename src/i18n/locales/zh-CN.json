@@ -1505,5 +1505,22 @@
     "libraries": "库",
     "network": "网络",
     "networkEmpty": "暂无映射的网络位置。可在地址栏输入 \\\\server\\share。"
+  },
+  "knowledgeView": {
+    "title": "知识页",
+    "empty": "从搜索打开一条知识笔记即可在此阅读（知识文件行按 Enter）。",
+    "loading": "正在加载文档…",
+    "loadFailed": "文档加载失败。",
+    "notFound": "文档在索引根中不存在。",
+    "tooLarge": "文档超过 2MiB 上限。",
+    "invalidPath": "文档路径非法。",
+    "offline": "知识服务不可达。",
+    "openInExplorer": "在资源管理器中显示",
+    "reload": "重新加载",
+    "chip": {
+      "copy": "复制",
+      "show": "显示",
+      "hide": "隐藏"
+    }
   }
 }

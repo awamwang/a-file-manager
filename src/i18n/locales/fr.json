@@ -1505,5 +1505,22 @@
     "libraries": "Bibliotheques",
     "network": "Reseau",
     "networkEmpty": "Aucun emplacement reseau mappe. Saisissez \\\\server\\share dans la barre d'adresse."
+  },
+  "knowledgeView": {
+    "title": "Connaissances",
+    "empty": "Ouvrez une note de connaissances depuis la recherche pour la lire ici (Entrée sur une ligne de fichier).",
+    "loading": "Chargement du document…",
+    "loadFailed": "Échec du chargement du document.",
+    "notFound": "Document introuvable à la racine de l'index.",
+    "tooLarge": "Le document dépasse la limite de 2 Mio.",
+    "invalidPath": "Chemin de document invalide.",
+    "offline": "Service de connaissances inaccessible.",
+    "openInExplorer": "Afficher dans l'Explorateur",
+    "reload": "Recharger",
+    "chip": {
+      "copy": "Copier",
+      "show": "Afficher",
+      "hide": "Masquer"
+    }
   }
 }

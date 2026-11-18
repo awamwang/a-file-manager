@@ -20,6 +20,11 @@ const routes: RouteRecordRaw[] = [
   },
   { path: "/navigator", name: "navigator", component: NavigatorView },
   {
+    path: "/knowledge",
+    name: "knowledge",
+    component: () => import("../views/KnowledgeView.vue"),
+  },
+  {
     path: "/providers",
     name: "providers",
     component: () => import("../views/ProvidersView.vue"),

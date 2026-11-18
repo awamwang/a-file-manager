@@ -210,6 +210,21 @@ pub struct KnowledgeSearchResponse {
     pub mode: Option<String>,
     #[serde(default)]
     pub index: Option<KnowledgeIndexInfo>,
+    /// 索引根绝对路径（ADR 0017：供前端拼绝对路径做资源管理器定位）。
+    #[serde(default)]
+    pub root: Option<String>,
+}
+
+/// /doc 响应：索引根下文档全文（脱敏工作副本，掩码 token 原样保留）。
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct KnowledgeDoc {
+    #[serde(default)]
+    pub ok: bool,
+    pub path: String,
+    #[serde(default)]
+    pub root: Option<String>,
+    pub content: String,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -293,6 +308,19 @@ fn clamp_topk(topk: Option<u32>) -> u32 {
     topk.unwrap_or(DEFAULT_TOPK).clamp(1, MAX_TOPK)
 }
 
+/// /doc 路径客户端预校验：必须是索引根内相对路径（拒 `..` 段 / 绝对路径 / 盘符 / NUL）；
+/// 服务端仍做权威边界校验，这里只拦明显非法输入。
+fn is_valid_doc_path(path: &str) -> bool {
+    let p = path.trim();
+    if p.is_empty() || p.len() > 1024 || p.contains('\0') {
+        return false;
+    }
+    if p.contains(':') || p.starts_with('/') || p.starts_with('\\') {
+        return false;
+    }
+    !p.split(['/', '\\']).any(|seg| seg == "..")
+}
+
 // ---------------------------------------------------------------------------
 // Tauri 命令
 // ---------------------------------------------------------------------------
@@ -337,11 +365,12 @@ pub fn knowledge_service_status() -> KnowledgeServiceStatus {
     }
 }
 
-/// BM25 内容检索（命中块含 vault 引用提取结果）。
+/// BM25 内容检索（ADR 0017：`dedup = "file"` 时服务端按文件去重出单行）。
 #[tauri::command]
 pub fn knowledge_service_search(
     query: String,
     topk: Option<u32>,
+    dedup: Option<String>,
 ) -> Result<KnowledgeSearchResponse, KnowledgeError> {
     let query = query.trim().to_string();
     if query.is_empty() {
@@ -351,12 +380,33 @@ pub fn knowledge_service_search(
             total: 0,
             mode: None,
             index: None,
+            root: None,
         });
     }
-    let body = serde_json::json!({ "query": query, "topk": clamp_topk(topk) });
+    let mut body = serde_json::json!({ "query": query, "topk": clamp_topk(topk) });
+    if dedup.as_deref() == Some("file") {
+        body["dedup"] = serde_json::json!("file");
+    }
     let value = post_json("/search", body, SEARCH_TIMEOUT)?;
     serde_json::from_value::<KnowledgeSearchResponse>(value)
         .map_err(|e| err("bad_response", format!("unexpected /search payload: {e}"), 0))
+}
+
+/// 读取索引根下文档全文（知识页渲染用）。path 为相对索引根的路径（正斜杠）；
+/// 服务端二次校验边界（拒穿越、2MiB 上限）。
+#[tauri::command]
+pub fn knowledge_service_read_doc(path: String) -> Result<KnowledgeDoc, KnowledgeError> {
+    if !is_valid_doc_path(&path) {
+        return Err(err(
+            "invalid_path",
+            "path 必须是索引根内的相对路径（不含 .. / 盘符 / 绝对路径）",
+            400,
+        ));
+    }
+    let body = serde_json::json!({ "path": path.trim() });
+    let value = post_json("/doc", body, SEARCH_TIMEOUT)?;
+    serde_json::from_value::<KnowledgeDoc>(value)
+        .map_err(|e| err("bad_response", format!("unexpected /doc payload: {e}"), 0))
 }
 
 /// vault 窗口/通道状态（无值）。
@@ -471,6 +521,40 @@ mod tests {
         assert_eq!(clamp_topk(Some(0)), 1);
         assert_eq!(clamp_topk(Some(999)), 50);
         assert_eq!(clamp_topk(Some(20)), 20);
+    }
+
+    #[test]
+    fn doc_path_validation() {
+        assert!(is_valid_doc_path("pages/notes.md"));
+        assert!(is_valid_doc_path("a\\b.md"), "反斜杠相对路径放行（服务端 resolve）");
+        assert!(!is_valid_doc_path(""), "空路径拒绝");
+        assert!(!is_valid_doc_path("  "), "纯空白拒绝");
+        assert!(!is_valid_doc_path("../escape.md"), ".. 段拒绝");
+        assert!(!is_valid_doc_path("a/../../escape.md"), "混合 .. 段拒绝");
+        assert!(!is_valid_doc_path("a/.."), "尾部 .. 段拒绝");
+        assert!(!is_valid_doc_path("C:\\temp\\x.md"), "盘符拒绝");
+        assert!(!is_valid_doc_path("C:/temp/x.md"), "POSIX 盘符拒绝");
+        assert!(!is_valid_doc_path("\\\\srv\\share\\x.md"), "UNC 拒绝");
+        assert!(!is_valid_doc_path("/etc/passwd"), "绝对路径拒绝");
+        assert!(!is_valid_doc_path("x.md\0"), "NUL 拒绝");
+        assert!(!is_valid_doc_path(&"a".repeat(1025)), "超长拒绝");
+    }
+
+    #[test]
+    fn parses_doc_response() {
+        let value = json!({
+            "ok": true, "path": "pages/a.md", "root": "G:/idx",
+            "content": "# t\n[vault:pw:1a2b3c4d]"
+        });
+        let doc: KnowledgeDoc = serde_json::from_value(value).unwrap();
+        assert!(doc.ok);
+        assert_eq!(doc.path, "pages/a.md");
+        assert_eq!(doc.root.as_deref(), Some("G:/idx"));
+        assert!(doc.content.contains("[vault:pw:1a2b3c4d]"));
+        let minimal: KnowledgeDoc =
+            serde_json::from_value(json!({"path": "a.md", "content": "x"})).unwrap();
+        assert!(!minimal.ok);
+        assert_eq!(minimal.root, None);
     }
 
     #[test]

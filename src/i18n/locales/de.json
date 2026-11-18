@@ -1505,5 +1505,22 @@
     "libraries": "Bibliotheken",
     "network": "Netzwerk",
     "networkEmpty": "Keine zugeordneten Netzwerkorte. Geben Sie \\\\server\\share in die Adressleiste ein."
+  },
+  "knowledgeView": {
+    "title": "Wissen",
+    "empty": "Öffne eine Wissensnotiz aus der Suche, um sie hier zu lesen (Enter auf einer Wissensdatei-Zeile).",
+    "loading": "Dokument wird geladen…",
+    "loadFailed": "Dokument konnte nicht geladen werden.",
+    "notFound": "Dokument wurde im Index-Stammverzeichnis nicht gefunden.",
+    "tooLarge": "Dokument überschreitet das 2-MiB-Limit.",
+    "invalidPath": "Ungültiger Dokumentpfad.",
+    "offline": "Wissensdienst nicht erreichbar.",
+    "openInExplorer": "Im Explorer anzeigen",
+    "reload": "Neu laden",
+    "chip": {
+      "copy": "Kopieren",
+      "show": "Anzeigen",
+      "hide": "Ausblenden"
+    }
   }
 }

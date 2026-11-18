@@ -108,7 +108,8 @@ watch(confirmDialogOpen, (open) => {
 .confirm-dialog-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 85;
+  /* 高于命令面板（z-index 1000）：解锁确认框必须盖在面板之上（ADR 0017）。 */
+  z-index: 1100;
   display: flex;
   align-items: center;
   justify-content: center;

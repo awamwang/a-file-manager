@@ -332,6 +332,7 @@ pub fn run() {
                     palette::palette_get_config,
                     knowledge_service::knowledge_service_status,
                     knowledge_service::knowledge_service_search,
+                    knowledge_service::knowledge_service_read_doc,
                     knowledge_service::knowledge_service_vault_status,
                     knowledge_service::knowledge_service_reveal,
                     knowledge_service::knowledge_service_copy,
