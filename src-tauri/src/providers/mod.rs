@@ -13,9 +13,6 @@ mod browser;
 mod cache;
 mod factory;
 pub(crate) mod gateway;
-/// 网关离线时不再注册；保留实现供网关在线代理与后续扩展。
-#[allow(dead_code)]
-mod knowledge;
 mod provider;
 pub(crate) mod rclone;
 mod registry;
@@ -243,7 +240,7 @@ fn resolve_dispatch(uri_str: &str) -> Result<ResolveResult, String> {
     }
 }
 
-/// Provider IPC 一律 `spawn_blocking`：rclone SSH / knowledge 扫盘等不得卡住 UI 线程。
+/// Provider IPC 一律 `spawn_blocking`：rclone SSH 等不得卡住 UI 线程。
 #[tauri::command]
 pub async fn provider_gateway_status() -> gateway::GatewayStatus {
     tauri::async_runtime::spawn_blocking(gateway::status)

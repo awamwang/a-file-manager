@@ -635,9 +635,6 @@
         "rclone": {
           "title": "rclone CLI"
         },
-        "knowledge_root": {
-          "title": "Knowledge root"
-        },
         "quicklook": {
           "title": "QuickLook",
           "detail": "État du pont QuickLook / Peek.",
@@ -1141,7 +1138,8 @@
       "advanced": "Options avancées",
       "preview": "Aperçu",
       "other": "Autre"
-    }
+    },
+    "sectionAbout": "À propos"
   },
   "workGroups": {
     "addMemberPlaceholder": "Ajouter un chemin de dossier membre",
@@ -1524,5 +1522,37 @@
       "show": "Afficher",
       "hide": "Masquer"
     }
+  },
+  "about": {
+    "title": "À propos",
+    "meta": "Informations sur l’application, liens et remerciements",
+    "tagline": "Un gestionnaire de fichiers pour Windows, construit avec Tauri 2 et Vue 3.",
+    "star": "Étoiler sur GitHub",
+    "starHint": "Si vous aimez cette application, une étoile sur GitHub aide beaucoup.",
+    "fieldVersion": "Version",
+    "fieldLicense": "Licence",
+    "fieldStack": "Construit avec",
+    "fieldIdentifier": "Identifiant",
+    "linksTitle": "Liens",
+    "link": {
+      "repository": {
+        "label": "Dépôt du projet",
+        "desc": "Code source et notes de version sur GitHub"
+      },
+      "releases": {
+        "label": "Télécharger",
+        "desc": "Obtenir le dernier installateur Windows"
+      },
+      "issues": {
+        "label": "Issues",
+        "desc": "Signaler des bugs et proposer des fonctionnalités"
+      },
+      "pulls": {
+        "label": "Pull requests",
+        "desc": "Contribuer au code du projet"
+      }
+    },
+    "authorTitle": "Auteur",
+    "authorLabel": "Développé par"
   }
 }

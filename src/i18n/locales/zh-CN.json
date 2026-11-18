@@ -896,7 +896,8 @@
       "advanced": "高级选项",
       "preview": "预览",
       "other": "其他"
-    }
+    },
+    "sectionAbout": "关于"
   },
   "health": {
     "title": "健康",
@@ -937,13 +938,22 @@
         "rclone": {
           "title": "rclone 命令行"
         },
-        "knowledge_root": {
-          "title": "知识库根目录"
-        },
         "quicklook": {
           "title": "QuickLook",
           "detail": "QuickLook / Peek 桥接状态。",
-          "fix": "预览正常时无需处理。"
+          "fix": "预览正常时无需处理。",
+          "ok": {
+            "detail": "检测到 QuickLook 正在运行（命名管道存在），空格预览会交给它。",
+            "fix": "无需处理；可预览的文件类型取决于 QuickLook 插件，管道瞬时繁忙时会自动回退 Peek / 内置。"
+          },
+          "missing": {
+            "detail": "未检测到 QuickLook 在运行（命名管道不存在；已安装但未启动时同样如此）。",
+            "fix": "启动 QuickLook 后即可接管预览；当前空格会自动尝试 Peek，再回退内置预览。"
+          },
+          "warn": {
+            "detail": "无法确定 QuickLook 状态（未能解析当前用户 SID）。",
+            "fix": "在常规用户会话下运行；若仍不确定，可依赖 Peek 或内置预览。"
+          }
         },
         "powertoys_peek": {
           "title": "PowerToys Peek"
@@ -1524,5 +1534,37 @@
       "show": "显示",
       "hide": "隐藏"
     }
+  },
+  "about": {
+    "title": "关于",
+    "meta": "应用信息、相关链接与致谢",
+    "tagline": "基于 Tauri 2 与 Vue 3 打造的 Windows 优先文件管理器。",
+    "star": "在 GitHub 点星",
+    "starHint": "如果你喜欢本软件，欢迎在 GitHub 上点个 Star 支持一下。",
+    "fieldVersion": "版本",
+    "fieldLicense": "开源许可证",
+    "fieldStack": "技术栈",
+    "fieldIdentifier": "应用标识",
+    "linksTitle": "相关链接",
+    "link": {
+      "repository": {
+        "label": "项目仓库",
+        "desc": "GitHub 上的源码与发版说明"
+      },
+      "releases": {
+        "label": "下载最新版",
+        "desc": "获取最新的 Windows 安装包"
+      },
+      "issues": {
+        "label": "问题反馈",
+        "desc": "报告 Bug 与提出功能建议"
+      },
+      "pulls": {
+        "label": "代码合并请求",
+        "desc": "为项目贡献代码"
+      }
+    },
+    "authorTitle": "作者",
+    "authorLabel": "开发者"
   }
 }

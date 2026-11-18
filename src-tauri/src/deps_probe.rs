@@ -123,47 +123,6 @@ fn webview2_registry_present() -> bool {
         || open(HKEY_CURRENT_USER, GUID)
 }
 
-fn knowledge_root_status() -> DependencyItem {
-    let configured = std::env::var("AFM_KNOWLEDGE_ROOT")
-        .or_else(|_| std::env::var("AWAM_KNOWLEDGE_ROOT"))
-        .ok()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty());
-
-    match configured {
-        None => item(
-            "knowledge_root",
-            "optional",
-            "missing",
-            "Knowledge root",
-            "未配置 AFM_KNOWLEDGE_ROOT / AWAM_KNOWLEDGE_ROOT；内置 knowledge 目录不会绑定本机盘符。",
-            "若要用本地知识库，设置环境变量指向数据目录后重启；或通过 awam-file 网关提供 knowledge 后端。",
-        ),
-        Some(path) => {
-            let p = PathBuf::from(&path);
-            if p.is_dir() {
-                item(
-                    "knowledge_root",
-                    "optional",
-                    "ok",
-                    "Knowledge root",
-                    format!("已配置且目录存在：{path}"),
-                    "无需处理。",
-                )
-            } else {
-                item(
-                    "knowledge_root",
-                    "optional",
-                    "warn",
-                    "Knowledge root",
-                    format!("已配置但目录不存在：{path}"),
-                    "创建该目录，或修正环境变量路径后重启应用。",
-                )
-            }
-        }
-    }
-}
-
 fn rclone_status() -> DependencyItem {
     let runner = BlockingRcloneRunner::new();
     match (&runner.exe, &runner.missing_message) {
@@ -265,65 +224,45 @@ fn peek_status() -> DependencyItem {
 fn quicklook_status() -> DependencyItem {
     #[cfg(windows)]
     {
-        // 与 preview_bridge 的实际用法对齐：管道是 QuickLook 的单实例服务，当它正被
-        // 一个连接占用时，裸 open 会返回 ERROR_PIPE_BUSY 而不是「不存在」。因此只有
-        // ERROR_FILE_NOT_FOUND 才代表 QuickLook 未运行；其它失败（忙 / 拒绝访问）说明
-        // 管道实例存在，视为运行中。短暂重试兜住 QuickLook 刚启动、管道尚未建立的瞬间，
-        // 避免预览明明正常却报「缺失」。
-        use std::fs::OpenOptions;
-        const ERROR_FILE_NOT_FOUND: i32 = 2;
-        let sid = match current_user_sid_string() {
-            Ok(s) => s,
-            Err(err) => {
-                return item(
-                    "quicklook",
-                    "optional",
-                    "warn",
-                    "QuickLook",
-                    format!("无法解析用户 SID：{err}"),
-                    "安装并运行 QuickLook；或依赖 Peek / 内置预览。",
-                );
+        // 单一判定来自 preview_bridge::quicklook_available()（管道存在性，无副作用，
+        // 与桥接 auto 回退共用）。busy / 拒绝访问已在该函数内归为 Running，不再误报
+        // 缺失；仅「管道不存在」可能是 QuickLook 正在启动的瞬间，做短暂重试消抖。
+        use crate::preview_bridge::quicklook_available;
+        use crate::preview_bridge::QuickLookStatus;
+        let mut status = quicklook_available();
+        for _ in 0..2u8 {
+            if status != QuickLookStatus::NotRunning {
+                break;
             }
-        };
-        let pipe = format!(r"\\.\pipe\QuickLook.App.Pipe.{sid}");
-        for attempt in 0..3u8 {
-            match OpenOptions::new().write(true).open(&pipe) {
-                Ok(_) => {
-                    return item(
-                        "quicklook",
-                        "optional",
-                        "ok",
-                        "QuickLook",
-                        format!("命名管道可用：{pipe}"),
-                        "无需处理。",
-                    );
-                }
-                Err(err) => {
-                    if err.raw_os_error() != Some(ERROR_FILE_NOT_FOUND) {
-                        return item(
-                            "quicklook",
-                            "optional",
-                            "ok",
-                            "QuickLook",
-                            format!("命名管道存在，当前不可连接（{err}）：{pipe}"),
-                            "无需处理。",
-                        );
-                    }
-                    // ERROR_FILE_NOT_FOUND：QuickLook 可能正在启动，短暂重试。
-                    if attempt < 2 {
-                        std::thread::sleep(std::time::Duration::from_millis(40));
-                    }
-                }
-            }
+            std::thread::sleep(std::time::Duration::from_millis(40));
+            status = quicklook_available();
         }
-        item(
-            "quicklook",
-            "optional",
-            "missing",
-            "QuickLook",
-            "未检测到 QuickLook 命名管道（通常表示未运行）。",
-            "安装并启动 QuickLook；缺失时会尝试 Peek，再回退内置预览。",
-        )
+        match status {
+            QuickLookStatus::Running => item(
+                "quicklook",
+                "optional",
+                "ok",
+                "QuickLook",
+                "检测到 QuickLook 正在运行（命名管道存在）。空格预览会交给它。",
+                "无需处理；可预览的文件类型取决于 QuickLook 插件，管道瞬时繁忙时会自动回退 Peek / 内置。",
+            ),
+            QuickLookStatus::NotRunning => item(
+                "quicklook",
+                "optional",
+                "missing",
+                "QuickLook",
+                "未检测到 QuickLook 在运行（命名管道不存在；已安装但未启动时同样如此）。",
+                "启动 QuickLook 后即可接管预览；当前空格会自动尝试 Peek，再回退内置预览。",
+            ),
+            QuickLookStatus::Indeterminate => item(
+                "quicklook",
+                "optional",
+                "warn",
+                "QuickLook",
+                "无法确定 QuickLook 状态：未能解析当前用户 SID。",
+                "在常规用户会话下运行；若仍不确定，可依赖 Peek 或内置预览。",
+            ),
+        }
     }
     #[cfg(not(windows))]
     {
@@ -335,55 +274,6 @@ fn quicklook_status() -> DependencyItem {
             "仅 Windows 支持。",
             "在 Windows 上安装 QuickLook。",
         )
-    }
-}
-
-#[cfg(windows)]
-fn current_user_sid_string() -> Result<String, String> {
-    use windows::core::PWSTR;
-    use windows::Win32::Foundation::{CloseHandle, LocalFree, HANDLE, HLOCAL};
-    use windows::Win32::Security::Authorization::ConvertSidToStringSidW;
-    use windows::Win32::Security::{GetTokenInformation, TokenUser, TOKEN_QUERY, TOKEN_USER};
-    use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
-
-    unsafe {
-        let mut token = HANDLE::default();
-        OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token)
-            .map_err(|e| format!("OpenProcessToken: {e}"))?;
-        let mut needed = 0u32;
-        let _ = GetTokenInformation(token, TokenUser, None, 0, &mut needed);
-        if needed == 0 {
-            let _ = CloseHandle(token);
-            return Err("GetTokenInformation size failed".into());
-        }
-        let mut buf = vec![0u8; needed as usize];
-        if let Err(err) = GetTokenInformation(
-            token,
-            TokenUser,
-            Some(buf.as_mut_ptr().cast()),
-            needed,
-            &mut needed,
-        ) {
-            let _ = CloseHandle(token);
-            return Err(format!("GetTokenInformation: {err}"));
-        }
-        let token_user = &*(buf.as_ptr() as *const TOKEN_USER);
-        let mut sid_pwstr = PWSTR::null();
-        if let Err(err) = ConvertSidToStringSidW(token_user.User.Sid, &mut sid_pwstr) {
-            let _ = CloseHandle(token);
-            return Err(format!("ConvertSidToStringSidW: {err}"));
-        }
-        let sid = match sid_pwstr.to_string() {
-            Ok(s) => s,
-            Err(err) => {
-                let _ = LocalFree(Some(HLOCAL(sid_pwstr.as_ptr().cast())));
-                let _ = CloseHandle(token);
-                return Err(format!("SID decode: {err}"));
-            }
-        };
-        let _ = LocalFree(Some(HLOCAL(sid_pwstr.as_ptr().cast())));
-        let _ = CloseHandle(token);
-        Ok(sid)
     }
 }
 
@@ -570,7 +460,6 @@ pub fn probe_dependencies() -> DependencyReport {
 
     items.push(gateway_status());
     items.push(rclone_status());
-    items.push(knowledge_root_status());
     // Capability-driven dependency list: macOS has system Quick Look and no
     // PowerToys Peek. Generate only checks that can exist on this host so the
     // health summary cannot be polluted by permanently-missing Windows items.
@@ -651,6 +540,5 @@ mod tests {
         assert!(report.items.iter().any(|i| i.id == "webview"));
         assert!(report.items.iter().any(|i| i.id == "rclone"));
         assert!(report.items.iter().any(|i| i.id == "awam_gateway"));
-        assert!(report.items.iter().any(|i| i.id == "knowledge_root"));
     }
 }

@@ -635,9 +635,6 @@
         "rclone": {
           "title": "rclone CLI"
         },
-        "knowledge_root": {
-          "title": "Knowledge root"
-        },
         "quicklook": {
           "title": "QuickLook",
           "detail": "Status der QuickLook-/Peek-Brücke.",
@@ -1141,7 +1138,8 @@
       "advanced": "Erweiterte Optionen",
       "preview": "Vorschau",
       "other": "Sonstiges"
-    }
+    },
+    "sectionAbout": "Über"
   },
   "workGroups": {
     "addMemberPlaceholder": "Mitglieder-Ordnerpfad hinzufügen",
@@ -1524,5 +1522,37 @@
       "show": "Anzeigen",
       "hide": "Ausblenden"
     }
+  },
+  "about": {
+    "title": "Über",
+    "meta": "App-Informationen, Links und Danksagungen",
+    "tagline": "Ein Windows-orientierter Dateimanager, gebaut mit Tauri 2 und Vue 3.",
+    "star": "Auf GitHub mit Stern markieren",
+    "starHint": "Wenn dir diese App gefällt, hilft ein Stern auf GitHub sehr.",
+    "fieldVersion": "Version",
+    "fieldLicense": "Lizenz",
+    "fieldStack": "Erstellt mit",
+    "fieldIdentifier": "Kennung",
+    "linksTitle": "Links",
+    "link": {
+      "repository": {
+        "label": "Projektrepository",
+        "desc": "Quellcode und Release-Notizen auf GitHub"
+      },
+      "releases": {
+        "label": "Download",
+        "desc": "Neuesten Windows-Installer erhalten"
+      },
+      "issues": {
+        "label": "Issues",
+        "desc": "Fehler melden und Funktionen vorschlagen"
+      },
+      "pulls": {
+        "label": "Pull Requests",
+        "desc": "Code zum Projekt beisteuern"
+      }
+    },
+    "authorTitle": "Autor",
+    "authorLabel": "Entwickelt von"
   }
 }

@@ -896,7 +896,8 @@
       "advanced": "Advanced options",
       "preview": "Preview",
       "other": "Other"
-    }
+    },
+    "sectionAbout": "About"
   },
   "health": {
     "title": "Health",
@@ -937,13 +938,22 @@
         "rclone": {
           "title": "rclone CLI"
         },
-        "knowledge_root": {
-          "title": "Knowledge root"
-        },
         "quicklook": {
           "title": "QuickLook",
           "detail": "QuickLook / Peek bridge status.",
-          "fix": "No action needed unless previews fail."
+          "fix": "No action needed unless previews fail.",
+          "ok": {
+            "detail": "QuickLook is running (named pipe present); Space previews via it.",
+            "fix": "No action needed. Previewable file types depend on QuickLook plugins; a momentarily busy pipe falls back to Peek/built-in."
+          },
+          "missing": {
+            "detail": "QuickLook is not running (named pipe absent; an installed-but-stopped QuickLook reads the same).",
+            "fix": "Start QuickLook to take over previews; for now Space tries Peek, then the built-in pane."
+          },
+          "warn": {
+            "detail": "Could not determine QuickLook status (failed to resolve the current user SID).",
+            "fix": "Run in a normal user session; otherwise rely on Peek or the built-in preview."
+          }
         },
         "powertoys_peek": {
           "title": "PowerToys Peek"
@@ -1524,5 +1534,37 @@
       "show": "Show",
       "hide": "Hide"
     }
+  },
+  "about": {
+    "title": "About",
+    "meta": "App information, links, and credits",
+    "tagline": "A Windows-first file manager built with Tauri 2 and Vue 3.",
+    "star": "Star on GitHub",
+    "starHint": "If you like this app, a star on GitHub helps a lot.",
+    "fieldVersion": "Version",
+    "fieldLicense": "License",
+    "fieldStack": "Built with",
+    "fieldIdentifier": "Identifier",
+    "linksTitle": "Links",
+    "link": {
+      "repository": {
+        "label": "Project repository",
+        "desc": "Source code and release notes on GitHub"
+      },
+      "releases": {
+        "label": "Download",
+        "desc": "Get the latest Windows installer"
+      },
+      "issues": {
+        "label": "Issues",
+        "desc": "Report bugs and request features"
+      },
+      "pulls": {
+        "label": "Pull requests",
+        "desc": "Contribute code to the project"
+      }
+    },
+    "authorTitle": "Author",
+    "authorLabel": "Developed by"
   }
 }

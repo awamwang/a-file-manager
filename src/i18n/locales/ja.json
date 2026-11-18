@@ -635,9 +635,6 @@
         "rclone": {
           "title": "rclone CLI"
         },
-        "knowledge_root": {
-          "title": "Knowledge root"
-        },
         "quicklook": {
           "title": "QuickLook",
           "detail": "QuickLook / Peek ブリッジの状態です。",
@@ -1141,7 +1138,8 @@
       "advanced": "詳細オプション",
       "preview": "プレビュー",
       "other": "その他"
-    }
+    },
+    "sectionAbout": "バージョン情報"
   },
   "workGroups": {
     "addMemberPlaceholder": "メンバーフォルダーパスを追加",
@@ -1524,5 +1522,37 @@
       "show": "表示",
       "hide": "隠す"
     }
+  },
+  "about": {
+    "title": "バージョン情報",
+    "meta": "アプリ情報、リンク、クレジット",
+    "tagline": "Tauri 2 と Vue 3 で作られた Windows 優先のファイルマネージャー。",
+    "star": "GitHub でスター",
+    "starHint": "このアプリが気に入ったら、GitHub でスターをお願いします。",
+    "fieldVersion": "バージョン",
+    "fieldLicense": "ライセンス",
+    "fieldStack": "使用技術",
+    "fieldIdentifier": "識別子",
+    "linksTitle": "リンク",
+    "link": {
+      "repository": {
+        "label": "プロジェクトリポジトリ",
+        "desc": "GitHub のソースコードとリリースノート"
+      },
+      "releases": {
+        "label": "ダウンロード",
+        "desc": "最新の Windows インストーラーを入手"
+      },
+      "issues": {
+        "label": "Issue",
+        "desc": "バグ報告と機能リクエスト"
+      },
+      "pulls": {
+        "label": "プルリクエスト",
+        "desc": "プロジェクトにコードを貢献"
+      }
+    },
+    "authorTitle": "作者",
+    "authorLabel": "開発者"
   }
 }
