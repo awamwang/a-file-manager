@@ -785,7 +785,7 @@
     "emptyListing": "この場所には項目がありません。",
     "file": "ファイル",
     "folder": "フォルダー",
-    "gatewayOffline": "awam-file ゲートウェイオフライン — 内蔵プロバイダ（rclone / ブラウザブックマーク）を表示。ゲートウェイを起動するか、下の URL を変更（既定 http://127.0.0.1:18787）。",
+    "gatewayOffline": "awam-file ゲートウェイオフライン — 内蔵プロバイダ（rclone）を表示。ブラウザブックマークにはゲートウェイが必要です。起動するか、下の URL を変更（既定 http://127.0.0.1:18787）。",
     "gatewayOnline": "awam-file ゲートウェイオンライン — {url} 経由で {count} バックエンド",
     "gatewayUrlLabel": "ゲートウェイ URL",
     "gatewayUrlPlaceholder": "http://127.0.0.1:18787",

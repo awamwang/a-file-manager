@@ -220,7 +220,7 @@ fn gateway_status() -> DependencyItem {
                 st.base_url,
                 st.detail.unwrap_or_else(|| "unreachable".to_string())
             ),
-            "启动本机 awam-file 网关，或在 设置 → 高级 修改地址（默认 http://127.0.0.1:18787）。离线时仍使用内置 rclone/browser。",
+            "启动本机 awam-file 网关，或在 设置 → 高级 修改地址（默认 http://127.0.0.1:18787）。离线时仍使用内置 rclone；浏览器书签需网关在线。",
         )
     }
 }
@@ -431,7 +431,7 @@ fn browser_bookmarks_status() -> DependencyItem {
             "missing",
             "Browser bookmarks",
             "未找到 Edge/Chrome Bookmarks 文件。",
-            "安装并登录 Edge 或 Chrome；缺失时浏览器收藏 Provider 为空，不影响本地盘浏览。",
+            "安装并登录 Edge 或 Chrome；书签由 awam-file 网关读取，缺失时 Provider 为空，不影响本地盘浏览。",
         )
     } else {
         item(
@@ -439,8 +439,8 @@ fn browser_bookmarks_status() -> DependencyItem {
             "optional",
             "ok",
             "Browser bookmarks",
-            format!("找到 {} 个书签文件。", hits.len()),
-            "无需处理。",
+            format!("找到 {} 个书签文件（由 awam-file 网关提供给 AFM）。", hits.len()),
+            "保持 awam-file 网关在线即可在 Providers 中浏览。",
         )
     }
 }

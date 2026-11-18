@@ -5,8 +5,9 @@ use super::rclone::RcloneProvider;
 use super::registry::ProviderRegistry;
 use std::sync::Arc;
 
-/// 内置 registry：rclone + browser。不注册 `local`（本机仍走 Navigator）。
-/// knowledge / downloads / prowlarr 仅在 awam-file 网关在线时由网关发现。
+/// 内置 registry：rclone + browser 离线占位。不注册 `local`（本机仍走 Navigator）。
+/// knowledge / downloads / prowlarr / 真实 browser 书签树仅在 awam-file 网关在线时由网关发现。
+/// browser 内置项不解析 Bookmarks，只在网关离线时提示启动网关。
 pub fn build_builtin_registry() -> ProviderRegistry {
     let registry = ProviderRegistry::new();
     registry
@@ -14,14 +15,13 @@ pub fn build_builtin_registry() -> ProviderRegistry {
         .expect("register rclone");
     registry
         .register(Arc::new(BrowserProvider::system_default()))
-        .expect("register browser");
+        .expect("register browser offline stub");
     registry
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::providers::browser::BrowserProvider;
     use crate::providers::rclone::{CommandOutput, RcloneProvider, RcloneRunner};
     use std::time::Duration;
 
@@ -45,23 +45,13 @@ mod tests {
     }
 
     #[test]
-    fn builtin_has_rclone_browser_not_local_or_gateway_only() {
-        let dir = std::env::temp_dir().join(format!(
-            "a-file-manager-providers-{}",
-            std::process::id()
-        ));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-
+    fn builtin_has_rclone_browser_stub_not_local_or_gateway_only() {
         let registry = ProviderRegistry::new();
         registry
             .register(Arc::new(RcloneProvider::new(Arc::new(EmptyRclone))))
             .unwrap();
         registry
-            .register(Arc::new(BrowserProvider::with_user_data_roots(
-                dir.join("edge-missing"),
-                dir.join("chrome-missing"),
-            )))
+            .register(Arc::new(BrowserProvider::system_default()))
             .unwrap();
 
         assert!(registry.contains("rclone"));
@@ -73,8 +63,12 @@ mod tests {
 
         let backends = registry.backends().unwrap();
         assert!(backends.iter().any(|b| b.id == "rclone" && !b.interface_only));
+        let browser = backends.iter().find(|b| b.id == "browser").unwrap();
+        assert!(!browser.healthy);
+        assert!(browser
+            .detail
+            .as_deref()
+            .is_some_and(|d| d.contains("awam-file")));
         assert_eq!(backends.len(), 2);
-
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }
