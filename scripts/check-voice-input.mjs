@@ -41,7 +41,7 @@ for (const event of ["voice://state", "voice://transcript", "voice://error"]) {
   assert.ok(voiceMod.includes(`"${event}"`), `voice event constant: ${event}`);
 }
 // Stable error codes consumed by the frontend i18n mapping.
-for (const code of ["busy", "no-device", "permission", "not-configured", "empty", "network", "unauthorized", "server"]) {
+for (const code of ["busy", "no-device", "permission", "not-configured", "empty", "no-audio", "network", "unauthorized", "server"]) {
   assert.ok(voiceMod.includes(`"${code}"`), `voice error code: ${code}`);
 }
 
@@ -194,6 +194,7 @@ const voiceI18nKeys = [
   "voice.error.permission",
   "voice.error.notConfigured",
   "voice.error.empty",
+  "voice.error.noAudio",
   "voice.error.network",
   "voice.error.unauthorized",
   "voice.error.server",

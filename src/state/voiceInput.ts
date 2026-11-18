@@ -140,6 +140,8 @@ export function voiceErrorMessageKey(code: string): string {
       return "voice.error.notConfigured";
     case "empty":
       return "voice.error.empty";
+    case "no-audio":
+      return "voice.error.noAudio";
     case "network":
       return "voice.error.network";
     case "unauthorized":

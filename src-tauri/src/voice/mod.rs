@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! 语音输入套件（ADR 0018）：Rust 采集 + OpenAI 兼容批量转写。
 //!
-//! 单飞会话：同一时刻最多一路录音。命令只做会话管理；
+//! 单飞会话：同一时刻最多一路录音。命令为 async、只做会话管理，
+//! 设备激活与采集收尾的阻塞段放阻塞线程池，权限确认期间不冻结 UI；
 //! 识别链路 = cpal 采集 → 线性重采样 16k mono → hound 编 WAV
 //! → ureq 手工 multipart 上传 → 事件回前端（`voice://*`）。
 //! 接入点（搜索面板）只消费事件，不感知引擎与网络协议。
@@ -27,6 +28,9 @@ pub const SOURCE_SELFTEST: &str = "selftest";
 pub const MAX_RECORDING_SECS: f32 = 60.0;
 /// 低于该时长的录音视为误触，返回 `empty` 不上传。
 pub const MIN_RECORDING_SECS: f32 = 0.3;
+/// 零数据看门狗：play 成功后该时长内仍未收到任何采样，视为死流，
+/// 以 `no-audio` 报错收场（正常麦克风即使静音也持续产出采样）。
+pub const NO_AUDIO_WATCHDOG_MS: u64 = 1500;
 
 // ---------------------------------------------------------------------------
 // 事件 payload（camelCase，与 file-ops-progress 惯例一致）
@@ -153,39 +157,93 @@ fn emit_error(app: &AppHandle, code: &str, source: &str, message: impl Into<Stri
 }
 
 /// 开启一路录音。已在录音 → `busy`；配置缺失 → `not-configured`（快速失败）。
-fn start_session(app: &AppHandle, source: &str) -> Result<(), VoiceError> {
+async fn start_session(app: &AppHandle, source: &str) -> Result<(), VoiceError> {
     // 快速失败：麦克风点下去立刻知道配置缺失，而不是录完才发现。
     engine::read_config(app)?;
-    let mut guard = SESSION.lock().map_err(|_| VoiceError::busy())?;
-    if guard.is_some() {
-        return Err(VoiceError::busy());
+    {
+        let guard = SESSION.lock().map_err(|_| VoiceError::busy())?;
+        if guard.is_some() {
+            return Err(VoiceError::busy());
+        }
     }
-    let handle = capture::spawn_capture().map_err(|err| match err {
-        capture::CaptureError::NoDevice => VoiceError::no_device(),
-        capture::CaptureError::Permission(message) => VoiceError::permission(message),
-    })?;
-    *guard = Some(VoiceSession {
-        samples: handle.samples,
-        sample_rate: handle.sample_rate,
-        source: source.to_string(),
-        stop_tx: handle.stop_tx,
-        done_rx: handle.done_rx,
-        started_at: Instant::now(),
-    });
-    drop(guard);
+    // 设备激活可能长时间阻塞（如 Windows 首次使用麦克风时的系统权限
+    // 确认），放进阻塞线程池执行，绝不冻结主线程与 UI。
+    let handle = tauri::async_runtime::spawn_blocking(capture::spawn_capture)
+        .await
+        .map_err(|_| VoiceError::no_device())?
+        .map_err(|err| match err {
+            capture::CaptureError::NoDevice => VoiceError::no_device(),
+            capture::CaptureError::Permission(message) => VoiceError::permission(message),
+        })?;
+    {
+        let mut guard = SESSION.lock().map_err(|_| VoiceError::busy())?;
+        if guard.is_some() {
+            // 并发双开的后到者：其采集线程随句柄 drop 自行收尾，无泄漏。
+            return Err(VoiceError::busy());
+        }
+        *guard = Some(VoiceSession {
+            samples: handle.samples,
+            sample_rate: handle.sample_rate,
+            source: source.to_string(),
+            stop_tx: handle.stop_tx,
+            done_rx: handle.done_rx,
+            started_at: Instant::now(),
+        });
+    }
     emit_state(app, "recording", source);
+    spawn_session_watchdogs(app, source);
+    Ok(())
+}
+
+/// 会话监视：零数据看门狗 + 60s 自动截止，两条互不依赖的后台线。
+fn spawn_session_watchdogs(app: &AppHandle, source: &str) {
+    // 零数据看门狗：play 成功但 1.5s 内一个采样都没到，多为系统静默
+    // 拦截造成的死流。与用户 stop 竞争时只在「会话仍在且缓冲为空」下
+    // 原子 take，take 不到不误报。
+    let watchdog_app = app.clone();
+    let watchdog_source = source.to_string();
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(NO_AUDIO_WATCHDOG_MS));
+        let dead_session = SESSION.lock().ok().and_then(|mut guard| {
+            let no_samples = guard
+                .as_ref()
+                .map(|session| {
+                    session
+                        .samples
+                        .lock()
+                        .map(|buffer| buffer.is_empty())
+                        .unwrap_or(true)
+                })
+                .unwrap_or(false);
+            if no_samples {
+                guard.take()
+            } else {
+                None
+            }
+        });
+        if let Some(session) = dead_session {
+            emit_error(
+                &watchdog_app,
+                "no-audio",
+                &watchdog_source,
+                "microphone produced no audio samples (blocked access or dead device)",
+            );
+            let _ = session.stop_tx.send(());
+            let _ = session.done_rx.recv_timeout(Duration::from_secs(2));
+            emit_state(&watchdog_app, "idle", &watchdog_source);
+        }
+    });
     // 60s 自动截止监视：到点走 finalize(false)，正常出文本。
     let monitor_app = app.clone();
     std::thread::spawn(move || {
         std::thread::sleep(Duration::from_millis((MAX_RECORDING_SECS * 1000.0) as u64 + 250));
-        let _ = finalize(&monitor_app, false);
+        let _ = tauri::async_runtime::block_on(finalize(&monitor_app, false));
     });
-    Ok(())
 }
 
 /// 收尾：take 会话 → 停采集 → cancel 丢弃 / 否则转写上传。
 /// 会话不存在时静默成功（重复 stop / 迟到的自动截止都无害）。
-fn finalize(app: &AppHandle, cancel: bool) -> Result<(), VoiceError> {
+async fn finalize(app: &AppHandle, cancel: bool) -> Result<(), VoiceError> {
     let session = SESSION
         .lock()
         .ok()
@@ -193,29 +251,45 @@ fn finalize(app: &AppHandle, cancel: bool) -> Result<(), VoiceError> {
     let Some(session) = session else {
         return Ok(());
     };
-    // 停采集线程并等它落停，避免采样缓冲被并发写入。
-    let _ = session.stop_tx.send(());
-    let _ = session.done_rx.recv_timeout(Duration::from_secs(2));
-    if cancel {
-        emit_state(app, "idle", &session.source);
-        return Ok(());
-    }
-    let raw = session
-        .samples
-        .lock()
-        .map(|guard| guard.clone())
-        .unwrap_or_default();
-    let min_samples = (session.sample_rate as f32 * MIN_RECORDING_SECS) as usize;
-    if raw.len() < min_samples {
-        emit_error(app, "empty", &session.source, "recording too short");
-        emit_state(app, "idle", &session.source);
-        return Ok(());
-    }
-    emit_state(app, "transcribing", &session.source);
-    let handle = app.clone();
     let source = session.source.clone();
-    let started_at = session.started_at;
     let sample_rate = session.sample_rate;
+    let started_at = session.started_at;
+    // 停采集线程并等它落停（避免采样缓冲被并发写入），连同缓冲快照一起
+    // 放进阻塞线程池，不占主线程与异步运行时工作线程。
+    let raw = tauri::async_runtime::spawn_blocking(move || {
+        let _ = session.stop_tx.send(());
+        let _ = session.done_rx.recv_timeout(Duration::from_secs(2));
+        session
+            .samples
+            .lock()
+            .map(|guard| guard.clone())
+            .unwrap_or_default()
+    })
+    .await
+    .map_err(|_| VoiceError::server("capture join failed", 0))?;
+    if cancel {
+        emit_state(app, "idle", &source);
+        return Ok(());
+    }
+    // 零采样与过短分开报：零采样多为系统静默拦截的死流（指向麦克风
+    // 隐私设置与输入设备），过短才是误触。
+    let min_samples = (sample_rate as f32 * MIN_RECORDING_SECS) as usize;
+    if raw.len() < min_samples {
+        if raw.is_empty() {
+            emit_error(
+                app,
+                "no-audio",
+                &source,
+                "capture produced no audio samples (blocked access or dead device)",
+            );
+        } else {
+            emit_error(app, "empty", &source, "recording too short");
+        }
+        emit_state(app, "idle", &source);
+        return Ok(());
+    }
+    emit_state(app, "transcribing", &source);
+    let handle = app.clone();
     std::thread::spawn(move || {
         let samples = engine::resample_to_16k_mono(&raw, sample_rate);
         let wav = match engine::encode_wav(&samples) {
@@ -257,26 +331,26 @@ fn finalize(app: &AppHandle, cancel: bool) -> Result<(), VoiceError> {
 
 /// 搜索面板接入点：开始录音（`voice://transcript` 的 source 为 `palette`）。
 #[tauri::command]
-pub fn voice_start(app: AppHandle) -> Result<(), VoiceError> {
-    start_session(&app, SOURCE_PALETTE)
+pub async fn voice_start(app: AppHandle) -> Result<(), VoiceError> {
+    start_session(&app, SOURCE_PALETTE).await
 }
 
 /// 语音自检（ADR 0018）：source 为 `selftest`，供设置面板试录回显。
 #[tauri::command]
-pub fn voice_selftest(app: AppHandle) -> Result<(), VoiceError> {
-    start_session(&app, SOURCE_SELFTEST)
+pub async fn voice_selftest(app: AppHandle) -> Result<(), VoiceError> {
+    start_session(&app, SOURCE_SELFTEST).await
 }
 
 /// 停止录音并转写：`recording → transcribing → (transcript|error) → idle`。
 #[tauri::command]
-pub fn voice_stop(app: AppHandle) -> Result<(), VoiceError> {
-    finalize(&app, false)
+pub async fn voice_stop(app: AppHandle) -> Result<(), VoiceError> {
+    finalize(&app, false).await
 }
 
 /// 取消录音：不出文本，直接回 `idle`。
 #[tauri::command]
-pub fn voice_cancel(app: AppHandle) -> Result<(), VoiceError> {
-    finalize(&app, true)
+pub async fn voice_cancel(app: AppHandle) -> Result<(), VoiceError> {
+    finalize(&app, true).await
 }
 
 #[cfg(test)]

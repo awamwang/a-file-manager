@@ -1232,6 +1232,7 @@
       "permission": "L'accès au micro est bloqué",
       "notConfigured": "La voix vers texte n'est pas encore configurée (Paramètres → Recherche → Saisie vocale)",
       "empty": "Aucune voix détectée — réessayez",
+      "noAudio": "Aucun son capté par le micro — vérifiez les paramètres de confidentialité du micro Windows et le périphérique d’entrée par défaut",
       "network": "Service de transcription inaccessible",
       "unauthorized": "Le service de transcription a refusé la clé API",
       "server": "Erreur du service de transcription"

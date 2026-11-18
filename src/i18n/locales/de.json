@@ -1232,6 +1232,7 @@
       "permission": "Mikrofonzugriff ist blockiert",
       "notConfigured": "Sprache-zu-Text ist noch nicht konfiguriert (Einstellungen → Suche → Spracheingabe)",
       "empty": "Keine Sprache erkannt — bitte erneut versuchen",
+      "noAudio": "Keine Audiodaten vom Mikrofon aufgenommen — Windows-Datenschutzeinstellungen für das Mikrofon und das Standardeingabegerät prüfen",
       "network": "Transkriptionsdienst nicht erreichbar",
       "unauthorized": "Transkriptionsdienst hat den API-Schlüssel abgelehnt",
       "server": "Fehler des Transkriptionsdiensts"

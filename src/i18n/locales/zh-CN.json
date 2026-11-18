@@ -1232,6 +1232,7 @@
       "permission": "麦克风访问被阻止",
       "notConfigured": "语音转文字尚未配置（设置 → 搜索 → 语音输入）",
       "empty": "未识别到语音，请重试",
+      "noAudio": "麦克风未采集到音频——请检查 Windows 麦克风隐私设置与默认输入设备",
       "network": "无法连接转写服务",
       "unauthorized": "转写服务拒绝了 API Key",
       "server": "转写服务出错"

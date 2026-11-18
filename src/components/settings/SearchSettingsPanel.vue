@@ -279,11 +279,12 @@ const voiceSelfTestButtonLabel = computed(() => {
   return t("voice.selftest.start");
 });
 
-/** 自检错误需给出可操作的引导（Windows 无运行时权限弹窗）。 */
+/** 自检错误需给出可操作的引导（权限被拦/无设备/死流都指向系统麦克风设置）。 */
 const voiceSelfTestNeedsPermissionHint = computed(
   () =>
     selfTestError.value?.code === "permission" ||
-    selfTestError.value?.code === "no-device",
+    selfTestError.value?.code === "no-device" ||
+    selfTestError.value?.code === "no-audio",
 );
 </script>
 

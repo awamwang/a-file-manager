@@ -1232,6 +1232,7 @@
       "permission": "Microphone access is blocked",
       "notConfigured": "Speech-to-text is not configured yet (Settings → Search → Voice input)",
       "empty": "No speech detected — try again",
+      "noAudio": "No audio captured from the microphone — check Windows microphone privacy settings and the default input device",
       "network": "Transcription service unreachable",
       "unauthorized": "Transcription service rejected the API key",
       "server": "Transcription service error"
