@@ -73,7 +73,7 @@ assert.ok(release.includes("build-app-macos.result"), "finalize must check the m
 {
   const finalize = release.slice(release.indexOf("  finalize:"));
   assert.ok(
-    finalize.includes("actions/checkout@v4"),
+    /actions\/checkout@v\d+/.test(finalize),
     "finalize must check out the repo before `gh release edit`",
   );
 }
