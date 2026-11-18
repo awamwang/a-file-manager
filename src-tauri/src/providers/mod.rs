@@ -33,7 +33,10 @@ use serde::Serialize;
 use std::sync::{LazyLock, Mutex};
 use std::time::{Duration, Instant};
 use tauri::AppHandle;
-use types::{is_hidden_provider_backend, BackendInfo, DirListing, ResolveResult, StatResult};
+use types::{
+    is_gateway_provided_backend, is_hidden_provider_backend, BackendInfo, DirListing, ResolveResult,
+    StatResult,
+};
 use uri::parse_awam_uri;
 
 static REGISTRY: LazyLock<ProviderRegistry> = LazyLock::new(build_builtin_registry);
@@ -63,6 +66,9 @@ pub struct PreloadReport {
 
 fn builtin_backends() -> Result<Vec<BackendInfo>, String> {
     let mut backends = REGISTRY.backends()?;
+    // 网关离线时，browser 这类能力完全由网关提供的内置占位没有任何本机功能，
+    // 直接不展示（在线时由 gateway::fetch_backends 动态发现，不受影响）。
+    backends.retain(|b| !is_gateway_provided_backend(&b.id));
     for backend in &mut backends {
         if backend.source.is_none() {
             backend.source = Some("builtin".to_string());
@@ -546,6 +552,18 @@ mod tests {
                 required_query: None,
             }
         }
+    }
+
+    #[test]
+    fn builtin_backends_omits_gateway_provided_browser() {
+        let backends = builtin_backends().expect("builtin backends");
+        // 网关离线时 browser 能力完全依赖网关，不应出现在展示列表。
+        assert!(
+            backends.iter().all(|b| b.id != "browser"),
+            "browser must be hidden when only provided by an offline gateway"
+        );
+        // 本机 rclone 能力仍保留（是否 healthy 取决于本机是否安装，不影响存在性）。
+        assert!(backends.iter().any(|b| b.id == "rclone"));
     }
 
     #[test]

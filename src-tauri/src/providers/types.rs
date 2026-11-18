@@ -22,6 +22,16 @@ pub fn is_hidden_provider_backend(id: &str) -> bool {
     id.eq_ignore_ascii_case("search")
 }
 
+/// 能力完全由 awam-file 网关提供、本机仅为离线占位的内置后端 id（如 `browser` 书签）。
+///
+/// 网关离线时这类后端没有任何本机能力，只给出「请启动网关」提示；与其展示一个
+/// 永远不可用的能力卡片/根目录条目，不如直接不展示。网关**在线**时由
+/// `gateway::fetch_backends` 动态发现并正常展示，因此只在此处（离线回退与
+/// 内置注册表根目录）过滤，不影响在线路径。大小写不敏感。
+pub fn is_gateway_provided_backend(id: &str) -> bool {
+    id.eq_ignore_ascii_case("browser")
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ProviderCapability {
@@ -125,6 +135,16 @@ pub struct AwamUri {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn gateway_provided_backend_matches_browser_case_insensitively() {
+        assert!(is_gateway_provided_backend("browser"));
+        assert!(is_gateway_provided_backend("BROWSER"));
+        // 本机可用能力不受影响。
+        assert!(!is_gateway_provided_backend("rclone"));
+        assert!(!is_gateway_provided_backend("knowledge"));
+        assert!(!is_gateway_provided_backend("search"));
+    }
 
     #[test]
     fn query_param_required_defaults_true_and_camel_case() {

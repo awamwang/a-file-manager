@@ -2,8 +2,8 @@
 
 use super::provider::Provider;
 use super::types::{
-    is_hidden_provider_backend, AwamUri, BackendInfo, DirListing, ProviderEntry, ResolveResult,
-    StatResult,
+    is_gateway_provided_backend, is_hidden_provider_backend, AwamUri, BackendInfo, DirListing,
+    ProviderEntry, ResolveResult, StatResult,
 };
 use super::uri::parse_awam_uri;
 use std::collections::HashMap;
@@ -132,6 +132,9 @@ impl ProviderRegistry {
         let entries = backends
             .into_iter()
             .filter(|info| !is_hidden_provider_backend(&info.id))
+            // 网关离线时 browser 等仅由网关提供能力的占位不展示；在线时根目录走
+            // gateway::list，不受此处影响。
+            .filter(|info| !is_gateway_provided_backend(&info.id))
             .map(|info| {
                 let mut extra = HashMap::new();
                 extra.insert("healthy".to_string(), serde_json::Value::Bool(info.healthy));
@@ -238,6 +241,23 @@ mod tests {
         let registry = ProviderRegistry::new();
         let listing = registry.list("awam://local/G:/temp").unwrap();
         assert!(listing.error.as_ref().unwrap().contains("NavigatorService"));
+    }
+
+    #[test]
+    fn root_list_filters_gateway_provided_backend() {
+        let registry = ProviderRegistry::new();
+        registry
+            .register(Arc::new(DummyProvider { id: "rclone" }))
+            .unwrap();
+        registry
+            .register(Arc::new(DummyProvider { id: "browser" }))
+            .unwrap();
+        let root = registry.list("awam://root/").unwrap();
+        assert!(root
+            .entries
+            .iter()
+            .all(|e| !e.name.eq_ignore_ascii_case("browser")));
+        assert!(root.entries.iter().any(|e| e.name == "rclone"));
     }
 
     #[test]
