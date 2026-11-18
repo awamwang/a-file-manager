@@ -11,6 +11,7 @@ const browser = readFileSync(join(root, "src-tauri/src/providers/browser.rs"), "
 const factory = readFileSync(join(root, "src-tauri/src/providers/factory.rs"), "utf8");
 const providersMod = readFileSync(join(root, "src-tauri/src/providers/mod.rs"), "utf8");
 const view = readFileSync(join(root, "src/views/ProvidersView.vue"), "utf8");
+const browse = readFileSync(join(root, "src/state/provider/browse.ts"), "utf8");
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 
 assert.ok(providersMod.includes("mod browser"), "providers mod must include browser");
@@ -24,8 +25,10 @@ assert.ok(
   "favorites only — no history file reader",
 );
 assert.ok(browser.includes("open_url"), "resolve must expose open_url action");
-assert.ok(view.includes("provider_resolve"), "Providers UI resolves bookmark entries");
-assert.ok(view.includes("openUrl"), "Providers UI opens bookmark URLs");
+// 打开逻辑已抽到 state/provider/browse.ts；Providers 页只调用 openProviderEntry。
+assert.ok(view.includes("openProviderEntry"), "Providers UI opens entries via shared helper");
+assert.ok(browse.includes("provider_resolve"), "provider browse resolves bookmark entries");
+assert.ok(browse.includes("openUrl"), "provider browse opens bookmark URLs");
 assert.ok(
   typeof pkg.scripts["test:browser-bookmarks"] === "string",
   "package.json must wire test:browser-bookmarks",

@@ -134,10 +134,18 @@ assert.ok(projectAiPanel.includes("ai.project.added"), "added status marker");
 assert.ok(projectAiPanel.includes("ai.project.notAdded"), "not-added status marker");
 assert.ok(projectAiPanel.includes("toggleOnlyFiltered"), "Enter toggles the only filtered row");
 assert.ok(projectAiPanel.includes("@keydown.enter.prevent"), "filter Enter handler");
+// MCP：筛选后仍用 addedFirst；Skills：默认浏览 addedFirst，筛选时保持目录原序（避免勾选跳序）。
 assert.ok(
-  projectAiPanel.includes("addedFirst(matched") &&
-    (projectAiPanel.match(/addedFirst\(matched/g) || []).length === 2,
-  "enabled MCP / Skills rows sort first in both columns",
+  projectAiPanel.includes("addedFirst(matched"),
+  "enabled MCP rows sort first (including filtered list)",
+);
+assert.ok(
+  projectAiPanel.includes("return addedFirst([...skills.value]"),
+  "enabled Skills rows sort first in default browse",
+);
+assert.ok(
+  projectAiPanel.includes("正在筛选：命中项保持目录原序"),
+  "Skills filter keeps catalog order while typing",
 );
 assert.ok(view.includes("HarnessInitPanel"));
 const harness = read("src-tauri/src/ai/harness.rs");
