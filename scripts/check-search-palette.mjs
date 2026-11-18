@@ -14,6 +14,8 @@ const registry = read("src/search/registry.ts");
 const types = read("src/search/types.ts");
 const config = read("src/search/searchPaletteConfig.ts");
 const tools = read("src/search/sources/tools.ts");
+const bookmarks = read("src/search/sources/bookmarks.ts");
+const bookmarkSnapshot = read("src/state/bookmarkSnapshot.ts");
 const extensions = read("src/search/sources/extensions.ts");
 const files = read("src/search/sources/files.ts");
 const match = read("src/search/match.ts");
@@ -25,6 +27,8 @@ for (const [label, text, needle] of [
   ["CommandPanel", commandPanel, "useSearchPalette("],
   ["CommandPanel", commandPanel, "toggleScopeAt("],
   ["CommandPanel", commandPanel, "searchPalette.types."],
+  ["CommandPanel", commandPanel, 'bookmarks: "bookmark"'],
+  ["CommandPanel", commandPanel, "retainPanelOnStatusAction"],
   ["scope", scope, "afm.searchPaletteScopes"],
   ["scope", scope, "afm.searchPaletteFuzzy"],
   ["CommandPanel", commandPanel, "searchPalette.fuzzy"],
@@ -32,12 +36,20 @@ for (const [label, text, needle] of [
   ["useSearchPalette", palette, "seq !== searchSeq"],
   ["useSearchPalette", palette, "SEARCH_GROUP_LIMIT"],
   ["useSearchPalette", palette, "fuzzy: fuzzy.value"],
+  ["useSearchPalette", palette, "hintKey: result.hintKey"],
   ["types", types, "export const SEARCH_SOURCE_ORDER"],
   ["types", types, "export const SEARCH_GROUP_LIMIT = 8;"],
+  ["types", types, '"bookmarks"'],
   ["match", match, "matchText"],
   ["searchPaletteConfig", config, "palette_get_config"],
   ["tools source", tools, "allowDestructive: false"],
   ["tools source", tools, "searchPalette.destructiveInRuntime"],
+  ["bookmarks source", bookmarks, 'id: "bookmarks"'],
+  ["bookmarks source", bookmarks, "openProviderEntry"],
+  ["bookmarks source", bookmarks, "loadBookmarkSnapshot"],
+  ["bookmarks source", bookmarks, "searchPalette.status.bookmarksStale"],
+  ["bookmarkSnapshot", bookmarkSnapshot, "awam://browser"],
+  ["bookmarkSnapshot", bookmarkSnapshot, "BOOKMARK_SNAPSHOT_TTL_MS"],
   ["extensions source", extensions, "getSearchExtras"],
   ["files source", files, "fuzzyEverythingPattern"],
   ["files source", files, "searchPalette.viewAllFiles"],
@@ -51,19 +63,20 @@ for (const [label, text, needle] of [
   }
 }
 
-// 源注册顺序（= 范围 chip 顺序）：命令→文件→项目→工作组→工具→扩展。
+// 源注册顺序（= 范围 chip 顺序）：命令→文件→项目→工作组→工具→书签→扩展。
 const registryOrder = [
   "createCommandsSource(",
   "createFilesSource(",
   "createProjectsSource(",
   "createWorkgroupsSource(",
   "createToolsSource(",
+  "createBookmarksSource(",
   "createExtensionsSource(",
 ]
   .map((needle) => registry.indexOf(needle))
   .filter((index) => index >= 0);
-if (registryOrder.length !== 6 || registryOrder.some((v, i) => i && v < registryOrder[i - 1])) {
-  console.error("registry.ts source order must be commands→files→projects→workgroups→tools→extensions");
+if (registryOrder.length !== 7 || registryOrder.some((v, i) => i && v < registryOrder[i - 1])) {
+  console.error("registry.ts source order must be commands→files→projects→workgroups→tools→bookmarks→extensions");
   process.exit(1);
 }
 

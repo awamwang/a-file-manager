@@ -180,6 +180,7 @@
       "projects": "Projets",
       "workgroups": "Groupes de travail",
       "tools": "Outils",
+      "bookmarks": "Favoris du navigateur",
       "extensions": "Extensions"
     },
     "types": {
@@ -190,6 +191,7 @@
       "workgroup": "Groupe de travail",
       "tool": "Outil",
       "capability": "Capacité",
+      "bookmark": "Favori",
       "extension": "Extension"
     },
     "status": {
@@ -202,6 +204,9 @@
       "workGroupsUnavailable": "Source Groupes de travail indisponible",
       "toolsUnavailable": "Source Outils indisponible",
       "openToolRuntime": "Ouvrir le runtime d’outils",
+      "bookmarksUnavailable": "Favoris du navigateur indisponibles (passerelle awam-file requise)",
+      "bookmarksStale": "Instantané des favoris obsolète (lecture seule)",
+      "refreshBookmarks": "Actualiser les favoris",
       "extensionsUnavailable": "Source Extensions indisponible"
     }
   },

@@ -22,6 +22,8 @@ import {
 export type SearchSourceState = {
   status: "ready" | "loading" | "unavailable";
   items: SearchResultItem[];
+  /** 源级提示 i18n key（如书签快照过期）。 */
+  hintKey?: string;
 };
 
 export type PaletteRow = {
@@ -112,7 +114,11 @@ export function useSearchPalette(sources: () => readonly SearchSource[]) {
         if (seq !== searchSeq) return; // 过期结果丢弃
         sourceStates.value = {
           ...sourceStates.value,
-          [source.id]: { status: result.status, items: result.items },
+          [source.id]: {
+            status: result.status,
+            items: result.items,
+            hintKey: result.hintKey,
+          },
         };
       })();
     }

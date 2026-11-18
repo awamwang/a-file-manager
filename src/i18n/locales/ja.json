@@ -180,6 +180,7 @@
       "projects": "プロジェクト",
       "workgroups": "ワークグループ",
       "tools": "ツール",
+      "bookmarks": "ブラウザブックマーク",
       "extensions": "拡張機能"
     },
     "types": {
@@ -190,6 +191,7 @@
       "workgroup": "ワークグループ",
       "tool": "ツール",
       "capability": "機能",
+      "bookmark": "ブックマーク",
       "extension": "拡張機能"
     },
     "status": {
@@ -202,6 +204,9 @@
       "workGroupsUnavailable": "ワークグループソースは利用できません",
       "toolsUnavailable": "ツールソースは利用できません",
       "openToolRuntime": "ツールランタイムを開く",
+      "bookmarksUnavailable": "ブラウザブックマークは利用できません（awam-file ゲートウェイが必要）",
+      "bookmarksStale": "ブックマークのスナップショットは期限切れです（読み取り専用）",
+      "refreshBookmarks": "ブックマークを更新",
       "extensionsUnavailable": "拡張機能ソースは利用できません"
     }
   },

@@ -39,6 +39,16 @@ import {
   toFeaturePackSearchEntries,
   type FeaturePackSearchEntryContribution,
 } from "../src/state/featurePack/contributions.ts";
+import {
+  bookmarkSubtitle,
+  matchBookmarkEntry,
+} from "../src/search/sources/bookmarks.ts";
+import {
+  BOOKMARK_SNAPSHOT_TTL_MS,
+  crawlBrowserBookmarks,
+  type BookmarkSnapshotEntry,
+} from "../src/state/bookmarkSnapshot.ts";
+import type { ProviderDirListingWire } from "../src/state/provider/listing.ts";
 
 // ---------- 1. 范围归一化 / 持久化 / 切换 ----------
 
@@ -259,6 +269,7 @@ const scrambled: SearchSource[] = [
   fakeSource("extensions", ["ext-1"]),
   fakeSource("commands", Array.from({ length: 12 }, (_, i) => `cmd-${i}`)),
   fakeSource("tools", ["tool-1"]),
+  fakeSource("bookmarks", ["bm-1"]),
   fakeSource("files", ["file-1", "file-2"]),
   fakeSource("workgroups", ["wg-1"]),
   fakeSource("projects", ["proj-1"]),
@@ -271,7 +282,7 @@ await nextTick();
 assert.deepEqual(
   palette.groups.value.map((group) => group.source.id),
   [...SEARCH_RESULT_GROUP_ORDER],
-  "结果分组顺序：命令→项目→工作组→工具→扩展→文件（文件组殿后）",
+  "结果分组顺序：命令→项目→工作组→工具→书签→扩展→文件（文件组殿后）",
 );
 assert.equal(
   palette.groups.value[palette.groups.value.length - 1]?.source.id,
@@ -295,7 +306,7 @@ assert.deepEqual(
 assert.deepEqual(
   palette.scopeChips.value.map((chip) => chip.source.id),
   [...SEARCH_SOURCE_ORDER],
-  "chip 顺序（配置面）保持：命令→文件→项目→工作组→工具→扩展",
+  "chip 顺序（配置面）保持：命令→文件→项目→工作组→工具→书签→扩展",
 );
 assert.notDeepEqual(
   palette.scopeChips.value.map((chip) => chip.source.id),
@@ -304,7 +315,7 @@ assert.notDeepEqual(
 );
 assert.deepEqual(
   palette.scopeChips.value.map((chip) => chip.index),
-  [1, 2, 3, 4, 5, 6],
+  [1, 2, 3, 4, 5, 6, 7],
   "Alt+N 提示从 1 起",
 );
 assert.ok(
@@ -316,7 +327,7 @@ assert.ok(
 palette.toggleScopeAt(1);
 assert.deepEqual(
   [...palette.activeScopes.value].sort(),
-  ["extensions", "files", "projects", "tools", "workgroups"],
+  ["bookmarks", "extensions", "files", "projects", "tools", "workgroups"],
   "Alt+1 关掉命令源",
 );
 palette.toggleScopeAt(1);
@@ -404,8 +415,8 @@ const searchPalette = en.searchPalette as Record<string, unknown>;
 const types = searchPalette.types as Record<string, unknown>;
 assert.equal(
   Object.keys(types).length,
-  8,
-  "8 个行尾类型标签",
+  9,
+  "9 个行尾类型标签",
 );
 for (const type of [
   "command",
@@ -415,6 +426,7 @@ for (const type of [
   "workgroup",
   "tool",
   "capability",
+  "bookmark",
   "extension",
 ]) {
   assert.equal(typeof types[type], "string", `types.${type} 缺失`);
@@ -434,6 +446,9 @@ for (const statusKey of [
   "workGroupsUnavailable",
   "toolsUnavailable",
   "openToolRuntime",
+  "bookmarksUnavailable",
+  "bookmarksStale",
+  "refreshBookmarks",
   "extensionsUnavailable",
 ]) {
   assert.equal(
@@ -574,6 +589,148 @@ const badKeywords = toFeaturePackSearchEntries(
 );
 assert.deepEqual(badKeywords[0]?.keywords, []);
 
+// ---------- 7. 浏览器书签源：匹配字段 / 副文案 / 爬树扁平化 ----------
+
+assert.ok(
+  BOOKMARK_SNAPSHOT_TTL_MS >= 5 * 60_000 &&
+    BOOKMARK_SNAPSHOT_TTL_MS <= 15 * 60_000,
+  "书签快照 TTL 须在 5–15 分钟",
+);
+
+const sampleBookmark: BookmarkSnapshotEntry = {
+  uri: "awam://browser/edge/Profile%201/bookmark_bar/10",
+  title: "Example Docs",
+  url: "https://docs.example.com/guide",
+  folderPath: "收藏夹栏/开发",
+  browserLabel: "Microsoft Edge",
+  profileLabel: "日常",
+};
+
+assert.equal(
+  bookmarkSubtitle(sampleBookmark),
+  "Microsoft Edge / 日常",
+  "副文案为浏览器 / 配置名",
+);
+assert.equal(
+  matchBookmarkEntry(sampleBookmark, "Example", false),
+  true,
+  "标题命中",
+);
+assert.equal(
+  matchBookmarkEntry(sampleBookmark, "docs.example", false),
+  true,
+  "URL 命中",
+);
+assert.equal(
+  matchBookmarkEntry(sampleBookmark, "开发", false),
+  true,
+  "文件夹路径命中",
+);
+assert.equal(
+  matchBookmarkEntry(sampleBookmark, "Microsoft Edge", false),
+  false,
+  "浏览器名不参与匹配（仅副文案）",
+);
+assert.equal(
+  matchBookmarkEntry(sampleBookmark, "Exmple", true),
+  true,
+  "模糊：标题子序列",
+);
+
+const tree: Record<string, ProviderDirListingWire> = {
+  "awam://browser": {
+    uri: "awam://browser",
+    backend: "browser",
+    entries: [
+      {
+        name: "Microsoft Edge",
+        uri: "awam://browser/edge",
+        isDir: true,
+        isFile: false,
+        size: 0,
+      },
+    ],
+  },
+  "awam://browser/edge": {
+    uri: "awam://browser/edge",
+    backend: "browser",
+    entries: [
+      {
+        name: "日常",
+        uri: "awam://browser/edge/Profile%201",
+        isDir: true,
+        isFile: false,
+        size: 0,
+      },
+    ],
+  },
+  "awam://browser/edge/Profile%201": {
+    uri: "awam://browser/edge/Profile%201",
+    backend: "browser",
+    entries: [
+      {
+        name: "收藏夹栏",
+        uri: "awam://browser/edge/Profile%201/bookmark_bar",
+        isDir: true,
+        isFile: false,
+        size: 0,
+      },
+    ],
+  },
+  "awam://browser/edge/Profile%201/bookmark_bar": {
+    uri: "awam://browser/edge/Profile%201/bookmark_bar",
+    backend: "browser",
+    entries: [
+      {
+        name: "开发",
+        uri: "awam://browser/edge/Profile%201/bookmark_bar/7",
+        isDir: true,
+        isFile: false,
+        size: 0,
+      },
+      {
+        name: "Top",
+        uri: "awam://browser/edge/Profile%201/bookmark_bar/1",
+        isDir: false,
+        isFile: true,
+        size: 0,
+        extra: { kind: "bookmark", url: "https://top.example/" },
+      },
+    ],
+  },
+  "awam://browser/edge/Profile%201/bookmark_bar/7": {
+    uri: "awam://browser/edge/Profile%201/bookmark_bar/7",
+    backend: "browser",
+    entries: [
+      {
+        name: "Nested",
+        uri: "awam://browser/edge/Profile%201/bookmark_bar/7/12",
+        isDir: false,
+        isFile: true,
+        size: 0,
+        extra: { kind: "bookmark", url: "https://nested.example/" },
+      },
+    ],
+  },
+};
+
+const crawled = await crawlBrowserBookmarks(async (uri) => {
+  const listing = tree[uri];
+  if (!listing) throw new Error(`unexpected list ${uri}`);
+  return listing;
+});
+assert.equal(crawled.length, 2, "爬出 2 条书签叶子");
+assert.deepEqual(
+  crawled.map((entry) => entry.title).sort(),
+  ["Nested", "Top"],
+);
+const nested = crawled.find((entry) => entry.title === "Nested");
+assert.ok(nested);
+assert.equal(nested!.folderPath, "收藏夹栏/开发");
+assert.equal(nested!.browserLabel, "Microsoft Edge");
+assert.equal(nested!.profileLabel, "日常");
+assert.equal(nested!.url, "https://nested.example/");
+
 console.log(
-  "Search palette checks OK (scopes / name-match / groups / stale-discard / config / pack filter).",
+  "Search palette checks OK (scopes / name-match / groups / stale-discard / config / pack filter / bookmarks).",
 );

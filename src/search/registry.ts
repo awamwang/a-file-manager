@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-/** 搜索源注册表：命令 / 文件 / 项目 / 工作组 / 工具 / 扩展（Pack 静态条目）。 */
+/** 搜索源注册表：命令 / 文件 / 项目 / 工作组 / 工具 / 书签 / 扩展（Pack 静态条目）。 */
 
 import type { Router } from "vue-router";
 import type { AppCommand } from "../commands/types.ts";
+import { createBookmarksSource } from "./sources/bookmarks.ts";
 import { createCommandsSource } from "./sources/commands.ts";
 import { createExtensionsSource } from "./sources/extensions.ts";
 import { createFilesSource } from "./sources/files.ts";
@@ -26,6 +27,7 @@ export function buildSearchSources(deps: SearchPaletteDeps): SearchSource[] {
     createProjectsSource(deps.router),
     createWorkgroupsSource(deps.router),
     createToolsSource(deps.router),
+    createBookmarksSource(),
     createExtensionsSource({ router: deps.router, t: deps.t }),
   ];
 }

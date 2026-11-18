@@ -180,6 +180,7 @@
       "projects": "Projekte",
       "workgroups": "Arbeitsgruppen",
       "tools": "Werkzeuge",
+      "bookmarks": "Browser-Lesezeichen",
       "extensions": "Erweiterungen"
     },
     "types": {
@@ -190,6 +191,7 @@
       "workgroup": "Arbeitsgruppe",
       "tool": "Werkzeug",
       "capability": "Fähigkeit",
+      "bookmark": "Lesezeichen",
       "extension": "Erweiterung"
     },
     "status": {
@@ -202,6 +204,9 @@
       "workGroupsUnavailable": "Arbeitsgruppenquelle nicht verfügbar",
       "toolsUnavailable": "Werkzeugquelle nicht verfügbar",
       "openToolRuntime": "Tool-Laufzeit öffnen",
+      "bookmarksUnavailable": "Browser-Lesezeichen nicht verfügbar (awam-file-Gateway erforderlich)",
+      "bookmarksStale": "Lesezeichen-Snapshot veraltet (nur lesen)",
+      "refreshBookmarks": "Lesezeichen aktualisieren",
       "extensionsUnavailable": "Erweiterungsquelle nicht verfügbar"
     }
   },

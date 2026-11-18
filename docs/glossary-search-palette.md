@@ -1,6 +1,6 @@
 # Core 搜索面板（Search Palette）
 
-由 Ctrl+Shift+P 打开的覆盖层，是命令、文件、项目、工作组、工具/能力与 Pack 扩展条目的统一检索入口。它只负责“找到并触发下一跳”，不承担项目激活、布局修复等状态变更。多上下文索引见 [GLOSSARY-MAP.md](../GLOSSARY-MAP.md)。
+由 Ctrl+Shift+P 打开的覆盖层，是命令、文件、项目、工作组、工具/能力、浏览器书签与 Pack 扩展条目的统一检索入口。它只负责“找到并触发下一跳”，不承担项目激活、布局修复等状态变更。多上下文索引见 [GLOSSARY-MAP.md](../GLOSSARY-MAP.md)。
 
 ## Language
 
@@ -11,6 +11,10 @@ _Avoid_: 命令面板、命令窗口、全局命令窗口、Command Panel
 **搜索源（Search Source）**：
 面板内一个可检索的数据类别，以及它的“检索 + 激活”适配器；结果按源分组，跨源取并集。
 _Avoid_: 引擎、后端、Provider
+
+**浏览器书签源（Bookmarks Search Source）**：
+源 id `bookmarks`，显示名「浏览器书签」；按需拉取 `awam://browser` 扁平快照并本地过滤（标题 / URL / 文件夹路径），与 Everything 文件命中分组并列、不混排；Enter 经网关 `open_url` 打开。不等于应用内 `favorites.json`。
+_Avoid_: 收藏夹（易与 AFM 钉选混淆）、Provider 搜索、Discovery
 
 **范围组合（Scope Set）**：
 用户勾选参与检索的搜索源集合；结果为各源并集，跨会话持久化，空集按「全部」处理。

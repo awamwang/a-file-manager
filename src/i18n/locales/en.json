@@ -225,6 +225,7 @@
       "projects": "Projects",
       "workgroups": "Work Groups",
       "tools": "Tools",
+      "bookmarks": "Browser Bookmarks",
       "extensions": "Extensions"
     },
     "types": {
@@ -235,6 +236,7 @@
       "workgroup": "Work Group",
       "tool": "Tool",
       "capability": "Capability",
+      "bookmark": "Bookmark",
       "extension": "Extension"
     },
     "status": {
@@ -247,6 +249,9 @@
       "workGroupsUnavailable": "Work Groups unavailable",
       "toolsUnavailable": "Tools unavailable",
       "openToolRuntime": "Open Tool Runtime",
+      "bookmarksUnavailable": "Browser bookmarks unavailable (awam-file gateway required)",
+      "bookmarksStale": "Bookmark snapshot is stale (read-only)",
+      "refreshBookmarks": "Refresh bookmarks",
       "extensionsUnavailable": "Extensions unavailable"
     }
   },

@@ -10,15 +10,17 @@ export type SearchSourceId =
   | "projects"
   | "workgroups"
   | "tools"
+  | "bookmarks"
   | "extensions";
 
-/** 范围 chip / Alt+数字顺序：命令 → 文件 → 项目 → 工作组 → 工具 → 扩展。 */
+/** 范围 chip / Alt+数字顺序：命令 → 文件 → 项目 → 工作组 → 工具 → 书签 → 扩展。 */
 export const SEARCH_SOURCE_ORDER: readonly SearchSourceId[] = [
   "commands",
   "files",
   "projects",
   "workgroups",
   "tools",
+  "bookmarks",
   "extensions",
 ];
 
@@ -28,6 +30,7 @@ export const SEARCH_RESULT_GROUP_ORDER: readonly SearchSourceId[] = [
   "projects",
   "workgroups",
   "tools",
+  "bookmarks",
   "extensions",
   "files",
 ];
@@ -35,7 +38,7 @@ export const SEARCH_RESULT_GROUP_ORDER: readonly SearchSourceId[] = [
 /** 每组结果上限。 */
 export const SEARCH_GROUP_LIMIT = 8;
 
-/** 行尾类型标签：命令 / 文件 / 文件夹 / 项目 / 工作组 / 工具 / 能力 / 扩展。 */
+/** 行尾类型标签：命令 / 文件 / 文件夹 / 项目 / 工作组 / 工具 / 能力 / 书签 / 扩展。 */
 export type SearchItemType =
   | "command"
   | "file"
@@ -44,6 +47,7 @@ export type SearchItemType =
   | "workgroup"
   | "tool"
   | "capability"
+  | "bookmark"
   | "extension";
 
 export type SearchActivateOptions = {
@@ -86,6 +90,8 @@ export type SearchSourceStatus = "ready" | "unavailable";
 export type SearchSourceResult = {
   status: SearchSourceStatus;
   items: SearchResultItem[];
+  /** 源级提示 i18n key（如书签快照过期只读）。 */
+  hintKey?: string;
 };
 
 /** 检索选项：`fuzzy` = 面板底部「模糊搜索」勾选（默认关，本地过滤源切子序列匹配）。 */
@@ -107,9 +113,11 @@ export type SearchSource = {
   enabled(): boolean;
   /** 源不可用时的状态行文案 i18n key。 */
   unavailableKey: string;
-  /** 状态行引导动作（如「打开项目页」）。 */
+  /** 状态行引导动作（如「打开项目页」/「刷新书签」）。 */
   unavailableActionLabelKey?: string;
   unavailableAction?(): void | Promise<void>;
+  /** 状态行动作后保留面板打开并重跑检索（如刷新快照）。 */
+  retainPanelOnStatusAction?: boolean;
   /** 组尾「查看全部」入口（如文件源跳 Discovery 带查询）。 */
   viewAll?: SearchViewAll;
   /**

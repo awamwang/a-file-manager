@@ -225,6 +225,7 @@
       "projects": "项目",
       "workgroups": "工作组",
       "tools": "工具",
+      "bookmarks": "浏览器书签",
       "extensions": "扩展"
     },
     "types": {
@@ -235,6 +236,7 @@
       "workgroup": "工作组",
       "tool": "工具",
       "capability": "能力",
+      "bookmark": "书签",
       "extension": "扩展"
     },
     "status": {
@@ -247,6 +249,9 @@
       "workGroupsUnavailable": "工作组源暂不可用",
       "toolsUnavailable": "工具源暂不可用",
       "openToolRuntime": "打开工具运行时",
+      "bookmarksUnavailable": "浏览器书签暂不可用（需 awam-file 网关）",
+      "bookmarksStale": "书签快照已过期（只读）",
+      "refreshBookmarks": "刷新书签",
       "extensionsUnavailable": "扩展源暂不可用"
     }
   },

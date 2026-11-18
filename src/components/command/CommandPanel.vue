@@ -66,6 +66,7 @@ const ITEM_TYPE_ICON: Record<SearchItemType, FluentGlyphId> = {
   workgroup: "viewAll",
   tool: "settings",
   capability: "flash",
+  bookmark: "bookmark",
   extension: "puzzle",
 };
 
@@ -76,6 +77,7 @@ const SOURCE_ICON: Record<SearchSourceId, FluentGlyphId> = {
   projects: "board",
   workgroups: "viewAll",
   tools: "settings",
+  bookmarks: "bookmark",
   extensions: "puzzle",
 };
 
@@ -158,8 +160,14 @@ async function onEnter(ctrl: boolean): Promise<void> {
 
 async function runStatusAction(source: SearchSource): Promise<void> {
   if (!source.unavailableAction) return;
-  closeCommandPanel();
+  // 刷新类动作保留面板并重跑；导航类动作关闭面板。
+  if (!source.retainPanelOnStatusAction) {
+    closeCommandPanel();
+  }
   await source.unavailableAction();
+  if (source.retainPanelOnStatusAction) {
+    rerun();
+  }
 }
 
 function moveActive(delta: number) {
@@ -332,6 +340,20 @@ function onPanelKeydown(event: KeyboardEvent) {
                 class="cmd-source-status"
               >
                 {{ t(group.source.unavailableKey) }}
+                <button
+                  v-if="statusActionLabel(group.source)"
+                  type="button"
+                  class="cmd-status-action"
+                  @click="runStatusAction(group.source)"
+                >
+                  {{ statusActionLabel(group.source) }}
+                </button>
+              </p>
+              <p
+                v-else-if="group.state.hintKey"
+                class="cmd-source-status"
+              >
+                {{ t(group.state.hintKey) }}
                 <button
                   v-if="statusActionLabel(group.source)"
                   type="button"
