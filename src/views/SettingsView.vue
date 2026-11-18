@@ -80,8 +80,11 @@ import {
   type SettingsEffectiveDefaults,
 } from "../state/settingsEffectiveDefaults";
 
-/** AIA-276: Health stays off the default Settings chunk until that section opens. */
+/** AIA-276: Health / Search stay off the default Settings chunk until that section opens. */
 const HealthView = defineAsyncComponent(() => import("./HealthView.vue"));
+const SearchSettingsPanel = defineAsyncComponent(
+  () => import("../components/settings/SearchSettingsPanel.vue"),
+);
 
 const { t, te, locale } = useI18n();
 const route = useRoute();
@@ -122,7 +125,12 @@ function enumOptionLabel(settingKey: string, option: string): string {
 }
 
 type SettingsTier = "core" | "power" | "experimental";
-type SettingsSection = SettingsTier | "health" | "shortcuts" | "openTools";
+type SettingsSection =
+  | SettingsTier
+  | "health"
+  | "search"
+  | "shortcuts"
+  | "openTools";
 
 type IdeAppInfo = OpenToolInfo;
 
@@ -146,6 +154,11 @@ const activeSection = ref<SettingsSection>("core");
 /** Common-use first; experimental always last. */
 const sections = computed(() => [
   { id: "core" as const, label: t("settings.tierCore"), icon: TIER_ICONS.core },
+  {
+    id: "search" as const,
+    label: t("settings.sectionSearch"),
+    icon: "search" as FluentGlyphId,
+  },
   {
     id: "openTools" as const,
     label: t("settings.sectionOpenTools"),
@@ -308,6 +321,7 @@ const visibleDefs = computed(() =>
     .filter(
       (def) =>
         activeSection.value !== "health" &&
+        activeSection.value !== "search" &&
         activeSection.value !== "shortcuts" &&
         activeSection.value !== "openTools" &&
         def.tier === activeSection.value &&
@@ -358,6 +372,7 @@ const visibleFieldGroups = computed((): SettingsFieldGroup[] => {
 function isSpecialSettingsPath(path: string) {
   return (
     path.endsWith("/health") ||
+    path.endsWith("/discovery") ||
     path.endsWith("/shortcuts") ||
     path.endsWith("/favorites") ||
     path.endsWith("/open-tools")
@@ -367,6 +382,8 @@ function isSpecialSettingsPath(path: string) {
 function syncSectionFromRoute() {
   if (route.path.endsWith("/health")) {
     activeSection.value = "health";
+  } else if (route.path.endsWith("/discovery")) {
+    activeSection.value = "search";
   } else if (route.path.endsWith("/shortcuts")) {
     activeSection.value = "shortcuts";
   } else if (route.path.endsWith("/favorites")) {
@@ -376,6 +393,7 @@ function syncSectionFromRoute() {
     activeSection.value = "openTools";
   } else if (
     activeSection.value === "health" ||
+    activeSection.value === "search" ||
     activeSection.value === "shortcuts" ||
     activeSection.value === "openTools"
   ) {
@@ -498,6 +516,12 @@ function selectSection(section: SettingsSection) {
     }
     return;
   }
+  if (section === "search") {
+    if (route.path !== "/settings/discovery") {
+      void router.push("/settings/discovery");
+    }
+    return;
+  }
   if (section === "shortcuts") {
     if (route.path !== "/settings/shortcuts") {
       void router.push("/settings/shortcuts");
@@ -517,6 +541,14 @@ function selectSection(section: SettingsSection) {
   if (isSpecialSettingsPath(route.path)) {
     void router.push("/settings");
   }
+}
+
+const everythingPreferredVisible = computed(
+  () => !isPlatformUnsupportedSetting("core.everythingPreferred", platformCaps.value),
+);
+
+async function onEverythingPreferredChange(value: boolean) {
+  await patchValue("core.everythingPreferred", value);
 }
 
 watch(
@@ -723,6 +755,15 @@ onMounted(() => {
 
       <div v-if="activeSection === 'health'" class="health-slot">
         <HealthView />
+      </div>
+
+      <div v-else-if="activeSection === 'search'" class="search-slot">
+        <SearchSettingsPanel
+          :everything-preferred-visible="everythingPreferredVisible"
+          :everything-preferred="Boolean(valueOf('core.everythingPreferred') ?? true)"
+          :everything-preferred-saving="savingKey === 'core.everythingPreferred'"
+          @update:everything-preferred="onEverythingPreferredChange"
+        />
       </div>
 
       <div v-else-if="activeSection === 'openTools'" class="fluent-surface open-tools-panel">
@@ -1202,7 +1243,8 @@ onMounted(() => {
   text-transform: uppercase;
 }
 
-.health-slot {
+.health-slot,
+.search-slot {
   min-width: 0;
 }
 

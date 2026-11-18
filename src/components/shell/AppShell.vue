@@ -808,10 +808,10 @@ function registerShellShortcuts() {
     toggleCommandPanel();
   });
   registerShortcutHandler("discovery.globalSearch", () => {
-    // Ctrl+Shift+F always opens Discovery. Current-folder search is Ctrl+E / F3.
+    // Ctrl+Shift+F opens Settings → Search (Discovery probe). Folder search is Ctrl+E / F3.
     requestGlobalSearchFocus();
-    if (route.path !== "/discovery") {
-      void router.push("/discovery");
+    if (route.path !== "/settings/discovery") {
+      void router.push("/settings/discovery");
     }
   });
   registerShortcutHandler("navigator.folderSearch", () => {

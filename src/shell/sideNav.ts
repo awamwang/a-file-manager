@@ -16,14 +16,13 @@ export type SideNavItem = {
 
 /**
  * Primary pillars first; AI Add-on after Projects (Core Workspace) when flavor includes AI.
- * Discovery/Providers (FS) then Extensions; Health is Settings-only.
+ * Providers (FS) then Extensions；Search/Discovery 与 Health 均为设置内分区。
  */
 const SIDE_NAV_ALL: SideNavItem[] = [
   { id: "navigator", labelKey: "nav.navigator", to: "/navigator" },
   { id: "work-groups", labelKey: "nav.workGroups", to: "/work-groups" },
   { id: "projects", labelKey: "nav.projects", to: "/projects" },
   { id: "ai", labelKey: "nav.ai", to: "/ai" },
-  { id: "discovery", labelKey: "nav.discovery", to: "/discovery" },
   { id: "providers", labelKey: "nav.providers", to: "/providers" },
   { id: "extensions", labelKey: "nav.extensions", to: "/extensions" },
   { id: "settings", labelKey: "nav.settings", to: "/settings" },

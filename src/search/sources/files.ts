@@ -76,7 +76,7 @@ export function createFilesSource(router: Router): SearchSource {
     unavailableKey: "searchPalette.status.filesUnavailable",
     unavailableActionLabelKey: "searchPalette.status.openDiscovery",
     unavailableAction: () => {
-      void router.push("/discovery");
+      void router.push("/settings/discovery");
     },
     viewAll: {
       labelKey: "searchPalette.viewAllFiles",

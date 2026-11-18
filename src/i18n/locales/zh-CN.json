@@ -194,7 +194,7 @@
     },
     "goUp": "返回上级文件夹",
     "openNavigator": "打开资源管理器",
-    "openDiscovery": "打开搜索",
+    "openDiscovery": "打开设置 · 搜索",
     "openProviders": "打开提供程序",
     "openWorkGroups": "打开工作组",
     "openProjects": "打开项目",
@@ -243,7 +243,7 @@
       "loading": "正在搜索…",
       "commandsUnavailable": "命令源暂不可用",
       "filesUnavailable": "文件搜索暂不可用",
-      "openDiscovery": "打开搜索页",
+      "openDiscovery": "打开搜索设置",
       "projectsUnavailable": "项目源暂不可用",
       "openProjects": "打开项目页",
       "workGroupsUnavailable": "工作组源暂不可用",
@@ -545,6 +545,8 @@
   "discovery": {
     "title": "搜索",
     "meta": "按文件名或路径搜索本机",
+    "testTitle": "索引探测",
+    "testMeta": "在此试探本机索引与备用引擎。日常检索请用搜索面板（Ctrl+Shift+P）。",
     "engineCards": "搜索引擎",
     "engines": {
       "spotlight": "Spotlight",
@@ -588,7 +590,16 @@
     "tierPower": "高级",
     "tierExperimental": "实验",
     "sectionHealth": "健康",
+    "sectionSearch": "搜索",
     "sectionShortcuts": "快捷键",
+    "search": {
+      "paletteTitle": "搜索面板",
+      "paletteMeta": "Ctrl+Shift+P 打开搜索面板——日常检索入口（命令、文件、项目等）。下列默认值在下次打开面板时生效。",
+      "fuzzyHint": "搜索面板查询的默认模糊匹配（文件源使用 Everything 风格子序列）。",
+      "scopesHint": "默认参与检索的搜索源；全部勾选等价于「全部」。",
+      "probeTitle": "Discovery 探测",
+      "probeMeta": "引擎状态、排除文件夹与一次性试搜——不是日常主入口。"
+    },
     "fields": {
       "core": {
         "language": {

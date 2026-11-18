@@ -194,7 +194,7 @@
     },
     "goUp": "Go up one folder",
     "openNavigator": "Open Explorer",
-    "openDiscovery": "Open Search",
+    "openDiscovery": "Open Settings · Search",
     "openProviders": "Open Providers",
     "openWorkGroups": "Open Work Groups",
     "openProjects": "Open Projects",
@@ -243,7 +243,7 @@
       "loading": "Searching…",
       "commandsUnavailable": "Commands unavailable",
       "filesUnavailable": "File search unavailable",
-      "openDiscovery": "Open Search",
+      "openDiscovery": "Open Search settings",
       "projectsUnavailable": "Projects unavailable",
       "openProjects": "Open Projects",
       "workGroupsUnavailable": "Work Groups unavailable",
@@ -545,6 +545,8 @@
   "discovery": {
     "title": "Search",
     "meta": "Search your PC by name or path",
+    "testTitle": "Index probe",
+    "testMeta": "Try the host index and backup engine here. Daily search stays on the Search Palette (Ctrl+Shift+P).",
     "engineCards": "Search engines",
     "engines": {
       "spotlight": "Spotlight",
@@ -588,7 +590,16 @@
     "tierPower": "Advanced",
     "tierExperimental": "Experimental",
     "sectionHealth": "Health",
+    "sectionSearch": "Search",
     "sectionShortcuts": "Shortcuts",
+    "search": {
+      "paletteTitle": "Search Palette",
+      "paletteMeta": "Ctrl+Shift+P opens the Search Palette — the everyday entry for commands, files, projects, and more. Defaults below apply the next time you open it.",
+      "fuzzyHint": "Default fuzzy matching for Search Palette queries (Everything-style subsequence for files).",
+      "scopesHint": "Which sources participate by default. An empty selection means all sources.",
+      "probeTitle": "Discovery probe",
+      "probeMeta": "Engine status, folder exclusions, and a one-off test query — not the primary daily search."
+    },
     "fields": {
       "core": {
         "language": {

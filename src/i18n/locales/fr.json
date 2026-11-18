@@ -148,7 +148,7 @@
       "navigate": "Navigation",
       "view": "Affichage"
     },
-    "openDiscovery": "Ouvrir la Recherche",
+    "openDiscovery": "Ouvrir Paramètres · Recherche",
     "openExtensions": "Ouvrir les Extensions",
     "openHealth": "Ouvrir Paramètres · Santé",
     "openNavigator": "Ouvrir l’Explorateur",
@@ -198,7 +198,7 @@
       "loading": "Recherche en cours…",
       "commandsUnavailable": "Source Commandes indisponible",
       "filesUnavailable": "Recherche de fichiers indisponible",
-      "openDiscovery": "Ouvrir Recherche",
+      "openDiscovery": "Ouvrir les réglages Recherche",
       "projectsUnavailable": "Source Projets indisponible",
       "openProjects": "Ouvrir les Projets",
       "workGroupsUnavailable": "Source Groupes de travail indisponible",
@@ -474,6 +474,8 @@
   "discovery": {
     "title": "Recherche",
     "meta": "Rechercher sur ce PC par nom ou chemin",
+    "testTitle": "Sonde d’index",
+    "testMeta": "Testez ici l’index hôte et le moteur de secours. La recherche quotidienne reste dans la palette (Ctrl+Shift+P).",
     "engineCards": "Moteurs de recherche",
     "engines": {
       "spotlight": "Spotlight",
@@ -1045,7 +1047,16 @@
     "tierExperimental": "Expérimental",
     "tierPower": "Avancé",
     "sectionHealth": "Santé",
+    "sectionSearch": "Recherche",
     "sectionShortcuts": "Raccourcis",
+    "search": {
+      "paletteTitle": "Palette de recherche",
+      "paletteMeta": "Ctrl+Shift+P ouvre la palette — l’entrée quotidienne pour commandes, fichiers, projets, etc. Les défauts ci-dessous s’appliquent à la prochaine ouverture.",
+      "fuzzyHint": "Correspondance floue par défaut dans la palette (sous-séquence style Everything pour les fichiers).",
+      "scopesHint": "Sources participantes par défaut. Tout coché équivaut à « Toutes ».",
+      "probeTitle": "Sonde Discovery",
+      "probeMeta": "État des moteurs, exclusions de dossiers et requête d’essai — pas l’entrée quotidienne principale."
+    },
     "title": "Paramètres",
     "sectionFavorites": "Favoris",
     "favoritesMeta": "Verbe Explorer « Ajouter aux favoris AFM »",

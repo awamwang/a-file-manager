@@ -13,7 +13,9 @@ import {
 } from "../src/state/settingsEffectiveDefaults.ts";
 
 assert.ok(SETTINGS_UI_HIDDEN_KEYS.includes("power.awamGatewayUrl"));
+assert.ok(SETTINGS_UI_HIDDEN_KEYS.includes("core.everythingPreferred"));
 assert.ok(isSettingsUiHiddenKey("experimental.debugStatusInTitlebar"));
+assert.ok(isSettingsUiHiddenKey("core.everythingPreferred"));
 assert.equal(isSettingsUiHiddenKey("core.language"), false);
 
 assert.equal(settingsUiGroupForKey("core.theme"), "appearance");

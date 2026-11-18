@@ -148,7 +148,7 @@
       "navigate": "Navigation",
       "view": "Ansicht"
     },
-    "openDiscovery": "Suche öffnen",
+    "openDiscovery": "Einstellungen · Suche öffnen",
     "openExtensions": "Erweiterungen öffnen",
     "openHealth": "Einstellungen · Health öffnen",
     "openNavigator": "Explorer öffnen",
@@ -198,7 +198,7 @@
       "loading": "Suche läuft…",
       "commandsUnavailable": "Befehlsquelle nicht verfügbar",
       "filesUnavailable": "Dateisuche nicht verfügbar",
-      "openDiscovery": "Suche öffnen",
+      "openDiscovery": "Sucheinstellungen öffnen",
       "projectsUnavailable": "Projektquelle nicht verfügbar",
       "openProjects": "Projekte öffnen",
       "workGroupsUnavailable": "Arbeitsgruppenquelle nicht verfügbar",
@@ -474,6 +474,8 @@
   "discovery": {
     "title": "Suche",
     "meta": "Diesen PC nach Name oder Pfad durchsuchen",
+    "testTitle": "Index-Probe",
+    "testMeta": "Hier Host-Index und Ersatz-Engine testen. Die tägliche Suche bleibt in der Suchpalette (Ctrl+Shift+P).",
     "engineCards": "Suchmaschinen",
     "engines": {
       "spotlight": "Spotlight",
@@ -1045,7 +1047,16 @@
     "tierExperimental": "Experimentell",
     "tierPower": "Erweitert",
     "sectionHealth": "Health",
+    "sectionSearch": "Suche",
     "sectionShortcuts": "Tastenkürzel",
+    "search": {
+      "paletteTitle": "Suchpalette",
+      "paletteMeta": "Ctrl+Shift+P öffnet die Suchpalette — den Alltagseinstieg für Befehle, Dateien, Projekte und mehr. Die Defaults unten gelten beim nächsten Öffnen.",
+      "fuzzyHint": "Standard-Fuzzy-Suche in der Suchpalette (Everything-ähnliche Teilfolge für Dateien).",
+      "scopesHint": "Welche Quellen standardmäßig teilnehmen. Alles ausgewählt bedeutet „Alle“.",
+      "probeTitle": "Discovery-Probe",
+      "probeMeta": "Enginestatus, Ordnerausschlüsse und eine einmalige Testsuche — nicht der tägliche Haupteinstieg."
+    },
     "title": "Einstellungen",
     "sectionFavorites": "Favoriten",
     "favoritesMeta": "Explorer „Zu AFM-Favoriten hinzufügen“",

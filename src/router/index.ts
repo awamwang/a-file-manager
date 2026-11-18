@@ -8,14 +8,17 @@ import NavigatorView from "../views/NavigatorView.vue";
 
 const routes: RouteRecordRaw[] = [
   { path: "/", redirect: "/navigator" },
-  // Health is a Settings subsection (AIA-46); keep legacy /health as redirect.
+  // Health / Search(Discovery) are Settings subsections; keep legacy paths as redirects.
   { path: "/health", redirect: "/settings/health" },
-  { path: "/navigator", name: "navigator", component: NavigatorView },
   {
     path: "/discovery",
-    name: "discovery",
-    component: () => import("../views/DiscoveryView.vue"),
+    redirect: (to) => ({
+      path: "/settings/discovery",
+      query: to.query,
+      hash: to.hash,
+    }),
   },
+  { path: "/navigator", name: "navigator", component: NavigatorView },
   {
     path: "/providers",
     name: "providers",
@@ -44,6 +47,11 @@ const routes: RouteRecordRaw[] = [
   {
     path: "/settings/health",
     name: "settings-health",
+    component: () => import("../views/SettingsView.vue"),
+  },
+  {
+    path: "/settings/discovery",
+    name: "discovery",
     component: () => import("../views/SettingsView.vue"),
   },
   {

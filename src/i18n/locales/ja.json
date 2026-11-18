@@ -148,7 +148,7 @@
       "navigate": "移動",
       "view": "表示"
     },
-    "openDiscovery": "検索を開く",
+    "openDiscovery": "設定 · 検索を開く",
     "openExtensions": "拡張機能を開く",
     "openHealth": "設定 · ヘルスを開く",
     "openNavigator": "エクスプローラーを開く",
@@ -198,7 +198,7 @@
       "loading": "検索中…",
       "commandsUnavailable": "コマンドソースは利用できません",
       "filesUnavailable": "ファイル検索は利用できません",
-      "openDiscovery": "検索ページを開く",
+      "openDiscovery": "検索設定を開く",
       "projectsUnavailable": "プロジェクトソースは利用できません",
       "openProjects": "プロジェクトを開く",
       "workGroupsUnavailable": "ワークグループソースは利用できません",
@@ -474,6 +474,8 @@
   "discovery": {
     "title": "検索",
     "meta": "名前やパスでこの PC を検索",
+    "testTitle": "インデックス検証",
+    "testMeta": "ホスト索引と予備エンジンをここで試します。日常検索は検索パレット（Ctrl+Shift+P）を使います。",
     "engineCards": "検索エンジン",
     "engines": {
       "spotlight": "Spotlight",
@@ -1045,7 +1047,16 @@
     "tierExperimental": "実験的",
     "tierPower": "詳細",
     "sectionHealth": "ヘルス",
+    "sectionSearch": "検索",
     "sectionShortcuts": "ショートカット",
+    "search": {
+      "paletteTitle": "検索パレット",
+      "paletteMeta": "Ctrl+Shift+P で検索パレットを開きます（コマンド・ファイル・プロジェクトなどの日常入口）。以下の既定値は次回開いたときに適用されます。",
+      "fuzzyHint": "検索パレットの既定ファジー一致（ファイルは Everything 風サブシーケンス）。",
+      "scopesHint": "既定で参加する検索ソース。すべて選択は「すべて」と同じです。",
+      "probeTitle": "Discovery 検証",
+      "probeMeta": "エンジン状態・除外フォルダーと一度きりの試行検索 — 日常の主入口ではありません。"
+    },
     "title": "設定",
     "sectionFavorites": "お気に入り",
     "favoritesMeta": "エクスプローラー「AFM のお気に入りに追加」動詞",

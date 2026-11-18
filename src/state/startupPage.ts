@@ -8,7 +8,7 @@ export type StartupPageId = "navigator" | "projects" | "discovery";
 const STARTUP_ROUTES: Record<StartupPageId, string> = {
   navigator: "/navigator",
   projects: "/projects",
-  discovery: "/discovery",
+  discovery: "/settings/discovery",
 };
 
 export function parseStartupPage(value: unknown): StartupPageId {

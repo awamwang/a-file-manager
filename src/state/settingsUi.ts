@@ -19,8 +19,10 @@ export type SettingsUiGroupId =
 
 /** 仍写入 schema/document，但设置页默认不展示（能力不丢）。 */
 export const SETTINGS_UI_HIDDEN_KEYS = [
-  // Discovery 页才是黑名单权威编辑入口。
+  // 设置 → 搜索分区才是黑名单权威编辑入口。
   "core.discoveryBlacklist",
+  // 设置 → 搜索分区持有「优先 Everything」，避免常规列表双入口。
+  "core.everythingPreferred",
   // Providers 页已有网关地址编辑，避免双入口。
   "power.awamGatewayUrl",
   // 标题栏调试相位对日常使用噪音大；键仍保留供诊断。
@@ -61,6 +63,7 @@ const KEY_GROUP: Record<string, SettingsUiGroupId> = {
   // FIL-65：项目公共配置（及同类项）单独成组。
   "core.projectsRoot": "projects",
 
+  // everythingPreferred 在设置 → 搜索分区渲染；分组仅供排序/诊断。
   "core.everythingPreferred": "features",
   "core.extensionsEnabled": "features",
 

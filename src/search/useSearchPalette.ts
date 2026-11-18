@@ -201,8 +201,10 @@ export function useSearchPalette(sources: () => readonly SearchSource[]) {
     if (chip) toggleScope(chip.source.id);
   }
 
-  /** 面板打开时复位并检索（query 已为空时也要刷新）。 */
+  /** 面板打开时从持久化重载偏好并复位检索（与设置页共用 localStorage）。 */
   function reset(): void {
+    fuzzy.value = loadFuzzy(storage);
+    storedScopes.value = loadScopes(storage);
     activeIndex.value = 0;
     if (query.value === "") {
       runSearch();

@@ -40,9 +40,11 @@ assert.ok(view.includes("selectEngineCard"));
 assert.ok(view.includes("data-engine-config"));
 assert.ok(!view.includes("status.detail"), "Discovery must not show raw status.detail");
 assert.ok(!/engine-chip[\s\S]*activeEngine/.test(view), "no raw activeEngine chip");
-// FIL-59/65：通用设置页的隐藏键改由 settingsUi.ts 集中声明（黑名单仅在 Discovery 页编辑）。
+// FIL-59/65/77：通用设置页的隐藏键改由 settingsUi.ts 集中声明（黑名单/Everything 在设置→搜索分区编辑）。
 assert.ok(settingsUi.includes('"core.discoveryBlacklist"'));
+assert.ok(settingsUi.includes('"core.everythingPreferred"'));
 assert.ok(settingsView.includes("isSettingsUiHiddenKey"));
+assert.ok(settingsView.includes("SearchSettingsPanel") || settingsView.includes("sectionSearch"));
 assert.equal(en.discovery.engines.everything, "Everything");
 assert.equal(zh.discovery.engines.fallback, "备用搜索");
 assert.equal(zh.discovery.blacklistTitle, "排除文件夹");

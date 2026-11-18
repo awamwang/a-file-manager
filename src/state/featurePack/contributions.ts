@@ -150,6 +150,7 @@ function coreShellRoutePaths(): Set<string> {
     "/extensions",
     "/settings",
     "/settings/health",
+    "/settings/discovery",
     "/settings/shortcuts",
     "/settings/favorites",
     "/settings/open-tools",

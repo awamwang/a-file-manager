@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// AIA-46: Discovery + Providers above Settings; Health not top-level sidenav.
+// AIA-46 / FIL-77: Providers above Settings; Health + Search(Discovery) are Settings-only.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -23,12 +23,11 @@ assert.deepEqual(
     "work-groups",
     "projects",
     "ai",
-    "discovery",
     "providers",
     "extensions",
     "settings",
   ],
-  "expected IA order: AI after Projects; Discovery/Providers; Extensions before Settings; no top-level health",
+  "expected IA order: AI after Projects; Providers/Extensions; no top-level health or discovery",
 );
 assert.ok(
   sideNav.includes("export const SIDE_NAV_ITEMS"),
@@ -36,10 +35,15 @@ assert.ok(
 );
 assert.ok(router.includes('path: "/ai"'), "AI Add-on route required (AIA-214 / A1)");
 assert.ok(!ids.includes("health"), "health must not be top-level sidenav");
+assert.ok(!ids.includes("discovery"), "discovery/search must not be top-level sidenav");
 
 assert.ok(router.includes('path: "/health", redirect: "/settings/health"'));
 assert.ok(router.includes('path: "/settings/health"'));
+assert.ok(router.includes('path: "/settings/discovery"'));
+assert.ok(router.includes('path: "/discovery"'));
 assert.ok(settings.includes("sectionHealth") || settings.includes("settings.sectionHealth"));
+assert.ok(settings.includes("sectionSearch") || settings.includes("settings.sectionSearch"));
 assert.ok(settings.includes("HealthView"));
+assert.ok(settings.includes("SearchSettingsPanel"));
 
-console.log("Nav IA checks OK (AIA-46 sidenav + Settings Health subsection).");
+console.log("Nav IA checks OK (AIA-46 / FIL-77 sidenav + Settings Health/Search).");

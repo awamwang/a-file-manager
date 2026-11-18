@@ -51,9 +51,23 @@ type DiscoverySearchResult = {
   hits: DiscoveryHit[];
 };
 
+const props = withDefaults(
+  defineProps<{
+    /** page=独立页；test=设置内探测/试搜表面。 */
+    mode?: "page" | "test";
+  }>(),
+  { mode: "page" },
+);
+
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const pageTitle = computed(() =>
+  props.mode === "test" ? t("discovery.testTitle") : t("discovery.title"),
+);
+const pageMeta = computed(() =>
+  props.mode === "test" ? t("discovery.testMeta") : t("discovery.meta"),
+);
 const status = ref<DiscoveryStatus | null>(null);
 const selectedCard = ref<EngineCardId>("everything");
 const query = ref("");
@@ -247,7 +261,7 @@ watch(globalSearchFocusToken, () => {
   }
 });
 
-/** 从路由 query 提取待搜索文本（/discovery?q=...，搜索面板「查看全部」入口）。 */
+/** 从路由 query 提取待搜索文本（/settings/discovery?q=...，搜索面板「查看全部」入口）。 */
 function routeQueryText(): string {
   const raw = route.query.q;
   if (typeof raw === "string") return raw;
@@ -270,7 +284,7 @@ async function consumeRouteQuery(): Promise<void> {
   }
 }
 
-// 已在 /discovery 时搜索面板再次跳转（带新 q）：组件不重挂载，靠 watch 触发。
+// 已在设置 → 搜索时面板再次跳转（带新 q）：组件不重挂载，靠 watch 触发。
 watch(
   () => route.query.q,
   () => {
@@ -297,8 +311,8 @@ onMounted(() => {
 <template>
   <section class="fluent-page">
     <header class="fluent-page-header">
-      <h1 class="fluent-page-title">{{ t("discovery.title") }}</h1>
-      <p class="fluent-page-meta">{{ t("discovery.meta") }}</p>
+      <h1 class="fluent-page-title">{{ pageTitle }}</h1>
+      <p class="fluent-page-meta">{{ pageMeta }}</p>
     </header>
 
     <div class="engine-cards" role="radiogroup" :aria-label="t('discovery.engineCards')">

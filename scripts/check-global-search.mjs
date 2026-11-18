@@ -11,13 +11,13 @@ const discovery = readFileSync(join(root, "src/views/DiscoveryView.vue"), "utf8"
 for (const [label, text, needle] of [
   ["AppShell", shell, "discovery.globalSearch"],
   ["AppShell", shell, "requestGlobalSearchFocus"],
-  ["AppShell", shell, "Ctrl+Shift+F always opens Discovery"],
+  ["AppShell", shell, "/settings/discovery"],
   ["AppShell", shell, "navigator.folderSearch"],
   ["AppShell", shell, "focusCurrentFolderSearch"],
   ["AppShell", shell, "dispatchShortcutEvent"],
   ["DiscoveryView", discovery, "discovery-global-search"],
   ["DiscoveryView", discovery, "consumeGlobalSearchFocus"],
-  // 搜索面板「查看全部」深链：/discovery?q=… 一次性消费并清除。
+  // 搜索面板「查看全部」深链：/settings/discovery?q=… 一次性消费并清除。
   ["DiscoveryView", discovery, "routeQueryText"],
   ["DiscoveryView", discovery, "consumeRouteQuery"],
   ["DiscoveryView", discovery, "route.query.q"],

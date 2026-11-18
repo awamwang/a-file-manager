@@ -47,8 +47,8 @@ export function buildAppCommands(deps: CommandPanelDeps): AppCommand[] {
       id: "view.discovery",
       title: t("commands.openDiscovery"),
       group: "View",
-      keywords: ["everything", "search", "搜索", "发现"],
-      run: () => go("/discovery"),
+      keywords: ["everything", "search", "搜索", "发现", "设置"],
+      run: () => go("/settings/discovery"),
     },
     {
       id: "view.providers",
