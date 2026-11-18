@@ -43,3 +43,19 @@ _Avoid_: 动态搜索源、Pack 查询
 **Discovery（发现）**：
 由 Everything 索引驱动的全盘文件搜索页面；面板文件源只展示其 Top N，完整结果在 Discovery 查看。
 _Avoid_: 全局搜索（易与搜索面板混淆）、文件搜索面板
+
+**知识内容源（Knowledge Search Source）**：
+源 id `knowledge`，显示名「知识内容」；经 awam-knowledge HTTP 服务（`power.awamKnowledgeServiceUrl` + token）对脱敏知识副本做 BM25 内容检索，命中行 Enter 打开 .md、Ctrl+Enter 在资源管理器定位。索引根由服务端配置决定（恒为脱敏副本），AFM 不感知具体路径。
+_Avoid_: 全文搜索、RAG、知识库浏览（那是 `awam://knowledge` provider 的职责）
+
+**密钥行（Vault Ref Row）**：
+知识命中块中提取的 `[vault:<label>:<hash8>]` / `[REDACTED:…]` 引用在面板中的专属结果行（vault 紫 + 锁图标）：默认掩码，Enter 复制（明文由 Rust 直写剪贴板，不过 Vue/AI/日志），Ctrl+Enter 短显 5 秒自动回掩码。明文取用走服务端人机通道，要求解锁窗口开启并留审计。
+_Avoid_: 密码明文行、secret 面板、Bitwarden 集成（本体在脱敏体系 map.json / Bitwarden，AFM 只取用）
+
+**解锁窗口（Unlock Window）**：
+脱敏体系 `agent_secret.py` 的本机授权窗口（默认 600s）：窗口开启期间密钥行才可复制/短显；到期自动失效。窗口只配审批，不放宽标签与限额。
+_Avoid_: 主密码、Bitwarden 解锁（BW_SESSION 是 Bitwarden 自己的会话）、信任设备
+
+**人机通道（Human Channel）**：
+`agent_secret.py resolve` 提供的受控明文读出口，仅对注册了 `human_channel: true` 的 caller（awam-knowledge 服务）开放，全程审计且不含值；与 Agent 通道（run 注入 env、无读值出口）物理分离。
+_Avoid_: secret_get、读值 API、MCP 工具（明文绝不过 MCP/AI 上下文）
