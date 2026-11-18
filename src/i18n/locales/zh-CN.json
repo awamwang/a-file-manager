@@ -916,13 +916,15 @@
       "title": "运行期依赖",
       "meta": "必装与可选组件。可选组件缺失只会降级对应功能，不阻止本地资源管理器。",
       "fixLabel": "处理：",
+      "quicklookUnverified": "未实测连接",
       "summaryAllOk": "必装与可选检查均正常。",
       "summaryRequiredMissing": "缺少 {count} 项必装依赖 — 请先安装后再使用界面宿主。",
       "summaryOptionalMissing": "缺少 {count} 项可选组件 — 相关功能会降级（见下方明细）。",
       "status": {
         "ok": "正常",
         "missing": "缺失",
-        "warn": "注意"
+        "warn": "注意",
+        "unbridged": "已装未桥接"
       },
       "kind": {
         "required": "必装",
@@ -953,6 +955,10 @@
           "warn": {
             "detail": "无法确定 QuickLook 状态（未能解析当前用户 SID）。",
             "fix": "在常规用户会话下运行；若仍不确定，可依赖 Peek 或内置预览。"
+          },
+          "unbridged": {
+            "detail": "检测到 QuickLook 进程在运行，但没有 AFM 可桥接的命名管道（AFM 仅支持经典 QuickLook 的管道协议；商店版 QuickLook 不提供该管道）。",
+            "fix": "无需处理：当前空格预览由 PowerToys Peek（或内置预览）提供。要让 AFM 直接驱动 QuickLook，请改用经典 poizan42 QuickLook。"
           }
         },
         "powertoys_peek": {

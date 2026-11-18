@@ -916,13 +916,15 @@
       "title": "Runtime dependencies",
       "meta": "Required and optional components. Missing optional items degrade a feature; they do not block local Explorer.",
       "fixLabel": "Fix:",
+      "quicklookUnverified": "Connection not verified",
       "summaryAllOk": "Required and optional checks look good.",
       "summaryRequiredMissing": "{count} required dependency missing — install before relying on the UI host.",
       "summaryOptionalMissing": "{count} optional component(s) missing — related features will degrade (details below).",
       "status": {
         "ok": "ok",
         "missing": "missing",
-        "warn": "warning"
+        "warn": "warning",
+        "unbridged": "installed, not bridged"
       },
       "kind": {
         "required": "required",
@@ -953,6 +955,10 @@
           "warn": {
             "detail": "Could not determine QuickLook status (failed to resolve the current user SID).",
             "fix": "Run in a normal user session; otherwise rely on Peek or the built-in preview."
+          },
+          "unbridged": {
+            "detail": "A QuickLook process is running, but there is no named pipe AFM can bridge (AFM only speaks the classic QuickLook pipe protocol; the Store edition does not expose it).",
+            "fix": "No action needed: Space previews are served by PowerToys Peek (or the built-in pane). To have AFM drive QuickLook directly, install the classic poizan42 QuickLook."
           }
         },
         "powertoys_peek": {

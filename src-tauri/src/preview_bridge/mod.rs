@@ -330,6 +330,75 @@ fn try_quicklook_toggle(paths: &[String]) -> Result<(), String> {
     invoke_quicklook_toggle(paths)
 }
 
+/// QuickLook 可用性档位（命名管道存在性，无副作用：绝不写消息，避免弹出预览窗）。
+/// 健康探测与 `auto` 回退共用此单一判定，杜绝「在运行却报缺失」。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QuickLookStatus {
+    /// 管道存在 ⇒ 常驻 QuickLook 正在运行（可能瞬时繁忙，仍属「可用」）。
+    Running,
+    /// QuickLook 进程在运行，但 AFM 可桥接的命名管道不存在（例如微软商店版
+    /// PaddyXu QuickLook 不提供该管道，或经典 QuickLook 尚未就绪）。AFM 无法驱动它。
+    PresentUnbridged,
+    /// 管道不存在且无 QuickLook 进程 ⇒ 当前未运行（未运行或未安装）。
+    NotRunning,
+    /// 无法构造管道路径（如解析 SID 失败）⇒ 探测不确定。
+    Indeterminate,
+}
+
+/// True when a QuickLook-class process is running (exe name `QuickLook[.exe]`),
+/// regardless of whether it exposes AFM's bridgeable named pipe. Used only to
+/// tell "installed but unbridged" apart from "not running at all".
+#[cfg(windows)]
+fn quicklook_process_running() -> bool {
+    use sysinfo::System;
+    // new_all() returns a Result in sysinfo 0.40 and already populates the
+    // process table, so no separate refresh is needed.
+    let Ok(sys) = System::new_all() else {
+        return false;
+    };
+    sys.processes().values().any(|p| {
+        let name = p.name().to_string_lossy().to_ascii_lowercase();
+        name == "quicklook" || name == "quicklook.exe"
+    })
+}
+
+#[cfg(not(windows))]
+fn quicklook_process_running() -> bool {
+    false
+}
+
+/// Probe whether the resident QuickLook named pipe server exists.
+/// Side-effect free: opens the pipe but never writes a message, so it cannot
+/// pop a preview window. ERROR_PIPE_BUSY / access-denied mean the server
+/// instance exists (QuickLook running) — only ERROR_FILE_NOT_FOUND says "no",
+/// and even then we distinguish a running-but-unbridged QuickLook process.
+#[cfg(windows)]
+pub fn quicklook_available() -> QuickLookStatus {
+    use std::fs::OpenOptions;
+    const ERROR_FILE_NOT_FOUND: i32 = 2;
+    let pipe = match quicklook_pipe_path() {
+        Ok(p) => p,
+        Err(_) => return QuickLookStatus::Indeterminate,
+    };
+    match OpenOptions::new().write(true).open(&pipe) {
+        Ok(_) => QuickLookStatus::Running,
+        Err(err) if err.raw_os_error() == Some(ERROR_FILE_NOT_FOUND) => {
+            if quicklook_process_running() {
+                QuickLookStatus::PresentUnbridged
+            } else {
+                QuickLookStatus::NotRunning
+            }
+        }
+        // ERROR_PIPE_BUSY (231) / 拒绝访问等 ⇒ 服务实例存在，只是此刻连不上。
+        Err(_) => QuickLookStatus::Running,
+    }
+}
+
+#[cfg(not(windows))]
+pub fn quicklook_available() -> QuickLookStatus {
+    QuickLookStatus::NotRunning
+}
+
 /// Ordered outcome for `preview.externalProvider = auto`.
 /// QuickLook wins when its pipe accepts Toggle; else Peek; else built-in.
 /// Callers treat a failed QL probe as `quicklook_ok = false` (silent fallback).
@@ -506,7 +575,11 @@ pub fn invoke_bridge(app: &AppHandle, paths: &[String]) -> PreviewBridgeResult {
         // auto (default): QuickLook pipe → Peek CLI → built-in pane (AIA-254).
         // QL failure is silent here — do not surface pipe-missing as a hard error.
         _ => {
-            let ql_ok = try_quicklook_toggle(&local).is_ok();
+            // Single source of truth: only treat QuickLook as a candidate when
+            // its pipe exists (resident QL running). Busy-but-present is still
+            // Running and proceeds to the actual Toggle write below.
+            let ql_ok = matches!(quicklook_available(), QuickLookStatus::Running)
+                && try_quicklook_toggle(&local).is_ok();
             let peek_pid = if ql_ok {
                 None
             } else {

@@ -40,8 +40,15 @@ function depTitle(item: DependencyItem): string {
   return te(key) ? String(t(key)) : item.title;
 }
 
-/** Backend fallback copy can be Windows-flavoured; macOS overrides win. */
+/**
+ * Backend fallback copy can be Windows-flavoured; macOS overrides win.
+ * Status-specific text (`...items.<id>.<status>.detail`) wins when present,
+ * then the generic `...items.<id>.detail`, then the backend fallback — so a
+ * running-but-busy QuickLook can read differently from a truly-missing one.
+ */
 function depText(item: DependencyItem, part: "detail" | "fix"): string {
+  const statusKey = `health.deps.items.${item.id}.${item.status}.${part}`;
+  if (te(statusKey)) return String(t(statusKey));
   const key = `health.deps.items.${item.id}.${part}`;
   return te(key) ? String(t(key)) : item[part];
 }
@@ -54,6 +61,15 @@ function statusLabel(status: string): string {
 function kindLabel(kind: string): string {
   const key = `health.deps.kind.${kind}`;
   return te(key) ? String(t(key)) : kind;
+}
+
+/**
+ * QuickLook "ok" comes from an existence probe (named pipe present) — AFM never
+ * writes a Toggle, so green means "detected / running", not "a real preview
+ * connection was verified". Tag it with a neutral note instead of faking certainty.
+ */
+function showUnverifiedNote(item: DependencyItem): boolean {
+  return item.id === "quicklook" && item.status === "ok";
 }
 
 const summaryText = computed(() => {
@@ -97,9 +113,19 @@ onMounted(() => {
 
 <template>
   <section class="fluent-page panel">
-    <header class="fluent-page-header">
-      <h1 class="fluent-page-title">{{ t("health.title") }}</h1>
-      <p class="fluent-page-meta">{{ t("health.meta") }}</p>
+    <header class="fluent-page-header fluent-page-header--row">
+      <div class="fluent-page-header__text">
+        <h1 class="fluent-page-title">{{ t("health.title") }}</h1>
+        <p class="fluent-page-meta">{{ t("health.meta") }}</p>
+      </div>
+      <button
+        class="fluent-control fluent-control--accent"
+        type="button"
+        :disabled="loading"
+        @click="loadHealth"
+      >
+        {{ t("health.refresh") }}
+      </button>
     </header>
 
     <p v-if="loading" class="fluent-hint">{{ t("health.loading") }}</p>
@@ -164,9 +190,13 @@ onMounted(() => {
               :class="{
                 'fluent-chip--ok': item.status === 'ok',
                 'fluent-chip--down': item.status === 'missing',
-                'fluent-chip--warn': item.status === 'warn',
+                'fluent-chip--warn': item.status === 'warn' || item.status === 'unbridged',
               }"
             >{{ statusLabel(item.status) }}</span>
+            <span
+              v-if="showUnverifiedNote(item)"
+              class="fluent-chip fluent-chip--note"
+            >{{ t("health.deps.quicklookUnverified") }}</span>
             <span class="deps-kind">{{ kindLabel(item.kind) }}</span>
             <strong class="deps-title">{{ depTitle(item) }}</strong>
           </div>
@@ -178,10 +208,6 @@ onMounted(() => {
         </li>
       </ul>
     </template>
-
-    <button class="fluent-control fluent-control--accent" type="button" @click="loadHealth">
-      {{ t("health.refresh") }}
-    </button>
   </section>
 </template>
 
@@ -251,6 +277,10 @@ dd {
   border-left-color: var(--fluent-color-status-warning);
 }
 
+.deps-card--unbridged {
+  border-left-color: var(--fluent-color-status-warning);
+}
+
 .deps-card__head {
   display: flex;
   flex-wrap: wrap;
@@ -287,5 +317,23 @@ dd {
 
 button {
   align-self: flex-start;
+}
+
+.fluent-page-header--row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--fluent-space-md);
+}
+
+.fluent-page-header__text {
+  min-width: 0;
+}
+
+/* Neutral, non-alarming marker: green status stays, this says "existence-only". */
+.fluent-chip--note {
+  color: var(--fluent-color-text-secondary);
+  background: var(--fluent-color-fill-quaternary, rgba(128, 128, 128, 0.14));
+  border: 1px solid var(--fluent-color-stroke-divider);
 }
 </style>
