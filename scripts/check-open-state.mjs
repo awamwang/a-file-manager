@@ -128,10 +128,9 @@ if (!discovery.includes("openOrFocusNavigatorTab") || /openHit[\s\S]*?navigateTo
 
 if (
   !shell.includes("openOrFocusNavigatorTab") ||
-  !/openPlacesPath[\s\S]*?openOrFocusNavigatorTab/.test(shell) ||
-  !/goHome[\s\S]*?openOrFocusNavigatorTab/.test(shell)
+  !/openPlacesPath[\s\S]*?openOrFocusNavigatorTab/.test(shell)
 ) {
-  console.error("AppShell places/home must openOrFocusNavigatorTab");
+  console.error("AppShell places must openOrFocusNavigatorTab");
   process.exit(1);
 }
 

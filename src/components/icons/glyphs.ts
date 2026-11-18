@@ -261,6 +261,10 @@ export const FLUENT_GLYPHS: Record<FluentGlyphId, FluentGlyph> = {
    */
   dualPane: {
     codepoint: "\uE8A0",
+    // AFM-specific dashed-split metaphor; the Segoe codepoint renders the wrong
+    // shape on Windows. Always use the same SVG as the navigator dual-pane button
+    // so the context-menu row and the toolbar glyph are visually identical.
+    svgOnly: true,
     paths: [
       "M2 2.8h12v10.4H2V2.8zm1.15 1.15v8.1h9.7v-8.1H3.15z",
       "M7.55 4.25h.9v1.1h-.9V4.25zm0 1.85h.9v1.1h-.9V6.1zm0 1.85h.9v1.1h-.9V7.95zm0 1.85h.9v1.1h-.9V9.8zm0 1.85h.9v1.05h-.9v-1.05z",

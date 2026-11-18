@@ -9,12 +9,10 @@ const shell = readFileSync(join(root, "src/components/shell/AppShell.vue"), "utf
 const glyphs = readFileSync(join(root, "src/components/icons/glyphs.ts"), "utf8");
 const en = JSON.parse(readFileSync(join(root, "src/i18n/locales/en.json"), "utf8"));
 
-if (!shell.includes('id="navigator-home-btn"')) {
-  console.error("missing navigator-home-btn");
-  process.exit(1);
-}
-if (!shell.includes("goHome") || !shell.includes("core.defaultLocation")) {
-  console.error("Home must resolve core.defaultLocation then navigator_default_path");
+// The dedicated Home button was removed from navigator chrome; Home is still
+// reachable via the root breadcrumb / Places. Keep the button gone.
+if (shell.includes('id="navigator-home-btn"')) {
+  console.error("navigator-home-btn should be removed from chrome");
   process.exit(1);
 }
 if (!shell.includes('name="star"')) {

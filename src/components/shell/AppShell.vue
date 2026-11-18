@@ -160,7 +160,6 @@ import {
   primarySearchLoading,
   scheduleFolderSearch,
 } from "../../state/navigatorFilter";
-import { hydrateSettings } from "../../state/settingsHydrate";
 import { loadShowHidden, setShowHidden, showHiddenItems } from "../../state/showHidden";
 import {
   DEFAULT_SIDENAV_WIDTH,
@@ -516,24 +515,6 @@ async function onCrumbSibling(path: string) {
 async function openPlacesPath(path: string) {
   closePlacesMenu();
   await ensureNavigatorRoute();
-  await openOrFocusNavigatorTab(path);
-}
-
-/** Home → Settings `core.defaultLocation`, else OS USERPROFILE via navigator_default_path. */
-async function goHome() {
-  closeChromeMenus();
-  await ensureNavigatorRoute();
-  try {
-    const doc = await hydrateSettings();
-    const configured = String(doc.values?.["core.defaultLocation"] ?? "").trim();
-    if (configured) {
-      await openOrFocusNavigatorTab(configured);
-      return;
-    }
-  } catch {
-    /* fall through to OS default */
-  }
-  const path = await invoke<string>("navigator_default_path");
   await openOrFocusNavigatorTab(path);
 }
 
@@ -2309,17 +2290,6 @@ onUnmounted(() => {
             @click="onRefreshListing"
           >
             <FluentIcon name="refresh" size="sm" />
-          </button>
-
-          <button
-            id="navigator-home-btn"
-            type="button"
-            class="fluent-control nav-icon-btn"
-            :title="t('chrome.home')"
-            :aria-label="t('chrome.home')"
-            @click="goHome"
-          >
-            <FluentIcon name="home" size="sm" />
           </button>
 
           <div

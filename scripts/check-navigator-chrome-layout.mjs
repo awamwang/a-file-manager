@@ -38,7 +38,6 @@ for (const needle of [
   "navigator-chrome",
   "nav-icon-btn",
   "places-menu",
-  "navigator-home-btn",
   "navigator-work-group-menu",
   "titlebar-actions",
   "toggleCommandPanel",
