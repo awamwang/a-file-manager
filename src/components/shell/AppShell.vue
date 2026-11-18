@@ -3632,7 +3632,7 @@ onUnmounted(() => {
 }
 
 .tab-context-menu {
-  min-width: 11rem;
+  min-width: 8rem;
   padding: var(--fluent-space-xs);
   display: flex;
   flex-direction: column;
@@ -3640,7 +3640,7 @@ onUnmounted(() => {
   box-shadow: var(--fluent-shadow-flyout, 0 8px 24px rgba(0, 0, 0, 0.18));
 }
 
-.tab-context-sub {
+.tab-context-menu.tab-context-sub {
   min-width: 12rem;
   z-index: 1201;
 }
