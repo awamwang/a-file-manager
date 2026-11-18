@@ -1538,7 +1538,7 @@
   "about": {
     "title": "关于",
     "meta": "应用信息、相关链接与致谢",
-    "tagline": "基于 Tauri 2 与 Vue 3 打造的 Windows 优先文件管理器。",
+    "tagline": "轻量级跨平台文件管理器，专为 AI 智能体打造——在 IDE 中打开文件夹、自定义打开方式、工作区与标签页持久保留、多窗口，以及支持插件的项目管理。",
     "star": "在 GitHub 点星",
     "starHint": "如果你喜欢本软件，欢迎在 GitHub 上点个 Star 支持一下。",
     "fieldVersion": "版本",

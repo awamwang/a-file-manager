@@ -1538,7 +1538,7 @@
   "about": {
     "title": "About",
     "meta": "App information, links, and credits",
-    "tagline": "A Windows-first file manager built with Tauri 2 and Vue 3.",
+    "tagline": "Lightweight, cross-platform file manager built for AI agents — open folders in your IDE, custom open providers, workspaces & tabs that stick, multi-window, and plug-in–friendly project management.",
     "star": "Star on GitHub",
     "starHint": "If you like this app, a star on GitHub helps a lot.",
     "fieldVersion": "Version",

@@ -82,6 +82,7 @@ import {
 
 /** AIA-276: Health / Search stay off the default Settings chunk until that section opens. */
 const HealthView = defineAsyncComponent(() => import("./HealthView.vue"));
+const AboutView = defineAsyncComponent(() => import("./AboutView.vue"));
 const SearchSettingsPanel = defineAsyncComponent(
   () => import("../components/settings/SearchSettingsPanel.vue"),
 );
@@ -130,7 +131,8 @@ type SettingsSection =
   | "health"
   | "search"
   | "shortcuts"
-  | "openTools";
+  | "openTools"
+  | "about";
 
 type IdeAppInfo = OpenToolInfo;
 
@@ -179,6 +181,11 @@ const sections = computed(() => [
     id: "experimental" as const,
     label: t("settings.tierExperimental"),
     icon: TIER_ICONS.experimental,
+  },
+  {
+    id: "about" as const,
+    label: t("settings.sectionAbout"),
+    icon: "globe" as FluentGlyphId,
   },
 ]);
 
@@ -324,6 +331,7 @@ const visibleDefs = computed(() =>
         activeSection.value !== "search" &&
         activeSection.value !== "shortcuts" &&
         activeSection.value !== "openTools" &&
+        activeSection.value !== "about" &&
         def.tier === activeSection.value &&
         // Open tools has its own section UI.
         !def.key.startsWith("core.openTool.") &&
@@ -375,7 +383,8 @@ function isSpecialSettingsPath(path: string) {
     path.endsWith("/discovery") ||
     path.endsWith("/shortcuts") ||
     path.endsWith("/favorites") ||
-    path.endsWith("/open-tools")
+    path.endsWith("/open-tools") ||
+    path.endsWith("/about")
   );
 }
 
@@ -391,11 +400,14 @@ function syncSectionFromRoute() {
     activeSection.value = "power";
   } else if (route.path.endsWith("/open-tools")) {
     activeSection.value = "openTools";
+  } else if (route.path.endsWith("/about")) {
+    activeSection.value = "about";
   } else if (
     activeSection.value === "health" ||
     activeSection.value === "search" ||
     activeSection.value === "shortcuts" ||
-    activeSection.value === "openTools"
+    activeSection.value === "openTools" ||
+    activeSection.value === "about"
   ) {
     activeSection.value = "core";
   }
@@ -533,6 +545,12 @@ function selectSection(section: SettingsSection) {
       void router.push("/settings/open-tools");
     }
     void refreshIdeApps();
+    return;
+  }
+  if (section === "about") {
+    if (route.path !== "/settings/about") {
+      void router.push("/settings/about");
+    }
     return;
   }
   if (section === "power") {
@@ -755,6 +773,10 @@ onMounted(() => {
 
       <div v-if="activeSection === 'health'" class="health-slot">
         <HealthView />
+      </div>
+
+      <div v-else-if="activeSection === 'about'" class="about-slot">
+        <AboutView />
       </div>
 
       <div v-else-if="activeSection === 'search'" class="search-slot">
@@ -1244,7 +1266,8 @@ onMounted(() => {
 }
 
 .health-slot,
-.search-slot {
+.search-slot,
+.about-slot {
   min-width: 0;
 }
 
@@ -1500,12 +1523,14 @@ onMounted(() => {
   font-size: var(--fluent-font-size-caption);
 }
 
-.health-slot :deep(.panel) {
+.health-slot :deep(.panel),
+.about-slot :deep(.panel) {
   max-width: none;
   padding: 0;
 }
 
-.health-slot :deep(.fluent-page-header) {
+.health-slot :deep(.fluent-page-header),
+.about-slot :deep(.fluent-page-header) {
   margin-bottom: var(--fluent-space-md);
 }
 

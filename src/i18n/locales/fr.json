@@ -1526,7 +1526,7 @@
   "about": {
     "title": "À propos",
     "meta": "Informations sur l’application, liens et remerciements",
-    "tagline": "Un gestionnaire de fichiers pour Windows, construit avec Tauri 2 et Vue 3.",
+    "tagline": "Gestionnaire de fichiers léger et multiplateforme conçu pour les agents IA — ouvrez des dossiers dans votre IDE, fournisseurs d’ouverture personnalisés, espaces de travail et onglets persistants, multifenêtre et gestion de projets extensible par modules.",
     "star": "Étoiler sur GitHub",
     "starHint": "Si vous aimez cette application, une étoile sur GitHub aide beaucoup.",
     "fieldVersion": "Version",

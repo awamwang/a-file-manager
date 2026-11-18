@@ -69,6 +69,11 @@ const routes: RouteRecordRaw[] = [
     name: "settings-open-tools",
     component: () => import("../views/SettingsView.vue"),
   },
+  {
+    path: "/settings/about",
+    name: "settings-about",
+    component: () => import("../views/SettingsView.vue"),
+  },
 ];
 
 if (AI_ADDON_ENABLED) {
