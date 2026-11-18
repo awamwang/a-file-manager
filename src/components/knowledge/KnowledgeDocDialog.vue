@@ -207,6 +207,8 @@ function onKeydown(event: KeyboardEvent): void {
   if (!knowledgeDocOpen.value) return;
   // chip 解锁确认框 / 输入框打开时由各自 Host 优先接管 Esc。
   if (confirmDialogOpen.value || promptDialogOpen.value) return;
+  // Alt+Esc 等系统切换组合键会向应用派发带修饰键的 Esc：切换应用不应关掉本弹窗。
+  if (event.altKey || event.metaKey || event.ctrlKey) return;
   if (event.key === "Escape") {
     closeKnowledgeDoc();
     event.preventDefault();
@@ -248,8 +250,8 @@ function onDocClick(event: MouseEvent): void {
     v-if="knowledgeDocOpen"
     class="knowledge-dialog-backdrop"
     role="presentation"
-    @click.self="closeKnowledgeDoc"
   >
+    <!-- 背景不响应点击关闭：切换应用后点回本窗口落在遮罩上会误关；仅 Esc / 关闭按钮关闭。 -->
     <div
       class="knowledge-dialog fluent-surface"
       role="dialog"
