@@ -298,7 +298,7 @@ onMounted(() => {
           <div class="agents-item-top">
             <strong class="agents-item-name">{{ agent.displayName }}</strong>
             <span
-              class="fluent-chip agents-install-chip"
+              class="fluent-chip fluent-chip--status agents-install-chip"
               :class="agent.discovered ? 'fluent-chip--ok' : 'fluent-chip--stub'"
             >
               {{ agent.discovered ? t("ai.agents.installed") : t("ai.agents.notInstalled") }}
@@ -340,7 +340,7 @@ onMounted(() => {
         <div class="agents-detail-head">
           <h3 class="agents-subhead">{{ selected.displayName }}</h3>
           <span
-            class="fluent-chip"
+            class="fluent-chip fluent-chip--status"
             :class="selected.discovered ? 'fluent-chip--ok' : 'fluent-chip--stub'"
           >
             {{ selected.discovered ? t("ai.agents.installed") : t("ai.agents.notInstalled") }}

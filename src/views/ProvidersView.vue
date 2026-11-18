@@ -362,7 +362,8 @@ onMounted(() => {
 <style scoped>
 .backends {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  /* 提高列宽下限：宽窗口下避免堆出过多过窄卡片导致文字被挤碎。 */
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
   gap: var(--fluent-space-sm);
 }
 

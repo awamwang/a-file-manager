@@ -473,8 +473,8 @@ onMounted(() => {
 }
 
 .card--warn {
-  background: color-mix(in srgb, var(--fluent-color-status-warning-bg) 40%, var(--fluent-color-fill-control));
-  border-color: var(--fluent-color-status-warning);
+  /* 中性底 + 左侧警示描边，避免整卡染色（与 Providers 后端卡片一致） */
+  box-shadow: inset 3px 0 0 var(--fluent-color-status-warning);
 }
 
 .card h2,
