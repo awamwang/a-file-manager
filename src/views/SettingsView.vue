@@ -768,7 +768,7 @@ onMounted(() => {
 
       <div v-else-if="activeSection === 'openTools'" class="fluent-surface open-tools-panel">
         <p class="open-tools-meta">{{ t("settings.openTools.meta") }}</p>
-        <p v-if="ideAppsLoading" class="fluent-banner">{{ t("settings.loading") }}</p>
+        <p v-if="ideAppsLoading" class="fluent-hint">{{ t("settings.loading") }}</p>
         <h3 class="open-tools-subtitle">{{ t("settings.openTools.builtinTitle") }}</h3>
         <div v-for="app in builtinApps" :key="app.id" class="open-tool-row">
           <div class="open-tool-text">
@@ -1049,7 +1049,7 @@ onMounted(() => {
       </div>
 
       <template v-else>
-        <p v-if="loading" class="fluent-banner">{{ t("settings.loading") }}</p>
+        <p v-if="loading" class="fluent-hint">{{ t("settings.loading") }}</p>
         <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
 
         <div v-else-if="schema && document" class="fluent-surface fields">

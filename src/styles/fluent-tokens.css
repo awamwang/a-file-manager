@@ -449,6 +449,19 @@ html[data-list-density="compact"] .fluent-list-row--density {
   border-color: var(--fluent-color-status-success);
 }
 
+/* Lightweight single-line status (loading / empty) — no fill, no border,
+   so it stays quieter than an error/warning/success banner. */
+.fluent-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  margin: 0;
+  color: var(--fluent-color-text-secondary);
+  font-size: var(--fluent-font-size-body);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 .fluent-accent-edge {
   box-shadow: inset 3px 0 0 var(--fluent-color-stroke-accent-soft);
 }

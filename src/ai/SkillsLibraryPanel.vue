@@ -305,7 +305,7 @@ onMounted(() => {
 
 <template>
   <div class="skills-panel" data-ai-skills-panel>
-    <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
+    <p v-if="loading" class="fluent-hint">{{ t("common.loading") }}</p>
     <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
 
     <div class="skills-toolbar">

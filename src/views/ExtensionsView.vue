@@ -265,7 +265,7 @@ onMounted(() => {
       </p>
     </header>
 
-    <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
+    <p v-if="loading" class="fluent-hint">{{ t("common.loading") }}</p>
     <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
 
     <section class="fluent-surface card">
@@ -293,7 +293,7 @@ onMounted(() => {
             <strong>{{ pack.name }}</strong>
             <span class="fluent-page-meta"> {{ pack.id }} · v{{ pack.version }}</span>
             <span
-              class="fluent-chip state-chip"
+              class="fluent-chip fluent-chip--status state-chip"
               :class="{
                 'fluent-chip--ok': pack.state === 'enabled',
                 'fluent-chip--stub': pack.state === 'disabled' || pack.state === 'installed',
@@ -392,7 +392,7 @@ onMounted(() => {
             <strong>{{ ext.name }}</strong>
             <span class="fluent-page-meta"> {{ ext.id }} · v{{ ext.version }}</span>
             <span
-              class="fluent-chip state-chip"
+              class="fluent-chip fluent-chip--status state-chip"
               :class="{
                 'fluent-chip--ok': ext.state === 'enabled',
                 'fluent-chip--stub': ext.state === 'disabled',
@@ -453,7 +453,7 @@ onMounted(() => {
 
 .count-chip,
 .state-chip {
-  min-height: var(--fluent-control-height-standard);
+  min-height: 22px;
   pointer-events: none;
   cursor: default;
   font-size: var(--fluent-font-size-caption);

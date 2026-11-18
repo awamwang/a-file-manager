@@ -218,21 +218,19 @@ onMounted(() => {
     </header>
 
     <p
-      v-if="gateway && gateway.online"
-      class="fluent-banner fluent-banner--info"
+      v-if="gateway"
+      class="gateway-status"
+      :class="gateway.online ? 'gateway-status--ok' : 'gateway-status--down'"
     >
-      {{
-        t("providers.gatewayOnline", {
-          count: gateway.backendCount ?? backends.length,
-          url: gateway.baseUrl,
-        })
-      }}
-    </p>
-    <p
-      v-else-if="gateway && !gateway.online"
-      class="fluent-banner fluent-banner--info"
-    >
-      {{ t("providers.gatewayOffline") }}
+      <span class="gateway-dot" aria-hidden="true"></span>
+      <span>{{
+        gateway.online
+          ? t("providers.gatewayOnline", {
+              count: gateway.backendCount ?? backends.length,
+              url: gateway.baseUrl,
+            })
+          : t("providers.gatewayOffline")
+      }}</span>
     </p>
 
     <form class="uri-row gateway-row" @submit.prevent="saveGatewayUrl">
@@ -405,10 +403,14 @@ onMounted(() => {
 .detail {
   font-size: var(--fluent-font-size-caption);
   color: var(--fluent-color-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   max-width: 100%;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .uri-row {
@@ -420,12 +422,39 @@ onMounted(() => {
 
 .uri-row .fluent-control[type="text"],
 .uri-row .fluent-control[type="url"] {
-  flex: 1;
-  min-width: 12rem;
+  flex: 1 1 10rem;
+  min-width: 0;
 }
 
 .gateway-row {
   margin-block: var(--fluent-space-sm);
+}
+
+.gateway-status {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  margin: 0;
+  color: var(--fluent-color-text-secondary);
+  font-size: var(--fluent-font-size-caption);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.gateway-dot {
+  flex-shrink: 0;
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: 50%;
+  background: var(--fluent-color-text-disabled);
+}
+
+.gateway-status--ok .gateway-dot {
+  background: var(--fluent-color-status-success);
+}
+
+.gateway-status--down .gateway-dot {
+  background: var(--fluent-color-status-danger);
 }
 
 .gateway-label {

@@ -102,7 +102,7 @@ onMounted(() => {
       <p class="fluent-page-meta">{{ t("health.meta") }}</p>
     </header>
 
-    <p v-if="loading" class="fluent-banner">{{ t("health.loading") }}</p>
+    <p v-if="loading" class="fluent-hint">{{ t("health.loading") }}</p>
     <p v-else-if="error" class="fluent-banner fluent-banner--error">
       {{ t("health.failed", { error }) }}
     </p>
@@ -113,7 +113,7 @@ onMounted(() => {
         :class="health.ok ? 'fluent-banner--success' : 'fluent-banner--error'"
       >
         <span
-          class="fluent-chip"
+          class="fluent-chip fluent-chip--status"
           :class="health.ok ? 'fluent-chip--ok' : 'fluent-chip--down'"
         >{{ health.ok ? "ok" : "down" }}</span>
         {{ health.name }} · v{{ health.version }}
@@ -160,7 +160,7 @@ onMounted(() => {
         >
           <div class="deps-card__head">
             <span
-              class="fluent-chip"
+              class="fluent-chip fluent-chip--status"
               :class="{
                 'fluent-chip--ok': item.status === 'ok',
                 'fluent-chip--down': item.status === 'missing',

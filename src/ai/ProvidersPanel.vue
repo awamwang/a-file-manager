@@ -155,7 +155,7 @@ onMounted(() => {
   <div class="providers-panel" data-ai-panel="providers">
     <p class="hint">{{ t("ai.providers.hint") }}</p>
     <p class="summary">{{ summary }}</p>
-    <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
+    <p v-if="loading" class="fluent-hint">{{ t("common.loading") }}</p>
     <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
 
     <div class="toolbar">

@@ -233,7 +233,7 @@ onMounted(() => {
         <p class="project-ai-hint">{{ t("ai.project.hint") }}</p>
       </div>
     </header>
-    <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
+    <p v-if="loading" class="fluent-hint">{{ t("common.loading") }}</p>
     <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
 
     <section class="fluent-surface project-ai-block">

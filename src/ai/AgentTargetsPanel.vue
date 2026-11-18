@@ -231,7 +231,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
+    <p v-if="loading" class="fluent-hint">{{ t("common.loading") }}</p>
     <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
 
     <div v-if="showAdd" class="fluent-surface agents-add">
