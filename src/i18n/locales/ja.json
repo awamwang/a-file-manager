@@ -1090,6 +1090,22 @@
         "awamKnowledgeServiceToken": {
           "title": "awam-knowledge サービストークン",
           "description": "ナレッジサービスの Bearer トークン（KM_SERVICE_TOKEN）。空の場合は認証なしで呼び出します。"
+        },
+        "voiceSearchAutoStart": {
+          "title": "音声検索",
+          "description": "検索パレットを開いたときに自動で録音を開始し、認識テキストを検索語に追記します"
+        },
+        "sttBaseUrl": {
+          "title": "音声→テキストのベース URL",
+          "description": "OpenAI 互換エンドポイントのベース（例: https://api.openai.com/v1）。{baseUrl}/audio/transcriptions に POST します"
+        },
+        "sttModel": {
+          "title": "音声→テキストモデル",
+          "description": "文字起こしエンドポイントへ送るモデル名（例: whisper-1）"
+        },
+        "sttApiKey": {
+          "title": "音声→テキスト API キー",
+          "description": "文字起こしエンドポイントの Bearer キー。空欄で音声入力を無効化します"
         }
       }
     },
@@ -1117,7 +1133,9 @@
       "knowledgeStatusOffline": "未接続 · サービス未起動、または URL/トークン不一致",
       "knowledgeSave": "設定を保存",
       "knowledgeSaving": "保存中…",
-      "knowledgeSaved": "ナレッジサービス設定を保存しました"
+      "knowledgeSaved": "ナレッジサービス設定を保存しました",
+      "voiceTitle": "音声入力（音声→テキスト）",
+      "voiceMeta": "検索パレットのマイクの背後にある OpenAI 互換の一括文字起こしサービス（ADR 0018）。リクエストはアプリから直接送信されます。"
     },
     "title": "設定",
     "sectionFavorites": "お気に入り",
@@ -1203,6 +1221,31 @@
     "dragReorderHint": "ドラッグで並べ替え",
     "tabsToMembersConfig": "タブ → メンバー設定"
   },
+  "voice": {
+    "palette": {
+      "listening": "録音中…",
+      "transcribing": "認識中…"
+    },
+    "error": {
+      "busy": "すでに録音が進行中です",
+      "noDevice": "マイクが見つかりません",
+      "permission": "マイクへのアクセスがブロックされています",
+      "notConfigured": "音声→テキストが未設定です（設定 → 検索 → 音声入力）",
+      "empty": "音声を検出できませんでした。もう一度お試しください",
+      "network": "文字起こしサービスに接続できません",
+      "unauthorized": "文字起こしサービスが API キーを拒否しました",
+      "server": "文字起こしサービスでエラーが発生しました"
+    },
+    "selftest": {
+      "start": "音声入力をテスト",
+      "stop": "停止して認識",
+      "recording": "録音中…話してください",
+      "transcribing": "認識中…",
+      "result": "認識結果",
+      "permissionHint": "このアプリのマイクアクセスを許可してください：Windows の設定 → プライバシーとセキュリティ → マイク（Windows には実行時のプロンプトがありません）。",
+      "configSaved": "音声→テキスト設定を保存しました"
+    }
+  },
   "shortcuts": {
     "meta": "1 つの機能に複数のキー組み合わせを割り当てられます。「追加」を押してキーを入力すると記録されます。x + N 固定グループ（Ctrl/Alt + 1–9）は変更できません。",
     "conflict": "競合するキー組み合わせ: {chords}",
@@ -1224,6 +1267,7 @@
     "change": "クリックしてこのショートカットを変更",
     "items": {
       "commandPanelToggle": "検索パレットの切り替え",
+      "voiceToggle": "音声入力を切り替え（検索パレット）",
       "discoveryGlobalSearch": "Discovery 検索を開く",
       "navigatorFolderSearch": "現在のフォルダーを検索",
       "navigatorGoUp": "一つ上のフォルダーへ",

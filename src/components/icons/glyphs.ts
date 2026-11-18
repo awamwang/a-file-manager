@@ -57,7 +57,8 @@ export type FluentGlyphId =
   | "shortcut"
   | "bookmark"
   | "provider"
-  | "lock";
+  | "lock"
+  | "mic";
 
 export type FluentGlyph = {
   /** Segoe Fluent Icons / MDL2 private-use codepoint */
@@ -433,6 +434,14 @@ export const FLUENT_GLYPHS: Record<FluentGlyphId, FluentGlyph> = {
     svgOnly: true,
     paths: [
       "M5.25 5a2.75 2.75 0 0 1 5.5 0v2h1.25v7H4v-7h1.25V5zM6.5 5v2h3V5a1.5 1.5 0 0 0-3 0z",
+    ],
+  },
+  /** Segoe Microphone — voice input (ADR 0018). */
+  mic: {
+    codepoint: "\uE720",
+    paths: [
+      "M8 2.5a2 2 0 0 1 2 2v4a2 2 0 1 1-4 0v-4a2 2 0 0 1 2-2z",
+      "M3.8 6.5v2a4.2 4.2 0 0 0 3.5 4.15V15h1.4v-2.35A4.2 4.2 0 0 0 12.2 8.5v-2h-1.3v2a2.9 2.9 0 0 1-5.8 0v-2H3.8z",
     ],
   },
 };

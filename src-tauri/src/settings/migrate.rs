@@ -204,6 +204,16 @@ fn migrate_step(
             );
             Ok(())
         }
+        (12, 13) => {
+            for (key, value) in default_document().values {
+                values.entry(key).or_insert(value);
+            }
+            notes.push(
+                "Added voice input keys power.voiceSearchAutoStart + power.sttBaseUrl/sttModel/sttApiKey (schema v13)"
+                    .to_string(),
+            );
+            Ok(())
+        }
         _ => Err(format!("No migration path from {from} → {to}")),
     }
 }

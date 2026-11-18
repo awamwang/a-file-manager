@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { nextTick, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import router from "../../router/index.ts";
 import type { AppCommand } from "../../commands/types.ts";
@@ -8,6 +8,18 @@ import {
   closeCommandPanel,
   commandPanelOpen,
 } from "../../state/commandPanel.ts";
+import { AI_ADDON_ENABLED } from "../../config/flavor.ts";
+import {
+  cancelVoice,
+  initVoiceInput,
+  onPaletteTranscript,
+  paletteVoiceActive,
+  startPaletteVoice,
+  togglePaletteVoice,
+  voicePhase,
+} from "../../state/voiceInput.ts";
+import { getCachedSettingsValues, hydrateSettings } from "../../state/settingsHydrate";
+import type { VoiceTranscriptEvent } from "../../voice/client.ts";
 import { toastError, toastInfo } from "../../state/toast.ts";
 import { buildSearchSources } from "../../search/registry.ts";
 import {
@@ -173,9 +185,49 @@ watch(commandPanelOpen, async (open) => {
     reset();
     await nextTick();
     inputEl.value?.focus();
+    void maybeAutoStartVoice();
   } else {
+    // 面板关闭即断语音（ADR 0018）：录音/识别中一律取消，不留悬空会话。
+    if (paletteVoiceActive.value) void cancelVoice();
     closeAllOverlay();
   }
+});
+
+/**
+ * 开启即录音（ADR 0018）：`power.voiceSearchAutoStart` 为真时面板打开自动起录。
+ * 设置未缓存则先 hydrate 一次；Core 包 / 读取失败时保持静默关闭。
+ */
+async function maybeAutoStartVoice(): Promise<void> {
+  if (!AI_ADDON_ENABLED) return;
+  try {
+    const values = getCachedSettingsValues() ?? (await hydrateSettings()).values;
+    if (values["power.voiceSearchAutoStart"] === true) {
+      void startPaletteVoice();
+    }
+  } catch {
+    /* settings 不可用时静默跳过，语音仍可手动开启 */
+  }
+}
+
+/** 转写文本追加进搜索框（非空则补一个空格），不触发“识别即搜索”。 */
+function appendPaletteTranscript(event: VoiceTranscriptEvent): void {
+  const text = event.text.trim();
+  if (!text) return;
+  const current = query.value.trim();
+  query.value = current ? `${current} ${text}` : text;
+}
+
+onPaletteTranscript(appendPaletteTranscript);
+initVoiceInput();
+
+/** 录音/识别中切 placeholder，提示语音链路正在工作。 */
+const inputPlaceholder = computed(() => {
+  if (paletteVoiceActive.value) {
+    return voicePhase.value === "transcribing"
+      ? t("voice.palette.transcribing")
+      : t("voice.palette.listening");
+  }
+  return t("searchPalette.placeholder");
 });
 
 // 编辑查询时浮层结果即失效，先关闭浮层回到主结果列表。
@@ -281,6 +333,11 @@ function onPanelKeydown(event: KeyboardEvent) {
   if (event.key === "Escape") {
     event.preventDefault();
     event.stopPropagation();
+    // 录音中 Esc 先取消语音不关面板；识别中（上传已脱管）直接关面板。
+    if (paletteVoiceActive.value && voicePhase.value === "recording") {
+      void cancelVoice();
+      return;
+    }
     closeCommandPanel();
     return;
   }
@@ -320,17 +377,31 @@ function onPanelKeydown(event: KeyboardEvent) {
         <label class="cmd-label" for="command-panel-input">{{
           t("searchPalette.title")
         }}</label>
-        <input
-          id="command-panel-input"
-          ref="inputEl"
-          v-model="query"
-          class="cmd-input"
-          type="text"
-          spellcheck="false"
-          autocomplete="off"
-          :placeholder="t('searchPalette.placeholder')"
-          aria-controls="command-panel-list"
-        />
+        <div class="cmd-input-row">
+          <input
+            id="command-panel-input"
+            ref="inputEl"
+            v-model="query"
+            class="cmd-input"
+            type="text"
+            spellcheck="false"
+            autocomplete="off"
+            :placeholder="inputPlaceholder"
+            aria-controls="command-panel-list"
+          />
+          <button
+            v-if="AI_ADDON_ENABLED"
+            type="button"
+            class="cmd-voice-btn"
+            :class="{ 'cmd-voice-btn--recording': paletteVoiceActive }"
+            :title="t('shortcuts.items.voiceToggle')"
+            :aria-label="t('shortcuts.items.voiceToggle')"
+            :aria-pressed="paletteVoiceActive"
+            @click="togglePaletteVoice()"
+          >
+            <FluentIcon name="mic" size="sm" />
+          </button>
+        </div>
         <div
           v-if="scopeChips.length"
           class="cmd-scopes"
@@ -597,12 +668,20 @@ function onPanelKeydown(event: KeyboardEvent) {
   border: 0;
 }
 
-.cmd-input {
+.cmd-input-row {
   flex-shrink: 0;
-  height: var(--fluent-control-height-comfortable);
-  min-height: var(--fluent-control-height-comfortable);
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-xs);
   margin: var(--fluent-space-md);
   margin-bottom: var(--fluent-space-xs);
+}
+
+.cmd-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--fluent-control-height-comfortable);
+  min-height: var(--fluent-control-height-comfortable);
   padding-inline: var(--fluent-space-md);
   border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   border-radius: var(--fluent-radius-md);
@@ -614,6 +693,47 @@ function onPanelKeydown(event: KeyboardEvent) {
 .cmd-input:focus {
   outline: 2px solid var(--fluent-color-stroke-focus);
   outline-offset: 1px;
+}
+
+/* 麦克风按钮（ADR 0018）：录音中红色脉冲，点击切换起录/停止。 */
+.cmd-voice-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--fluent-control-height-comfortable);
+  height: var(--fluent-control-height-comfortable);
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: var(--fluent-radius-md);
+  background: var(--fluent-color-fill-subtle);
+  color: var(--fluent-color-text-secondary);
+  cursor: pointer;
+}
+
+.cmd-voice-btn:hover {
+  background: var(--fluent-color-fill-subtle-secondary);
+  color: var(--fluent-color-text-primary);
+}
+
+.cmd-voice-btn:focus-visible {
+  outline: 2px solid var(--fluent-color-stroke-focus);
+  outline-offset: 1px;
+}
+
+.cmd-voice-btn--recording {
+  color: var(--fluent-color-status-danger);
+  border-color: var(--fluent-color-status-danger);
+  animation: cmd-voice-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes cmd-voice-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .cmd-scopes {

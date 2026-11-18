@@ -637,7 +637,9 @@
       "knowledgeStatusOffline": "未连接 · 服务未启动或地址/令牌不匹配",
       "knowledgeSave": "保存配置",
       "knowledgeSaving": "保存中…",
-      "knowledgeSaved": "知识服务配置已保存"
+      "knowledgeSaved": "知识服务配置已保存",
+      "voiceTitle": "语音输入（语音转文字）",
+      "voiceMeta": "搜索面板麦克风背后的 OpenAI 兼容批量转写服务（ADR 0018）；请求由本应用直连所配置的服务。"
     },
     "fields": {
       "core": {
@@ -834,6 +836,22 @@
         "awamKnowledgeServiceToken": {
           "title": "awam-knowledge 服务令牌",
           "description": "知识服务的 Bearer token（KM_SERVICE_TOKEN）；留空则不带鉴权调用。"
+        },
+        "voiceSearchAutoStart": {
+          "title": "语音搜索",
+          "description": "打开搜索面板时自动开始录音；识别文本追加进搜索词"
+        },
+        "sttBaseUrl": {
+          "title": "语音转文字服务地址",
+          "description": "OpenAI 兼容接口基地址，如 https://api.openai.com/v1 —— 应用会 POST {baseUrl}/audio/transcriptions"
+        },
+        "sttModel": {
+          "title": "语音转文字模型",
+          "description": "发送给转写接口的模型名，如 whisper-1"
+        },
+        "sttApiKey": {
+          "title": "语音转文字 API Key",
+          "description": "转写接口的 Bearer 密钥；留空表示停用语音输入"
         }
       },
       "experimental": {
@@ -1203,6 +1221,31 @@
     "noticeHelloFail": "命令失败：{error}",
     "unknownError": "未知"
   },
+  "voice": {
+    "palette": {
+      "listening": "正在聆听…",
+      "transcribing": "识别中…"
+    },
+    "error": {
+      "busy": "已有录音进行中",
+      "noDevice": "未找到麦克风",
+      "permission": "麦克风访问被阻止",
+      "notConfigured": "语音转文字尚未配置（设置 → 搜索 → 语音输入）",
+      "empty": "未识别到语音，请重试",
+      "network": "无法连接转写服务",
+      "unauthorized": "转写服务拒绝了 API Key",
+      "server": "转写服务出错"
+    },
+    "selftest": {
+      "start": "测试语音输入",
+      "stop": "停止并识别",
+      "recording": "录音中…请说话",
+      "transcribing": "识别中…",
+      "result": "识别结果",
+      "permissionHint": "请允许本应用使用麦克风：Windows 设置 → 隐私和安全性 → 麦克风（Windows 无运行时弹窗）。",
+      "configSaved": "语音转文字配置已保存"
+    }
+  },
   "shortcuts": {
     "meta": "一个功能可绑定多个组合键；点击「添加」后直接按下按键即可录制。x + N 固定组（Ctrl/Alt + 1–9）不可修改，悬停提示展示的始终是最终生效的快捷键。",
     "conflict": "检测到冲突组合键：{chords}",
@@ -1224,6 +1267,7 @@
     "change": "点击修改此快捷键",
     "items": {
       "commandPanelToggle": "切换搜索面板",
+      "voiceToggle": "切换语音输入（搜索面板）",
       "discoveryGlobalSearch": "打开 Discovery 搜索",
       "navigatorFolderSearch": "搜索当前文件夹",
       "navigatorGoUp": "返回上级文件夹",

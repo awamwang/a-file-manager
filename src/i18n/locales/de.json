@@ -1090,6 +1090,22 @@
         "awamKnowledgeServiceToken": {
           "title": "awam-knowledge-Dienst-Token",
           "description": "Bearer-Token des Wissensdienstes (KM_SERVICE_TOKEN); leer = Aufrufe ohne Authentifizierung."
+        },
+        "voiceSearchAutoStart": {
+          "title": "Sprachsuche",
+          "description": "Beim Öffnen der Suchpalette automatisch Aufnahme starten; erkannter Text wird an die Suchanfrage angehängt"
+        },
+        "sttBaseUrl": {
+          "title": "Sprache-zu-Text-Basis-URL",
+          "description": "OpenAI-kompatible Endpunkt-Basis, z. B. https://api.openai.com/v1 — die App sendet POST {baseUrl}/audio/transcriptions"
+        },
+        "sttModel": {
+          "title": "Sprache-zu-Text-Modell",
+          "description": "Modellname für den Transkriptionsendpunkt, z. B. whisper-1"
+        },
+        "sttApiKey": {
+          "title": "Sprache-zu-Text-API-Schlüssel",
+          "description": "Bearer-Schlüssel für den Transkriptionsendpunkt; leer deaktiviert die Spracheingabe"
         }
       }
     },
@@ -1117,7 +1133,9 @@
       "knowledgeStatusOffline": "Offline · Dienst läuft nicht oder URL/Token falsch",
       "knowledgeSave": "Konfiguration speichern",
       "knowledgeSaving": "Speichern…",
-      "knowledgeSaved": "Knowledge-Dienst-Konfiguration gespeichert"
+      "knowledgeSaved": "Knowledge-Dienst-Konfiguration gespeichert",
+      "voiceTitle": "Spracheingabe (Sprache zu Text)",
+      "voiceMeta": "Der OpenAI-kompatible Batch-Transkriptionsdienst hinter dem Mikrofon der Suchpalette (ADR 0018). Anfragen gehen direkt von der App an den konfigurierten Dienst."
     },
     "title": "Einstellungen",
     "sectionFavorites": "Favoriten",
@@ -1203,6 +1221,31 @@
     "dragReorderHint": "Ziehen zum Neuordnen",
     "tabsToMembersConfig": "Tabs → Mitgliederkonfiguration"
   },
+  "voice": {
+    "palette": {
+      "listening": "Aufnahme läuft…",
+      "transcribing": "Transkribiere…"
+    },
+    "error": {
+      "busy": "Eine Sprachaufnahme ist bereits aktiv",
+      "noDevice": "Kein Mikrofon gefunden",
+      "permission": "Mikrofonzugriff ist blockiert",
+      "notConfigured": "Sprache-zu-Text ist noch nicht konfiguriert (Einstellungen → Suche → Spracheingabe)",
+      "empty": "Keine Sprache erkannt — bitte erneut versuchen",
+      "network": "Transkriptionsdienst nicht erreichbar",
+      "unauthorized": "Transkriptionsdienst hat den API-Schlüssel abgelehnt",
+      "server": "Fehler des Transkriptionsdiensts"
+    },
+    "selftest": {
+      "start": "Spracheingabe testen",
+      "stop": "Stoppen und transkribieren",
+      "recording": "Aufnahme… bitte sprechen",
+      "transcribing": "Transkribiere…",
+      "result": "Erkannt",
+      "permissionHint": "Erlauben Sie den Mikrofonzugriff für diese App: Windows-Einstellungen → Datenschutz und Sicherheit → Mikrofon (unter Windows gibt es keinen Laufzeit-Dialog).",
+      "configSaved": "Sprache-zu-Text-Konfiguration gespeichert"
+    }
+  },
   "shortcuts": {
     "meta": "Eine Funktion kann mehrere Tastenkombinationen besitzen. Mit „Hinzufügen“ die Kombination drücken; die festen x + N Gruppen (Ctrl/Alt + 1–9) sind nicht änderbar.",
     "conflict": "Konfliktierende Akkorde: {chords}",
@@ -1224,6 +1267,7 @@
     "change": "Klicken, um diese Tastenkombination zu ändern",
     "items": {
       "commandPanelToggle": "Suchpalette umschalten",
+      "voiceToggle": "Spracheingabe umschalten (Suchpalette)",
       "discoveryGlobalSearch": "Discovery-Suche öffnen",
       "navigatorFolderSearch": "Aktuellen Ordner durchsuchen",
       "navigatorGoUp": "Eine Ebene nach oben",

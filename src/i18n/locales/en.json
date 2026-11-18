@@ -637,7 +637,9 @@
       "knowledgeStatusOffline": "Offline · service not running or URL/token mismatch",
       "knowledgeSave": "Save configuration",
       "knowledgeSaving": "Saving…",
-      "knowledgeSaved": "Knowledge service configuration saved"
+      "knowledgeSaved": "Knowledge service configuration saved",
+      "voiceTitle": "Voice input (speech-to-text)",
+      "voiceMeta": "The OpenAI-compatible batch transcription service behind the Search Palette microphone (ADR 0018). Requests go straight from the app to the configured service."
     },
     "fields": {
       "core": {
@@ -834,6 +836,22 @@
         "awamKnowledgeServiceToken": {
           "title": "awam-knowledge service token",
           "description": "Bearer token for the knowledge service (KM_SERVICE_TOKEN); empty sends unauthenticated calls."
+        },
+        "voiceSearchAutoStart": {
+          "title": "Voice search",
+          "description": "Start capturing automatically when the Search Palette opens; recognized speech is appended to the query"
+        },
+        "sttBaseUrl": {
+          "title": "Speech-to-text base URL",
+          "description": "OpenAI-compatible endpoint base, e.g. https://api.openai.com/v1 — the app POSTs {baseUrl}/audio/transcriptions"
+        },
+        "sttModel": {
+          "title": "Speech-to-text model",
+          "description": "Model name sent to the transcription endpoint, e.g. whisper-1"
+        },
+        "sttApiKey": {
+          "title": "Speech-to-text API key",
+          "description": "Bearer key for the transcription endpoint; empty disables voice input"
         }
       },
       "experimental": {
@@ -1203,6 +1221,31 @@
     "noticeHelloFail": "Command failed: {error}",
     "unknownError": "unknown"
   },
+  "voice": {
+    "palette": {
+      "listening": "Listening…",
+      "transcribing": "Transcribing…"
+    },
+    "error": {
+      "busy": "A voice recording is already active",
+      "noDevice": "No microphone found",
+      "permission": "Microphone access is blocked",
+      "notConfigured": "Speech-to-text is not configured yet (Settings → Search → Voice input)",
+      "empty": "No speech detected — try again",
+      "network": "Transcription service unreachable",
+      "unauthorized": "Transcription service rejected the API key",
+      "server": "Transcription service error"
+    },
+    "selftest": {
+      "start": "Test voice input",
+      "stop": "Stop and transcribe",
+      "recording": "Recording… speak now",
+      "transcribing": "Transcribing…",
+      "result": "Recognized",
+      "permissionHint": "Allow microphone access for this app: Windows Settings → Privacy & security → Microphone (no runtime prompt on Windows).",
+      "configSaved": "Speech-to-text configuration saved"
+    }
+  },
   "shortcuts": {
     "meta": "One function can own several chords. Press Add and hit a combo to record it; the fixed x + N groups (Ctrl/Alt + 1-9) cannot be changed.",
     "conflict": "Conflicting chords detected: {chords}",
@@ -1224,6 +1267,7 @@
     "change": "Click to change this chord",
     "items": {
       "commandPanelToggle": "Toggle Search Palette",
+    "voiceToggle": "Toggle voice input (Search Palette)",
       "discoveryGlobalSearch": "Open Discovery search",
       "navigatorFolderSearch": "Search current folder",
       "navigatorGoUp": "Go up one folder",

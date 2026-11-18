@@ -28,6 +28,11 @@ export const SETTINGS_UI_HIDDEN_KEYS = [
   // ADR 0016：知识服务地址/令牌编辑入口在设置 → 搜索板块（SearchSettingsPanel）。
   "power.awamKnowledgeServiceUrl",
   "power.awamKnowledgeServiceToken",
+  // ADR 0018：语音输入四键的编辑入口在设置 → 搜索板块（SearchSettingsPanel）。
+  "power.voiceSearchAutoStart",
+  "power.sttBaseUrl",
+  "power.sttModel",
+  "power.sttApiKey",
   // 标题栏调试相位对日常使用噪音大；键仍保留供诊断。
   "experimental.debugStatusInTitlebar",
 ] as const;
@@ -76,6 +81,11 @@ const KEY_GROUP: Record<string, SettingsUiGroupId> = {
   // ADR 0016：知识服务地址/令牌在设置 → 搜索板块渲染；分组仅供排序/诊断。
   "power.awamKnowledgeServiceUrl": "advanced",
   "power.awamKnowledgeServiceToken": "advanced",
+  // ADR 0018：语音输入在设置 → 搜索板块渲染；分组仅供排序/诊断。
+  "power.voiceSearchAutoStart": "advanced",
+  "power.sttBaseUrl": "advanced",
+  "power.sttModel": "advanced",
+  "power.sttApiKey": "advanced",
 
   "experimental.previewPane": "preview",
   "preview.externalProvider": "preview",

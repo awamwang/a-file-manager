@@ -31,7 +31,9 @@ import {
 import DropHintOverlay from "./DropHintOverlay.vue";
 import { SIDE_NAV_ITEMS, isSideNavActive, sideNavIcon } from "../../shell/sideNav";
 import { buildAppCommands } from "../../commands/registry";
-import { toggleCommandPanel } from "../../state/commandPanel";
+import { toggleCommandPanel, commandPanelOpen } from "../../state/commandPanel";
+import { AI_ADDON_ENABLED } from "../../config/flavor.ts";
+import { togglePaletteVoice } from "../../state/voiceInput.ts";
 import { reloadWindow } from "../../state/uiReload";
 import { requestGlobalSearchFocus } from "../../state/globalSearch";
 import {
@@ -800,6 +802,11 @@ function registerShellShortcuts() {
   registerShortcutHandler("commandPanel.toggle", () => {
     toggleCommandPanel();
   });
+  /** ADR 0018：Ctrl+M 仅在搜索面板打开时切语音（Core 包 / 面板关闭时静默）。 */
+  registerShortcutHandler("commandPanel.voiceToggle", () => {
+    if (!AI_ADDON_ENABLED || !commandPanelOpen.value) return;
+    void togglePaletteVoice();
+  });
   registerShortcutHandler("discovery.globalSearch", () => {
     // Ctrl+Shift+F opens Settings → Search (Discovery probe). Folder search is Ctrl+E / F3.
     requestGlobalSearchFocus();
@@ -878,6 +885,7 @@ function registerShellShortcuts() {
 function unregisterShellShortcuts() {
   for (const id of [
     "commandPanel.toggle",
+    "commandPanel.voiceToggle",
     "discovery.globalSearch",
     "navigator.folderSearch",
     "navigator.folderSearchF3",

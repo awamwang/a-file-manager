@@ -21,6 +21,16 @@ import {
   type SettingsDocument,
 } from "../../state/settingsHydrate";
 import { toastError, toastSuccess } from "../../state/toast";
+import { AI_ADDON_ENABLED } from "../../config/flavor.ts";
+import {
+  initVoiceInput,
+  selfTestError,
+  selfTestPhase,
+  selfTestResult,
+  startSelfTest,
+  stopSelfTest,
+  voiceErrorMessageKey,
+} from "../../state/voiceInput.ts";
 
 /** AIA-276：进入搜索设置分区时再加载 Discovery 探测页。 */
 const DiscoveryView = defineAsyncComponent(
@@ -170,7 +180,111 @@ async function saveKnowledgeService() {
 onMounted(() => {
   void loadKnowledgeDrafts();
   void refreshKnowledgeStatus();
+  if (AI_ADDON_ENABLED) {
+    void loadVoiceDrafts();
+  }
 });
+
+// ---------------------------------------------------------------------------
+// 语音输入（ADR 0018）：OpenAI 兼容转写配置 + 语音自检。
+// ---------------------------------------------------------------------------
+
+const VOICE_AUTOSTART_SETTING_KEY = "power.voiceSearchAutoStart";
+const VOICE_BASE_URL_SETTING_KEY = "power.sttBaseUrl";
+const VOICE_MODEL_SETTING_KEY = "power.sttModel";
+const VOICE_API_KEY_SETTING_KEY = "power.sttApiKey";
+
+const voiceAutoStart = ref(false);
+const voiceBaseUrlDraft = ref("");
+const voiceModelDraft = ref("");
+const voiceApiKeyDraft = ref("");
+const voiceSaving = ref(false);
+
+async function loadVoiceDrafts() {
+  try {
+    const doc = await hydrateSettings();
+    const autoStart = doc.values[VOICE_AUTOSTART_SETTING_KEY];
+    if (typeof autoStart === "boolean") {
+      voiceAutoStart.value = autoStart;
+    }
+    const baseUrl = doc.values[VOICE_BASE_URL_SETTING_KEY];
+    if (typeof baseUrl === "string") {
+      voiceBaseUrlDraft.value = baseUrl;
+    }
+    const model = doc.values[VOICE_MODEL_SETTING_KEY];
+    if (typeof model === "string") {
+      voiceModelDraft.value = model;
+    }
+    const apiKey = doc.values[VOICE_API_KEY_SETTING_KEY];
+    if (typeof apiKey === "string") {
+      voiceApiKeyDraft.value = apiKey;
+    }
+  } catch {
+    // 读取失败保留空草稿；保存前自检会给出可操作的错误。
+  }
+}
+
+/** 开启「语音搜索」即弹起试录：实测麦克风、权限与转写配置。 */
+async function onVoiceAutoStartChange(event: Event) {
+  const checked = (event.target as HTMLInputElement).checked;
+  voiceAutoStart.value = checked;
+  try {
+    const doc = await invoke<SettingsDocument>("settings_set", {
+      patch: { [VOICE_AUTOSTART_SETTING_KEY]: checked },
+    });
+    rememberSettingsDocument(doc);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    toastError(msg);
+    return;
+  }
+  if (checked) {
+    initVoiceInput();
+    await startSelfTest();
+  }
+}
+
+async function saveVoiceConfig() {
+  voiceSaving.value = true;
+  try {
+    const doc = await invoke<SettingsDocument>("settings_set", {
+      patch: {
+        [VOICE_BASE_URL_SETTING_KEY]: voiceBaseUrlDraft.value.trim(),
+        [VOICE_MODEL_SETTING_KEY]: voiceModelDraft.value.trim(),
+        [VOICE_API_KEY_SETTING_KEY]: voiceApiKeyDraft.value.trim(),
+      },
+    });
+    rememberSettingsDocument(doc);
+    toastSuccess(t("voice.selftest.configSaved"));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    toastError(msg);
+  } finally {
+    voiceSaving.value = false;
+  }
+}
+
+/** 常驻独立测试按钮：空闲 → 起录；录音中 → 停止转写；识别中不动作。 */
+function onVoiceTestButtonClick() {
+  if (selfTestPhase.value === "idle") {
+    initVoiceInput();
+    void startSelfTest();
+  } else if (selfTestPhase.value === "recording") {
+    void stopSelfTest();
+  }
+}
+
+const voiceSelfTestButtonLabel = computed(() => {
+  if (selfTestPhase.value === "recording") return t("voice.selftest.stop");
+  return t("voice.selftest.start");
+});
+
+/** 自检错误需给出可操作的引导（Windows 无运行时权限弹窗）。 */
+const voiceSelfTestNeedsPermissionHint = computed(
+  () =>
+    selfTestError.value?.code === "permission" ||
+    selfTestError.value?.code === "no-device",
+);
 </script>
 
 <template>
@@ -304,6 +418,144 @@ onMounted(() => {
       </div>
     </section>
 
+    <section
+      v-if="AI_ADDON_ENABLED"
+      class="fluent-surface search-settings-block"
+      data-voice-settings
+    >
+      <h2 class="search-settings-title">
+        {{ t("settings.search.voiceTitle") }}
+      </h2>
+      <p class="search-settings-meta">
+        {{ t("settings.search.voiceMeta") }}
+      </p>
+
+      <label class="search-settings-toggle">
+        <input
+          type="checkbox"
+          class="fluent-field-check"
+          :checked="voiceAutoStart"
+          @change="onVoiceAutoStartChange"
+        />
+        <span>
+          <strong>{{
+            t("settings.fields.power.voiceSearchAutoStart.title")
+          }}</strong>
+          <span class="search-settings-desc">{{
+            t("settings.fields.power.voiceSearchAutoStart.description")
+          }}</span>
+        </span>
+      </label>
+
+      <label class="search-settings-field">
+        <span class="search-settings-field-label">{{
+          t("settings.fields.power.sttBaseUrl.title")
+        }}</span>
+        <input
+          v-model="voiceBaseUrlDraft"
+          class="fluent-control"
+          type="text"
+          spellcheck="false"
+          placeholder="https://api.openai.com/v1"
+        />
+        <span class="search-settings-desc">{{
+          t("settings.fields.power.sttBaseUrl.description")
+        }}</span>
+      </label>
+
+      <label class="search-settings-field">
+        <span class="search-settings-field-label">{{
+          t("settings.fields.power.sttModel.title")
+        }}</span>
+        <input
+          v-model="voiceModelDraft"
+          class="fluent-control"
+          type="text"
+          spellcheck="false"
+          placeholder="whisper-1"
+        />
+        <span class="search-settings-desc">{{
+          t("settings.fields.power.sttModel.description")
+        }}</span>
+      </label>
+
+      <label class="search-settings-field">
+        <span class="search-settings-field-label">{{
+          t("settings.fields.power.sttApiKey.title")
+        }}</span>
+        <input
+          v-model="voiceApiKeyDraft"
+          class="fluent-control"
+          type="text"
+          spellcheck="false"
+          autocomplete="off"
+        />
+        <span class="search-settings-desc">{{
+          t("settings.fields.power.sttApiKey.description")
+        }}</span>
+      </label>
+
+      <div>
+        <button
+          type="button"
+          class="fluent-control fluent-control--accent"
+          :disabled="voiceSaving"
+          @click="saveVoiceConfig"
+        >
+          {{ t("settings.search.knowledgeSave") }}
+        </button>
+      </div>
+
+      <div
+        class="search-settings-voice-selftest"
+        :data-selftest-phase="selfTestPhase"
+      >
+        <div class="search-settings-voice-selftest-row">
+          <button
+            type="button"
+            class="fluent-control"
+            data-selftest-button
+            @click="onVoiceTestButtonClick"
+          >
+            {{ voiceSelfTestButtonLabel }}
+          </button>
+          <span
+            v-if="selfTestPhase !== 'idle'"
+            class="search-settings-meta"
+            data-selftest-status
+          >
+            {{
+              selfTestPhase === "recording"
+                ? t("voice.selftest.recording")
+                : t("voice.selftest.transcribing")
+            }}
+          </span>
+        </div>
+        <p
+          v-if="selfTestResult"
+          class="search-settings-meta"
+          data-selftest-result
+        >
+          {{ t("voice.selftest.result") }}: {{ selfTestResult.text }}
+          · {{ (selfTestResult.elapsedMs / 1000).toFixed(1) }}s
+        </p>
+        <p
+          v-if="selfTestError"
+          class="search-settings-meta"
+          data-selftest-error
+        >
+          {{ t(voiceErrorMessageKey(selfTestError.code)) }}
+        </p>
+        <p
+          v-if="voiceSelfTestNeedsPermissionHint"
+          class="search-settings-desc"
+          data-selftest-permission-hint
+        >
+          {{ t("voice.selftest.permissionHint") }}
+        </p>
+      </div>
+    </section>
+
     <section class="search-settings-probe">
       <h2 class="search-settings-title">{{ t("settings.search.probeTitle") }}</h2>
       <p class="search-settings-meta">{{ t("settings.search.probeMeta") }}</p>
@@ -386,6 +638,20 @@ onMounted(() => {
   align-items: center;
   gap: var(--fluent-space-xs);
   cursor: pointer;
+}
+
+.search-settings-voice-selftest {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-xs);
+  padding-top: var(--fluent-space-sm);
+  border-top: 1px solid var(--fluent-color-stroke);
+}
+
+.search-settings-voice-selftest-row {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
 }
 
 .search-settings-probe {

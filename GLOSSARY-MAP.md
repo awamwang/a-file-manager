@@ -5,6 +5,7 @@
 - [AI Add-on（Skills / MCP）](./GLOSSARY.md)：面向 Agent 的公共库与按项目分发；权威源是 AFM 中央仓库。
 - [Feature Pack / 工具管理运行时](./docs/glossary-feature-pack.md)：可后装产品附加包，以及 AFM 对本机工具网关的薄客户端面。
 - [Core 搜索面板（Search Palette）](./docs/glossary-search-palette.md)：Ctrl+Shift+P 的统一检索入口，按搜索源分组并组合范围。
+- [语音输入套件（Voice Input Suite）](./docs/glossary-voice-input.md)：全应用「说话转文字」能力：统一语音服务 + 可配置引擎；当前唯一接入点是搜索面板。
 
 ## Relationships
 
@@ -16,3 +17,4 @@
 - **ExtensionHost ↔ 工具管理运行时**：前者管 Pack 安装启停；后者是使用面（独立侧栏）。
 - **Core 搜索面板 → 工具管理运行时**：面板只列工具/能力并跳转预选；能力执行与破坏性确认留在工具运行时页面。
 - **Core 搜索面板 → Feature Pack**：Pack 可声明静态条目，统一进「扩展」搜索源；面板不调用 Pack 运行时查询。
+- **Core 搜索面板 → 语音输入套件**：面板是套件当前唯一接入点（语音搜索配置、麦克风按钮、快捷键），经语音服务调用；识别文本回填面板输入框，检索仍走面板既有链路，不旁路。

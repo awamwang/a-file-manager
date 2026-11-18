@@ -35,6 +35,14 @@ export const BUILTIN_SHORTCUTS: ShortcutDefinition[] = [
     chord: { key: "`" },
     scope: "global",
   },
+  /** ADR 0018：语音输入开关（面板打开时起录/停止；Core 包无命令，handler 静默）。 */
+  {
+    id: "commandPanel.voiceToggle",
+    labelKey: "shortcuts.items.voiceToggle",
+    chord: { ctrl: true, key: "m" },
+    scope: "global",
+    allowInEditable: true,
+  },
   {
     id: "discovery.globalSearch",
     labelKey: "shortcuts.items.discoveryGlobalSearch",

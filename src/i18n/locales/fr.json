@@ -1090,6 +1090,22 @@
         "awamKnowledgeServiceToken": {
           "title": "Jeton du service awam-knowledge",
           "description": "Jeton Bearer du service connaissances (KM_SERVICE_TOKEN) ; vide = appels sans authentification."
+        },
+        "voiceSearchAutoStart": {
+          "title": "Recherche vocale",
+          "description": "Démarrer automatiquement la capture à l'ouverture de la palette ; le texte reconnu est ajouté à la requête"
+        },
+        "sttBaseUrl": {
+          "title": "URL de base voix vers texte",
+          "description": "Base d'endpoint compatible OpenAI, p. ex. https://api.openai.com/v1 — l'application envoie POST {baseUrl}/audio/transcriptions"
+        },
+        "sttModel": {
+          "title": "Modèle voix vers texte",
+          "description": "Nom du modèle envoyé à l'endpoint de transcription, p. ex. whisper-1"
+        },
+        "sttApiKey": {
+          "title": "Clé API voix vers texte",
+          "description": "Clé Bearer pour l'endpoint de transcription ; vide désactive la saisie vocale"
         }
       }
     },
@@ -1117,7 +1133,9 @@
       "knowledgeStatusOffline": "Hors ligne · service arrêté ou URL/jeton incorrect",
       "knowledgeSave": "Enregistrer la configuration",
       "knowledgeSaving": "Enregistrement…",
-      "knowledgeSaved": "Configuration du service de connaissances enregistrée"
+      "knowledgeSaved": "Configuration du service de connaissances enregistrée",
+      "voiceTitle": "Saisie vocale (voix vers texte)",
+      "voiceMeta": "Le service de transcription par lots compatible OpenAI derrière le micro de la palette de recherche (ADR 0018). Les requêtes vont directement de l'application au service configuré."
     },
     "title": "Paramètres",
     "sectionFavorites": "Favoris",
@@ -1203,6 +1221,31 @@
     "dragReorderHint": "Glisser pour réordonner",
     "tabsToMembersConfig": "Onglets → configuration des membres"
   },
+  "voice": {
+    "palette": {
+      "listening": "Écoute en cours…",
+      "transcribing": "Transcription…"
+    },
+    "error": {
+      "busy": "Un enregistrement vocal est déjà actif",
+      "noDevice": "Aucun micro trouvé",
+      "permission": "L'accès au micro est bloqué",
+      "notConfigured": "La voix vers texte n'est pas encore configurée (Paramètres → Recherche → Saisie vocale)",
+      "empty": "Aucune voix détectée — réessayez",
+      "network": "Service de transcription inaccessible",
+      "unauthorized": "Le service de transcription a refusé la clé API",
+      "server": "Erreur du service de transcription"
+    },
+    "selftest": {
+      "start": "Tester la saisie vocale",
+      "stop": "Arrêter et transcrire",
+      "recording": "Enregistrement… parlez",
+      "transcribing": "Transcription…",
+      "result": "Reconnu",
+      "permissionHint": "Autorisez l'accès au micro pour cette application : Paramètres Windows → Confidentialité et sécurité → Micro (pas d'invite à l'exécution sous Windows).",
+      "configSaved": "Configuration voix vers texte enregistrée"
+    }
+  },
   "shortcuts": {
     "meta": "Une fonction peut posséder plusieurs raccourcis. Cliquez sur « Ajouter » puis appuyez sur la combinaison ; les groupes fixes x + N (Ctrl/Alt + 1–9) ne sont pas modifiables.",
     "conflict": "Accords en conflit : {chords}",
@@ -1224,6 +1267,7 @@
     "change": "Cliquer pour modifier ce raccourci",
     "items": {
       "commandPanelToggle": "Basculer la palette de recherche",
+      "voiceToggle": "Basculer la saisie vocale (palette de recherche)",
       "discoveryGlobalSearch": "Ouvrir la recherche Discovery",
       "navigatorFolderSearch": "Rechercher dans le dossier actuel",
       "navigatorGoUp": "Remonter d’un dossier",

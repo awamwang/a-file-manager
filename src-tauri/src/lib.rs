@@ -38,6 +38,8 @@ pub use tool_runtime::{
     TOOL_RUNTIME_PACK_ID,
 };
 mod snap_chrome;
+#[cfg(feature = "ai-addon")]
+mod voice;
 #[cfg(windows)]
 mod drag_focus;
 #[cfg(windows)]
@@ -338,6 +340,14 @@ pub fn run() {
                     knowledge_service::knowledge_service_copy,
                     knowledge_service::knowledge_service_unlock,
                     knowledge_service::knowledge_service_lock,
+                    #[cfg(feature = "ai-addon")]
+                    voice::voice_start,
+                    #[cfg(feature = "ai-addon")]
+                    voice::voice_stop,
+                    #[cfg(feature = "ai-addon")]
+                    voice::voice_cancel,
+                    #[cfg(feature = "ai-addon")]
+                    voice::voice_selftest,
                     providers::provider_backends,
                     providers::provider_gateway_status,
                     tool_runtime::tool_runtime_get_config,
