@@ -105,10 +105,25 @@ export type SearchQueryOptions = {
   fuzzy: boolean;
 };
 
-/** 组尾「查看全部」入口：带当前查询跳转到该源的完整结果页。 */
+/**
+ * 组尾「查看全部」入口：
+ * - 默认带当前查询跳转到该源的完整结果页（`action`）；
+ * - `overlay === true` 时改由搜索面板在内部展开浮层，调用源的 `searchAll` 分页取全量结果，
+ *   不再跳转（`action` 保留作深链兜底）。
+ */
 export type SearchViewAll = {
   labelKey: string;
   action(query: string): void | Promise<void>;
+  /** 在面板内展开浮层展示全部结果（仅文件源启用）。 */
+  overlay?: boolean;
+};
+
+/** 「查看全部」浮层分页结果：完整命中列表的一页 + 是否还有更多。 */
+export type SearchAllPage = {
+  items: SearchResultItem[];
+  totalCount: number;
+  offset: number;
+  hasMore: boolean;
 };
 
 export type SearchSource = {
@@ -124,8 +139,18 @@ export type SearchSource = {
   unavailableAction?(): void | Promise<void>;
   /** 状态行动作后保留面板打开并重跑检索（如刷新快照）。 */
   retainPanelOnStatusAction?: boolean;
-  /** 组尾「查看全部」入口（如文件源跳 Discovery 带查询）。 */
+  /** 组尾「查看全部」入口（如文件源跳 Discovery 带查询，或面板内展开浮层）。 */
   viewAll?: SearchViewAll;
+  /**
+   * 「查看全部」浮层（`viewAll.overlay` 为真时）按偏移分页取该源的全量结果；
+   * 返回条目的 `activate` 行为须与面板内点击一致（沿用搜索面板行为）。
+   */
+  searchAll?(
+    query: string,
+    options: SearchQueryOptions,
+    offset: number,
+    limit: number,
+  ): Promise<SearchAllPage>;
   /**
    * 检索：空 query 时命令源返回全量、其余源返回空列表；
    * 失败时自行捕获并返回 `status: "unavailable"`。

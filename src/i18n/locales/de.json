@@ -171,6 +171,14 @@
     "fuzzy": "Unscharfe Suche",
     "workGroupMembers": "keine Mitglieder | 1 Mitglied | {count} Mitglieder",
     "viewAllFiles": "Alle Datei-Ergebnisse anzeigen",
+    "all": {
+      "title": "Alle Datei-Ergebnisse",
+      "back": "Zurück",
+      "loadMore": "Mehr laden",
+      "loading": "Wird geladen…",
+      "empty": "Keine Dateien gefunden",
+      "showing": "{shown} von {total} angezeigt"
+    },
     "openFailed": "Element konnte nicht geöffnet werden",
     "executedCapability": "Fähigkeit ausgeführt",
     "destructiveInRuntime": "Destruktive Fähigkeiten müssen in der Tool-Laufzeit bestätigt werden",

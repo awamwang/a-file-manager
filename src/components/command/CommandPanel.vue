@@ -61,6 +61,57 @@ const {
 const inputEl = ref<HTMLInputElement | null>(null);
 const listEl = ref<HTMLElement | null>(null);
 
+/** 「查看全部」浮层每页条数（discovery_search 分页）。 */
+const ALL_PAGE_SIZE = 50;
+
+const filesSource = sources.find((source) => source.id === "files");
+
+/** 浮层状态：在面板内展开文件全量结果，不跳转独立 discovery 页。 */
+const allOverlayOpen = ref(false);
+const allEl = ref<HTMLElement | null>(null);
+const allItems = ref<SearchResultItem[]>([]);
+const allLoading = ref(false);
+const allError = ref<string | null>(null);
+const allTotal = ref(0);
+const allHasMore = ref(false);
+
+async function loadAllPage(offset: number, append: boolean): Promise<void> {
+  const searchAll = filesSource?.searchAll;
+  if (!searchAll) return;
+  allLoading.value = true;
+  allError.value = null;
+  try {
+    const page = await searchAll(query.value, { fuzzy: fuzzy.value }, offset, ALL_PAGE_SIZE);
+    allItems.value = append ? [...allItems.value, ...page.items] : page.items;
+    allTotal.value = page.totalCount;
+    allHasMore.value = page.hasMore;
+  } catch {
+    allError.value = "files";
+  } finally {
+    allLoading.value = false;
+  }
+}
+
+function openAllFiles(): void {
+  if (!query.value.trim() || !filesSource?.searchAll) return;
+  allOverlayOpen.value = true;
+  allItems.value = [];
+  allTotal.value = 0;
+  allHasMore.value = false;
+  void loadAllPage(0, false);
+}
+
+function loadMoreAll(): void {
+  void loadAllPage(allItems.value.length, true);
+}
+
+function closeAllOverlay(): void {
+  allOverlayOpen.value = false;
+  allItems.value = [];
+  allLoading.value = false;
+  allError.value = null;
+}
+
 /** 行首图标缺省映射（文件源接入后按条目覆盖）。 */
 const ITEM_TYPE_ICON: Record<SearchItemType, FluentGlyphId> = {
   command: "commands",
@@ -143,10 +194,18 @@ function statusActionLabel(source: SearchSource): string | null {
 
 watch(commandPanelOpen, async (open) => {
   if (open) {
+    closeAllOverlay();
     reset();
     await nextTick();
     inputEl.value?.focus();
+  } else {
+    closeAllOverlay();
   }
+});
+
+// 编辑查询时浮层结果即失效，先关闭浮层回到主结果列表。
+watch(query, () => {
+  if (allOverlayOpen.value) closeAllOverlay();
 });
 
 watch(
@@ -164,6 +223,15 @@ async function runItem(
   item: SearchResultItem,
   ctrl = false,
 ): Promise<void> {
+  // 文件组「查看全部」：在面板内展开浮层，不关闭面板、不跳转独立页。
+  if (
+    filesSource?.viewAll?.overlay &&
+    item.sourceId === "files" &&
+    item.key === "files:view-all"
+  ) {
+    openAllFiles();
+    return;
+  }
   // Ctrl+Enter 密钥短显：保持面板打开 5 秒展示明文，到期自动回掩码。
   const keepOpen = ctrl && item.type === "secret";
   if (!keepOpen) {
@@ -213,6 +281,19 @@ function moveActive(delta: number) {
 }
 
 function onPanelKeydown(event: KeyboardEvent) {
+  // 「查看全部」浮层打开时：Esc 仅关闭浮层，方向键/Enter 不驱动主列表。
+  if (allOverlayOpen.value) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      closeAllOverlay();
+      return;
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+    }
+    return;
+  }
   // 面板打开时优先于全局 Alt+数字（工作组切换）。
   if (
     event.altKey &&
@@ -410,6 +491,81 @@ function onPanelKeydown(event: KeyboardEvent) {
             />{{ t("searchPalette.fuzzy") }}
           </label>
         </div>
+        <div
+          v-if="allOverlayOpen"
+          ref="allEl"
+          class="cmd-all"
+          role="region"
+          :aria-label="t('searchPalette.all.title')"
+        >
+          <header class="cmd-all-head">
+            <button
+              type="button"
+              class="cmd-all-back"
+              @click="closeAllOverlay"
+            >
+              <FluentIcon name="back" size="sm" />
+              <span>{{ t("searchPalette.all.back") }}</span>
+            </button>
+            <span class="cmd-all-title">{{ t("searchPalette.all.title") }}</span>
+            <span
+              v-if="!allError"
+              class="cmd-all-meta"
+            >{{ t("searchPalette.all.showing", { shown: allItems.length, total: allTotal }) }}</span>
+          </header>
+          <div class="cmd-all-list">
+            <p
+              v-if="allError"
+              class="cmd-all-status"
+            >{{ t("searchPalette.status.filesUnavailable") }}</p>
+            <template v-else>
+              <button
+                v-for="item in allItems"
+                :key="item.key"
+                type="button"
+                class="cmd-item fluent-list-row"
+                @click="runItem(item)"
+              >
+                <img
+                  v-if="rowShellIcon(item)"
+                  class="cmd-item-shell-icon"
+                  :src="rowShellIcon(item)!"
+                  alt=""
+                  width="16"
+                  height="16"
+                />
+                <FluentIcon
+                  v-else
+                  :name="itemIcon(item)"
+                  size="sm"
+                  class="cmd-item-icon"
+                />
+                <span class="cmd-item-main">
+                  <span class="cmd-item-title">{{ item.title }}</span>
+                  <span v-if="item.subtitle" class="cmd-item-subtitle">{{ item.subtitle }}</span>
+                </span>
+                <span class="cmd-item-type">{{ itemTypeLabel(item) }}</span>
+              </button>
+              <p v-if="allLoading && !allItems.length" class="cmd-all-status">
+                {{ t("searchPalette.all.loading") }}
+              </p>
+              <p v-else-if="!allLoading && !allItems.length" class="cmd-all-status">
+                {{ t("searchPalette.all.empty") }}
+              </p>
+            </template>
+          </div>
+          <footer class="cmd-all-foot">
+            <button
+              v-if="allHasMore"
+              type="button"
+              class="cmd-all-more"
+              :disabled="allLoading"
+              @click="loadMoreAll"
+            >
+              {{ allLoading ? t("searchPalette.all.loading") : t("searchPalette.all.loadMore") }}
+            </button>
+          </footer>
+        </div>
       </div>
     </div>
   </Teleport>
@@ -428,6 +584,7 @@ function onPanelKeydown(event: KeyboardEvent) {
 }
 
 .cmd-panel {
+  position: relative;
   width: min(560px, calc(100vw - 32px));
   max-height: min(460px, 70vh);
   display: flex;
@@ -437,6 +594,27 @@ function onPanelKeydown(event: KeyboardEvent) {
   background: var(--fluent-color-fill-control);
   box-shadow: var(--fluent-shadow-flyout);
   overflow: hidden;
+}
+
+/* 响应式放大：屏幕越大弹框适当变大，给「查看全部」浮层更充裕的空间。 */
+@media (min-width: 1280px) {
+  .cmd-backdrop {
+    padding-top: 9vh;
+  }
+  .cmd-panel {
+    width: min(720px, calc(100vw - 48px));
+    max-height: min(680px, 78vh);
+  }
+}
+
+@media (min-width: 1600px) {
+  .cmd-backdrop {
+    padding-top: 8vh;
+  }
+  .cmd-panel {
+    width: min(900px, calc(100vw - 64px));
+    max-height: min(820px, 82vh);
+  }
 }
 
 .cmd-label {
@@ -700,5 +878,98 @@ function onPanelKeydown(event: KeyboardEvent) {
 .cmd-fuzzy-box {
   margin: 0;
   accent-color: var(--fluent-color-fill-accent);
+}
+
+/* 「查看全部」浮层：覆盖在面板内部，不跳转独立页。 */
+.cmd-all {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--fluent-color-fill-control);
+}
+
+.cmd-all-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  padding: var(--fluent-space-sm) var(--fluent-space-md);
+  border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+}
+
+.cmd-all-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fluent-space-xxs);
+  padding: var(--fluent-space-xxs) var(--fluent-space-sm);
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: var(--fluent-radius-sm);
+  background: transparent;
+  color: var(--fluent-color-text-secondary);
+  font: inherit;
+  font-size: var(--fluent-font-size-caption);
+  cursor: pointer;
+}
+
+.cmd-all-back:hover {
+  background: var(--fluent-color-fill-control-hover);
+  color: var(--fluent-color-text-primary);
+}
+
+.cmd-all-title {
+  font-size: var(--fluent-font-size-caption);
+  font-weight: var(--fluent-font-weight-semibold);
+  color: var(--fluent-color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.cmd-all-meta {
+  margin-left: auto;
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+}
+
+.cmd-all-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--fluent-space-xs) var(--fluent-space-sm) var(--fluent-space-sm);
+}
+
+.cmd-all-status {
+  margin: var(--fluent-space-sm);
+  color: var(--fluent-color-text-secondary);
+  font-size: var(--fluent-font-size-caption);
+}
+
+.cmd-all-foot {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  border-top: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  padding: var(--fluent-space-sm) var(--fluent-space-md);
+}
+
+.cmd-all-more {
+  padding: var(--fluent-space-xxs) var(--fluent-space-lg);
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: var(--fluent-radius-sm);
+  background: var(--fluent-color-fill-subtle);
+  color: var(--fluent-color-text-primary);
+  font: inherit;
+  font-size: var(--fluent-font-size-caption);
+  cursor: pointer;
+}
+
+.cmd-all-more:hover:not(:disabled) {
+  background: var(--fluent-color-fill-control-hover);
+}
+
+.cmd-all-more:disabled {
+  color: var(--fluent-color-text-secondary);
+  cursor: default;
 }
 </style>

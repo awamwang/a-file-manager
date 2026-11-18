@@ -171,6 +171,14 @@
     "fuzzy": "あいまい検索",
     "workGroupMembers": "メンバーなし | 1 メンバー | {count} メンバー",
     "viewAllFiles": "ファイルの結果をすべて表示",
+    "all": {
+      "title": "すべてのファイル結果",
+      "back": "戻る",
+      "loadMore": "さらに読み込む",
+      "loading": "読み込み中…",
+      "empty": "ファイルが見つかりません",
+      "showing": "{total} 件中 {shown} 件を表示"
+    },
     "openFailed": "項目を開けませんでした",
     "executedCapability": "機能を実行しました",
     "destructiveInRuntime": "破壊的な操作はツールランタイムで確認してください",

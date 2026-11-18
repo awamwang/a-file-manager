@@ -216,6 +216,14 @@
     "fuzzy": "模糊搜索",
     "workGroupMembers": "{count} 个成员",
     "viewAllFiles": "查看全部文件结果",
+    "all": {
+      "title": "全部文件结果",
+      "back": "返回",
+      "loadMore": "加载更多",
+      "loading": "加载中…",
+      "empty": "未找到文件",
+      "showing": "显示 {shown} / {total} 项"
+    },
     "openFailed": "打开条目失败",
     "executedCapability": "能力已执行",
     "destructiveInRuntime": "破坏性能力需在工具运行时中确认",

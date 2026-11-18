@@ -216,6 +216,14 @@
     "fuzzy": "Fuzzy search",
     "workGroupMembers": "no members | 1 member | {count} members",
     "viewAllFiles": "View all file results",
+    "all": {
+      "title": "All file results",
+      "back": "Back",
+      "loadMore": "Load more",
+      "loading": "Loading…",
+      "empty": "No files found",
+      "showing": "Showing {shown} of {total}"
+    },
     "openFailed": "Failed to open item",
     "executedCapability": "Capability executed",
     "destructiveInRuntime": "Destructive capabilities must be confirmed in the Tool Runtime",

@@ -171,6 +171,14 @@
     "fuzzy": "Recherche floue",
     "workGroupMembers": "aucun membre | 1 membre | {count} membres",
     "viewAllFiles": "Voir tous les résultats de fichiers",
+    "all": {
+      "title": "Tous les résultats de fichiers",
+      "back": "Retour",
+      "loadMore": "Charger plus",
+      "loading": "Chargement…",
+      "empty": "Aucun fichier trouvé",
+      "showing": "{shown} sur {total} affiché(s)"
+    },
     "openFailed": "Impossible d’ouvrir l’élément",
     "executedCapability": "Capacité exécutée",
     "destructiveInRuntime": "Les capacités destructives doivent être confirmées dans le runtime d’outils",

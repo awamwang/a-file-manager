@@ -21,6 +21,7 @@ import { requestShellIcons } from "../../state/shellIcons.ts";
 import { matchByName } from "../match.ts";
 import type {
   SearchActivateOutcome,
+  SearchAllPage,
   SearchQueryOptions,
   SearchResultItem,
   SearchSource,
@@ -69,6 +70,43 @@ function normalizeHitPath(path: string): string {
 }
 
 export function createFilesSource(router: Router): SearchSource {
+  /** 单条命中 → 搜索结果项：目录/文件的打开与定位行为（面板与「查看全部」浮层共用）。 */
+  function fileItem(hit: DiscoveryHit): SearchResultItem {
+    const path = normalizeHitPath(hit.path);
+    const kind = hit.isDir ? "dir" : "file";
+    return {
+      key: `files:${path}:${hit.name}`,
+      sourceId: "files",
+      type: hit.isDir ? "folder" : "file",
+      title: hit.name,
+      subtitle: path,
+      iconPath: path,
+      activate: async ({ ctrl }): Promise<SearchActivateOutcome> => {
+        if (ctrl) {
+          void revealItemInDir(path);
+          return;
+        }
+        if (hit.isDir) {
+          void openOrFocusNavigatorTab(path);
+          void router.push("/navigator");
+          return;
+        }
+        const entry: NavigatorEntry = {
+          name: hit.name,
+          path,
+          kind,
+          size: 0,
+        };
+        try {
+          await openLocalEntry(entry);
+        } catch {
+          // 打开失败（无关联程序 / 路径失效等）：面板转 toast。
+          return { toastKey: "searchPalette.openFailed", kind: "error" };
+        }
+      },
+    };
+  }
+
   return {
     id: "files",
     labelKey: "searchPalette.scopes.files",
@@ -80,6 +118,7 @@ export function createFilesSource(router: Router): SearchSource {
     },
     viewAll: {
       labelKey: "searchPalette.viewAllFiles",
+      overlay: true,
       action: (query: string) => {
         const q = query.trim();
         void router.push({
@@ -87,6 +126,29 @@ export function createFilesSource(router: Router): SearchSource {
           query: q ? { q } : {},
         });
       },
+    },
+    async searchAll(
+      query: string,
+      _options: SearchQueryOptions,
+      offset: number,
+      limit: number,
+    ): Promise<SearchAllPage> {
+      const q = query.trim();
+      if (!q) return { items: [], totalCount: 0, offset, hasMore: false };
+      const result = await invoke<DiscoverySearchResult>("discovery_search", {
+        query: q,
+        options: { offset, limit },
+      });
+      const hits = result.hits ?? [];
+      requestShellIcons(hits.map((hit) => normalizeHitPath(hit.path)));
+      const items = hits.map(fileItem);
+      const loaded = offset + hits.length;
+      return {
+        items,
+        totalCount: result.totalCount,
+        offset,
+        hasMore: loaded < result.totalCount,
+      };
     },
     async search(
       query: string,
@@ -120,41 +182,7 @@ export function createFilesSource(router: Router): SearchSource {
             .map((match) => match.entry)
         : result.hits.slice(0, FILE_LIMIT);
       requestShellIcons(hits.map((hit) => normalizeHitPath(hit.path)));
-      const items = hits.map((hit): SearchResultItem => {
-        const path = normalizeHitPath(hit.path);
-        const kind = hit.isDir ? "dir" : "file";
-        return {
-          key: `files:${path}:${hit.name}`,
-          sourceId: "files",
-          type: hit.isDir ? "folder" : "file",
-          title: hit.name,
-          subtitle: path,
-          iconPath: path,
-          activate: async ({ ctrl }): Promise<SearchActivateOutcome> => {
-            if (ctrl) {
-              void revealItemInDir(path);
-              return;
-            }
-            if (hit.isDir) {
-              void openOrFocusNavigatorTab(path);
-              void router.push("/navigator");
-              return;
-            }
-            const entry: NavigatorEntry = {
-              name: hit.name,
-              path,
-              kind,
-              size: 0,
-            };
-            try {
-              await openLocalEntry(entry);
-            } catch {
-              // 打开失败（无关联程序 / 路径失效等）：面板转 toast。
-              return { toastKey: "searchPalette.openFailed", kind: "error" };
-            }
-          },
-        };
-      });
+      const items = hits.map(fileItem);
       return { status: "ready", items };
     },
   };
