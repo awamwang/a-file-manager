@@ -324,8 +324,9 @@ function onDocClick(event: MouseEvent): void {
 }
 
 .knowledge-dialog {
-  width: min(56rem, 100%);
-  height: min(44rem, 100%);
+  /* 近乎文件列表区域大小：随视口响应式缩放，不再固定 56rem 上限。 */
+  width: min(92vw, 1720px);
+  height: min(90vh, 1040px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
