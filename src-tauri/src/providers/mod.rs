@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! ProviderRegistry — awam extension layer (ADR 0001 + 0003).
-//! 内置：rclone（CLI，不挂载）+ browser。不含 `awam://local`。
-//! knowledge / downloads / prowlarr 等由在线网关动态发现。
+//! 内置：rclone（CLI，不挂载）+ browser 离线占位（不解析 Bookmarks）。不含 `awam://local`。
+//! knowledge / downloads / prowlarr / 真实 browser 书签树由在线网关动态发现。
 //!
 //! AIA-76: depth-1 listing cache + `provider_preload` (warm on app start).
 //! AIA-226: prefer live awam-file gateway discovery (`/api/backends`); fall back to

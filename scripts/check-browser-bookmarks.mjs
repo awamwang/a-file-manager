@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Shared Browser provider: Edge + Chrome favorites under awam://browser (no history).
+// Browser bookmarks: AFM is a thin client; awam-file owns Chromium Bookmarks parsing.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -12,23 +12,42 @@ const factory = readFileSync(join(root, "src-tauri/src/providers/factory.rs"), "
 const providersMod = readFileSync(join(root, "src-tauri/src/providers/mod.rs"), "utf8");
 const view = readFileSync(join(root, "src/views/ProvidersView.vue"), "utf8");
 const browse = readFileSync(join(root, "src/state/provider/browse.ts"), "utf8");
+const en = JSON.parse(readFileSync(join(root, "src/i18n/locales/en.json"), "utf8"));
+const zh = JSON.parse(readFileSync(join(root, "src/i18n/locales/zh-CN.json"), "utf8"));
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 
 assert.ok(providersMod.includes("mod browser"), "providers mod must include browser");
-assert.ok(factory.includes("BrowserProvider"), "factory must register BrowserProvider");
+assert.ok(factory.includes("BrowserProvider"), "factory must register offline browser stub");
 assert.ok(factory.includes('register(Arc::new(BrowserProvider::system_default()))'));
+assert.ok(
+  factory.includes("离线占位") || factory.includes("offline stub") || browser.includes("薄客户端"),
+  "factory/browser must document gateway ownership",
+);
 assert.ok(browser.includes('"browser"') && browser.includes("fn backend_id"), "single browser backend id");
-assert.ok(browser.includes("Microsoft Edge") && browser.includes("Google Chrome"));
-assert.ok(browser.includes("Bookmarks"), "must read Chromium Bookmarks JSON");
+assert.ok(browser.includes("awam-file"), "offline stub must mention awam-file gateway");
+assert.ok(
+  !browser.includes("read_bookmarks_json") && !browser.includes("discover_profiles"),
+  "AFM must not parse Chromium Bookmarks JSON",
+);
 assert.ok(
   !/\bHistory\b/.test(browser) && !browser.includes("Visited Links"),
   "favorites only — no history file reader",
 );
-assert.ok(browser.includes("open_url"), "resolve must expose open_url action");
 // 打开逻辑已抽到 state/provider/browse.ts；Providers 页只调用 openProviderEntry。
 assert.ok(view.includes("openProviderEntry"), "Providers UI opens entries via shared helper");
 assert.ok(browse.includes("provider_resolve"), "provider browse resolves bookmark entries");
+assert.ok(browse.includes('open_url'), "provider browse handles open_url from gateway");
 assert.ok(browse.includes("openUrl"), "provider browse opens bookmark URLs");
+assert.ok(
+  String(en.providers.gatewayOffline).includes("rclone")
+    && !String(en.providers.gatewayOffline).includes("rclone / browser"),
+  "en gatewayOffline: rclone builtin only, not builtin browser bookmarks",
+);
+assert.ok(
+  String(zh.providers.gatewayOffline).includes("rclone")
+    && !String(zh.providers.gatewayOffline).includes("rclone / 浏览器书签"),
+  "zh gatewayOffline: rclone builtin only; bookmarks need gateway",
+);
 assert.ok(
   typeof pkg.scripts["test:browser-bookmarks"] === "string",
   "package.json must wire test:browser-bookmarks",
@@ -43,4 +62,4 @@ if (cargo.stdout) process.stdout.write(cargo.stdout);
 if (cargo.stderr) process.stderr.write(cargo.stderr);
 assert.equal(cargo.status, 0, "browser provider rust tests failed");
 
-console.log("Browser bookmarks (shared category) checks OK.");
+console.log("Browser bookmarks (awam-file thin client) checks OK.");
