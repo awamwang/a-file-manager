@@ -53,6 +53,7 @@ import {
   regionFromElement,
 } from "../../state/focusCycle";
 import {
+  activeWorkGroupId,
   bootstrapNavigatorOpenState,
   closeAllNavigatorTabs,
   closeNavigatorTab,
@@ -62,6 +63,7 @@ import {
   flushOpenStatePersist,
   goUp,
   hydrateNavigatorListing,
+  hydrateWorkGroups,
   listError,
   listLoading,
   listing,
@@ -70,11 +72,17 @@ import {
   openOrFocusNavigatorTab,
   newNavigatorTab,
   refreshActiveListing,
+  rememberHydratedWorkGroups,
   reorderNavigatorTabs,
   stripTabs,
   switchNavigatorTab,
   switchNavigatorTabAdjacent,
 } from "../../state/navigatorBrowse";
+import {
+  normalizeRestoredOpenState,
+  openStateOpenOrFocusPath,
+  type UserWorkGroupsDoc,
+} from "../../state/openState";
 import {
   beginHistoryNavigation,
   buildNavigatorBreadcrumbs,
@@ -785,6 +793,7 @@ function onDocumentPointerDown(event: PointerEvent) {
   const crumbBar = document.getElementById("navigator-crumb-menu");
   const crumbFlyout = document.getElementById("navigator-crumb-siblings");
   const tabMenu = document.getElementById("navigator-tab-context-menu");
+  const tabSendMenu = document.getElementById("navigator-tab-send-submenu");
   if (placesMenuOpen.value && placesRoot && !placesRoot.contains(target)) {
     closePlacesMenu();
   }
@@ -794,7 +803,11 @@ function onDocumentPointerDown(event: PointerEvent) {
   if (viewModeMenuOpen.value && viewRoot && !viewRoot.contains(target)) {
     closeViewModeMenu();
   }
-  if (tabContextGroupIndex.value !== null && tabMenu && !tabMenu.contains(target)) {
+  if (
+    tabContextGroupIndex.value !== null &&
+    !tabMenu?.contains(target) &&
+    !tabSendMenu?.contains(target)
+  ) {
     closeTabContextMenu();
   }
   if (crumbMenuIndex.value !== null) {
@@ -1586,6 +1599,9 @@ function onToggleTabPin(tabId: string) {
 
 const tabContextGroupIndex = ref<number | null>(null);
 const tabContextStyle = ref<Record<string, string>>({});
+const tabSendSubmenuOpen = ref(false);
+const tabSendSubmenuStyle = ref<Record<string, string>>({});
+let tabSendCloseTimer: ReturnType<typeof setTimeout> | null = null;
 
 const tabContextCanCloseOthers = computed(() => {
   const idx = tabContextGroupIndex.value;
@@ -1605,9 +1621,130 @@ const tabContextHasPath = computed(() => {
   return Boolean(tab?.path?.trim());
 });
 
+/** 标签右键「发送到工作组」：只列其他组，当前组不出现。 */
+const tabContextOtherWorkGroups = computed(() =>
+  (workGroupsDoc.value?.workGroups ?? [])
+    .filter((group) => group.id !== activeWorkGroupId.value)
+    .map((group) => ({
+      id: group.id,
+      name: workGroupDisplayName(group, t("workGroups.defaultName")),
+    })),
+);
+
+const tabContextCanSend = computed(
+  () => tabContextHasPath.value && tabContextOtherWorkGroups.value.length > 0,
+);
+
+function clearTabSendCloseTimer() {
+  if (tabSendCloseTimer != null) {
+    clearTimeout(tabSendCloseTimer);
+    tabSendCloseTimer = null;
+  }
+}
+
+function closeTabSendSubmenu() {
+  clearTabSendCloseTimer();
+  tabSendSubmenuOpen.value = false;
+}
+
+function scheduleTabSendClose() {
+  clearTabSendCloseTimer();
+  tabSendCloseTimer = setTimeout(() => {
+    tabSendCloseTimer = null;
+    tabSendSubmenuOpen.value = false;
+  }, 220);
+}
+
+function onTabSendRowLeave() {
+  scheduleTabSendClose();
+}
+
+function onTabSendSubmenuEnter() {
+  clearTabSendCloseTimer();
+}
+
+function onTabSendSubmenuLeave() {
+  scheduleTabSendClose();
+}
+
 function closeTabContextMenu() {
   tabContextGroupIndex.value = null;
   tabContextStyle.value = {};
+  closeTabSendSubmenu();
+}
+
+function placeTabSendSubmenu(anchor: HTMLElement) {
+  const rect = anchor.getBoundingClientRect();
+  const width = 200;
+  const height = Math.max(80, tabContextOtherWorkGroups.value.length * 34 + 16);
+  const pad = 8;
+  let left = rect.right - 6;
+  if (left + width > window.innerWidth - pad) {
+    left = Math.max(pad, rect.left - width + 6);
+  }
+  let top = rect.top;
+  if (top + height > window.innerHeight - pad) {
+    top = Math.max(pad, window.innerHeight - height - pad);
+  }
+  tabSendSubmenuStyle.value = {
+    position: "fixed",
+    top: `${Math.round(top)}px`,
+    left: `${Math.round(left)}px`,
+    zIndex: "1201",
+  };
+}
+
+function openTabSendSubmenu(event: Event) {
+  if (!tabContextCanSend.value) return;
+  const anchor = event.currentTarget;
+  if (!(anchor instanceof HTMLElement)) return;
+  clearTabSendCloseTimer();
+  // Position before mount so the flyout never flashes at (0,0).
+  placeTabSendSubmenu(anchor);
+  tabSendSubmenuOpen.value = true;
+}
+
+function onTabContextMouseOver(event: MouseEvent) {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  if (!target.closest("[data-tab-send-row]")) closeTabSendSubmenu();
+}
+
+/** 悬停子菜单：把标签写进目标组的 openState，不切换当前工作组。 */
+async function onSendTabToWorkGroup(workGroupId: string) {
+  const idx = tabContextGroupIndex.value;
+  const path =
+    idx != null
+      ? stripTabs.value.find((item) => item.groupIndex === idx)?.path?.trim()
+      : "";
+  const group = workGroupsDoc.value?.workGroups.find((item) => item.id === workGroupId);
+  closeTabContextMenu();
+  if (!path || !group) return;
+  try {
+    // 目标组的 openState 以磁盘为准；force 读取避免用到过期的 hydrate 缓存。
+    const doc = await hydrateWorkGroups({ force: true });
+    const target = doc.workGroups.find((item) => item.id === workGroupId);
+    if (!target) {
+      toastError(t("contextMenu.opFailed"));
+      return;
+    }
+    const restored = normalizeRestoredOpenState(target.openState);
+    const nextOpen = openStateOpenOrFocusPath(restored, path).state;
+    // 只改目标组：active group / liveOpenState 完全不动，因此不会触发工作组切换。
+    const nextDoc = await invoke<UserWorkGroupsDoc>("work_groups_save_open_state", {
+      workGroupId,
+      liveOpenState: nextOpen,
+    });
+    rememberHydratedWorkGroups(nextDoc);
+    workGroupsDoc.value = nextDoc;
+    toastSuccess(
+      t("chrome.sentTabToWorkGroup", {
+        name: workGroupDisplayName(target, t("workGroups.defaultName")),
+      }),
+    );
+  } catch (err) {
+    toastError(err instanceof Error ? err.message : String(err));
+  }
 }
 
 function onTabContextMenu(event: MouseEvent, groupIndex: number) {
@@ -1617,8 +1754,8 @@ function onTabContextMenu(event: MouseEvent, groupIndex: number) {
   if (!Number.isInteger(groupIndex) || groupIndex < 0) return;
   tabContextGroupIndex.value = groupIndex;
   const menuWidth = Math.min(220, window.innerWidth * 0.7);
-  // 6 项（复制 / 在第二窗口打开 / 关闭 ×4）留出完整的点击高度。
-  const menuHeight = 260;
+  // 7 项（复制 / 在第二窗口打开 / 发送到工作组 / 关闭 ×4）留出完整的点击高度。
+  const menuHeight = 292;
   let left = event.clientX;
   if (left + menuWidth > window.innerWidth - 8) {
     left = Math.max(8, window.innerWidth - menuWidth - 8);
@@ -1793,6 +1930,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  clearTabSendCloseTimer();
   window.removeEventListener("keydown", onGlobalKeydown);
   document.removeEventListener("pointerdown", onDocumentPointerDown, true);
   document.removeEventListener("visibilitychange", onVisibilityFlush);
@@ -2506,6 +2644,7 @@ onUnmounted(() => {
             :aria-label="t('chrome.tabs')"
             :style="tabContextStyle"
             @click.stop
+            @mouseover="onTabContextMouseOver"
           >
             <button
               type="button"
@@ -2525,6 +2664,27 @@ onUnmounted(() => {
             >
               {{ t("chrome.openInSecondPane") }}
             </button>
+            <div
+              class="tab-context-sub"
+              data-tab-send-row
+              @mouseenter="openTabSendSubmenu"
+              @mouseleave="onTabSendRowLeave"
+            >
+              <button
+                type="button"
+                class="tab-context-item tab-context-item--submenu"
+                role="menuitem"
+                aria-haspopup="menu"
+                :aria-expanded="tabSendSubmenuOpen"
+                :disabled="!tabContextCanSend"
+                @click="openTabSendSubmenu"
+                @focus="openTabSendSubmenu"
+                @keydown.right.prevent="openTabSendSubmenu"
+              >
+                <span>{{ t("chrome.sendTabToWorkGroup") }}</span>
+                <span class="tab-context-chevron" aria-hidden="true">›</span>
+              </button>
+            </div>
             <button
               type="button"
               class="tab-context-item"
@@ -2558,6 +2718,34 @@ onUnmounted(() => {
               @click="onCloseAllTabsFromContext"
             >
               {{ t("chrome.closeAllTabs") }}
+            </button>
+          </div>
+        </Teleport>
+        <Teleport to="body">
+          <div
+            v-if="
+              tabContextGroupIndex !== null &&
+              tabSendSubmenuOpen &&
+              tabContextOtherWorkGroups.length
+            "
+            id="navigator-tab-send-submenu"
+            class="tab-context-menu tab-context-sub fluent-surface"
+            role="menu"
+            :aria-label="t('chrome.sendTabToWorkGroup')"
+            :style="tabSendSubmenuStyle"
+            @click.stop
+            @mouseenter="onTabSendSubmenuEnter"
+            @mouseleave="onTabSendSubmenuLeave"
+          >
+            <button
+              v-for="group in tabContextOtherWorkGroups"
+              :key="'send-' + group.id"
+              type="button"
+              class="tab-context-item"
+              role="menuitem"
+              @click="onSendTabToWorkGroup(group.id)"
+            >
+              {{ group.name }}
             </button>
           </div>
         </Teleport>
@@ -3450,6 +3638,23 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 2px;
   box-shadow: var(--fluent-shadow-flyout, 0 8px 24px rgba(0, 0, 0, 0.18));
+}
+
+.tab-context-sub {
+  min-width: 12rem;
+  z-index: 1201;
+}
+
+.tab-context-item--submenu {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fluent-space-md);
+}
+
+.tab-context-chevron {
+  color: var(--fluent-color-text-secondary);
+  line-height: 1;
 }
 
 .tab-context-item {

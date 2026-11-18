@@ -68,6 +68,8 @@
     "closeTab": "Registerkarte schließen",
     "duplicateTab": "Registerkarte duplizieren",
     "openInSecondPane": "Im zweiten Fenster öffnen",
+    "sendTabToWorkGroup": "An Arbeitsgruppe senden",
+    "sentTabToWorkGroup": "An {name} gesendet",
     "pinTab": "Registerkarte anheften",
     "tabClose": "Schließen",
     "unpinTab": "Anheften aufheben",

@@ -68,6 +68,8 @@
     "closeTab": "タブを閉じる",
     "duplicateTab": "タブを複製",
     "openInSecondPane": "第 2 ペインで開く",
+    "sendTabToWorkGroup": "ワークグループに送信",
+    "sentTabToWorkGroup": "{name} に送信しました",
     "pinTab": "タブをピン留め",
     "tabClose": "閉じる",
     "unpinTab": "ピン留めを解除",

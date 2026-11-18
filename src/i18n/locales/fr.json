@@ -68,6 +68,8 @@
     "closeTab": "Fermer l’onglet",
     "duplicateTab": "Dupliquer l’onglet",
     "openInSecondPane": "Ouvrir dans le deuxième volet",
+    "sendTabToWorkGroup": "Envoyer vers le groupe de travail",
+    "sentTabToWorkGroup": "Envoyé vers {name}",
     "pinTab": "Épingler l’onglet",
     "tabClose": "Fermer",
     "unpinTab": "Désépingler l’onglet",

@@ -131,6 +131,8 @@
     "closeAllTabs": "Close all tabs",
     "duplicateTab": "Duplicate tab",
     "openInSecondPane": "Open in second pane",
+    "sendTabToWorkGroup": "Send to Work Group",
+    "sentTabToWorkGroup": "Sent to {name}",
     "pinTab": "Pin tab",
     "unpinTab": "Unpin tab",
     "sideNav": "Side navigation",
