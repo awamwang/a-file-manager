@@ -1,5 +1,7 @@
 # 统一托管依赖 · awam-file R3 Pilot Implementation Plan
 
+> **状态（2026-11-19）：** Task 1–5 已全部落地；Task 0（要求上游仓产 release）被 **ADR 0022 集成方 in-tree 构建**取代而作废；「R3 唯一形态」降级为 `runtime: self|shared` 双档（shared-first）；versionCompat 门收窄为仅 config-mode 外部实例。tool-runtime 已整链跑通，file/knowledge pack 化与共享运行时/发布 CI 转入 → **`2026-11-19-managed-dep-phase2-file-knowledge-packs.md`**。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 把 awam-file 网关作为**第一个 R3 托管依赖**，端到端打通「商店下载隔离产物 → managed spawn → Health 探活/启停 → config fallback」，并把今天硬编码到 `awam.tool-runtime` 单 pack 的编排**泛化为 pack 无关**的 `ManagedDependency` 运行时，为 knowledge / tool-manager 复用铺路。
