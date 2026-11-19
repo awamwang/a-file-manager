@@ -60,6 +60,19 @@
 - **装 vs 启用分离（S-3 默认）**：列表点「安装」仅装成 Installed；用户再「启用」才触发 host 按 feed entries 切 Managed → `ensure` 按需 provision 产物 → spawn。整链可分段观察。
 - **验证**：`cargo check --tests` 零警告；`cargo test --lib` 445 passed（唯一红 = clipboard 无交互环境限制）；`vue-tsc` 0；`check-i18n` parity 1422 keys×5；本地 feed 已列出 `awam.tool-runtime`（pack zip 915B，`GET` 200）。真 UI 端到端（列表显示→点装→启用→拉产物→用）由本轮界面手测覆盖。
 
+## 落地记录：界面手测收尾与托管服务可用性（2026-11-19）
+
+界面跑通 managed 全链后，据手测反馈收口以下行为：
+
+- **默认端口 8766→18778**（旧端口与本机其它服务冲突）：tool-manager `http_transport.DEFAULT_PORT` 为权威，AFM 侧 `config.rs` 默认、前端 `ToolRuntimeView` 默认、`sidecar` 断言、feed/provision/store 测试 fixture、`pack.json`、ADR0020 表格全部同步，产物重建。
+- **网关地址单一权威**：`tool_runtime` 的 status / ensure / mcp 调用统一走 `sidecar::effective_base_url_for`——`managed→feed 写入的 record.base_url`，`config→ToolRuntimeConfig.base_url`；消除「config 残留地址与 feed 漂移」（曾出现探 18777 而 feed 权威是 18778）。
+- **managed 网关地址只读**：扩展页对托管 pack 禁用网关地址输入框 + 只读提示（前端 `getManagedBinding` 读 `record.mode`）。
+- **启用即拉起**：扩展页启用 pack 后自动 `managed_dependency_ensure`；config-mode 后端 no-op（不自动拉起，由工具页手动）。
+- **启动自动恢复（选项 A）**：`managed_dependency::commands::reconcile_managed_on_startup` 在 `setup` 后台 `spawn_blocking` 遍历 `Managed` 记录逐个 ensure（已运行→附着，未运行→provision+spawn），单条失败仅记录、不阻断启动 → 启用过的托管 pack 重启 AFM 后自动可用。
+- **抖动消除**：贡献缓存 `cached` 与 `SIDE_NAV_ITEMS` 改 `shallowRef`；安装/启用/禁用/卸载统一走增量 `reloadContributions`（含路由回退），不再整窗 remount；扩展页 `refresh` 仅首次显「加载中」，后续静默更新。
+- **实测确认**：managed spawn 的 exe 监听 18778，`/health` ok、MCP `tools/list` 19 工具、`tools/call` success；`list_tools`（被管理工具）各 kind `count=0` 属本机 tool-manager 未登记可见来源（`data/tools/*.json` 工具需本机探测/启用），**非 AFM 或托管链路问题**。
+- 验证：`cargo test --lib` 447 passed、`vue-tsc` 0、`check-i18n` parity 1424×5。
+
 ## Consequences
 
 - ADR 0019 的白名单/元清单/SHA-from-GitHub 全套下载逻辑不再作为 managed-mode 的唯一前提；managed 改为 AFM 自产产物。`store.rs`（allow-list + 下载 + SHA-256 摘要校验）由「待接线」升为 managed **主路径**：经 `feed::fetch_manifest` 取 AFM 自有元清单、`provision::ensure_artifact` 按需下载校验落盘（见上「B-正式」落地记录）；config-mode 仍可连用户自跑实例不经此路。
