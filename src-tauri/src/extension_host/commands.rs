@@ -56,9 +56,12 @@ pub fn extension_host_list_packs() -> Result<Vec<InstalledPackRecord>, String> {
     host().list_packs()
 }
 
+/// 启用/停用 pack：host 内部会拉 feed 元清单决定 managed 切换（网络 I/O）→ 不得占用 Tauri 同步命令线程。
 #[tauri::command]
-pub fn extension_host_set_pack_enabled(id: String, enabled: bool) -> Result<(), String> {
-    host().set_pack_enabled(&id, enabled)
+pub async fn extension_host_set_pack_enabled(id: String, enabled: bool) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || host().set_pack_enabled(&id, enabled))
+        .await
+        .map_err(|err| format!("extension_host_set_pack_enabled worker failed: {err}"))?
 }
 
 /// 删除 Pack 目录不得占用 Tauri 同步命令线程。
