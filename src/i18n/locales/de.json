@@ -596,6 +596,11 @@
     "demoTitle": "Beispielerweiterungen",
     "demoMeta": "In-Memory-Demo-Host — getrennt von Feature Packs. Kein Store."
   },
+  "managedDep": {
+    "status": { "config": "Verbindungsmodus", "managed": "AFM-verwaltet" },
+    "action": { "start": "Über AFM starten", "stop": "Stoppen", "starting": "Startet…", "stopping": "Stoppt…", "failed": "Vorgang fehlgeschlagen: {error}" },
+    "failure": { "configOnly": "Remote-Instanz nicht erreichbar und kein verwaltetes Artefakt installiert; Adresse prüfen oder Pack installieren.", "managedOnly": "AFM hat das lokale Artefakt gestartet, aber der Health-Check schlug fehl; bitte kurz aktualisieren oder das Prozessprotokoll prüfen.", "both": "Remote-Instanz nicht erreichbar und das verwaltete Artefakt ist nicht verfügbar; AFM kann es nicht für Sie starten." }
+  },
   "health": {
     "failed": "Health fehlgeschlagen: {error}",
     "fieldIdentifier": "Kennung",

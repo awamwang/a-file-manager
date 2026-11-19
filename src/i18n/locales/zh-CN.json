@@ -917,6 +917,11 @@
     },
     "sectionAbout": "关于"
   },
+  "managedDep": {
+    "status": { "config": "连接模式", "managed": "AFM 托管" },
+    "action": { "start": "由 AFM 启动", "stop": "停止", "starting": "启动中…", "stopping": "停止中…", "failed": "操作失败：{error}" },
+    "failure": { "configOnly": "远程实例不可达，且未安装可托管的本地产物；请检查地址或安装 Pack。", "managedOnly": "AFM 已拉起本地产物，但探活未通过；请稍后刷新或查看进程日志。", "both": "远程实例不可达，且 managed 产物不可用；AFM 无法代为启动。" }
+  },
   "health": {
     "title": "健康",
     "meta": "应用身份、核心状态与依赖体检",

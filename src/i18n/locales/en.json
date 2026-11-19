@@ -917,6 +917,11 @@
     },
     "sectionAbout": "About"
   },
+  "managedDep": {
+    "status": { "config": "Connect mode", "managed": "AFM-managed" },
+    "action": { "start": "Start via AFM", "stop": "Stop", "starting": "Starting…", "stopping": "Stopping…", "failed": "Operation failed: {error}" },
+    "failure": { "configOnly": "Remote instance unreachable and no managed artifact installed; check the address or install the pack.", "managedOnly": "AFM spawned the local artifact but the health probe failed; refresh shortly or inspect the process log.", "both": "Remote instance unreachable and the managed artifact is unavailable; AFM cannot start it for you." }
+  },
   "health": {
     "title": "Health",
     "meta": "App identity, core status, and dependency checklist",

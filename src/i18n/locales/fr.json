@@ -596,6 +596,11 @@
     "demoTitle": "Extensions d'exemple",
     "demoMeta": "Hôte démo en mémoire — distinct des Feature Packs. Pas une boutique."
   },
+  "managedDep": {
+    "status": { "config": "Mode connexion", "managed": "Géré par AFM" },
+    "action": { "start": "Démarrer via AFM", "stop": "Arrêter", "starting": "Démarrage…", "stopping": "Arrêt…", "failed": "Échec de l'opération : {error}" },
+    "failure": { "configOnly": "Instance distante injoignable et aucun artefact géré installé ; vérifiez l'adresse ou installez le pack.", "managedOnly": "AFM a lancé l'artefact local mais le test de santé a échoué ; actualisez brièvement ou consultez le journal du processus.", "both": "Instance distante injoignable et artefact géré indisponible ; AFM ne peut pas le démarrer pour vous." }
+  },
   "health": {
     "failed": "Échec de santé : {error}",
     "fieldIdentifier": "identifiant",

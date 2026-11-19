@@ -19,6 +19,12 @@ type DependencyItem = {
   title: string;
   detail: string;
   fix: string;
+  /** 托管投影（Q9a）：config|managed；未 pack 化依赖缺省（undefined）。 */
+  mode?: string;
+  /** 注册表有记录 → true，渲染启停按钮。 */
+  actionable?: boolean;
+  /** 双失败态归因（Q18）：configOnly | managedOnly | both。 */
+  unavailableReason?: string;
 };
 
 type DependencyReport = {
@@ -34,6 +40,71 @@ const health = ref<HealthPayload | null>(null);
 const deps = ref<DependencyReport | null>(null);
 const error = ref<string | null>(null);
 const loading = ref(true);
+
+// 托管依赖动作（B 决策：不暴露 mode 切换；仅来源标签 + 启停按钮 + 双失败态隐身）。
+const starting = ref<Record<string, boolean>>({});
+const stopping = ref<Record<string, boolean>>({});
+const actionErrors = ref<Record<string, string>>({});
+
+function showSourceLabel(item: DependencyItem): boolean {
+  return item.mode === "config" || item.mode === "managed";
+}
+
+function sourceLabel(item: DependencyItem): string {
+  return item.mode ? t(`managedDep.status.${item.mode}`) : "";
+}
+
+/** 双失败态（both）→ 隐身启动入口，不误导成「AFM 能帮你启动」（Q18）。 */
+function canStart(item: DependencyItem): boolean {
+  return item.actionable === true && item.unavailableReason !== "both";
+}
+
+function canStop(item: DependencyItem): boolean {
+  // 停止权在后端兜底（只 kill 自启 pid）；非自启会被拒绝并把错误显示在此条目上。
+  return item.actionable === true && item.unavailableReason !== "both";
+}
+
+function failureText(item: DependencyItem): string {
+  if (!item.unavailableReason) return "";
+  const key = `managedDep.failure.${item.unavailableReason}`;
+  return te(key) ? String(t(key)) : "";
+}
+
+async function startManaged(item: DependencyItem): Promise<void> {
+  starting.value = { ...starting.value, [item.id]: true };
+  actionErrors.value = { ...actionErrors.value, [item.id]: "" };
+  try {
+    await invoke("managed_dependency_ensure", { id: item.id });
+    await loadHealth();
+  } catch (err) {
+    actionErrors.value = {
+      ...actionErrors.value,
+      [item.id]: t("managedDep.action.failed", {
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    };
+  } finally {
+    starting.value = { ...starting.value, [item.id]: false };
+  }
+}
+
+async function stopManaged(item: DependencyItem): Promise<void> {
+  stopping.value = { ...stopping.value, [item.id]: true };
+  actionErrors.value = { ...actionErrors.value, [item.id]: "" };
+  try {
+    await invoke("managed_dependency_stop", { id: item.id });
+    await loadHealth();
+  } catch (err) {
+    actionErrors.value = {
+      ...actionErrors.value,
+      [item.id]: t("managedDep.action.failed", {
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    };
+  } finally {
+    stopping.value = { ...stopping.value, [item.id]: false };
+  }
+}
 
 function depTitle(item: DependencyItem): string {
   const key = `health.deps.items.${item.id}.title`;
@@ -197,6 +268,10 @@ onMounted(() => {
               v-if="showUnverifiedNote(item)"
               class="fluent-chip fluent-chip--note"
             >{{ t("health.deps.quicklookUnverified") }}</span>
+            <span
+              v-if="showSourceLabel(item)"
+              class="fluent-chip fluent-chip--note"
+            >{{ sourceLabel(item) }}</span>
             <span class="deps-kind">{{ kindLabel(item.kind) }}</span>
             <strong class="deps-title">{{ depTitle(item) }}</strong>
           </div>
@@ -205,6 +280,31 @@ onMounted(() => {
             <span class="deps-fix-label">{{ t("health.deps.fixLabel") }}</span>
             {{ depText(item, 'fix') }}
           </p>
+          <p v-if="failureText(item)" class="deps-managed-failure">
+            {{ failureText(item) }}
+          </p>
+          <p v-if="actionErrors[item.id]" class="deps-managed-error">
+            {{ actionErrors[item.id] }}
+          </p>
+          <div
+            v-if="canStart(item) || canStop(item)"
+            class="deps-managed-actions"
+          >
+            <button
+              v-if="canStart(item)"
+              class="fluent-control"
+              type="button"
+              :disabled="starting[item.id] === true"
+              @click="startManaged(item)"
+            >{{ starting[item.id] ? t("managedDep.action.starting") : t("managedDep.action.start") }}</button>
+            <button
+              v-if="canStop(item)"
+              class="fluent-control"
+              type="button"
+              :disabled="stopping[item.id] === true"
+              @click="stopManaged(item)"
+            >{{ stopping[item.id] ? t("managedDep.action.stopping") : t("managedDep.action.stop") }}</button>
+          </div>
         </li>
       </ul>
     </template>
@@ -313,6 +413,24 @@ dd {
   font-weight: 600;
   color: var(--fluent-color-text-primary);
   margin-right: 0.35rem;
+}
+
+.deps-managed-failure {
+  margin: var(--fluent-space-2xs, 0.25rem) 0 0;
+  font-size: var(--fluent-font-size-body);
+  color: var(--fluent-color-status-warning, var(--fluent-color-text-secondary));
+}
+
+.deps-managed-error {
+  margin: var(--fluent-space-2xs, 0.25rem) 0 0;
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-status-danger, var(--fluent-color-text-secondary));
+}
+
+.deps-managed-actions {
+  display: flex;
+  gap: var(--fluent-space-sm);
+  margin-top: var(--fluent-space-sm);
 }
 
 button {

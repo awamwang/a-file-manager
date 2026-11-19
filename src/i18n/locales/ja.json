@@ -596,6 +596,11 @@
     "demoTitle": "サンプル拡張",
     "demoMeta": "メモリ上のデモホスト — Feature Pack とは別です。ストアではありません。"
   },
+  "managedDep": {
+    "status": { "config": "接続モード", "managed": "AFM 管理" },
+    "action": { "start": "AFM で起動", "stop": "停止", "starting": "起動中…", "stopping": "停止中…", "failed": "操作に失敗しました：{error}" },
+    "failure": { "configOnly": "リモートインスタンスに到達できず、管理対象のローカル成果物も未インストールです。アドレスを確認するか Pack をインストールしてください。", "managedOnly": "AFM はローカル成果物を起動しましたが、ヘルスチェックに失敗しました。少し待ってから更新するか、プロセスログを確認してください。", "both": "リモートインスタンスに到達できず、管理対象の成果物も利用できません。AFM は代わりに起動できません。" }
+  },
   "health": {
     "failed": "ヘルス失敗: {error}",
     "fieldIdentifier": "識別子",
