@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **术语更新（2026-11-18，ADR 0019/0020）：** 本文出现的 `gatewayCompat` 字段已全局更名为 `versionCompat`（含 Rust `GatewayCompat` struct、`packs/tool-runtime/pack.json`）。历史正文保留原名不改写，实现时按新名落地。本计划的「不做远程商店、不加载任意动态库」已被 ADR 0019 白名单商店（R3 隔离产物）取代，仅本机 zip/目录降为兜底。
+
 **Goal:** 把 ExtensionHost 从内存 stub 升为可本机安装的 Feature Pack 壳：持久化、贡献点（侧栏/路由/命令/sidecar）、权限校验；不做远程商店、不加载任意动态库。
 
 **Architecture:** Core 持有 `FeaturePackHost`（演进自 `ExtensionHost`）：从 zip/目录安装到 `%LOCALAPPDATA%/a-file-manager/feature-packs/{id}/`，读取 `pack.json`，校验 `apiVersion` 与权限，启用后把贡献写入可查询的 registry。前端 `contributionRegistry` 订阅已启用 Pack 的侧栏/路由/命令；路由组件通过 `entry` 映射到**已知内置模块 id**（如 `builtin:tool-runtime`）或 Pack 目录下预构建资源（`convertFileSrc`），v1 不执行第三方任意 JS 热加载。AI Add-on 仍用编译期风味，本计划不迁 AI。

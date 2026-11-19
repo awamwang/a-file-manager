@@ -13,7 +13,7 @@ v1 安装入口为本机 zip 或目录；包根目录需包含 `pack.json`，`ap
 | `description` | string | 否 | 简介，默认空 |
 | `permissions` | string[] | 否 | 权限：`uiCommands`、`fsProvider`、`network`、`spawnSidecar` |
 | `contributions` | object | 是 | 见下表 |
-| `gatewayCompat` | object | 否 | `minVersion` / `maxVersion`（semver，本阶段仅存储） |
+| `versionCompat` | object | 否 | `minVersion` / `maxVersion`（semver，被连接方的版本兼容区间；本阶段仅存储）。原 `gatewayCompat`，因托管对象含服务/网关等异构角色而更名 |
 
 ## `contributions`
 

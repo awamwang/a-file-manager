@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **术语更新（2026-11-18，ADR 0019/0020）：** 本文出现的 `gatewayCompat` 字段已全局更名为 `versionCompat`（含 Rust `GatewayCompat` struct、本计划 `pack.json` 样例）。历史正文保留原名不改写，实现时按新名落地。工具管理运行时的编排已被 ADR 0020 泛化为 pack 无关的 `ManagedDependency`（`managed_dependency` 模块），本计划是其单 pack 前身。
+
 **Goal:** 在 Feature Pack 壳之上交付第一个 Pack——**工具管理运行时**：附着或拉起 awam-tool-manager 网关，统一列出工具与 capability，schema 简表单调用（预览→执行，破坏性确认）。
 
 **Architecture:** AFM 为 MCP/HTTP 薄客户端。Rust 模块 `tool_runtime`（仅在 Pack 启用或开发嵌入时注册命令）用已有 `ureq` 调 `http://127.0.0.1:8766/mcp`（Streamable HTTP + Bearer）。连接偏好与是否自动拉起 sidecar 存 Pack 私有配置目录。前端 `src/packs/tool-runtime/` 提供视图；经 `builtin:tool-runtime` 挂到贡献路由。普通 `build:core` **不**静态挂该侧栏；安装并启用本 Pack 后由贡献系统注入。Open tools / AI 中央仓库不动。
