@@ -15,7 +15,7 @@ pub use gateway::{
     health_check, query_gateway_status, read_http_token, resolve_http_token, resolve_runtime_dir,
     GatewayStatus, HealthOk, RUNTIME_DIR_ENV, TOKEN_ENV_VAR, TOKEN_FILE_NAME,
 };
-pub use semver_compat::version_in_range;
+pub use semver_compat::{known_triple, version_in_range};
 pub use sidecar::{ensure_gateway, start_sidecar, EnsureGatewayResult};
 
 use crate::extension_host::types::{ExtensionRuntimeState, GatewayCompat, InstalledPackRecord};

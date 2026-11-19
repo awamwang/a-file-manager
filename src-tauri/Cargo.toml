@@ -45,6 +45,9 @@ tauri-plugin-drag = "2"
 # Direct dep so AIA-261/264 host subclass can read OLE / deferred-activate / drag-gesture flags.
 drag = "2.1.1"
 ureq = { version = "3.5.1", features = ["json"] }
+# R3 商店下载完整性校验（ADR 0019）：release 资产 SHA-256。二者已是传递依赖，提为直接依赖不触发下载。
+sha2 = "0.10"
+hex = "0.4"
 # Voice input suite (ADR 0018): mic capture, optional behind `ai-addon`.
 # WAV 编码为手写 44 字节头（engine.rs），不引 hound。
 cpal = { version = "0.15", optional = true }

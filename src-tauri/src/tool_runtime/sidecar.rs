@@ -66,6 +66,9 @@ pub fn start_sidecar(
 }
 
 /// 可注入探活与 spawn，供单测断言 reachable 时不拉起进程。
+///
+/// 决策核心已泛化到 `managed_dependency::orchestrator::attach_or_spawn`（Q6/0013）；
+/// 本函数只负责 tool_runtime 特有的 config 读写：读旧配置、附着/拉起、若新起则回写 pid。
 pub fn start_sidecar_with_probe<P, S>(
     app_data: &Path,
     pack_install_dir: &Path,
@@ -78,14 +81,20 @@ where
     S: FnOnce(&Path, &SidecarContribution) -> Result<u32, String>,
 {
     let cfg = load_config(app_data);
-    if probe.health_check(&cfg.base_url).is_ok() {
-        return Ok(cfg.last_sidecar_pid.unwrap_or(0));
+    let outcome = crate::managed_dependency::orchestrator::attach_or_spawn(
+        &cfg.base_url,
+        cfg.last_sidecar_pid,
+        pack_install_dir,
+        contrib,
+        |url| probe.health_check(url),
+        spawn,
+    )?;
+    if outcome.spawned {
+        let mut cfg = cfg;
+        cfg.last_sidecar_pid = Some(outcome.pid);
+        save_to_path(app_data, &cfg)?;
     }
-    let pid = spawn(pack_install_dir, contrib)?;
-    let mut cfg = cfg;
-    cfg.last_sidecar_pid = Some(pid);
-    save_to_path(app_data, &cfg)?;
-    Ok(pid)
+    Ok(outcome.pid)
 }
 
 /// 先探活附着；失败则校验 spawnSidecar 后按 Pack 贡献拉起。

@@ -12,6 +12,7 @@ mod favorites;
 mod visit_stats;
 mod file_ops;
 mod knowledge_service;
+mod managed_dependency;
 mod navigator;
 mod perf_log;
 mod paths;
