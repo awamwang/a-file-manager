@@ -17,6 +17,7 @@ pub use gateway::{
 };
 pub use semver_compat::{known_triple, version_in_range};
 pub use sidecar::{ensure_gateway, start_sidecar, EnsureGatewayResult};
+pub(crate) use sidecar::spawn_sidecar_process;
 
 use crate::extension_host::types::{ExtensionRuntimeState, GatewayCompat, InstalledPackRecord};
 use serde_json::Value;

@@ -210,7 +210,9 @@ fn resolve_working_dir(pack_install_dir: &Path, contrib: &SidecarContribution) -
     }
 }
 
-fn spawn_sidecar_process(
+/// 生产 sidecar 拉起实现（CREATE_NO_WINDOW + workingDirRel）。
+/// `pub(crate)`：managed_dependency 命令层复用同一实现，避免双份 spawn 逻辑。
+pub(crate) fn spawn_sidecar_process(
     pack_install_dir: &Path,
     contrib: &SidecarContribution,
 ) -> Result<u32, String> {

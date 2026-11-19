@@ -7,6 +7,7 @@
 //! - `store`（元清单 allow-list + release 资产下载 + 摘要校验）
 //! - `credential`（来源解析；目前 `CredentialSource` 已在 registry 定义）
 
+pub mod commands;
 pub mod compat;
 pub mod credential;
 pub mod orchestrator;
@@ -14,8 +15,7 @@ pub mod provision;
 pub mod registry;
 pub mod store;
 
-// 预留：store/commands 等后续 Task 会消费这些符号；P1–P4 仅测试与 sidecar 适配用到，
-// 先 allow 避免 unused 警告，Task 5 接线后移除。
+// 预留：fetch_manifest_text / http_get_bytes 等真网络函数接线于前端/IPC 消费后移除 allow。
 #[allow(unused_imports)]
 pub use compat::{ensure_declared_version_compat, VersionRange};
 #[allow(unused_imports)]

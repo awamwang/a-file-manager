@@ -368,6 +368,17 @@ impl ExtensionHost {
             .pack_contributions
             .lock()
             .map_err(|err| err.to_string())? = contributions;
+        // 1:1 兜底（Q21）：清掉指向已卸载 pack 的孤儿托管记录。尽力而为，不阻断加载。
+        let valid_pack_ids: std::collections::BTreeSet<String> = self
+            .packs
+            .lock()
+            .map_err(|err| err.to_string())?
+            .keys()
+            .cloned()
+            .collect();
+        if let Err(err) = crate::managed_dependency::registry::prune_orphans(app_data_dir, &valid_pack_ids) {
+            eprintln!("managed_dependency prune_orphans failed: {err}");
+        }
         Ok(())
     }
 
@@ -432,6 +443,43 @@ impl ExtensionHost {
         if enabled {
             pack.last_error = None;
         }
+        let pack_snapshot = pack.clone();
+        drop(packs);
+        // 1:1 托管记录同步（Q21）：仅对「声明 sidecars 且有 spawnSidecar 权限」的 pack 建/销记录。
+        // 尽力而为——注册失败不阻断启用结果（缺失记录时投影面自然回退 config-mode 展示）。
+        let declares_sidecars = self
+            .pack_contributions
+            .lock()
+            .map(|contribs| {
+                contribs
+                    .get(id)
+                    .map(|contrib| !contrib.sidecars.is_empty())
+                    .unwrap_or(false)
+            })
+            .unwrap_or(false);
+        if declares_sidecars
+            && pack_snapshot
+                .permissions
+                .contains(&ExtensionPermission::SpawnSidecar)
+        {
+            let sync = if enabled {
+                crate::managed_dependency::registry::register_for_enabled_pack(
+                    &app_data,
+                    &pack_snapshot,
+                    id,
+                    crate::managed_dependency::registry::DependencyMode::Config,
+                    String::new(),
+                    crate::managed_dependency::registry::CredentialSource::None,
+                    String::new(),
+                )
+                .map(|_| ())
+            } else {
+                crate::managed_dependency::registry::unregister_for_pack(&app_data, id).map(|_| ())
+            };
+            if let Err(err) = sync {
+                eprintln!("managed_dependency sync for pack '{id}' failed: {err}");
+            }
+        }
         Ok(())
     }
 
@@ -446,6 +494,10 @@ impl ExtensionHost {
             .lock()
             .map_err(|err| err.to_string())?
             .remove(id);
+        // 1:1 单写出口（Q21）：卸载 pack 必销其托管记录。尽力而为。
+        if let Err(err) = crate::managed_dependency::registry::unregister_for_pack(&app_data, id) {
+            eprintln!("managed_dependency unregister for pack '{id}' failed: {err}");
+        }
         Ok(())
     }
 
