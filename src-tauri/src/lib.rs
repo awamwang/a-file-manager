@@ -258,6 +258,14 @@ pub fn run() {
                 }
             }
 
+            // ADR 0022 选项 A：启动后台恢复托管服务（对已启用的 managed pack provision+spawn）。
+            // fire-and-forget，不阻断启动；已在运行的服务会被附着而非重复拉起。
+            if let Ok(dir) = app.path().app_config_dir() {
+                tauri::async_runtime::spawn_blocking(move || {
+                    managed_dependency::commands::reconcile_managed_on_startup(&dir);
+                });
+            }
+
             if let Some(path) = add_favorite_path.clone() {
                 match favorites::apply_add_favorite_cli(app.handle(), &path) {
                     Ok(added) => eprintln!(

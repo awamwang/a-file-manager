@@ -198,6 +198,33 @@ pub async fn managed_dependency_ensure(app: AppHandle, id: String) -> Result<Man
     .map_err(|err| format!("managed_dependency_ensure worker failed: {err}"))?
 }
 
+/// 启动时恢复托管服务（ADR 0022 / 选项 A）：对所有 `Managed` 记录逐个 ensure
+/// （probe→附着，或 provision 产物+spawn）。已运行的服务会被附着而非重复拉起。
+/// 尽力而为——单条失败只记录、不影响其它、不阻断启动。应在 spawn_blocking 后台线程调用。
+pub fn reconcile_managed_on_startup(app_data: &Path) {
+    let records = match registry::list_records(app_data) {
+        Ok(records) => records,
+        Err(err) => {
+            eprintln!("managed startup reconcile: list failed: {err}");
+            return;
+        }
+    };
+    for mut record in records {
+        if record.mode != DependencyMode::Managed {
+            continue;
+        }
+        let outcome = (|| -> Result<(), String> {
+            let (pack_install_dir, contrib) = resolve_pack_sidecar(&record)?;
+            let contrib = prepare_contrib_for_spawn(app_data, &record, &pack_install_dir, contrib)?;
+            ensure_record_with(&mut record, &pack_install_dir, &contrib, probe, native_spawn)?;
+            registry::save_record(app_data, &record)
+        })();
+        if let Err(err) = outcome {
+            eprintln!("managed startup reconcile '{}': {err}", record.id);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
