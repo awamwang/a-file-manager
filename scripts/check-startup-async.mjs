@@ -17,6 +17,7 @@ const app = read("src/App.vue");
 const shell = read("src/components/shell/AppShell.vue");
 const menu = read("src/components/navigator/NavigatorContextMenu.vue");
 const providersView = read("src/views/ProvidersView.vue");
+const searchSettingsPanel = read("src/components/settings/SearchSettingsPanel.vue");
 const providerCache = read("src/state/providerCache.ts");
 const closeBehavior = read("src/state/closeBehavior.ts");
 const viewMode = read("src/state/navigatorViewMode.ts");
@@ -240,9 +241,17 @@ assert.ok(
     !/import DiscoveryView from/.test(router),
     "Discovery must not be a static import",
   );
+  // AIA-276: Discovery 合并为 Settings 子分区，路由挂 SettingsView（上方已断言懒加载）；
+  // DiscoveryView 本体由 SearchSettingsPanel 以 defineAsyncComponent 二级懒加载。
   assert.ok(
-    /component:\s*\(\)\s*=>\s*import\(["'].*DiscoveryView\.vue["']\)/.test(router),
-    "Discovery must use dynamic import()",
+    !/from ["'].*DiscoveryView\.vue["']/.test(router),
+    "router must not reference DiscoveryView directly",
+  );
+  assert.ok(
+    /defineAsyncComponent\(\s*\(\)\s*=>\s*import\(["'].*DiscoveryView\.vue["']\)/.test(
+      searchSettingsPanel,
+    ),
+    "DiscoveryView stays lazy (defineAsyncComponent in SearchSettingsPanel)",
   );
   assert.ok(
     /component:\s*\(\)\s*=>\s*import\(["'].*ProvidersView\.vue["']\)/.test(router),

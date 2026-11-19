@@ -29,7 +29,7 @@ const health = read("src/views/HealthView.vue");
 assert.ok(health.includes('invoke<DependencyReport>("deps_probe_get")'), "HealthView loads deps probe");
 assert.ok(health.includes("data-health-deps"), "HealthView renders deps list");
 
-const knowledge = read("src-tauri/src/providers/knowledge.rs");
+const knowledge = read("src-tauri/src/knowledge_service.rs");
 assert.ok(
   !knowledge.includes(String.raw`G:\Knowledge\data`),
   "knowledge must not hardcode G:\\Knowledge\\data",

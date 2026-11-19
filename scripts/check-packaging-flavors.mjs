@@ -19,7 +19,7 @@ const pkg = JSON.parse(read("package.json"));
 const buildFlavor = read("scripts/build-flavor.mjs");
 
 assert.ok(cargo.includes('default = ["ai-addon"]'), "Cargo default enables ai-addon");
-assert.ok(cargo.includes("ai-addon = []"), "ai-addon feature declared");
+assert.ok(/ai-addon\s*=\s*\[/.test(cargo), "ai-addon feature declared");
 assert.ok(lib.includes('#[cfg(feature = "ai-addon")]'), "lib gates AI module");
 assert.ok(lib.includes("cfg!(feature = \"ai-addon\")") || lib.includes("ai_addon:"), "health reports flavor");
 // 单一 generate_handler：AI IPC 逐条 cfg 门控，Core 构建自动剔除

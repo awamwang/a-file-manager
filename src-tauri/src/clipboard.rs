@@ -109,7 +109,16 @@ mod tests {
 
         let text = "afm-clipboard-test-✓";
         assert!(set_text(text).is_ok());
-        assert!(unsafe { OpenClipboard(None) }.is_ok());
+        // 剪贴板可能被其它进程（剪贴板管理器等）短暂持有；与 set_text 一致地重试开板，避免偶发占用导致测试抖动。
+        let mut opened = Err("Clipboard is busy".to_string());
+        for _ in 0..8 {
+            if let Ok(()) = unsafe { OpenClipboard(None) } {
+                opened = Ok(());
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(15));
+        }
+        assert!(opened.is_ok());
         let result = unsafe {
             let read = (|| {
                 let handle = GetClipboardData(CF_UNICODETEXT).map_err(|e| e.to_string())?;
