@@ -98,3 +98,17 @@ Reach for the feature map table when a row above does not name the file.
 Follow CONTRIBUTING.md: Conventional Commits with a short scope (`fix(navigator): …`), on top
 of `master`, no AI attribution in the message. Write the subject in the user's language when
 they ask for it; keep code comments and repo-facing docs in English.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on `awamwang/a-file-manager` via `gh`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five roles (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Root `GLOSSARY-MAP.md` points at per-area glossaries; ADRs in `docs/adr/`. See `docs/agents/domain.md`.
