@@ -76,6 +76,17 @@
 - **检查更新（纯读，2026-11-19）**：升级标记原先只作为「拉起服务」路径（`prepare_contrib_for_spawn`）的副产品，且每条记录各拉一次清单。补一条**独立纯读**检测：`provision::inspect_artifact_offline`（只算盘上 sha、绝不下载/不 spawn）+ `commands::check_updates`（清单**只拉一次**遍历 managed 记录刷新 `available_version`/`installed_version`）。两个入口：**手动「检查更新」按钮**（`managed_dependency_check_all_updates` IPC）与**启动后台自动检查**（`setup` spawn_blocking 先 check_updates 再 reconcile）。缺产物也标为可用升级（升级即覆盖式安装）。feed 不可达时手动检查如实报错、启动检查静默跳过。`ensure_artifact` 的「已在」分支改复用同一离线函数，避免双份哈希比对逻辑。
 - 验证：`cargo test --lib` 456 passed、`vue-tsc` 0、`check-i18n` parity 1431×5；tool-manager 单测 819 passed。
 
+## 落地记录：versionCompat 门单一实现化（候选4 / P1-3，2026-11-19）
+
+取证发现 versionCompat **早已实现并接线**——`tool_runtime/semver_compat` + `check_gateway_compat` 在 `with_mcp_client` 每次网关 MCP 调用前按 pack `gatewayCompat` 比对实例上报版本，未知/非三元组降级跳过（符合本文 Q15/门语义），并有 live 测试。此前所谓「门悬空」指的是 `managed_dependency::compat`（`ensure_declared_version_compat`/`VersionRange`）这套**重复实现**——它仅被同样无生产消费者的 `provision::provision_artifact` 引用。
+
+处置：删冗余 seam、令 `gatewayCompat` 成为唯一版本兼容机制。
+- 删除 `managed_dependency::compat` 模块 + `provision::provision_artifact`（managed 产物构建即锁版本、provision 路径本就不应过门；config-mode 门在网关调用处）。
+- `provision.rs` 去 `compat` import 与 4 个 `provision_artifact` 测试；删 `ARTIFACT_SUBDIR` 常量（ensure/force 一律落 sidecar 目录）；`managed_dependency::compat` re-export 与 mod 注释更新。
+- `tool_runtime::mod` 的 `known_triple` 再导出原仅服务已删 compat，移除（仅留 `version_in_range`，line 214 用全限定名）。
+- `feature-pack-format.md` 字段说明从「更名为 versionCompat」纠正为实际 `gatewayCompat` + 注明由 tool_runtime 执行、未知版本降级跳过。
+- 验证：`cargo test --lib` 446 passed 无新警告。
+
 ## 落地记录：移除遗留 vNext 扩展宿主（候选1 / C-2，2026-11-19）
 
 兑现 C-2 拍板「删 vNext 宿主、仅保留 permission 枚举」——把"能力扩展唯一单元 = Feature Pack"落到代码，消除四套里的最后一套遗留：

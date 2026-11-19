@@ -13,7 +13,7 @@ v1 安装入口为本机 zip 或目录；包根目录需包含 `pack.json`，`ap
 | `description` | string | 否 | 简介，默认空 |
 | `permissions` | string[] | 否 | 权限：`uiCommands`、`fsProvider`、`network`、`spawnSidecar` |
 | `contributions` | object | 是 | 见下表 |
-| `versionCompat` | object | 否 | `minVersion` / `maxVersion`（semver，被连接方的版本兼容区间；本阶段仅存储）。原 `gatewayCompat`，因托管对象含服务/网关等异构角色而更名 |
+| `gatewayCompat` | object | 否 | `minVersion` / `maxVersion`（semver，被连接方的版本兼容区间）。这是 versionCompat 的**唯一实现**：每次网关 MCP 调用前由 `tool_runtime`（`semver_compat::check_gateway_compat`）用实例上报版本比对；版本未知/非 `x.y.z` 三元组时**降级跳过**（不阻断）。managed 自构建产物版本构建即锁定，天然在区间内。 |
 
 ## `contributions`
 
