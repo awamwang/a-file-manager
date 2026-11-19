@@ -109,6 +109,15 @@ python scripts/build_pack_feed.py emit-feed-config \
 3. AFM 无需改代码：feed 拉取/下载/SHA 校验/落盘/spawn/升级全走既有接缝。
 4. （待做，见 §6）把 `build` / `pack-dir` 接进 **AFM CI release job**：按 OS matrix 产产物、算 sha、写 manifest、上传、可选签名。目前脚本只**产文件**，"上传到线上 + 签名"尚未自动化。
 
+## 3.1 源码来源（submodule）
+
+AFM 通过 `upstream/` 下的 git submodule 锁定三个后端源码（`awam-file`@`056e020`、`awam-tool-manager`@`5537eb5`、`awam-knowledge`@`381b83c`，均 `github.com/awamwang/*`）。
+
+- 克隆 AFM 后初始化：`git submodule update --init --recursive`。
+- in-tree 构建直接用锁定源码，CI 与本地一致：`build_pack_feed.py build --src upstream/awam-tool-manager --entry src/server.py …`。
+- 升级某后端：在该仓提交并 push → AFM `git submodule update --remote upstream/<name>` → 提交新 gitlink（provenance 记录在 AFM 历史）。
+- 本地 dogfood 也可 `--src` 指你自己的工作副本路径，submodule 是"来源固定"的权威，不强制。
+
 ## 3.5 下载回落链（GitHub 主源 → 对象存储镜像）
 
 发布是**一条链、两个源**：优先 GitHub Release（AFM 自有 release 资产），主源不可达 / 传输失败 / 摘要不符时**自动回落对象存储镜像**。具体 OSS bucket / endpoint 配置后续接，但接缝已就位：

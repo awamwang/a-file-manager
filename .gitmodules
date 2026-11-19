@@ -1,0 +1,12 @@
+[submodule "upstream/awam-file"]
+	path = upstream/awam-file
+	url = https://github.com/awamwang/awam-file.git
+	branch = master
+[submodule "upstream/awam-tool-manager"]
+	path = upstream/awam-tool-manager
+	url = https://github.com/awamwang/awam-tool-manager.git
+	branch = master
+[submodule "upstream/awam-knowledge"]
+	path = upstream/awam-knowledge
+	url = https://github.com/awamwang/awam-knowledge.git
+	branch = main
