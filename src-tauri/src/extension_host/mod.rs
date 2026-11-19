@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! ExtensionHost vNext (S8).
-//! - API break OK — legacy marketplace packages are not migrated
-//! - Empty marketplace catalog (no GitHub / Sigma market fetch)
-//! - JS/UI command channel with crash isolation
-//! - FS provider registration hooks (contribution metadata; ProviderRegistry is FS authority)
+//! Feature Pack 宿主：本机 pack 的安装/启停/贡献聚合（ADR 0012 / 0022）。
+//! 遗留 vNext 扩展宿主（marketplace / JS-UI command / fs provider 钩子）已移除，
+//! 「能力扩展」唯一单元即 Feature Pack。
 
 mod commands;
 mod host;

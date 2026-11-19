@@ -76,6 +76,15 @@
 - **检查更新（纯读，2026-11-19）**：升级标记原先只作为「拉起服务」路径（`prepare_contrib_for_spawn`）的副产品，且每条记录各拉一次清单。补一条**独立纯读**检测：`provision::inspect_artifact_offline`（只算盘上 sha、绝不下载/不 spawn）+ `commands::check_updates`（清单**只拉一次**遍历 managed 记录刷新 `available_version`/`installed_version`）。两个入口：**手动「检查更新」按钮**（`managed_dependency_check_all_updates` IPC）与**启动后台自动检查**（`setup` spawn_blocking 先 check_updates 再 reconcile）。缺产物也标为可用升级（升级即覆盖式安装）。feed 不可达时手动检查如实报错、启动检查静默跳过。`ensure_artifact` 的「已在」分支改复用同一离线函数，避免双份哈希比对逻辑。
 - 验证：`cargo test --lib` 456 passed、`vue-tsc` 0、`check-i18n` parity 1431×5；tool-manager 单测 819 passed。
 
+## 落地记录：移除遗留 vNext 扩展宿主（候选1 / C-2，2026-11-19）
+
+兑现 C-2 拍板「删 vNext 宿主、仅保留 permission 枚举」——把"能力扩展唯一单元 = Feature Pack"落到代码，消除四套里的最后一套遗留：
+
+- **后端** `extension_host`：删 `ExtensionManifestVNext` / `InstalledExtensionRecord` / `MarketplaceCatalog` / `InstallResult` / `UiCommandRequest` / `UiCommandResult` / `FsProviderContribution` 与 `EXTENSION_HOST_API_VERSION`；host 删 `extensions`/`fs_hooks` 字段及 `install_from_manifest`/`set_enabled`/`uninstall`/`dispatch_ui_command`/`list_fs_provider_hooks`/`register_fs_provider_hook`/`marketplace_catalog`（含 `__crash__` 桩）。`extension_host_status` 改为 **pack 派生**计数（apiVersion=`feature-pack.1`、installed/enabled/crashed 来自 packs）。删对应 IPC 与 lib.rs 注册、删 vNext 单测。
+- **保留**：`ExtensionPermission` 枚举（`spawnSidecar`/`uiCommands`/`network`/`fsProvider` 仍在，pack.json 在用，不动以免破坏已装清单）、全部 Feature Pack 路径（install_pack / feed 安装 / list_packs / set_pack_enabled / uninstall_pack / list_contributions / load_from_disk）。
+- **前端** `ExtensionsView`：删「示例扩展」区 / 「Marketplace」卡 / 「FS provider 钩子」区 / `DEMO_MANIFEST` / `installDemo`/`runHello`/`setEnabled`/`uninstall`；status 卡简化为 pack 计数。i18n 旧键（demoTitle/marketplace/fsHooks 等）保留但不再引用（不影响 parity）。
+- **验证**：`cargo test --lib` 453 passed、`vue-tsc` 0、`check-i18n` parity 1431×5。至此"三套扩展机制"对外只剩 **Feature Pack** 一种能力扩展单元（AI Add-on / Open tools 仍按 C-1 归外部托管面，不抢"扩展"词）。
+
 ## Consequences
 
 - ADR 0019 的白名单/元清单/SHA-from-GitHub 全套下载逻辑不再作为 managed-mode 的唯一前提；managed 改为 AFM 自产产物。`store.rs`（allow-list + 下载 + SHA-256 摘要校验）由「待接线」升为 managed **主路径**：经 `feed::fetch_manifest` 取 AFM 自有元清单、`provision::ensure_artifact` 按需下载校验落盘（见上「B-正式」落地记录）；config-mode 仍可连用户自跑实例不经此路。

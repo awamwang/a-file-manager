@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::collections::BTreeMap;
-
-/// vNext API version — intentionally incompatible with legacy marketplace packages.
-pub const EXTENSION_HOST_API_VERSION: &str = "vnext.1";
 
 /// Feature Pack 清单 API 版本。
 pub const FEATURE_PACK_API_VERSION: &str = "feature-pack.1";
@@ -41,91 +36,8 @@ impl ExtensionPermission {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct ExtensionManifestVNext {
-    pub id: String,
-    pub name: String,
-    pub version: String,
-    pub api_version: String,
-    #[serde(default)]
-    pub description: String,
-    #[serde(default)]
-    pub permissions: Vec<String>,
-    /// Declared FS provider backend ids (metadata; ProviderRegistry is FS authority).
-    #[serde(default)]
-    pub fs_providers: Vec<String>,
-    /// Declared UI / JS command ids.
-    #[serde(default)]
-    pub ui_commands: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct InstalledExtensionRecord {
-    pub id: String,
-    pub name: String,
-    pub version: String,
-    pub state: ExtensionRuntimeState,
-    pub permissions: Vec<ExtensionPermission>,
-    pub fs_providers: Vec<String>,
-    pub ui_commands: Vec<String>,
-    #[serde(default)]
-    pub last_error: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct MarketplaceCatalog {
-    pub api_version: String,
-    /// Always empty in S8 — marketplace deliberately vacant; no GitHub fetch.
-    pub extensions: Vec<Value>,
-    pub empty: bool,
-    pub detail: String,
-    pub fetches_remote: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct InstallResult {
-    pub success: bool,
-    pub extension: Option<InstalledExtensionRecord>,
-    pub error: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct UiCommandRequest {
-    pub extension_id: String,
-    pub command_id: String,
-    #[serde(default)]
-    pub args: BTreeMap<String, Value>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct UiCommandResult {
-    pub ok: bool,
-    pub extension_id: String,
-    pub command_id: String,
-    #[serde(default)]
-    pub payload: Option<Value>,
-    #[serde(default)]
-    pub error: Option<String>,
-    /// True when the extension was marked crashed but the host stayed alive.
-    #[serde(default)]
-    pub isolated_failure: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct FsProviderContribution {
-    pub extension_id: String,
-    pub backend_id: String,
-    /// Contribution is registered with the host; ProviderRegistry remains the FS authority.
-    pub registered: bool,
-}
-
+/// 扩展宿主（Feature Pack）状态概览。vNext 扩展 / marketplace / fs_hooks 通道已移除，
+/// 计数一律由本机 Feature Pack 派生（installed=全部 pack，enabled=启用，crashed=清单损坏）。
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ExtensionHostStatus {
@@ -133,9 +45,6 @@ pub struct ExtensionHostStatus {
     pub installed_count: usize,
     pub enabled_count: usize,
     pub crashed_count: usize,
-    pub marketplace_empty: bool,
-    pub fetches_remote: bool,
-    pub fs_provider_hooks: usize,
 }
 
 /// Feature Pack 网关兼容范围（semver 字符串，本阶段仅存储）。
@@ -288,7 +197,7 @@ pub struct AggregatedContributions {
     pub search: Vec<SearchEntryContribution>,
 }
 
-/// Feature Pack 安装结果（与扩展 `InstallResult` 分离，避免依赖 `InstalledExtensionRecord`）。
+/// Feature Pack 安装结果。
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PackInstallResult {
