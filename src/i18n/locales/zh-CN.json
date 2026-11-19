@@ -1547,6 +1547,7 @@
     "gatewayUrlSave": "保存并重连",
     "gatewayUrlSaving": "保存中…",
     "gatewayUrlSaved": "网关地址已保存",
+    "gatewayUrlManagedHint": "由 feed 托管——该网关地址已固定，不可修改。",
     "attachStart": "附着/启动",
     "attaching": "正在附着…",
     "attached": "已附着现有网关",

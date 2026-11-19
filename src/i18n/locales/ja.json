@@ -1547,6 +1547,7 @@
     "gatewayUrlSave": "保存して再接続",
     "gatewayUrlSaving": "保存中…",
     "gatewayUrlSaved": "ゲートウェイ URL を保存しました",
+    "gatewayUrlManagedHint": "フィードで管理されています — このゲートウェイアドレスは固定で変更できません。",
     "attachStart": "接続 / 起動",
     "attaching": "接続中…",
     "attached": "既存ゲートウェイに接続しました",

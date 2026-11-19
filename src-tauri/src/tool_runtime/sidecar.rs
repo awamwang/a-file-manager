@@ -8,7 +8,7 @@ use crate::extension_host::types::{
     ExtensionPermission, ExtensionRuntimeState, InstalledPackRecord, SharedRuntime,
     SidecarContribution, SidecarRuntime,
 };
-use crate::managed_dependency::registry::{self, ManagedDependencyRecord};
+use crate::managed_dependency::registry::{self, DependencyMode, ManagedDependencyRecord};
 use crate::win_process;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -87,7 +87,7 @@ where
     let cfg = load_config(app_data);
     let mut record = tool_runtime_record(app_data);
     let outcome = crate::managed_dependency::orchestrator::attach_or_spawn(
-        &cfg.base_url,
+        &effective_base_url(&cfg, &record),
         record.spawned_pid,
         pack_install_dir,
         contrib,
@@ -117,7 +117,8 @@ where
 {
     let cfg = load_config(app_data);
     let record = tool_runtime_record(app_data);
-    if probe.health_check(&cfg.base_url).is_ok() {
+    let base_url = effective_base_url(&cfg, &record);
+    if probe.health_check(&base_url).is_ok() {
         return Ok(EnsureGatewayResult {
             pid: record.spawned_pid.unwrap_or(0),
             spawned: false,
@@ -148,6 +149,15 @@ fn load_config(app_data: &Path) -> ToolRuntimeConfig {
         return ToolRuntimeConfig::default();
     }
     load_from_path(app_data).unwrap_or_default()
+}
+
+/// managed 模式以 feed 写入的 `record.base_url` 为权威（避免与可编辑的 ToolRuntimeConfig 漂移）；
+/// 否则用 `ToolRuntimeConfig.base_url`（config-mode 用户自连）。ADR 0022 网关地址单一来源。
+fn effective_base_url(cfg: &ToolRuntimeConfig, record: &ManagedDependencyRecord) -> String {
+    if record.mode == DependencyMode::Managed && !record.base_url.trim().is_empty() {
+        return record.base_url.clone();
+    }
+    cfg.base_url.clone()
 }
 
 /// 取/建 tool-runtime pack 的托管记录（C-4：进程态唯一权威，`record.id = pack id`）。

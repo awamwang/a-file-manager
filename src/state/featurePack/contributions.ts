@@ -4,7 +4,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import { ref } from "vue";
+import { ref, shallowRef } from "vue";
 import type { RouteRecordRaw, Router } from "vue-router";
 import type { AppCommand } from "../../commands/types.ts";
 import type { SideNavItem } from "../../shell/sideNav.ts";
@@ -63,7 +63,8 @@ const EMPTY_CONTRIBUTIONS: AggregatedContributions = {
   search: [],
 };
 
-let cached: AggregatedContributions = EMPTY_CONTRIBUTIONS;
+/** 响应式贡献缓存：整体替换 .value 触发 panelCommands / 侧栏等 computed 重算（无需 remount）。 */
+const cached = shallowRef<AggregatedContributions>(EMPTY_CONTRIBUTIONS);
 
 /**
  * 工具运行时路由贡献（entry `builtin:tool-runtime`）。
@@ -75,7 +76,7 @@ export const toolRuntimeRouteContribution = ref<FeaturePackRouteContribution | n
 
 function syncToolRuntimeRouteContribution(): void {
   toolRuntimeRouteContribution.value =
-    cached.routes.find((route) => route.entry === "builtin:tool-runtime") ??
+    cached.value.routes.find((route) => route.entry === "builtin:tool-runtime") ??
     null;
 }
 
@@ -121,7 +122,7 @@ export function toFeaturePackSearchEntries(
 
 /** Pack 静态搜索条目（过滤非法/未知路由）；供扩展源与测试消费。 */
 export function getSearchExtras(): FeaturePackSearchEntry[] {
-  return toFeaturePackSearchEntries(cached.search, isResolvableCommandRoute);
+  return toFeaturePackSearchEntries(cached.value.search, isResolvableCommandRoute);
 }
 
 function syncSearchExtras(): void {
@@ -164,7 +165,7 @@ function coreShellRoutePaths(): Set<string> {
 /** 核心路由 + 将于 `builtinEntries` 注册的 Pack 路由路径。 */
 function resolvableContributionPaths(): Set<string> {
   const paths = coreShellRoutePaths();
-  for (const route of cached.routes) {
+  for (const route of cached.value.routes) {
     if (!route.path || !builtinEntries[route.entry]) continue;
     paths.add(route.path);
   }
@@ -195,7 +196,7 @@ function normalizeContributions(
 
 /** 已启用 Pack 的侧栏贡献（含 `order`，由侧栏按序插入）；未知 `to` 不暴露。 */
 export function getSideNavExtras(): SideNavItem[] {
-  return cached.sideNav
+  return cached.value.sideNav
     .filter((item) => item.to && isResolvableNavTo(item.to))
     .map((item) => ({
       id: item.id,
@@ -208,7 +209,7 @@ export function getSideNavExtras(): SideNavItem[] {
 /** 仅当 `entry` 在 builtinEntries 有映射时生成可注册路由。 */
 export function getRouteExtras(): RouteRecordRaw[] {
   const extras: RouteRecordRaw[] = [];
-  for (const item of cached.routes) {
+  for (const item of cached.value.routes) {
     const loader = builtinEntries[item.entry];
     if (!loader || !item.path) continue;
     extras.push({
@@ -225,7 +226,7 @@ export function getCommandExtras(deps: {
   router: Pick<Router, "push">;
   t: (key: string) => string;
 }): AppCommand[] {
-  return cached.commands
+  return cached.value.commands
     .filter((cmd) => isResolvableCommandRoute(cmd.route))
     .map((cmd) => ({
     id: cmd.id,
@@ -270,7 +271,7 @@ export function applyFeaturePackRoutes(router: Router): void {
 /** 从 Host 拉取已启用 Pack 贡献，并合并进侧栏与路由。 */
 export async function hydrateFeaturePackContributions(): Promise<void> {
   try {
-    cached = normalizeContributions(
+    cached.value = normalizeContributions(
       await invoke<AggregatedContributions>("extension_host_list_contributions"),
     );
   } catch {

@@ -1547,6 +1547,7 @@
     "gatewayUrlSave": "Save and reconnect",
     "gatewayUrlSaving": "Saving…",
     "gatewayUrlSaved": "Gateway URL saved",
+    "gatewayUrlManagedHint": "Managed by the feed — this gateway address is fixed and cannot be edited.",
     "attachStart": "Attach / start",
     "attaching": "Attaching…",
     "attached": "Attached to existing gateway",

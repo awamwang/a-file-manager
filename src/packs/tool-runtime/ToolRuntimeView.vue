@@ -15,6 +15,7 @@ import {
   formatPayload,
   gatewayStatus,
   getConfig,
+  getManagedBinding,
   invokeErrorMessage,
   isDestructiveBlocked,
   isToolRuntimeDisabled,
@@ -25,6 +26,7 @@ import {
   setConfig,
   type GatewayStatus,
   type JsonSchema,
+  type ManagedBinding,
   type RuntimeCapability,
   type RuntimeTool,
   type ToolRuntimeConfig,
@@ -53,6 +55,8 @@ const previewPayload = ref<unknown>(null);
 const resultPayload = ref<unknown>(null);
 const awaitingExecute = ref(false);
 const runtimeConfig = ref<ToolRuntimeConfig | null>(null);
+const managedBinding = ref<ManagedBinding>({ managed: false, baseUrl: "" });
+const urlLocked = computed(() => managedBinding.value.managed);
 const baseUrlDraft = ref(DEFAULT_BASE_URL);
 const savingBaseUrl = ref(false);
 
@@ -123,14 +127,20 @@ watch(
 
 async function loadConfig(): Promise<void> {
   try {
+    managedBinding.value = await getManagedBinding();
     runtimeConfig.value = await getConfig();
-    baseUrlDraft.value = runtimeConfig.value.baseUrl || DEFAULT_BASE_URL;
+    // 托管模式：网关地址以 feed 声明的 record.base_url 为权威，UI 只读、不可改。
+    baseUrlDraft.value =
+      managedBinding.value.managed && managedBinding.value.baseUrl
+        ? managedBinding.value.baseUrl
+        : runtimeConfig.value.baseUrl || DEFAULT_BASE_URL;
   } catch (err) {
     error.value = friendlyError(err);
   }
 }
 
 async function saveBaseUrl(): Promise<void> {
+  if (urlLocked.value) return;
   const current = runtimeConfig.value ?? {
     baseUrl: DEFAULT_BASE_URL,
     preferAttach: true,
@@ -431,14 +441,14 @@ function riskChipClass(risk: string): string {
           type="text"
           spellcheck="false"
           autocomplete="off"
-          :disabled="savingBaseUrl"
+          :disabled="savingBaseUrl || urlLocked"
           :placeholder="t('toolRuntime.gatewayUrlPlaceholder')"
           @keydown.enter.prevent="saveBaseUrl"
         />
         <button
           class="fluent-control fluent-control--accent gateway-url-save"
           type="button"
-          :disabled="savingBaseUrl"
+          :disabled="savingBaseUrl || urlLocked"
           @click="saveBaseUrl"
         >
           {{
@@ -448,6 +458,9 @@ function riskChipClass(risk: string): string {
           }}
         </button>
       </div>
+      <p v-if="urlLocked" class="fluent-page-meta gateway-url-managed-hint">
+        {{ t("toolRuntime.gatewayUrlManagedHint") }}
+      </p>
     </div>
 
     <p v-if="error" class="fluent-banner fluent-banner--error error-banner">{{ error }}</p>

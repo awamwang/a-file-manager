@@ -1547,6 +1547,7 @@
     "gatewayUrlSave": "Speichern und neu verbinden",
     "gatewayUrlSaving": "Wird gespeichert…",
     "gatewayUrlSaved": "Gateway-URL gespeichert",
+    "gatewayUrlManagedHint": "Vom Feed verwaltet — diese Gateway-Adresse ist festgelegt und nicht bearbeitbar.",
     "attachStart": "Anhängen / starten",
     "attaching": "Wird angehängt…",
     "attached": "An vorhandenes Gateway angehängt",

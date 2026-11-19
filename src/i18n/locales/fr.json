@@ -1547,6 +1547,7 @@
     "gatewayUrlSave": "Enregistrer et reconnecter",
     "gatewayUrlSaving": "Enregistrement…",
     "gatewayUrlSaved": "URL de la passerelle enregistrée",
+    "gatewayUrlManagedHint": "Géré par le flux — cette adresse de passerelle est fixe et non modifiable.",
     "attachStart": "Attacher / démarrer",
     "attaching": "Attachement…",
     "attached": "Attaché à la passerelle existante",

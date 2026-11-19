@@ -31,7 +31,7 @@ import {
   TAB_DROP_HOVER_MS,
 } from "../../state/dnd";
 import DropHintOverlay from "./DropHintOverlay.vue";
-import { SIDE_NAV_ITEMS, isSideNavActive, sideNavIcon } from "../../shell/sideNav";
+import { SIDE_NAV_ITEMS, isSideNavActive, sideNavIcon, type SideNavItem } from "../../shell/sideNav";
 import { buildAppCommands } from "../../commands/registry";
 import { toggleCommandPanel, commandPanelOpen } from "../../state/commandPanel";
 import { AI_ADDON_ENABLED } from "../../config/flavor.ts";
@@ -1230,7 +1230,7 @@ function reclaimFluentTitlebar() {
   }
 }
 
-function isNavActive(item: (typeof SIDE_NAV_ITEMS)[number]) {
+function isNavActive(item: SideNavItem) {
   return isSideNavActive(item, route.path);
 }
 

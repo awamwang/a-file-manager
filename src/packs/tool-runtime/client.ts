@@ -131,6 +131,33 @@ export function parseCapabilityList(payload: unknown): RuntimeCapability[] {
   return rows;
 }
 
+export type ManagedBinding = {
+  /** 该 pack 是否经 feed 安装并处于托管模式（启用时由 feed entry 决定）。 */
+  managed: boolean;
+  /** 托管模式下 feed 声明的本机探活地址（网关地址权威，UI 只读）。 */
+  baseUrl: string;
+};
+
+type ManagedDependencyRecord = {
+  id: string;
+  packId: string;
+  mode: string;
+  baseUrl: string;
+};
+
+/** 读取 tool-runtime pack 的托管绑定（mode + feed baseUrl）；不可达/无记录按非托管。 */
+export async function getManagedBinding(
+  packId = "awam.tool-runtime",
+): Promise<ManagedBinding> {
+  try {
+    const records = await invoke<ManagedDependencyRecord[]>("managed_dependency_list");
+    const rec = records.find((r) => r.id === packId || r.packId === packId);
+    return { managed: rec?.mode === "managed", baseUrl: rec?.baseUrl ?? "" };
+  } catch {
+    return { managed: false, baseUrl: "" };
+  }
+}
+
 export function getConfig(): Promise<ToolRuntimeConfig> {
   return invoke<ToolRuntimeConfig>("tool_runtime_get_config");
 }

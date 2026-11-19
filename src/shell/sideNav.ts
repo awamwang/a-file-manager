@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /** Primary side-nav model — kept out of AppShell to shrink chrome surface. */
 
+import { shallowRef } from "vue";
 import { AI_ADDON_ENABLED } from "../config/flavor.ts";
 import { NAV_ICON_BY_ID, type FluentGlyphId } from "../components/icons/glyphs.ts";
 import { getSideNavExtras } from "../state/featurePack/contributions.ts";
@@ -40,8 +41,8 @@ function builtinNavOrder(id: string): number {
   return index < 0 ? 0 : index * 10;
 }
 
-/** 内置侧栏；hydrate 后含已启用 Feature Pack 贡献。 */
-export const SIDE_NAV_ITEMS: SideNavItem[] = [...builtinSideNavItems()];
+/** 内置侧栏；hydrate 后含已启用 Feature Pack 贡献。响应式：整体赋值触发侧栏重渲染，无需 remount。 */
+export const SIDE_NAV_ITEMS = shallowRef<SideNavItem[]>([...builtinSideNavItems()]);
 
 /** 按 `order` 合并 Pack 侧栏贡献，同 id 保留内置项。 */
 export function applyFeaturePackSideNav(): void {
@@ -56,7 +57,7 @@ export function applyFeaturePackSideNav(): void {
     })),
   ];
   ranked.sort((a, b) => a.order - b.order || a.item.id.localeCompare(b.item.id));
-  SIDE_NAV_ITEMS.splice(0, SIDE_NAV_ITEMS.length, ...ranked.map((entry) => entry.item));
+  SIDE_NAV_ITEMS.value = ranked.map((entry) => entry.item);
 }
 
 export function sideNavIcon(id: string): FluentGlyphId {
