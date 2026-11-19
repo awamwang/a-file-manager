@@ -26,6 +26,7 @@ pub fn placeholder_sidecar_contribution() -> SidecarContribution {
         ],
         working_dir_rel: Some("sidecar".to_string()),
         runtime: SidecarRuntime::Self_,
+        env: Default::default(),
     }
 }
 
@@ -282,6 +283,7 @@ pub(crate) fn spawn_sidecar_process(
     let mut cmd = win_process::command(&exe);
     cmd.args(&argv)
         .current_dir(&cwd)
+        .envs(&contrib.env)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
@@ -322,6 +324,7 @@ mod tests {
             ],
             working_dir_rel: Some("sidecar".to_string()),
             runtime: SidecarRuntime::Self_,
+            env: Default::default(),
         }
     }
 
@@ -462,6 +465,13 @@ mod tests {
     }
 
     #[test]
+    fn sidecar_env_defaults_empty_when_absent_in_manifest() {
+        let json = r#"{"id":"x","command":"tool.exe","args":[],"runtime":"self"}"#;
+        let c: SidecarContribution = serde_json::from_str(json).unwrap();
+        assert!(c.env.is_empty(), "env 向后兼容：旧清单缺字段=空");
+    }
+
+    #[test]
     fn runtime_self_passthrough_command_as_argv0() {
         let c = SidecarContribution {
             id: "x".into(),
@@ -469,6 +479,7 @@ mod tests {
             args: vec!["http".into()],
             working_dir_rel: None,
             runtime: SidecarRuntime::Self_,
+            env: Default::default(),
         };
         let (exe, argv) = resolve_spawn_command(&c);
         assert_eq!(exe, "tool.exe");
@@ -483,6 +494,7 @@ mod tests {
             args: vec!["--transport".into(), "http".into()],
             working_dir_rel: None,
             runtime: SidecarRuntime::Shared(SharedRuntime::Python),
+            env: Default::default(),
         };
         let (exe, argv) = resolve_spawn_command(&c);
         assert_eq!(exe, crate::platform::python_command());
@@ -500,6 +512,7 @@ mod tests {
             args: vec![],
             working_dir_rel: None,
             runtime: SidecarRuntime::Shared(SharedRuntime::Node),
+            env: Default::default(),
         };
         let (exe, argv) = resolve_spawn_command(&c);
         assert_eq!(exe, "node");

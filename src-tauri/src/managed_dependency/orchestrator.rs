@@ -92,6 +92,7 @@ mod tests {
             args: vec!["server.py".to_string()],
             working_dir_rel: Some("sidecar".to_string()),
             runtime: Default::default(),
+            env: Default::default(),
         }
     }
 

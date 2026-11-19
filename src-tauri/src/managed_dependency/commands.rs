@@ -8,6 +8,7 @@ use super::provision;
 use super::registry::{self, DependencyMode, HealthState, ManagedDependencyRecord};
 use super::store;
 use crate::extension_host::types::SidecarContribution;
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
@@ -59,6 +60,32 @@ where
     record.spawned_pid = None;
     record.health = HealthState::Unhealthy;
     Ok(())
+}
+
+/// 解析 sidecar env 值里的 `${afm:settings:<key>}` 占位（从 AFM 设置读，密钥不写进 pack.json、
+/// 不进 record/磁盘、不进日志）。非占位值原样返回。`lookup` 注入便于离线单测。
+pub(crate) fn resolve_env_value<F>(raw: &str, mut lookup: F) -> String
+where
+    F: FnMut(&str) -> String,
+{
+    const PREFIX: &str = "${afm:settings:";
+    if let Some(rest) = raw.strip_prefix(PREFIX) {
+        if let Some(key) = rest.strip_suffix('}') {
+            return lookup(key.trim());
+        }
+    }
+    raw.to_string()
+}
+
+/// 就地把 contrib.env 中的占位用 AFM 设置解析。仅在有 env 时访问设置。
+fn expand_contrib_env(contrib: &mut SidecarContribution, app: &AppHandle) {
+    if contrib.env.is_empty() {
+        return;
+    }
+    let env: &mut BTreeMap<String, String> = &mut contrib.env;
+    for value in env.values_mut() {
+        *value = resolve_env_value(value, |key| crate::settings::read_string_setting(app, key));
+    }
 }
 
 /// ensure 的公共前置：按 `record.pack_id` 解析启用 pack + 其 sidecar 贡献（1:1 校验）。
@@ -206,7 +233,8 @@ pub async fn managed_dependency_ensure(app: AppHandle, id: String) -> Result<Man
             return Ok(record);
         }
         let (pack_install_dir, contrib) = resolve_pack_sidecar(&record)?;
-        let contrib = prepare_contrib_for_spawn(&dir, &mut record, &pack_install_dir, contrib)?;
+        let mut contrib = prepare_contrib_for_spawn(&dir, &mut record, &pack_install_dir, contrib)?;
+        expand_contrib_env(&mut contrib, &app);
         ensure_record_with(&mut record, &pack_install_dir, &contrib, probe, native_spawn)?;
         registry::save_record(&dir, &record)?;
         Ok(record)
@@ -254,6 +282,7 @@ pub async fn managed_dependency_upgrade(
         record.available_version = String::new();
         let mut contrib = contrib;
         contrib.command = path.to_string_lossy().into_owned();
+        expand_contrib_env(&mut contrib, &app);
         ensure_record_with(&mut record, &pack_install_dir, &contrib, probe, native_spawn)?;
         registry::save_record(&dir, &record)?;
         Ok(record)
@@ -359,7 +388,7 @@ pub async fn managed_dependency_check_all_updates(
 /// 启动时恢复托管服务（ADR 0022 / 选项 A）：对所有 `Managed` 记录逐个 ensure
 /// （probe→附着，或 provision 产物+spawn）。已运行的服务会被附着而非重复拉起。
 /// 尽力而为——单条失败只记录、不影响其它、不阻断启动。应在 spawn_blocking 后台线程调用。
-pub fn reconcile_managed_on_startup(app_data: &Path) {
+pub fn reconcile_managed_on_startup(app_data: &Path, app: &AppHandle) {
     let records = match registry::list_records(app_data) {
         Ok(records) => records,
         Err(err) => {
@@ -373,7 +402,8 @@ pub fn reconcile_managed_on_startup(app_data: &Path) {
         }
         let outcome = (|| -> Result<(), String> {
             let (pack_install_dir, contrib) = resolve_pack_sidecar(&record)?;
-            let contrib = prepare_contrib_for_spawn(app_data, &mut record, &pack_install_dir, contrib)?;
+            let mut contrib = prepare_contrib_for_spawn(app_data, &mut record, &pack_install_dir, contrib)?;
+            expand_contrib_env(&mut contrib, app);
             ensure_record_with(&mut record, &pack_install_dir, &contrib, probe, native_spawn)?;
             registry::save_record(app_data, &record)
         })();
@@ -404,6 +434,7 @@ mod tests {
             args: vec!["http".to_string()],
             working_dir_rel: None,
             runtime: Default::default(),
+            env: Default::default(),
         }
     }
 
@@ -488,5 +519,21 @@ mod tests {
         let mut absent = record("http://x");
         apply_feed_check(&mut absent, &entry("0.2.0"), provision::OfflineArtifactStatus { present: false, up_to_date: false });
         assert_eq!(absent.available_version, "0.2.0", "absent artifact is an installable update target");
+    }
+
+    #[test]
+    fn resolve_env_value_expands_setting_placeholder() {
+        let got = resolve_env_value("${afm:settings:power.awamKnowledgeServiceToken}", |k| {
+            assert_eq!(k, "power.awamKnowledgeServiceToken");
+            "secret-123".to_string()
+        });
+        assert_eq!(got, "secret-123");
+    }
+
+    #[test]
+    fn resolve_env_value_passthrough_without_lookup() {
+        assert_eq!(resolve_env_value("plain-value", |_| panic!("must not look up")), "plain-value");
+        // 前缀不匹配 / 缺尾 `}` 都原样返回。
+        assert_eq!(resolve_env_value("${afm:settings:x", |_| panic!("no lookup")), "${afm:settings:x");
     }
 }

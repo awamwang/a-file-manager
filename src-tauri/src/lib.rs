@@ -262,9 +262,10 @@ pub fn run() {
             // fire-and-forget，不阻断启动；已在运行的服务会被附着而非重复拉起。
             // 先纯读检查更新（清单只拉一次、刷新「有可用更新」标记），再恢复服务（拉起会下载缺失产物）。
             if let Ok(dir) = app.path().app_config_dir() {
+                let app_for_reconcile = app.handle().clone();
                 tauri::async_runtime::spawn_blocking(move || {
                     let _ = managed_dependency::commands::check_updates(&dir);
-                    managed_dependency::commands::reconcile_managed_on_startup(&dir);
+                    managed_dependency::commands::reconcile_managed_on_startup(&dir, &app_for_reconcile);
                 });
             }
 

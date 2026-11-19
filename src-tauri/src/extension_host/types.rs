@@ -117,6 +117,10 @@ pub struct SidecarContribution {
     /// 运行时档（默认 `self`，向后兼容无此字段的旧清单）。
     #[serde(default)]
     pub runtime: SidecarRuntime,
+    /// 静态环境变量（ADR 0022 / M4-A）。spawn 时注入子进程环境。
+    /// 值可含 `${afm:settings:<key>}` 占位，由托管命令层从 AFM 设置解析（密钥不落 pack.json）。
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub env: std::collections::BTreeMap<String, String>,
 }
 
 /// 搜索面板静态条目贡献项；聚合时宿主写入 `packId` / `packName`（清单内声明无效）。
