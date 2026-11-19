@@ -131,6 +131,18 @@ awam-file 与 tool-manager 同为自有 Python 后端，可复用同一条 in-tr
 - **前端** `ExtensionsView`：删「示例扩展」区 / 「Marketplace」卡 / 「FS provider 钩子」区 / `DEMO_MANIFEST` / `installDemo`/`runHello`/`setEnabled`/`uninstall`；status 卡简化为 pack 计数。i18n 旧键（demoTitle/marketplace/fsHooks 等）保留但不再引用（不影响 parity）。
 - **验证**：`cargo test --lib` 453 passed、`vue-tsc` 0、`check-i18n` parity 1431×5。至此"三套扩展机制"对外只剩 **Feature Pack** 一种能力扩展单元（AI Add-on / Open tools 仍按 C-1 归外部托管面，不抢"扩展"词）。
 
+## 落地记录：awam-knowledge 转 Python + 成 managed pack（M1–M4，2026-11-20）
+
+按「knowledge 主分支转 Python、Node 存 `archive/node`、脱敏管道后续再合」推进。逐字移植 + Node↔Python 等价校验：
+
+- **M1** bm25 内核（`awam_knowledge/bm25.py`）：tokenize（CJK bigram `[一-鿿]` + ascii `[a-z0-9_]{2,}` + stemAscii）/BM25(k1=1.2,b=0.75)/rank/search 逐字移植。`tests/parity` 跑**现有 Node 模块 vs Python**：分词精确、score<1e-9、排序一致、`.km/` 排除一致，stem 开关两模式全过。
+- **M2a** `fs_util`/`store`/`index_root`：原子写/JSONL/单写者锁、state 快照+日志回放+running→interrupted+审计、索引根**禁用真源守卫**。`tests/storage_check.py` 全绿。
+- **M2c** `http_service`（stdlib `http.server`，端口 **18790**）：`/health`+`/search`(含 `dedup=file`、refs 提取、root/index)+`/doc`(边界/2MiB)+`/vault/*`(未配置 503、reveal entry 正则/unlock confirm 先校验)。移植 Node http-server selftest **28 项全过** → 与 AFM `knowledge_service.rs` 完全同契约。
+- **M4-A**（AFM 侧）：`SidecarContribution.env` 注入 + `${afm:settings:KEY}` 从 AFM 设置解析（密钥不落 pack.json/不持久化/不进日志），落地原 P1-4 seam。
+- **M4-B**：`__main__`/console 入口 → **PyInstaller onefile 实测端到端**：冻结 exe 启服 `/health` ok、`/search` 返回 AFM 期望形状、`/doc`、无 token fail-fast 退码 2、缺 Bearer 401 全过；`packs/knowledge/pack.json`（sidecar env 注入 `KM_SERVICE_TOKEN`）；feed 现含 tool-runtime/file-gateway/knowledge 的 entries+packs。
+
+**仍待**：① **M2d mcp-server**（9 工具，面向 AI Agent，非 AFM 搜索面板所需）；② **M2b import-md-dir + eval-recall**（离线建索引 + 全语料召回回归 oracle；serve 路径经 `build_corpus` 直读 .md，不阻塞对接）；③ **M3 脱敏管道融合**（用户明确后续再做）；④ 合并仓 push 前跑 **awam-code-publish preflight**。knowledge Node 版保存于 `archive/node`。
+
 ## Consequences
 
 - ADR 0019 的白名单/元清单/SHA-from-GitHub 全套下载逻辑不再作为 managed-mode 的唯一前提；managed 改为 AFM 自产产物。`store.rs`（allow-list + 下载 + SHA-256 摘要校验）由「待接线」升为 managed **主路径**：经 `feed::fetch_manifest` 取 AFM 自有元清单、`provision::ensure_artifact` 按需下载校验落盘（见上「B-正式」落地记录）；config-mode 仍可连用户自跑实例不经此路。
