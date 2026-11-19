@@ -24,7 +24,14 @@ Rust 后端底座已实现并通过全量 `cargo test --lib`（420 passed / 0 fa
 - ✅ Task 4 `managed_dependency/credential.rs`（注入式解析）+ `managed_dependency/compat.rs`（`ensure_declared_version_compat`，用 `versionCompat` 语义）
 - ✅ Task 3+4 集成胶 `managed_dependency/provision.rs` — `provision_artifact`：门→allow-list→下载→校验→落盘（门/主机不过时**绝不发起 fetch**）
 
-⏳ 未完成：Task 5 的 IPC 命令接线、`deps_probe` 投影改造、Vue UI、`managedDep.*` × 5 locale i18n、JS 门禁；Task 6 e2e 与复制到 knowledge/tool-manager；Task 0 跨仓 release 产物（外部依赖）。新增符号目前 `#[allow(dead_code/unused_imports)]`，Task 5 接线后移除。
+⏳ 未完成：Task 0 跨仓 release 产物（awam-file 打包 job + 元清单远端）；Task 6 e2e 与复制到 knowledge/tool-manager。
+
+✅ Task 5 全部完成（2026-11-19，提交 e3b8ac8 / ba2ed43 / c57d727）：
+- 后端接线：host 启用/卸载/启动加载三处 1:1 钩子（窄条件 + 尽力而为）+ 启动 `prune_orphans`；IPC `managed_dependency_list/ensure/stop`（内核注入式单测；stop 只 kill 自启 pid）。
+- D 一次性投影（按用户决策）：`DependencyItem` 增 `mode/actionable/unavailableReason`；`projection.rs` 注册表为权威覆写，无记录依赖维持纯探测（config-mode 支撑现状等 pack 化）；注册表读失败仅告警。
+- B+E 前端：HealthView 来源标签 + 启停按钮（动作后重拉健康）；`both` 隐身启动入口；`managedDep.*` 独立命名空间 ×5 locale。
+- 验证：`cargo test --lib` 430 passed / 0 failed；`check-i18n` 1415 keys ×5 locale parity OK；`vue-tsc --noEmit` 0 错；`check-deps-surface` OK。
+- 待 Task 5 接线后移除的 `#[allow(dead_code/unused_imports)]`：store 的真网络函数仍预留（前端商店入口未做），其余已消费。
 
 ---
 
