@@ -1,0 +1,22 @@
+{
+  "id": "awam.file-gateway",
+  "name": "awam 资源网关",
+  "version": "0.1.0",
+  "apiVersion": "feature-pack.1",
+  "description": "统一 awam:// 资源网关（MCP + localhost HTTP，默认 18787）后端。managed 模式由 AFM 集成方自构建的 awam-resource-gateway 单文件产物（runtime:self）提供，enable→provision→spawn；现有 config-mode（providers/gateway）作为连用户自跑实例的附着兜底，二者共用 127.0.0.1:18787、互不冲突。见 ADR 0022 / 0013。",
+  "permissions": ["network", "spawnSidecar"],
+  "gatewayCompat": { "minVersion": "0.1.0", "maxVersion": "1.0.0" },
+  "contributions": {
+    "sideNav": [],
+    "routes": [],
+    "commands": [],
+    "sidecars": [{
+      "id": "awam-resource-gateway",
+      "command": "awam-resource-gateway.exe",
+      "args": ["http"],
+      "workingDirRel": "sidecar",
+      "runtime": "self"
+    }],
+    "search": []
+  }
+}
