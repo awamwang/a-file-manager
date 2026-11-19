@@ -861,6 +861,7 @@
     "gatewayOffline": "Passerelle awam-file hors ligne — fournisseurs intégrés (rclone). Les favoris navigateur nécessitent la passerelle. Démarrez-la, ou changez l’URL ci-dessous (défaut http://127.0.0.1:18787).",
     "gatewayOnline": "Passerelle awam-file en ligne — {count} backends via {url}",
     "gatewayUrlLabel": "URL de la passerelle",
+    "gatewayEditHint": "Modifier dans Réglages → Extensions",
     "gatewayUrlPlaceholder": "http://127.0.0.1:18787",
     "gatewayUrlSave": "Enregistrer et reconnecter",
     "gatewayUrlSaving": "Enregistrement…",
@@ -1139,6 +1140,14 @@
     "sectionHealth": "Santé",
     "sectionSearch": "Recherche",
     "sectionShortcuts": "Raccourcis",
+    "sectionExtensions": "Extensions",
+    "extensions": {
+      "title": "Services backend gérés",
+      "meta": "Paramètres de connexion des backends gérés par AFM (passerelle awam-file, awam-knowledge). Quand le pack correspondant est activé en mode géré, l'adresse est en lecture seule (dérivée par AFM) ; en mode config, elle est modifiable. Le jeton knowledge est le secret partagé qu'AFM utilise pour s'authentifier et alimenter le service lancé.",
+      "managedReadonly": "Géré par un pack activé — adresse fixe et en lecture seule.",
+      "save": "Enregistrer la configuration",
+      "saved": "Paramètres des services backend enregistrés"
+    },
     "search": {
       "paletteTitle": "Palette de recherche",
       "paletteMeta": "Ctrl+Shift+P ouvre la palette — l’entrée quotidienne pour commandes, fichiers, projets, etc. Les défauts ci-dessous s’appliquent à la prochaine ouverture.",

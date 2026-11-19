@@ -623,6 +623,14 @@
     "sectionHealth": "健康",
     "sectionSearch": "搜索",
     "sectionShortcuts": "快捷键",
+    "sectionExtensions": "扩展能力",
+    "extensions": {
+      "title": "托管后端服务",
+      "meta": "AFM 托管后端服务的连接配置（awam-file 网关、awam-knowledge）。对应 pack 以托管模式启用时地址只读（由 AFM 派生）；config 模式可编辑。知识令牌是 AFM 鉴权并注入被拉起服务的共享密钥。",
+      "managedReadonly": "由已启用的托管 pack 管理——地址固定且只读。",
+      "save": "保存配置",
+      "saved": "后端服务设置已保存"
+    },
     "search": {
       "paletteTitle": "搜索面板",
       "paletteMeta": "Ctrl+Shift+P 打开搜索面板——日常检索入口（命令、文件、项目等）。下列默认值在下次打开面板时生效。",
@@ -1016,6 +1024,7 @@
     "gatewayOnline": "awam-file 网关在线 — 经 {url} 发现 {count} 个后端",
     "gatewayOffline": "awam-file 网关离线 — 显示内置提供方（rclone）。浏览器书签需网关在线。请启动网关，或在下方修改网关地址（默认 http://127.0.0.1:18787）。",
     "gatewayUrlLabel": "网关地址",
+    "gatewayEditHint": "在设置 → 扩展能力 中编辑",
     "gatewayUrlPlaceholder": "http://127.0.0.1:18787",
     "gatewayUrlSave": "保存并重连",
     "gatewayUrlSaving": "保存中…",

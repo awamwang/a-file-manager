@@ -21,11 +21,7 @@ import {
 } from "../state/providerCache";
 import { navigateTo } from "../state/navigatorBrowse";
 import { openProviderEntry, PROVIDER_ROOT } from "../state/provider";
-import {
-  hydrateSettings,
-  rememberSettingsDocument,
-  type SettingsDocument,
-} from "../state/settingsHydrate";
+import { hydrateSettings } from "../state/settingsHydrate";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -87,27 +83,6 @@ async function loadGatewayUrlFromSettings() {
   }
   if (gateway.value?.baseUrl) {
     gatewayUrlDraft.value = gateway.value.baseUrl;
-  }
-}
-
-/** 保存网关地址到设置并重新发现后端。 */
-async function saveGatewayUrl() {
-  const next = normalizeGatewayUrlInput(gatewayUrlDraft.value) || DEFAULT_GATEWAY_URL;
-  gatewayUrlDraft.value = next;
-  gatewayUrlSaving.value = true;
-  error.value = null;
-  try {
-    const doc = await invoke<SettingsDocument>("settings_set", {
-      patch: { [GATEWAY_URL_SETTING_KEY]: next },
-    });
-    rememberSettingsDocument(doc);
-    await refreshProviderSession();
-    uri.value = PROVIDER_ROOT;
-    listing.value = providerRootListing.value;
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : String(err);
-  } finally {
-    gatewayUrlSaving.value = false;
   }
 }
 
@@ -236,26 +211,10 @@ onMounted(() => {
       }}</span>
     </p>
 
-    <form class="uri-row gateway-row" data-tour-id="tour-providers-gateway" @submit.prevent="saveGatewayUrl">
-      <label class="gateway-label" for="providers-gateway-url">{{
-        t("providers.gatewayUrlLabel")
-      }}</label>
-      <input
-        id="providers-gateway-url"
-        v-model="gatewayUrlDraft"
-        class="fluent-control"
-        type="url"
-        spellcheck="false"
-        autocomplete="off"
-        :placeholder="t('providers.gatewayUrlPlaceholder')"
-      />
-      <button
-        class="fluent-control fluent-control--accent"
-        type="submit"
-        :disabled="gatewayUrlSaving"
-      >
-        {{ gatewayUrlSaving ? t("providers.gatewayUrlSaving") : t("providers.gatewayUrlSave") }}
-      </button>
+    <div class="uri-row gateway-row" data-tour-id="tour-providers-gateway">
+      <span class="gateway-label">{{ t("providers.gatewayUrlLabel") }}</span>
+      <code class="gateway-url-readonly">{{ gatewayUrlDraft }}</code>
+      <span class="gateway-edit-hint">{{ t("providers.gatewayEditHint") }}</span>
       <button
         class="fluent-control gateway-refresh"
         data-tour-id="tour-providers-refresh"
@@ -268,7 +227,7 @@ onMounted(() => {
         <FluentIcon name="refresh" size="sm" />
         {{ refreshing ? t("providers.refreshing") : t("providers.refresh") }}
       </button>
-    </form>
+    </div>
 
     <p v-if="!backends.length" class="fluent-banner fluent-banner--info">
       {{ t("providers.emptyBackends") }}

@@ -60,6 +60,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import("../views/SettingsView.vue"),
   },
   {
+    path: "/settings/extensions",
+    name: "settings-extensions",
+    component: () => import("../views/SettingsView.vue"),
+  },
+  {
     path: "/settings/shortcuts",
     name: "settings-shortcuts",
     component: () => import("../views/SettingsView.vue"),

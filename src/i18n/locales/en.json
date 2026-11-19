@@ -623,6 +623,14 @@
     "sectionHealth": "Health",
     "sectionSearch": "Search",
     "sectionShortcuts": "Shortcuts",
+    "sectionExtensions": "Extensions",
+    "extensions": {
+      "title": "Managed backend services",
+      "meta": "Connection settings for the AFM-managed backend services (awam-file gateway, awam-knowledge). When the corresponding pack is enabled in managed mode, the address is read-only (derived by AFM); in config mode you may edit it. The knowledge token is the shared secret AFM uses to authenticate and to seed the spawned service.",
+      "managedReadonly": "Managed by an enabled pack — address is fixed and read-only.",
+      "save": "Save configuration",
+      "saved": "Backend service settings saved"
+    },
     "search": {
       "paletteTitle": "Search Palette",
       "paletteMeta": "Ctrl+Shift+P opens the Search Palette — the everyday entry for commands, files, projects, and more. Defaults below apply the next time you open it.",
@@ -1016,6 +1024,7 @@
     "gatewayOnline": "awam-file gateway online — {count} backends via {url}",
     "gatewayOffline": "awam-file gateway offline — showing built-in providers (rclone). Browser bookmarks need the gateway. Start it, or change the URL below (default http://127.0.0.1:18787).",
     "gatewayUrlLabel": "Gateway URL",
+    "gatewayEditHint": "Edit in Settings → Extensions",
     "gatewayUrlPlaceholder": "http://127.0.0.1:18787",
     "gatewayUrlSave": "Save & reconnect",
     "gatewayUrlSaving": "Saving…",

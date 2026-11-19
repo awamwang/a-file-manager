@@ -861,6 +861,7 @@
     "gatewayOffline": "awam-file ゲートウェイオフライン — 内蔵プロバイダ（rclone）を表示。ブラウザブックマークにはゲートウェイが必要です。起動するか、下の URL を変更（既定 http://127.0.0.1:18787）。",
     "gatewayOnline": "awam-file ゲートウェイオンライン — {url} 経由で {count} バックエンド",
     "gatewayUrlLabel": "ゲートウェイ URL",
+    "gatewayEditHint": "設定 → 拡張機能 で編集",
     "gatewayUrlPlaceholder": "http://127.0.0.1:18787",
     "gatewayUrlSave": "保存して再接続",
     "gatewayUrlSaving": "保存中…",
@@ -1139,6 +1140,14 @@
     "sectionHealth": "ヘルス",
     "sectionSearch": "検索",
     "sectionShortcuts": "ショートカット",
+    "sectionExtensions": "拡張機能",
+    "extensions": {
+      "title": "管理されたバックエンドサービス",
+      "meta": "AFM 管理バックエンド（awam-file ゲートウェイ、awam-knowledge）の接続設定。対応パックを管理モードで有効化するとアドレスは読み取り専用（AFM が導出）。config モードでは編集可。knowledge トークンは AFM の認証と起動サービスへの注入に使う共有秘密です。",
+      "managedReadonly": "有効化された管理パックが制御 — アドレスは固定で読み取り専用。",
+      "save": "設定を保存",
+      "saved": "バックエンド設定を保存しました"
+    },
     "search": {
       "paletteTitle": "検索パレット",
       "paletteMeta": "Ctrl+Shift+P で検索パレットを開きます（コマンド・ファイル・プロジェクトなどの日常入口）。以下の既定値は次回開いたときに適用されます。",
