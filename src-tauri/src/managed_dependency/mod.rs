@@ -12,6 +12,7 @@ pub mod compat;
 pub mod credential;
 pub mod orchestrator;
 pub mod provision;
+pub mod projection;
 pub mod registry;
 pub mod store;
 

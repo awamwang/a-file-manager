@@ -24,6 +24,15 @@ pub struct DependencyItem {
     pub detail: String,
     /// 建议处理方式。
     pub fix: String,
+    /// 托管投影（Q9a/一次性投影）：该依赖的解析模式 config|managed；未 pack 化依赖为 None。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode: Option<String>,
+    /// 是否可操作（注册表有记录 → true，Health 页渲染启停按钮）。
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub actionable: bool,
+    /// 双失败态归因（Q18）：configOnly | managedOnly | both；未失败为 None。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unavailable_reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -58,6 +67,9 @@ fn item(
         title: title.into(),
         detail: detail.into(),
         fix: fix.into(),
+        mode: None,
+        actionable: false,
+        unavailable_reason: None,
     }
 }
 
@@ -534,8 +546,32 @@ pub fn probe_dependencies() -> DependencyReport {
 }
 
 #[tauri::command]
-pub fn deps_probe_get() -> DependencyReport {
-    probe_dependencies()
+pub fn deps_probe_get(app: tauri::AppHandle) -> DependencyReport {
+    use tauri::Manager;
+    let mut report = probe_dependencies();
+    // 一次性投影（Q9a/D 决策）：注册表有记录 → 注册表权威覆写；无记录/读失败 → 纯探测结果。
+    if let Ok(dir) = app.path().app_config_dir() {
+        crate::managed_dependency::projection::enrich_with_registry(&mut report.items, &dir);
+        recompute_counts(&mut report);
+    }
+    report
+}
+
+/// 投影可能覆写 status，计数须以投影后结果重算。
+fn recompute_counts(report: &mut DependencyReport) {
+    let missing_required = report
+        .items
+        .iter()
+        .filter(|i| i.kind == "required" && i.status != "ok")
+        .count();
+    let missing_optional = report
+        .items
+        .iter()
+        .filter(|i| i.kind == "optional" && i.status == "missing")
+        .count();
+    report.missing_required = missing_required;
+    report.missing_optional = missing_optional;
+    report.required_ok = missing_required == 0;
 }
 
 #[cfg(test)]
