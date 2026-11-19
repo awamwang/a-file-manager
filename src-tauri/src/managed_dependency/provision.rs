@@ -221,7 +221,7 @@ mod tests {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let port = listener.local_addr().unwrap().port();
         let manifest_text = format!(
-            r#"{{"schema":1,"entries":[{{"packId":"awam.tool-runtime","artifactVersion":"0.1.0","assetUrl":"http://127.0.0.1:{port}/artifacts/awam-tool-manager.exe","sha256":"{digest}","fileName":"awam-tool-manager.exe","baseUrl":"http://127.0.0.1:8766"}}]}}"#
+            r#"{{"schema":1,"entries":[{{"packId":"awam.tool-runtime","artifactVersion":"0.1.0","assetUrl":"http://127.0.0.1:{port}/artifacts/awam-tool-manager.exe","sha256":"{digest}","fileName":"awam-tool-manager.exe","baseUrl":"http://127.0.0.1:18778"}}]}}"#
         );
         let manifest_clone = manifest_text.clone();
         let artifact_clone = artifact.clone();

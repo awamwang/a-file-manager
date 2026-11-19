@@ -96,14 +96,15 @@ def build(args: argparse.Namespace) -> int:
         "fileName": exe.name,
         "baseUrl": args.base_probe_url,
     }
-    manifest = {"schema": 1, "entries": [entry]}
+    manifest = {"schema": 1, "entries": [entry], "packs": []}
     manifest_path = out / "manifest.json"
-    # 若已有其它 pack 条目，合并（按 packId 去重后覆盖本条）。
+    # 合并：entries 按 packId 去重覆盖本条；packs（可安装列表）整段保留。
     if manifest_path.exists():
         try:
             existing = json.loads(manifest_path.read_text(encoding="utf-8"))
             others = [e for e in existing.get("entries", []) if e.get("packId") != args.pack_id]
             manifest["entries"] = others + [entry]
+            manifest["packs"] = existing.get("packs", [])
         except Exception:
             pass
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
@@ -189,7 +190,7 @@ def main() -> int:
     b.add_argument("--version", required=True)
     b.add_argument("--out", required=True, help="feed output dir")
     b.add_argument("--base-feed-url", default="http://127.0.0.1:8078")
-    b.add_argument("--base-probe-url", default="http://127.0.0.1:8766",
+    b.add_argument("--base-probe-url", default="http://127.0.0.1:18778",
                    help="AFM probe/attach base url written to the manifest entry")
     b.add_argument("--python", default=sys.executable, help="interpreter with PyInstaller + deps")
     b.set_defaults(fn=build)

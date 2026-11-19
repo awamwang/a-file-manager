@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 
 /// 占位 sidecar 贡献。真实启动命令以 awam-tool-manager README 为准：`python server.py`（stdio MCP）。
-/// HTTP sidecar（计划中的 `--transport http` / 端口 8766）尚未写入该 README，故此处不写死仓库路径。
+/// HTTP sidecar（计划中的 `--transport http` / 端口 18778）尚未写入该 README，故此处不写死仓库路径。
 pub fn placeholder_sidecar_contribution() -> SidecarContribution {
     SidecarContribution {
         id: "awam-tool-manager".to_string(),
@@ -439,7 +439,7 @@ mod tests {
         );
         assert_eq!(
             crate::tool_runtime::DEFAULT_BASE_URL,
-            "http://127.0.0.1:8766"
+            "http://127.0.0.1:18778"
         );
     }
 

@@ -34,7 +34,7 @@ const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 
-const DEFAULT_BASE_URL = "http://127.0.0.1:8766";
+const DEFAULT_BASE_URL = "http://127.0.0.1:18778";
 
 const status = ref<GatewayStatus | null>(null);
 const tools = ref<RuntimeTool[]>([]);

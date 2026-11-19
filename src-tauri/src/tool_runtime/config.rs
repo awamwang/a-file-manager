@@ -10,7 +10,7 @@ pub const TOOL_RUNTIME_PACK_ID: &str = "awam.tool-runtime";
 
 pub const CONFIG_FILE_NAME: &str = "config.json";
 
-pub const DEFAULT_BASE_URL: &str = "http://127.0.0.1:8766";
+pub const DEFAULT_BASE_URL: &str = "http://127.0.0.1:18778";
 
 fn default_base_url() -> String {
     DEFAULT_BASE_URL.to_string()

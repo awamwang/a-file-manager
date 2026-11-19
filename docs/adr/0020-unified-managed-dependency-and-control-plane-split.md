@@ -28,7 +28,7 @@
 | 依赖 | 运行时 | 版本约束 | 常驻服务? | 端口 | 鉴权 |
 |---|---|---|---|---|---|
 | awam-file | Python | ≥3.11，`mcp>=2.0` | ✅ | 18787 | 无 |
-| awam-tool-manager | Python | `mcp>=1.29,<2.0`（2.x 起不来）| ✅ | 8766/mcp | Bearer token，`/health` 免鉴权 |
+| awam-tool-manager | Python | `mcp>=1.29,<2.0`（2.x 起不来）| ✅ | 18778/mcp | Bearer token，`/health` 免鉴权 |
 | awam-knowledge | **Node** | ≥18，**零依赖** | ✅ | HTTP（配置 URL/token）| token |
 | knowledge-desensitization | Python | 3.10+ | ❌ 批处理 | — | — |
 

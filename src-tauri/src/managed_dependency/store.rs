@@ -39,7 +39,7 @@ pub struct StoreEntry {
     /// 可选：产物文件名（缺省从 URL 末段推断）。
     #[serde(default)]
     pub file_name: Option<String>,
-    /// managed 拉起后 AFM 探活/附着该实例的本机地址（如 `http://127.0.0.1:8766`）。
+    /// managed 拉起后 AFM 探活/附着该实例的本机地址（如 `http://127.0.0.1:18778`）。
     /// 缺省空表示该 pack 无固定本机探活地址（仅 config-mode 用户提供）。
     #[serde(default)]
     pub base_url: String,
@@ -267,7 +267,7 @@ mod tests {
         assert!(is_host_allowed("ftp://github.com/x", &allow).is_err());
         assert!(!is_host_allowed("http://127.0.0.1:18787/a", &allow).unwrap());
         let with_local = vec!["127.0.0.1".to_string()];
-        assert!(is_host_allowed("http://127.0.0.1:8766/a", &with_local).unwrap());
+        assert!(is_host_allowed("http://127.0.0.1:18778/a", &with_local).unwrap());
     }
 
     #[test]

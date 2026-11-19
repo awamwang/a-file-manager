@@ -123,7 +123,7 @@ mod tests {
                 "assetUrl": "https://feed.afm.local/tool-manager/awam-tool-manager.exe",
                 "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
                 "fileName": "awam-tool-manager.exe",
-                "baseUrl": "http://127.0.0.1:8766"
+                "baseUrl": "http://127.0.0.1:18778"
             }
         ]
     }"#;
@@ -157,7 +157,7 @@ mod tests {
         .expect("manifest");
         let binding = resolve_managed_binding(Some(&m), "awam.tool-runtime").expect("binding");
         assert_eq!(binding.declared_version, "0.1.0");
-        assert_eq!(binding.base_url, "http://127.0.0.1:8766");
+        assert_eq!(binding.base_url, "http://127.0.0.1:18778");
         assert_eq!(resolve_managed_binding(Some(&m), "awam.knowledge"), None);
     }
 
