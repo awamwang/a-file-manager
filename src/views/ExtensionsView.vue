@@ -7,8 +7,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { openConfirmDialog } from "../state/confirmDialog";
 import { openPromptDialog } from "../state/promptDialog";
 import { toastInfo, toastSuccess } from "../state/toast";
-import { reloadWindow } from "../state/uiReload";
-import { hydrateFeaturePackContributions } from "../state/featurePack/contributions";
+import { reloadContributions } from "../state/uiReload";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 
 const { t } = useI18n();
@@ -160,7 +159,7 @@ async function installFromFeed(item: InstallablePack) {
     }
     toastSuccess(t("extensions.noticePackInstalled", { id: result.pack?.id ?? "" }));
     await refresh();
-    await hydrateFeaturePackContributions();
+    await reloadContributions();
   } catch (err) {
     error.value = invokeErrorMessage(err);
   } finally {
@@ -248,8 +247,8 @@ async function installPackFromLocalPath() {
       t("extensions.noticePackInstalled", { id: result.pack?.id ?? "" }),
     );
     await refresh();
-    // 贡献可能变化：增量 hydrate 侧栏/路由/命令（响应式，无整窗 remount 抖动）。
-    await hydrateFeaturePackContributions();
+    // 贡献可能变化：增量重取贡献 + 路由回退（响应式，无整窗 remount 抖动）。
+    await reloadContributions();
   } catch (err) {
     error.value = invokeErrorMessage(err);
   } finally {
@@ -269,9 +268,9 @@ async function setPackEnabled(id: string, enabled: boolean) {
         : t("extensions.noticePackDisabled", { id }),
     );
     await refresh();
+    // 增量重取贡献 + 路由回退（响应式，无整窗 remount，避免启用/禁用闪烁）。
+    await reloadContributions();
     if (enabled) {
-      // 启用：增量 hydrate 贡献（响应式侧栏/路由/命令），避免整窗 remount 抖动。
-      await hydrateFeaturePackContributions();
       // 托管 pack 启用即拉起服务：provision 产物 + spawn。config-mode/无产物由后端 no-op。
       try {
         await invoke("managed_dependency_ensure", { id });
@@ -279,9 +278,6 @@ async function setPackEnabled(id: string, enabled: boolean) {
         // 启用已成功，仅服务暂不可达（如 feed 不可达）：提示可稍后在工具页重试。
         toastInfo(t("extensions.noticePackEnsureDeferred", { error: invokeErrorMessage(err) }));
       }
-    } else {
-      // 禁用：可能移除当前所在路由，走 Soft Reload 含回退，避免空白。
-      await reloadWindow();
     }
   } catch (err) {
     error.value = invokeErrorMessage(err);
@@ -314,8 +310,8 @@ async function uninstallPack(pack: InstalledPack) {
     await invoke("extension_host_uninstall_pack", { id: pack.id });
     toastSuccess(t("extensions.noticePackUninstalled", { id: pack.id }));
     await refresh();
-    // 卸载后清除侧栏/路由贡献。
-    await reloadWindow();
+    // 卸载后增量重取贡献（侧栏/路由/命令），无整窗 remount。
+    await reloadContributions();
   } catch (err) {
     error.value = invokeErrorMessage(err);
   } finally {

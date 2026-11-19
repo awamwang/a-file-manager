@@ -160,6 +160,14 @@ fn effective_base_url(cfg: &ToolRuntimeConfig, record: &ManagedDependencyRecord)
     cfg.base_url.clone()
 }
 
+/// 跨命令统一的「当前生效网关地址」：managed→feed 写入的 `record.base_url`，否则→`ToolRuntimeConfig.base_url`。
+/// status / mcp 调用 / ensure 都走它，避免 config 残留地址与 feed 权威漂移。
+pub(crate) fn effective_base_url_for(app_data: &Path) -> String {
+    let cfg = load_config(app_data);
+    let record = tool_runtime_record(app_data);
+    effective_base_url(&cfg, &record)
+}
+
 /// 取/建 tool-runtime pack 的托管记录（C-4：进程态唯一权威，`record.id = pack id`）。
 /// 启用时 `register_for_enabled_pack` 尽力建记录；缺失时这里就地兜底建一条空记录，
 /// 保证 ensure/spawn 有处持久化 `spawned_pid`。
@@ -509,5 +517,29 @@ mod tests {
             r#"{"id":"s","command":"server.py","args":[],"runtime":{"shared":"python"}}"#;
         let parsed: SidecarContribution = serde_json::from_str(shared).unwrap();
         assert_eq!(parsed.runtime, SidecarRuntime::Shared(SharedRuntime::Python));
+    }
+
+    #[test]
+    fn effective_base_url_prefers_feed_record_when_managed() {
+        let cfg = ToolRuntimeConfig {
+            base_url: "http://127.0.0.1:18777".into(),
+            ..Default::default()
+        };
+        let mut rec = ManagedDependencyRecord {
+            id: "awam.tool-runtime".into(),
+            pack_id: "awam.tool-runtime".into(),
+            base_url: "http://127.0.0.1:18778".into(),
+            ..Default::default()
+        };
+        // managed → 以 feed 写入的 record.base_url 为权威，忽略可编辑的 config 残留。
+        rec.mode = DependencyMode::Managed;
+        assert_eq!(effective_base_url(&cfg, &rec), "http://127.0.0.1:18778");
+        // config-mode → 用 ToolRuntimeConfig.base_url。
+        rec.mode = DependencyMode::Config;
+        assert_eq!(effective_base_url(&cfg, &rec), "http://127.0.0.1:18777");
+        // managed 但 record 无地址 → 回退 config（不误探空地址）。
+        rec.mode = DependencyMode::Managed;
+        rec.base_url = String::new();
+        assert_eq!(effective_base_url(&cfg, &rec), "http://127.0.0.1:18777");
     }
 }

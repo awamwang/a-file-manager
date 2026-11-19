@@ -82,7 +82,7 @@ pub async fn tool_runtime_gateway_status(app: AppHandle) -> GatewayStatus {
     tauri::async_runtime::spawn_blocking(move || {
         let base_url = dir
             .as_deref()
-            .map(gateway::load_base_url)
+            .map(sidecar::effective_base_url_for)
             .unwrap_or_else(|| DEFAULT_BASE_URL.to_string());
         query_gateway_status(&base_url)
     })
@@ -174,7 +174,7 @@ where
 {
     require_pack_enabled(sidecar::find_tool_runtime_pack().as_ref())?;
     sidecar::ensure_gateway(app_data)?;
-    let base_url = gateway::load_base_url(app_data);
+    let base_url = sidecar::effective_base_url_for(app_data);
     let health_version = gateway::health_check(&base_url)
         .ok()
         .and_then(|ok| ok.version);

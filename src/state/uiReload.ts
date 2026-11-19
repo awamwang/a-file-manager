@@ -67,3 +67,25 @@ export async function reloadWindow(): Promise<void> {
 export function shellRemountKeyForTests(): number {
   return shellRemountKey.value;
 }
+
+/**
+ * 仅重取 Feature Pack 贡献并做路由回退，**不** remount 整个 shell。
+ * 用于安装/启用/禁用/卸载后同步侧栏/路由/命令——贡献已是响应式，无需整窗重载，避免闪烁抖动。
+ */
+export async function reloadContributions(): Promise<void> {
+  try {
+    await hydrateFeaturePackContributions();
+  } catch {
+    // IPC 不可用时保留上次贡献。
+  }
+  // 当前路径可能因禁用/卸载其所属 Pack 而失效 → 回退扩展页，避免空白（不 remount）。
+  try {
+    const { default: router } = await import("../router/index.ts");
+    const path = router.currentRoute.value.path;
+    if (router.resolve(path).matched.length === 0) {
+      await router.replace("/extensions");
+    }
+  } catch {
+    // 路由不可用时忽略。
+  }
+}

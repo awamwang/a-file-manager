@@ -161,6 +161,7 @@ pub fn query_gateway_status(base_url: &str) -> GatewayStatus {
     }
 }
 
+#[allow(dead_code)] // 生产改走 sidecar::effective_base_url_for（managed→record 权威）；保留供 config 回退与测试。
 pub(crate) fn load_base_url(app_data_dir: &Path) -> String {
     let path = super::config::config_file_path(app_data_dir);
     if !path.exists() {
