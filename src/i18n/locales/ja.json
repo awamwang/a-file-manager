@@ -600,6 +600,10 @@
     "noticePackEnsureDeferred": "有効化しましたが、マネージド サービスはまだ起動していません: {error}。ツールランタイム ページで再試行してください。",
     "noticePackDisabled": "{id} を無効にしました。サイドナビを更新しました。",
     "noticePackUninstalled": "{id} をアンインストールしました。サイドナビを更新しました。",
+    "packUpgradeAvailable": "利用可能な更新 → v{to}",
+    "upgradePack": "アップグレード",
+    "upgradingPack": "アップグレード中…",
+    "noticePackUpgraded": "{id} の管理アーティファクトをアップグレードしました。",
     "reloadHint": "Pack の有効/無効切替でサイドナビとルートが自動更新されます。",
     "demoTitle": "サンプル拡張",
     "demoMeta": "メモリ上のデモホスト — Feature Pack とは別です。ストアではありません。"

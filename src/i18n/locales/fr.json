@@ -600,6 +600,10 @@
     "noticePackEnsureDeferred": "Activé, mais le service géré n’a pas encore démarré : {error}. Réessayez depuis la page Exécution d’outils.",
     "noticePackDisabled": "{id} désactivé. Barre latérale mise à jour.",
     "noticePackUninstalled": "{id} désinstallé. Barre latérale mise à jour.",
+    "packUpgradeAvailable": "Mise à jour disponible → v{to}",
+    "upgradePack": "Mettre à niveau",
+    "upgradingPack": "Mise à niveau…",
+    "noticePackUpgraded": "Artefact géré de {id} mis à niveau.",
     "reloadHint": "Activer ou désactiver un pack actualise automatiquement la barre latérale et les routes.",
     "demoTitle": "Extensions d'exemple",
     "demoMeta": "Hôte démo en mémoire — distinct des Feature Packs. Pas une boutique."

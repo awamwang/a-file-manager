@@ -370,6 +370,7 @@ pub fn run() {
                     managed_dependency::commands::managed_dependency_list,
                     managed_dependency::commands::managed_dependency_ensure,
                     managed_dependency::commands::managed_dependency_stop,
+                    managed_dependency::commands::managed_dependency_upgrade,
                     managed_dependency::commands::managed_dependency_set_feed,
                     managed_dependency::commands::managed_dependency_get_feed,
                     providers::provider_list,

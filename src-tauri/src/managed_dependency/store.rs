@@ -133,6 +133,15 @@ pub fn verify_sha256(bytes: &[u8], expected_hex: &str) -> bool {
     hex::encode(digest).eq_ignore_ascii_case(expected_hex.trim())
 }
 
+/// 计算磁盘文件 SHA-256（小写十六进制）。用于与 feed entry 的 `sha256` 比对，判断已落盘产物
+/// 是否即 feed 声明的那一版（一致=最新；不一致=有可用升级，见 provision::ensure_artifact）。
+pub fn file_sha256(path: &std::path::Path) -> Result<String, String> {
+    let bytes = std::fs::read(path).map_err(|e| format!("store read file for sha ({path:?}): {e}"))?;
+    let mut hasher = Sha256::new();
+    hasher.update(&bytes);
+    Ok(hex::encode(hasher.finalize()))
+}
+
 /// 从 URL 末段推断文件名（剥离查询串）。
 pub fn file_name_from_url(url: &str) -> String {
     let path = url.split(['?', '#']).next().unwrap_or(url);
@@ -278,6 +287,23 @@ mod tests {
             "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
         ));
         assert!(!verify_sha256(b"x", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"));
+    }
+
+    #[test]
+    fn file_sha256_matches_written_bytes() {
+        let dir = std::env::temp_dir().join(format!("afm-store-fsha-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let p = materialize(&dir, "empty.exe", b"").unwrap();
+        assert_eq!(
+            file_sha256(&p).unwrap(),
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+        materialize(&dir, "empty.exe", b"changed").unwrap();
+        assert_ne!(
+            file_sha256(&p).unwrap(),
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

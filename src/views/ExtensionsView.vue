@@ -79,6 +79,17 @@ type InstallablePack = {
   installedVersion: string | null;
 };
 
+type ManagedDep = {
+  id: string;
+  packId: string;
+  mode: string;
+  health: string;
+  spawnedPid: number | null;
+  declaredVersion: string;
+  installedVersion: string;
+  availableVersion: string;
+};
+
 const status = ref<ExtensionHostStatus | null>(null);
 const catalog = ref<MarketplaceCatalog | null>(null);
 const installed = ref<InstalledExtension[]>([]);
@@ -90,6 +101,9 @@ const loadedOnce = ref(false);
 const packBusy = ref(false);
 const installable = ref<InstallablePack[]>([]);
 const feedError = ref<string | null>(null);
+// packId → 托管记录（取 mode / installedVersion / availableVersion，渲染「升级可用」）。
+const managed = ref<Record<string, ManagedDep>>({});
+const upgrading = ref<Record<string, boolean>>({});
 
 const DEMO_MANIFEST = {
   id: "demo.ext",
@@ -122,6 +136,7 @@ async function refresh() {
     installed.value = await invoke<InstalledExtension[]>("extension_host_list_installed");
     packs.value = await invoke<InstalledPack[]>("extension_host_list_packs");
     hooks.value = await invoke<FsHook[]>("extension_host_list_fs_provider_hooks");
+    await loadManaged();
     if (catalog.value.fetchesRemote || status.value.fetchesRemote) {
       error.value = t("extensions.errorRemoteFetch");
     }
@@ -142,6 +157,39 @@ async function loadInstallable() {
   } catch (err) {
     installable.value = [];
     feedError.value = invokeErrorMessage(err);
+  }
+}
+
+/** 拉取托管记录（权威态）。失败不污染主错误：无记录即不显示升级入口。 */
+async function loadManaged() {
+  try {
+    const records = await invoke<ManagedDep[]>("managed_dependency_list");
+    const map: Record<string, ManagedDep> = {};
+    for (const r of records) map[r.packId] = r;
+    managed.value = map;
+  } catch {
+    managed.value = {};
+  }
+}
+
+/** 该 pack 是否有可用升级：托管模式 + feed 声明了比盘上更新的产物（availableVersion 非空）。 */
+function upgradeAvailable(packId: string): ManagedDep | null {
+  const rec = managed.value[packId];
+  return rec && rec.mode === "managed" && rec.availableVersion ? rec : null;
+}
+
+/** 手动升级：停旧进程 → 重下产物替换 → 重新拉起（后端保证非静默）。 */
+async function upgradePack(packId: string) {
+  upgrading.value = { ...upgrading.value, [packId]: true };
+  error.value = null;
+  try {
+    await invoke("managed_dependency_upgrade", { id: packId });
+    toastSuccess(t("extensions.noticePackUpgraded", { id: packId }));
+    await refresh();
+  } catch (err) {
+    error.value = invokeErrorMessage(err);
+  } finally {
+    upgrading.value = { ...upgrading.value, [packId]: false };
   }
 }
 
@@ -369,6 +417,10 @@ onMounted(() => {
                 'fluent-chip--down': pack.state === 'crashed',
               }"
             >{{ packStateLabel(pack.state) }}</span>
+            <span
+              v-if="upgradeAvailable(pack.id)"
+              class="fluent-chip fluent-chip--warn state-chip"
+            >{{ t("extensions.packUpgradeAvailable", { to: upgradeAvailable(pack.id)?.availableVersion }) }}</span>
             <p class="fluent-page-meta" :title="pack.installPath">{{ pack.installPath }}</p>
             <p v-if="pack.lastError" class="fluent-banner fluent-banner--error inline">
               {{ pack.lastError }}
@@ -385,6 +437,13 @@ onMounted(() => {
               />
               <span>{{ t("extensions.packEnable") }}</span>
             </label>
+            <button
+              v-if="upgradeAvailable(pack.id)"
+              class="fluent-control fluent-control--accent"
+              type="button"
+              :disabled="packBusy || upgrading[pack.id] === true"
+              @click="upgradePack(pack.id)"
+            >{{ upgrading[pack.id] ? t("extensions.upgradingPack") : t("extensions.upgradePack") }}</button>
             <button
               class="fluent-control"
               type="button"

@@ -37,7 +37,10 @@ pub use store::{
     parse_manifest, verify_sha256, PackEntry, StoreEntry, StoreManifest,
 };
 #[allow(unused_imports)]
-pub use provision::{artifact_file_name, provision_artifact, ARTIFACT_SUBDIR};
+pub use provision::{
+    artifact_file_name, ensure_artifact, force_provision, provision_artifact, ArtifactState,
+    ARTIFACT_SUBDIR, DEFAULT_SIDECAR_DIR,
+};
 #[allow(unused_imports)]
 pub use registry::{
     delete_record, list_records, load_record, prune_orphans, record_path, records_root,

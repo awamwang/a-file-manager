@@ -78,12 +78,14 @@ fn resolve_pack_sidecar(record: &ManagedDependencyRecord) -> Result<(PathBuf, Si
 
 /// managed 拉起前准备 sidecar 贡献（ADR 0022 接线）：
 /// - 非 `Managed` → 原样返回（产物随 pack 内置 / 用户 config 连接，无需 feed 下载）。
-/// - `Managed` → 读 feed 元清单找本 pack entry；命中且本地产物缺失则下载校验落盘，并把
-///   `contrib.command` 改写为落盘产物绝对路径（`runtime:self` 档用之作 argv0）。
-///   元清单不可达 / 未配置 / 无 entry → 原样返回（尽力而为，不误伤已有产物；前端据 mode 展示 managed）。
+/// - `Managed` → 读 feed 元清单找本 pack entry；命中则据 [`provision::ensure_artifact`]：
+///   - 产物缺失 → 下载校验落盘；产物已在且 sha 相符 → `up_to_date`；已在但 sha 不符 → 标记「有可用升级」。
+///   - 三种情况都把 `contrib.command` 改写为盘上产物路径继续拉起；**sha 不符绝不静默替换**，只把
+///     `record.available_version` 置为 feed 声明版本，交用户手动 [`managed_dependency_upgrade`]。
+///   元清单不可达 / 未配置 / 无 entry → 原样返回（尽力而为，不误伤已有产物）。
 fn prepare_contrib_for_spawn(
     app_data: &Path,
-    record: &ManagedDependencyRecord,
+    record: &mut ManagedDependencyRecord,
     pack_install_dir: &Path,
     mut contrib: SidecarContribution,
 ) -> Result<SidecarContribution, String> {
@@ -103,8 +105,18 @@ fn prepare_contrib_for_spawn(
         contrib.working_dir_rel.as_deref(),
         store::http_get_bytes,
     )? {
-        Some(path) => {
-            contrib.command = path.to_string_lossy().into_owned();
+        Some(state) => {
+            contrib.command = state.path.to_string_lossy().into_owned();
+            // 升级标记（仅当 feed 声明了本 pack 的产物 entry）。
+            if let Some(entry) = entry {
+                if state.up_to_date {
+                    record.installed_version = entry.artifact_version.clone();
+                    record.available_version = String::new();
+                } else {
+                    // 磁盘产物落后于 feed：不替换，仅标记可用升级版本供前端提示。
+                    record.available_version = entry.artifact_version.clone();
+                }
+            }
             Ok(contrib)
         }
         None => Ok(contrib),
@@ -189,13 +201,60 @@ pub async fn managed_dependency_ensure(app: AppHandle, id: String) -> Result<Man
             return Ok(record);
         }
         let (pack_install_dir, contrib) = resolve_pack_sidecar(&record)?;
-        let contrib = prepare_contrib_for_spawn(&dir, &record, &pack_install_dir, contrib)?;
+        let contrib = prepare_contrib_for_spawn(&dir, &mut record, &pack_install_dir, contrib)?;
         ensure_record_with(&mut record, &pack_install_dir, &contrib, probe, native_spawn)?;
         registry::save_record(&dir, &record)?;
         Ok(record)
     })
     .await
     .map_err(|err| format!("managed_dependency_ensure worker failed: {err}"))?
+}
+
+/// 手动升级托管产物（ADR 0022「非静默升级」）。仅当 `record.available_version` 非空（ensure 检出磁盘
+/// 产物落后于 feed）时由用户点击触发。流程：**停旧进程 → 从 feed 强制重下校验替换产物 → 重新拉起**。
+/// 停旧是必需：Windows 上运行中的 exe 无法被原子 rename 覆盖，先 `stop_self_spawned` 释放文件锁。
+#[tauri::command]
+pub async fn managed_dependency_upgrade(
+    app: AppHandle,
+    id: String,
+) -> Result<ManagedDependencyRecord, String> {
+    let dir = app_config_dir(&app)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut record = registry::load_record(&dir, &id)?
+            .ok_or_else(|| format!("managed_dependency upgrade: unknown id '{id}'"))?;
+        if record.mode != DependencyMode::Managed {
+            return Err(format!("managed_dependency upgrade: '{id}' is not managed"));
+        }
+        let (pack_install_dir, contrib) = resolve_pack_sidecar(&record)?;
+        let feed_cfg = feed::load_feed(&dir);
+        let manifest = feed::fetch_manifest(&feed_cfg, store::fetch_manifest_text)?
+            .ok_or_else(|| "managed_dependency upgrade: feed not configured".to_string())?;
+        let entry = store::find_entry(&manifest, &record.pack_id)
+            .ok_or_else(|| format!("managed_dependency upgrade: no feed entry for '{}'", record.pack_id))?
+            .clone();
+        // 1. 停旧（仅自启 pid）；附着/未拉起时 pid 为 None，跳过。
+        if record.spawned_pid.is_some() {
+            stop_record_with(&mut record, |pid| crate::win_process::kill_process_tree(pid))?;
+        }
+        // 2. 强制重下 + 校验 + 原子替换落盘。
+        let path = provision::force_provision(
+            &entry,
+            &feed_cfg.allow_hosts,
+            &pack_install_dir,
+            contrib.working_dir_rel.as_deref(),
+            store::http_get_bytes,
+        )?;
+        // 3. 更新版本标记（升级完成 → 无可用升级），再用新产物重新拉起。
+        record.installed_version = entry.artifact_version.clone();
+        record.available_version = String::new();
+        let mut contrib = contrib;
+        contrib.command = path.to_string_lossy().into_owned();
+        ensure_record_with(&mut record, &pack_install_dir, &contrib, probe, native_spawn)?;
+        registry::save_record(&dir, &record)?;
+        Ok(record)
+    })
+    .await
+    .map_err(|err| format!("managed_dependency_upgrade worker failed: {err}"))?
 }
 
 /// 启动时恢复托管服务（ADR 0022 / 选项 A）：对所有 `Managed` 记录逐个 ensure
@@ -215,7 +274,7 @@ pub fn reconcile_managed_on_startup(app_data: &Path) {
         }
         let outcome = (|| -> Result<(), String> {
             let (pack_install_dir, contrib) = resolve_pack_sidecar(&record)?;
-            let contrib = prepare_contrib_for_spawn(app_data, &record, &pack_install_dir, contrib)?;
+            let contrib = prepare_contrib_for_spawn(app_data, &mut record, &pack_install_dir, contrib)?;
             ensure_record_with(&mut record, &pack_install_dir, &contrib, probe, native_spawn)?;
             registry::save_record(app_data, &record)
         })();

@@ -600,6 +600,10 @@
     "noticePackEnsureDeferred": "Aktiviert, aber der verwaltete Dienst wurde noch nicht gestartet: {error}. Erneut auf der Tool-Runtime-Seite versuchen.",
     "noticePackDisabled": "{id} deaktiviert. Seitenleiste aktualisiert.",
     "noticePackUninstalled": "{id} deinstalliert. Seitenleiste aktualisiert.",
+    "packUpgradeAvailable": "Update verfügbar → v{to}",
+    "upgradePack": "Aktualisieren",
+    "upgradingPack": "Aktualisierung…",
+    "noticePackUpgraded": "Verwaltetes Artefakt für {id} aktualisiert.",
     "reloadHint": "Aktivieren oder Deaktivieren eines Packs aktualisiert Seitenleiste und Routen automatisch.",
     "demoTitle": "Beispielerweiterungen",
     "demoMeta": "In-Memory-Demo-Host — getrennt von Feature Packs. Kein Store."

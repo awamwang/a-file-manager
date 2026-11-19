@@ -75,6 +75,13 @@ pub struct ManagedDependencyRecord {
     /// 元清单为本次产物声明的版本，供声明版兼容门（Q15=a / Q19）。
     #[serde(default)]
     pub declared_version: String,
+    /// 已落盘产物的版本（provision 或手动升级成功后写入）。与 `available_version` 配合展示「当前 → 可用」。
+    #[serde(default)]
+    pub installed_version: String,
+    /// feed 声明了比磁盘产物更新的版本（ensure 时磁盘 sha ≠ entry sha）→ 置为该版本号；**空=无可用升级**。
+    /// 由 ensure / 启动恢复计算，**不静默替换**产物；用户点「升级」触发 `managed_dependency_upgrade` 后清空（ADR 0022）。
+    #[serde(default)]
+    pub available_version: String,
 }
 
 fn default_mode() -> DependencyMode {
@@ -96,6 +103,8 @@ impl Default for ManagedDependencyRecord {
             spawned_pid: None,
             health: default_health(),
             declared_version: String::new(),
+            installed_version: String::new(),
+            available_version: String::new(),
         }
     }
 }
@@ -213,6 +222,8 @@ pub fn register_for_enabled_pack(
         spawned_pid: None,
         health: default_health(),
         declared_version,
+        installed_version: String::new(),
+        available_version: String::new(),
     };
     save_record(app_data_dir, &record)?;
     Ok(record)
