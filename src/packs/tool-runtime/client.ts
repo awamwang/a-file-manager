@@ -55,7 +55,6 @@ export type ToolRuntimeConfig = {
   baseUrl: string;
   preferAttach: boolean;
   autoStartSidecar: boolean;
-  lastSidecarPid: number | null;
 };
 
 export function invokeErrorMessage(err: unknown): string {

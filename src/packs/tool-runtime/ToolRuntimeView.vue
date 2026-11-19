@@ -135,7 +135,6 @@ async function saveBaseUrl(): Promise<void> {
     baseUrl: DEFAULT_BASE_URL,
     preferAttach: true,
     autoStartSidecar: false,
-    lastSidecarPid: null,
   };
   savingBaseUrl.value = true;
   error.value = null;

@@ -8,6 +8,7 @@ use crate::extension_host::types::{
     ExtensionPermission, ExtensionRuntimeState, InstalledPackRecord, SharedRuntime,
     SidecarContribution, SidecarRuntime,
 };
+use crate::managed_dependency::registry::{self, ManagedDependencyRecord};
 use crate::win_process;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -69,8 +70,9 @@ pub fn start_sidecar(
 
 /// 可注入探活与 spawn，供单测断言 reachable 时不拉起进程。
 ///
-/// 决策核心已泛化到 `managed_dependency::orchestrator::attach_or_spawn`（Q6/0013）；
-/// 本函数只负责 tool_runtime 特有的 config 读写：读旧配置、附着/拉起、若新起则回写 pid。
+/// 决策核心已泛化到 `managed_dependency::orchestrator::attach_or_spawn`（Q6/0013）。
+/// C-4：进程态唯一权威是 managed_dependency record（`record.id = pack id`），spawn 后
+/// 写回 `record.spawned_pid`；`ToolRuntimeConfig` 退化为连接偏好，不再承载 pid。
 pub fn start_sidecar_with_probe<P, S>(
     app_data: &Path,
     pack_install_dir: &Path,
@@ -83,18 +85,18 @@ where
     S: FnOnce(&Path, &SidecarContribution) -> Result<u32, String>,
 {
     let cfg = load_config(app_data);
+    let mut record = tool_runtime_record(app_data);
     let outcome = crate::managed_dependency::orchestrator::attach_or_spawn(
         &cfg.base_url,
-        cfg.last_sidecar_pid,
+        record.spawned_pid,
         pack_install_dir,
         contrib,
         |url| probe.health_check(url),
         spawn,
     )?;
     if outcome.spawned {
-        let mut cfg = cfg;
-        cfg.last_sidecar_pid = Some(outcome.pid);
-        save_to_path(app_data, &cfg)?;
+        record.spawned_pid = Some(outcome.pid);
+        registry::save_record(app_data, &record)?;
     }
     Ok(outcome.pid)
 }
@@ -114,9 +116,10 @@ where
     S: FnOnce(&Path, &SidecarContribution) -> Result<u32, String>,
 {
     let cfg = load_config(app_data);
+    let record = tool_runtime_record(app_data);
     if probe.health_check(&cfg.base_url).is_ok() {
         return Ok(EnsureGatewayResult {
-            pid: cfg.last_sidecar_pid.unwrap_or(0),
+            pid: record.spawned_pid.unwrap_or(0),
             spawned: false,
             reachable: true,
             detail: "attached".to_string(),
@@ -145,6 +148,20 @@ fn load_config(app_data: &Path) -> ToolRuntimeConfig {
         return ToolRuntimeConfig::default();
     }
     load_from_path(app_data).unwrap_or_default()
+}
+
+/// 取/建 tool-runtime pack 的托管记录（C-4：进程态唯一权威，`record.id = pack id`）。
+/// 启用时 `register_for_enabled_pack` 尽力建记录；缺失时这里就地兜底建一条空记录，
+/// 保证 ensure/spawn 有处持久化 `spawned_pid`。
+fn tool_runtime_record(app_data: &Path) -> ManagedDependencyRecord {
+    registry::load_record(app_data, TOOL_RUNTIME_PACK_ID)
+        .ok()
+        .flatten()
+        .unwrap_or_else(|| ManagedDependencyRecord {
+            id: TOOL_RUNTIME_PACK_ID.to_string(),
+            pack_id: TOOL_RUNTIME_PACK_ID.to_string(),
+            ..Default::default()
+        })
 }
 
 pub(crate) fn find_tool_runtime_pack() -> Option<InstalledPackRecord> {
@@ -290,9 +307,13 @@ mod tests {
     }
 
     fn write_last_pid(app_data: &Path, pid: u32) {
-        let mut cfg = ToolRuntimeConfig::default();
-        cfg.last_sidecar_pid = Some(pid);
-        save_to_path(app_data, &cfg).unwrap();
+        let mut record = ManagedDependencyRecord {
+            id: TOOL_RUNTIME_PACK_ID.to_string(),
+            pack_id: TOOL_RUNTIME_PACK_ID.to_string(),
+            ..Default::default()
+        };
+        record.spawned_pid = Some(pid);
+        registry::save_record(app_data, &record).unwrap();
     }
 
     #[test]
@@ -339,8 +360,10 @@ mod tests {
         .unwrap();
         assert!(spawned.get());
         assert_eq!(pid, 42);
-        let loaded = load_from_path(app.path()).unwrap();
-        assert_eq!(loaded.last_sidecar_pid, Some(42));
+        let record = registry::load_record(app.path(), TOOL_RUNTIME_PACK_ID)
+            .unwrap()
+            .expect("record written on spawn");
+        assert_eq!(record.spawned_pid, Some(42));
     }
 
     #[test]

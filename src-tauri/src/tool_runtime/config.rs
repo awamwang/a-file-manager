@@ -30,8 +30,6 @@ pub struct ToolRuntimeConfig {
     pub prefer_attach: bool,
     #[serde(default)]
     pub auto_start_sidecar: bool,
-    #[serde(default)]
-    pub last_sidecar_pid: Option<u32>,
 }
 
 impl Default for ToolRuntimeConfig {
@@ -40,7 +38,6 @@ impl Default for ToolRuntimeConfig {
             base_url: default_base_url(),
             prefer_attach: default_prefer_attach(),
             auto_start_sidecar: false,
-            last_sidecar_pid: None,
         }
     }
 }
