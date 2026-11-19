@@ -110,6 +110,18 @@ awam-file 与 tool-manager 同为自有 Python 后端，可复用同一条 in-tr
 - **managed/config 共存（按建议）**：pack 为 managed 权威（enable→feed entry→spawn 18787）；现有 `providers/gateway` config-mode 作为连用户自跑实例的兜底，二者共用 18787、不改 providers、互不冲突。
 - **仍待（P0-2 余项）**：file UI 表面沿用现有 awam:// 资源/Providers（pack 本身 sidecar-only，无新内置视图）；真机在装好 AFM 里「装→启用→managed spawn」端到端手测。
 
+## 落地记录：CI 发布链 GitHub 主源 + OSS 回落（P2-5，2026-11-19）
+
+`build_pack_feed.py` 加 `--url-layout flat|subdir`：flat 产 GitHub Release 扁平资产 URL（`<base>/<name>`，对应 `…/releases/download/<tag>/<name>`），subdir 维持本地 http feed 的 `artifacts/`·`packs/` 布局（默认不变）。`release.yml` 新增 `build-pack-feed` job：
+
+- `actions/checkout` 带 `submodules: recursive` → 用 `upstream/awam-*` 锁定源码 in-tree 构建。
+- 按各仓 lockfile 装依赖（tool-manager `requirements.lock`、file `requirements.txt` + PyInstaller/typer/rich），产 tool-runtime + file-gateway 两个 onefile + 两个 pack 安装包 + `manifest.json`，flat URL 指向本 release。
+- **主源**：产物/安装包/manifest 经 `gh release upload` 挂到本次 GitHub Release。
+- **回落源**：`Mirror feed to object storage` 步骤**按 `OSS_*` secrets opt-in**（未配则跳过，单源仍完整可用），用 rclone 兼容 S3/OSS/MinIO；启用回落时把 AFM feed `fallbackManifestUrl` + OSS 主机 `allowHosts` 指镜像。
+- 安全兜底：finalize 已把 `build-pack-feed` 纳入依赖校验，任一失败 → 留 draft，不发坏 release。
+- **验证边界**：脚本 flat 输出 + release.yml YAML 解析已在本地校验；**整链需打 tag 触发真实 release 跑一次验证**（PyInstaller-in-CI、submodule 拉取、资产 URL 可达性）——属 P2-9 真机/CI 验证。
+- **仍待（P2-5 余项）**：① macOS/Linux onefile 产物需对应 runner + **按 OS 的 `manifest.<os>.json`** 与 feed 里按 OS 选 manifestUrl（现仅产 Windows）；② OSS bucket/endpoint/region/密钥具体配置（用户提供后填入 secrets）；③ 可选产物签名（Authenticode）。
+
 ## 落地记录：移除遗留 vNext 扩展宿主（候选1 / C-2，2026-11-19）
 
 兑现 C-2 拍板「删 vNext 宿主、仅保留 permission 枚举」——把"能力扩展唯一单元 = Feature Pack"落到代码，消除四套里的最后一套遗留：

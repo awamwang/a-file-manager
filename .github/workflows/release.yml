@@ -549,8 +549,123 @@ jobs:
           fi
           gh release upload "${{ needs.prepare.outputs.tag }}" "${files[@]}" --clobber
 
+  # P2-5 / ADR0022：AFM 作为集成方，从 upstream/ submodule 源码 in-tree 构建 managed 后端
+  # 产物（PyInstaller onefile），产 feed manifest，并把产物 + manifest 作为本 GitHub Release
+  # 的资产发布（**主源**）；配了 OSS_* secrets 时额外镜像一份到对象存储（**回落源**）。
+  # 仅 Windows 产物；macOS/Linux runner + 按 OS 的 manifest.<os>.json 为后续扩展（见 runbook §3）。
+  # 说明：本 job 失败时 finalize 会因「依赖未全部 success/skipped」而保留 draft，不会发布坏 release。
+  build-pack-feed:
+    needs: prepare
+    if: needs.prepare.outputs.want_feature_pack == 'true'
+    runs-on: windows-latest
+    env:
+      TAG: ${{ needs.prepare.outputs.tag }}
+      # 主源：GitHub Release 扁平资产下载 URL 基址（feed manifest 的 assetUrl/installUrl 用 flat 布局指这里）。
+      GH_FEED_BASE: https://github.com/${{ github.repository }}/releases/download/${{ needs.prepare.outputs.tag }}
+    steps:
+      - name: Checkout (含 submodule 源码)
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend build deps (from lockfiles)
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv venv .venv-feed --python 3.12
+          PY=.venv-feed/Scripts/python.exe
+          # tool-manager 用全 pin 的 requirements.lock；awam-file 用 pyproject/requirements + 冻结/分析工具。
+          uv pip install --python "$PY" -r upstream/awam-tool-manager/requirements.lock
+          uv pip install --python "$PY" -r upstream/awam-file/requirements.txt
+          uv pip install --python "$PY" PyInstaller typer rich
+          echo "PY_ABS=$PWD/.venv-feed/Scripts/python.exe" >> "$GITHUB_ENV"
+
+      - name: Build managed backend artifacts + feed manifest (GitHub Release URLs)
+        shell: bash
+        run: |
+          set -euo pipefail
+          FEED="$(mktemp -d)"
+          echo "FEED_DIR=$FEED" >> "$GITHUB_ENV"
+          VER_TOOL="$(node -p "require('./packs/tool-runtime/pack.json').version")"
+          VER_FILE="$(node -p "require('./packs/file-gateway/pack.json').version")"
+          # tool-runtime（扁平 server.py 入口）
+          "$PY_ABS" scripts/build_pack_feed.py build \
+            --pack-id awam.tool-runtime --name awam-tool-manager \
+            --src upstream/awam-tool-manager --entry src/server.py \
+            --version "$VER_TOOL" --out "$FEED" --url-layout flat \
+            --base-feed-url "$GH_FEED_BASE" --base-probe-url http://127.0.0.1:18778 \
+            --python "$PY_ABS"
+          # file-gateway（包式入口，需 collect 包 + 内嵌 filesystems.html）
+          "$PY_ABS" scripts/build_pack_feed.py build \
+            --pack-id awam.file-gateway --name awam-resource-gateway \
+            --src upstream/awam-file --entry src/awam_resource_gateway/__main__.py \
+            --paths src --collect awam_resource_gateway \
+            --add-data "src/awam_resource_gateway/filesystems.html;awam_resource_gateway" \
+            --version "$VER_FILE" --out "$FEED" --url-layout flat \
+            --base-feed-url "$GH_FEED_BASE" --base-probe-url http://127.0.0.1:18787 \
+            --python "$PY_ABS"
+          # 可安装 pack 安装包（含 pack.json + UI 资源），flat URL 指向本 release 资产。
+          "$PY_ABS" scripts/build_pack_feed.py pack-dir \
+            --pack-id awam.tool-runtime --name "工具管理运行时" --version "$VER_TOOL" \
+            --src packs/tool-runtime --out "$FEED" --url-layout flat --base-feed-url "$GH_FEED_BASE"
+          "$PY_ABS" scripts/build_pack_feed.py pack-dir \
+            --pack-id awam.file-gateway --name "awam 资源网关" --version "$VER_FILE" \
+            --src packs/file-gateway --out "$FEED" --url-layout flat --base-feed-url "$GH_FEED_BASE"
+          echo "=== manifest ==="; cat "$FEED/manifest.json"
+
+      - name: Upload feed artifacts + manifest to GitHub Release (主源)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          # GitHub Release 资产是扁平的：上传时只取 basename，与 manifest 的 flat URL（<base>/<name>）对齐。
+          files=( "$FEED_DIR"/artifacts/* "$FEED_DIR"/packs/* "$FEED_DIR"/manifest.json )
+          if [ ${#files[@]} -eq 0 ]; then echo "no feed files"; exit 1; fi
+          gh release upload "$TAG" "${files[@]}" --clobber
+          echo "Uploaded feed: ${files[*]}"
+
+      # 回落源镜像（可选）：配齐 OSS_* secrets 才执行；缺失则静默跳过（单源 GitHub 仍完整可用）。
+      # OSS 具体配置（bucket/endpoint/region/密钥/前缀）后续接入；此处用 rclone 泛化对象存储。
+      - name: Mirror feed to object storage (回落源，配 OSS_* 才执行)
+        env:
+          OSS_ENDPOINT: ${{ secrets.OSS_ENDPOINT }}
+          OSS_BUCKET: ${{ secrets.OSS_BUCKET }}
+          OSS_REGION: ${{ secrets.OSS_REGION }}
+          OSS_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
+          OSS_SECRET_ACCESS_KEY: ${{ secrets.OSS_SECRET_ACCESS_KEY }}
+          OSS_PREFIX: ${{ secrets.OSS_PREFIX }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${OSS_ENDPOINT:-}" ] || [ -z "${OSS_BUCKET:-}" ] || [ -z "${OSS_ACCESS_KEY_ID:-}" ] || [ -z "${OSS_SECRET_ACCESS_KEY:-}" ]; then
+            echo "OSS_* secrets 未配置 → 跳过对象存储镜像（仅 GitHub Release 主源）"
+            exit 0
+          fi
+          # rclone s3 provider 兼容 OSS/S3/MinIO。前缀默认 release/${TAG}。
+          PREFIX="${OSS_PREFIX:-release/${TAG}}"
+          docker run --rm -e RCLONE_CONFIG_T_ENDPOINT="$OSS_ENDPOINT" \
+            -e RCLONE_CONFIG_T_PROVIDER=Alibaba \
+            -e RCLONE_CONFIG_T_ACCESS_KEY_ID="$OSS_ACCESS_KEY_ID" \
+            -e RCLONE_CONFIG_T_SECRET_ACCESS_KEY="$OSS_SECRET_ACCESS_KEY" \
+            -e RCLONE_CONFIG_T_REGION="${OSS_REGION:-}" \
+            -v "$FEED_DIR:/feed:ro" rclone/rclone \
+            copy /feed "t:${OSS_BUCKET}/${PREFIX}" --max-transfer 2G -vv
+          echo "已镜像到 s3://${OSS_BUCKET}/${PREFIX}"
+          echo "注：启用回落时，把 AFM feed 的 fallbackManifestUrl 与 OSS 主机 allowHost 配到该镜像地址。"
+
   finalize:
-    needs: [prepare, build-app, build-app-macos, build-feature-packs]
+    needs: [prepare, build-app, build-app-macos, build-feature-packs, build-pack-feed]
     if: always() && needs.prepare.result == 'success'
     runs-on: ubuntu-latest
     steps:
@@ -568,16 +683,20 @@ jobs:
           echo "build-app=${{ needs.build-app.result }}"
           echo "build-app-macos=${{ needs.build-app-macos.result }}"
           echo "build-feature-packs=${{ needs.build-feature-packs.result }}"
+          echo "build-pack-feed=${{ needs.build-pack-feed.result }}"
           app="${{ needs.build-app.result }}"
           mac="${{ needs.build-app-macos.result }}"
           fp="${{ needs.build-feature-packs.result }}"
+          feed="${{ needs.build-pack-feed.result }}"
           ok_app=false
           ok_mac=false
           ok_fp=false
+          ok_feed=false
           [[ "$app" == "success" || "$app" == "skipped" ]] && ok_app=true
           [[ "$mac" == "success" || "$mac" == "skipped" ]] && ok_mac=true
           [[ "$fp" == "success" || "$fp" == "skipped" ]] && ok_fp=true
-          if [ "$ok_app" != true ] || [ "$ok_mac" != true ] || [ "$ok_fp" != true ]; then
+          [[ "$feed" == "success" || "$feed" == "skipped" ]] && ok_feed=true
+          if [ "$ok_app" != true ] || [ "$ok_mac" != true ] || [ "$ok_fp" != true ] || [ "$ok_feed" != true ]; then
             echo "One or more build jobs failed; leaving release as draft"
             exit 1
           fi

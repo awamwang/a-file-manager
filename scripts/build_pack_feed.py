@@ -42,6 +42,22 @@ def sha256_of(path: Path) -> str:
     return h.hexdigest()
 
 
+def asset_url(base: str, name: str, layout: str) -> str:
+    """产物/安装包下载 URL。subdir=本地 feed 布局（<base>/artifacts/ 或 <base>/packs/）；
+    flat=GitHub Release 扁平资产（<base>/<name>，对应 .../releases/download/<tag>/<name>）。"""
+    b = base.rstrip("/")
+    if layout == "flat":
+        return f"{b}/{name}"
+    return f"{b}/artifacts/{name}"
+
+
+def pack_url(base: str, name: str, layout: str) -> str:
+    b = base.rstrip("/")
+    if layout == "flat":
+        return f"{b}/{name}"
+    return f"{b}/packs/{name}"
+
+
 def pyinstaller_onefile(src: Path, entry: str, name: str, work: Path, python: str,
                         collect: list[str], paths: list[str], add_data: list[str]) -> Path:
     """用 PyInstaller 把 src/<entry> 冻结成单文件 exe，返回产物路径。
@@ -114,18 +130,20 @@ def build(args: argparse.Namespace) -> int:
         shutil.rmtree(work, ignore_errors=True)
 
     digest = sha256_of(dest)
-    asset_url = f"{args.base_feed_url.rstrip('/')}/artifacts/{exe.name}"
+    layout = getattr(args, "url_layout", "subdir")
+    asset_url_ = asset_url(args.base_feed_url, exe.name, layout)
     entry = {
         "packId": args.pack_id,
         "artifactVersion": args.version,
-        "assetUrl": asset_url,
+        "assetUrl": asset_url_,
         "sha256": digest,
         "fileName": exe.name,
         "baseUrl": args.base_probe_url,
     }
     # 可选：对象存储镜像回落地址（GitHub 主源不可达时同 SHA 下载）。未配则不写、不回落。
-    if getattr(args, "fallback_base_url", ""):
-        entry["assetFallbackUrl"] = f"{args.fallback_base_url.rstrip('/')}/artifacts/{exe.name}"
+    fb = getattr(args, "fallback_base_url", "")
+    if fb:
+        entry["assetFallbackUrl"] = asset_url(fb, exe.name, layout)
     manifest = {"schema": 1, "entries": [entry], "packs": []}
     manifest_path = out / "manifest.json"
     # 合并：entries 按 packId 去重覆盖本条；packs（可安装列表）整段保留。
@@ -165,7 +183,9 @@ def pack_dir(args: argparse.Namespace) -> int:
     zp = out / "packs" / (args.pack_id + ".zip")
     zip_pack_dir(src, zp)
     digest = sha256_of(zp)
-    install_url = f"{args.base_feed_url.rstrip('/')}/packs/{args.pack_id}.zip"
+    layout = getattr(args, "url_layout", "subdir")
+    zip_name = f"{args.pack_id}.zip"
+    install_url = pack_url(args.base_feed_url, zip_name, layout)
     entry = {
         "packId": args.pack_id,
         "name": args.name,
@@ -173,8 +193,9 @@ def pack_dir(args: argparse.Namespace) -> int:
         "installUrl": install_url,
         "sha256": digest,
     }
-    if getattr(args, "fallback_base_url", ""):
-        entry["installFallbackUrl"] = f"{args.fallback_base_url.rstrip('/')}/packs/{args.pack_id}.zip"
+    fb = getattr(args, "fallback_base_url", "")
+    if fb:
+        entry["installFallbackUrl"] = pack_url(fb, zip_name, layout)
     manifest_path = out / "manifest.json"
     manifest: dict = {"schema": 1, "entries": [], "packs": []}
     if manifest_path.exists():
@@ -226,6 +247,8 @@ def main() -> int:
     b.add_argument("--version", required=True)
     b.add_argument("--out", required=True, help="feed output dir")
     b.add_argument("--base-feed-url", default="http://127.0.0.1:8078")
+    b.add_argument("--url-layout", choices=["subdir", "flat"], default="subdir",
+                   help="subdir=<base>/artifacts/.. (本地 http feed)；flat=<base>/.. (GitHub Release 资产)")
     b.add_argument("--base-probe-url", default="http://127.0.0.1:18778",
                    help="AFM probe/attach base url written to the manifest entry")
     b.add_argument("--python", default=sys.executable, help="interpreter with PyInstaller + deps")
@@ -255,6 +278,8 @@ def main() -> int:
     pd.add_argument("--src", required=True, help="pack directory containing pack.json")
     pd.add_argument("--out", required=True, help="feed output dir")
     pd.add_argument("--base-feed-url", default="http://127.0.0.1:8078")
+    pd.add_argument("--url-layout", choices=["subdir", "flat"], default="subdir",
+                    help="subdir=<base>/packs/.. (本地 http feed)；flat=<base>/.. (GitHub Release 资产)")
     pd.add_argument("--fallback-base-url", default="",
                     help="object-storage mirror base for installFallbackUrl (empty = no fallback)")
     pd.set_defaults(fn=pack_dir)

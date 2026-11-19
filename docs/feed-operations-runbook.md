@@ -107,7 +107,7 @@ python scripts/build_pack_feed.py emit-feed-config \
    - `manifestUrl` → `https://<AFM 线上域>/.../manifest.json`
    - `allowHosts` → 加上线上域（manifest 与 asset/install 同域即可，多域则都列）
 3. AFM 无需改代码：feed 拉取/下载/SHA 校验/落盘/spawn/升级全走既有接缝。
-4. （待做，见 §6）把 `build` / `pack-dir` 接进 **AFM CI release job**：按 OS matrix 产产物、算 sha、写 manifest、上传、可选签名。目前脚本只**产文件**，"上传到线上 + 签名"尚未自动化。
+4. **CI 已接（P2-5）**：`release.yml` 的 `build-pack-feed` job 在打 tag 时 `checkout` 带 `submodules: recursive` → 按各仓 lockfile 从 `upstream/awam-*` 源码产 onefile + manifest（flat URL）→ 上传 GitHub Release（主源）；配了 `OSS_*` secrets 再镜像对象存储（回落源），未配则跳过。**当前仅产 Windows 产物**；macOS/Linux 需加 runner + `manifest.<os>.json` 与按 OS 选 manifestUrl（后续）。整链以一次真实 release 运行为准。
 
 ## 3.1 源码来源（submodule）
 
