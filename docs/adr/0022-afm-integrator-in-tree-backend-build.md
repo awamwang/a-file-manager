@@ -98,6 +98,16 @@
 - **待接（后续）**：CI release job 把 `build` 产物同时上传 GitHub Release + OSS 镜像，并写 `fallbackBase*`；OSS bucket/endpoint/密钥由部署侧提供。
 - 验证：`cargo test --lib` 450 passed 无警告（+2 feed +2 store 回落测试；含「不合法源绝不 fetch」「主不可达→镜像」）。
 
+## 落地记录：awam-file managed pack 产物构建跑通（P0-2，2026-11-19）
+
+awam-file 与 tool-manager 同为自有 Python 后端，可复用同一条 in-tree 构建→onefile→feed→managed spawn 路。关键差异与修法：
+
+- **包式入口**：tool-manager 是扁平 `src/server.py`；awam-file 是包 `awam_resource_gateway/__main__.py`（`from awam_resource_gateway.*` + adapters）。`build_pack_feed.py build` 因此加了 `--collect`（→`--collect-all awam_resource_gateway`）、`--paths`（→`--paths src`）、`--add-data` 透传 PyInstaller 参数。
+- **静态资源内嵌**：`http_api.py` 模块期 `Path(__file__).parent/"filesystems.html".read_text()`；仅 `--collect-all` 不收该 .html → frozen 下 `FileNotFoundError`。修复：`--add-data "src/awam_resource_gateway/filesystems.html;awam_resource_gateway"`。
+- **验证（隔离端口 18799，避开用户自跑 18787 实例）**：onefile 产物独立 serve——`/health` `{ok:true,service:awam-resource-gateway}`、`/` filesystems 页 http 200（html 已内嵌）。manifest 现含 `entries: [tool-runtime, file-gateway]`、`packs: [tool-runtime, file-gateway]`（`pack-dir` 产 928B 安装包）。
+- **managed/config 共存（按建议）**：pack 为 managed 权威（enable→feed entry→spawn 18787）；现有 `providers/gateway` config-mode 作为连用户自跑实例的兜底，二者共用 18787、不改 providers、互不冲突。
+- **仍待（P0-2 余项）**：file UI 表面沿用现有 awam:// 资源/Providers（pack 本身 sidecar-only，无新内置视图）；真机在装好 AFM 里「装→启用→managed spawn」端到端手测。
+
 ## 落地记录：移除遗留 vNext 扩展宿主（候选1 / C-2，2026-11-19）
 
 兑现 C-2 拍板「删 vNext 宿主、仅保留 permission 枚举」——把"能力扩展唯一单元 = Feature Pack"落到代码，消除四套里的最后一套遗留：

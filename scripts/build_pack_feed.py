@@ -42,8 +42,14 @@ def sha256_of(path: Path) -> str:
     return h.hexdigest()
 
 
-def pyinstaller_onefile(src: Path, entry: str, name: str, work: Path, python: str) -> Path:
-    """用 PyInstaller 把 src/<entry> 冻结成单文件 exe，返回产物路径。"""
+def pyinstaller_onefile(src: Path, entry: str, name: str, work: Path, python: str,
+                        collect: list[str], paths: list[str], add_data: list[str]) -> Path:
+    """用 PyInstaller 把 src/<entry> 冻结成单文件 exe，返回产物路径。
+
+    collect: 额外 --collect-all 包名（包式后端如 awam_resource_gateway 需带）。
+    paths:   额外 --paths（包式入口需把包根目录加进来，如 <src>/src）。
+    add_data: 额外 --add-data（sep 自动按平台）。
+    """
     entry_path = (src / entry).resolve()
     if not entry_path.exists():
         raise SystemExit(f"entry not found: {entry_path}")
@@ -62,14 +68,24 @@ def pyinstaller_onefile(src: Path, entry: str, name: str, work: Path, python: st
         "--collect-all", "uvicorn",
         "--collect-submodules", "starlette",
         "--collect-submodules", "anyio",
-        str(entry_path),
     ]
-    # 把声明数据目录 data/（含 tools/*.json）打进冻结产物，供 server.py 在 frozen
-    # 下从 _MEIPASS/data 读取——否则托管实例 list_tools 为空（与源码 config-mode 不一致）。
+    sep = ";" if sys.platform.startswith("win") else ":"
+    for extra_path in paths:
+        cmd += ["--paths", str((src / extra_path).resolve() if not Path(extra_path).is_absolute() else extra_path)]
+    for pkg in collect:
+        cmd += ["--collect-all", pkg]
+    for ad in add_data:
+        # 形如 "src/data;data"
+        local, _, dest = ad.partition(sep)
+        local_path = Path(local)
+        if not local_path.is_absolute():
+            local_path = (src / local).resolve()
+        cmd += ["--add-data", f"{local_path}{sep}{dest}"]
+    # 声明数据目录 data/（含 tools/*.json 等）打进冻结产物，供 frozen 下从 _MEIPASS/data 读取。
     data_dir = src / "data"
-    if data_dir.exists():
-        sep = ";" if sys.platform.startswith("win") else ":"
-        cmd[-1:-1] = ["--add-data", f"{data_dir}{sep}data"]
+    if data_dir.exists() and not add_data:
+        cmd += ["--add-data", f"{data_dir}{sep}data"]
+    cmd.append(str(entry_path))
     print("[build] running:", " ".join(cmd), flush=True)
     subprocess.run(cmd, check=True)
     exe = dist / (name + (".exe" if sys.platform.startswith("win") else ""))
@@ -86,7 +102,12 @@ def build(args: argparse.Namespace) -> int:
 
     work = Path(tempfile.mkdtemp(prefix="afm-pack-build-"))
     try:
-        exe = pyinstaller_onefile(src, args.entry, args.name, work, args.python)
+        exe = pyinstaller_onefile(
+            src, args.entry, args.name, work, args.python,
+            getattr(args, "collect", []) or [],
+            getattr(args, "paths", []) or [],
+            getattr(args, "add_data", []) or [],
+        )
         dest = artifacts / exe.name
         shutil.copy2(exe, dest)
     finally:
@@ -210,6 +231,12 @@ def main() -> int:
     b.add_argument("--python", default=sys.executable, help="interpreter with PyInstaller + deps")
     b.add_argument("--fallback-base-url", default="",
                    help="object-storage mirror base for assetFallbackUrl (empty = no fallback)")
+    b.add_argument("--collect", action="append", default=[],
+                   help="extra PyInstaller --collect-all package (e.g. awam_resource_gateway)")
+    b.add_argument("--paths", action="append", default=[],
+                   help="extra --paths (relative to --src or absolute); for package-style entries")
+    b.add_argument("--add-data", dest="add_data", action="append", default=[],
+                   help="extra PyInstaller --add-data 'local{sep}dest'")
     b.set_defaults(fn=build)
 
     e = sub.add_parser("emit-feed-config", help="write AFM managed-dependency-feed.json")
