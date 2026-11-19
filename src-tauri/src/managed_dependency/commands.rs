@@ -154,6 +154,7 @@ mod tests {
             command: "tool.exe".to_string(),
             args: vec!["http".to_string()],
             working_dir_rel: None,
+            runtime: Default::default(),
         }
     }
 

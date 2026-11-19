@@ -5,7 +5,8 @@ use super::gateway::{health_check, HealthOk};
 use super::TOOL_RUNTIME_PACK_ID;
 use crate::extension_host::pack_fs::{pack_dir, packs_root, read_pack_json};
 use crate::extension_host::types::{
-    ExtensionPermission, ExtensionRuntimeState, InstalledPackRecord, SidecarContribution,
+    ExtensionPermission, ExtensionRuntimeState, InstalledPackRecord, SharedRuntime,
+    SidecarContribution, SidecarRuntime,
 };
 use crate::win_process;
 use serde::Serialize;
@@ -23,6 +24,7 @@ pub fn placeholder_sidecar_contribution() -> SidecarContribution {
             "awam_tool_manager_placeholder".to_string(),
         ],
         working_dir_rel: Some("sidecar".to_string()),
+        runtime: SidecarRuntime::Self_,
     }
 }
 
@@ -210,26 +212,47 @@ fn resolve_working_dir(pack_install_dir: &Path, contrib: &SidecarContribution) -
     }
 }
 
+/// 按 runtime 档解析真正的可执行与参数（ADR 0022：shared-first + 自带优先）。
+/// - `self`：产物自带解释器，`command` 即 argv0、`args` 原样（与迁移前行为一致）。
+/// - `shared(python|node)`：用 AFM 提供的共享解释器作 argv0，把 `command` 当脚本/入口
+///   前置到 `args` 之前。共享解释器目前取平台默认（`python3` / `node`）；AFM 自装共享
+///   运行时的精确定位留 `managed_dependency::provision` 接线（见 ADR 0022 落地记录）。
+pub(crate) fn resolve_spawn_command(contrib: &SidecarContribution) -> (String, Vec<String>) {
+    match contrib.runtime {
+        SidecarRuntime::Self_ => (contrib.command.clone(), contrib.args.clone()),
+        SidecarRuntime::Shared(kind) => {
+            let exe = match kind {
+                SharedRuntime::Python => crate::platform::python_command().to_string(),
+                SharedRuntime::Node => "node".to_string(),
+            };
+            let mut argv = Vec::with_capacity(1 + contrib.args.len());
+            argv.push(contrib.command.clone());
+            argv.extend(contrib.args.iter().cloned());
+            (exe, argv)
+        }
+    }
+}
+
 /// 生产 sidecar 拉起实现（CREATE_NO_WINDOW + workingDirRel）。
 /// `pub(crate)`：managed_dependency 命令层复用同一实现，避免双份 spawn 逻辑。
 pub(crate) fn spawn_sidecar_process(
     pack_install_dir: &Path,
     contrib: &SidecarContribution,
 ) -> Result<u32, String> {
-    if contrib.command.trim().is_empty() {
+    let (exe, argv) = resolve_spawn_command(contrib);
+    if exe.trim().is_empty() {
         return Err("sidecar command is empty".to_string());
     }
     let cwd = resolve_working_dir(pack_install_dir, contrib);
-    let mut cmd = win_process::command(&contrib.command);
-    cmd.args(&contrib.args)
+    let mut cmd = win_process::command(&exe);
+    cmd.args(&argv)
         .current_dir(&cwd)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
     let child = cmd.spawn().map_err(|err| {
         format!(
-            "Failed to spawn sidecar '{command}' (cwd {cwd}): {err}",
-            command = contrib.command,
+            "Failed to spawn sidecar '{exe}' (cwd {cwd}): {err}",
             cwd = cwd.display()
         )
     })?;
@@ -262,6 +285,7 @@ mod tests {
                 "awam_tool_manager_placeholder".to_string(),
             ],
             working_dir_rel: Some("sidecar".to_string()),
+            runtime: SidecarRuntime::Self_,
         }
     }
 
@@ -393,5 +417,63 @@ mod tests {
             crate::tool_runtime::DEFAULT_BASE_URL,
             "http://127.0.0.1:8766"
         );
+    }
+
+    #[test]
+    fn runtime_self_passthrough_command_as_argv0() {
+        let c = SidecarContribution {
+            id: "x".into(),
+            command: "tool.exe".into(),
+            args: vec!["http".into()],
+            working_dir_rel: None,
+            runtime: SidecarRuntime::Self_,
+        };
+        let (exe, argv) = resolve_spawn_command(&c);
+        assert_eq!(exe, "tool.exe");
+        assert_eq!(argv, vec!["http".to_string()]);
+    }
+
+    #[test]
+    fn runtime_shared_python_uses_interpreter_and_prepends_entry() {
+        let c = SidecarContribution {
+            id: "x".into(),
+            command: "server.py".into(),
+            args: vec!["--transport".into(), "http".into()],
+            working_dir_rel: None,
+            runtime: SidecarRuntime::Shared(SharedRuntime::Python),
+        };
+        let (exe, argv) = resolve_spawn_command(&c);
+        assert_eq!(exe, crate::platform::python_command());
+        assert_eq!(
+            argv,
+            vec!["server.py".to_string(), "--transport".into(), "http".into()]
+        );
+    }
+
+    #[test]
+    fn runtime_shared_node_uses_node_and_prepends_entry() {
+        let c = SidecarContribution {
+            id: "x".into(),
+            command: "http-server.js".into(),
+            args: vec![],
+            working_dir_rel: None,
+            runtime: SidecarRuntime::Shared(SharedRuntime::Node),
+        };
+        let (exe, argv) = resolve_spawn_command(&c);
+        assert_eq!(exe, "node");
+        assert_eq!(argv, vec!["http-server.js".to_string()]);
+    }
+
+    #[test]
+    fn sidecar_runtime_defaults_to_self_when_absent_in_manifest() {
+        // 旧 pack.json 没有 runtime 字段 → 必须解析为 self（向后兼容）。
+        let legacy = r#"{"id":"s","command":"tool.exe","args":["http"]}"#;
+        let parsed: SidecarContribution = serde_json::from_str(legacy).unwrap();
+        assert_eq!(parsed.runtime, SidecarRuntime::Self_);
+        // 显式 shared(python) 能解析。
+        let shared =
+            r#"{"id":"s","command":"server.py","args":[],"runtime":{"shared":"python"}}"#;
+        let parsed: SidecarContribution = serde_json::from_str(shared).unwrap();
+        assert_eq!(parsed.runtime, SidecarRuntime::Shared(SharedRuntime::Python));
     }
 }

@@ -7,8 +7,8 @@
 ## Language
 
 **Feature Pack**：
-可后装的产品附加包（含前端贡献与可选 sidecar）；普通版默认不打包。安装来源为白名单商店（受批准的 GitHub 仓库/直链，见 ADR 0019）或本机选择 zip/目录（兜底），经 ExtensionHost 校验清单与权限后启用。作为托管依赖时分发与版本归 ExtensionHost（ADR 0020）。
-_Avoid_: 插件（泛称）、扩展（与 ExtensionHost 条目混淆时）、自由商店、marketplace 包
+可后装的产品附加包；**一个 pack = UI 贡献 + 后端 sidecar**，单一版本、单一安装/启停（ADR 0022）。普通版默认不打包。后端产物由 **AFM 作为集成方从自有依赖仓源码 in-tree 构建**，经 AFM 自有发布 feed 分发；安装来源为白名单商店（现语义 = AFM 自有发布通道）或本机选择 zip/目录（兜底），经 ExtensionHost 校验清单与权限后启用。进程/健康态归托管依赖 facet（与包记录分离，见 ADR 0020）。
+_Avoid_: 插件（泛称）、扩展（与 ExtensionHost 条目混淆时）、自由商店、marketplace 包、把后端塞进 AFM 主进程
 
 **ExtensionHost**：
 Feature Pack 的安装、启停、白名单商店与权限壳（UI 入口 `/extensions`）；承载「包 / 分发 / 版本」面，不负责任意代码热加载，也不承载依赖进程的运行时启停（那归托管依赖 / Health，见 ADR 0020）。
@@ -45,17 +45,27 @@ _Avoid_: 依赖项（仅指 deps_probe 只读行时）、sidecar（仅指 spawn 
 _Avoid_: 托管、离线、远程商店
 
 **managed-mode / 托管模式**：
-托管依赖的一种模式：由 AFM 拉起/守护**本机自带隔离产物**（R3，产物来自商店下载）。停止/重启只作用于 AFM 自己 spawn 且记录 pid 的进程。
-_Avoid_: 附着、远程连接、守护全部实例、共享运行时拉起
+托管依赖的一种模式：由 AFM 拉起/守护本机自带的产物（由 AFM 集成方自构建；knowledge 内置、file/tool-manager 首启用从自有 feed 拉取，见 ADR 0022）。**运行时按 per-artifact 声明解析（shared-first + 自带优先）**：产物 `runtime: self` 用它自带的解释器，否则用 AFM 的共享运行时。停止/重启只作用于 AFM 自己 spawn 且记录 pid 的进程。自构建产物**跳过 versionCompat 内部门**（构建时锁定版本）。
+_Avoid_: 附着、远程连接、守护全部实例、下载第三方 GitHub release 资产、把 spawned_pid/health 并入 InstalledPackRecord
 
-**隔离产物 / Self-contained Artifact（R3）**：
-每个依赖自带解释器与依赖的隔离包（PyInstaller onefile / 含 `.venv` 的 zip / wheel+launcher），由商店按 release 摘要校验下载。采用 R3 而非共享运行时的根因：file 与 tool-manager 的 mcp 大版本互斥（`>=2.0` vs `<2.0`），且运行时跨 Python 与 Node 两种，无法共用单一环境。前置：各来源仓需先建产出带校验值的 release job。
-_Avoid_: 共享 venv、系统 Python 直跑源码、预打包单一 exe（措辞不准确）、自由运行时
+**自带产物 / runtime: self（隔离档）**：
+`SidecarContribution` 的一种运行时来源声明：该产物自带解释器与依赖的隔离包（PyInstaller onefile / 含 `.venv` 的 zip / wheel+launcher），spawn 时用它自带的，不碰共享环境。原 R3「每依赖一律自带隔离产物」的默认地位已降为**可选档**——跨仓「统一 Python+mcp 版本」落地后，默认走共享运行时，自带只用于个别无法/不愿对齐版本的产物（逃生口）。仍是 AFM 集成方自构建、登记摘要。
+_Avoid_: 系统 Python 直跑源码、预打包单一 exe（措辞不准确）、自由运行时、上游仓各自产 release
+
+**共享运行时 / Shared Runtime**：
+由 AFM 统一提供、多个同类产物共用的解释器环境：一套共享 Python 环境（承载 file + tool-manager，前提是二者 Python 与 `mcp` 版本已对齐）+ 一套共享 Node 运行时（承载 knowledge）。Python 与 Node 不能合成一个，故至少两种运行时。`runtime: shared(python|node)` 的产物只含 wheel/源码薄产物，由共享解释器执行。**precedence 规则：自带则用自带，否则用共享。** 前置成本 = mcp 跨大版本迁移 + 共享 venv 的可重定位打包（不能直接 zip 分发）。
+_Avoid_: 单一全局运行时（不存在，至少 Python+Node 两套）、把 venv 当可重定位 zip 直接发、用共享 env 跑自带 onefile
+
 
 **attach-or-spawn / 先附着否则拉起**：
 依赖解析优先级：先探 config-mode 实例，健康即附着；不健康或未配置才走 managed-mode 拉起。是带 fallback 的偏好，非互斥开关（沿用 ADR 0013）。
 _Avoid_: 二选一模式、互斥开关
 
 **白名单商店 / Store allow-list**：
-非自由商店：仅一组受批准的 GitHub 仓库/直链来源，经固定远端的「元清单」列出可装 pack 及隔离产物的 release 指针；产物按其 GitHub Release 附属摘要校验，失败回退本机 zip/目录。仅约束 managed-mode 产物来源。取代 ADR 0014「不做商店」。
-_Avoid_: 自由商店、marketplace 投稿、任意远程拉取、约束 config-mode 地址
+非自由商店：现语义收窄为 **AFM 自有发布通道**——AFM 作为集成方自构建产物并发布，仅 AFM 受批准来源；不再开放第三方 GitHub 仓库/直链、不再依赖上游 release job（ADR 0022 取代 0019 下载条款）。`config-mode` 不在此约束内。保留本机 zip/目录兜底。
+_Avoid_: 自由商店、marketplace 投稿、任意远程拉取、约束 config-mode 地址、下载第三方 GitHub 产物
+
+**集成方构建 / Integrator Build**：
+AFM 承担 integrator 角色：用 per-OS CI agent 从各依赖仓源码（submodule 锁 tag/SHA）in-tree 构建产物、维护共享运行时、登记摘要、打进对应 Feature Pack 的 sidecar、经自有 feed 发布；把「协调上游产 release 的跨仓成本」换成「AFM 扛多语言×多 OS 构建矩阵 + CVE 重 pin 重建 + 一次 mcp 跨大版本迁移」。
+_Avoid_: 二进制再分发、上游自产 release、AFM 内联跑 Python/Node 源码（指在 AFM 主进程内）
+

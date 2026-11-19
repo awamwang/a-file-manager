@@ -175,6 +175,27 @@ pub struct CommandContribution {
     pub route: Option<String>,
 }
 
+/// 共享运行时种类（AFM 统一提供、同类产物共用；ADR 0022）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SharedRuntime {
+    Python,
+    Node,
+}
+
+/// Sidecar 运行时来源（ADR 0022：shared-first + per-artifact 自带优先 precedence）。
+/// **自带则用自带，否则用共享**——`self` 是默认档，旧 `pack.json` 缺 `runtime` 字段即按此解析。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SidecarRuntime {
+    /// 产物自带解释器（如 PyInstaller onefile）：清单里的 `command` 即 argv0，`args` 原样。
+    #[default]
+    #[serde(rename = "self")]
+    Self_,
+    /// 用 AFM 提供的共享 Python / Node 运行时：把 `command` 当脚本/入口前置到 `args` 之前。
+    Shared(SharedRuntime),
+}
+
 /// Sidecar 子进程贡献项。
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -184,6 +205,9 @@ pub struct SidecarContribution {
     pub args: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub working_dir_rel: Option<String>,
+    /// 运行时档（默认 `self`，向后兼容无此字段的旧清单）。
+    #[serde(default)]
+    pub runtime: SidecarRuntime,
 }
 
 /// 搜索面板静态条目贡献项；聚合时宿主写入 `packId` / `packName`（清单内声明无效）。

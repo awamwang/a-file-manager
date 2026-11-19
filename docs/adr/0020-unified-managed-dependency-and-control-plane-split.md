@@ -2,7 +2,7 @@
 
 把 awam-file 网关、awam-tool-manager 网关、awam-knowledge 服务三个依赖收敛成一套 Core `ManagedDependency` 抽象：既可「依旧用配置连接」，也可「由 AFM 托管」。依赖 ADR 0019（白名单商店）；取代/修订 ADR 0014；沿用 ADR 0013 的 attach-or-spawn 语义。
 
-**Status**: accepted
+**Status**: accepted — 被 ADR 0022 修订两处：R3 隔离产物来源改「AFM 自构建」（不再上游 release 资产）；Q15 versionCompat 门从「managed spawn 前」移至「config-mode 附着外部实例」（自构建产物版本构建时锁定）。其余抽象、控制面拆分、1:1、停启权边界不变。
 
 ## Decision
 

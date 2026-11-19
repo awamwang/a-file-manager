@@ -2,7 +2,7 @@
 
 取代 ADR 0014 的「v1 仅本机安装、不做远程目录/商店」一条。其余 0014 条款仍然有效，并由 ADR 0020 沿用：token 不进 Core settings / AI 中央配置、连接偏好存 Pack 私有配置、Capability 参数表单 v1 仅覆盖 string/number/boolean/enum、清单声明的版本兼容范围不匹配则拒绝盲调（该字段由 `gatewayCompat` **更名为 `versionCompat`**，因托管对象不止「网关」——knowledge 是服务、file/tool-manager 角色各异；Q19）。
 
-**Status**: accepted (supersedes 0014 「不做商店」条款)
+**Status**: superseded-on-provenance by ADR 0022 (was: accepted, supersedes 0014 「不做商店」条款) — 「产物来源=GitHub Release 资产、元清单下载、SHA 取自附属资产、要求上游 release job」被 ADR 0022 改为「AFM 从源码 in-tree 自构建、自有 feed 分发」；allow-list 退化为 AFM 自有发布通道，本机 zip/目录兜底保留。其余关于 versionCompat 更名、token 不进 Core settings 等条款由 0020 沿用、0022 收窄门范围。
 
 ## Decision
 
