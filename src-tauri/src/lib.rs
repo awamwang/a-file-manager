@@ -107,6 +107,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         // Native OLE/file drag-out (CF_HDROP) for dropping onto players / Explorer / etc.
         // NOTE: on macOS this plugin's `start_dragging` command aborts the process (a `RecvError`
         // from an `unwrap` inside the plugin); the frontend never calls it on macOS — see

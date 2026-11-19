@@ -18,6 +18,7 @@
     "core:window:allow-start-dragging",
     "core:tray:default",
     "opener:default",
+    "dialog:default",
     "drag:default"
   ]
 }

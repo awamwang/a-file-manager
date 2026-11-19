@@ -3,6 +3,7 @@
 import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import { openConfirmDialog } from "../state/confirmDialog";
 import { openPromptDialog } from "../state/promptDialog";
 import { toastInfo, toastSuccess } from "../state/toast";
@@ -162,16 +163,26 @@ async function runHello(id: string) {
 
 /** 从本机文件夹或 zip 安装 Feature Pack（非商店）。 */
 async function installPackFromLocalPath() {
-  const prompted = await openPromptDialog({
+  // 主路径：调起系统原生目录选择框（选含 pack.json 的文件夹）。
+  const picked = await open({
+    directory: true,
+    multiple: false,
     title: t("extensions.installPathTitle"),
-    message: t("extensions.installPathHint"),
-    label: t("extensions.installPathLabel"),
-    placeholder: t("extensions.installPathPlaceholder"),
-    confirmLabel: t("extensions.installFromFolder"),
-    cancelLabel: t("common.cancel"),
   });
-  if (!prompted.confirmed) return;
-  const sourcePath = prompted.value.trim();
+  let sourcePath = typeof picked === "string" ? picked.trim() : "";
+  // 取消系统框 → 回退手输路径（仍可填本机 .zip）。
+  if (!sourcePath) {
+    const prompted = await openPromptDialog({
+      title: t("extensions.installPathTitle"),
+      message: t("extensions.installPathHint"),
+      label: t("extensions.installPathLabel"),
+      placeholder: t("extensions.installPathPlaceholder"),
+      confirmLabel: t("extensions.installFromFolder"),
+      cancelLabel: t("common.cancel"),
+    });
+    if (!prompted.confirmed) return;
+    sourcePath = prompted.value.trim();
+  }
   if (!sourcePath) return;
   packBusy.value = true;
   error.value = null;
