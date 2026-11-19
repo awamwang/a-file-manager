@@ -184,6 +184,10 @@ pub async fn managed_dependency_ensure(app: AppHandle, id: String) -> Result<Man
     tauri::async_runtime::spawn_blocking(move || {
         let mut record = registry::load_record(&dir, &id)?
             .ok_or_else(|| format!("managed_dependency ensure: unknown id '{id}'"))?;
+        // config-mode 不自动拉起（由工具页手动附着/连接）；仅托管记录走 provision+spawn。
+        if record.mode != DependencyMode::Managed {
+            return Ok(record);
+        }
         let (pack_install_dir, contrib) = resolve_pack_sidecar(&record)?;
         let contrib = prepare_contrib_for_spawn(&dir, &record, &pack_install_dir, contrib)?;
         ensure_record_with(&mut record, &pack_install_dir, &contrib, probe, native_spawn)?;

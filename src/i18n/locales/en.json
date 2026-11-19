@@ -1210,6 +1210,7 @@
     "uninstallPackMessage": "Uninstall {name} ({id}) from this machine?",
     "noticePackInstalled": "Installed {id} from this machine.",
     "noticePackEnabled": "Enabled {id}. Side nav updated.",
+    "noticePackEnsureDeferred": "Enabled, but the managed service did not start yet: {error}. Retry from the Tool Runtime page.",
     "noticePackDisabled": "Disabled {id}. Side nav updated.",
     "noticePackUninstalled": "Uninstalled {id}. Side nav updated.",
     "reloadHint": "Enabling or disabling a pack refreshes the side nav and routes automatically.",

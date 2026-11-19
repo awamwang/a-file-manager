@@ -597,6 +597,7 @@
     "uninstallPackMessage": "{name} ({id}) von diesem Rechner deinstallieren?",
     "noticePackInstalled": "{id} von diesem Rechner installiert.",
     "noticePackEnabled": "{id} aktiviert. Seitenleiste aktualisiert.",
+    "noticePackEnsureDeferred": "Aktiviert, aber der verwaltete Dienst wurde noch nicht gestartet: {error}. Erneut auf der Tool-Runtime-Seite versuchen.",
     "noticePackDisabled": "{id} deaktiviert. Seitenleiste aktualisiert.",
     "noticePackUninstalled": "{id} deinstalliert. Seitenleiste aktualisiert.",
     "reloadHint": "Aktivieren oder Deaktivieren eines Packs aktualisiert Seitenleiste und Routen automatisch.",

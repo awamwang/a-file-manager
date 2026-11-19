@@ -597,6 +597,7 @@
     "uninstallPackMessage": "この PC から {name}（{id}）をアンインストールしますか？",
     "noticePackInstalled": "{id} をこの PC からインストールしました。",
     "noticePackEnabled": "{id} を有効にしました。サイドナビを更新しました。",
+    "noticePackEnsureDeferred": "有効化しましたが、マネージド サービスはまだ起動していません: {error}。ツールランタイム ページで再試行してください。",
     "noticePackDisabled": "{id} を無効にしました。サイドナビを更新しました。",
     "noticePackUninstalled": "{id} をアンインストールしました。サイドナビを更新しました。",
     "reloadHint": "Pack の有効/無効切替でサイドナビとルートが自動更新されます。",

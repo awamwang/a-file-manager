@@ -1210,6 +1210,7 @@
     "uninstallPackMessage": "从本机卸载 {name}（{id}）？",
     "noticePackInstalled": "已从本机安装 {id}。",
     "noticePackEnabled": "已启用 {id}。侧栏已更新。",
+    "noticePackEnsureDeferred": "已启用，但托管服务尚未启动：{error}。可在工具运行时页重试。",
     "noticePackDisabled": "已禁用 {id}。侧栏已更新。",
     "noticePackUninstalled": "已卸载 {id}。侧栏已更新。",
     "reloadHint": "启用或禁用 Pack 后，侧栏与路由会自动刷新。",

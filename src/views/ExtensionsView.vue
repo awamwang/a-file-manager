@@ -87,6 +87,7 @@ const packs = ref<InstalledPack[]>([]);
 const hooks = ref<FsHook[]>([]);
 const error = ref<string | null>(null);
 const loading = ref(false);
+const loadedOnce = ref(false);
 const packBusy = ref(false);
 const installable = ref<InstallablePack[]>([]);
 const feedError = ref<string | null>(null);
@@ -113,7 +114,8 @@ function packStateLabel(state: string): string {
 }
 
 async function refresh() {
-  loading.value = true;
+  // 仅首次加载显"加载中"；后续刷新保留旧内容静默更新，避免启用/关闭时文字闪烁抖动。
+  if (!loadedOnce.value) loading.value = true;
   error.value = null;
   try {
     status.value = await invoke<ExtensionHostStatus>("extension_host_status");
@@ -129,6 +131,7 @@ async function refresh() {
     error.value = invokeErrorMessage(err);
   } finally {
     loading.value = false;
+    loadedOnce.value = true;
   }
 }
 
@@ -269,6 +272,13 @@ async function setPackEnabled(id: string, enabled: boolean) {
     if (enabled) {
       // 启用：增量 hydrate 贡献（响应式侧栏/路由/命令），避免整窗 remount 抖动。
       await hydrateFeaturePackContributions();
+      // 托管 pack 启用即拉起服务：provision 产物 + spawn。config-mode/无产物由后端 no-op。
+      try {
+        await invoke("managed_dependency_ensure", { id });
+      } catch (err) {
+        // 启用已成功，仅服务暂不可达（如 feed 不可达）：提示可稍后在工具页重试。
+        toastInfo(t("extensions.noticePackEnsureDeferred", { error: invokeErrorMessage(err) }));
+      }
     } else {
       // 禁用：可能移除当前所在路由，走 Soft Reload 含回退，避免空白。
       await reloadWindow();

@@ -597,6 +597,7 @@
     "uninstallPackMessage": "Désinstaller {name} ({id}) de cet ordinateur ?",
     "noticePackInstalled": "{id} installé depuis cet ordinateur.",
     "noticePackEnabled": "{id} activé. Barre latérale mise à jour.",
+    "noticePackEnsureDeferred": "Activé, mais le service géré n’a pas encore démarré : {error}. Réessayez depuis la page Exécution d’outils.",
     "noticePackDisabled": "{id} désactivé. Barre latérale mise à jour.",
     "noticePackUninstalled": "{id} désinstallé. Barre latérale mise à jour.",
     "reloadHint": "Activer ou désactiver un pack actualise automatiquement la barre latérale et les routes.",
