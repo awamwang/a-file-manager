@@ -463,14 +463,34 @@ impl ExtensionHost {
                 .contains(&ExtensionPermission::SpawnSidecar)
         {
             let sync = if enabled {
+                // ADR 0022：启用时按 feed 元清单决定该 pack 是否 managed（有 entry→Managed）。
+                // 未配置 / 元清单不可达 / 主机不在 allow-list → 静默降级 Config（尽力而为，不阻断启用）。
+                let feed_cfg = crate::managed_dependency::feed::load_feed(&app_data);
+                let manifest = crate::managed_dependency::feed::fetch_manifest(
+                    &feed_cfg,
+                    crate::managed_dependency::store::fetch_manifest_text,
+                )
+                .unwrap_or(None);
+                let (mode, base_url, declared_version) = match crate::managed_dependency::feed::resolve_managed_binding(manifest.as_ref(), id) {
+                    Some(b) => (
+                        crate::managed_dependency::registry::DependencyMode::Managed,
+                        b.base_url,
+                        b.declared_version,
+                    ),
+                    None => (
+                        crate::managed_dependency::registry::DependencyMode::Config,
+                        String::new(),
+                        String::new(),
+                    ),
+                };
                 crate::managed_dependency::registry::register_for_enabled_pack(
                     &app_data,
                     &pack_snapshot,
                     id,
-                    crate::managed_dependency::registry::DependencyMode::Config,
-                    String::new(),
+                    mode,
+                    base_url,
                     crate::managed_dependency::registry::CredentialSource::None,
-                    String::new(),
+                    declared_version,
                 )
                 .map(|_| ())
             } else {

@@ -35,6 +35,10 @@ pub struct StoreEntry {
     /// 可选：产物文件名（缺省从 URL 末段推断）。
     #[serde(default)]
     pub file_name: Option<String>,
+    /// managed 拉起后 AFM 探活/附着该实例的本机地址（如 `http://127.0.0.1:8766`）。
+    /// 缺省空表示该 pack 无固定本机探活地址（仅 config-mode 用户提供）。
+    #[serde(default)]
+    pub base_url: String,
 }
 
 /// 解析并轻校验元清单 JSON（schema 版本、条目必填）。
@@ -141,10 +145,9 @@ pub fn materialize(dir: &std::path::Path, name: &str, bytes: &[u8]) -> Result<st
     Ok(target)
 }
 
-// ---- 真网络（不在单测调用；Task 5 IPC 消费）----
+// ---- 真网络（被 managed 产物 feed 拉取与 provision 下载生产调用；单测注入桩离线）----
 
 /// 拉取元清单文本。
-#[allow(dead_code)] // 控制面接线于 Task 5。
 pub fn fetch_manifest_text(url: &str) -> Result<String, String> {
     let mut response = ureq::get(url)
         .call()
@@ -155,8 +158,7 @@ pub fn fetch_manifest_text(url: &str) -> Result<String, String> {
         .map_err(|e| format!("store manifest read ({url}): {e}"))
 }
 
-/// 下载字节（release 资产）。隔离产物可能 >10MB，放开到 1 GiB 上限（仍校验 SHA-256）。
-#[allow(dead_code)] // download_and_verify 注入此函数于 Task 5。
+/// 下载字节（feed 产物资产）。隔离产物可能 >10MB，放开到 1 GiB 上限（仍校验 SHA-256）。
 pub fn http_get_bytes(url: &str) -> Result<Vec<u8>, String> {
     const MAX_ARTIFACT_BYTES: u64 = 1024 * 1024 * 1024; // 1 GiB
     let mut response =

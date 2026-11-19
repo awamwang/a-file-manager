@@ -13,12 +13,12 @@ pub mod commands;
 #[allow(dead_code)]
 pub mod compat;
 pub mod credential;
+pub mod feed;
 pub mod orchestrator;
 #[allow(dead_code)]
 pub mod provision;
 pub mod projection;
 pub mod registry;
-#[allow(dead_code)]
 pub mod store;
 
 // 预留：fetch_manifest_text / http_get_bytes 等真网络函数接线于前端/IPC 消费后移除 allow。

@@ -2,8 +2,11 @@
 //! 托管依赖 IPC 命令（Task 5 后端接线）。逻辑内核（`ensure_record_with` / `stop_record_with`）
 //! 纯 `&Path` + 注入闭包，离线单测；Tauri 包装仅做目录解析与 spawn_blocking。
 
+use super::feed;
 use super::orchestrator::{attach_or_spawn, find_pack_by_id, pick_sidecar_for_pack, stop_self_spawned};
-use super::registry::{self, HealthState, ManagedDependencyRecord};
+use super::provision;
+use super::registry::{self, DependencyMode, HealthState, ManagedDependencyRecord};
+use super::store;
 use crate::extension_host::types::SidecarContribution;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
@@ -73,6 +76,41 @@ fn resolve_pack_sidecar(record: &ManagedDependencyRecord) -> Result<(PathBuf, Si
     Ok((PathBuf::from(&pack.install_path), contrib))
 }
 
+/// managed 拉起前准备 sidecar 贡献（ADR 0022 接线）：
+/// - 非 `Managed` → 原样返回（产物随 pack 内置 / 用户 config 连接，无需 feed 下载）。
+/// - `Managed` → 读 feed 元清单找本 pack entry；命中且本地产物缺失则下载校验落盘，并把
+///   `contrib.command` 改写为落盘产物绝对路径（`runtime:self` 档用之作 argv0）。
+///   元清单不可达 / 未配置 / 无 entry → 原样返回（尽力而为，不误伤已有产物；前端据 mode 展示 managed）。
+fn prepare_contrib_for_spawn(
+    app_data: &Path,
+    record: &ManagedDependencyRecord,
+    pack_install_dir: &Path,
+    mut contrib: SidecarContribution,
+) -> Result<SidecarContribution, String> {
+    if record.mode != DependencyMode::Managed {
+        return Ok(contrib);
+    }
+    let feed_cfg = feed::load_feed(app_data);
+    let manifest = match feed::fetch_manifest(&feed_cfg, store::fetch_manifest_text) {
+        Ok(m) => m,
+        Err(_) => return Ok(contrib),
+    };
+    let entry = manifest.as_ref().and_then(|m| store::find_entry(m, &record.pack_id));
+    match provision::ensure_artifact(
+        entry,
+        &feed_cfg.allow_hosts,
+        pack_install_dir,
+        contrib.working_dir_rel.as_deref(),
+        store::http_get_bytes,
+    )? {
+        Some(path) => {
+            contrib.command = path.to_string_lossy().into_owned();
+            Ok(contrib)
+        }
+        None => Ok(contrib),
+    }
+}
+
 // ---- Tauri 命令 ----
 
 /// 通用探活（`GET {base}/health`，免鉴权约定与三个依赖一致）。
@@ -103,6 +141,27 @@ pub async fn managed_dependency_list(app: AppHandle) -> Result<Vec<ManagedDepend
         .map_err(|err| format!("managed_dependency_list worker failed: {err}"))?
 }
 
+/// 设置 managed 产物 feed（AFM 自有发布通道）的元清单 URL 与 allow-list 主机（ADR 0022）。
+/// 写入后，下一次 pack 启用即据此把有 entry 的 pack 切 Managed、ensure 据此 provision 产物。
+#[tauri::command]
+pub async fn managed_dependency_set_feed(
+    app: AppHandle,
+    manifest_url: String,
+    allow_hosts: Vec<String>,
+) -> Result<feed::FeedConfig, String> {
+    let dir = app_config_dir(&app)?;
+    let cfg = feed::FeedConfig { manifest_url, allow_hosts };
+    feed::save_feed(&dir, &cfg)?;
+    Ok(cfg)
+}
+
+/// 读取当前 managed 产物 feed 配置。
+#[tauri::command]
+pub async fn managed_dependency_get_feed(app: AppHandle) -> Result<feed::FeedConfig, String> {
+    let dir = app_config_dir(&app)?;
+    Ok(feed::load_feed(&dir))
+}
+
 /// 停止指定托管依赖（仅 AFM 自启 pid；附着/远程实例一律拒绝）。
 #[tauri::command]
 pub async fn managed_dependency_stop(app: AppHandle, id: String) -> Result<ManagedDependencyRecord, String> {
@@ -126,6 +185,7 @@ pub async fn managed_dependency_ensure(app: AppHandle, id: String) -> Result<Man
         let mut record = registry::load_record(&dir, &id)?
             .ok_or_else(|| format!("managed_dependency ensure: unknown id '{id}'"))?;
         let (pack_install_dir, contrib) = resolve_pack_sidecar(&record)?;
+        let contrib = prepare_contrib_for_spawn(&dir, &record, &pack_install_dir, contrib)?;
         ensure_record_with(&mut record, &pack_install_dir, &contrib, probe, native_spawn)?;
         registry::save_record(&dir, &record)?;
         Ok(record)

@@ -3,7 +3,7 @@
   "name": "工具管理运行时",
   "version": "0.1.0",
   "apiVersion": "feature-pack.1",
-  "description": "本机工具管理网关薄客户端。Sidecar 启动行与 awam-tool-manager README 一致：python server.py --transport http。workingDirRel sidecar 需为该仓库 src（或安装后改成本机路径）；不要使用占位模块 awam_tool_manager_placeholder。",
+  "description": "本机工具管理网关薄客户端。后端为 AFM 集成方自构建的 awam-tool-manager 单文件产物（runtime:self，自带解释器，监听 http://127.0.0.1:8766）。managed 模式下 ensure 前由 feed 下载该产物落到 sidecar/ 并把 command 改写为产物绝对路径；产物缺失且无 feed 时拉起跑空。见 ADR 0022 与 scripts/build_pack_feed.py。",
   "permissions": ["network", "spawnSidecar"],
   "gatewayCompat": { "minVersion": "0.1.0", "maxVersion": "1.0.0" },
   "contributions": {
@@ -12,9 +12,10 @@
     "commands": [{ "id": "tool-runtime.open", "labelKey": "cmd.toolRuntimeOpen", "route": "/tools" }],
     "sidecars": [{
       "id": "awam-tool-manager",
-      "command": "python",
-      "args": ["server.py", "--transport", "http"],
-      "workingDirRel": "sidecar"
+      "command": "awam-tool-manager.exe",
+      "args": ["--transport", "http"],
+      "workingDirRel": "sidecar",
+      "runtime": "self"
     }]
   }
 }
