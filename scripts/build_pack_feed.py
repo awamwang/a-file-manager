@@ -64,6 +64,12 @@ def pyinstaller_onefile(src: Path, entry: str, name: str, work: Path, python: st
         "--collect-submodules", "anyio",
         str(entry_path),
     ]
+    # 把声明数据目录 data/（含 tools/*.json）打进冻结产物，供 server.py 在 frozen
+    # 下从 _MEIPASS/data 读取——否则托管实例 list_tools 为空（与源码 config-mode 不一致）。
+    data_dir = src / "data"
+    if data_dir.exists():
+        sep = ";" if sys.platform.startswith("win") else ":"
+        cmd[-1:-1] = ["--add-data", f"{data_dir}{sep}data"]
     print("[build] running:", " ".join(cmd), flush=True)
     subprocess.run(cmd, check=True)
     exe = dist / (name + (".exe" if sys.platform.startswith("win") else ""))
