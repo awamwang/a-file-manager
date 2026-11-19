@@ -3187,13 +3187,15 @@ onUnmounted(() => {
   font-size: var(--fluent-font-size-caption);
 }
 
-/* 工作组下拉两列布局：左列组列表（自带滚动），右列操作。 */
+/* 工作组下拉两列布局：左列组列表（自带滚动，名称过长省略），右列操作。
+ * 右列用 max-content（配合 .places-item span 的 nowrap 即等于完整文案宽度），
+ * 保证操作项文字不被省略号截断；可压缩余量留给左列，并放宽弹层上限。 */
 .wg-popover {
   display: grid;
-  grid-template-columns: minmax(11rem, 1fr) minmax(9rem, auto);
+  grid-template-columns: minmax(11rem, 1fr) max-content;
   align-items: start;
   column-gap: var(--fluent-space-xs);
-  max-width: 26rem;
+  max-width: min(34rem, calc(100vw - 2rem));
   overflow: hidden;
 }
 
