@@ -1,0 +1,28 @@
+{
+  "id": "awam.knowledge",
+  "name": "awam 知识库",
+  "version": "0.1.0",
+  "apiVersion": "feature-pack.1",
+  "description": "本地 Markdown 知识库内容检索后端（Python，AFM 集成方自构建 onefile，stdlib http.server，监听 127.0.0.1:18790）。managed 启用即 provision 产物 + spawn；KM_SERVICE_TOKEN 由 AFM 设置 power.awamKnowledgeServiceToken 注入（密钥不落 pack.json）。索引根沿用 knowledge 约定（AWAM_INDEX_ROOT/KM_DATA_ROOT/settings.yaml），拒绝真源。AFM 侧知识搜索面板经既有 knowledge_service 客户端对接。",
+  "permissions": ["network", "spawnSidecar"],
+  "gatewayCompat": { "minVersion": "0.1.0", "maxVersion": "1.0.0" },
+  "contributions": {
+    "sideNav": [],
+    "routes": [],
+    "commands": [],
+    "sidecars": [{
+      "id": "awam-knowledge-http",
+      "command": "awam-knowledge.exe",
+      "args": [],
+      "workingDirRel": "sidecar",
+      "runtime": "self",
+      "env": {
+        "KM_SERVICE_HOST": "127.0.0.1",
+        "KM_SERVICE_PORT": "18790",
+        "KM_SERVICE_LOG": "0",
+        "KM_SERVICE_TOKEN": "${afm:settings:power.awamKnowledgeServiceToken}"
+      }
+    }],
+    "search": []
+  }
+}
