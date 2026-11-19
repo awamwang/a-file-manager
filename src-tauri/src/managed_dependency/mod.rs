@@ -8,12 +8,17 @@
 //! - `credential`（来源解析；目前 `CredentialSource` 已在 registry 定义）
 
 pub mod commands;
+// 预留底座（ADR 0019 / 0020）：compat / provision / store 尚未接线 IPC/前端，
+// lib 目标下为 dead code；接线后移除 allow（与下方 re-export 的 allow 同步清理）。
+#[allow(dead_code)]
 pub mod compat;
 pub mod credential;
 pub mod orchestrator;
+#[allow(dead_code)]
 pub mod provision;
 pub mod projection;
 pub mod registry;
+#[allow(dead_code)]
 pub mod store;
 
 // 预留：fetch_manifest_text / http_get_bytes 等真网络函数接线于前端/IPC 消费后移除 allow。

@@ -3,10 +3,13 @@
 use std::fs::Metadata;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+// 预留：providers 后续接入（S5+）后移除 allow。
+#[allow(dead_code)]
 pub fn normalize_path(path: &str) -> String {
     path.replace('/', "\\")
 }
 
+#[allow(dead_code)]
 pub fn metadata_modified_time_unix_ms(metadata: &Metadata) -> u64 {
     metadata
         .modified()

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use super::config::{config_file_path, load_from_path, save_to_path, ToolRuntimeConfig};
+use super::config::{config_file_path, load_from_path, ToolRuntimeConfig};
 use super::gateway::{health_check, HealthOk};
 use super::TOOL_RUNTIME_PACK_ID;
 use crate::extension_host::pack_fs::{pack_dir, packs_root, read_pack_json};
@@ -279,6 +279,7 @@ pub(crate) fn spawn_sidecar_process(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::config::save_to_path;
     use std::cell::Cell;
 
     fn health_ok(_url: &str) -> Result<HealthOk, String> {
