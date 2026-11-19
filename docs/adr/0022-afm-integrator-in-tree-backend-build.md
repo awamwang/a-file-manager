@@ -70,8 +70,9 @@
 - **启用即拉起**：扩展页启用 pack 后自动 `managed_dependency_ensure`；config-mode 后端 no-op（不自动拉起，由工具页手动）。
 - **启动自动恢复（选项 A）**：`managed_dependency::commands::reconcile_managed_on_startup` 在 `setup` 后台 `spawn_blocking` 遍历 `Managed` 记录逐个 ensure（已运行→附着，未运行→provision+spawn），单条失败仅记录、不阻断启动 → 启用过的托管 pack 重启 AFM 后自动可用。
 - **抖动消除**：贡献缓存 `cached` 与 `SIDE_NAV_ITEMS` 改 `shallowRef`；安装/启用/禁用/卸载统一走增量 `reloadContributions`（含路由回退），不再整窗 remount；扩展页 `refresh` 仅首次显「加载中」，后续静默更新。
-- **实测确认**：managed spawn 的 exe 监听 18778，`/health` ok、MCP `tools/list` 19 工具、`tools/call` success；`list_tools`（被管理工具）各 kind `count=0` 属本机 tool-manager 未登记可见来源（`data/tools/*.json` 工具需本机探测/启用），**非 AFM 或托管链路问题**。
-- 验证：`cargo test --lib` 447 passed、`vue-tsc` 0、`check-i18n` parity 1424×5。
+- **实测确认**：managed spawn 的 exe 监听 18778，`/health` ok、MCP `tools/list` 19 工具、`tools/call` success；但 `list_tools`（被管理工具）`count=0`。
+- **产物内嵌 data（续，2026-11-19）**：`count=0` 的根因是托管 onefile 产物**没带声明数据目录**——`server.py` 的 `DATA_DIR = __file__/../data` 在冻结下指向不存在的临时目录，`store.list_tools` 对缺失目录优雅返回空。修复：① `server.py` DATA_DIR 支持 `sys.frozen → _MEIPASS/data`；② 构建 `build_pack_feed.py` 加 `--add-data "<仓库>/data;data"`；③ 加 `data/tools/system-powershell.json`（kind=app，launch `powershell.exe`，本机必存可启动）作最小可见样例。重建后实测托管 exe `list_tools` 返回 **8 个工具**（含 system-powershell），与源码 config-mode 一致。注意：`ensure_artifact` 幂等只看文件存在、不看版本，**产物更新需删 sidecar 旧产物触发重下**（或后续给 ensure_artifact 加 SHA 校验做自动更新——记为待办）。
+- 验证：`cargo test --lib` 447 passed、`vue-tsc` 0、`check-i18n` parity 1424×5；tool-manager 单测 819 passed。
 
 ## Consequences
 
