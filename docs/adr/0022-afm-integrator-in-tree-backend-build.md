@@ -49,6 +49,17 @@
 - **块4 端到端验证**：① Rust gated 测试 `ensure_artifact_real_http_feed_download_roundtrip`（`cargo test --lib -- --ignored`）——起本地 http feed，用 **AFM 真实 ureq 函数** `fetch_manifest_text`+`http_get_bytes` 拉清单、下载、SHA 校验、落盘，并断言二次就位幂等不重下。② 真 build 产物完整链——feed→下载 24MB→SHA 校验→落 sidecar→spawn 真 exe→`/health` `{status:ok,version:0.1.0}`→MCP `initialize`→`tools/list` 19 工具→`tools/call list_tools` `isError=false`。`cargo check --tests` 零警告、`cargo test --lib` **443 passed / 0 failed**、`vue-tsc` 通过。`packs/tool-runtime/pack.json` 的 sidecar 切成 onefile 产物形态（`command: awam-tool-manager.exe`、`args:["--transport","http"]`、`runtime:self`、`workingDirRel:sidecar`）。
 - **仍未做（界面级 + 部署，留后续）**：① **真 UI 端到端**需跑 tauri 桌面、在 `ExtensionsView` 选 pack 目录 + 配 feed（接缝已程序化验证，IPC 已注册）；② `runtime:shared` 的 AFM **自装共享 env** 精确定位（现取平台默认 `python3`/`node`）；③ feed 真实发布 = 部署侧 AFM release job（脚本已产 manifest+artifacts，上传待接 CI）；④ `host.rs` 启用时同步 ureq 拉 manifest，生产宜移 `spawn_blocking` + 本地缓存（当前本地/快速 feed 可接受）。
 
+## 落地记录：可安装 Store 接缝（feed manifest packs 段，2026-11-19）
+
+把 feed 从「仅产物来源」升级为「可安装目录」，扩展页可列出 feed 里的 pack 并**一键安装**（候选5 / ADR 0019 留的最后一块）。切换安装源头本机→线上 = 仅改 `feed.json` 的 `manifestUrl`，架构不动。
+
+- **store 层**：`StoreManifest` 增 `packs: Vec<PackEntry>`（`PackEntry {packId,name,version,installUrl,sha256}`，`installUrl` 指 pack 安装包 zip；旧清单缺 `packs` 段=空，向后兼容）；下载校验抽出通用 `download_verify_url(url, sha, allow_hosts, fetch)`，产物 `download_and_verify` 与 pack 安装共用（先查 allow-list 再 fetch 再 SHA，离线可注入）。
+- **host 层**：`list_installable_packs()`（读 feed packs + 本机已装/版本标记）；`install_pack_from_feed(pack_id)`（按 installUrl 下载 zip → SHA 校验 → 落临时 → 复用既有 `install_pack(zip)`，装后默认 Installed）。IPC `extension_host_list_installable` / `extension_host_install_pack_from_feed`（均 spawn_blocking，含网络与解压）。
+- **前端**：`ExtensionsView` 新增「可从 feed 安装」区（列出 feed packs，已装项禁用按钮），点装→`install_pack_from_feed`→刷新+软重载；feed 不可达单记 `feedError` 不污染主错误。i18n 5 locale 齐（`storeTitle/Meta/Empty/Unavailable/Available/Installed/Install`）。
+- **构建脚本**：`build_pack_feed.py pack-dir` 子命令——把成形 pack 目录打成安装包 zip + 计算 SHA + 写入/合并 feed 元清单 `packs` 段。
+- **装 vs 启用分离（S-3 默认）**：列表点「安装」仅装成 Installed；用户再「启用」才触发 host 按 feed entries 切 Managed → `ensure` 按需 provision 产物 → spawn。整链可分段观察。
+- **验证**：`cargo check --tests` 零警告；`cargo test --lib` 445 passed（唯一红 = clipboard 无交互环境限制）；`vue-tsc` 0；`check-i18n` parity 1422 keys×5；本地 feed 已列出 `awam.tool-runtime`（pack zip 915B，`GET` 200）。真 UI 端到端（列表显示→点装→启用→拉产物→用）由本轮界面手测覆盖。
+
 ## Consequences
 
 - ADR 0019 的白名单/元清单/SHA-from-GitHub 全套下载逻辑不再作为 managed-mode 的唯一前提；managed 改为 AFM 自产产物。`store.rs`（allow-list + 下载 + SHA-256 摘要校验）由「待接线」升为 managed **主路径**：经 `feed::fetch_manifest` 取 AFM 自有元清单、`provision::ensure_artifact` 按需下载校验落盘（见上「B-正式」落地记录）；config-mode 仍可连用户自跑实例不经此路。

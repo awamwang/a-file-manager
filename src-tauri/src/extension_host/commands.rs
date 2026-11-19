@@ -3,8 +3,8 @@
 use super::host::ExtensionHost;
 use super::types::{
     AggregatedContributions, ExtensionHostStatus, ExtensionManifestVNext, FsProviderContribution,
-    InstallResult, InstalledExtensionRecord, InstalledPackRecord, MarketplaceCatalog,
-    PackInstallResult, UiCommandRequest, UiCommandResult,
+    InstallResult, InstallablePack, InstalledExtensionRecord, InstalledPackRecord,
+    MarketplaceCatalog, PackInstallResult, UiCommandRequest, UiCommandResult,
 };
 use std::path::Path;
 use std::sync::OnceLock;
@@ -80,6 +80,24 @@ pub async fn extension_host_install_pack(
     tauri::async_runtime::spawn_blocking(move || host().install_pack(Path::new(&source_path)))
         .await
         .map_err(|err| format!("extension_host_install_pack worker failed: {err}"))
+}
+
+/// feed「可安装 Store」列表（含本机已装标记）。fetch 走 spawn_blocking（网络）。
+#[tauri::command]
+pub async fn extension_host_list_installable() -> Result<Vec<InstallablePack>, String> {
+    tauri::async_runtime::spawn_blocking(|| host().list_installable_packs())
+        .await
+        .map_err(|err| format!("extension_host_list_installable worker failed: {err}"))?
+}
+
+/// 从 feed 下载并安装指定 pack（zip → SHA-256 校验 → 复用本地安装路径）。spawn_blocking。
+#[tauri::command]
+pub async fn extension_host_install_pack_from_feed(
+    pack_id: String,
+) -> Result<PackInstallResult, String> {
+    tauri::async_runtime::spawn_blocking(move || host().install_pack_from_feed(&pack_id))
+        .await
+        .map_err(|err| format!("extension_host_install_pack_from_feed worker failed: {err}"))?
 }
 
 #[tauri::command]

@@ -69,6 +69,16 @@ type PackInstallResult = {
   error: string | null;
 };
 
+type InstallablePack = {
+  packId: string;
+  name: string;
+  version: string;
+  installUrl: string;
+  sha256: string;
+  installed: boolean;
+  installedVersion: string | null;
+};
+
 const status = ref<ExtensionHostStatus | null>(null);
 const catalog = ref<MarketplaceCatalog | null>(null);
 const installed = ref<InstalledExtension[]>([]);
@@ -77,6 +87,8 @@ const hooks = ref<FsHook[]>([]);
 const error = ref<string | null>(null);
 const loading = ref(false);
 const packBusy = ref(false);
+const installable = ref<InstallablePack[]>([]);
+const feedError = ref<string | null>(null);
 
 const DEMO_MANIFEST = {
   id: "demo.ext",
@@ -111,10 +123,44 @@ async function refresh() {
     if (catalog.value.fetchesRemote || status.value.fetchesRemote) {
       error.value = t("extensions.errorRemoteFetch");
     }
+    await loadInstallable();
   } catch (err) {
     error.value = invokeErrorMessage(err);
   } finally {
     loading.value = false;
+  }
+}
+
+/** 拉取 feed「可安装 Store」列表；feed 不可达/未配置不污染主错误，单独记 feedError。 */
+async function loadInstallable() {
+  feedError.value = null;
+  try {
+    installable.value = await invoke<InstallablePack[]>("extension_host_list_installable");
+  } catch (err) {
+    installable.value = [];
+    feedError.value = invokeErrorMessage(err);
+  }
+}
+
+/** 一键安装：从 feed 下载 pack 安装包（zip→SHA 校验→本机安装）。装后默认未启用，启用时才拉产物。 */
+async function installFromFeed(item: InstallablePack) {
+  packBusy.value = true;
+  error.value = null;
+  try {
+    const result = await invoke<PackInstallResult>("extension_host_install_pack_from_feed", {
+      packId: item.packId,
+    });
+    if (!result.success) {
+      error.value = result.error ?? t("extensions.errorInstallFailed");
+      return;
+    }
+    toastSuccess(t("extensions.noticePackInstalled", { id: result.pack?.id ?? "" }));
+    await refresh();
+    await reloadWindow();
+  } catch (err) {
+    error.value = invokeErrorMessage(err);
+  } finally {
+    packBusy.value = false;
   }
 }
 
@@ -334,6 +380,45 @@ onMounted(() => {
               @click="uninstallPack(pack)"
             >
               {{ t("extensions.uninstall") }}
+            </button>
+          </div>
+        </li>
+      </ul>
+    </section>
+
+    <section class="fluent-surface card">
+      <div class="row-head">
+        <h2 class="section-title">
+          <span class="fluent-icon-wash"><FluentIcon name="cloud" size="md" /></span>
+          {{ t("extensions.storeTitle") }}
+        </h2>
+        <button class="fluent-control" type="button" :disabled="loading" @click="loadInstallable">
+          {{ t("common.refresh") }}
+        </button>
+      </div>
+      <p class="fluent-page-meta">{{ t("extensions.storeMeta") }}</p>
+      <p v-if="feedError" class="fluent-banner fluent-banner--info">
+        {{ t("extensions.storeUnavailable", { error: feedError }) }}
+      </p>
+      <p v-else-if="!installable.length" class="fluent-page-meta">{{ t("extensions.storeEmpty") }}</p>
+      <ul v-else class="installed">
+        <li v-for="item in installable" :key="item.packId">
+          <div>
+            <strong>{{ item.name }}</strong>
+            <span class="fluent-page-meta"> {{ item.packId }} · v{{ item.version }}</span>
+            <span
+              class="fluent-chip state-chip"
+              :class="item.installed ? 'fluent-chip--ok' : 'fluent-chip--stub'"
+            >{{ item.installed ? t("extensions.storeInstalled") : t("extensions.storeAvailable") }}</span>
+          </div>
+          <div class="actions">
+            <button
+              class="fluent-control fluent-control--accent"
+              type="button"
+              :disabled="packBusy || item.installed"
+              @click="installFromFeed(item)"
+            >
+              {{ t("extensions.storeInstall") }}
             </button>
           </div>
         </li>

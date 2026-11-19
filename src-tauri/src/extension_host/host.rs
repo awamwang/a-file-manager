@@ -5,8 +5,9 @@ use super::permissions::{parse_permissions, requires};
 use super::types::{
     AggregatedContributions, ExtensionHostStatus, ExtensionManifestVNext, ExtensionPermission,
     ExtensionRuntimeState, FeaturePackContributions, FeaturePackManifest, FsProviderContribution,
-    InstallResult, InstalledExtensionRecord, InstalledPackRecord, MarketplaceCatalog,
-    PackInstallResult, UiCommandRequest, UiCommandResult, EXTENSION_HOST_API_VERSION,
+    InstallResult, InstallablePack, InstalledExtensionRecord, InstalledPackRecord,
+    MarketplaceCatalog, PackInstallResult, UiCommandRequest, UiCommandResult,
+    EXTENSION_HOST_API_VERSION,
 };
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -396,6 +397,72 @@ impl ExtensionHost {
                 error: Some(error),
             },
         }
+    }
+
+    /// feed「可安装 Store」列表：读 feed manifest 的 packs 段 + 标记本机已装状态（ADR 0022）。
+    /// 网络（fetch manifest）由命令层放 spawn_blocking；feed 不可达时传播 Err 供前端提示。
+    pub fn list_installable_packs(&self) -> Result<Vec<InstallablePack>, String> {
+        let app_data = self.require_app_data_dir()?;
+        let cfg = crate::managed_dependency::feed::load_feed(&app_data);
+        let manifest = crate::managed_dependency::feed::fetch_manifest(
+            &cfg,
+            crate::managed_dependency::store::fetch_manifest_text,
+        )?;
+        let installed: BTreeMap<String, String> = self
+            .packs
+            .lock()
+            .map_err(|err| err.to_string())?
+            .iter()
+            .map(|(id, rec)| (id.clone(), rec.version.clone()))
+            .collect();
+        let packs = manifest.map(|m| m.packs).unwrap_or_default();
+        Ok(packs
+            .into_iter()
+            .map(|p| {
+                let installed_version = installed.get(&p.pack_id).cloned();
+                InstallablePack {
+                    installed: installed_version.is_some(),
+                    installed_version,
+                    pack_id: p.pack_id,
+                    name: p.name,
+                    version: p.version,
+                    install_url: p.install_url,
+                    sha256: p.sha256,
+                }
+            })
+            .collect())
+    }
+
+    /// 从 feed 安装指定 pack：按 installUrl 下载 zip → SHA-256 校验 → 落临时 → 复用 install_pack。
+    /// 默认 Installed（与本地安装一致，需显式启用→切 Managed→provision 产物）。
+    pub fn install_pack_from_feed(&self, pack_id: &str) -> Result<PackInstallResult, String> {
+        let app_data = self.require_app_data_dir()?;
+        let cfg = crate::managed_dependency::feed::load_feed(&app_data);
+        let manifest = crate::managed_dependency::feed::fetch_manifest(
+            &cfg,
+            crate::managed_dependency::store::fetch_manifest_text,
+        )?
+        .ok_or_else(|| "extension_host: no feed manifest configured".to_string())?;
+        let pack = manifest
+            .packs
+            .iter()
+            .find(|p| p.pack_id == pack_id)
+            .ok_or_else(|| format!("pack '{pack_id}' not in feed manifest"))?;
+        let bytes = crate::managed_dependency::store::download_verify_url(
+            &pack.install_url,
+            &pack.sha256,
+            &cfg.allow_hosts,
+            crate::managed_dependency::store::http_get_bytes,
+        )?;
+        let tmp_dir =
+            std::env::temp_dir().join(format!("afm-pack-install-{}", std::process::id()));
+        fs::create_dir_all(&tmp_dir)
+            .map_err(|err| format!("extension_host: pack tmp dir: {err}"))?;
+        let zip =
+            crate::managed_dependency::store::materialize(&tmp_dir, &format!("{pack_id}.zip"), &bytes)?;
+        let result = self.install_pack(&zip);
+        let _ = fs::remove_dir_all(&tmp_dir);
+        Ok(result)
     }
 
     pub fn list_packs(&self) -> Result<Vec<InstalledPackRecord>, String> {

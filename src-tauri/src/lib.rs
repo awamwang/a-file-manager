@@ -487,6 +487,8 @@ pub fn run() {
                     extension_host::extension_host_list_fs_provider_hooks,
                     extension_host::extension_host_register_fs_provider_hook,
                     extension_host::extension_host_install_pack,
+                    extension_host::extension_host_list_installable,
+                    extension_host::extension_host_install_pack_from_feed,
                     extension_host::extension_host_list_packs,
                     extension_host::extension_host_set_pack_enabled,
                     extension_host::extension_host_uninstall_pack,

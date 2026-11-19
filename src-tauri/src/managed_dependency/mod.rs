@@ -33,8 +33,8 @@ pub use orchestrator::{
 };
 #[allow(unused_imports)]
 pub use store::{
-    download_and_verify, find_entry, is_host_allowed, materialize, parse_manifest, verify_sha256,
-    StoreEntry, StoreManifest,
+    download_and_verify, download_verify_url, find_entry, is_host_allowed, materialize,
+    parse_manifest, verify_sha256, PackEntry, StoreEntry, StoreManifest,
 };
 #[allow(unused_imports)]
 pub use provision::{artifact_file_name, provision_artifact, ARTIFACT_SUBDIR};

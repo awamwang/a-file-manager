@@ -297,6 +297,23 @@ pub struct PackInstallResult {
     pub error: Option<String>,
 }
 
+/// feed「可安装 Store」列表项（ADR 0022）：供扩展页列出 feed manifest 中的 pack 并一键安装。
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallablePack {
+    pub pack_id: String,
+    pub name: String,
+    pub version: String,
+    /// pack 安装包（zip）直链；受 feed allow-list 约束。
+    pub install_url: String,
+    pub sha256: String,
+    /// 本机是否已装同名 pack。
+    pub installed: bool,
+    /// 已装时的本机版本（未装 `None`），前端据此显示「可更新」。
+    #[serde(default)]
+    pub installed_version: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

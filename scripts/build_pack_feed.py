@@ -114,6 +114,54 @@ def build(args: argparse.Namespace) -> int:
     return 0
 
 
+def zip_pack_dir(src_dir: Path, dest_zip: Path) -> None:
+    """把一个 pack 目录（含 pack.json）打成 zip，相对路径入包根。"""
+    import zipfile
+
+    dest_zip.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(dest_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+        for p in sorted(src_dir.rglob("*")):
+            if p.is_file():
+                zf.write(p, p.relative_to(src_dir).as_posix())
+
+
+def pack_dir(args: argparse.Namespace) -> int:
+    """把成形 pack 目录打成安装包 zip + 计算 SHA + 写入 feed 元清单的 packs 段（可安装 Store）。"""
+    src = Path(args.src)
+    if not (src / "pack.json").exists():
+        raise SystemExit(f"pack.json not found in {src}")
+    out = Path(args.out)
+    zp = out / "packs" / (args.pack_id + ".zip")
+    zip_pack_dir(src, zp)
+    digest = sha256_of(zp)
+    install_url = f"{args.base_feed_url.rstrip('/')}/packs/{args.pack_id}.zip"
+    entry = {
+        "packId": args.pack_id,
+        "name": args.name,
+        "version": args.version,
+        "installUrl": install_url,
+        "sha256": digest,
+    }
+    manifest_path = out / "manifest.json"
+    manifest: dict = {"schema": 1, "entries": [], "packs": []}
+    if manifest_path.exists():
+        try:
+            existing = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["entries"] = existing.get("entries", [])
+            others = [e for e in existing.get("packs", []) if e.get("packId") != args.pack_id]
+            manifest["packs"] = others + [entry]
+        except Exception:
+            manifest["packs"] = [entry]
+    else:
+        manifest["packs"] = [entry]
+    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    print(f"[pack] zip      : {zp}  ({zp.stat().st_size} bytes)")
+    print(f"[pack] sha256   : {digest}")
+    print(f"[pack] installUrl: {install_url}")
+    print(f"[pack] manifest : {manifest_path}")
+    return 0
+
+
 def emit_feed_config(args: argparse.Namespace) -> int:
     """生成 AFM 运行时 feed 配置（managed-dependency-feed.json），指向本地 feed。"""
     out = Path(args.out)
@@ -152,6 +200,15 @@ def main() -> int:
     e.add_argument("--base-feed-url", default="http://127.0.0.1:8078")
     e.add_argument("--allow-host", action="append", default=["127.0.0.1"])
     e.set_defaults(fn=emit_feed_config)
+
+    pd = sub.add_parser("pack-dir", help="zip a finished pack dir + record it as installable (packs)")
+    pd.add_argument("--pack-id", required=True)
+    pd.add_argument("--name", required=True)
+    pd.add_argument("--version", required=True)
+    pd.add_argument("--src", required=True, help="pack directory containing pack.json")
+    pd.add_argument("--out", required=True, help="feed output dir")
+    pd.add_argument("--base-feed-url", default="http://127.0.0.1:8078")
+    pd.set_defaults(fn=pack_dir)
 
     args = p.parse_args()
     return args.fn(args)

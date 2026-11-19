@@ -13,12 +13,16 @@ use sha2::{Digest, Sha256};
 /// 当前受支持的元清单 schema 版本。
 pub const STORE_MANIFEST_SCHEMA: u32 = 1;
 
-/// 一份元清单：固定远端拉回，列出被批准的 pack 产物。
+/// 一份元清单：固定远端拉回，列出被批准的 pack 产物与可安装 pack 包。
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StoreManifest {
     pub schema: u32,
+    #[serde(default)]
     pub entries: Vec<StoreEntry>,
+    /// 可安装 pack 包目录（ADR 0022「可安装 Store 接缝」）；旧清单缺此段=空，向后兼容。
+    #[serde(default)]
+    pub packs: Vec<PackEntry>,
 }
 
 /// 单条被批准的产物条目。
@@ -41,6 +45,19 @@ pub struct StoreEntry {
     pub base_url: String,
 }
 
+/// 单条可安装 pack 包条目（pack 安装包 = zip，含 pack.json + UI 资源；sidecar 产物另由 entries 描述）。
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PackEntry {
+    pub pack_id: String,
+    pub name: String,
+    pub version: String,
+    /// pack 安装包（zip）直链，受 allow-list 约束。
+    pub install_url: String,
+    /// zip 安装包 64 位十六进制 SHA-256。
+    pub sha256: String,
+}
+
 /// 解析并轻校验元清单 JSON（schema 版本、条目必填）。
 pub fn parse_manifest(json: &str) -> Result<StoreManifest, String> {
     let manifest: StoreManifest =
@@ -60,6 +77,19 @@ pub fn parse_manifest(json: &str) -> Result<StoreManifest, String> {
             return Err(format!(
                 "store manifest entry '{}' missing required fields",
                 entry.pack_id
+            ));
+        }
+    }
+    for pack in &manifest.packs {
+        if pack.pack_id.trim().is_empty()
+            || pack.name.trim().is_empty()
+            || pack.version.trim().is_empty()
+            || pack.install_url.trim().is_empty()
+            || pack.sha256.trim().is_empty()
+        {
+            return Err(format!(
+                "store manifest pack '{}' missing required fields",
+                pack.pack_id
             ));
         }
     }
@@ -109,8 +139,28 @@ pub fn file_name_from_url(url: &str) -> String {
     path.rsplit('/').next().filter(|s| !s.trim().is_empty()).unwrap_or("artifact").to_string()
 }
 
-/// 下载编排：先查 allow-list（不在则**不发起 fetch**），再 fetch，再校验 SHA-256。
-/// `fetch` 注入真实网络或测试桩；`now` 参数化仅为测试可断言 fetch 是否被调用。
+/// 通用「先查 allow-list（不在则**绝不发起 fetch**）→ fetch → SHA-256 校验」。
+/// 产物下载（`download_and_verify`）与可安装 pack 包下载共用此原语。`fetch` 注入网络/桩。
+pub fn download_verify_url<F>(
+    url: &str,
+    expected_sha: &str,
+    allow_hosts: &[String],
+    fetch: F,
+) -> Result<Vec<u8>, String>
+where
+    F: FnOnce(&str) -> Result<Vec<u8>, String>,
+{
+    if !is_host_allowed(url, allow_hosts)? {
+        return Err(format!("store asset host not allow-listed: {url}"));
+    }
+    let bytes = fetch(url)?;
+    if !verify_sha256(&bytes, expected_sha) {
+        return Err(format!("store checksum mismatch for {url}"));
+    }
+    Ok(bytes)
+}
+
+/// 下载编排（产物条目）：复用 [`download_verify_url`]。
 pub fn download_and_verify<F>(
     entry: &StoreEntry,
     allow_hosts: &[String],
@@ -119,20 +169,7 @@ pub fn download_and_verify<F>(
 where
     F: FnOnce(&str) -> Result<Vec<u8>, String>,
 {
-    if !is_host_allowed(&entry.asset_url, allow_hosts)? {
-        return Err(format!(
-            "store asset host not allow-listed: {}",
-            entry.asset_url
-        ));
-    }
-    let bytes = fetch(&entry.asset_url)?;
-    if !verify_sha256(&bytes, &entry.sha256) {
-        return Err(format!(
-            "store artifact checksum mismatch for '{}'",
-            entry.pack_id
-        ));
-    }
-    Ok(bytes)
+    download_verify_url(&entry.asset_url, &entry.sha256, allow_hosts, fetch)
 }
 
 /// 原子写产物到目标目录：先写 `.{name}.tmp` 再 rename。
@@ -304,5 +341,48 @@ mod tests {
             .collect();
         assert!(leftovers.is_empty(), "no tmp residue");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn manifest_with_packs_parses_and_legacy_defaults_empty() {
+        let json = r#"{
+            "schema": 1,
+            "entries": [],
+            "packs": [
+                {
+                    "packId": "awam.tool-runtime",
+                    "name": "工具管理运行时",
+                    "version": "0.1.0",
+                    "installUrl": "http://127.0.0.1:8078/packs/awam.tool-runtime.zip",
+                    "sha256": "da29c005a885328bc1c231d789a61ad0c58b4c067b4d00f8f32c5efc306f821e"
+                }
+            ]
+        }"#;
+        let m = parse_manifest(json).unwrap();
+        assert_eq!(m.packs.len(), 1);
+        assert_eq!(m.packs[0].install_url, "http://127.0.0.1:8078/packs/awam.tool-runtime.zip");
+        // 旧清单（无 packs 段）默认空，向后兼容。
+        assert!(parse_manifest(manifest_json()).unwrap().packs.is_empty());
+    }
+
+    #[test]
+    fn manifest_pack_missing_field_rejected() {
+        let json = r#"{"schema":1,"packs":[{"packId":"x","name":"X","version":"","installUrl":"https://a/b.zip","sha256":"deadbeef"}]}"#;
+        let err = parse_manifest(json).unwrap_err();
+        assert!(err.contains("pack 'x' missing required fields"), "{err}");
+    }
+
+    #[test]
+    fn download_verify_url_disallowed_host_never_fetches() {
+        let called = std::cell::Cell::new(false);
+        let err = download_verify_url(
+            "https://evil.tld/p.zip",
+            "ab",
+            &["feed.afm.local".to_string()],
+            |_| { called.set(true); Ok(vec![1]) },
+        )
+        .unwrap_err();
+        assert!(err.contains("not allow-listed"), "{err}");
+        assert!(!called.get());
     }
 }
