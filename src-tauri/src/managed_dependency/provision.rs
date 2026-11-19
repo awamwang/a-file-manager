@@ -74,7 +74,7 @@ pub fn ensure_artifact<F>(
     fetch: F,
 ) -> Result<Option<ArtifactState>, String>
 where
-    F: FnOnce(&str) -> Result<Vec<u8>, String>,
+    F: FnMut(&str) -> Result<Vec<u8>, String>,
 {
     let entry = match entry {
         Some(e) => e,
@@ -104,7 +104,7 @@ pub fn force_provision<F>(
     fetch: F,
 ) -> Result<PathBuf, String>
 where
-    F: FnOnce(&str) -> Result<Vec<u8>, String>,
+    F: FnMut(&str) -> Result<Vec<u8>, String>,
 {
     let sidecar_dir = sidecar_dir_for(pack_install_dir, working_dir_rel);
     let name = artifact_file_name(entry);
@@ -134,6 +134,7 @@ mod tests {
             sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_string(), // sha256("")
             file_name: Some("awam-file-gateway.exe".to_string()),
             base_url: String::new(),
+            asset_fallback_url: None,
         }
     }
 
@@ -323,6 +324,7 @@ mod tests {
 
         let cfg = FeedConfig {
             manifest_url: format!("http://127.0.0.1:{port}/manifest.json"),
+            fallback_manifest_url: String::new(),
             allow_hosts: vec!["127.0.0.1".to_string()],
         };
         // 真网络拉元清单（allow-list 命中 127.0.0.1）。

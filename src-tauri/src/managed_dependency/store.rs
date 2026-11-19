@@ -43,6 +43,10 @@ pub struct StoreEntry {
     /// 缺省空表示该 pack 无固定本机探活地址（仅 config-mode 用户提供）。
     #[serde(default)]
     pub base_url: String,
+    /// 可选：对象存储镜像回落地址。主源（GitHub Release）传输失败/不可达时按同 SHA 校验下载。
+    /// 缺省 None=不回落（仅本地/单源 feed 不变）。回落主机同样须命中 allow-list。
+    #[serde(default)]
+    pub asset_fallback_url: Option<String>,
 }
 
 /// 单条可安装 pack 包条目（pack 安装包 = zip，含 pack.json + UI 资源；sidecar 产物另由 entries 描述）。
@@ -56,6 +60,9 @@ pub struct PackEntry {
     pub install_url: String,
     /// zip 安装包 64 位十六进制 SHA-256。
     pub sha256: String,
+    /// 可选：对象存储镜像回落地址（主源不可达时按同 SHA 下载）。同样受 allow-list 约束。
+    #[serde(default)]
+    pub install_fallback_url: Option<String>,
 }
 
 /// 解析并轻校验元清单 JSON（schema 版本、条目必填）。
@@ -150,35 +157,74 @@ pub fn file_name_from_url(url: &str) -> String {
 
 /// 通用「先查 allow-list（不在则**绝不发起 fetch**）→ fetch → SHA-256 校验」。
 /// 产物下载（`download_and_verify`）与可安装 pack 包下载共用此原语。`fetch` 注入网络/桩。
+/// 无回落 URL 的便捷包装；带回落链时调 [`download_verify_url_with_fallback`]。
 pub fn download_verify_url<F>(
     url: &str,
     expected_sha: &str,
     allow_hosts: &[String],
-    fetch: F,
+    mut fetch: F,
 ) -> Result<Vec<u8>, String>
 where
-    F: FnOnce(&str) -> Result<Vec<u8>, String>,
+    F: FnMut(&str) -> Result<Vec<u8>, String>,
 {
-    if !is_host_allowed(url, allow_hosts)? {
-        return Err(format!("store asset host not allow-listed: {url}"));
+    download_verify_url_with_fallback(url, None, expected_sha, allow_hosts, &mut fetch)
+}
+
+/// 主源优先、失败回落的下载链（ADR 0022 / P2-5：GitHub Release 主源，对象存储镜像回落）。
+/// 规则（安全不变量逐源成立）：
+/// - 主源主机不在 allow-list → **绝不 fetch 主源**，记录原因；
+/// - 主源 fetch/校验出错（传输失败 / 不可达 / 摘要不符）→ 若配了回落 URL，则对**回落源**同样先查 allow-list 再 fetch，并按同一 SHA 校验；
+/// - 回落命中即成功；两路都失败则返回主源原始错误。
+/// `fetch` 需 `FnMut`（可能调两次）。
+pub fn download_verify_url_with_fallback<F>(
+    url: &str,
+    fallback_url: Option<&str>,
+    expected_sha: &str,
+    allow_hosts: &[String],
+    mut fetch: F,
+) -> Result<Vec<u8>, String>
+where
+    F: FnMut(&str) -> Result<Vec<u8>, String>,
+{
+    let primary_err: String = match is_host_allowed(url, allow_hosts) {
+        Ok(true) => match fetch(url) {
+            Ok(bytes) if verify_sha256(&bytes, expected_sha) => return Ok(bytes),
+            Ok(_) => format!("store checksum mismatch for {url}"),
+            Err(err) => err,
+        },
+        Ok(false) => format!("store asset host not allow-listed: {url}"),
+        Err(err) => err,
+    };
+    let Some(fallback) = fallback_url.map(str::trim).filter(|u| !u.is_empty()) else {
+        return Err(primary_err);
+    };
+    if !is_host_allowed(fallback, allow_hosts)? {
+        return Err(format!("store fallback host not allow-listed: {fallback}"));
     }
-    let bytes = fetch(url)?;
+    let bytes = fetch(fallback)
+        .map_err(|err| format!("{primary_err}; fallback fetch failed: {err}"))?;
     if !verify_sha256(&bytes, expected_sha) {
-        return Err(format!("store checksum mismatch for {url}"));
+        return Err(format!("store checksum mismatch for fallback {fallback}"));
     }
     Ok(bytes)
 }
 
-/// 下载编排（产物条目）：复用 [`download_verify_url`]。
+/// 下载编排（产物条目）：主源 `asset_url` + 可选 `asset_fallback_url` 回落链。
 pub fn download_and_verify<F>(
     entry: &StoreEntry,
     allow_hosts: &[String],
-    fetch: F,
+    mut fetch: F,
 ) -> Result<Vec<u8>, String>
 where
-    F: FnOnce(&str) -> Result<Vec<u8>, String>,
+    F: FnMut(&str) -> Result<Vec<u8>, String>,
 {
-    download_verify_url(&entry.asset_url, &entry.sha256, allow_hosts, fetch)
+    download_verify_url_with_fallback(
+        &entry.asset_url,
+        entry.asset_fallback_url.as_deref(),
+        &entry.sha256,
+        allow_hosts,
+        &mut fetch,
+    )
 }
 
 /// 原子写产物到目标目录：先写 `.{name}.tmp` 再 rename。
@@ -340,6 +386,42 @@ mod tests {
         // fetch 返回非空字节，校验应失败（期望空串 sha）。
         let err = download_and_verify(entry, &allow, |_| Ok(vec![1, 2, 3])).unwrap_err();
         assert!(err.contains("checksum mismatch"), "{err}");
+    }
+
+    #[test]
+    fn download_and_verify_falls_back_to_mirror_when_primary_unreachable() {
+        let json = r#"{"schema":1,"entries":[{"packId":"p","artifactVersion":"1.0.0","assetUrl":"https://primary.example/a.exe","assetFallbackUrl":"https://mirror.example/a.exe","sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","fileName":"a.exe"}]}"#;
+        let m = parse_manifest(json).unwrap();
+        let e = find_entry(&m, "p").unwrap();
+        let allow = vec!["primary.example".to_string(), "mirror.example".to_string()];
+        let mut urls = Vec::new();
+        let bytes = download_and_verify(e, &allow, |u| {
+            urls.push(u.to_string());
+            if u.contains("primary") {
+                Err("down".to_string())
+            } else {
+                Ok(Vec::new())
+            }
+        })
+        .unwrap();
+        assert!(bytes.is_empty(), "mirror bytes accepted");
+        assert_eq!(urls.len(), 2, "primary then mirror");
+        assert!(urls[1].contains("mirror"), "{urls:?}");
+    }
+
+    #[test]
+    fn download_verify_never_fetches_disallowed_fallback() {
+        let json = r#"{"schema":1,"entries":[{"packId":"p","artifactVersion":"1.0.0","assetUrl":"https://evil.example/a.exe","assetFallbackUrl":"https://also-evil.example/a.exe","sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","fileName":"a.exe"}]}"#;
+        let m = parse_manifest(json).unwrap();
+        let e = find_entry(&m, "p").unwrap();
+        let called = std::cell::Cell::new(false);
+        let err = download_and_verify(e, &["github.com".to_string()], |_| {
+            called.set(true);
+            Ok(Vec::new())
+        })
+        .unwrap_err();
+        assert!(err.contains("not allow-listed"), "{err}");
+        assert!(!called.get(), "neither primary nor fallback may be fetched when disallowed");
     }
 
     #[test]

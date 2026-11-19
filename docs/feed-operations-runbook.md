@@ -109,6 +109,16 @@ python scripts/build_pack_feed.py emit-feed-config \
 3. AFM 无需改代码：feed 拉取/下载/SHA 校验/落盘/spawn/升级全走既有接缝。
 4. （待做，见 §6）把 `build` / `pack-dir` 接进 **AFM CI release job**：按 OS matrix 产产物、算 sha、写 manifest、上传、可选签名。目前脚本只**产文件**，"上传到线上 + 签名"尚未自动化。
 
+## 3.5 下载回落链（GitHub 主源 → 对象存储镜像）
+
+发布是**一条链、两个源**：优先 GitHub Release（AFM 自有 release 资产），主源不可达 / 传输失败 / 摘要不符时**自动回落对象存储镜像**。具体 OSS bucket / endpoint 配置后续接，但接缝已就位：
+
+- 客户端 `managed-dependency-feed.json` 填 `fallbackManifestUrl`（OSS 上的同一 manifest.json），并把 OSS 主机加进 `allowHosts`。
+- manifest 的 `entries[].assetFallbackUrl` / `packs[].installFallbackUrl` 指 OSS 镜像同内容文件。
+- **默认惰性**：不填上述回落字段 = 只走主源，行为不变。
+- **allow-list 不变量对回落同样成立**：回落源主机不在 `allowHosts` 内 → 绝不 fetch 它。两路都失败时返回首个错误（供前端提示 / 启动静默跳过）。
+- 构建期用 `build` / `pack-dir --fallback-base-url <OSS基址>`、`emit-feed-config --fallback-base-feed-url <OSS基址>` 自动写回落字段。
+
 ## 4. 版本 bump 标准流程（发一次新产物）
 
 1. 依赖仓改源码 → 固定 tag / commit SHA（provenance）。

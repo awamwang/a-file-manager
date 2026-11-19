@@ -102,6 +102,9 @@ def build(args: argparse.Namespace) -> int:
         "fileName": exe.name,
         "baseUrl": args.base_probe_url,
     }
+    # 可选：对象存储镜像回落地址（GitHub 主源不可达时同 SHA 下载）。未配则不写、不回落。
+    if getattr(args, "fallback_base_url", ""):
+        entry["assetFallbackUrl"] = f"{args.fallback_base_url.rstrip('/')}/artifacts/{exe.name}"
     manifest = {"schema": 1, "entries": [entry], "packs": []}
     manifest_path = out / "manifest.json"
     # 合并：entries 按 packId 去重覆盖本条；packs（可安装列表）整段保留。
@@ -149,6 +152,8 @@ def pack_dir(args: argparse.Namespace) -> int:
         "installUrl": install_url,
         "sha256": digest,
     }
+    if getattr(args, "fallback_base_url", ""):
+        entry["installFallbackUrl"] = f"{args.fallback_base_url.rstrip('/')}/packs/{args.pack_id}.zip"
     manifest_path = out / "manifest.json"
     manifest: dict = {"schema": 1, "entries": [], "packs": []}
     if manifest_path.exists():
@@ -178,6 +183,10 @@ def emit_feed_config(args: argparse.Namespace) -> int:
         "manifestUrl": f"{args.base_feed_url.rstrip('/')}/manifest.json",
         "allowHosts": args.allow_host,
     }
+    # 可选：对象存储镜像回落清单地址。未配则不写（仅单源 feed 行为不变）。
+    # 注意：回落主机也须出现在 --allow-host 中，否则运行时会按 allow-list 跳过该源。
+    if getattr(args, "fallback_base_feed_url", ""):
+        cfg["fallbackManifestUrl"] = f"{args.fallback_base_feed_url.rstrip('/')}/manifest.json"
     dest = app_cfg / "managed-dependency-feed.json"
     dest.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
     print(f"[feed] wrote {dest}: {json.dumps(cfg)}")
@@ -199,12 +208,16 @@ def main() -> int:
     b.add_argument("--base-probe-url", default="http://127.0.0.1:18778",
                    help="AFM probe/attach base url written to the manifest entry")
     b.add_argument("--python", default=sys.executable, help="interpreter with PyInstaller + deps")
+    b.add_argument("--fallback-base-url", default="",
+                   help="object-storage mirror base for assetFallbackUrl (empty = no fallback)")
     b.set_defaults(fn=build)
 
     e = sub.add_parser("emit-feed-config", help="write AFM managed-dependency-feed.json")
     e.add_argument("--out", required=True)
     e.add_argument("--app-config-dir", required=True)
     e.add_argument("--base-feed-url", default="http://127.0.0.1:8078")
+    e.add_argument("--fallback-base-feed-url", default="",
+                   help="object-storage mirror base for fallbackManifestUrl (empty = no fallback)")
     e.add_argument("--allow-host", action="append", default=["127.0.0.1"])
     e.set_defaults(fn=emit_feed_config)
 
@@ -215,6 +228,8 @@ def main() -> int:
     pd.add_argument("--src", required=True, help="pack directory containing pack.json")
     pd.add_argument("--out", required=True, help="feed output dir")
     pd.add_argument("--base-feed-url", default="http://127.0.0.1:8078")
+    pd.add_argument("--fallback-base-url", default="",
+                    help="object-storage mirror base for installFallbackUrl (empty = no fallback)")
     pd.set_defaults(fn=pack_dir)
 
     args = p.parse_args()

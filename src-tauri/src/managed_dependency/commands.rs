@@ -153,16 +153,21 @@ pub async fn managed_dependency_list(app: AppHandle) -> Result<Vec<ManagedDepend
         .map_err(|err| format!("managed_dependency_list worker failed: {err}"))?
 }
 
-/// 设置 managed 产物 feed（AFM 自有发布通道）的元清单 URL 与 allow-list 主机（ADR 0022）。
+/// 设置 managed 产物 feed（AFM 自有发布通道）的元清单 URL、可选对象存储回落 URL 与 allow-list（ADR 0022）。
 /// 写入后，下一次 pack 启用即据此把有 entry 的 pack 切 Managed、ensure 据此 provision 产物。
 #[tauri::command]
 pub async fn managed_dependency_set_feed(
     app: AppHandle,
     manifest_url: String,
+    fallback_manifest_url: Option<String>,
     allow_hosts: Vec<String>,
 ) -> Result<feed::FeedConfig, String> {
     let dir = app_config_dir(&app)?;
-    let cfg = feed::FeedConfig { manifest_url, allow_hosts };
+    let cfg = feed::FeedConfig {
+        manifest_url,
+        fallback_manifest_url: fallback_manifest_url.unwrap_or_default(),
+        allow_hosts,
+    };
     feed::save_feed(&dir, &cfg)?;
     Ok(cfg)
 }
@@ -458,6 +463,7 @@ mod tests {
             sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_string(),
             file_name: Some("awam-tool-manager.exe".to_string()),
             base_url: "http://127.0.0.1:18778".to_string(),
+            asset_fallback_url: None,
         }
     }
 

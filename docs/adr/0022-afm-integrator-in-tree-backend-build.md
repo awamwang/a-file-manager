@@ -87,6 +87,16 @@
 - `feature-pack-format.md` 字段说明从「更名为 versionCompat」纠正为实际 `gatewayCompat` + 注明由 tool_runtime 执行、未知版本降级跳过。
 - 验证：`cargo test --lib` 446 passed 无新警告。
 
+## 落地记录：feed 下载 GitHub→对象存储回落链（P2-5，2026-11-19）
+
+发布通道做成**单链条、多源回落**：优先 GitHub Release（AFM 自有 release 资产），传输失败 / 不可达 / 摘要不符则回落**对象存储镜像**。OSS 具体配置（bucket / endpoint / 同步）后续接，但接缝已就位且**默认惰性**——未填回落地址时行为与单源完全一致。
+
+- **feed 配置**：`FeedConfig` 加 `fallbackManifestUrl`（serde default 空）；`fetch_manifest` 改主→回落，逐源都守 allow-list（不在则绝不 fetch 该源），主源任一错才试回落，两路皆败返回首个错误。`managed_dependency_set_feed` 加可选 `fallbackManifestUrl` 参数。
+- **条目级回落**：`StoreEntry` 加 `assetFallbackUrl?`、`PackEntry` 加 `installFallbackUrl?`（均 serde default）。新原语 `store::download_verify_url_with_fallback(url, fallback, sha, allow, fetch)`：主源先（allow-list→fetch→SHA 校验），失败/不可达/摘要不符再对回落源同样 allow-list→fetch→同 SHA 校验。`download_and_verify`（产物）与 `install_pack_from_feed`（pack 安装包）走该链；`fetch` 边界 `FnOnce→FnMut`。
+- **构建脚本**：`build` / `pack-dir` 加 `--fallback-base-url`、`emit-feed-config` 加 `--fallback-base-feed-url`，未传则不写回落字段。
+- **待接（后续）**：CI release job 把 `build` 产物同时上传 GitHub Release + OSS 镜像，并写 `fallbackBase*`；OSS bucket/endpoint/密钥由部署侧提供。
+- 验证：`cargo test --lib` 450 passed 无警告（+2 feed +2 store 回落测试；含「不合法源绝不 fetch」「主不可达→镜像」）。
+
 ## 落地记录：移除遗留 vNext 扩展宿主（候选1 / C-2，2026-11-19）
 
 兑现 C-2 拍板「删 vNext 宿主、仅保留 permission 枚举」——把"能力扩展唯一单元 = Feature Pack"落到代码，消除四套里的最后一套遗留：

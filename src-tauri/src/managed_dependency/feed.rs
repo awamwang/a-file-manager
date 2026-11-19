@@ -22,17 +22,24 @@ pub const FEED_FILE_NAME: &str = "managed-dependency-feed.json";
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FeedConfig {
-    /// 元清单 JSON 的 http(s) URL；空表示未配置（所有 pack 走内置/config）。
+    /// 元清单 JSON 的 http(s) URL（主源，推荐 GitHub Release 自有发布通道）；空表示未配置（所有 pack 走内置/config）。
     #[serde(default)]
     pub manifest_url: String,
-    /// 受批准来源主机（精确或点分子域）；同时约束元清单与产物资产的下载主机。
+    /// 可选：对象存储镜像回落地址。主源传输失败/不可达时改拉此源（同一 schema）。空=不回落。
+    #[serde(default)]
+    pub fallback_manifest_url: String,
+    /// 受批准来源主机（精确或点分子域）；同时约束主源、回落源与产物资产/安装包下载主机。
     #[serde(default)]
     pub allow_hosts: Vec<String>,
 }
 
 impl Default for FeedConfig {
     fn default() -> Self {
-        Self { manifest_url: String::new(), allow_hosts: Vec::new() }
+        Self {
+            manifest_url: String::new(),
+            fallback_manifest_url: String::new(),
+            allow_hosts: Vec::new(),
+        }
     }
 }
 
@@ -65,25 +72,43 @@ pub fn save_feed(app_data_dir: &Path, cfg: &FeedConfig) -> Result<(), String> {
     Ok(())
 }
 
-/// 拉取并解析 feed 元清单。
+/// 拉取并解析 feed 元清单：主源优先、传输失败/不可达回落对象存储镜像（ADR 0022 / P2-5）。
 ///
-/// - 未配置 `manifest_url` → `Ok(None)`（无 feed，所有 pack 走内置/config）。
-/// - 配置了 URL 但其主机不在 allow-list → `Err`（绝不向未批准来源发起 fetch）。
-/// - 拉取/解析失败 → `Err`（调用方据此降级；本函数不吞错，保持与 store 一致的「如实返回」）。
-pub fn fetch_manifest<F>(cfg: &FeedConfig, fetch: F) -> Result<Option<StoreManifest>, String>
+/// - 主源未配置（URL 空）→ `Ok(None)`（无 feed，所有 pack 走内置/config）。
+/// - 逐源都守 allow-list 不变量：主机不在 allow-list → **绝不 fetch 该源**。
+/// - 主源出错（不可达/解析失败）→ 若配了回落源，改拉回落；两路都失败返回主源错误。
+/// `fetch` 注入真网络或桩，单测全离线；需 `FnMut`（可能尝试两个源）。
+pub fn fetch_manifest<F>(cfg: &FeedConfig, mut fetch: F) -> Result<Option<StoreManifest>, String>
 where
-    F: FnOnce(&str) -> Result<String, String>,
+    F: FnMut(&str) -> Result<String, String>,
 {
-    let url = cfg.manifest_url.trim();
-    if url.is_empty() {
+    let primary = cfg.manifest_url.trim();
+    if primary.is_empty() {
         return Ok(None);
     }
-    if !is_host_allowed(url, &cfg.allow_hosts)? {
-        return Err(format!("feed manifest host not allow-listed: {url}"));
+    let fallback = cfg.fallback_manifest_url.trim();
+    let mut last_err: Option<String> = None;
+    for (label, url) in [("manifest", primary)]
+        .into_iter()
+        .chain([("fallback manifest", fallback)])
+    {
+        if url.is_empty() {
+            continue;
+        }
+        // 该源主机不在 allow-list → 跳过（绝不 fetch），记录原因。
+        match is_host_allowed(url, &cfg.allow_hosts) {
+            Ok(true) => match fetch(url) {
+                Ok(text) => match parse_manifest(&text) {
+                    Ok(manifest) => return Ok(Some(manifest)),
+                    Err(err) => last_err = Some(err),
+                },
+                Err(err) => last_err = Some(err),
+            },
+            Ok(false) => last_err = Some(format!("feed {label} host not allow-listed: {url}")),
+            Err(err) => last_err = Some(err),
+        }
     }
-    let text = fetch(url)?;
-    let manifest = parse_manifest(&text)?;
-    Ok(Some(manifest))
+    Err(last_err.unwrap_or_else(|| "feed manifest unavailable".to_string()))
 }
 
 /// 命中 feed entry 时解析出的 managed 绑定（启用时据此写 `record`）。
@@ -110,6 +135,7 @@ mod tests {
     fn cfg(url: &str, hosts: &[&str]) -> FeedConfig {
         FeedConfig {
             manifest_url: url.to_string(),
+            fallback_manifest_url: String::new(),
             allow_hosts: hosts.iter().map(|h| h.to_string()).collect(),
         }
     }
@@ -164,6 +190,44 @@ mod tests {
     #[test]
     fn resolve_binding_none_manifest_is_none() {
         assert_eq!(resolve_managed_binding(None, "awam.tool-runtime"), None);
+    }
+
+    #[test]
+    fn manifest_failover_uses_fallback_when_primary_unreachable() {
+        use std::cell::RefCell;
+        let cfg = FeedConfig {
+            manifest_url: "https://primary.example/m.json".to_string(),
+            fallback_manifest_url: "https://mirror.example/m.json".to_string(),
+            allow_hosts: vec!["primary.example".to_string(), "mirror.example".to_string()],
+        };
+        let called = RefCell::new(Vec::new());
+        let m = fetch_manifest(&cfg, |u| {
+            called.borrow_mut().push(u.to_string());
+            if u.contains("primary") {
+                Err("unreachable".to_string())
+            } else {
+                Ok(MANIFEST.to_string())
+            }
+        })
+        .unwrap()
+        .expect("fallback manifest");
+        assert!(find_entry(&m, "awam.tool-runtime").is_some());
+        let urls = called.borrow();
+        assert_eq!(urls.len(), 2, "primary then fallback");
+        assert!(urls[0].contains("primary") && urls[1].contains("mirror"), "{urls:?}");
+    }
+
+    #[test]
+    fn manifest_failover_never_fetches_disallowed_sources() {
+        let cfg = FeedConfig {
+            manifest_url: "https://evil.example/m.json".to_string(),
+            fallback_manifest_url: "https://notallowed.example/m.json".to_string(),
+            allow_hosts: vec![],
+        };
+        let called = std::cell::Cell::new(false);
+        let err = fetch_manifest(&cfg, |_| { called.set(true); Ok(MANIFEST.to_string()) }).unwrap_err();
+        assert!(err.contains("not allow-listed"), "{err}");
+        assert!(!called.get(), "disallowed sources must never be fetched");
     }
 
     #[test]

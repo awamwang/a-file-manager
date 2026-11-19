@@ -178,8 +178,9 @@ impl ExtensionHost {
             .iter()
             .find(|p| p.pack_id == pack_id)
             .ok_or_else(|| format!("pack '{pack_id}' not in feed manifest"))?;
-        let bytes = crate::managed_dependency::store::download_verify_url(
+        let bytes = crate::managed_dependency::store::download_verify_url_with_fallback(
             &pack.install_url,
+            pack.install_fallback_url.as_deref(),
             &pack.sha256,
             &cfg.allow_hosts,
             crate::managed_dependency::store::http_get_bytes,
