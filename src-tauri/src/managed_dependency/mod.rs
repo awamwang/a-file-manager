@@ -1,35 +1,30 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! 统一托管依赖（ADR 0019 / 0020）：awam-file / awam-tool-manager / awam-knowledge
-//! 三常驻服务的连接、进程、健康、credential 权威。
+//! 统一托管依赖（ADR 0019 / 0020 / 0022）：awam-file / awam-tool-manager / awam-knowledge
+//! 三常驻服务的连接、进程、健康、credential 权威，以及 managed 产物 feed 拉取/校验/落盘。
 //!
-//! 当前进度：P1 注册表（`registry`）。后续按 Pilot 计划补：
-//! - `orchestrator`（pack 无关 attach-or-spawn，泛化自 `tool_runtime/sidecar.rs`）
-//! - `store`（元清单 allow-list + release 资产下载 + 摘要校验）
-//! - `credential`（来源解析；目前 `CredentialSource` 已在 registry 定义）
+//! 接线现状：`registry`（权威记录）、`orchestrator`（attach-or-spawn）、`store`（allow-list + 下载 + SHA）、
+//! `provision`（ensure/force/inspect 产物）、`feed`（自有发布通道配置 + 元清单）、`projection`（Health 投影）、
+//! `commands`（IPC）均已接入生产路径。`credential` 为来源解析抽象（暂由后端自管 token 文件、AFM 未注入）；
+//! `compat`（versionCompat 门）当前仅 config-mode 外部实例适用、尚无活跃调用方，保留为待接 seam。
 
 pub mod commands;
-// 预留底座（ADR 0019 / 0020）：compat / provision / store 尚未接线 IPC/前端，
-// lib 目标下为 dead code；接线后移除 allow（与下方 re-export 的 allow 同步清理）。
-#[allow(dead_code)]
+#[allow(dead_code)] // versionCompat 门尚无活跃调用方（config-mode 外部实例专用，待接）。
 pub mod compat;
 pub mod credential;
 pub mod feed;
 pub mod orchestrator;
-#[allow(dead_code)]
 pub mod provision;
 pub mod projection;
 pub mod registry;
 pub mod store;
 
-// 预留：fetch_manifest_text / http_get_bytes 等真网络函数接线于前端/IPC 消费后移除 allow。
 #[allow(unused_imports)]
 pub use compat::{ensure_declared_version_compat, VersionRange};
 #[allow(unused_imports)]
 pub use credential::{resolve_credential, resolve_credential_native};
 #[allow(unused_imports)]
 pub use orchestrator::{
-    attach_or_spawn, find_pack_by_id, pick_sidecar_for_pack, stop_self_spawned,
-    stop_self_spawned_native, AttachOutcome,
+    attach_or_spawn, find_pack_by_id, pick_sidecar_for_pack, stop_self_spawned, AttachOutcome,
 };
 #[allow(unused_imports)]
 pub use store::{

@@ -65,16 +65,7 @@ where
     }
 }
 
-/// 生产用的停止：以本机进程树 kill 实现注入。
-#[allow(dead_code)] // IPC 接线于 Task 5。
-pub fn stop_self_spawned_native(spawned_pid: Option<u32>) -> Result<u32, String> {
-    stop_self_spawned(spawned_pid, |pid| {
-        crate::win_process::kill_process_tree(pid)
-    })
-}
-
 /// 按 pack_id 取已安装 pack 记录（pack 无关，取代 `find_tool_runtime_pack`）。
-#[allow(dead_code)] // 由 Task 3/5 的 managed spawn 路径消费。
 pub fn find_pack_by_id(pack_id: &str) -> Option<InstalledPackRecord> {
     crate::extension_host::extension_host_list_packs()
         .ok()?
@@ -83,7 +74,6 @@ pub fn find_pack_by_id(pack_id: &str) -> Option<InstalledPackRecord> {
 }
 
 /// 从 pack 安装目录的 `pack.json` 取第一条 sidecar 贡献（不硬编码 sidecar id）。
-#[allow(dead_code)] // 由 Task 3/5 消费。
 pub fn pick_sidecar_for_pack(pack: &InstalledPackRecord) -> Option<SidecarContribution> {
     let manifest = read_pack_json(Path::new(&pack.install_path)).ok()?;
     manifest.contributions.sidecars.into_iter().next()
