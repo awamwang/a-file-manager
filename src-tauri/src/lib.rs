@@ -260,8 +260,10 @@ pub fn run() {
 
             // ADR 0022 选项 A：启动后台恢复托管服务（对已启用的 managed pack provision+spawn）。
             // fire-and-forget，不阻断启动；已在运行的服务会被附着而非重复拉起。
+            // 先纯读检查更新（清单只拉一次、刷新「有可用更新」标记），再恢复服务（拉起会下载缺失产物）。
             if let Ok(dir) = app.path().app_config_dir() {
                 tauri::async_runtime::spawn_blocking(move || {
+                    let _ = managed_dependency::commands::check_updates(&dir);
                     managed_dependency::commands::reconcile_managed_on_startup(&dir);
                 });
             }
@@ -371,6 +373,8 @@ pub fn run() {
                     managed_dependency::commands::managed_dependency_ensure,
                     managed_dependency::commands::managed_dependency_stop,
                     managed_dependency::commands::managed_dependency_upgrade,
+                    managed_dependency::commands::managed_dependency_check_update,
+                    managed_dependency::commands::managed_dependency_check_all_updates,
                     managed_dependency::commands::managed_dependency_set_feed,
                     managed_dependency::commands::managed_dependency_get_feed,
                     providers::provider_list,

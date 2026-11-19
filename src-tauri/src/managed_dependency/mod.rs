@@ -38,8 +38,8 @@ pub use store::{
 };
 #[allow(unused_imports)]
 pub use provision::{
-    artifact_file_name, ensure_artifact, force_provision, provision_artifact, ArtifactState,
-    ARTIFACT_SUBDIR, DEFAULT_SIDECAR_DIR,
+    artifact_file_name, ensure_artifact, force_provision, inspect_artifact_offline,
+    provision_artifact, ArtifactState, OfflineArtifactStatus, ARTIFACT_SUBDIR, DEFAULT_SIDECAR_DIR,
 };
 #[allow(unused_imports)]
 pub use registry::{

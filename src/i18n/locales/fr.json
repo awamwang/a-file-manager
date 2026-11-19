@@ -604,6 +604,9 @@
     "upgradePack": "Mettre à niveau",
     "upgradingPack": "Mise à niveau…",
     "noticePackUpgraded": "Artefact géré de {id} mis à niveau.",
+    "checkUpdates": "Rechercher des mises à jour",
+    "checkingUpdates": "Recherche…",
+    "noticeCheckedUpdates": "Composants gérés vérifiés pour les mises à jour.",
     "reloadHint": "Activer ou désactiver un pack actualise automatiquement la barre latérale et les routes.",
     "demoTitle": "Extensions d'exemple",
     "demoMeta": "Hôte démo en mémoire — distinct des Feature Packs. Pas une boutique."

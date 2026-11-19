@@ -604,6 +604,9 @@
     "upgradePack": "アップグレード",
     "upgradingPack": "アップグレード中…",
     "noticePackUpgraded": "{id} の管理アーティファクトをアップグレードしました。",
+    "checkUpdates": "更新を確認",
+    "checkingUpdates": "確認中…",
+    "noticeCheckedUpdates": "管理コンポーネントの更新を確認しました。",
     "reloadHint": "Pack の有効/無効切替でサイドナビとルートが自動更新されます。",
     "demoTitle": "サンプル拡張",
     "demoMeta": "メモリ上のデモホスト — Feature Pack とは別です。ストアではありません。"

@@ -73,7 +73,8 @@
 - **实测确认**：managed spawn 的 exe 监听 18778，`/health` ok、MCP `tools/list` 19 工具、`tools/call` success；但 `list_tools`（被管理工具）`count=0`。
 - **产物内嵌 data（续，2026-11-19）**：`count=0` 的根因是托管 onefile 产物**没带声明数据目录**——`server.py` 的 `DATA_DIR = __file__/../data` 在冻结下指向不存在的临时目录，`store.list_tools` 对缺失目录优雅返回空。修复：① `server.py` DATA_DIR 支持 `sys.frozen → _MEIPASS/data`；② 构建 `build_pack_feed.py` 加 `--add-data "<仓库>/data;data"`；③ 加 `data/tools/system-powershell.json`（kind=app，launch `powershell.exe`，本机必存可启动）作最小可见样例。重建后实测托管 exe `list_tools` 返回 **8 个工具**（含 system-powershell），与源码 config-mode 一致。
 - **产物 SHA 校验 + 非静默手动升级（续，2026-11-19）**：取代「删旧产物触发重下」的待办。`ensure_artifact` 现返回 `ArtifactState{path, up_to_date}`——产物已在时算磁盘 `store::file_sha256` 与 feed entry `sha256` 比对：相符 `up_to_date=true`；不符 `false`=**有可用升级**。关键契约是**非静默**：`ensure`/启动恢复**绝不自动替换**已运行产物，仍返回旧产物继续服务，仅把 `record.available_version` 置为 feed 声明版本。新增 `record.installed_version` / `available_version`（serde 向后兼容，空=无升级）。用户手动触发的 `managed_dependency_upgrade(id)` 命令才完成升级：**停旧进程（释放 Windows exe 文件锁）→ `provision::force_provision` 强制重下校验原子覆盖 → 重新拉起**，成功后清 `available_version`。前端扩展页 pack 卡片 join `managed_dependency_list`，对 `mode==managed && availableVersion` 显「有可用更新 → vX」+「升级」按钮。业界对齐：VS Code/LibreOffice 更新扩展都是「通知 + 用户选择重启加载」，非热替换。
-- 验证：`cargo test --lib` 451 passed、`vue-tsc` 0、`check-i18n` parity 1428×5；tool-manager 单测 819 passed。
+- **检查更新（纯读，2026-11-19）**：升级标记原先只作为「拉起服务」路径（`prepare_contrib_for_spawn`）的副产品，且每条记录各拉一次清单。补一条**独立纯读**检测：`provision::inspect_artifact_offline`（只算盘上 sha、绝不下载/不 spawn）+ `commands::check_updates`（清单**只拉一次**遍历 managed 记录刷新 `available_version`/`installed_version`）。两个入口：**手动「检查更新」按钮**（`managed_dependency_check_all_updates` IPC）与**启动后台自动检查**（`setup` spawn_blocking 先 check_updates 再 reconcile）。缺产物也标为可用升级（升级即覆盖式安装）。feed 不可达时手动检查如实报错、启动检查静默跳过。`ensure_artifact` 的「已在」分支改复用同一离线函数，避免双份哈希比对逻辑。
+- 验证：`cargo test --lib` 456 passed、`vue-tsc` 0、`check-i18n` parity 1431×5；tool-manager 单测 819 passed。
 
 ## Consequences
 

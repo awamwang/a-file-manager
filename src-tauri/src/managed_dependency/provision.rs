@@ -32,6 +32,33 @@ fn sidecar_dir_for(pack_install_dir: &Path, working_dir_rel: Option<&str>) -> Pa
     pack_install_dir.join(rel)
 }
 
+/// 产物**离线**（不下载、不 spawn）相对 feed entry 的状态。供「检查更新」与 [`ensure_artifact`] 共用。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OfflineArtifactStatus {
+    /// 盘上是否存在该产物文件。
+    pub present: bool,
+    /// 盘上产物 SHA-256 是否即 feed entry 声明的那一版（缺文件时为 false）。
+    pub up_to_date: bool,
+}
+
+/// 纯读检测：只算盘上产物 sha 与 entry 比对，**绝不发起网络、绝不下载**。
+/// 缺文件 → `present=false, up_to_date=false`；读盘失败保守视作非最新（仍 `present=true`）。
+pub fn inspect_artifact_offline(
+    entry: &StoreEntry,
+    pack_install_dir: &Path,
+    working_dir_rel: Option<&str>,
+) -> OfflineArtifactStatus {
+    let sidecar_dir = sidecar_dir_for(pack_install_dir, working_dir_rel);
+    let target = sidecar_dir.join(artifact_file_name(entry));
+    if !target.exists() {
+        return OfflineArtifactStatus { present: false, up_to_date: false };
+    }
+    let up_to_date = file_sha256(&target)
+        .map(|digest| digest.eq_ignore_ascii_case(entry.sha256.trim()))
+        .unwrap_or(false);
+    OfflineArtifactStatus { present: true, up_to_date }
+}
+
 /// managed 拉起前「确保产物就位」（ADR 0022）。**非静默**：本地产物已在则不下载。
 ///
 /// - `entry == None`（feed 未列该 pack，或 config-mode）→ `Ok(None)`：产物随 pack 内置，spawn 用盘上 command。
@@ -60,11 +87,9 @@ where
     let name = artifact_file_name(entry);
     let target = sidecar_dir.join(&name);
     if target.exists() {
-        // 读盘失败保守视为「非最新」（交给手动升级重下覆盖），但**仍返回旧产物**继续服务，不阻断拉起。
-        let up_to_date = file_sha256(&target)
-            .map(|digest| digest.eq_ignore_ascii_case(entry.sha256.trim()))
-            .unwrap_or(false);
-        return Ok(Some(ArtifactState { path: target, up_to_date }));
+        // 已在：纯读比对 sha，绝不下载/替换（非静默升级交用户手动 force_provision）。
+        let status = inspect_artifact_offline(entry, pack_install_dir, working_dir_rel);
+        return Ok(Some(ArtifactState { path: target, up_to_date: status.up_to_date }));
     }
     let bytes = download_and_verify(entry, allow_hosts, fetch)?;
     let written = materialize(&sidecar_dir, &name, &bytes)?;
@@ -290,6 +315,42 @@ mod tests {
             .unwrap_err();
         assert!(err.contains("not allow-listed"), "{err}");
         assert!(!called.get(), "disallowed host must not fetch on upgrade either");
+    }
+
+    #[test]
+    fn inspect_artifact_offline_reports_present_and_current_without_fetch() {
+        let pack_dir = std::env::temp_dir().join(format!("afm-inspect-ok-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&pack_dir);
+        let sidecar = pack_dir.join("sidecar");
+        std::fs::create_dir_all(&sidecar).unwrap();
+        std::fs::write(sidecar.join("awam-file-gateway.exe"), b"").unwrap(); // sha == 空串 entry.sha256
+        let e = entry("https://github.com/awamwang/awam-file/releases/v0.4.2/tool.exe", "0.4.2");
+        let st = inspect_artifact_offline(&e, &pack_dir, Some("sidecar"));
+        assert!(st.present && st.up_to_date, "{st:?}");
+        let _ = std::fs::remove_dir_all(&pack_dir);
+    }
+
+    #[test]
+    fn inspect_artifact_offline_reports_stale_when_sha_differs() {
+        let pack_dir = std::env::temp_dir().join(format!("afm-inspect-stale-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&pack_dir);
+        let sidecar = pack_dir.join("sidecar");
+        std::fs::create_dir_all(&sidecar).unwrap();
+        std::fs::write(sidecar.join("awam-file-gateway.exe"), b"old").unwrap();
+        let e = entry("https://github.com/awamwang/awam-file/releases/v0.4.2/tool.exe", "0.4.2");
+        let st = inspect_artifact_offline(&e, &pack_dir, Some("sidecar"));
+        assert!(st.present && !st.up_to_date, "{st:?}");
+        let _ = std::fs::remove_dir_all(&pack_dir);
+    }
+
+    #[test]
+    fn inspect_artifact_offline_reports_absent_when_missing() {
+        let pack_dir = std::env::temp_dir().join(format!("afm-inspect-absent-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&pack_dir);
+        let e = entry("https://github.com/awamwang/awam-file/releases/v0.4.2/tool.exe", "0.4.2");
+        let st = inspect_artifact_offline(&e, &pack_dir, Some("sidecar"));
+        assert!(!st.present && !st.up_to_date, "{st:?}");
+        let _ = std::fs::remove_dir_all(&pack_dir);
     }
 
     /// ADR 0022 provision 接缝的端到端最小证伪：起本地 http feed，用 **AFM 真实的 ureq 网络函数**

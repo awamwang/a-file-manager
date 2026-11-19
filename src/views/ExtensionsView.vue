@@ -104,6 +104,7 @@ const feedError = ref<string | null>(null);
 // packId → 托管记录（取 mode / installedVersion / availableVersion，渲染「升级可用」）。
 const managed = ref<Record<string, ManagedDep>>({});
 const upgrading = ref<Record<string, boolean>>({});
+const checking = ref(false);
 
 const DEMO_MANIFEST = {
   id: "demo.ext",
@@ -190,6 +191,23 @@ async function upgradePack(packId: string) {
     error.value = invokeErrorMessage(err);
   } finally {
     upgrading.value = { ...upgrading.value, [packId]: false };
+  }
+}
+
+/** 检查全部托管记录是否有可用更新（纯读：不下载、不拉起）。结果回填「有可用更新」标记。 */
+async function checkAllUpdates() {
+  checking.value = true;
+  error.value = null;
+  try {
+    const records = await invoke<ManagedDep[]>("managed_dependency_check_all_updates");
+    const map: Record<string, ManagedDep> = {};
+    for (const r of records) map[r.packId] = r;
+    managed.value = map;
+    toastSuccess(t("extensions.noticeCheckedUpdates"));
+  } catch (err) {
+    error.value = invokeErrorMessage(err);
+  } finally {
+    checking.value = false;
   }
 }
 
@@ -391,14 +409,22 @@ onMounted(() => {
           <span class="fluent-icon-wash"><FluentIcon name="library" size="md" /></span>
           {{ t("extensions.packsTitle") }}
         </h2>
-        <button
-          class="fluent-control fluent-control--accent"
-          type="button"
-          :disabled="packBusy"
-          @click="installPackFromLocalPath"
-        >
-          {{ t("extensions.installFromFolder") }}
-        </button>
+        <div class="actions">
+          <button
+            class="fluent-control"
+            type="button"
+            :disabled="packBusy || checking"
+            @click="checkAllUpdates"
+          >{{ checking ? t("extensions.checkingUpdates") : t("extensions.checkUpdates") }}</button>
+          <button
+            class="fluent-control fluent-control--accent"
+            type="button"
+            :disabled="packBusy"
+            @click="installPackFromLocalPath"
+          >
+            {{ t("extensions.installFromFolder") }}
+          </button>
+        </div>
       </div>
       <p class="fluent-page-meta">{{ t("extensions.packsMeta") }}</p>
       <p class="fluent-banner fluent-banner--info">{{ t("extensions.packsLocalOnly") }}</p>

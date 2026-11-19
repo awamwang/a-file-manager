@@ -257,6 +257,100 @@ pub async fn managed_dependency_upgrade(
     .map_err(|err| format!("managed_dependency_upgrade worker failed: {err}"))?
 }
 
+/// 据 feed entry + 离线产物状态刷新记录的升级标记（纯读结果落地，不下载）。
+/// up_to_date → 记 `installed_version`、清 `available_version`；否则（落后或缺产物）置
+/// `available_version` 为 feed 声明版本作为升级目标（[`managed_dependency_upgrade`] 覆盖式安装对两种情况都成立）。
+fn apply_feed_check(
+    record: &mut ManagedDependencyRecord,
+    entry: &store::StoreEntry,
+    status: provision::OfflineArtifactStatus,
+) {
+    if status.up_to_date {
+        record.installed_version = entry.artifact_version.clone();
+        record.available_version = String::new();
+    } else {
+        record.available_version = entry.artifact_version.clone();
+    }
+}
+
+/// 纯读「检查所有托管记录是否有可用更新」：清单**只拉一次**，逐条 `inspect_artifact_offline` 比对
+/// 盘上产物 sha，更新并落库 `available_version`/`installed_version`。**不下载、不 spawn、不改进程**。
+/// 缺产物也记为可用升级（升级动作即覆盖式安装）。feed 不可达 → `Err`（调用方决定提示或忽略）；
+/// 单条 pack 未启用 / 无 sidecar / 无 entry → 跳过该条。启动恢复与手动「检查更新」共用。
+pub fn check_updates(app_data: &Path) -> Result<(), String> {
+    let managed: Vec<ManagedDependencyRecord> = registry::list_records(app_data)?
+        .into_iter()
+        .filter(|r| r.mode == DependencyMode::Managed)
+        .collect();
+    if managed.is_empty() {
+        return Ok(());
+    }
+    let feed_cfg = feed::load_feed(app_data);
+    let manifest = match feed::fetch_manifest(&feed_cfg, store::fetch_manifest_text)? {
+        Some(m) => m,
+        None => return Ok(()), // 未配置 feed：无从检查。
+    };
+    for mut record in managed {
+        let Ok((pack_install_dir, contrib)) = resolve_pack_sidecar(&record) else {
+            continue;
+        };
+        let Some(entry) = store::find_entry(&manifest, &record.pack_id) else {
+            continue;
+        };
+        let status =
+            provision::inspect_artifact_offline(entry, &pack_install_dir, contrib.working_dir_rel.as_deref());
+        apply_feed_check(&mut record, entry, status);
+        // 单条落库失败不影响其它记录（尽力而为）。
+        let _ = registry::save_record(app_data, &record);
+    }
+    Ok(())
+}
+
+/// 检查单个托管依赖是否有可用更新（纯读：拉 feed + 哈希盘上产物，不下载、不 spawn）。返回更新后的记录。
+#[tauri::command]
+pub async fn managed_dependency_check_update(
+    app: AppHandle,
+    id: String,
+) -> Result<ManagedDependencyRecord, String> {
+    let dir = app_config_dir(&app)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut record = registry::load_record(&dir, &id)?
+            .ok_or_else(|| format!("managed_dependency check: unknown id '{id}'"))?;
+        if record.mode != DependencyMode::Managed {
+            return Ok(record);
+        }
+        let (pack_install_dir, contrib) = resolve_pack_sidecar(&record)?;
+        let feed_cfg = feed::load_feed(&dir);
+        let manifest = feed::fetch_manifest(&feed_cfg, store::fetch_manifest_text)?;
+        if let Some(entry) = manifest.as_ref().and_then(|m| store::find_entry(m, &record.pack_id)) {
+            let status = provision::inspect_artifact_offline(
+                entry,
+                &pack_install_dir,
+                contrib.working_dir_rel.as_deref(),
+            );
+            apply_feed_check(&mut record, entry, status);
+            registry::save_record(&dir, &record)?;
+        }
+        Ok(record)
+    })
+    .await
+    .map_err(|err| format!("managed_dependency_check_update worker failed: {err}"))?
+}
+
+/// 检查全部托管记录的可用更新（[`check_updates`]），返回检查后的最新记录列表（供前端刷新标记）。
+#[tauri::command]
+pub async fn managed_dependency_check_all_updates(
+    app: AppHandle,
+) -> Result<Vec<ManagedDependencyRecord>, String> {
+    let dir = app_config_dir(&app)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        check_updates(&dir)?;
+        registry::list_records(&dir)
+    })
+    .await
+    .map_err(|err| format!("managed_dependency_check_all_updates worker failed: {err}"))?
+}
+
 /// 启动时恢复托管服务（ADR 0022 / 选项 A）：对所有 `Managed` 记录逐个 ensure
 /// （probe→附着，或 provision 产物+spawn）。已运行的服务会被附着而非重复拉起。
 /// 尽力而为——单条失败只记录、不影响其它、不阻断启动。应在 spawn_blocking 后台线程调用。
@@ -354,5 +448,39 @@ mod tests {
 
         let mut not_spawned = record("http://x");
         assert!(stop_record_with(&mut not_spawned, |_| panic!("must not kill")).is_err());
+    }
+
+    fn entry(version: &str) -> store::StoreEntry {
+        store::StoreEntry {
+            pack_id: "awam.tool-runtime".to_string(),
+            artifact_version: version.to_string(),
+            asset_url: "http://127.0.0.1:8078/artifacts/awam-tool-manager.exe".to_string(),
+            sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_string(),
+            file_name: Some("awam-tool-manager.exe".to_string()),
+            base_url: "http://127.0.0.1:18778".to_string(),
+        }
+    }
+
+    #[test]
+    fn apply_feed_check_current_clears_available_and_records_installed() {
+        let mut rec = record("http://x");
+        rec.mode = DependencyMode::Managed;
+        rec.available_version = "0.0.9".to_string();
+        apply_feed_check(&mut rec, &entry("0.1.0"), provision::OfflineArtifactStatus { present: true, up_to_date: true });
+        assert_eq!(rec.installed_version, "0.1.0");
+        assert_eq!(rec.available_version, "");
+    }
+
+    #[test]
+    fn apply_feed_check_stale_or_absent_marks_available_without_touching_installed() {
+        let mut stale = record("http://x");
+        stale.installed_version = "0.1.0".to_string();
+        apply_feed_check(&mut stale, &entry("0.2.0"), provision::OfflineArtifactStatus { present: true, up_to_date: false });
+        assert_eq!(stale.available_version, "0.2.0");
+        assert_eq!(stale.installed_version, "0.1.0", "stale keeps known installed version");
+
+        let mut absent = record("http://x");
+        apply_feed_check(&mut absent, &entry("0.2.0"), provision::OfflineArtifactStatus { present: false, up_to_date: false });
+        assert_eq!(absent.available_version, "0.2.0", "absent artifact is an installable update target");
     }
 }
