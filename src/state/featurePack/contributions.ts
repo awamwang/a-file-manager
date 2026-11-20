@@ -95,6 +95,12 @@ function syncToolRuntimeRouteContribution(): void {
 /** 启用 Pack 的搜索面板静态条目（已过滤非法/未知路由）；响应式供扩展源消费。 */
 export const searchExtras = ref<FeaturePackSearchEntry[]>([]);
 
+/**
+ * 启用 Pack 的扩展页动态分区（ADR-0023）；hydrate 时同步。
+ * 响应式：ExtensionsView 据此合并左侧导航，Pack 启用/禁用后无需 remount 即更新。
+ */
+export const extensionsSectionExtras = ref<FeaturePackExtensionsSectionContribution[]>([]);
+
 /** 搜索面板「扩展」源的 Pack 静态条目（副标题显示 Pack 名）。 */
 export type FeaturePackSearchEntry = {
   id: string;
@@ -139,6 +145,10 @@ export function getSearchExtras(): FeaturePackSearchEntry[] {
 
 function syncSearchExtras(): void {
   searchExtras.value = getSearchExtras();
+}
+
+function syncExtensionsSectionExtras(): void {
+  extensionsSectionExtras.value = getExtensionsSectionExtras();
 }
 
 /** 已通过 addRoute 挂上的 Pack 路由 name，Soft Reload 时卸载不再启用的项。 */
@@ -306,6 +316,7 @@ export async function hydrateFeaturePackContributions(): Promise<void> {
   }
   syncToolRuntimeRouteContribution();
   syncSearchExtras();
+  syncExtensionsSectionExtras();
   const { applyFeaturePackSideNav } = await import("../../shell/sideNav.ts");
   applyFeaturePackSideNav();
   const { registerFeaturePackRoutes } = await import("../../router/index.ts");

@@ -13,7 +13,7 @@ import type { Component } from "vue";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import type { FluentGlyphId } from "../components/icons/glyphs.ts";
 import {
-  getExtensionsSectionExtras,
+  extensionsSectionExtras,
   type FeaturePackExtensionsSectionContribution,
 } from "../state/featurePack/contributions.ts";
 import { resolveBuiltinEntry } from "../state/featurePack/builtinEntries.ts";
@@ -43,8 +43,10 @@ const STATIC_SECTIONS: SectionDef[] = [
   { id: "config", labelKey: "extensions.sections.config", icon: "settings", static: true },
 ];
 
-/** Pack 贡献的动态分区（响应式：reload 后自动合并）。 */
-const packSections = ref<FeaturePackExtensionsSectionContribution[]>([]);
+/** Pack 贡献的动态分区（响应式：hydrate 后自动合并，无需 remount）。 */
+const packSections = computed<FeaturePackExtensionsSectionContribution[]>(
+  () => extensionsSectionExtras.value,
+);
 
 const allSections = computed<SectionDef[]>(() => {
   const dynamic: SectionDef[] = packSections.value.map((ps) => ({
@@ -106,10 +108,8 @@ function syncFromRoute() {
   activeSection.value = sectionFromPath(route.path);
 }
 
-function refreshPackSections() {
-  packSections.value = getExtensionsSectionExtras();
-  resolveSectionComponents();
-}
+// packSections 现由 extensionsSectionExtras（hydrate 同步）驱动，
+// 分区组件在其变化时经下方 watch 重解析，Pack 启用/禁用后无需 remount 即更新。
 
 // Host status (kept at view level, shown in header)
 type ExtensionHostStatus = {
@@ -129,10 +129,15 @@ async function loadHostStatus() {
 }
 
 onMounted(() => {
-  refreshPackSections();
   syncFromRoute();
   void loadHostStatus();
 });
+
+watch(
+  packSections,
+  () => resolveSectionComponents(),
+  { immediate: true },
+);
 
 watch(() => route.path, syncFromRoute);
 </script>
