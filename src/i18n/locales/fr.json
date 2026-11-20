@@ -1742,7 +1742,7 @@
         },
         "ai": {
           "title": "Fonctions IA",
-          "hint": "Les fonctions IA sont optionnelles et n'apparaissent que dans les versions IA. L'application reste entièrement utilisable sans elles."
+          "hint": "Les fonctions IA sont optionnelles et ne sont disponibles que dans la version principale (Mainline). L'application reste entièrement utilisable sans elles."
         }
       }
     },

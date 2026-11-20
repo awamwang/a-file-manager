@@ -1742,7 +1742,7 @@
         },
         "ai": {
           "title": "KI-Funktionen",
-          "hint": "KI-Funktionen sind optional und nur in KI-Builds vorhanden. Ohne sie lässt sich die App vollständig nutzen."
+          "hint": "KI-Funktionen sind optional und nur in der Hauptversion (Mainline) vorhanden. Ohne sie lässt sich die App vollständig nutzen."
         }
       }
     },
