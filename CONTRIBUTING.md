@@ -34,6 +34,24 @@ npm run build            # vue-tsc type-check + vite build
 npm run test:rust        # cargo test for the Rust backend
 ```
 
+### Build cache maintenance
+
+Cargo does not garbage-collect `src-tauri/target/`. Every feature/profile/toolchain
+change leaves another fingerprint directory behind. The AI/Core flavors and the
+`build` vs `check --tests` profiles make this project especially prone to growth.
+Prune only duplicate fingerprints and old incremental caches (live artifacts stay
+untouched):
+
+```bash
+npm run clean:target        # dry run: list what would be pruned
+npm run clean:target:apply  # move candidates to ~/.Trash; empty Trash to reclaim disk
+```
+
+`--keep-incremental=N` (default `3`) is supported by the underlying script for
+tuning how many recent incremental caches per crate are retained. After pruning,
+`cargo build` and `cargo check --tests` should still hit the cache; if they
+recompile, restore from the Trash directory before reporting a regression.
+
 ## Testing & quality gates
 
 This repo uses a large suite of static gate scripts plus unit tests. Before opening a PR,

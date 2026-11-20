@@ -13,6 +13,8 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
+    "clean:target": "node scripts/prune-cargo-target.mjs",
+    "clean:target:apply": "node scripts/prune-cargo-target.mjs --apply",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
