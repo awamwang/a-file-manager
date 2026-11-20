@@ -128,6 +128,18 @@ pub struct SidecarContribution {
     pub port_env: Option<String>,
 }
 
+/// 扩展页动态分区贡献项（ADR-0023）：Pack 启用后注入 ExtensionsView 左侧导航。
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtensionsSectionContribution {
+    pub id: String,
+    pub label_key: String,
+    /// builtinEntries 中的组件加载键（如 "builtin:tool-runtime"）。
+    pub entry: String,
+    #[serde(default)]
+    pub order: i32,
+}
+
 /// 搜索面板静态条目贡献项；聚合时宿主写入 `packId` / `packName`（清单内声明无效）。
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -157,6 +169,8 @@ pub struct FeaturePackContributions {
     pub sidecars: Vec<SidecarContribution>,
     #[serde(default)]
     pub search: Vec<SearchEntryContribution>,
+    #[serde(default)]
+    pub extensions_sections: Vec<ExtensionsSectionContribution>,
 }
 
 /// Feature Pack 安装清单（`apiVersion` 为 `feature-pack.1`）。
@@ -204,6 +218,8 @@ pub struct AggregatedContributions {
     pub sidecars: Vec<SidecarContribution>,
     #[serde(default)]
     pub search: Vec<SearchEntryContribution>,
+    #[serde(default)]
+    pub extensions_sections: Vec<ExtensionsSectionContribution>,
 }
 
 /// Feature Pack 安装结果。
