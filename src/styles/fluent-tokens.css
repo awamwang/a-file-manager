@@ -125,6 +125,19 @@ html[lang="zh-CN"] {
     system-ui, sans-serif;
 }
 
+/* Traditional Chinese: prefer a Hanzi font with TW stroke forms (JhengHei /
+   PingFang TC) ahead of the Simplified YaHei so 骨/內/直 render regionally. */
+html[lang="zh-TW"] {
+  --fluent-font-family:
+    "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI",
+    "Microsoft JhengHei UI", "Microsoft JhengHei",
+    "PingFang TC", "Hiragino Sans TC", "Noto Sans TC",
+    "Microsoft YaHei UI", "Microsoft YaHei",
+    "Yu Gothic UI", "Meiryo UI",
+    "Malgun Gothic",
+    system-ui, sans-serif;
+}
+
 html[lang="ja"] {
   --fluent-font-family:
     "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI",

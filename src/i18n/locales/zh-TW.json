@@ -1,0 +1,1899 @@
+{
+  "platform": {
+    "macos": {
+      "contextMenu.openWithExplorer": "在訪達（Finder）中開啟",
+      "contextMenu.reveal": "在訪達（Finder）中顯示",
+      "projects.noticeOpenedInSystemExplorer": "已在訪達（Finder）中開啟",
+      "projects.openWorkspaceInSystemExplorerHint": "在訪達（Finder）中開啟本 Project Workspace 目錄",
+      "providers.openInExplorer": "在訪達（Finder）中開啟",
+      "settings.fields.core.fileDoubleClickAction.options.reveal": "在訪達（Finder）中顯示",
+      "taskCenter.revealHint": "點選在訪達（Finder）中顯示目標位置",
+      "contextMenu.deleteConfirm": "將“{name}”移到資源回收筒？",
+      "contextMenu.deleteNoRecycle": "此處無法使用資源回收筒；未啟用永久刪除。",
+      "contextMenu.deleted": "已移到資源回收筒",
+      "recycleBin.section": "資源回收筒",
+      "recycleBin.tabName": "資源回收筒",
+      "shortcuts.items.navigatorDelete": "刪除到資源回收筒",
+      "guide.title": "這臺 Mac",
+      "guide.tabName": "這臺 Mac",
+      "guide.rootLabel": "這臺 Mac",
+      "guide.rootTitle": "開啟這臺 Mac 引導頁",
+      "ai.skills.libraryRootHint": "預設 ~/Library/Application Support/com.a-file-manager.app/.agents/skills。留空/重置即用預設。",
+      "chrome.commandsShortcut": "⌘+⇧+P",
+      "chrome.commandsTitle": "命令面板 (⌘+⇧+P)",
+      "searchPalette.hint": "↑↓ 移動 · Enter 開啟 · ⌥+1–9 切換範圍 · Esc 關閉 · ⌘+⇧+P",
+      "detailsPane.multiHint": "選中單項可檢視完整詳細資訊，或按 ⌥+Enter 開啟屬性。",
+      "discovery.meta": "按檔名或路徑搜尋這臺 Mac",
+      "discovery.everythingConfigHint": "使用這臺 Mac 的 {engine} 索引服務。不想出現在結果中的資料夾可在下方排除。",
+      "settings.fields.preview.externalProvider.description": "空格優先使用 macOS 系統快速檢視（Quick Look）；不可用時回退內建預覽欄。",
+      "settings.fields.preview.externalProvider.options.auto": "自動（快速檢視 → 內建）",
+      "settings.fields.preview.externalProvider.options.quicklook": "系統快速檢視（Quick Look）",
+      "shortcuts.items.navigatorPreviewBridge": "預覽選中項（快速檢視 / 內建）",
+      "health.deps.meta": "必裝與可選元件。可選元件缺失只會降級對應功能，不阻止本機檔案管理器。",
+      "health.deps.items.quicklook.title": "快速檢視（系統）",
+      "health.deps.items.quicklook.detail": "快速檢視由 macOS 系統提供，無需額外安裝。",
+      "virtualInfo.kindRecycle": "資源回收筒",
+      "virtualInfo.recycleName": "資源回收筒",
+      "preview.linkKindShortcut": "macOS 替身（alias）",
+      "guide.drive": "本地卷 ({letter})",
+      "guide.driveRemovable": "可移動卷 ({letter})",
+      "guide.driveRemote": "網路卷 ({letter})",
+      "guide.driveCdrom": "光碟卷 ({letter})",
+      "guide.driveRamdisk": "記憶體磁碟 ({letter})",
+      "guide.emptyDrives": "未找到卷",
+      "guide.sections.drives": "卷",
+      "discovery.blacklistPlaceholder": "/Users/me/Library\n/Volumes/外接盤",
+      "extensions.installPathPlaceholder": "/path/to/pack 或 pack.zip",
+      "settings.fields.core.launchAtStartup.description": "登入 macOS 時啟動 A File Manager",
+      "settings.fields.core.navigatorViewMode.description": "圖示、列表、詳細資訊、平鋪或內容",
+      "settings.fields.core.openTool.vscode.path.description": "自動發現失敗時的可選應用路徑",
+      "settings.fields.core.openTool.cursor.path.description": "自動發現失敗時的可選應用路徑",
+      "settings.fields.core.openTool.trae.path.description": "自動發現失敗時的可選應用路徑",
+      "settings.fields.core.openTool.qoder.path.description": "自動發現失敗時的可選應用路徑",
+      "providers.searchBlocked": "Spotlight 已接入「搜尋」，請使用搜尋頁，而不是提供程式中的 search 後端。",
+      "settings.favoritesMeta": "訪達右鍵「新增到 AFM 收藏」",
+      "discovery.testMeta": "在此試探 Spotlight 與備用引擎。日常檢索請用搜尋面板（⌘+⇧+P）。",
+      "settings.search.paletteMeta": "⌘+⇧+P 開啟搜尋面板——日常檢索入口（命令、檔案、專案等）。下列預設值在下次打開面板時生效。",
+      "settings.search.knowledgeMeta": "搜尋面板知識源（⌥+7）所連線的知識服務——可檢索筆記正文和已儲存的條目。",
+      "settings.search.fuzzyHint": "搜尋面板查詢的預設模糊匹配（檔案源使用子序列匹配）。",
+      "settings.extensions.dataRootPlaceholder": "例如 ~/Library/Application Support/A File Manager/knowledge/data",
+      "settings.openTools.customMeta": "新增任意執行檔或 .app 作為開啟方式；檔案「開啟方式」與專案「開啟方式」共用此列表。",
+      "voice.error.permission": "麥克風訪問被阻止——請在「系統設定 → 隱私與安全性 → 麥克風」中開啟",
+      "voice.selftest.permissionHint": "請允許本應用使用麥克風：系統設定 → 隱私與安全性 → 麥克風。首次錄音時會彈出系統授權對話方塊。",
+      "voice.error.noAudio": "麥克風沒有產出任何音訊——請檢查輸入裝置是否已啟用、未靜音且未被其他應用獨佔",
+      "knowledgeView.openInExplorer": "在訪達中顯示",
+      "about.link.releases.desc": "獲取最新的 macOS 安裝包（.dmg）",
+      "ai.skills.deployModeJunction": "符號連結（預設）",
+      "health.deps.items.quicklook.ok.detail": "系統「快速檢視」可用，空格預覽由 macOS 系統預覽提供。",
+      "health.deps.items.quicklook.ok.fix": "無需處理；可預覽的檔案型別取決於 macOS「快速檢視」，不支援的型別回退到內建預覽。",
+      "health.deps.items.quicklook.missing.detail": "本機「快速檢視」不可用，空格預覽使用內建預覽窗格。",
+      "health.deps.items.quicklook.missing.fix": "無需處理——空格預覽由內建預覽提供。重灌 macOS 可恢復系統「快速檢視」。",
+      "health.deps.items.quicklook.warn.detail": "無法確定「快速檢視」預覽狀態。",
+      "health.deps.items.quicklook.warn.fix": "無需處理——空格預覽會回退到內建預覽窗格。",
+      "health.deps.items.quicklook.unbridged.detail": "空格預覽由 macOS 系統「快速檢視」或內建預覽窗格提供。",
+      "health.deps.items.quicklook.unbridged.fix": "無需處理——預覽由 macOS 原生提供。"
+    }
+  },
+  "app": {
+    "name": "A File Manager",
+    "captionMeta": "標準 · 國際化"
+  },
+  "common": {
+    "loading": "載入中…",
+    "dismiss": "關閉",
+    "create": "建立",
+    "delete": "刪除",
+    "cancel": "取消",
+    "confirm": "確定",
+    "refresh": "重新整理",
+    "empty": "空",
+    "remove": "移除",
+    "yes": "是",
+    "no": "否",
+    "folder": "資料夾",
+    "file": "檔案",
+    "more": "更多"
+  },
+  "dialog": {
+    "confirmTitle": "確認",
+    "deleteTitle": "確認刪除",
+    "dontAskAgain": "以後不再提問",
+    "promptTitle": "輸入名稱",
+    "promptLabel": "名稱",
+    "conflictTitle": "檔案已存在",
+    "conflictMessage": "此資料夾中已有「{name}」。",
+    "conflictReplace": "替換",
+    "conflictSkip": "跳過",
+    "conflictKeep": "保留兩者",
+    "conflictDefaultReplace": "下次預設替換",
+    "conflictDefaultSkip": "下次預設跳過"
+  },
+  "chrome": {
+    "titleBar": "標題欄",
+    "windowControls": "視窗控制元件",
+    "minimize": "最小化",
+    "maximize": "最大化",
+    "restore": "還原",
+    "close": "關閉",
+    "toolbar": "主工具欄",
+    "back": "後退",
+    "forward": "前進",
+    "up": "向上",
+    "upTitle": "返回上級",
+    "refresh": "重新整理",
+    "refreshTitle": "重新整理資料夾",
+    "view": "檢視",
+    "dualPane": "雙欄",
+    "showHidden": "顯示隱藏的專案",
+    "later": "稍後",
+    "historyLater": "歷史功能稍後提供",
+    "breadcrumbs": "麵包屑路徑",
+    "crumbSiblings": "同級資料夾",
+    "crumbSiblingsLoading": "正在載入資料夾…",
+    "crumbSiblingsEmpty": "此處沒有資料夾",
+    "commands": "搜尋面板",
+    "commandsTitle": "搜尋面板",
+    "commandsShortcut": "Ctrl+Shift+P",
+    "reloadWindow": "重新載入視窗",
+    "reloadWindowTitle": "重新載入視窗 — 重新整理介面，保留資料",
+    "address": "位址列",
+    "path": "路徑",
+    "pathPlaceholder": "輸入資料夾路徑，按 Enter 前往",
+    "go": "前往",
+    "providerQueryApply": "查詢",
+    "tabs": "標籤頁",
+    "newTab": "新增標籤",
+    "newTabLater": "新增標籤稍後提供",
+    "closeTab": "關閉標籤",
+    "tabClose": "關閉",
+    "closeOtherTabs": "關閉其他標籤",
+    "closeRightTabs": "關閉右側標籤",
+    "closeAllTabs": "關閉全部標籤",
+    "duplicateTab": "複製標籤",
+    "openInSecondPane": "在第二視窗開啟",
+    "sendTabToWorkGroup": "傳送到工作組",
+    "sentTabToWorkGroup": "已傳送到「{name}」",
+    "pinTab": "固定標籤",
+    "unpinTab": "取消固定",
+    "sideNav": "側邊導航",
+    "resizeSideNav": "調整導航窗格寬度",
+    "expandFolder": "展開資料夾",
+    "collapseFolder": "摺疊資料夾",
+    "status": "狀態列",
+    "refreshHealth": "重新整理健康狀態",
+    "healthOk": "健康: 正常 · v{version}",
+    "healthError": "健康: 錯誤",
+    "healthPending": "健康: …",
+    "navigatorLoading": "載入中…",
+    "navigatorError": "無法列出資料夾",
+    "navigatorCounts": "{dirs} 個資料夾 · {files} 個檔案",
+    "selectionStatus": "已選 {count} 項（{size}）",
+    "freeSpace": "可用 {size}",
+    "home": "主目錄",
+    "placesMenu": "近期訪問與收藏",
+    "workGroupMenu": "工作組",
+    "workGroupSwitch": "切換工作組",
+    "workGroupSave": "儲存到配置",
+    "workGroupManage": "管理工作組…",
+    "workGroupNew": "新增工作組",
+    "workGroupEmpty": "暫無工作組",
+    "closeConfirmTitle": "關閉視窗",
+    "closeConfirmMessage": "隱藏到系統托盤（工作列通知區域），還是退出 A File Manager？",
+    "closeConfirmTray": "隱藏到托盤",
+    "closeConfirmQuit": "退出",
+    "closeConfirmCancel": "取消",
+    "closeConfirmRemember": "記住此選擇",
+    "viewMode": "檢視",
+    "viewList": "列表",
+    "viewDetails": "詳細資訊",
+    "viewTiles": "平鋪",
+    "viewContent": "內容",
+    "viewGroupByType": "按型別分組",
+    "viewIconsExtraLarge": "超大圖示",
+    "viewIconsLarge": "大圖示",
+    "viewIconsMedium": "中等圖示",
+    "viewIconsSmall": "小圖示"
+  },
+  "nav": {
+    "navigator": "資源管理器",
+    "discovery": "搜尋",
+    "providers": "提供程式",
+    "workGroups": "工作組",
+    "projects": "專案",
+    "ai": "AI",
+    "extensions": "擴充套件",
+    "settings": "設定",
+    "health": "健康",
+    "toolRuntime": "工具執行時"
+  },
+  "cmd": {
+    "toolRuntimeOpen": "開啟工具執行時"
+  },
+  "commands": {
+    "groups": {
+      "navigate": "導航",
+      "view": "檢視",
+      "actions": "操作"
+    },
+    "goUp": "返回上級資料夾",
+    "openNavigator": "開啟資源管理器",
+    "openDiscovery": "開啟設定 · 搜尋",
+    "openProviders": "開啟提供程式",
+    "openWorkGroups": "開啟工作組",
+    "openProjects": "開啟專案",
+    "openAi": "開啟 AI",
+    "openExtensions": "開啟擴充套件",
+    "openSettings": "開啟設定",
+    "openHealth": "開啟設定 · 健康",
+    "refreshHealth": "重新整理健康狀態",
+    "reloadWindow": "重新載入視窗",
+    "lockVaultWindow": "鎖定金鑰視窗"
+  },
+  "searchPalette": {
+    "title": "搜尋面板",
+    "placeholder": "搜尋命令、專案、工作組…",
+    "results": "搜尋結果",
+    "scopesLabel": "搜尋範圍",
+    "empty": "無匹配結果",
+    "hint": "↑↓ 移動 · Enter 開啟 · Alt+1–9 切換範圍 · Esc 關閉",
+    "fuzzy": "模糊搜尋",
+    "workGroupMembers": "{count} 個成員",
+    "viewAllFiles": "檢視全部檔案結果",
+    "all": {
+      "title": "全部檔案結果",
+      "back": "返回",
+      "loadMore": "載入更多",
+      "loading": "載入中…",
+      "empty": "未找到檔案",
+      "showing": "顯示 {shown} / {total} 項"
+    },
+    "openFailed": "開啟條目失敗",
+    "executedCapability": "能力已執行",
+    "destructiveInRuntime": "破壞效能力需在工具執行時中確認",
+    "capabilityFailed": "能力呼叫失敗",
+    "scopes": {
+      "commands": "命令",
+      "files": "檔案",
+      "projects": "專案",
+      "workgroups": "工作組",
+      "tools": "工具",
+      "bookmarks": "瀏覽器書籤",
+      "extensions": "擴充套件",
+      "knowledge": "知識內容"
+    },
+    "types": {
+      "command": "命令",
+      "file": "檔案",
+      "folder": "資料夾",
+      "project": "專案",
+      "workgroup": "工作組",
+      "tool": "工具",
+      "capability": "能力",
+      "bookmark": "書籤",
+      "extension": "擴充套件"
+    },
+    "status": {
+      "loading": "正在搜尋…",
+      "commandsUnavailable": "命令源暫不可用",
+      "filesUnavailable": "檔案搜尋暫不可用",
+      "openDiscovery": "開啟搜尋設定",
+      "projectsUnavailable": "專案源暫不可用",
+      "openProjects": "開啟專案頁",
+      "workGroupsUnavailable": "工作組源暫不可用",
+      "toolsUnavailable": "工具源暫不可用",
+      "openToolRuntime": "開啟工具執行時",
+      "bookmarksUnavailable": "瀏覽器書籤暫不可用（需 awam-file 閘道器）",
+      "bookmarksStale": "書籤快照已過期（只讀）",
+      "refreshBookmarks": "重新整理書籤",
+      "extensionsUnavailable": "擴充套件源暫不可用",
+      "knowledgeUnavailable": "知識內容源暫不可用（awam-knowledge 服務未執行或鑑權失敗）"
+    },
+    "vault": {
+      "copied": "已複製金鑰（明文已進入剪貼簿）",
+      "unlockTitle": "解鎖金鑰視窗",
+      "unlockMessage": "金鑰取用需要先開啟解鎖視窗（預設 10 分鐘），期間可複製或短顯金鑰，全程留有審計。是否繼續？",
+      "unlockConfirm": "解鎖",
+      "unlockFailed": "解鎖失敗",
+      "unauthorized": "服務鑑權失敗（token 未配置或不正確）",
+      "rateLimited": "請求過於頻繁，請稍後再試",
+      "failed": "金鑰取用失敗",
+      "lockTitle": "鎖定金鑰視窗",
+      "lockMessage": "立即關閉金鑰取用視窗？關閉後複製 / 短顯需重新解鎖。",
+      "lockConfirm": "鎖定",
+      "locked": "金鑰視窗已鎖定",
+      "lockFailed": "鎖定失敗",
+      "lockCheckFailed": "無法獲取金鑰視窗狀態",
+      "lockNotActive": "金鑰視窗當前未開啟"
+    }
+  },
+  "ai": {
+    "title": "AI",
+    "meta": "AI 附加層 — Agent Target、公共 MCP / Skills 與模型 Providers",
+    "usageHint": "在此管理 Agent Target。公共 MCP、Skills 與 AI Providers 將在後續切片落地。",
+    "shellStatus": "AI Add-on 殼 v{version} · 層 {layer}",
+    "sections": {
+      "providers": {
+        "title": "AI Providers",
+        "body": "主流完整預設 + Compatible（Base URL / API Key）。存於 APPDATA AI 配置，與檔案系統 Providers 分開。無計費面板。"
+      },
+      "mcp": {
+        "title": "公共 MCP",
+        "body": "共享工具目錄儲存在本地 AI 配置中。新增工具時採用合併方式，不會覆蓋整個配置檔案。"
+      },
+      "skills": {
+        "title": "公共 Skills",
+        "body": "AFM 自持 Skill 庫（APPDATA）。入庫要求根目錄有 SKILL.md。Junction 部署為後續切片。"
+      },
+      "agents": {
+        "title": "Agent Target",
+        "body": "發現 / 啟用 / 自定義統一 Agent Target（全域性與專案相對的 Skills 目錄、MCP 路徑）。"
+      },
+      "harness": {
+        "title": "Harness / Superpower",
+        "body": "顯式、按 Project 作用域初始化：寫入 AGENTS.md（可選 SDD）到 Workspace。不屬於 Core 建立流程。"
+      }
+    },
+    "agents": {
+      "summary": "共 {total} 個 · 已發現 {discovered} · 已啟用 {enabled}",
+      "discover": "刷新發現",
+      "addCustom": "新增自定義目標",
+      "enable": "啟用（全域性）",
+      "disable": "停用（全域性）",
+      "defaultInProjectsOn": "專案預設：開",
+      "defaultInProjectsOff": "專案預設：關",
+      "defaultInProjectsHint": "「專案預設」控制新增專案的 Agent 啟用集預填；「啟用」控制全域性部署扇出。",
+      "installHint": "「已安裝」= 磁碟上存在全域性 Skills 目錄或 MCP 檔案；只有已安裝的 Agent 才會出現在 MCP/Skill 匯入與專案配置中。",
+      "noInstalledHint": "未檢測到已安裝的 Agent。匯入 MCP/Skill 或配置專案前，請先安裝 Agent 或刷新發現。",
+      "showAll": "顯示全部（還有 {count} 個）",
+      "collapseList": "收起常用之外的 Agent",
+      "save": "儲存",
+      "kindBuiltin": "內建",
+      "kindCustom": "自定義",
+      "badgeDiscovered": "磁碟已找到",
+      "installed": "已安裝",
+      "notInstalled": "未安裝",
+      "fieldName": "顯示名稱",
+      "fieldId": "Id（可選）",
+      "fieldIdHint": "小寫 ascii-id — 留空則由名稱生成",
+      "fieldGlobalSkills": "全域性 Skills 目錄",
+      "fieldProjectSkills": "專案相對 Skills 目錄",
+      "fieldGlobalMcp": "全域性 MCP 配置路徑",
+      "fieldProjectMcp": "專案相對 MCP 配置路徑",
+      "fieldMcpPrompt": "MCP 使用提示詞（佔位）",
+      "fieldMcpPromptHint": "僅儲存 — 尚未注入到 Agent",
+      "mcpPromptNote": "佔位欄位（ADR 0006）。寫入 APPDATA AI 配置；不參與實際注入。",
+      "noticeDiscovered": "已重新整理 Agent 發現",
+      "noticeSaved": "Agent Target 已儲存",
+      "noticeCustomAdded": "已新增自定義 Agent Target",
+      "noticeRemoved": "已刪除自定義 Agent Target",
+      "errorIdEmpty": "Agent id 不能為空",
+      "errorIdInvalid": "Agent id 須為小寫 ASCII（字母、數字、連字元）",
+      "errorNameEmpty": "顯示名稱不能為空",
+      "errorUnknown": "未知 Agent Target",
+      "errorBuiltinRemove": "不能刪除內建 Agent Target",
+      "errorIdConflict": "該 id 與內建 Agent Target 衝突"
+    },
+    "skills": {
+      "libraryRoot": "庫根目錄",
+      "libraryRootHint": "預設 %APPDATA%\\com.a-file-manager.app\\.agents\\skills。留空/重置即用預設。",
+      "saveRoot": "儲存根路徑",
+      "resetRoot": "使用預設",
+      "importTitle": "入庫",
+      "importHint": "原始檔夾根目錄必須有 SKILL.md。",
+      "fieldSource": "原始檔夾路徑",
+      "fieldName": "庫內名稱（可選）",
+      "fieldNameHint": "預設使用資料夾名",
+      "import": "匯入到庫",
+      "summary": "庫中 {count} 個 skill",
+      "empty": "尚未匯入 skill。",
+      "noticeRootSaved": "Skill 庫根路徑已儲存",
+      "noticeRootReset": "Skill 庫根路徑已恢復預設",
+      "noticeImported": "Skill 已入庫",
+      "noticeRemoved": "已從庫中移除 skill",
+      "errorSourceInvalid": "源路徑必須是已存在的資料夾",
+      "errorManifestMissing": "技能資料夾根目錄必須有 SKILL.md",
+      "errorNameInvalid": "無效的 skill 名稱",
+      "errorExists": "庫中已存在同名 skill",
+      "errorUnknown": "庫中未知 skill",
+      "errorRootInvalid": "Skill 庫根必須是目錄",
+      "deployTitle": "部署與專案搜尋",
+      "deployHint": "「全域性部署」寫入已啟用 Agent 的全域性 Skills 目錄；「新增到專案」僅寫入該專案啟用集中的專案相對路徑。",
+      "deployMode": "Skill 部署方式",
+      "deployModeJunction": "Junction（連結，預設）",
+      "deployModeCopy": "複製",
+      "deployModeHint": "全域性偏好，作用於之後所有 Skill 部署。",
+      "noticeDeployModeSaved": "Skill 部署方式已儲存",
+      "fieldProjectWorkspace": "Project Workspace 路徑",
+      "fieldProjectWorkspaceHint": "用於「新增到專案」/搜尋的絕對 Workspace 目錄",
+      "searchProject": "在專案中搜尋 SKILL.md",
+      "deploy": "部署",
+      "deployGlobal": "全域性部署",
+      "addToProject": "新增到所選專案",
+      "removeFromProject": "從所選專案移除",
+      "targetProject": "目標專案",
+      "pickProject": "選擇一個專案…",
+      "filterPlaceholder": "篩選 Skills…",
+      "showTools": "庫設定 / 匯入",
+      "hideTools": "收起工具",
+      "selectHint": "從左側選擇一個 Skill",
+      "projectDefaultHint": "專案預設不啟用任何 Skill；請選擇單個專案後再新增。",
+      "confirmRemoveTitle": "從庫中移除 Skill？",
+      "confirmRemoveMessage": "將永久刪除庫中的「{name}」目錄。若庫根指向外部共享倉庫，也會刪掉該路徑下的檔案。",
+      "undeploy": "取消部署",
+      "noticeDeployed": "已部署到 {count} 處 · 跳過 {skipped}",
+      "noticeDeployedToProject": "已新增到「{project}」· {count} 處 · 跳過 {skipped}",
+      "noticeUndeployed": "已移除 {count} 處部署",
+      "errorDeployNoEnabled": "部署前請至少啟用一個 Agent Target（或專案啟用集非空）",
+      "errorDeployConflict": "部署目標已存在且不是 AFM 管理的部署產物",
+      "errorDeployProject": "Project Workspace 路徑必須是已存在的目錄",
+      "errorPickProject": "請先選擇要新增的目標專案"
+    },
+    "mcp": {
+      "mergeHint": "目錄儲存在本地。全域性新增會合併到已啟用的工具中；新增到專案則按該專案的工具集合寫入，託管條目由應用自動維護。",
+      "add": "新增條目",
+      "empty": "尚無 MCP 條目。",
+      "fieldName": "顯示名稱",
+      "fieldId": "Id",
+      "fieldJson": "Server JSON 物件",
+      "save": "儲存到目錄",
+      "deploy": "合併部署",
+      "deployGlobal": "全域性部署",
+      "addToProject": "新增到所選專案",
+      "removeFromProject": "從所選專案移除",
+      "targetProject": "目標專案",
+      "pickProject": "選擇一個專案…",
+      "filterPlaceholder": "篩選 MCP…",
+      "showTools": "匯入 / Harvest",
+      "hideTools": "收起工具",
+      "projectDefaultHint": "專案預設不啟用任何 MCP；請選擇單個專案後再新增。",
+      "confirmRemoveTitle": "從目錄移除 MCP？",
+      "confirmRemoveMessage": "將從共享目錄中移除「{name}」。已經新增到各工具中的條目不會自動清理。",
+      "undeploy": "移除託管鍵",
+      "import": "匯入 mcp.json",
+      "importPathHint": "Cursor/VS Code mcp.json 路徑（mcpServers 對映）",
+      "projectWorkspaceHint": "「新增到專案」所用的 Project Workspace 絕對路徑",
+      "noticeSaved": "MCP 目錄條目已儲存",
+      "noticeRemoved": "MCP 目錄條目已刪除",
+      "noticeDeployed": "已合併到 {count} 個檔案 · 跳過 {skipped}",
+      "noticeDeployedToProject": "已新增到「{project}」· {count} 個檔案 · 跳過 {skipped}",
+      "noticeUndeployed": "已從 {count} 個檔案移除託管鍵",
+      "noticeImported": "已匯入 {added} · 跳過 {skipped}（已存在）",
+      "errorIdEmpty": "MCP id / 名稱不能為空",
+      "errorIdInvalid": "MCP id 須為小寫 ASCII",
+      "errorUnknown": "未知 MCP 目錄條目",
+      "errorDeployNoEnabled": "部署 MCP 前請至少啟用一個 Agent Target（或專案啟用集非空）",
+      "errorTargetInvalid": "MCP 目標路徑或 JSON 形狀無效",
+      "errorImportInvalid": "MCP 匯入檔案缺失或無效（需要 mcpServers 物件）",
+      "errorPickProject": "請先選擇要新增的目標專案"
+    },
+    "harvest": {
+      "mcpTitle": "從 Agent 匯入 MCP",
+      "mcpHint": "掃描所選 Agent 的全域性 MCP JSON；勾選後快照進中央倉庫（已有 id 跳過）。",
+      "skillsTitle": "從 Agent 匯入 Skills",
+      "skillsHint": "掃描所選 Agent 的全域性 Skills 目錄；勾選後快照進中央庫（已有名稱跳過）。",
+      "scan": "掃描",
+      "importSelected": "匯入所選（{count}）",
+      "alreadyIn": "已在中央倉庫",
+      "noticeMcpImported": "MCP 收穫：新增 {added} · 跳過 {skipped}",
+      "noticeSkillsImported": "Skills 收穫：新增 {added} · 跳過 {skipped}",
+      "errorAgentUnknown": "未知 Agent Target",
+      "errorPath": "Agent 全域性路徑缺失或無效"
+    },
+    "project": {
+      "title": "專案 AI（MCP / Skills）",
+      "hint": "本專案預設不啟用任何 Skill / MCP；用行首核取方塊顯式新增到本專案。",
+      "agentsTitle": "專案 Agent 啟用集",
+      "agentsHint": "僅勾選的 Agent 會接收本專案部署。",
+      "mcpTitle": "MCP → 本專案",
+      "skillsTitle": "Skills → 本專案",
+      "catalogHint": "勾選即新增到本專案，取消勾選即移除；不會自動啟用。",
+      "skillsDefaultHint": "預設無 Skill；勾選行首核取方塊才會寫入本專案。",
+      "deploy": "新增到本專案",
+      "undeploy": "從本專案移除",
+      "added": "已新增",
+      "notAdded": "未新增",
+      "noticeAdded": "已新增 {name} 到本專案",
+      "noticeRemoved": "已從本專案移除 {name}",
+      "filterEnterHint": "篩選到唯一項時按回車切換狀態",
+      "noticeAgentsSaved": "專案 Agent 啟用集已儲存"
+    },
+    "harness": {
+      "title": "初始化 Harness / Superpower",
+      "hint": "顯式 AI 動作（ADR 0008）。在已有 Project Workspace 寫入 AGENTS.md 與 skills/。不屬於 Core 建立。",
+      "fieldWorkspace": "Project Workspace 路徑",
+      "fieldWorkspaceHint": "已有 project.json 的 Workspace 絕對路徑",
+      "includeSdd": "同時初始化 SDD 樹",
+      "includeSddHint": "可選；預設關閉。建立 docs/superpowers/{specs,plans}/ 與 .superpowers/sdd/progress.md",
+      "reinforceContext": "在 CONTEXT.md 追加 harness 說明",
+      "init": "初始化 Harness",
+      "noticeDone": "Harness 完成 · 寫入 {written} · 跳過 {skipped}",
+      "errorWorkspace": "Workspace 路徑須為含 project.json 的已有 Project 目錄"
+    },
+    "providers": {
+      "hint": "為 AI Add-on 配置模型 Providers。金鑰僅存 APPDATA；此處不計費。",
+      "summary": "{total} 個 Provider · {enabled} 已啟用 · {compatible} 個 Compatible",
+      "refresh": "重新整理",
+      "addCompatible": "新增 Compatible",
+      "enable": "啟用",
+      "disable": "停用",
+      "editTitle": "編輯 Provider",
+      "compatibleTitle": "新增 Compatible Provider",
+      "fieldName": "顯示名稱",
+      "fieldId": "Id（可選）",
+      "fieldBaseUrl": "Base URL",
+      "fieldApiKey": "API Key",
+      "fieldModel": "預設模型",
+      "save": "儲存",
+      "saveCompatible": "儲存 Compatible",
+      "remove": "刪除",
+      "noticeEnabled": "已啟用 Provider",
+      "noticeDisabled": "已停用 Provider",
+      "noticeSaved": "Provider 已儲存",
+      "noticeCompatibleAdded": "已新增 Compatible Provider",
+      "noticeRemoved": "已刪除 Compatible Provider",
+      "errorIdEmpty": "Provider id 不能為空",
+      "errorIdInvalid": "Provider id 須為小寫 ASCII",
+      "errorNameEmpty": "顯示名稱不能為空",
+      "errorUnknown": "未知 Provider",
+      "errorBuiltinRemove": "不能刪除預設 Provider",
+      "errorIdConflict": "該 id 與預設 Provider 衝突"
+    }
+  },
+  "taskCenter": {
+    "title": "任務",
+    "expandTitle": "展開任務列表",
+    "collapse": "摺疊",
+    "settings": "任務列表設定",
+    "kindCopy": "複製",
+    "kindMove": "移動",
+    "kindRestore": "還原",
+    "kindDelete": "刪除",
+    "statusRunning": "進行中",
+    "statusCompleted": "已完成",
+    "statusFailed": "失敗",
+    "statusInterrupted": "已中斷",
+    "runningSummary": "{count} 個任務進行中",
+    "recentSummary": "{count} 條任務記錄",
+    "clearFinished": "清除已完成",
+    "retentionDays": "保留天數",
+    "retentionDaysHint": "完成記錄超過該天數後自動清理（預設 7 天，七日一清）。",
+    "maxRecords": "最多保留條數",
+    "maxRecordsHint": "超出上限時從最舊的完成記錄開始移除。",
+    "empty": "暫無任務記錄",
+    "more": "等 {count} 項",
+    "revealHint": "點選在資源管理器中顯示目標位置"
+  },
+  "navigator": {
+    "title": "資源管理器",
+    "metaConnected": "核心磁碟瀏覽 · {dirs} 個資料夾 · {files} 個檔案",
+    "metaDisconnected": "核心磁碟瀏覽 · 未連線",
+    "noPath": "未開啟資料夾",
+    "loading": "載入中…",
+    "empty": "此資料夾為空。",
+    "folder": "資料夾",
+    "file": "檔案",
+    "colName": "名稱",
+    "colType": "型別",
+    "colSize": "大小",
+    "typeFolder": "資料夾",
+    "typeFile": "檔案",
+    "typeFileExt": "{ext} 檔案",
+    "typeShortcut": "快捷方式",
+    "nItems": "{count} 項",
+    "movedInto": "已將 {count} 項移入 {name}",
+    "copiedInto": "已將 {count} 項複製到 {name}",
+    "linkedInto": "已在 {name} 建立 {count} 個快捷方式",
+    "dropHintMove": "鬆開剪下到此處",
+    "dropHintCopy": "鬆開複製到此處",
+    "dropHintLink": "鬆開建立快捷方式到此處",
+    "filterPlaceholder": "搜尋當前資料夾…（名稱、type:、size:、date:）",
+    "filterToggle": "搜尋資料夾",
+    "filterClear": "清除搜尋",
+    "filterEmpty": "沒有匹配的專案。",
+    "filterSearching": "正在搜尋…",
+    "filterStatus": "找到 {count} 個",
+    "filterTruncated": "只顯示前 {count} 個結果。",
+    "colModified": "修改日期"
+  },
+  "discovery": {
+    "title": "搜尋",
+    "meta": "按檔名或路徑搜尋本機",
+    "testTitle": "索引探測",
+    "testMeta": "在此試探本機索引與備用引擎。日常檢索請用搜尋面板（Ctrl+Shift+P）。",
+    "engineCards": "搜尋引擎",
+    "engines": {
+      "spotlight": "Spotlight",
+      "everything": "Everything",
+      "fallback": "備用搜尋",
+      "unavailable": "不可用"
+    },
+    "everythingReady": "已連線，可以使用",
+    "everythingReadyCount": "已連線 · 約 {count} 條已索引",
+    "everythingOffline": "當前不可用",
+    "everythingConfigTitle": "Everything",
+    "everythingConfigHint": "使用本機的 {engine} 索引服務。不想出現在結果中的資料夾可在下方排除。",
+    "fallbackOff": "未開啟 — {engine} 不可用時可開啟",
+    "fallbackStandby": "待命：{engine} 不可用時啟用",
+    "fallbackActive": "使用中（{engine} 不可用）",
+    "fallbackConfigTitle": "備用搜尋",
+    "fallbackConfigHint": "內建有限回退，不是完整本地索引。有 {engine} 時請優先使用它。",
+    "fallbackBlacklistNote": "排除資料夾請在 {engine} 卡片中編輯，對所有搜尋結果生效。",
+    "placeholder": "搜尋檔名 / 路徑…",
+    "search": "搜尋",
+    "searching": "搜尋中…",
+    "noHits": "無結果（{engine} · 共 {total}）。",
+    "syntaxHint": "提示：! ? ( ) 等字元會被引擎當作運算子，普通檔名搜尋請避開或用引號包裹。",
+    "shown": "顯示 {shown} · 共 {total} · {engine}",
+    "folder": "資料夾",
+    "file": "檔案",
+    "blacklistTitle": "排除資料夾",
+    "blacklistHint": "這些資料夾下的路徑不會出現在搜尋結果中。每行一個絕對路徑。",
+    "blacklistPlaceholder": "C:\\\\Windows\n/Users/me/Library",
+    "blacklistSave": "儲存排除",
+    "blacklistSaving": "儲存中…",
+    "blacklistCount": "{count} 個資料夾"
+  },
+  "settings": {
+    "title": "設定",
+    "meta": "語言、主題、啟動與搜尋偏好",
+    "metaVersion": "· v{version}",
+    "metaKeys": "· {count} 項",
+    "loading": "正在載入模式…",
+    "tierCore": "常規",
+    "tierPower": "高階",
+    "tierExperimental": "實驗",
+    "sectionHealth": "健康",
+    "sectionSearch": "搜尋",
+    "sectionShortcuts": "快捷鍵",
+    "sectionExtensions": "擴充套件能力",
+    "extensions": {
+      "title": "託管後端服務",
+      "meta": "AFM 託管後端服務的連線配置（awam-file 閘道器、awam-knowledge）。對應 pack 以託管模式啟用時地址只讀（由 AFM 派生）；config 模式可編輯。知識令牌是 AFM 鑑權並注入被拉起服務的共享金鑰。",
+      "managedReadonly": "由已啟用的託管 pack 管理——地址固定且只讀。",
+      "indexUnconfigured": "已連線，但未配置知識庫——請在下方設定資料根，或用知識服務自身的 settings.yaml。",
+      "dataRootPlaceholder": "例如 C:\\Users\\你\\Knowledge\\data",
+      "sourceIdPlaceholder": "例如 logseq-main",
+      "save": "儲存配置",
+      "saved": "後端服務設定已儲存"
+    },
+    "search": {
+      "paletteTitle": "搜尋面板",
+      "paletteMeta": "Ctrl+Shift+P 開啟搜尋面板——日常檢索入口（命令、檔案、專案等）。下列預設值在下次打開面板時生效。",
+      "fuzzyHint": "搜尋面板查詢的預設模糊匹配（檔案源使用 Everything 風格子序列）。",
+      "scopesHint": "預設參與檢索的搜尋源；全部勾選等價於「全部」。",
+      "probeTitle": "Discovery 探測",
+      "probeMeta": "引擎狀態、排除資料夾與一次性試搜——不是日常主入口。",
+      "knowledgeTitle": "知識服務（內容與金鑰）",
+      "knowledgeMeta": "搜尋面板知識源（Alt+7）所連線的知識服務——可檢索筆記正文和已儲存的條目。",
+      "knowledgeStatusOnlineVault": "已連線 · 金鑰通道已配置",
+      "knowledgeStatusOnlineNoVault": "已連線 · 金鑰通道未配置",
+      "knowledgeStatusOffline": "未連線 · 服務未啟動或地址/令牌不匹配",
+      "knowledgeSave": "儲存配置",
+      "knowledgeSaving": "儲存中…",
+      "knowledgeSaved": "知識服務配置已儲存",
+      "voiceTitle": "語音輸入（語音轉文字）",
+      "voiceMeta": "搜尋面板麥克風背後的 OpenAI 相容批次轉寫服務（ADR 0018）；請求由本應用直連所配置的服務。"
+    },
+    "fields": {
+      "core": {
+        "language": {
+          "title": "語言",
+          "description": "介面語言：en | zh-CN | zh-TW | ja | de | fr | system",
+          "options": {
+            "en": "English",
+            "zh-CN": "簡體中文",
+            "zh-TW": "繁體中文",
+            "ja": "日本語",
+            "de": "Deutsch",
+            "fr": "Français",
+            "system": "跟隨系統"
+          }
+        },
+        "theme": {
+          "title": "主題",
+          "description": "顏色主題：淺色 | 深色 | 跟隨系統",
+          "options": {
+            "light": "淺色",
+            "dark": "深色",
+            "system": "跟隨系統"
+          }
+        },
+        "defaultLocation": {
+          "title": "預設位置",
+          "description": "主頁按鈕開啟的作業系統路徑（預設：{default}）"
+        },
+        "projectsRoot": {
+          "title": "專案根目錄",
+          "description": "存放 Project Workspace 的資料夾（預設：{default}）"
+        },
+        "startupPage": {
+          "title": "啟動頁",
+          "description": "啟動後首先開啟的頁面",
+          "options": {
+            "navigator": "資源管理器",
+            "projects": "專案",
+            "discovery": "搜尋"
+          }
+        },
+        "showHidden": {
+          "title": "顯示隱藏項",
+          "description": "在檔案列表中顯示隱藏的檔案和資料夾"
+        },
+        "listDensity": {
+          "title": "列表密度",
+          "description": "檔案列表密度；外殼保持標準。預設：標準",
+          "options": {
+            "standard": "標準",
+            "compact": "緊湊"
+          }
+        },
+        "everythingPreferred": {
+          "title": "優先使用 Everything",
+          "description": "可用時優先通過 Everything IPC 進行搜尋"
+        },
+        "extensionsEnabled": {
+          "title": "啟用擴充套件",
+          "description": "擴充套件宿主總開關"
+        },
+        "launchAtStartup": {
+          "title": "開機自啟動",
+          "description": "登入 Windows 時啟動 A File Manager"
+        },
+        "launchAtStartupHidden": {
+          "title": "啟動後隱藏到托盤",
+          "description": "通過開機自啟動啟動時，將主視窗隱藏到系統托盤（工作列通知區域）"
+        },
+        "closeBehavior": {
+          "title": "關閉視窗時",
+          "description": "每次詢問、隱藏到系統托盤，或退出應用",
+          "options": {
+            "ask": "每次詢問",
+            "tray": "隱藏到托盤",
+            "quit": "退出"
+          }
+        },
+        "discoveryBlacklist": {
+          "title": "搜尋目錄黑名單",
+          "description": "從搜尋結果中排除的目錄（設定中每行一個路徑）"
+        },
+        "newFolderDefaultName": {
+          "title": "預設新增資料夾名",
+          "description": "新增資料夾時的建議名稱（預設：{default}）"
+        },
+        "newFileDefaultName": {
+          "title": "預設新增檔名",
+          "description": "新增檔案時的建議名稱（預設：{default}）"
+        },
+        "fileDoubleClickAction": {
+          "title": "檔案雙擊行為",
+          "description": "雙擊檔案時使用的開啟方式",
+          "options": {
+            "systemDefault": "系統預設",
+            "openWithDialog": "開啟方式…",
+            "reveal": "在資源管理器中顯示",
+            "vscode": "Visual Studio Code",
+            "cursor": "Cursor",
+            "trae": "Trae",
+            "none": "無動作",
+            "qoder": "Qoder CN"
+          }
+        },
+        "navigatorViewMode": {
+          "title": "資源管理器檢視",
+          "description": "圖示、列表、詳細資訊、平鋪或內容",
+          "options": {
+            "iconsExtraLarge": "超大圖示",
+            "iconsLarge": "大圖示",
+            "iconsMedium": "中等圖示",
+            "iconsSmall": "小圖示",
+            "list": "列表",
+            "details": "詳細資訊",
+            "tiles": "平鋪",
+            "content": "內容"
+          }
+        },
+        "navigatorGroupByType": {
+          "title": "按型別分組",
+          "description": "按檔案型別分段顯示導航列表"
+        },
+        "newTabBehavior": {
+          "title": "新標籤行為",
+          "description": "點選 + 時預設開啟的內容",
+          "options": {
+            "guide": "引導頁",
+            "duplicate": "複製當前標籤"
+          }
+        },
+        "openTool": {
+          "vscode": {
+            "enabled": {
+              "title": "Visual Studio Code",
+              "description": "在「開啟方式」中顯示 VS Code（可用時）"
+            },
+            "path": {
+              "title": "VS Code 路徑",
+              "description": "自動發現失敗時的可選 Code.exe 路徑"
+            }
+          },
+          "cursor": {
+            "enabled": {
+              "title": "Cursor",
+              "description": "在「開啟方式」中顯示 Cursor（可用時）"
+            },
+            "path": {
+              "title": "Cursor 路徑",
+              "description": "自動發現失敗時的可選 Cursor.exe 路徑"
+            }
+          },
+          "trae": {
+            "enabled": {
+              "title": "Trae",
+              "description": "在「開啟方式」中顯示 Trae（可用時）"
+            },
+            "path": {
+              "title": "Trae 路徑",
+              "description": "自動發現失敗時的可選 Trae.exe 路徑"
+            }
+          },
+          "qoder": {
+            "enabled": {
+              "title": "Qoder CN",
+              "description": "在「開啟方式」中顯示 Qoder CN（可用時）"
+            },
+            "path": {
+              "title": "Qoder CN 路徑",
+              "description": "自動發現失敗時的可選 Qoder CN.exe 路徑"
+            }
+          }
+        }
+      },
+      "power": {
+        "confirmBeforeDelete": {
+          "title": "刪除前確認",
+          "description": "永久刪除操作前徵求確認"
+        },
+        "perPathOverridesEnabled": {
+          "title": "按路徑覆蓋",
+          "description": "允許按路徑的瀏覽預設值覆蓋組/全域性設定"
+        },
+        "providerPreloadKnowledge": {
+          "title": "預載入知識庫 Provider",
+          "description": "在 provider preload 時預熱 awam://knowledge（知識庫根很大時可關閉）"
+        },
+        "awamGatewayUrl": {
+          "title": "awam-file 閘道器地址",
+          "description": "資源閘道器 HTTP 地址，預設 http://127.0.0.1:18787。改後立即用於 Providers 發現。"
+        },
+        "awamKnowledgeServiceUrl": {
+          "title": "awam-knowledge 服務地址",
+          "description": "知識服務的地址，預設為 http://127.0.0.1:18790，供搜尋面板的知識內容源使用。"
+        },
+        "awamKnowledgeServiceToken": {
+          "title": "awam-knowledge 服務令牌",
+          "description": "知識服務的 Bearer token（KM_SERVICE_TOKEN）；留空則不帶鑑權呼叫。"
+        },
+        "awamKnowledgeDataRoot": {
+          "title": "知識庫資料根",
+          "description": "脫敏知識工作副本根目錄的絕對路徑（KM_DATA_ROOT）。AFM 會注入到託管的 awam-knowledge 服務。留空=用服務自身的 settings.yaml。服務重啟後生效。"
+        },
+        "awamKnowledgeSourceId": {
+          "title": "知識庫源 id",
+          "description": "資料根下要索引的源目錄（KM_SOURCE_ID）；索引根 = <資料根>/<源 id>。留空=服務預設。"
+        },
+        "voiceSearchAutoStart": {
+          "title": "語音搜尋",
+          "description": "開啟搜尋面板時自動開始錄音；識別文字追加進搜尋詞"
+        },
+        "sttBaseUrl": {
+          "title": "語音轉文字服務地址",
+          "description": "OpenAI 相容介面基地址，如 https://api.openai.com/v1 —— 應用會 POST {baseUrl}/audio/transcriptions"
+        },
+        "sttModel": {
+          "title": "語音轉文字模型",
+          "description": "傳送給轉寫介面的模型名，如 whisper-1"
+        },
+        "sttApiKey": {
+          "title": "語音轉文字 API Key",
+          "description": "轉寫介面的 Bearer 金鑰；留空表示停用語音輸入"
+        }
+      },
+      "experimental": {
+        "debugStatusInTitlebar": {
+          "title": "標題欄除錯狀態",
+          "description": "在自定義標題欄顯示階段/除錯說明"
+        },
+        "previewPane": {
+          "title": "預覽欄",
+          "description": "在資源管理器列表旁顯示圖片與純文字預覽（實驗）"
+        }
+      },
+      "preview": {
+        "externalProvider": {
+          "title": "預覽橋接提供方",
+          "description": "空格優先使用經典 QuickLook（命名管道）；不可用時回退 PowerToys Peek（CLI），再否則內建預覽欄。缺少 QL 不會硬失敗。這是 AFM 側橋接，並非對所有 QL 類工具零適配。",
+          "options": {
+            "auto": "自動（QuickLook → Peek → 內建）",
+            "peek": "PowerToys Peek",
+            "quicklook": "QuickLook 管道",
+            "builtin": "內建預覽欄",
+            "off": "關閉"
+          }
+        }
+      }
+    },
+    "sectionFavorites": "收藏",
+    "favoritesMeta": "資源管理器右鍵「新增到 AFM 收藏」",
+    "sectionOpenTools": "開啟工具",
+    "openTools": {
+      "meta": "控制「開啟方式」中的 IDE/Agent。優先自動發現，失敗後再用下方路徑。",
+      "enabled": "在選單中顯示",
+      "pathPlaceholder": "可選 .exe 路徑…",
+      "rediscover": "重新發現",
+      "notFound": "未找到 — 若安裝在其他位置請填寫路徑",
+      "viaAuto": "已自動發現",
+      "viaConfigured": "使用配置路徑",
+      "builtinTitle": "內建工具",
+      "customTitle": "自定義工具",
+      "customMeta": "新增任意 exe 作為開啟方式；檔案「開啟方式」與專案「開啟方式」共用此列表。",
+      "customEmpty": "暫無自定義工具。",
+      "customNamePlaceholder": "名稱…",
+      "viaCustom": "自定義",
+      "addCustom": "新增自定義工具",
+      "remove": "刪除",
+      "supportsProject": "支援開啟專案",
+      "foldersOnly": "僅限資料夾",
+      "projectModeWorkspace": "開啟工作區目錄",
+      "projectModeContextFile": "開啟 CONTEXT.md",
+      "projectArgsPlaceholder": "專案啟動引數（空格分隔）…",
+      "newCustomName": "新工具",
+      "orderTitle": "選單順序",
+      "orderMeta": "拖動可調整順序。該順序會同時作用於“開啟方式”選單（資源管理器“開啟方式”與專案“在其他地方開啟”）以及下方列表。"
+    },
+    "groups": {
+      "appearance": "外觀",
+      "startup": "啟動與視窗",
+      "files": "檔案與標籤",
+      "projects": "專案的公共配置",
+      "features": "功能",
+      "safety": "安全",
+      "advanced": "進階選項",
+      "preview": "預覽",
+      "other": "其他"
+    },
+    "sectionAbout": "關於"
+  },
+  "managedDep": {
+    "status": {
+      "config": "連線模式",
+      "managed": "AFM 託管"
+    },
+    "action": {
+      "start": "由 AFM 啟動",
+      "stop": "停止",
+      "starting": "啟動中…",
+      "stopping": "停止中…",
+      "failed": "操作失敗：{error}"
+    },
+    "failure": {
+      "configOnly": "遠端例項不可達，且未安裝可託管的本地產物；請檢查地址或安裝 Pack。",
+      "managedOnly": "AFM 已拉起本地產物，但探活未通過；請稍後重新整理或檢視程式日誌。",
+      "both": "遠端例項不可達，且 managed 產物不可用；AFM 無法代為啟動。"
+    }
+  },
+  "health": {
+    "title": "健康",
+    "meta": "應用身份、核心狀態與依賴體檢",
+    "loading": "載入中…",
+    "failed": "健康檢查失敗：{error}",
+    "refresh": "重新整理",
+    "fieldOk": "狀態",
+    "fieldName": "名稱",
+    "fieldVersion": "版本",
+    "fieldIdentifier": "識別符號",
+    "fieldAiAddon": "AI Add-on",
+    "aiAddonOn": "已啟用（主線版）",
+    "aiAddonOff": "已停用（精簡版）",
+    "deps": {
+      "title": "執行期依賴",
+      "meta": "必裝與可選元件。可選元件缺失只會降級對應功能，不阻止本地資源管理器。",
+      "fixLabel": "處理：",
+      "quicklookUnverified": "未實測連線",
+      "summaryAllOk": "必裝與可選檢查均正常。",
+      "summaryRequiredMissing": "缺少 {count} 項必裝依賴 — 請先安裝後再使用介面宿主。",
+      "summaryOptionalMissing": "缺少 {count} 項可選元件 — 相關功能會降級（見下方明細）。",
+      "status": {
+        "ok": "正常",
+        "missing": "缺失",
+        "warn": "注意",
+        "unbridged": "已裝未橋接"
+      },
+      "kind": {
+        "required": "必裝",
+        "optional": "可選"
+      },
+      "items": {
+        "webview2": {
+          "title": "WebView2 執行時"
+        },
+        "awam_gateway": {
+          "title": "awam-file 閘道器"
+        },
+        "rclone": {
+          "title": "rclone 命令列"
+        },
+        "quicklook": {
+          "title": "QuickLook",
+          "detail": "QuickLook / Peek 橋接狀態。",
+          "fix": "預覽正常時無需處理。",
+          "ok": {
+            "detail": "檢測到 QuickLook 正在執行（命名管道存在），空格預覽會交給它。",
+            "fix": "無需處理；可預覽的檔案型別取決於 QuickLook 外掛，管道瞬時繁忙時會自動回退 Peek / 內建。"
+          },
+          "missing": {
+            "detail": "未檢測到 QuickLook 在執行（命名管道不存在；已安裝但未啟動時同樣如此）。",
+            "fix": "啟動 QuickLook 後即可接管預覽；當前空格會自動嘗試 Peek，再回退內建預覽。"
+          },
+          "warn": {
+            "detail": "無法確定 QuickLook 狀態（未能解析當前使用者 SID）。",
+            "fix": "在常規使用者會話下執行；若仍不確定，可依賴 Peek 或內建預覽。"
+          },
+          "unbridged": {
+            "detail": "檢測到 QuickLook 程式在執行，但沒有 AFM 可橋接的命名管道（AFM 僅支援經典 QuickLook 的管道協議；商店版 QuickLook 不提供該管道）。",
+            "fix": "無需處理：當前空格預覽由 PowerToys Peek（或內建預覽）提供。要讓 AFM 直接驅動 QuickLook，請改用經典 poizan42 QuickLook。"
+          }
+        },
+        "powertoys_peek": {
+          "title": "PowerToys Peek"
+        },
+        "browser_bookmarks": {
+          "title": "瀏覽器書籤"
+        },
+        "terminals": {
+          "title": "終端"
+        },
+        "ides": {
+          "title": "編輯器 / IDE"
+        },
+        "ai_addon": {
+          "title": "AI Add-on 包"
+        },
+        "webview": {
+          "title": "系統 WebView"
+        }
+      }
+    }
+  },
+  "providers": {
+    "title": "提供程式",
+    "meta": "瀏覽雲盤與虛擬資料夾，與本地磁碟並列",
+    "interfaceOnly": "僅可預覽",
+    "statusOk": "正常",
+    "statusDown": "不可用",
+    "sourceGateway": "awam-file",
+    "sourceBuiltin": "內建",
+    "gatewayOnline": "awam-file 閘道器線上 — 經 {url} 發現 {count} 個後端",
+    "gatewayOffline": "awam-file 閘道器離線 — 顯示內建提供方（rclone）。瀏覽器書籤需閘道器線上。請啟動閘道器，或在下方修改閘道器地址（預設 http://127.0.0.1:18787）。",
+    "gatewayUrlLabel": "閘道器地址",
+    "gatewayEditHint": "在 擴充套件 → 服務配置 中編輯",
+    "gatewayUrlPlaceholder": "http://127.0.0.1:18787",
+    "gatewayUrlSave": "儲存並重連",
+    "gatewayUrlSaving": "儲存中…",
+    "refresh": "重新整理",
+    "refreshing": "重新整理中…",
+    "uriPlaceholder": "貼上提供方路徑（例如 rclone remote）",
+    "listing": "列出中…",
+    "list": "列出",
+    "emptyBackends": "暫無可用提供方；本地瀏覽請使用資源管理器。",
+    "emptyListing": "此位置沒有專案。",
+    "folder": "資料夾",
+    "file": "檔案",
+    "openUnsupported": "此專案暫時無法從提供程式開啟。",
+    "openInExplorer": "在資源管理器中開啟",
+    "searchBlocked": "Everything 已接入「搜尋」，請使用搜尋頁，而不是提供程式中的 search 後端。",
+    "error": {
+      "connectionRefused": "無法連線遠端服務：目標未啟動或拒絕連線（如 alist/WebDAV 服務未執行）。請確認服務已啟動後重試。",
+      "timeout": "連線遠端服務超時：服務可能暫時無響應或網路較慢，請稍後重試。",
+      "auth": "認證失敗：請檢查該遠端服務配置的使用者名稱、密碼或令牌是否正確。",
+      "notFound": "找不到該檔案或目錄：路徑可能已被移動或刪除。",
+      "rcloneMissing": "未找到 rclone 程式：請安裝 rclone 或檢查其執行檔路徑配置。",
+      "notConfigured": "尚未配置任何遠端儲存：請先執行 rclone config 新增遠端項。",
+      "generic": "讀取該位置失敗，請檢查遠端服務是否可用。",
+      "rawDetails": "檢視原始錯誤資訊",
+      "rawGeneric": "檢視技術細節"
+    }
+  },
+  "workGroups": {
+    "title": "工作組",
+    "meta": "把相關資料夾收成一條可靜默切換的標籤帶",
+    "usageHint": "批次開啟一批互相關聯或同類型工作的標籤——一個工作組對應一條會話標籤帶。",
+    "softSync": "軟同步：已開啟 {paths}",
+    "default": "預設",
+    "defaultName": "預設工作組",
+    "defaultHint": "沒有專用工作組時用來臨時瀏覽，不能刪除。",
+    "membersCount": "{count} 個成員",
+    "newNamePlaceholder": "新工作組名稱",
+    "detailMeta": "id {id} · 成員 {count}",
+    "hardMembers": "成員",
+    "noHardMembers": "尚無成員",
+    "addMemberPlaceholder": "新增成員資料夾路徑",
+    "addSync": "新增並同步",
+    "runtimeOpenState": "執行時開啟狀態（即時）",
+    "noOpenTabs": "無開啟的標籤",
+    "openMembersIntoOpenState": "開啟成員 → Open State",
+    "openMembersDone": "已將 {count} 個成員資料夾開啟為標籤",
+    "openMembersNone": "成員均已有對應標籤",
+    "openMembersEmpty": "沒有可開啟的成員資料夾",
+    "closeRuntimeOpenState": "關閉執行時",
+    "runtimeClosed": "已關閉執行時，清除了開啟的標籤",
+    "saveOpenState": "儲存開啟狀態 → 配置",
+    "saveMembersFromTabs": "開啟標籤 → 成員配置",
+    "errorSavePrompt": "靜默切換時出現意外的儲存提示",
+    "promoteToProject": "從工作組建立專案",
+    "promoteDone": "已建立繫結「{name}」的專案（工作組保留）",
+    "removeMember": "移除成員",
+    "memberRemoved": "已從工作組移除成員",
+    "copy": "複製工作組",
+    "copied": "已複製工作組為「{name}」",
+    "rename": "重新命名工作組",
+    "renamePrompt": "工作組名稱",
+    "renamed": "工作組已重新命名",
+    "delete": "刪除工作組",
+    "deleteConfirm": "刪除工作組「{name}」？標籤在切換前仍保留。",
+    "deleted": "工作組已刪除",
+    "deleteConfirmClearTabs": "刪除工作組「{name}」？將清除其儲存的 Open State 標籤。若當前正使用該組，將切換到預設工作組。",
+    "deletedSwitched": "工作組已刪除；已切換到預設",
+    "renameHint": "雙擊可改名",
+    "dragReorderHint": "拖動可調整順序",
+    "tabsToMembersConfig": "開啟標籤 → 成員配置"
+  },
+  "projects": {
+    "title": "專案",
+    "meta": "跨資料夾跟蹤進度——看板、筆記，可繫結工作組會話",
+    "usageHint": "面向專案整體：共同進度與共享知識庫；寫程式碼時繫結工作組，便於在關聯工作區中共同編輯。",
+    "listSummary": "{members} 個成員 · {open} 個進行中",
+    "newNamePlaceholder": "新專案名稱",
+    "noDescription": "無描述",
+    "openTasks": "{count} 個進行中任務",
+    "viewMode": "檢視模式",
+    "list": "列表",
+    "board": "看板",
+    "openAllLinks": "開啟全部成員",
+    "workspaceLinks": "專案成員",
+    "noFolderLinks": "暫無專案成員",
+    "addLinkPlaceholder": "新增專案成員路徑（會話標籤在繫結工作組上）",
+    "addLink": "新增成員",
+    "context": "CONTEXT",
+    "contextPlaceholder": "CONTEXT 內容（可用 Markdown）",
+    "saveContext": "儲存 CONTEXT",
+    "outcomes": "成果",
+    "addOutcomePlaceholder": "新增首個 / 下一個成果",
+    "addTask": "新增任務",
+    "noOutcomes": "尚無成果 — 在上方新增第一個。",
+    "emptyStart": "先建立專案，再繫結非預設工作組以承載會話標籤。",
+    "confirmDelete": "刪除專案 “{name}”？",
+    "noticeContextSaved": "CONTEXT 已儲存",
+    "errorWorkGroupMutation": "全部開啟時意外改動了工作組",
+    "noticeNoLinks": "沒有可開啟的專案成員",
+    "noticeOpened": "已開啟 {count} 個路徑為瀏覽標籤",
+    "statusBacklog": "待辦",
+    "statusDoing": "進行中",
+    "statusReview": "審查",
+    "statusDone": "完成",
+    "listSummaryBound": "{members} 個成員 · {open} 進行中 · 已繫結會話",
+    "sessionBinding": "會話（工作組）",
+    "boundTo": "已繫結工作組「{name}」— 啟用將恢復其 Open State",
+    "unbound": "未繫結 — 啟用僅設定活動專案（不恢復標籤條）",
+    "bindNone": "不繫結工作組",
+    "bindSave": "儲存繫結",
+    "saveMembersFromTabs": "從標籤儲存成員 → 繫結工作組",
+    "openMembersIntoOpenState": "開啟繫結工作組成員 → Open State",
+    "closeRuntimeOpenState": "關閉執行時",
+    "runtimeClosed": "已關閉執行時，清除了開啟的標籤",
+    "noticeBound": "工作組繫結已儲存",
+    "noticeUnbound": "已解除工作組繫結",
+    "noticeMembersSaved": "成員已儲存到繫結工作組",
+    "errorDefaultWorkGroup": "預設工作組不能繫結到專案",
+    "errorUnknownWorkGroup": "未知工作組",
+    "errorUnbound": "專案尚未繫結工作組",
+    "copy": "複製專案",
+    "copied": "已複製專案為「{name}」",
+    "copiedWithWorkGroup": "已複製專案為「{name}」（工作組「{workGroup}」）",
+    "rename": "重新命名",
+    "renamePrompt": "專案名稱",
+    "renamed": "專案已重新命名",
+    "renameHint": "雙擊可改名",
+    "dragReorderHint": "拖動可調整順序",
+    "openDirectory": "開啟目錄",
+    "openWorkspaceFolder": "開啟工作區資料夾",
+    "openElsewhere": "在其他地方開啟",
+    "openWorkspaceFolderHint": "在本軟體資源管理器（Navigator）中開啟本 Project Workspace 目錄",
+    "openWorkspaceInSystemExplorerHint": "在系統資源管理器中開啟本 Project Workspace 目錄",
+    "noticeOpenedWorkspace": "已在 Navigator 中開啟工作區資料夾",
+    "noticeOpenedInSystemExplorer": "已在系統資源管理器中開啟",
+    "openWorkspaceFailed": "無法開啟工作區資料夾",
+    "openInCursor": "在 Cursor 中開啟",
+    "openInCursorHint": "在 Cursor 中開啟本 Project Workspace 目錄",
+    "openInQoder": "在 Qoder 中開啟",
+    "openInQoderHint": "在 Qoder 中開啟本 Workspace 的 CONTEXT.md",
+    "openInTool": "在 {name} 中開啟",
+    "openInToolHint": "在 {name} 中開啟本 Project Workspace",
+    "noticeOpenedEditor": "已在 {ide} 開啟（{mode}）",
+    "openEditorFailed": "無法開啟編輯器",
+    "createFromWorkGroup": "從工作組建立",
+    "createFromWorkGroupNone": "選擇工作組…",
+    "createFromWorkGroupHint": "選擇工作組後建立專案，同一工作組可重複建立",
+    "createFromWorkGroupDone": "已從工作組「{name}」建立專案",
+    "syncMembersFromWorkGroup": "同步工作組成員到專案",
+    "syncMembersDone": "已同步 {count} 個工作組成員到專案",
+    "syncMembersEmpty": "繫結工作組沒有可同步的成員",
+    "syncMembersNone": "專案成員已與工作組一致",
+    "toggleSidePanel": "顯示 / 隱藏 CONTEXT 與進度面板",
+    "sidePanelTitle": "CONTEXT 與進度"
+  },
+  "extensions": {
+    "title": "擴充套件",
+    "meta": "可選擴充套件：額外檔案源與命令",
+    "hostPrefix": "ExtensionHost {version}",
+    "hostStatus": "宿主狀態",
+    "api": "API {version}",
+    "counts": "已安裝 {installed} · 已啟用 {enabled} · 已崩潰 {crashed}",
+    "fsHooksCount": "FS 提供程式鉤子 {count}",
+    "marketplaceFlags": "市場為空：{empty} · 遠端拉取：{remote}",
+    "marketplace": "市場",
+    "catalogEmpty": "目錄按設計為空",
+    "marketplacePolicy": "不支援舊格式的擴充套件包。擴充套件只能從本地檔案安裝，不會自動從網路下載。",
+    "installed": "已安裝",
+    "packsTitle": "Feature Pack",
+    "packsMeta": "僅本機安裝 Feature Pack。這不是商店或線上市場。",
+    "storeTitle": "可從 feed 安裝",
+    "storeMeta": "由 AFM 自有 feed 釋出的 Pack（當前本機源，後續切線上）。安裝與啟用分離——啟用時才拉取託管產物。",
+    "storeEmpty": "當前 feed 沒有可安裝的 Pack。",
+    "storeUnavailable": "feed 不可達或未配置：{error}",
+    "storeAvailable": "可安裝",
+    "storeInstalled": "已安裝",
+    "storeInstall": "安裝",
+    "packsLocalOnly": "從本機資料夾或 zip 安裝。不會訪問遠端目錄、商店或市場。",
+    "installFromFolder": "從資料夾或 zip 安裝",
+    "installPathTitle": "安裝 Feature Pack",
+    "installPathLabel": "本機資料夾或 zip 路徑",
+    "installPathHint": "輸入含 pack.json 的資料夾，或本機上的 .zip。非商店。",
+    "installPathPlaceholder": "C:\\\\path\\\\to\\\\pack 或 pack.zip",
+    "noPacks": "尚未安裝 Feature Pack。",
+    "packEnable": "啟用",
+    "packState": {
+      "installed": "已安裝",
+      "enabled": "已啟用",
+      "disabled": "已停用",
+      "crashed": "已崩潰"
+    },
+    "uninstallPackTitle": "解除安裝 Feature Pack",
+    "uninstallPackMessage": "從本機解除安裝 {name}（{id}）？",
+    "noticePackInstalled": "已從本機安裝 {id}。",
+    "noticePackEnabled": "已啟用 {id}。側欄已更新。",
+    "noticePackEnsureDeferred": "已啟用，但託管服務尚未啟動：{error}。可在工具執行時頁重試。",
+    "noticePackDisabled": "已停用 {id}。側欄已更新。",
+    "noticePackUninstalled": "已解除安裝 {id}。側欄已更新。",
+    "packUpgradeAvailable": "有可用更新 → v{to}",
+    "upgradePack": "升級",
+    "upgradingPack": "升級中…",
+    "noticePackUpgraded": "已升級 {id} 的託管產物。",
+    "checkUpdates": "檢查更新",
+    "checkingUpdates": "檢查中…",
+    "noticeCheckedUpdates": "已檢查託管元件的可用更新。",
+    "reloadHint": "啟用或停用 Pack 後，側欄與路由會自動重新整理。",
+    "demoTitle": "示例擴充套件",
+    "demoMeta": "記憶體演示宿主 — 與 Feature Pack 分開。不是商店。",
+    "installDemo": "在本地安裝示例",
+    "noInstalled": "尚未安裝擴充套件。",
+    "runHello": "執行 hello",
+    "enable": "啟用",
+    "disable": "停用",
+    "uninstall": "解除安裝",
+    "fsHooks": "FS 提供程式鉤子",
+    "fsHooksMeta": "僅後設資料 — ProviderRegistry 仍是 FS 權威。",
+    "registered": "（已註冊 {value}）",
+    "noHooks": "未註冊鉤子",
+    "errorRemoteFetch": "意外的遠端市場拉取標誌",
+    "errorInstallFailed": "安裝失敗",
+    "noticeInstalled": "已安裝 {id}（示例擴充套件）",
+    "noticeUninstalled": "已解除安裝 {id}",
+    "noticeHelloOk": "命令 hello 在 {id} 上成功",
+    "noticeHelloFail": "命令失敗：{error}",
+    "unknownError": "未知",
+    "sections": {
+      "overview": "總覽",
+      "installed": "已安裝",
+      "store": "商店",
+      "providers": "提供程式",
+      "config": "服務配置",
+      "toolRuntimeHint": "工具執行時由 awam.tool-runtime Feature Pack 提供。可在下方開啟，或從商店安裝該 Pack。",
+      "toolRuntimeOpen": "開啟工具執行時"
+    },
+    "cap": {
+      "fileGateway": {
+        "name": "檔案閘道器",
+        "desc": "awam-file 後端 — 雲端、虛擬和網路檔案源"
+      },
+      "knowledge": {
+        "name": "知識庫",
+        "desc": "awam-knowledge 服務 — 內容搜尋與知識庫索引"
+      },
+      "toolRuntime": {
+        "name": "工具執行時",
+        "desc": "awam.tool-runtime — 外部工具呼叫與能力橋接"
+      }
+    },
+    "capMode": {
+      "managed": "託管",
+      "config": "配置",
+      "builtin": "內建",
+      "absent": "未安裝"
+    },
+    "capHealth": {
+      "online": "線上",
+      "unknown": "未知"
+    },
+    "capAction": {
+      "install": "安裝",
+      "manage": "管理"
+    }
+  },
+  "voice": {
+    "palette": {
+      "listening": "正在聆聽…",
+      "transcribing": "識別中…"
+    },
+    "error": {
+      "busy": "已有錄音進行中",
+      "noDevice": "未找到麥克風",
+      "permission": "麥克風訪問被阻止——請在 Windows 設定 → 隱私和安全性 → 麥克風中開啟",
+      "notConfigured": "語音轉文字尚未配置（設定 → 搜尋 → 語音輸入）",
+      "empty": "未識別到語音，請重試",
+      "noAudio": "麥克風沒有產出任何音訊——請檢查輸入裝置是否被停用或被其他應用獨佔",
+      "noSpeech": "已錄音但未識別出語音——請確認麥克風未靜音後重試",
+      "network": "無法連線轉寫服務",
+      "unauthorized": "轉寫服務拒絕了 API Key",
+      "server": "轉寫服務出錯"
+    },
+    "selftest": {
+      "start": "測試語音輸入",
+      "stop": "停止並識別",
+      "recording": "錄音中…請說話",
+      "transcribing": "識別中…",
+      "result": "識別結果",
+      "permissionHint": "請允許本應用使用麥克風：Windows 設定 → 隱私和安全性 → 麥克風（Windows 無執行時彈窗）。",
+      "configSaved": "語音轉文字配置已儲存"
+    }
+  },
+  "shortcuts": {
+    "meta": "一個功能可繫結多個組合鍵；點選「新增」後直接按下按鍵即可錄製。x + N 固定組（Ctrl/Alt + 1–9）不可修改，懸停提示展示的始終是最終生效的快捷鍵。",
+    "conflict": "檢測到衝突組合鍵：{chords}",
+    "blockedBy": "被 {id} 佔用",
+    "add": "新增快捷鍵",
+    "recording": "請按下組合鍵…（Esc 取消）",
+    "cancel": "取消",
+    "remove": "移除此快捷鍵",
+    "reset": "恢復預設",
+    "resetAll": "全部恢復預設",
+    "unbound": "未繫結",
+    "fixedGroup": "固定組合（x + 數字），不可修改",
+    "errorReserved": "該按鍵為保留鍵或屬於固定快捷鍵組，不能繫結",
+    "errorDuplicate": "該功能已繫結這個組合鍵",
+    "errorConflict": "該組合鍵已被 {id} 佔用",
+    "errorUnknown": "該功能不可修改",
+    "blockedCount": "共 {count} 個繫結被先註冊者擋住",
+    "overridden": "已自定義",
+    "change": "點選修改此快捷鍵",
+    "items": {
+      "commandPanelToggle": "切換搜尋面板",
+      "voiceToggle": "切換語音輸入（搜尋面板）",
+      "discoveryGlobalSearch": "開啟 Discovery 搜尋",
+      "navigatorFolderSearch": "搜尋當前資料夾",
+      "navigatorGoUp": "返回上級資料夾",
+      "navigatorBack": "後退",
+      "navigatorForward": "前進",
+      "navigatorNewTab": "新增瀏覽標籤",
+      "navigatorCloseTab": "關閉當前標籤",
+      "navigatorJumpTab1": "切換到第 1 個標籤",
+      "navigatorJumpTab2": "切換到第 2 個標籤",
+      "navigatorJumpTab3": "切換到第 3 個標籤",
+      "navigatorJumpTab4": "切換到第 4 個標籤",
+      "navigatorJumpTab5": "切換到第 5 個標籤",
+      "navigatorJumpTab6": "切換到第 6 個標籤",
+      "navigatorJumpTab7": "切換到第 7 個標籤",
+      "navigatorJumpTab8": "切換到第 8 個標籤",
+      "navigatorJumpTab9": "切換到第 9 個標籤",
+      "navigatorNextTabGroup": "切換到下一個頁面分組",
+      "navigatorPrevTabGroup": "切換到上一個頁面分組",
+      "navigatorCopy": "複製所選",
+      "navigatorCut": "剪下所選",
+      "navigatorPaste": "貼上",
+      "navigatorRename": "重新命名所選",
+      "navigatorNewFolder": "新增資料夾",
+      "navigatorNewFile": "新增空檔案",
+      "navigatorRefresh": "重新整理資料夾",
+      "navigatorDelete": "刪除到回收站",
+      "navigatorDeletePermanent": "永久刪除",
+      "navigatorSelectAll": "全選",
+      "navigatorUndo": "撤銷上一次檔案操作",
+      "navigatorPreviewBridge": "預覽選中項（Peek / QuickLook / 內建）",
+      "navigatorProperties": "屬性",
+      "navigatorPreviewPane": "切換預覽窗格",
+      "navigatorDetailsPane": "切換詳細資訊窗格",
+      "focusAddress": "聚焦位址列",
+      "focusCycle": "迴圈焦點",
+      "focusCycleReverse": "反向迴圈焦點",
+      "openSettings": "開啟設定",
+      "openShortcutList": "開啟快捷鍵列表",
+      "openWorkGroups": "開啟工作組",
+      "workGroupSwitch1": "切換到第 1 個工作組",
+      "workGroupSwitch2": "切換到第 2 個工作組",
+      "workGroupSwitch3": "切換到第 3 個工作組",
+      "workGroupSwitch4": "切換到第 4 個工作組",
+      "workGroupSwitch5": "切換到第 5 個工作組",
+      "workGroupSwitch6": "切換到第 6 個工作組",
+      "workGroupSwitch7": "切換到第 7 個工作組",
+      "workGroupSwitch8": "切換到第 8 個工作組",
+      "workGroupSwitch9": "切換到第 9 個工作組",
+      "navigatorCopyPath": "複製所選路徑"
+    }
+  },
+  "contextMenu": {
+    "label": "專案操作",
+    "open": "開啟（當前標籤）",
+    "openInNewTab": "在新標籤頁開啟",
+    "openInSecondPane": "在第二視窗開啟",
+    "openInTerminal": "在終端開啟",
+    "systemMenu": "系統右鍵選單",
+    "systemMenuError": "無法開啟系統右鍵選單。",
+    "systemMenuLoading": "正在載入系統選單…",
+    "systemMenuEmpty": "無系統選單項",
+    "reveal": "在資源管理器中顯示",
+    "copy": "複製",
+    "cut": "剪下",
+    "paste": "貼上",
+    "rename": "重新命名",
+    "newFolder": "新增資料夾",
+    "newFile": "新增檔案",
+    "newFileCustom": "自定義名稱…",
+    "copyPath": "複製路徑",
+    "delete": "刪除",
+    "deleteStub": "這裡暫時不支援刪除。",
+    "copiedPath": "已複製路徑",
+    "copied": "已複製到剪貼簿",
+    "cutDone": "已剪下到剪貼簿",
+    "pasted": "已貼上 {count} 項",
+    "pasteNoFolder": "請先開啟資料夾再貼上",
+    "renamed": "已重新命名",
+    "renamedMulti": "已重新命名 {count} 項",
+    "renamePrompt": "新名稱",
+    "newFolderPrompt": "資料夾名稱",
+    "newFolderDefault": "新增資料夾",
+    "newFilePrompt": "檔名",
+    "newFileDefault": "新增文字文件.txt",
+    "folderCreated": "已建立資料夾",
+    "fileCreated": "已建立檔案",
+    "deleted": "已移到回收站",
+    "undone": "已撤銷",
+    "deleteConfirm": "將“{name}”移到回收站？",
+    "deleteNoRecycle": "此處無法使用回收站；未啟用永久刪除。",
+    "deletePermanentConfirm": "永久刪除 {name}？此操作無法撤銷。",
+    "deletedPermanent": "已永久刪除",
+    "opFailed": "操作失敗",
+    "addFavorite": "新增到收藏",
+    "removeFavorite": "取消收藏",
+    "favoriteAdded": "已加入收藏",
+    "favoriteRemoved": "已取消收藏",
+    "addToWorkGroup": "新增到工作組",
+    "addToWorkGroupEmpty": "暫無工作組",
+    "addedToWorkGroup": "已將 {count} 個資料夾加入 {name}",
+    "addAsSkill": "新增為 skill",
+    "addedAsSkill": "已將「{name}」加入 AI Skill 庫",
+    "addAsSkillExists": "「{name}」已在 Skill 庫中",
+    "openWith": "開啟方式…",
+    "openWithExplorer": "在資源管理器中開啟",
+    "openWithChoose": "選擇其他應用…",
+    "systemMenuShow": "顯示系統選單…",
+    "properties": "屬性",
+    "compressZip": "壓縮為 ZIP",
+    "extractZip": "解壓 ZIP",
+    "compressed": "已壓縮到 {path}",
+    "extracted": "已解壓到 {path}",
+    "openWithIde": "在 IDE 中開啟",
+    "openWithSystemDefault": "系統預設",
+    "openInTerminalApp": "終端",
+    "openInTerminalAdmin": "管理員",
+    "openInTerminalAdminNamed": "{name}（管理員）",
+    "openInTerminalDefault": "預設終端",
+    "toolbar": "快捷操作",
+    "pathCopied": "已複製路徑"
+  },
+  "favorites": {
+    "label": "收藏",
+    "empty": "可從右鍵選單釘選資料夾",
+    "osVerb": "資源管理器「新增到 AFM 收藏」"
+  },
+  "quickAccess": {
+    "label": "近期訪問",
+    "empty": "最近訪問過的資料夾會出現在這裡",
+    "openCount": "已開啟 {count} 次"
+  },
+  "detailsPane": {
+    "title": "詳細資訊",
+    "empty": "選擇一項以檢視詳細資訊",
+    "name": "名稱",
+    "kind": "型別",
+    "path": "路徑",
+    "size": "大小",
+    "modified": "修改時間",
+    "kindFolder": "資料夾",
+    "kindFile": "檔案",
+    "unknown": "未知",
+    "selected": "已選",
+    "selectedCount": "{count} 項",
+    "multiHint": "選中單項可檢視完整詳細資訊，或按 Alt+Enter 開啟屬性。",
+    "resize": "調整詳細資訊窗格寬度"
+  },
+  "properties": {
+    "title": "屬性",
+    "name": "名稱",
+    "kind": "型別",
+    "path": "路徑",
+    "size": "大小",
+    "totalSize": "合計大小",
+    "fileCount": "檔案數",
+    "dirCount": "子資料夾",
+    "truncatedHint": "（部分合計）",
+    "modified": "修改時間",
+    "created": "建立時間",
+    "readonly": "只讀",
+    "hidden": "隱藏",
+    "attributes": "屬性",
+    "applyAttributes": "應用",
+    "attributesSaved": "屬性已更新",
+    "kindFolder": "資料夾",
+    "kindFile": "檔案",
+    "linkKind": "連結型別",
+    "unknown": "未知"
+  },
+  "preview": {
+    "title": "預覽",
+    "empty": "選中單個檔案以預覽",
+    "unsupported": "暫不支援此型別預覽",
+    "truncated": "內容已截斷",
+    "resize": "調整預覽窗格寬度",
+    "linkKindShortcut": "Windows 快捷方式",
+    "linkKindSymlink": "符號連結",
+    "linkTargetLabel": "目標",
+    "linkTargetUnresolved": "無法解析連結目標",
+    "linkTargetMissing": "目標不存在，可能已被移動或刪除",
+    "linkTargetKindLabel": "目標型別",
+    "linkTargetKindDir": "資料夾",
+    "linkTargetKindFile": "檔案",
+    "linkTargetDirLabel": "原目錄",
+    "linkCopyTarget": "複製目標路徑",
+    "linkCopiedTarget": "已複製",
+    "linkTargetMissingBadge": "不存在",
+    "dirContentsLabel": "包含項",
+    "dirUnreadable": "無法讀取目錄內容"
+  },
+  "previewBridge": {
+    "noPath": "請選擇本地檔案以預覽",
+    "fallbackBuiltin": "未檢測到外部預覽工具 — 已顯示內建預覽欄"
+  },
+  "virtualInfo": {
+    "kindGuide": "引導頁",
+    "kindRecycle": "回收站",
+    "kindRemoteItem": "遠端專案",
+    "kindProviderRoot": "遠端服務",
+    "kindBookmark": "收藏",
+    "kindBackend": "遠端連線",
+    "kindRemoteFolder": "遠端資料夾",
+    "kindRemoteFile": "遠端檔案",
+    "recycleName": "回收站",
+    "remoteServicesName": "遠端服務",
+    "backend": "後端",
+    "hintSpecial": "這是虛擬位置，沒有對應的本地檔案。以下資訊來自應用自身的資料。",
+    "hintRemote": "遠端專案無法在本地預覽，下方顯示列表中的連線資訊。",
+    "copyMagnet": "點選複製 magnet 連結",
+    "copied": "已複製到剪貼簿",
+    "copyFailed": "複製失敗，請手動選中文字複製"
+  },
+  "guide": {
+    "title": "此電腦",
+    "subtitle": "快速開啟常用資料夾、近期訪問、收藏、驅動器與 Providers",
+    "tabName": "此電腦",
+    "rootLabel": "此電腦",
+    "rootTitle": "開啟此電腦引導頁",
+    "rootMenu": "主資料夾、驅動器、近期訪問、收藏",
+    "status": "引導頁",
+    "sections": {
+      "folders": "常用資料夾",
+      "recent": "近期訪問",
+      "favorites": "收藏",
+      "drives": "驅動器",
+      "providers": "Providers"
+    },
+    "folders": {
+      "home": "主資料夾",
+      "desktop": "桌面",
+      "documents": "文件",
+      "downloads": "下載",
+      "pictures": "圖片",
+      "music": "音樂",
+      "videos": "影片"
+    },
+    "drive": "本地磁碟 ({letter}:)",
+    "driveNamed": "{label} ({letter}:)",
+    "driveRemovable": "可移動磁碟 ({letter}:)",
+    "driveRemote": "網路驅動器 ({letter}:)",
+    "driveCdrom": "CD 驅動器 ({letter}:)",
+    "driveRamdisk": "RAM 磁碟 ({letter}:)",
+    "driveCapacity": "{free} 可用，共 {total}",
+    "providersRoot": "全部 Providers",
+    "emptyFolders": "未找到常用資料夾",
+    "emptyDrives": "未找到驅動器",
+    "emptyProviders": "暫無可用 Provider"
+  },
+  "recycleBin": {
+    "tabName": "回收站",
+    "section": "回收站",
+    "subtitle": "瀏覽並還原已刪除的專案",
+    "restore": "還原",
+    "restored": "已還原 {count} 項"
+  },
+  "toolRuntime": {
+    "title": "工具執行時",
+    "meta": "經本機工具管理閘道器列出能力並呼叫",
+    "statusReachable": "閘道器已連線{version}",
+    "statusUnreachable": "閘道器未連線：{detail}",
+    "gatewayUrlLabel": "閘道器地址",
+    "gatewayUrlPlaceholder": "http://127.0.0.1:8767",
+    "gatewayUrlSave": "儲存並重連",
+    "gatewayUrlSaving": "儲存中…",
+    "gatewayUrlSaved": "閘道器地址已儲存",
+    "gatewayUrlManagedHint": "由 feed 託管——該閘道器地址已固定，不可修改。",
+    "attachStart": "附著/啟動",
+    "attaching": "正在附著…",
+    "attached": "已附著現有閘道器",
+    "spawned": "已啟動 sidecar（pid {pid}）",
+    "tools": "工具",
+    "filterPlaceholder": "篩選工具…",
+    "noTools": "沒有工具",
+    "capabilities": "能力",
+    "noCapabilities": "沒有能力",
+    "selectTool": "選擇工具以檢視能力",
+    "selectCapability": "選擇一項能力以填寫引數",
+    "preview": "預覽",
+    "execute": "執行",
+    "confirmExecute": "確認執行",
+    "previewHeading": "預覽結果",
+    "resultHeading": "執行結果",
+    "destructiveTitle": "破壞性操作確認",
+    "destructiveMessage": "此能力被標記為破壞性，確認後才會真正執行。",
+    "jsonFallback": "引數（JSON）",
+    "jsonInvalid": "JSON 無效",
+    "refreshCapabilities": "重新整理能力",
+    "disabled": "工具執行時 Pack 未啟用",
+    "emptySchema": "此能力無需引數",
+    "riskRead": "只讀",
+    "riskWrite": "寫入",
+    "riskDestructive": "破壞性",
+    "gateway": "閘道器",
+    "invoke": "呼叫"
+  },
+  "shellPlaces": {
+    "onedrive": "OneDrive",
+    "libraries": "庫",
+    "network": "網路",
+    "networkEmpty": "暫無對映的網路位置。可在位址列輸入 \\\\server\\share。"
+  },
+  "knowledgeView": {
+    "title": "知識頁",
+    "empty": "從搜尋開啟一條知識筆記即可在此閱讀（知識檔案行按 Enter）。",
+    "loading": "正在載入文件…",
+    "loadFailed": "文件載入失敗。",
+    "notFound": "文件在索引根中不存在。",
+    "tooLarge": "文件超過 2MiB 上限。",
+    "invalidPath": "文件路徑非法。",
+    "offline": "知識服務不可達。",
+    "openInExplorer": "在資源管理器中顯示",
+    "reload": "重新載入",
+    "chip": {
+      "copy": "複製",
+      "show": "顯示",
+      "hide": "隱藏"
+    }
+  },
+  "about": {
+    "title": "關於",
+    "meta": "應用資訊、相關連結與致謝",
+    "tagline": "輕量級跨平臺檔案管理器，專為 AI 智慧體打造——在 IDE 中開啟資料夾、自定義開啟方式、工作區與標籤頁持久保留、多視窗，以及支援外掛的專案管理。",
+    "star": "在 GitHub 點星",
+    "starHint": "如果你喜歡本軟體，歡迎在 GitHub 上點個 Star 支援一下。",
+    "fieldVersion": "版本",
+    "fieldLicense": "開源許可證",
+    "fieldStack": "技術棧",
+    "fieldIdentifier": "應用標識",
+    "linksTitle": "相關連結",
+    "link": {
+      "repository": {
+        "label": "專案倉庫",
+        "desc": "GitHub 上的原始碼與發版說明"
+      },
+      "releases": {
+        "label": "下載最新版",
+        "desc": "獲取最新的 Windows 安裝包"
+      },
+      "issues": {
+        "label": "問題反饋",
+        "desc": "報告 Bug 與提出功能建議"
+      },
+      "pulls": {
+        "label": "程式碼合併請求",
+        "desc": "為專案貢獻程式碼"
+      }
+    },
+    "authorTitle": "作者",
+    "authorLabel": "開發者"
+  },
+  "help": {
+    "navLabel": "幫助",
+    "title": "幫助與導引",
+    "meta": "查詢功能怎麼用、閱讀簡短提示，或重播一步步的操作演示。",
+    "browseTitle": "按使用目標瀏覽",
+    "browseMeta": "選擇下面的功能，檢視幫助文件、上手提示，或重播教學。",
+    "quickStartTitle": "快速上手",
+    "category": {
+      "browse": "瀏覽與查詢",
+      "organize": "整理工作",
+      "connect": "連線與擴充套件",
+      "ai": "AI 功能"
+    },
+    "hintLabel": "上手提示",
+    "hintDismiss": "知道了",
+    "hintTryTour": "引導我試一試",
+    "articleLabel": "幫助文件",
+    "tourLabel": "引導教學",
+    "replay": "重播此教學",
+    "replayHint": "重播不會改變我們記住的進度。",
+    "noTour": "這個功能暫時還沒有教學。",
+    "tourDisabled": "此功能已關閉引導教學，你仍可閱讀幫助文件。",
+    "openEntry": "檢視此功能的幫助",
+    "reset": "重置所有上手進度",
+    "resetTitle": "重置上手進度",
+    "resetConfirm": "要重置所有上手進度嗎？",
+    "resetHint": "只會清除你看過哪些提示和教學，不會改動你的檔案和設定。",
+    "resetCancel": "取消",
+    "resetConfirmYes": "重置進度",
+    "resetDone": "上手進度已重置。",
+    "entries": {
+      "navigator": {
+        "title": "瀏覽檔案",
+        "hint": "這裡瀏覽資料夾和檔案。"
+      },
+      "search": {
+        "title": "統一搜尋",
+        "hint": "搜尋會同時查詢檔案、資料夾和其他內容。"
+      },
+      "workGroups": {
+        "title": "工作組",
+        "hint": "工作組把同一件事相關的資料夾聚在一起。"
+      },
+      "projects": {
+        "title": "專案",
+        "hint": "專案把某件正在做的事情涉及的資料夾、連結和任務放在一處。"
+      },
+      "providers": {
+        "title": "Providers（位置服務）",
+        "hint": "位置服務讓你像瀏覽本地資料夾一樣瀏覽雲端等外部位置。"
+      },
+      "ai": {
+        "title": "AI 功能",
+        "hint": "AI 功能是可選的，僅主線版提供；不使用它也能完整使用本應用。"
+      }
+    }
+  },
+  "tour": {
+    "step": "第 {current} 步，共 {total} 步",
+    "skip": "跳過",
+    "previous": "上一步",
+    "next": "下一步",
+    "finish": "完成",
+    "clickTarget": "點選高亮的位置",
+    "quickStart": {
+      "browse": {
+        "title": "從檔案開始",
+        "body": "這個列表顯示當前資料夾裡的內容。雙擊資料夾可以繼續進入。"
+      },
+      "search": {
+        "title": "快速找到東西",
+        "body": "這個按鈕會開啟統一搜尋。輸入幾個字就能找到檔案和資料夾。"
+      },
+      "tags": {
+        "title": "常用位置隨手可達",
+        "body": "星標選單收集了最近訪問和收藏的位置，像標籤一樣幫你回到常用資料夾。"
+      }
+    },
+    "navigator": {
+      "list": {
+        "title": "檔案列表",
+        "body": "在這裡選中檔案可以檢視詳細資訊，雙擊可以開啟；點選列標題可以排序。"
+      },
+      "path": {
+        "title": "你所在的位置",
+        "body": "這一行顯示當前資料夾。點選頂部的路徑欄可以輸入其他位置。"
+      },
+      "help": {
+        "title": "幫助一直都在",
+        "body": "隨時點選這個問號都能重新開啟這些說明。現在請點一下。"
+      }
+    },
+    "search": {
+      "open": {
+        "title": "一個入口搜所有",
+        "body": "這個按鈕開啟搜尋面板，也可以用它提示裡顯示的快捷鍵開啟。"
+      },
+      "input": {
+        "title": "輸入記得的部分",
+        "body": "只需要名字的一部分。點選這裡開始輸入，就能看到匹配結果。"
+      },
+      "scopes": {
+        "title": "選擇搜尋範圍",
+        "body": "這些標籤控制搜尋哪些來源。關掉某個標籤，它的結果就不會干擾你。"
+      }
+    },
+    "workGroups": {
+      "list": {
+        "title": "你的工作組",
+        "body": "在左側選擇一個工作組即可載入它的資料夾；拖動可以調整順序。"
+      },
+      "create": {
+        "title": "新增工作組",
+        "body": "在這裡輸入名稱並回車即可建立。新增的工作組還是空的，新增資料夾後就能使用了。"
+      },
+      "group": {
+        "title": "切換工作組",
+        "body": "點選某個工作組後會啟用它，右側顯示其中的資料夾。現在請點選高亮的工作組。"
+      }
+    },
+    "projects": {
+      "list": {
+        "title": "你的專案",
+        "body": "在左側選擇專案可以檢視細節，也可以拖動調整順序。"
+      },
+      "create": {
+        "title": "新增專案",
+        "body": "在這裡輸入名稱並回車即可建立，接著新增屬於這件事的資料夾和任務。"
+      },
+      "group": {
+        "title": "開啟專案",
+        "body": "點選這裡的專案即可載入它的工作目錄和任務。現在請點選高亮的專案。"
+      }
+    },
+    "providers": {
+      "gateway": {
+        "title": "連線服務",
+        "body": "在這裡填寫服務地址並儲存，然後用「重新整理」檢查連線是否正常。"
+      },
+      "backends": {
+        "title": "可用的位置",
+        "body": "這些卡片是可以瀏覽的服務。點選其中一個，就能像本地資料夾一樣開啟。"
+      },
+      "refresh": {
+        "title": "檢查連線",
+        "body": "服務看起來不可用時點選「重新整理」。它只重新檢查狀態，不會改動檔案。現在請點一下。"
+      }
+    },
+    "ai": {
+      "nav": {
+        "title": "選擇分割槽",
+        "body": "左側每個分割槽對應一種 AI 能力及其設定。"
+      },
+      "panel": {
+        "title": "先讀說明再設定",
+        "body": "這裡的說明會告訴你所選能力的作用，以及它依賴哪些服務。"
+      }
+    }
+  }
+}

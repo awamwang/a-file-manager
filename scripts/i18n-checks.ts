@@ -7,6 +7,7 @@ import {
   htmlLangForLocale,
   isAppLocale,
   resolveAppLocale,
+  matchSystemLocale,
   SUPPORTED_LOCALES,
 } from "../src/i18n/locale.ts";
 import {
@@ -16,17 +17,28 @@ import {
   settingFieldMessagePath,
 } from "../src/i18n/settingsFields.ts";
 
-assert.deepEqual([...SUPPORTED_LOCALES], ["en", "zh-CN", "ja", "de", "fr"]);
+assert.deepEqual([...SUPPORTED_LOCALES], ["en", "zh-CN", "zh-TW", "ja", "de", "fr"]);
 assert.equal(isAppLocale("zh-CN"), true);
+assert.equal(isAppLocale("zh-TW"), true);
 assert.equal(isAppLocale("ja"), true);
 assert.equal(isAppLocale("de"), true);
 assert.equal(isAppLocale("fr"), true);
 assert.equal(isAppLocale("ru"), false);
+// "system" is a stored sentinel, not a concrete catalog.
+assert.equal(isAppLocale("system"), false);
 assert.equal(resolveAppLocale("fr"), "fr");
 assert.equal(resolveAppLocale("nope"), "en");
 assert.equal(resolveAppLocale(undefined), "en");
+assert.equal(resolveAppLocale("system", "de"), "de");
+assert.equal(matchSystemLocale(["de-AT", "en-US"]), "de");
+assert.equal(matchSystemLocale(["zh-TW", "zh-Hant"]), "zh-TW");
+assert.equal(matchSystemLocale(["zh-HK"]), "zh-TW");
+assert.equal(matchSystemLocale(["zh-CN", "zh"]), "zh-CN");
+assert.equal(matchSystemLocale(["en-GB"]), "en");
+assert.equal(matchSystemLocale(["ko-KR", "en"]), "en");
 assert.equal(htmlLangForLocale("ja"), "ja");
 assert.equal(htmlLangForLocale("zh-CN"), "zh-CN");
+assert.equal(htmlLangForLocale("zh-TW"), "zh-TW");
 
 console.log("i18n locale helper checks OK.");
 
@@ -83,6 +95,11 @@ assert.notEqual(
   "zh-CN core.language.title must be localized",
 );
 assert.notEqual(
+  lookup(catalogs["zh-TW"] as Record<string, unknown>, "settings.fields.core.language.title"),
+  "Language",
+  "zh-TW core.language.title must be localized",
+);
+assert.notEqual(
   lookup(catalogs.ja as Record<string, unknown>, "settings.fields.core.language.title"),
   "Language",
   "ja core.language.title must be localized",
@@ -102,6 +119,7 @@ assert.notEqual(
 const notesWording: Record<string, string> = {
   en: "notes",
   "zh-CN": "备注",
+  "zh-TW": "備註",
   ja: "メモ",
   de: "notizen",
   fr: "notes",
@@ -125,7 +143,7 @@ for (const localeName of localeIds) {
     );
   }
 }
-console.log("i18n project CONTEXT wording OK (5 locales: section + side panel title).");
+console.log("i18n project CONTEXT wording OK (6 locales: section + side panel title).");
 
 console.log(
   `i18n settings field overlay OK (${SCHEMA_SETTING_KEYS.length} schema keys × title/description × ${localeIds.length} locales).`,

@@ -46,7 +46,7 @@ export type SchemaSettingKey = (typeof SCHEMA_SETTING_KEYS)[number];
 
 /** Enum option values that get localized labels (keyed under settings.fields.<id>.options). */
 export const SCHEMA_ENUM_OPTIONS: Record<string, readonly string[]> = {
-  "core.language": ["en", "zh-CN", "ja", "de", "fr"],
+  "core.language": ["en", "zh-CN", "zh-TW", "ja", "de", "fr", "system"],
   "core.theme": ["light", "dark", "system"],
   "core.listDensity": ["standard", "compact"],
   "core.startupPage": ["navigator", "projects", "discovery"],

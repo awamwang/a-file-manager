@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const localeIds = ["en", "zh-CN", "ja", "de", "fr"];
+const localeIds = ["en", "zh-CN", "zh-TW", "ja", "de", "fr"];
 const catalogs = Object.fromEntries(
   localeIds.map((id) => [
     id,

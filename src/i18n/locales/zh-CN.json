@@ -678,13 +678,15 @@
       "core": {
         "language": {
           "title": "语言",
-          "description": "界面语言：en | zh-CN | ja | de | fr",
+          "description": "界面语言：en | zh-CN | zh-TW | ja | de | fr | system",
           "options": {
             "en": "English",
             "zh-CN": "简体中文",
             "ja": "日本語",
             "de": "Deutsch",
-            "fr": "Français"
+            "fr": "Français",
+            "zh-TW": "繁體中文",
+            "system": "跟随系统"
           }
         },
         "theme": {
