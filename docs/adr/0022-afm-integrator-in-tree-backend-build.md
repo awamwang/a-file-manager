@@ -10,7 +10,7 @@
 - **源码引入 = git submodule 锁 tag/SHA**（provenance + 可复现）。上游仓只需提供**可复现构建**（lockfile + 构建步骤文档），不再各自产 release 资产。
 - **发行单元：一个 Feature Pack = UI 贡献 + 后端 sidecar**。单一版本、单一安装/启停；`contributions`（nav/route/command/search）与 `sidecars`（后端）共存于同一 `pack.json`。强化 ADR 0012「pack 为唯一可后装单元」与 C-1。
 - **进程模型不变**：Python/Node 服务仍跑在 AFM 进程**之外**（HTTP over attach-or-spawn）。「打成一个 pack」是**分发**统一，不是把后端塞进主进程。进程/健康态仍与 `InstalledPackRecord` **分离**（同一 pack 的两个 facet；维持 ADR 0020 / C-4，**不**把 spawned_pid/health 并入 pack 记录）。
-- **分发档位**：`awam-knowledge`（Node 零依赖、体积小）**内置**进 AFM 安装包；`awam-file` / `awam-tool-manager`（PyInstaller 体积敏感）pack 内留 stub，**首启用时从 AFM 自有发布 feed 拉取**隔离产物。feed = **AFM 自己的 release，不是第三方 GitHub 仓库**；白名单商店语义相应退化为「AFM 自有发布通道」。
+- **分发档位**：`awam-knowledge` / `awam-file` / `awam-tool-manager` **三者一致**，均为 `runtime: self` PyInstaller onefile 隔离产物，**不打进 AFM 安装包**；pack 内留 stub、**首启用时从 AFM 自有发布 feed 拉取**。主线版与精简版都可安装（knowledge 非版本特例，纠正早期「Node/内置」说法，见 ADR 0024）。feed = **AFM 自己的 release，不是第三方 GitHub 仓库**；白名单商店语义相应退化为「AFM 自有发布通道」。
 - **versionCompat 门收窄（与 0013/0020 关系反转，需理顺）**：
   - **managed 产物由 AFM 自构建 → 版本构建时即锁定 → 跳过内部门**。
   - 门**仅保留给 config-mode 附着的外部 / 用户自跑实例**（版本未知，需探测）。实例未暴露版本时，降级为**警告提示**而非硬阻断。

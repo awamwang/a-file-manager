@@ -7,7 +7,7 @@
 ## Language
 
 **Feature Pack**：
-可后装的产品附加包；**一个 pack = UI 贡献 + 后端 sidecar**，单一版本、单一安装/启停（ADR 0022）。普通版默认不打包。后端产物由 **AFM 作为集成方从自有依赖仓源码 in-tree 构建**，经 AFM 自有发布 feed 分发；安装来源为白名单商店（现语义 = AFM 自有发布通道）或本机选择 zip/目录（兜底），经 ExtensionHost 校验清单与权限后启用。进程/健康态归托管依赖 facet（与包记录分离，见 ADR 0020）。
+可后装的产品附加包；**一个 pack = UI 贡献 + 后端 sidecar**，单一版本、单一安装/启停（ADR 0022）。精简版默认不打包对应能力（但扩展中心两版都有，见 ADR 0024）。后端产物由 **AFM 作为集成方从自有依赖仓源码 in-tree 构建**，经 AFM 自有发布 feed 分发；安装来源为白名单商店（现语义 = AFM 自有发布通道）或本机选择 zip/目录（兜底），经 ExtensionHost 校验清单与权限后启用。进程/健康态归托管依赖 facet（与包记录分离，见 ADR 0020）。
 _Avoid_: 插件（泛称）、扩展（与 ExtensionHost 条目混淆时）、自由商店、marketplace 包、把后端塞进 AFM 主进程
 
 **ExtensionHost**：
@@ -53,7 +53,7 @@ _Avoid_: 附着、远程连接、守护全部实例、下载第三方 GitHub rel
 _Avoid_: 系统 Python 直跑源码、预打包单一 exe（措辞不准确）、自由运行时、上游仓各自产 release
 
 **共享运行时 / Shared Runtime**：
-由 AFM 统一提供、多个同类产物共用的解释器环境：一套共享 Python 环境（承载 file + tool-manager，前提是二者 Python 与 `mcp` 版本已对齐）+ 一套共享 Node 运行时（承载 knowledge）。Python 与 Node 不能合成一个，故至少两种运行时。`runtime: shared(python|node)` 的产物只含 wheel/源码薄产物，由共享解释器执行。**precedence 规则：自带则用自带，否则用共享。** 前置成本 = mcp 跨大版本迁移 + 共享 venv 的可重定位打包（不能直接 zip 分发）。
+由 AFM 统一提供、多个同类产物共用的解释器环境：一套共享 Python 环境（承载 file + tool-manager，前提是二者 Python 与 `mcp` 版本已对齐）+ 一套共享 Node 运行时（若 knowledge 回退到 Node 服务时使用）。Python 与 Node 不能合成一个，故至多两种运行时。注：**现状下 knowledge 与 file/tool 一样以 `runtime: self` PyInstaller onefile 分发，并非 Node 特例**（见 ADR 0024）；Node 共享运行时为后续演进项。`runtime: shared(python|node)` 的产物只含 wheel/源码薄产物，由共享解释器执行。**precedence 规则：自带则用自带，否则用共享。** 前置成本 = mcp 跨大版本迁移 + 共享 venv 的可重定位打包（不能直接 zip 分发）。
 _Avoid_: 单一全局运行时（不存在，至少 Python+Node 两套）、把 venv 当可重定位 zip 直接发、用共享 env 跑自带 onefile
 
 

@@ -57,20 +57,21 @@ npm run test:rust
 
 ## Release
 
-发版由 **Git tag** 指定**一个** semver，并在**同一个** GitHub Release 下挂多个包（Core / AI / Feature Pack），不是三个不同版本号。
+发版由 **Git tag** 指定**一个** semver，并在**同一个** GitHub Release 下挂多个包（主线版 Mainline / 精简版 Lite / Feature Pack），不是三个不同版本号。同一版本号下，**主线版（默认含 AI Add-on）是首推下载**，精简版为可选次级（见 [ADR 0024](./docs/adr/0024-mainline-lite-positioning.md)）。
 
 推送 `v*` 后，[`.github/workflows/release.yml`](.github/workflows/release.yml) 会：
 
 1. 按 tag 同步版本到 `package.json` / `src-tauri/tauri.conf.json` / `src-tauri/Cargo.toml`
 2. 用 GitHub `generate-notes`（失败则回退 `git log`）写发版说明，并创建 **draft** Release
-3. Matrix 构建 **Core** 与 **AI** Windows NSIS；再打包 `packs/*/pack.json` 为 Feature Pack zip
+3. Matrix 构建 **主线版（ai）** 与 **精简版（core）** Windows NSIS；再打包 `packs/*/pack.json` 为 Feature Pack zip
 4. 上传规范命名资产后 undraft（可在 workflow_dispatch 里关闭 publish）
 
 | Asset | 含义 |
 |---|---|
-| `A.File.Manager_${ver}_x64-setup.exe` | Core（`VITE_AFM_AI_ADDON=0` + Cargo `--no-default-features`） |
-| `A.File.Manager_${ver}_x64-ai-setup.exe` | AI（默认 features / ai-addon） |
-| `A.File.Manager_${ver}_feature-pack-*.zip` | Feature Pack（本机 zip 安装） |
+| `A.File.Manager_${ver}_x64-setup.exe` | **主线版 Mainline**（默认 features / `ai-addon`，= 普通正式版，**首推**） |
+| `A.File.Manager_${ver}_x64-lite-setup.exe` | **精简版 Lite**（`VITE_AFM_AI_ADDON=0` + Cargo `--no-default-features`，可选次级） |
+| `A.File.Manager_${ver}_${arch}[-lite].dmg` / `.app.zip` | **macOS**（Apple Silicon / Intel；主线版无后缀 / 精简版带 `-lite`） |
+| `A.File.Manager_${ver}_feature-pack-*.zip` | Feature Pack（与版本无关，本机 zip 安装） |
 
 版本号含 `-`（如 `v0.3.0-rc.1`）会标为 prerelease。Agent 流程见 [`.cursor/skills/afm-multi-pack-release/SKILL.md`](.cursor/skills/afm-multi-pack-release/SKILL.md)。
 

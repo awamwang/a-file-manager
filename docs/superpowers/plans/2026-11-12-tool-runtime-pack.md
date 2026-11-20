@@ -42,7 +42,7 @@
 | `src-tauri/src/lib.rs` | 注册 commands（可始终编译；运行时检查 Pack 启用） |
 
 **打包策略（v1 务实）：**  
-源码可在仓库内；`build:core` 的 Vite 仍可包含 `builtinEntries` 映射，但 **无启用 Pack 时不贡献侧栏**——满足「普通版不出现功能」。若需「二进制也不含 UI 字符串」，后续再加 `VITE_EMBED_TOOL_PACK`；本计划不阻塞。
+源码可在仓库内；`build:core` 的 Vite 仍可包含 `builtinEntries` 映射，但 **无启用 Pack 时不贡献侧栏**——满足「精简版不出现功能」。若需「二进制也不含 UI 字符串」，后续再加 `VITE_EMBED_TOOL_PACK`；本计划不阻塞。
 
 ---
 

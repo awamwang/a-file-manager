@@ -1,8 +1,8 @@
 ---
 name: afm-multi-pack-release
 description: >-
-  Runs A File Manager multi-pack GitHub releases (one vX.Y.Z tag with Core NSIS,
-  AI NSIS, and Feature Pack zip assets). Use when bumping version, tagging,
+  Runs A File Manager multi-pack GitHub releases (one vX.Y.Z tag with Mainline
+  (ai) NSIS, Lite (core) NSIS, and Feature Pack zip assets). Use when bumping version, tagging,
   preparing a release, building release artifacts, uploading with gh, dry-running
   packs, or when the user mentions prepare-release, build-release-artifacts,
   feature-pack zip, FIL-63, or multi-pack release.
@@ -21,8 +21,8 @@ description: >-
 
 | 种类 | 文件名 |
 |------|--------|
-| Core | `A.File.Manager_${ver}_x64-setup.exe` |
-| AI | `A.File.Manager_${ver}_x64-ai-setup.exe` |
+| 主线版 Mainline | `A.File.Manager_${ver}_x64-setup.exe` |
+| 精简版 Lite | `A.File.Manager_${ver}_x64-lite-setup.exe` |
 | Feature Pack | `A.File.Manager_${ver}_feature-pack-${dir}.zip` |
 
 `packs/_template` 不打包；`packs/*/pack.json` 才会进 zip。zip 内根目录含 `pack.json`（可本机安装）。
@@ -46,7 +46,7 @@ git push origin HEAD && git push origin v0.3.0
 
 4. 推送 tag 后 Actions（`.github/workflows/release.yml`）会：
    - 建 **draft** Release + 自动 notes
-   - matrix 构建 Core / AI NSIS，改名为上表规范名并 `gh release upload`
+   - matrix 构建 主线版(ai) / 精简版(core) NSIS，改名为上表规范名并 `gh release upload`（macOS 另出 `…_${arch}[-lite].dmg` / `.app.zip`）
    - 打包 Feature Pack zip 并上传
    - 全部成功后 undraft（`workflow_dispatch` 可将 `publish=false` 留 draft）
 
@@ -62,7 +62,7 @@ npm run test:multi-pack-release
 | 输入 | 说明 |
 |------|------|
 | version | `0.3.0` / `v0.3.0`；含 `-` 视为 prerelease |
-| packs | `all`（默认）或 `core,ai,feature-pack` 子集 |
+| packs | `all`（默认）或 `core,ai,feature-pack` 子集（ai=主线版 / core=精简版） |
 | `--dry-run` | `prepare-release` / `build-release-artifacts` / `package:feature-packs` |
 | `--sync-version` | 仅 `build-release-artifacts`：构建前写入版本三文件 |
 | workflow_dispatch | `version`、`packs`、`publish` |

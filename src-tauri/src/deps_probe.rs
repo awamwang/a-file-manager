@@ -513,8 +513,8 @@ pub fn probe_dependencies() -> DependencyReport {
             "optional",
             "ok",
             "AI Add-on package",
-            "当前为 AI 包构建（含 Agent / MCP / Skills 面板）。",
-            "不需要这些能力可用 Core 包构建（--no-default-features / npm run build:core）。MCP 请自行导入，不再植入本机绝对路径。",
+            "当前为主线版（含 Agent / MCP / Skills 面板）。",
+            "不需要这些能力可用精简版构建（--no-default-features / npm run build:core）。MCP 请自行导入，不再植入本机绝对路径。",
         ));
     } else {
         items.push(item(
@@ -522,8 +522,8 @@ pub fn probe_dependencies() -> DependencyReport {
             "optional",
             "missing",
             "AI Add-on package",
-            "当前为 Core 包（未编译 AI Add-on）。",
-            "需要 AI 功能请使用默认（AI）构建。",
+            "当前为精简版 Lite（未编译 AI Add-on）。",
+            "需要 AI 功能请使用主线版构建。",
         ));
     }
 

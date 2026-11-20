@@ -1,6 +1,6 @@
 # Feature Pack 优先于通用插件 OS
 
-要把 AI 与工具管理等附加能力做成「普通版不打包、可后装」，同时控制复杂度：采用 Feature Pack（Core 贡献点 + 可选 sidecar），而不是先建进程内任意热加载的插件 OS；AI 暂维持编译期风味包，工具管理运行时作为第一个 Pack 验证合同。
+要把 AI 与工具管理等附加能力做成「精简版不打包、可后装」，同时控制复杂度：采用 Feature Pack（Core 贡献点 + 可选 sidecar），而不是先建进程内任意热加载的插件 OS；AI 暂维持编译期风味包（该 AI 风味即主线版，见 ADR 0024），工具管理运行时作为第一个 Pack 验证合同。
 
 **Status**: accepted
 
