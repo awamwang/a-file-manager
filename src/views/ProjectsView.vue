@@ -458,6 +458,11 @@ const projectMoreMenuStyle = ref<Record<string, string>>({});
 const pathMenuPath = ref<string | null>(null);
 const pathMenuEl = ref<HTMLElement | null>(null);
 const pathMenuStyle = ref<Record<string, string>>({});
+/** "在其他地方打开" floating menu (Explorer + project-capable open tools). */
+const elsewhereOpen = ref(false);
+const elsewhereMenuEl = ref<HTMLElement | null>(null);
+const elsewhereTriggerEl = ref<HTMLElement | null>(null);
+const elsewhereMenuStyle = ref<Record<string, string>>({});
 const listRenamingId = ref<string | null>(null);
 const listRenameDraft = ref("");
 const listRenameInputEl = ref<HTMLInputElement | null>(null);
@@ -566,6 +571,33 @@ function toggleProjectDetailMore() {
   projectMoreOpen.value = true;
 }
 
+/** Open/close the "在其他地方打开" menu. Its entries are the shared open-tool
+ *  registry (same names + order as Settings → Open tools) plus the Explorer
+ *  shortcut, so how a project opens is delegated to the open-tool config. */
+function toggleProjectElsewhere() {
+  projectMoreOpen.value = false;
+  listMoreOpenId.value = null;
+  pathMenuPath.value = null;
+  if (elsewhereOpen.value) {
+    elsewhereOpen.value = false;
+    return;
+  }
+  if (elsewhereTriggerEl.value) {
+    positionMorePopover(elsewhereTriggerEl.value, elsewhereMenuStyle);
+  }
+  elsewhereOpen.value = true;
+}
+
+/** Pick an "open elsewhere" target: "explorer" or an open-tool id. */
+function chooseElsewhere(target: string) {
+  elsewhereOpen.value = false;
+  if (target === "explorer") {
+    void openWorkspaceFolderInSystemExplorer();
+    return;
+  }
+  void openInEditor(target);
+}
+
 function startListRename(project: UserProject, event?: Event) {
   event?.stopPropagation();
   listMoreOpenId.value = null;
@@ -625,6 +657,11 @@ function onProjectDetailPointerDown(event: PointerEvent) {
     const inMenu = projectMoreMenuEl.value?.contains(target);
     const inTrigger = projectMoreTriggerEl.value?.contains(target);
     if (!inMenu && !inTrigger) projectMoreOpen.value = false;
+  }
+  if (elsewhereOpen.value) {
+    const inMenu = elsewhereMenuEl.value?.contains(target);
+    const inTrigger = elsewhereTriggerEl.value?.contains(target);
+    if (!inMenu && !inTrigger) elsewhereOpen.value = false;
   }
   if (pathMenuPath.value && !pathMenuEl.value?.contains(target)) {
     pathMenuPath.value = null;
@@ -1225,6 +1262,49 @@ onUnmounted(() => {
           <div class="detail-header-actions">
             <button
               type="button"
+              class="fluent-control action-icon"
+              :aria-label="t('projects.openAllLinks')"
+              :title="t('projects.openAllLinks')"
+              @click="openAllLinks"
+            >
+              <FluentIcon name="viewAll" size="sm" />
+            </button>
+            <button
+              type="button"
+              class="fluent-control action-icon"
+              :aria-label="t('projects.openWorkspaceFolder')"
+              :title="t('projects.openWorkspaceFolder')"
+              @click="openWorkspaceFolder"
+            >
+              <FluentIcon name="folderOpen" size="sm" />
+            </button>
+            <button
+              v-if="selected.path"
+              type="button"
+              class="fluent-control action-icon"
+              :aria-label="t('contextMenu.copyPath')"
+              :title="t('contextMenu.copyPath')"
+              @click="copyLinkPath(selected.path)"
+            >
+              <FluentIcon name="link" size="sm" />
+            </button>
+            <div v-if="selected.path" class="more-menu">
+              <button
+                ref="elsewhereTriggerEl"
+                type="button"
+                class="fluent-control more-trigger action-icon action-icon--menu"
+                :aria-expanded="elsewhereOpen"
+                aria-haspopup="menu"
+                :aria-label="t('projects.openElsewhere')"
+                :title="t('projects.openElsewhere')"
+                @click="toggleProjectElsewhere"
+              >
+                <FluentIcon name="shortcut" size="sm" />
+                <FluentIcon name="chevronDown" size="sm" />
+              </button>
+            </div>
+            <button
+              type="button"
               class="fluent-control panel-toggle"
               :class="{ 'panel-toggle--collapsed': !sidePanelOpen }"
               :aria-expanded="sidePanelOpen"
@@ -1281,51 +1361,6 @@ onUnmounted(() => {
         </p>
         <div class="detail-split" :class="{ 'detail-split--collapsed': !sidePanelOpen }">
           <div class="detail-main">
-            <div class="actions">
-              <button class="fluent-control fluent-control--accent" type="button" @click="openAllLinks">
-                {{ t("projects.openAllLinks") }}
-              </button>
-              <button
-                class="fluent-control"
-                type="button"
-                :title="selected.path || t('projects.openWorkspaceFolderHint')"
-                @click="openWorkspaceFolder"
-              >
-                {{ t("projects.openWorkspaceFolder") }}
-              </button>
-              <button
-                v-if="selected.path"
-                class="fluent-control"
-                type="button"
-                :title="t('projects.openWorkspaceInSystemExplorerHint')"
-                @click="openWorkspaceFolderInSystemExplorer"
-              >
-                {{ t("contextMenu.openWithExplorer") }}
-              </button>
-              <button
-                v-if="selected.path"
-                class="fluent-control"
-                type="button"
-                :title="t('contextMenu.copyPath')"
-                :aria-label="t('contextMenu.copyPath')"
-                @click="copyLinkPath(selected.path)"
-              >
-                {{ t("contextMenu.copyPath") }}
-              </button>
-              <template v-if="aiAddonEnabled && projectOpenTools.length">
-                <button
-                  v-for="tool in projectOpenTools"
-                  :key="tool.id"
-                  class="fluent-control"
-                  type="button"
-                  :title="t('projects.openInToolHint', { name: tool.name })"
-                  @click="openInEditor(tool.id)"
-                >
-                  {{ t("projects.openInTool", { name: tool.name }) }}
-                </button>
-              </template>
-            </div>
-
             <h3>{{ t("projects.sessionBinding") }}</h3>
             <p class="fluent-page-meta">
               {{
@@ -1641,6 +1676,38 @@ onUnmounted(() => {
         >
           {{ t("common.delete") }}
         </button>
+      </div>
+    </Teleport>
+    <Teleport to="body">
+      <div
+        v-if="elsewhereOpen && selected"
+        ref="elsewhereMenuEl"
+        class="more-popover more-popover--portal fluent-surface"
+        role="menu"
+        :style="elsewhereMenuStyle"
+        @click.stop
+      >
+        <button
+          type="button"
+          class="more-item"
+          role="menuitem"
+          @click="chooseElsewhere('explorer')"
+        >
+          {{ t("contextMenu.openWithExplorer") }}
+        </button>
+        <template v-if="aiAddonEnabled && projectOpenTools.length">
+          <button
+            v-for="tool in projectOpenTools"
+            :key="tool.id"
+            type="button"
+            class="more-item"
+            role="menuitem"
+            :title="t('projects.openInToolHint', { name: tool.name })"
+            @click="chooseElsewhere(tool.id)"
+          >
+            {{ tool.name }}
+          </button>
+        </template>
       </div>
     </Teleport>
     <Teleport to="body">
@@ -1975,8 +2042,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: var(--fluent-space-sm);
-  margin-inline-start: auto;
-  flex-shrink: 0;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .detail-header-actions .more-menu {
@@ -1989,12 +2056,31 @@ onUnmounted(() => {
   justify-content: center;
   min-width: 2rem;
   padding-inline: var(--fluent-space-sm);
+  /* Push the side-panel toggle + the "···" menu to the far right, so the
+     project action icons stay immediately after the name. */
+  margin-inline-start: auto;
 }
 
 .panel-toggle svg {
   display: block;
   width: 16px;
   height: 16px;
+}
+
+/* Icon-only action buttons that sit right after the project name (open all
+   members / open workspace folder / copy path) and the "open elsewhere"
+   trigger. Hover tooltip carries the operation name. */
+.action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 2rem;
+  padding-inline: var(--fluent-space-sm);
+}
+
+.action-icon--menu {
+  gap: 2px;
 }
 
 .detail-title-row {
@@ -2011,8 +2097,9 @@ onUnmounted(() => {
 }
 
 .inline-rename {
-  min-width: 12rem;
-  flex: 1;
+  /* Compact width — no longer stretches across the whole title row. */
+  width: 16rem;
+  max-width: 100%;
   font-size: var(--fluent-font-size-title);
   font-weight: var(--fluent-font-weight-semibold);
 }

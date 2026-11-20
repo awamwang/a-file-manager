@@ -64,7 +64,7 @@ assert.ok(voiceEngine.includes("power.sttApiKey"), "engine reads power.sttApiKey
 // ---------------------------------------------------------------------------
 
 const typesRs = read("src-tauri/src/settings/types.rs");
-assert.ok(/SETTINGS_SCHEMA_VERSION:\s*u32\s*=\s*13/.test(typesRs), "schema version bumped to 13");
+assert.ok(/SETTINGS_SCHEMA_VERSION:\s*u32\s*=\s*15/.test(typesRs), "schema version bumped to 15");
 
 const defaultsRs = read("src-tauri/src/settings/defaults.rs");
 for (const key of [

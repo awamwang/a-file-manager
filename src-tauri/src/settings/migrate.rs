@@ -224,6 +224,13 @@ fn migrate_step(
             );
             Ok(())
         }
+        (14, 15) => {
+            for (key, value) in default_document().values {
+                values.entry(key).or_insert(value);
+            }
+            notes.push("Added core.openTool.order (schema v15)".to_string());
+            Ok(())
+        }
         _ => Err(format!("No migration path from {from} → {to}")),
     }
 }

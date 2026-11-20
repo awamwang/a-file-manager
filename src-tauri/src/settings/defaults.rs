@@ -343,6 +343,15 @@ pub(crate) fn raw_setting_definitions() -> Vec<SettingDefinition> {
             json!("[]"),
         ),
         def(
+            "core.openTool.order",
+            SettingsTier::Power,
+            "Open tool order",
+            "JSON array of open-tool ids ordering the \"Open with\" menus and the Settings list (unlisted ids fall back to discovery order)",
+            SettingValueKind::String,
+            None,
+            json!("[]"),
+        ),
+        def(
             "power.confirmBeforeDelete",
             SettingsTier::Power,
             "Confirm before delete",

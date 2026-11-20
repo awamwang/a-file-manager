@@ -859,6 +859,7 @@
     "dragReorderHint": "ドラッグで並べ替え",
     "openDirectory": "フォルダーを開く",
     "openWorkspaceFolder": "ワークスペースフォルダーを開く",
+    "openElsewhere": "別の場所で開く",
     "openWorkspaceFolderHint": "この Project Workspace フォルダーを AFM Navigator で開きます",
     "openWorkspaceInSystemExplorerHint": "この Project Workspace フォルダーをエクスプローラーで開きます",
     "noticeOpenedWorkspace": "Navigator でワークスペースフォルダーを開きました",
@@ -1232,7 +1233,9 @@
       "projectModeWorkspace": "ワークスペースフォルダを開く",
       "projectModeContextFile": "CONTEXT.md を開く",
       "projectArgsPlaceholder": "プロジェクト起動引数（スペース区切り）…",
-      "newCustomName": "新しいツール"
+      "newCustomName": "新しいツール",
+      "orderTitle": "メニューの順序",
+      "orderMeta": "ドラッグで並べ替え。この順序は「プログラムから開く」メニュー（Navigator の「プログラムから開く」とプロジェクトの「別の場所で開く」）および下のリストに反映されます。"
     },
     "groups": {
       "appearance": "外観",

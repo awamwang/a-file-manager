@@ -859,6 +859,7 @@
     "dragReorderHint": "Glisser pour réordonner",
     "openDirectory": "Ouvrir le dossier",
     "openWorkspaceFolder": "Ouvrir le dossier Workspace",
+    "openElsewhere": "Ouvrir ailleurs",
     "openWorkspaceFolderHint": "Ouvre ce dossier Project Workspace dans le Navigator AFM",
     "openWorkspaceInSystemExplorerHint": "Ouvre ce dossier Project Workspace dans l’Explorateur",
     "noticeOpenedWorkspace": "Dossier Workspace ouvert dans le Navigator",
@@ -1232,7 +1233,9 @@
       "projectModeWorkspace": "Ouvrir le dossier workspace",
       "projectModeContextFile": "Ouvrir CONTEXT.md",
       "projectArgsPlaceholder": "Arguments de lancement projet (séparés par espaces)…",
-      "newCustomName": "Nouvel outil"
+      "newCustomName": "Nouvel outil",
+      "orderTitle": "Ordre du menu",
+      "orderMeta": "Faites glisser pour réordonner. Cet ordre pilote les menus « Ouvrir avec » (« Ouvrir avec » du Navigator et « Ouvrir ailleurs » du projet) ainsi que la liste ci-dessous."
     },
     "groups": {
       "appearance": "Apparence",

@@ -923,7 +923,9 @@
       "projectModeWorkspace": "Open workspace folder",
       "projectModeContextFile": "Open CONTEXT.md",
       "projectArgsPlaceholder": "Project launch arguments (space-separated)…",
-      "newCustomName": "New tool"
+      "newCustomName": "New tool",
+      "orderTitle": "Menu order",
+      "orderMeta": "Drag to reorder. This order drives the Open-with menus (Navigator “Open with” and Project “Open elsewhere”) and the list below."
     },
     "groups": {
       "appearance": "Appearance",
@@ -1168,6 +1170,7 @@
     "dragReorderHint": "Drag to reorder",
     "openDirectory": "Open directory",
     "openWorkspaceFolder": "Open Workspace folder",
+    "openElsewhere": "Open elsewhere",
     "openWorkspaceFolderHint": "Opens this Project Workspace folder in AFM Navigator",
     "openWorkspaceInSystemExplorerHint": "Opens this Project Workspace folder in File Explorer",
     "noticeOpenedWorkspace": "Opened Workspace folder in Navigator",

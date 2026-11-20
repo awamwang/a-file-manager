@@ -41,6 +41,13 @@ export type CustomOpenTool = {
 
 export const CUSTOM_TOOLS_SETTING_KEY = "core.openTool.custom";
 
+/** Persisted menu-order overlay: JSON array of open-tool ids in Settings →
+ *  Open tools. The backend applies it inside `ide_list_apps`, so every
+ *  consumer (Navigator "Open with", Project "open elsewhere", the Settings
+ *  list) reads the SAME order from this one registry — naming and order are
+ *  single-sourced (同源). */
+export const TOOL_ORDER_SETTING_KEY = "core.openTool.order";
+
 export async function listOpenTools(): Promise<OpenToolInfo[]> {
   return invoke<OpenToolInfo[]>("ide_list_apps");
 }
@@ -62,6 +69,19 @@ export function parseCustomTools(raw: unknown): CustomOpenTool[] {
   try {
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? (parsed as CustomOpenTool[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Parse the persisted menu-order id array; malformed input degrades to empty
+ *  (which the backend treats as "keep discovery order"). */
+export function parseToolOrder(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.filter((x): x is string => typeof x === "string");
+  if (typeof raw !== "string" || raw.trim() === "") return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : [];
   } catch {
     return [];
   }

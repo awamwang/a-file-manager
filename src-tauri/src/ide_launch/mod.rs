@@ -109,6 +109,12 @@ fn default_true() -> bool {
 /// failing the whole open-tools list.
 pub const CUSTOM_TOOLS_KEY: &str = "core.openTool.custom";
 
+/// Setting key holding a JSON array of open-tool ids that defines the order
+/// used by the "Open with" menus (Navigator + Project) and the Settings list.
+/// Empty / malformed / ids not present fall back to discovery order, so this is
+/// purely an overlay the user can drag in Settings → Open tools.
+pub const TOOL_ORDER_KEY: &str = "core.openTool.order";
+
 pub fn ide_setting_enabled_key(id: &str) -> String {
     format!("core.openTool.{id}.enabled")
 }
@@ -133,6 +139,28 @@ fn parse_custom_tools(raw: &str) -> Vec<CustomOpenTool> {
         Ok(tools) => tools,
         Err(_) => Vec::new(),
     }
+}
+
+/// Load + parse the persisted open-tool order (a JSON array of ids). Any read /
+/// parse failure yields an empty order so menus fall back to discovery order.
+pub fn load_open_tool_order(app: &AppHandle) -> Vec<String> {
+    let raw = crate::settings::read_string_setting(app, TOOL_ORDER_KEY);
+    parse_open_tool_order(&raw)
+}
+
+fn parse_open_tool_order(raw: &str) -> Vec<String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Vec::new();
+    }
+    serde_json::from_str::<Vec<String>>(trimmed).unwrap_or_default()
+}
+
+/// Sort rank for `id`: its position in `order`, or `usize::MAX` when it is not
+/// listed (so unlisted tools keep their discovery order at the end via a stable
+/// sort). Extracted so the ordering rule is unit-testable without an AppHandle.
+fn order_rank(order: &[String], id: &str) -> usize {
+    order.iter().position(|entry| entry == id).unwrap_or(usize::MAX)
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -310,6 +338,13 @@ pub fn ide_list_apps(app: AppHandle) -> Vec<IdeAppInfo> {
         });
     }
 
+    // Re-order by the user's persisted preference (stable: tools not present in
+    // the order array keep their discovery order at the tail). This is the one
+    // funnel that makes Navigator + Project "Open with" menus and the Settings
+    // list share the same order (同源).
+    let order = load_open_tool_order(&app);
+    out.sort_by(|a, b| order_rank(&order, &a.id).cmp(&order_rank(&order, &b.id)));
+
     out
 }
 
@@ -468,5 +503,19 @@ mod tests {
         assert_eq!(ide_setting_enabled_key("cursor"), "core.openTool.cursor.enabled");
         assert_eq!(ide_setting_path_key("vscode"), "core.openTool.vscode.path");
         assert_eq!(CUSTOM_TOOLS_KEY, "core.openTool.custom");
+        assert_eq!(TOOL_ORDER_KEY, "core.openTool.order");
+    }
+
+    #[test]
+    fn open_tool_order_parses_and_ranks() {
+        // Malformed / empty degrade to no preference.
+        assert!(parse_open_tool_order("").is_empty());
+        assert!(parse_open_tool_order("nope").is_empty());
+        let order = parse_open_tool_order(r#"["cursor","qoder","vscode"]"#);
+        assert_eq!(order, vec!["cursor", "qoder", "vscode"]);
+        // Listed ids rank by position; unlisted fall to the tail (usize::MAX).
+        assert_eq!(order_rank(&order, "cursor"), 0);
+        assert_eq!(order_rank(&order, "vscode"), 2);
+        assert_eq!(order_rank(&order, "trae"), usize::MAX);
     }
 }

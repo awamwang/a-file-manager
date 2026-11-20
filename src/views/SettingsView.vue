@@ -12,12 +12,14 @@ import { useRoute, useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
 import {
   CUSTOM_TOOLS_SETTING_KEY,
+  TOOL_ORDER_SETTING_KEY,
   listOpenTools,
   parseCustomTools,
   type CustomOpenTool,
   type OpenToolInfo,
   type ProjectOpenMode,
 } from "../state/openTools";
+import { createListPointerReorder } from "../state/listPointerReorder";
 import { applyUiChromeFromValues } from "../state/uiChrome";
 import {
   getCachedSettingsDocument,
@@ -321,7 +323,10 @@ function restoreAll() {
   stopRecording();
 }
 
-onUnmounted(() => stopRecording());
+onUnmounted(() => {
+  stopRecording();
+  disposeOpenToolReorder();
+});
 
 const visibleDefs = computed(() =>
   (schema.value?.definitions ?? [])
@@ -463,6 +468,33 @@ async function onOpenToolPathChange(id: string, event: Event) {
   await patchValue(openToolPathKey(id), value);
   await refreshIdeApps();
 }
+
+/**
+ * Drag-reorder the open tools that feed the "Open with" menus. The persisted
+ * order (`core.openTool.order`) is applied backend-side inside
+ * `ide_list_apps`, so this single list drives the order of the Settings rows,
+ * the Navigator "Open with" submenu and the Project "open elsewhere" menu —
+ * one source of truth. `ideApps` already comes back in the effective order.
+ */
+const {
+  onPointerDown: openToolOnPointerDown,
+  dragFromId: openToolDragFrom,
+  dragOverId: openToolDragOver,
+  dropEdge: openToolDropEdge,
+  dragMoved: openToolDragMoved,
+  dispose: disposeOpenToolReorder,
+} = createListPointerReorder({
+  itemSelector: "[data-open-tool-order] [data-list-item-id]",
+  onReorder: async (fromId, toId) => {
+    const ids = ideApps.value.map((app) => app.id);
+    const from = ids.indexOf(fromId);
+    const to = ids.indexOf(toId);
+    if (from < 0 || to < 0 || from === to) return;
+    ids.splice(to, 0, ids.splice(from, 1)[0]);
+    await patchValue(TOOL_ORDER_SETTING_KEY, JSON.stringify(ids));
+    await refreshIdeApps();
+  },
+});
 
 function nextCustomToolId(existing: CustomOpenTool[]): string {
   let index = 1;
@@ -791,6 +823,40 @@ onMounted(() => {
       <div v-else-if="activeSection === 'openTools'" class="fluent-surface open-tools-panel">
         <p class="open-tools-meta">{{ t("settings.openTools.meta") }}</p>
         <p v-if="ideAppsLoading" class="fluent-hint">{{ t("settings.loading") }}</p>
+
+        <h3 class="open-tools-subtitle">{{ t("settings.openTools.orderTitle") }}</h3>
+        <p class="open-tools-meta">{{ t("settings.openTools.orderMeta") }}</p>
+        <div
+          class="open-tool-order"
+          data-open-tool-order
+          :class="{ 'open-tool-order--reordering': openToolDragMoved }"
+        >
+          <div
+            v-for="app in ideApps"
+            :key="app.id"
+            class="open-tool-order-row"
+            :data-list-item-id="app.id"
+            :class="{
+              'open-tool-order-row--dragging': openToolDragFrom === app.id,
+              'open-tool-order-row--before':
+                openToolDragOver === app.id && openToolDropEdge === 'before',
+              'open-tool-order-row--after':
+                openToolDragOver === app.id && openToolDropEdge === 'after',
+            }"
+            @pointerdown="openToolOnPointerDown($event, app.id)"
+          >
+            <FluentIcon name="list" size="sm" class="open-tool-order-handle" />
+            <span class="open-tool-order-name">{{ app.name }}</span>
+            <span class="open-tool-order-kind">
+              {{
+                app.builtin
+                  ? t("settings.openTools.builtinTitle")
+                  : t("settings.openTools.customTitle")
+              }}
+            </span>
+          </div>
+        </div>
+
         <h3 class="open-tools-subtitle">{{ t("settings.openTools.builtinTitle") }}</h3>
         <div v-for="app in builtinApps" :key="app.id" class="open-tool-row">
           <div class="open-tool-text">
@@ -1283,6 +1349,62 @@ onMounted(() => {
   margin: var(--fluent-space-md) var(--fluent-space-lg) var(--fluent-space-xs);
   font-size: var(--fluent-font-size-body-strong);
   font-weight: var(--fluent-font-weight-semibold);
+}
+
+.open-tool-order {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 var(--fluent-space-lg);
+  padding: var(--fluent-space-xs);
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: var(--fluent-radius-md);
+}
+
+.open-tool-order--reordering {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.open-tool-order-row {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  padding: var(--fluent-space-xs) var(--fluent-space-sm);
+  border-radius: var(--fluent-radius-sm);
+  cursor: grab;
+  background: transparent;
+}
+
+.open-tool-order-row:hover {
+  background: var(--fluent-color-bg-subtle, rgba(128, 128, 128, 0.08));
+}
+
+.open-tool-order-row--dragging {
+  opacity: 0.4;
+}
+
+.open-tool-order-row--before {
+  box-shadow: inset 0 2px 0 var(--fluent-color-fill-accent);
+}
+
+.open-tool-order-row--after {
+  box-shadow: inset 0 -2px 0 var(--fluent-color-fill-accent);
+}
+
+.open-tool-order-handle {
+  color: var(--fluent-color-text-secondary);
+}
+
+.open-tool-order-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: var(--fluent-font-weight-semibold);
+}
+
+.open-tool-order-kind {
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
 }
 
 .open-tools-empty {

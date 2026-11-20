@@ -923,7 +923,9 @@
       "projectModeWorkspace": "打开工作区目录",
       "projectModeContextFile": "打开 CONTEXT.md",
       "projectArgsPlaceholder": "项目启动参数（空格分隔）…",
-      "newCustomName": "新工具"
+      "newCustomName": "新工具",
+      "orderTitle": "菜单顺序",
+      "orderMeta": "拖动可调整顺序。该顺序会同时作用于“打开方式”菜单（资源管理器“打开方式”与项目“在其他地方打开”）以及下方列表。"
     },
     "groups": {
       "appearance": "外观",
@@ -1168,6 +1170,7 @@
     "dragReorderHint": "拖动可调整顺序",
     "openDirectory": "打开目录",
     "openWorkspaceFolder": "打开工作区文件夹",
+    "openElsewhere": "在其他地方打开",
     "openWorkspaceFolderHint": "在本软件资源管理器（Navigator）中打开本 Project Workspace 目录",
     "openWorkspaceInSystemExplorerHint": "在系统资源管理器中打开本 Project Workspace 目录",
     "noticeOpenedWorkspace": "已在 Navigator 中打开工作区文件夹",
