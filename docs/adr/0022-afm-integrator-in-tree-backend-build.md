@@ -141,7 +141,14 @@ awam-file 与 tool-manager 同为自有 Python 后端，可复用同一条 in-tr
 - **M4-A**（AFM 侧）：`SidecarContribution.env` 注入 + `${afm:settings:KEY}` 从 AFM 设置解析（密钥不落 pack.json/不持久化/不进日志），落地原 P1-4 seam。
 - **M4-B**：`__main__`/console 入口 → **PyInstaller onefile 实测端到端**：冻结 exe 启服 `/health` ok、`/search` 返回 AFM 期望形状、`/doc`、无 token fail-fast 退码 2、缺 Bearer 401 全过；`packs/knowledge/pack.json`（sidecar env 注入 `KM_SERVICE_TOKEN`）；feed 现含 tool-runtime/file-gateway/knowledge 的 entries+packs。
 
-**仍待**：① **M2d mcp-server**（9 工具，面向 AI Agent，非 AFM 搜索面板所需）；② **M2b import-md-dir + eval-recall**（离线建索引 + 全语料召回回归 oracle；serve 路径经 `build_corpus` 直读 .md，不阻塞对接）；③ **M3 脱敏管道融合**（用户明确后续再做）；④ 合并仓 push 前跑 **awam-code-publish preflight**。knowledge Node 版保存于 `archive/node`。
+**仍待**：~~① **M2d mcp-server**~~ ✅、~~② **M2b import-md-dir + eval-recall**~~ ✅（均 2026-11-20 完成，见下「落地记录：knowledge M2b/M2d」）；③ **M3 脱敏管道融合**（用户明确后续再做）；④ 合并仓 push 前跑 **awam-code-publish preflight**。knowledge Node 版保存于 `archive/node`。
+
+## 落地记录：knowledge M2b/M2d 移植完成（2026-11-20）
+
+- **M2b**：`src/awam_knowledge/import_md_dir.py`（manifest v2 逐字移植；selftest **31/31**）+ `eval_recall.py`（bm25 模式评测核心；联网 hybrid/rerank 模式仍走 `code/eval-recall.js`）+ `tests/parity_recall.py` 全语料回归 oracle——真实语料根（`G:/Knowledge/data/logseq-main`，434 md / 761 chunks）+ `queries-t18.json` 上 Node↔Python 逐 query `file_rank/chunk_rank/diluted`、两级 recall@k/MRR、misses、语料统计**全部一致（DIFFS=0）**。
+- **M2d**：`secret_provider.py` + `mcp_server.py`（stdio 手写 JSON-RPC 2.0，9 工具）+ `tests/mcp_selftest.py` **60/60**——覆盖 search/增量缓存、写入闸全链（提案/HMAC 一次性 token/重放/撤销/越界）、审计事件与身份、真实导入 job（进度通知、检查点限频落盘、取消、断点续跑、崩溃 running→interrupted→resume、跨重启状态、单写者锁、未配置根）。`bm25.py` 补 `build_corpus_cached`（CACHE_VERSION=2，size/mtime/title 复用 chunk）。pyproject 增 console script `awam-knowledge-mcp`。
+- **协议选择偏离「复用 mcp≥2 SDK」的说明**：knowledge 的 MCP 面**不走 mcp SDK**，保持与 Node 完全一致的手写零依赖 JSON-RPC——为保住 60 项行为 oracle 的逐字可比性（initialize 精确应答、请求外发 `notifications/progress`、`content[0].text` JSON + `isError` 形状），且避免 typer/rich 等传递依赖进入冻结产物。「mcp≥2 统一」的收益仅涉及 file/tool-manager 两个 MCP 网关，knowledge 此面与之无契约耦合。
+- **AFM 侧零改动**：knowledge 的 AFM 集成面是 HTTP（`knowledge_service.rs` ↔ `http_service.py`，M2c 已等价），MCP 面供 AI Agent 直连，不经 AFM。
 
 ## 落地记录：托管 sidecar 端口回退（2026-11-20）
 
