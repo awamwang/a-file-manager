@@ -33,9 +33,9 @@ import {
 export function createToolsSource(router: Router): SearchSource {
   /** 跳工具运行时并预选；Pack 未启用时无贡献即忽略。 */
   function pushToolRuntime(query: Record<string, string>): void {
-    const route = toolRuntimeRouteContribution.value;
-    if (!route) return;
-    void router.push({ name: route.name, query });
+    const section = toolRuntimeRouteContribution.value;
+    if (!section) return;
+    void router.push({ path: "/extensions/tool-runtime", query });
   }
 
   /** 执行 command-palette.json 配置的 callCapability（固定非破坏性执行）。 */

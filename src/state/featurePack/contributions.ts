@@ -47,12 +47,22 @@ export type FeaturePackSearchEntryContribution = {
   packName?: string | null;
 };
 
+/** Pack 贡献的扩展页分区（ADR-0023）：在 ExtensionsView 内注入一个 section。 */
+export type FeaturePackExtensionsSectionContribution = {
+  id: string;
+  labelKey: string;
+  /** builtinEntries 中的组件加载键。 */
+  entry: string;
+  order: number;
+};
+
 export type AggregatedContributions = {
   sideNav: FeaturePackSideNavContribution[];
   routes: FeaturePackRouteContribution[];
   commands: FeaturePackCommandContribution[];
   sidecars: FeaturePackSidecarContribution[];
   search: FeaturePackSearchEntryContribution[];
+  extensionsSections: FeaturePackExtensionsSectionContribution[];
 };
 
 const EMPTY_CONTRIBUTIONS: AggregatedContributions = {
@@ -61,22 +71,24 @@ const EMPTY_CONTRIBUTIONS: AggregatedContributions = {
   commands: [],
   sidecars: [],
   search: [],
+  extensionsSections: [],
 };
 
 /** 响应式贡献缓存：整体替换 .value 触发 panelCommands / 侧栏等 computed 重算（无需 remount）。 */
 const cached = shallowRef<AggregatedContributions>(EMPTY_CONTRIBUTIONS);
 
 /**
- * 工具运行时路由贡献（entry `builtin:tool-runtime`）。
+ * 工具运行时扩展分区贡献（entry `builtin:tool-runtime`）。
  * 响应式：搜索面板工具源据此决定源与 chip 是否参与（Pack 未启用 → null）。
+ * ADR-0023: 从路由贡献改为 extensionsSection 贡献。
  */
-export const toolRuntimeRouteContribution = ref<FeaturePackRouteContribution | null>(
+export const toolRuntimeRouteContribution = ref<FeaturePackExtensionsSectionContribution | null>(
   null,
 );
 
 function syncToolRuntimeRouteContribution(): void {
   toolRuntimeRouteContribution.value =
-    cached.value.routes.find((route) => route.entry === "builtin:tool-runtime") ??
+    cached.value.extensionsSections.find((s) => s.entry === "builtin:tool-runtime") ??
     null;
 }
 
@@ -146,6 +158,7 @@ function coreShellRoutePaths(): Set<string> {
     "/navigator",
     "/discovery",
     "/providers",
+    "/tools",
     "/work-groups",
     "/projects",
     "/extensions",
@@ -197,6 +210,7 @@ function normalizeContributions(
     commands: Array.isArray(raw?.commands) ? raw.commands : [],
     sidecars: Array.isArray(raw?.sidecars) ? raw.sidecars : [],
     search: Array.isArray(raw?.search) ? raw.search : [],
+    extensionsSections: Array.isArray(raw?.extensionsSections) ? raw.extensionsSections : [],
   };
 }
 
@@ -210,6 +224,13 @@ export function getSideNavExtras(): SideNavItem[] {
       to: item.to,
       order: item.order,
     }));
+}
+
+/** Pack 贡献的扩展页分区（ADR-0023），按 order 排序，已过滤 entry 未注册的项。 */
+export function getExtensionsSectionExtras(): FeaturePackExtensionsSectionContribution[] {
+  return cached.value.extensionsSections
+    .filter((s) => s.id && s.labelKey && s.entry && builtinEntries[s.entry])
+    .sort((a, b) => a.order - b.order);
 }
 
 /** 仅当 `entry` 在 builtinEntries 有映射时生成可注册路由。 */

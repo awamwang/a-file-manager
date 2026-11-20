@@ -29,6 +29,10 @@ const routes: RouteRecordRaw[] = [
     redirect: "/extensions/providers",
   },
   {
+    path: "/tools",
+    redirect: "/extensions/tool-runtime",
+  },
+  {
     path: "/work-groups",
     name: "work-groups",
     component: () => import("../views/WorkGroupsView.vue"),

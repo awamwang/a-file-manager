@@ -3,14 +3,20 @@
 /**
  * ADR-0023 — 扩展 = 能力后端统一中心（左侧分区导航单页）。
  * 收编原 /providers、/settings/extensions 为内部路由子段。
- * 布局模式同 AiView：左 nav + 右 panel。
+ * Batch 2: Pack 通过 extensionsSection 贡献动态分区（如 tool-runtime）。
  */
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, defineAsyncComponent, onMounted, ref, shallowRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
+import type { Component } from "vue";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import type { FluentGlyphId } from "../components/icons/glyphs.ts";
+import {
+  getExtensionsSectionExtras,
+  type FeaturePackExtensionsSectionContribution,
+} from "../state/featurePack/contributions.ts";
+import { resolveBuiltinEntry } from "../state/featurePack/builtinEntries.ts";
 
 import ExtensionsOverviewSection from "../components/extensions/ExtensionsOverviewSection.vue";
 import ExtensionsInstalledSection from "../components/extensions/ExtensionsInstalledSection.vue";
@@ -22,40 +28,73 @@ const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 
-type SectionId = "overview" | "installed" | "store" | "providers" | "config" | "tool-runtime";
-
 type SectionDef = {
-  id: SectionId;
+  id: string;
   labelKey: string;
   icon: FluentGlyphId;
+  static: boolean;
 };
 
-const SECTIONS: SectionDef[] = [
-  { id: "overview", labelKey: "extensions.sections.overview", icon: "viewAll" },
-  { id: "installed", labelKey: "extensions.sections.installed", icon: "library" },
-  { id: "store", labelKey: "extensions.sections.store", icon: "cloud" },
-  { id: "providers", labelKey: "extensions.sections.providers", icon: "cloud" },
-  { id: "config", labelKey: "extensions.sections.config", icon: "settings" },
-  { id: "tool-runtime", labelKey: "extensions.sections.toolRuntime", icon: "flash" },
+const STATIC_SECTIONS: SectionDef[] = [
+  { id: "overview", labelKey: "extensions.sections.overview", icon: "viewAll", static: true },
+  { id: "installed", labelKey: "extensions.sections.installed", icon: "library", static: true },
+  { id: "store", labelKey: "extensions.sections.store", icon: "cloud", static: true },
+  { id: "providers", labelKey: "extensions.sections.providers", icon: "cloud", static: true },
+  { id: "config", labelKey: "extensions.sections.config", icon: "settings", static: true },
 ];
 
-const activeSection = ref<SectionId>("overview");
+/** Pack 贡献的动态分区（响应式：reload 后自动合并）。 */
+const packSections = ref<FeaturePackExtensionsSectionContribution[]>([]);
+
+const allSections = computed<SectionDef[]>(() => {
+  const dynamic: SectionDef[] = packSections.value.map((ps) => ({
+    id: ps.id,
+    labelKey: ps.labelKey,
+    icon: "puzzle" as FluentGlyphId,
+    static: false,
+  }));
+  return [...STATIC_SECTIONS, ...dynamic];
+});
+
+const activeSection = ref<string>("overview");
 
 const activeDef = computed(
-  () => SECTIONS.find((s) => s.id === activeSection.value) ?? SECTIONS[0],
+  () => allSections.value.find((s) => s.id === activeSection.value) ?? STATIC_SECTIONS[0],
 );
 
-function sectionFromPath(path: string): SectionId {
+/** 当前激活 section 是否为 Pack 贡献的（需要动态渲染组件）。 */
+const activePackSection = computed(() =>
+  packSections.value.find((ps) => ps.id === activeSection.value) ?? null,
+);
+
+/** 缓存已解析的 Pack section 组件。 */
+const resolvedComponents = shallowRef<Record<string, Component>>({});
+
+function resolveSectionComponents() {
+  const map: Record<string, Component> = {};
+  for (const ps of packSections.value) {
+    const loader = resolveBuiltinEntry(ps.entry);
+    if (loader) {
+      map[ps.id] = defineAsyncComponent(loader);
+    }
+  }
+  resolvedComponents.value = map;
+}
+
+/** 已知静态 section id 集合，用于路由解析。 */
+const STATIC_IDS = new Set<string>(STATIC_SECTIONS.map((s) => s.id));
+
+function sectionFromPath(path: string): string {
   const seg = path.replace("/extensions", "").replace(/^\//, "");
-  if (seg === "installed") return "installed";
-  if (seg === "store") return "store";
-  if (seg === "providers") return "providers";
-  if (seg === "config") return "config";
-  if (seg === "tool-runtime") return "tool-runtime";
+  if (!seg || seg === "overview") return "overview";
+  // Check static IDs first, then Pack-contributed IDs
+  if (STATIC_IDS.has(seg)) return seg;
+  // For Pack sections (like "tool-runtime"), return as-is if it matches a section
+  if (packSections.value.some((ps) => ps.id === seg)) return seg;
   return "overview";
 }
 
-function selectSection(id: SectionId) {
+function selectSection(id: string) {
   activeSection.value = id;
   const target = id === "overview" ? "/extensions" : `/extensions/${id}`;
   if (route.path !== target) {
@@ -65,6 +104,11 @@ function selectSection(id: SectionId) {
 
 function syncFromRoute() {
   activeSection.value = sectionFromPath(route.path);
+}
+
+function refreshPackSections() {
+  packSections.value = getExtensionsSectionExtras();
+  resolveSectionComponents();
 }
 
 // Host status (kept at view level, shown in header)
@@ -85,6 +129,7 @@ async function loadHostStatus() {
 }
 
 onMounted(() => {
+  refreshPackSections();
   syncFromRoute();
   void loadHostStatus();
 });
@@ -105,7 +150,7 @@ watch(() => route.path, syncFromRoute);
     <div class="ext-layout">
       <aside class="ext-nav fluent-surface" role="tablist" :aria-label="t('extensions.title')">
         <button
-          v-for="section in SECTIONS"
+          v-for="section in allSections"
           :key="section.id"
           type="button"
           class="ext-nav-item"
@@ -140,13 +185,20 @@ watch(() => route.path, syncFromRoute);
         <ExtensionsStoreSection v-else-if="activeSection === 'store'" />
         <ExtensionsProvidersSection v-else-if="activeSection === 'providers'" />
         <ExtensionsConfigSection v-else-if="activeSection === 'config'" />
-        <div v-else-if="activeSection === 'tool-runtime'" class="tool-runtime-placeholder">
+        <!-- Pack-contributed dynamic section -->
+        <component
+          v-else-if="activePackSection && resolvedComponents[activeSection]"
+          :is="resolvedComponents[activeSection]"
+          embedded
+        />
+        <!-- Fallback: section route exists but Pack is not enabled -->
+        <div v-else class="section-placeholder">
           <p class="fluent-page-meta">{{ t("extensions.sections.toolRuntimeHint") }}</p>
           <button
             class="fluent-control fluent-control--accent"
             type="button"
-            @click="router.push('/tools')"
-          >{{ t("extensions.sections.toolRuntimeOpen") }}</button>
+            @click="selectSection('store')"
+          >{{ t("extensions.sections.store") }}</button>
         </div>
       </article>
     </div>
@@ -228,7 +280,7 @@ watch(() => route.path, syncFromRoute);
   font-weight: 600;
 }
 
-.tool-runtime-placeholder {
+.section-placeholder {
   display: flex;
   flex-direction: column;
   align-items: flex-start;

@@ -3,6 +3,8 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
+
+defineProps<{ embedded?: boolean }>();
 import FluentIcon from "../../components/icons/FluentIcon.vue";
 import { openConfirmDialog } from "../../state/confirmDialog";
 import { selectedPaths } from "../../state/navigatorSelection";
@@ -377,8 +379,8 @@ function riskChipClass(risk: string): string {
 </script>
 
 <template>
-  <section class="fluent-page runtime">
-    <header class="fluent-page-header">
+  <section class="fluent-page runtime" :class="{ 'fluent-page--embedded': embedded }">
+    <header v-if="!embedded" class="fluent-page-header">
       <h1 class="fluent-page-title">{{ t("toolRuntime.title") }}</h1>
       <p class="fluent-page-meta">{{ t("toolRuntime.meta") }}</p>
     </header>
@@ -616,6 +618,10 @@ function riskChipClass(risk: string): string {
 </template>
 
 <style scoped>
+.fluent-page--embedded {
+  padding: 0;
+}
+
 .runtime {
   height: 100%;
   min-height: 0;

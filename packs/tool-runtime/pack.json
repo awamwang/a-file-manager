@@ -7,9 +7,8 @@
   "permissions": ["network", "spawnSidecar"],
   "gatewayCompat": { "minVersion": "0.1.0", "maxVersion": "1.0.0" },
   "contributions": {
-    "sideNav": [{ "id": "tool-runtime", "labelKey": "nav.toolRuntime", "to": "/tools", "order": 45 }],
-    "routes": [{ "path": "/tools", "name": "tool-runtime", "entry": "builtin:tool-runtime" }],
-    "commands": [{ "id": "tool-runtime.open", "labelKey": "cmd.toolRuntimeOpen", "route": "/tools" }],
+    "extensionsSections": [{ "id": "tool-runtime", "labelKey": "nav.toolRuntime", "entry": "builtin:tool-runtime", "order": 50 }],
+    "commands": [{ "id": "tool-runtime.open", "labelKey": "cmd.toolRuntimeOpen", "route": "/extensions/tool-runtime" }],
     "sidecars": [{
       "id": "awam-tool-manager",
       "command": "awam-tool-manager.exe",
