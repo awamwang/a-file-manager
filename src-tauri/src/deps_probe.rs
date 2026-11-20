@@ -236,9 +236,10 @@ fn peek_status() -> DependencyItem {
 fn quicklook_status() -> DependencyItem {
     #[cfg(windows)]
     {
-        // 单一判定来自 preview_bridge::quicklook_available()（管道存在性，无副作用，
-        // 与桥接 auto 回退共用）。busy / 拒绝访问已在该函数内归为 Running，不再误报
-        // 缺失；仅「管道不存在」可能是 QuickLook 正在启动的瞬间，做短暂重试消抖。
+        // 单一判定来自 preview_bridge::quicklook_available()（枚举 \\.\pipe\ 判
+        // 管道存在性，绝不连接管道 —— 连接即会杀死 QuickLook 的管道服务端；与桥接
+        // auto 回退共用）。仅「管道未列出」可能是 QuickLook 正在启动的瞬间，做短暂
+        // 重试消抖。
         use crate::preview_bridge::quicklook_available;
         use crate::preview_bridge::QuickLookStatus;
         let mut status = quicklook_available();
@@ -267,8 +268,8 @@ fn quicklook_status() -> DependencyItem {
                 "optional",
                 "unbridged",
                 "QuickLook",
-                "检测到 QuickLook 进程在运行，但没有 AFM 可桥接的命名管道（AFM 仅支持经典 QuickLook 的管道协议；商店版 QuickLook 不提供该管道）。",
-                "无需处理：当前空格预览由 PowerToys Peek（或内置预览）提供。要让 AFM 直接驱动 QuickLook，请改用经典 poizan42 QuickLook。",
+                "检测到 QuickLook 进程在运行，但其命名管道尚未就绪（正在启动，或管道已失效）。",
+                "若刚启动 QuickLook，稍候片刻再刷新；长时间停留在此状态可重启 QuickLook。当前空格预览由 PowerToys Peek（或内置预览）提供。",
             ),
             QuickLookStatus::NotRunning => item(
                 "quicklook",

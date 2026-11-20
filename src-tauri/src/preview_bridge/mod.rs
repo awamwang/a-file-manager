@@ -330,7 +330,8 @@ fn try_quicklook_toggle(paths: &[String]) -> Result<(), String> {
     invoke_quicklook_toggle(paths)
 }
 
-/// QuickLook 可用性档位（命名管道存在性，无副作用：绝不写消息，避免弹出预览窗）。
+/// QuickLook 可用性档位（命名管道存在性，枚举 `\\.\pipe\` 判定，绝不连接管道：
+/// 连接本身就会让 QuickLook 的 ReadLine 收到 null 而崩溃其管道服务端）。
 /// 健康探测与 `auto` 回退共用此单一判定，杜绝「在运行却报缺失」。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum QuickLookStatus {
@@ -368,29 +369,38 @@ fn quicklook_process_running() -> bool {
 }
 
 /// Probe whether the resident QuickLook named pipe server exists.
-/// Side-effect free: opens the pipe but never writes a message, so it cannot
-/// pop a preview window. ERROR_PIPE_BUSY / access-denied mean the server
-/// instance exists (QuickLook running) — only ERROR_FILE_NOT_FOUND says "no",
-/// and even then we distinguish a running-but-unbridged QuickLook process.
+/// NEVER CreateFile/OpenOptions the pipe just to test it: QuickLook's server
+/// loop runs `ReadLine()` on every accepted connection, so a client that
+/// connects without writing a complete line makes ReadLine return `null` →
+/// `NullReferenceException` in `PipeServerManager.MessageReceived` → the
+/// pipe server is disposed and permanently dead while the QL process keeps
+/// running (observed daily in QuickLook.Exception.log). Enumerating
+/// `\\.\pipe\` is genuinely side-effect free.
 #[cfg(windows)]
 pub fn quicklook_available() -> QuickLookStatus {
-    use std::fs::OpenOptions;
-    const ERROR_FILE_NOT_FOUND: i32 = 2;
     let pipe = match quicklook_pipe_path() {
         Ok(p) => p,
         Err(_) => return QuickLookStatus::Indeterminate,
     };
-    match OpenOptions::new().write(true).open(&pipe) {
-        Ok(_) => QuickLookStatus::Running,
-        Err(err) if err.raw_os_error() == Some(ERROR_FILE_NOT_FOUND) => {
-            if quicklook_process_running() {
-                QuickLookStatus::PresentUnbridged
-            } else {
-                QuickLookStatus::NotRunning
-            }
-        }
-        // ERROR_PIPE_BUSY (231) / 拒绝访问等 ⇒ 服务实例存在，只是此刻连不上。
-        Err(_) => QuickLookStatus::Running,
+    // Directory entries are bare pipe names (`QuickLook.App.Pipe.<SID>`).
+    let Some(pipe_name) = pipe.strip_prefix(r"\\.\pipe\") else {
+        return QuickLookStatus::Indeterminate;
+    };
+    let entries = match std::fs::read_dir(r"\\.\pipe\") {
+        Ok(entries) => entries,
+        Err(_) => return QuickLookStatus::Indeterminate,
+    };
+    let listed = entries.filter_map(|e| e.ok()).any(|e| {
+        e.file_name()
+            .to_string_lossy()
+            .eq_ignore_ascii_case(pipe_name)
+    });
+    if listed {
+        QuickLookStatus::Running
+    } else if quicklook_process_running() {
+        QuickLookStatus::PresentUnbridged
+    } else {
+        QuickLookStatus::NotRunning
     }
 }
 
