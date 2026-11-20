@@ -306,7 +306,7 @@ onMounted(() => {
 
     <div v-if="document" class="agents-layout">
       <div class="agents-list-col">
-        <ul class="agents-list" role="listbox" :aria-label="t('ai.sections.agents.title')">
+        <ul class="agents-grid" role="listbox" :aria-label="t('ai.sections.agents.title')">
           <li
             v-for="agent in visibleAgents"
             :key="agent.id"
@@ -334,17 +334,25 @@ onMounted(() => {
                   : t("ai.agents.kindBuiltin")
               }}
             </span>
-            <div class="agents-list-toggles">
+            <div class="agents-card-foot">
+              <span class="agents-switch-row">
+                <button
+                  type="button"
+                  class="fluent-switch"
+                  :class="{ 'fluent-switch--on': agent.enabled }"
+                  role="switch"
+                  :aria-checked="agent.enabled"
+                  :aria-label="t('ai.agents.enable')"
+                  @click.stop="toggleEnabled(agent)"
+                >
+                  <span class="fluent-switch-thumb" aria-hidden="true"></span>
+                </button>
+                <span class="agents-switch-label">{{ t("ai.agents.enable") }}</span>
+              </span>
               <button
                 type="button"
-                class="fluent-control agents-enable"
-                @click.stop="toggleEnabled(agent)"
-              >
-                {{ agent.enabled ? t("ai.agents.disable") : t("ai.agents.enable") }}
-              </button>
-              <button
-                type="button"
-                class="fluent-control agents-enable"
+                class="fluent-control agents-default-btn"
+                :class="{ 'agents-default-btn--on': agent.defaultInProjects }"
                 @click.stop="toggleDefaultInProjects(agent)"
               >
                 {{
@@ -465,15 +473,9 @@ onMounted(() => {
 }
 
 .agents-layout {
-  display: grid;
-  grid-template-columns: minmax(15rem, 19rem) minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: var(--fluent-space-md);
-}
-
-@media (max-width: 720px) {
-  .agents-layout {
-    grid-template-columns: 1fr;
-  }
 }
 
 .agents-list-col {
@@ -483,15 +485,14 @@ onMounted(() => {
   min-width: 0;
 }
 
-.agents-list {
+/* 横铺卡片网格：全部展开时所有卡片直接可见可点，不做内部滚动。 */
+.agents-grid {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--fluent-space-xs);
-  max-height: 28rem;
-  overflow: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
+  gap: var(--fluent-space-sm);
 }
 
 .agents-show-all {
@@ -504,6 +505,7 @@ onMounted(() => {
   flex-direction: column;
   align-items: stretch;
   gap: var(--fluent-space-xs);
+  min-width: 0;
   padding: var(--fluent-space-sm) var(--fluent-space-md);
   border-radius: var(--fluent-radius-md);
   background: var(--fluent-color-fill-subtle);
@@ -546,16 +548,43 @@ onMounted(() => {
   user-select: text;
 }
 
-.agents-list-toggles {
+.agents-card-foot {
   display: flex;
-  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--fluent-space-xs);
+  margin-top: auto;
+  padding-top: var(--fluent-space-xs);
 }
 
-.agents-enable {
-  flex: 1;
+.agents-switch-row {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fluent-space-xs);
   min-width: 0;
+}
+
+.agents-switch-label {
   font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agents-default-btn {
+  min-width: 0;
+  padding-inline: var(--fluent-space-sm);
+  font-size: var(--fluent-font-size-caption);
+}
+
+.agents-default-btn--on {
+  border-color: var(--fluent-color-fill-accent);
+  color: var(--fluent-color-fill-accent);
+}
+
+.agents-detail {
+  max-width: 48rem;
 }
 
 .agents-detail,
