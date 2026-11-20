@@ -13,7 +13,9 @@ const nav = readFileSync(join(root, "src/views/NavigatorView.vue"), "utf8");
 const discovery = readFileSync(join(root, "src/views/DiscoveryView.vue"), "utf8");
 const projects = readFileSync(join(root, "src/views/ProjectsView.vue"), "utf8");
 const workGroups = readFileSync(join(root, "src/views/WorkGroupsView.vue"), "utf8");
-const extensions = readFileSync(join(root, "src/views/ExtensionsView.vue"), "utf8");
+// ADR-0023: Extensions pack operations (install/enable/disable) moved into the
+// installed-section component; that is where toast feedback is wired now.
+const extensions = readFileSync(join(root, "src/components/extensions/ExtensionsInstalledSection.vue"), "utf8");
 const ctx = readFileSync(join(root, "src/components/navigator/NavigatorContextMenu.vue"), "utf8");
 const en = JSON.parse(readFileSync(join(root, "src/i18n/locales/en.json"), "utf8"));
 

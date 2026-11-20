@@ -18,8 +18,9 @@ const checks = [
   ],
   ["src/components/common/ProviderErrorBanner.vue", ["fluent-banner--error"]],
   [
-    "src/views/ExtensionsView.vue",
-    ["fluent-chip--down", "fluent-banner--info", "state-chip", "card--warn"],
+    // ADR-0023: pack status chips/banners render in the installed-section component.
+    "src/components/extensions/ExtensionsInstalledSection.vue",
+    ["fluent-chip--down", "fluent-banner--info", "state-chip", "fluent-chip--warn"],
   ],
   [
     "src/views/HealthView.vue",

@@ -253,9 +253,12 @@ assert.ok(
     ),
     "DiscoveryView stays lazy (defineAsyncComponent in SearchSettingsPanel)",
   );
+  // ADR-0023: Providers is now an Extensions hub section — the route no longer
+  // dynamically imports ProvidersView. It stays out of the eager startup chunk via
+  // the /extensions/providers route lazily importing ExtensionsView instead.
   assert.ok(
-    /component:\s*\(\)\s*=>\s*import\(["'].*ProvidersView\.vue["']\)/.test(router),
-    "Providers must use dynamic import()",
+    /component:\s*\(\)\s*=>\s*import\(["'].*ExtensionsView\.vue["']\)/.test(router),
+    "Providers hub (ExtensionsView) must use dynamic import() so Providers stays lazy",
   );
   assert.ok(
     /component:\s*\(\)\s*=>\s*import\(["'].*SettingsView\.vue["']\)/.test(router),

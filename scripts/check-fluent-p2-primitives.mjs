@@ -11,7 +11,6 @@ const files = [
   "src/views/ProvidersView.vue",
   "src/views/WorkGroupsView.vue",
   "src/views/ProjectsView.vue",
-  "src/views/ExtensionsView.vue",
 ];
 
 const required = ["fluent-page", "fluent-page-header", "fluent-page-title", "fluent-banner"];
@@ -32,6 +31,21 @@ for (const file of files) {
   if (/<header class="header">/.test(text)) {
     console.error(`P2 primitives check failed: ${file} still uses class="header"`);
     process.exit(1);
+  }
+}
+
+// ADR-0023: ExtensionsView is a unified section hub — it owns the page primitives
+// and surface, while the shared banner primitive renders inside its sections.
+{
+  const text = readFileSync(join(root, "src/views/ExtensionsView.vue"), "utf8");
+  for (const needle of ["fluent-page", "fluent-page-header", "fluent-page-title", "fluent-banner"]) {
+    const source = needle === "fluent-banner"
+      ? readFileSync(join(root, "src/components/extensions/ExtensionsInstalledSection.vue"), "utf8")
+      : text;
+    if (!source.includes(needle)) {
+      console.error(`P2 primitives check failed: ExtensionsView (${needle}) missing`);
+      process.exit(1);
+    }
   }
 }
 

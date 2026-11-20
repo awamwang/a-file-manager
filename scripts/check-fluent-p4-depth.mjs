@@ -6,7 +6,10 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 const checks = [
-  ["src/views/ExtensionsView.vue", ["section-title", 'name="puzzle"', 'name="cloud"', 'name="heartPulse"']],
+  // ADR-0023: ExtensionsView is now the unified section hub (glyphs bound via
+  // icon: "…" / :name="section.icon"); section-title depth renders in sections.
+  ["src/views/ExtensionsView.vue", ['icon: "puzzle"', 'icon: "cloud"', "STATIC_SECTIONS", "ext-nav"]],
+  ["src/components/extensions/ExtensionsInstalledSection.vue", ["section-title", 'name="library"']],
   ["src/views/WorkGroupsView.vue", ["group-head", "viewAll", "'home'"]],
   [
     "src/views/ProjectsView.vue",

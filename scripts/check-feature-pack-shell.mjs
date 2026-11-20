@@ -15,7 +15,7 @@ const router = read("src/router/index.ts");
 const registry = read("src/commands/registry.ts");
 const main = read("src/main.ts");
 const reload = read("src/state/uiReload.ts");
-const extensionsView = read("src/views/ExtensionsView.vue");
+const extensionsInstalled = read("src/components/extensions/ExtensionsInstalledSection.vue");
 
 assert.ok(
   sideNav.includes("getSideNavExtras"),
@@ -75,8 +75,8 @@ assert.ok(
   "hydrate must rebuild SIDE_NAV_ITEMS via applyFeaturePackSideNav",
 );
 assert.ok(
-  sideNav.includes("SIDE_NAV_ITEMS.splice"),
-  "applyFeaturePackSideNav must splice SIDE_NAV_ITEMS on re-hydrate",
+  sideNav.includes("SIDE_NAV_ITEMS.value"),
+  "applyFeaturePackSideNav must reassign the reactive SIDE_NAV_ITEMS on re-hydrate",
 );
 {
   const fnStart = reload.indexOf("export async function reloadWindow");
@@ -97,20 +97,23 @@ assert.ok(
     "reloadWindow must fall back when pack route is removed",
   );
 }
+// ADR-0023 batch 2: pack enable/disable lives in the installed-section component
+// and refreshes Feature Pack contributions reactively (reloadContributions) so the
+// side nav follows pack state without a full-window remount.
 assert.ok(
-  extensionsView.includes("reloadWindow"),
-  "ExtensionsView must Soft Reload after pack enable/disable",
+  extensionsInstalled.includes("reloadContributions"),
+  "ExtensionsInstalledSection must refresh contributions after pack enable/disable",
 );
 {
-  const enableFnStart = extensionsView.indexOf("async function setPackEnabled");
-  assert.ok(enableFnStart >= 0, "ExtensionsView must define setPackEnabled");
-  const enableFn = extensionsView.slice(
+  const enableFnStart = extensionsInstalled.indexOf("async function setPackEnabled");
+  assert.ok(enableFnStart >= 0, "ExtensionsInstalledSection must define setPackEnabled");
+  const enableFn = extensionsInstalled.slice(
     enableFnStart,
-    extensionsView.indexOf("function onPackEnabledChange", enableFnStart),
+    extensionsInstalled.indexOf("function onPackEnabledChange", enableFnStart),
   );
   assert.ok(
-    enableFn.includes("reloadWindow"),
-    "setPackEnabled must call reloadWindow so side nav toggles with pack state",
+    enableFn.includes("reloadContributions"),
+    "setPackEnabled must call reloadContributions so side nav toggles with pack state",
   );
 }
 assert.ok(
