@@ -2,7 +2,7 @@
 /**
  * Build flavor (AIA-222).
  *
- * - Default / AI package: `VITE_AFM_AI_ADDON` unset or not `"0"` → AI Add-on UI on.
- * - Core-only package: `VITE_AFM_AI_ADDON=0` (+ Cargo `--no-default-features`).
+ * - Mainline (ai flavor): `VITE_AFM_AI_ADDON` unset or not `"0"` → AI Add-on UI on.
+ * - Lite (core flavor): `VITE_AFM_AI_ADDON=0` (+ Cargo `--no-default-features`). See ADR 0024.
  */
 export const AI_ADDON_ENABLED: boolean = import.meta.env?.VITE_AFM_AI_ADDON !== "0";

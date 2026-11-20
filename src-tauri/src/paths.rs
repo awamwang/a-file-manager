@@ -21,7 +21,7 @@ pub fn display_path(path: &std::path::Path) -> String {
 /// Join a config-supplied relative path (may contain `/` or `\`) onto a root.
 /// Replaces the per-module `rel.replace('/', "\\")` copies that turn POSIX
 /// absolute paths into relative ones outside Windows.
-// Only the AI addon consumes this today; Core builds drop those modules.
+// Only the AI addon consumes this today; Lite (core flavor) builds drop those modules. See ADR 0024.
 #[cfg_attr(not(feature = "ai-addon"), allow(dead_code))]
 pub fn join_relative(root: &std::path::Path, rel: &str) -> std::path::PathBuf {
     let mut out = root.to_path_buf();
