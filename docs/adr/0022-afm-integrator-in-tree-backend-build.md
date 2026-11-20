@@ -141,7 +141,7 @@ awam-file 与 tool-manager 同为自有 Python 后端，可复用同一条 in-tr
 - **M4-A**（AFM 侧）：`SidecarContribution.env` 注入 + `${afm:settings:KEY}` 从 AFM 设置解析（密钥不落 pack.json/不持久化/不进日志），落地原 P1-4 seam。
 - **M4-B**：`__main__`/console 入口 → **PyInstaller onefile 实测端到端**：冻结 exe 启服 `/health` ok、`/search` 返回 AFM 期望形状、`/doc`、无 token fail-fast 退码 2、缺 Bearer 401 全过；`packs/knowledge/pack.json`（sidecar env 注入 `KM_SERVICE_TOKEN`）；feed 现含 tool-runtime/file-gateway/knowledge 的 entries+packs。
 
-**仍待**：~~① **M2d mcp-server**~~ ✅、~~② **M2b import-md-dir + eval-recall**~~ ✅（均 2026-11-20 完成，见下「落地记录：knowledge M2b/M2d」）；③ **M3 脱敏管道融合**（用户明确后续再做）；④ 合并仓 push 前跑 **awam-code-publish preflight**。knowledge Node 版保存于 `archive/node`。
+**仍待**：~~① **M2d mcp-server**~~ ✅、~~② **M2b import-md-dir + eval-recall**~~ ✅（均 2026-11-20 完成，见下「落地记录：knowledge M2b/M2d」）；~~③ **M3 脱敏管道融合**~~ ✅（2026-11-20 完成，见下「落地记录：knowledge M3 脱敏管道全量融合」）；④ 合并仓 push 前跑 **awam-code-publish preflight**。knowledge Node 版保存于 `archive/node`。
 
 ## 落地记录：knowledge M2b/M2d 移植完成（2026-11-20）
 
@@ -149,6 +149,15 @@ awam-file 与 tool-manager 同为自有 Python 后端，可复用同一条 in-tr
 - **M2d**：`secret_provider.py` + `mcp_server.py`（stdio 手写 JSON-RPC 2.0，9 工具）+ `tests/mcp_selftest.py` **60/60**——覆盖 search/增量缓存、写入闸全链（提案/HMAC 一次性 token/重放/撤销/越界）、审计事件与身份、真实导入 job（进度通知、检查点限频落盘、取消、断点续跑、崩溃 running→interrupted→resume、跨重启状态、单写者锁、未配置根）。`bm25.py` 补 `build_corpus_cached`（CACHE_VERSION=2，size/mtime/title 复用 chunk）。pyproject 增 console script `awam-knowledge-mcp`。
 - **协议选择偏离「复用 mcp≥2 SDK」的说明**：knowledge 的 MCP 面**不走 mcp SDK**，保持与 Node 完全一致的手写零依赖 JSON-RPC——为保住 60 项行为 oracle 的逐字可比性（initialize 精确应答、请求外发 `notifications/progress`、`content[0].text` JSON + `isError` 形状），且避免 typer/rich 等传递依赖进入冻结产物。「mcp≥2 统一」的收益仅涉及 file/tool-manager 两个 MCP 网关，knowledge 此面与之无契约耦合。
 - **AFM 侧零改动**：knowledge 的 AFM 集成面是 HTTP（`knowledge_service.rs` ↔ `http_service.py`，M2c 已等价），MCP 面供 AI Agent 直连，不经 AFM。
+
+## 落地记录：knowledge M3 脱敏管道全量融合（2026-11-20）
+
+按用户拍板「**全量融合**」（向导层 + 管道执行层全部移植进包，≈2400 行；零依赖化去 PyYAML）完成，脱敏仓 `G:/Knowledge/knowledge-desensitization` 保留不动，两仓共用同一份秘密材料：
+
+- **模块**（`awam_knowledge/`）：`mini_yaml`（零依赖 YAML 子集，load/dump 与 PyYAML 在线上 settings/sources 配置上逐字节等价；selftest 40/40）、`km_paths`（默认秘密根/临时区从「技能目录」改锚 `<KM_CONFIG_HOME>/.km`/`.tmp`——原锚点在 wheel/PyInstaller onefile 形态下会漂到临时解包目录；`builtin_config_dir` 内置模板随包分发）、`km_config`（两级配置 settings.yaml + sources/<id>.yaml；selftest 26/26）、`sanitize_lib`（脱敏内核：token HMAC 幂等、四层召回、路径排除、白名单值指纹、配置三级分层 内置→全局→每源；selftest 42/42）、四步 `km_sync/km_sanitize/km_materials/km_build_index`（faithful 移植）、`wizard`（原 guide.py）、`km_pipeline`（**进程内编排**：直接调各步 `main(argv)`，不再 subprocess——包形态下脚本路径不稳定）、`entry` 统一分发入口。pyproject 增 console script `awam-knowledge-entry` 与 `[tool.setuptools.package-data]` 内置 config。
+- **端到端沙箱自检** `tests/km_check.py` **37/37**：wizard→pipeline 全链覆盖（增量同步、就地脱敏稳定 token、材料落盘 MANIFEST/RESTORE、旁路 Index、幂等重跑 token 不漂移、真源增量补拷并入索引、entry 分发）。全量回归绿：storage_check、http 28、mcp 60、parity_recall IDENTICAL、km_check 37。
+- **本机迁移（防 token 漂移）**：默认秘密根改锚后，线上 `%USERPROFILE%\.knowledge-manager-skills\settings.yaml` 补 `secrets_root: G:/Knowledge/knowledge-desensitization/.km` 锚回原 salt 位置（已实测 logseq-main 解析到既有 salt/map；该文件为用户级配置，不入任何仓）。迁移前已备份 `settings.yaml.bak-20261120`。
+- 脱敏仓原脚本（含 recover/backfill 等 M3 范围外工具）原地保留，作为恢复工具与参照。
 
 ## 落地记录：托管 sidecar 端口回退（2026-11-20）
 
