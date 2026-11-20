@@ -952,8 +952,8 @@
     "fieldVersion": "version",
     "fieldIdentifier": "identifier",
     "fieldAiAddon": "aiAddon",
-    "aiAddonOn": "enabled (AI package)",
-    "aiAddonOff": "disabled (Core package)",
+    "aiAddonOn": "enabled (Mainline)",
+    "aiAddonOff": "disabled (Lite)",
     "deps": {
       "title": "Runtime dependencies",
       "meta": "Required and optional components. Missing optional items degrade a feature; they do not block local Explorer.",
@@ -1742,7 +1742,7 @@
         },
         "ai": {
           "title": "AI features",
-          "hint": "AI features are optional and only appear in AI builds. You can use the whole app without them."
+          "hint": "AI features are optional and only available in the Mainline build. You can use the whole app without them."
         }
       }
     },

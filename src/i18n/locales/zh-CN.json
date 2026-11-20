@@ -952,8 +952,8 @@
     "fieldVersion": "版本",
     "fieldIdentifier": "标识符",
     "fieldAiAddon": "AI Add-on",
-    "aiAddonOn": "已启用（带 AI 包）",
-    "aiAddonOff": "已禁用（不带 AI / Core 包）",
+    "aiAddonOn": "已启用（主线版）",
+    "aiAddonOff": "已禁用（精简版）",
     "deps": {
       "title": "运行期依赖",
       "meta": "必装与可选组件。可选组件缺失只会降级对应功能，不阻止本地资源管理器。",
@@ -1742,7 +1742,7 @@
         },
         "ai": {
           "title": "AI 功能",
-          "hint": "AI 功能是可选的，只在 AI 版本中出现；不使用它也能完整使用本应用。"
+          "hint": "AI 功能是可选的，仅主线版提供；不使用它也能完整使用本应用。"
         }
       }
     },

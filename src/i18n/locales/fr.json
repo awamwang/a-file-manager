@@ -655,8 +655,8 @@
     "refresh": "Actualiser",
     "title": "Santé",
     "fieldAiAddon": "aiAddon",
-    "aiAddonOn": "enabled (AI package)",
-    "aiAddonOff": "disabled (Core package)",
+    "aiAddonOn": "enabled (Mainline)",
+    "aiAddonOff": "disabled (Lite)",
     "deps": {
       "title": "Dépendances d’exécution",
       "meta": "Obligatoire et optionnel. L’absence d’optionnels dégrade une fonction, sans bloquer l’Explorateur local.",

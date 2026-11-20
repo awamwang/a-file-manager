@@ -655,8 +655,8 @@
     "refresh": "Aktualisieren",
     "title": "Health",
     "fieldAiAddon": "aiAddon",
-    "aiAddonOn": "enabled (AI package)",
-    "aiAddonOff": "disabled (Core package)",
+    "aiAddonOn": "enabled (Mainline)",
+    "aiAddonOff": "disabled (Lite)",
     "deps": {
       "title": "Laufzeitabhängigkeiten",
       "meta": "Erforderlich und optional. Fehlende optionale Komponenten mindern Features, blockieren Explorer nicht.",

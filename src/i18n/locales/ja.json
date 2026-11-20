@@ -655,8 +655,8 @@
     "refresh": "更新",
     "title": "ヘルス",
     "fieldAiAddon": "aiAddon",
-    "aiAddonOn": "enabled (AI package)",
-    "aiAddonOff": "disabled (Core package)",
+    "aiAddonOn": "enabled (Mainline)",
+    "aiAddonOff": "disabled (Lite)",
     "deps": {
       "title": "ランタイム依存関係",
       "meta": "必須とオプション。オプション欠如は機能低下のみで、ローカル Explorer は継続します。",
@@ -1742,7 +1742,7 @@
         },
         "ai": {
           "title": "AI 機能",
-          "hint": "AI 機能は任意で、AI ビルドにのみ表示されます。使わなくてもアプリはすべて利用できます。"
+          "hint": "AI 機能は任意で、メインライン版でのみ提供されます。使わなくてもアプリはすべて利用できます。"
         }
       }
     },
