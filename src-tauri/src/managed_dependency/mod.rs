@@ -24,8 +24,8 @@ pub use orchestrator::{
 };
 #[allow(unused_imports)]
 pub use store::{
-    download_and_verify, download_verify_url, find_entry, is_host_allowed, materialize,
-    parse_manifest, verify_sha256, PackEntry, StoreEntry, StoreManifest,
+    download_and_verify, download_verify_url_with_fallback, find_entry, is_host_allowed,
+    materialize, parse_manifest, verify_sha256, PackEntry, StoreEntry, StoreManifest,
 };
 #[allow(unused_imports)]
 pub use provision::{

@@ -103,26 +103,25 @@ fn resolve_pack_sidecar(record: &ManagedDependencyRecord) -> Result<(PathBuf, Si
     Ok((PathBuf::from(&pack.install_path), contrib))
 }
 
-/// managed 拉起前准备 sidecar 贡献（ADR 0022 接线）：
-/// - 非 `Managed` → 原样返回（产物随 pack 内置 / 用户 config 连接，无需 feed 下载）。
-/// - `Managed` → 读 feed 元清单找本 pack entry；命中则据 [`provision::ensure_artifact`]：
-///   - 产物缺失 → 下载校验落盘；产物已在且 sha 相符 → `up_to_date`；已在但 sha 不符 → 标记「有可用升级」。
-///   - 三种情况都把 `contrib.command` 改写为盘上产物路径继续拉起；**sha 不符绝不静默替换**，只把
-///     `record.available_version` 置为 feed 声明版本，交用户手动 [`managed_dependency_upgrade`]。
-///   元清单不可达 / 未配置 / 无 entry → 原样返回（尽力而为，不误伤已有产物）。
+/// managed 拉起前准备 sidecar 贡献（ADR 0022 接线）。返回 `Ok(None)` 表示「managed 但产物暂不可得 →
+/// 跳过 spawn」（feed 不可达 / 无 entry 且盘上无产物），避免 spawn 一个缺失的相对 exe 反复报错。
+/// - 非 `Managed` → `Ok(Some(contrib))` 原样返回。
+/// - `Managed` → 读 feed entry：命中则 [`provision::ensure_artifact`]（缺则下载校验；已在则纯读 sha 比对，
+///   **非静默**——sha 不符只置 `available_version`，不替换）；command 改写为盘上绝对路径。
+///   feed 不可达 / 无 entry → 回退盘上期望路径：存在则用，否则 `Ok(None)` 跳过。
 fn prepare_contrib_for_spawn(
     app_data: &Path,
     record: &mut ManagedDependencyRecord,
     pack_install_dir: &Path,
     mut contrib: SidecarContribution,
-) -> Result<SidecarContribution, String> {
+) -> Result<Option<SidecarContribution>, String> {
     if record.mode != DependencyMode::Managed {
-        return Ok(contrib);
+        return Ok(Some(contrib));
     }
     let feed_cfg = feed::load_feed(app_data);
     let manifest = match feed::fetch_manifest(&feed_cfg, store::fetch_manifest_text) {
         Ok(m) => m,
-        Err(_) => return Ok(contrib),
+        Err(_) => return Ok(resolve_offline_or_skip(pack_install_dir, contrib)),
     };
     let entry = manifest.as_ref().and_then(|m| store::find_entry(m, &record.pack_id));
     match provision::ensure_artifact(
@@ -144,9 +143,35 @@ fn prepare_contrib_for_spawn(
                     record.available_version = entry.artifact_version.clone();
                 }
             }
-            Ok(contrib)
+            Ok(Some(contrib))
         }
-        None => Ok(contrib),
+        // 无 entry（feed 未列该 pack）：产物应随 pack 内置；盘上没有则跳过 spawn。
+        None => Ok(resolve_offline_or_skip(pack_install_dir, contrib)),
+    }
+}
+
+/// feed 不可达 / 无 entry 时的兜底：把 `contrib.command` 解析到 sidecar 期望绝对路径，存在则用，
+/// 不存在则 `None`（调用方跳过 spawn）。
+fn resolve_offline_or_skip(
+    pack_install_dir: &Path,
+    mut contrib: SidecarContribution,
+) -> Option<SidecarContribution> {
+    let rel = contrib
+        .working_dir_rel
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or(provision::DEFAULT_SIDECAR_DIR);
+    let name = Path::new(&contrib.command)
+        .file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| contrib.command.clone());
+    let expected = pack_install_dir.join(rel).join(&name);
+    if expected.exists() {
+        contrib.command = expected.to_string_lossy().into_owned();
+        Some(contrib)
+    } else {
+        None
     }
 }
 
@@ -233,7 +258,11 @@ pub async fn managed_dependency_ensure(app: AppHandle, id: String) -> Result<Man
             return Ok(record);
         }
         let (pack_install_dir, contrib) = resolve_pack_sidecar(&record)?;
-        let mut contrib = prepare_contrib_for_spawn(&dir, &mut record, &pack_install_dir, contrib)?;
+        let Some(mut contrib) = prepare_contrib_for_spawn(&dir, &mut record, &pack_install_dir, contrib)? else {
+            // 产物暂不可得（feed 不可达且盘上无产物）：不 spawn，落库后返回（下次启动/检查/手动再试）。
+            registry::save_record(&dir, &record)?;
+            return Ok(record);
+        };
         expand_contrib_env(&mut contrib, &app);
         ensure_record_with(&mut record, &pack_install_dir, &contrib, probe, native_spawn)?;
         registry::save_record(&dir, &record)?;
@@ -402,7 +431,10 @@ pub fn reconcile_managed_on_startup(app_data: &Path, app: &AppHandle) {
         }
         let outcome = (|| -> Result<(), String> {
             let (pack_install_dir, contrib) = resolve_pack_sidecar(&record)?;
-            let mut contrib = prepare_contrib_for_spawn(app_data, &mut record, &pack_install_dir, contrib)?;
+            let Some(mut contrib) = prepare_contrib_for_spawn(app_data, &mut record, &pack_install_dir, contrib)? else {
+                // 产物暂不可得（feed 不可达且盘上无产物）：跳过 spawn，不算错误、不刷日志。
+                return registry::save_record(app_data, &record);
+            };
             expand_contrib_env(&mut contrib, app);
             ensure_record_with(&mut record, &pack_install_dir, &contrib, probe, native_spawn)?;
             registry::save_record(app_data, &record)

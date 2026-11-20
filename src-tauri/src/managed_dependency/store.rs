@@ -155,21 +155,6 @@ pub fn file_name_from_url(url: &str) -> String {
     path.rsplit('/').next().filter(|s| !s.trim().is_empty()).unwrap_or("artifact").to_string()
 }
 
-/// 通用「先查 allow-list（不在则**绝不发起 fetch**）→ fetch → SHA-256 校验」。
-/// 产物下载（`download_and_verify`）与可安装 pack 包下载共用此原语。`fetch` 注入网络/桩。
-/// 无回落 URL 的便捷包装；带回落链时调 [`download_verify_url_with_fallback`]。
-pub fn download_verify_url<F>(
-    url: &str,
-    expected_sha: &str,
-    allow_hosts: &[String],
-    mut fetch: F,
-) -> Result<Vec<u8>, String>
-where
-    F: FnMut(&str) -> Result<Vec<u8>, String>,
-{
-    download_verify_url_with_fallback(url, None, expected_sha, allow_hosts, &mut fetch)
-}
-
 /// 主源优先、失败回落的下载链（ADR 0022 / P2-5：GitHub Release 主源，对象存储镜像回落）。
 /// 规则（安全不变量逐源成立）：
 /// - 主源主机不在 allow-list → **绝不 fetch 主源**，记录原因；
@@ -483,8 +468,9 @@ mod tests {
     #[test]
     fn download_verify_url_disallowed_host_never_fetches() {
         let called = std::cell::Cell::new(false);
-        let err = download_verify_url(
+        let err = download_verify_url_with_fallback(
             "https://evil.tld/p.zip",
+            None,
             "ab",
             &["feed.afm.local".to_string()],
             |_| { called.set(true); Ok(vec![1]) },
