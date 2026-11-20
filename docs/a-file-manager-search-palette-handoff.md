@@ -67,7 +67,7 @@ src-tauri/src/extension_host/            Pack search 贡献聚合 + uiCommands �
   类型标签齐全、异步源过期丢弃、工具动作配置解析与非法回落、Pack 条目过滤。
 - `npm run test:global-search`：Ctrl+Shift+F 焦点链 + Discovery `q` 参数深链。
 - 相关回归：`test:command-panel`、`test:i18n`（1077 keys × 5 locale）、`test:feature-pack-shell`、
-  `test:tool-runtime-pack`、`npm run test:rust`（含 palette 与 extension_host search 测试）。
+  `npm run test:rust`（含 palette 与 extension_host search 测试）。
 
 ## 5. 真机验证清单（`npm run tauri:dev`）
 
