@@ -318,8 +318,8 @@ mod tests {
     #[test]
     fn parent_of_posix_paths() {
         assert_eq!(
-            parent_path("/Users/wangmeng/Docs").unwrap().as_deref(),
-            Some("/Users/wangmeng")
+            parent_path("/Users/demo/Docs").unwrap().as_deref(),
+            Some("/Users/demo")
         );
         assert_eq!(parent_path("/Users").unwrap().as_deref(), Some("/"));
         assert_eq!(parent_path("/").unwrap(), None);

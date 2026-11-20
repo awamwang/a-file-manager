@@ -29,11 +29,11 @@ assert.equal(openStateNative("a:/b"), toNativeFsPath("a:/b"));
 assert.equal(openStateKey("a:/b"), normalizePathKey("a:/b"));
 
 // macOS / POSIX: keep "/" and the leading root instead of rewriting to "\".
-// Regression guard for "Path does not exist: Users\\wangmeng".
-assert.equal(toNativeFsPath("/Users/wangmeng/Docs/"), "/Users/wangmeng/Docs");
+// Regression guard for "Path does not exist: Users\\demo".
+assert.equal(toNativeFsPath("/Users/demo/Docs/"), "/Users/demo/Docs");
 assert.equal(toNativeFsPath("/"), "/");
-assert.equal(normalizePathKey("/Users/Wangmeng/Docs"), "/users/wangmeng/docs");
-assert.equal(openStateNative("/Users/wangmeng"), "/Users/wangmeng");
+assert.equal(normalizePathKey("/Users/Demo/Docs"), "/users/demo/docs");
+assert.equal(openStateNative("/Users/demo"), "/Users/demo");
 
 assert.equal(
   normalizePathKey("awam://Browser/edge/Profile%201"),

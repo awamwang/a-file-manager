@@ -10,19 +10,19 @@ import {
 } from "../src/state/fsPath.ts";
 
 // POSIX absolute paths keep "/" and their leading root (7.14 regression).
-assert.equal(toNativeFsPath("/Users/wangmeng/Docs/"), "/Users/wangmeng/Docs");
+assert.equal(toNativeFsPath("/Users/demo/Docs/"), "/Users/demo/Docs");
 assert.equal(toNativeFsPath("/"), "/");
-assert.equal(toNativeFsPath("  /Users/wangmeng  "), "/Users/wangmeng");
-assert.equal(joinFsPath("/Users/wangmeng", "Downloads"), "/Users/wangmeng/Downloads");
+assert.equal(toNativeFsPath("  /Users/demo  "), "/Users/demo");
+assert.equal(joinFsPath("/Users/demo", "Downloads"), "/Users/demo/Downloads");
 assert.equal(joinFsPath("/", "Users"), "/Users");
-assert.equal(fsPathSeparator("/Users/wangmeng"), "/");
-assert.deepEqual(splitFsPath("/Users/wangmeng/Docs"), {
+assert.equal(fsPathSeparator("/Users/demo"), "/");
+assert.deepEqual(splitFsPath("/Users/demo/Docs"), {
   root: "/",
-  segments: ["Users", "wangmeng", "Docs"],
+  segments: ["Users", "demo", "Docs"],
 });
 
 // `//` is UNC on Windows, not a POSIX root.
-assert.equal(isPosixAbsolute("/Users/wangmeng"), true);
+assert.equal(isPosixAbsolute("/Users/demo"), true);
 assert.equal(isPosixAbsolute("//server/share"), false);
 assert.equal(isPosixAbsolute("C:\\Temp"), false);
 assert.equal(toNativeFsPath("//server/share/folder"), "\\\\server\\share\\folder");

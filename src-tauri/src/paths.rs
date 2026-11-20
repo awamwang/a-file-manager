@@ -54,8 +54,8 @@ mod tests {
     #[test]
     fn posix_and_uri() {
         assert_eq!(
-            to_native_fs_path("/Users/wangmeng/Docs/"),
-            "/Users/wangmeng/Docs"
+            to_native_fs_path("/Users/demo/Docs/"),
+            "/Users/demo/Docs"
         );
         assert_eq!(to_native_fs_path("/"), "/");
         assert_eq!(to_native_fs_path("afm://guide"), "afm://guide");

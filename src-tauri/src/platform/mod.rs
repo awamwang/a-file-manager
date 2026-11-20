@@ -684,7 +684,7 @@ mod tests {
         assert!(has_uri_scheme("afm://guide"));
         assert!(has_uri_scheme("https://example.com/a"));
         assert!(!has_uri_scheme("C:/Users"));
-        assert!(!has_uri_scheme("/Users/wangmeng"));
+        assert!(!has_uri_scheme("/Users/demo"));
     }
 
     #[test]

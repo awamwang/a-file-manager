@@ -124,7 +124,7 @@ export function buildBreadcrumbs(path: string): BreadcrumbCrumb[] {
 
   // POSIX absolute paths (macOS / Linux): keep "/" as the separator and keep
   // the leading root. The Windows splitter below would turn
-  // "/Users/wangmeng" into "Users\wangmeng", and the address bar then hands
+  // "/Users/demo" into "Users\demo", and the address bar then hands
   // that to `navigator_list` as a real path → "Path does not exist".
   // Both the shape test and the segmentation come from the single fsPath layer
   // (7.16), so this branch cannot drift away from the other path producers.

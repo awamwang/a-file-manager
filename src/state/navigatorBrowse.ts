@@ -123,7 +123,7 @@ export function joinListingChildPath(parent: string, name: string): string {
   }
   // 7.16: separator selection lives in fsPath.ts, shared with breadcrumbs /
   // open-state / settings defaults. A hardcoded "\" here produced unopenable
-  // entry paths on macOS ("Path does not exist: Users\\wangmeng\\...").
+  // entry paths on macOS ("Path does not exist: Users\\demo\\...").
   return joinFsPath(native, name);
 }
 

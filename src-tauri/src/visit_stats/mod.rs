@@ -203,7 +203,7 @@ mod tests {
         let (first, second) = if cfg!(windows) {
             (r"C:\Docs", "C:/Docs")
         } else {
-            ("/Users/wangmeng/Docs", "/Users/wangmeng/Docs/")
+            ("/Users/demo/Docs", "/Users/demo/Docs/")
         };
         assert_eq!(record_visit(&mut doc, first, true, 1000).unwrap(), 1);
         assert_eq!(record_visit(&mut doc, second, true, 2000).unwrap(), 2);
@@ -216,12 +216,12 @@ mod tests {
     #[test]
     fn posix_paths_never_become_backslash_keys() {
         assert_eq!(
-            normalize_path("/Users/wangmeng/Docs/"),
-            "/Users/wangmeng/Docs"
+            normalize_path("/Users/demo/Docs/"),
+            "/Users/demo/Docs"
         );
         let mut doc = VisitStatsDocument::default();
-        record_visit(&mut doc, "/Users/wangmeng/Docs/", false, 1000).unwrap();
-        assert_eq!(doc.visits[0].path, "/Users/wangmeng/Docs");
+        record_visit(&mut doc, "/Users/demo/Docs/", false, 1000).unwrap();
+        assert_eq!(doc.visits[0].path, "/Users/demo/Docs");
         assert!(!doc.visits[0].path.contains('\\'));
     }
 

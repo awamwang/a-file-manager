@@ -790,8 +790,8 @@ mod tests {
     fn unix_paths_are_not_rewritten() {
         let p = MacosPlatform;
         assert_eq!(
-            p.to_native_fs_path("/Users/wangmeng/Docs/"),
-            "/Users/wangmeng/Docs"
+            p.to_native_fs_path("/Users/demo/Docs/"),
+            "/Users/demo/Docs"
         );
         assert_eq!(p.to_native_fs_path("/"), "/");
         assert_eq!(p.to_native_fs_path("afm://guide"), "afm://guide");

@@ -11,7 +11,7 @@
  *
  * 7.14 / 7.16: four modules used to hand-roll this decision independently
  * (`navHistory`, `pathKey`, `navigatorBrowse`, `settingsEffectiveDefaults`),
- * which produced real paths like `Users\wangmeng` on macOS. New code MUST
+ * which produced real paths like `Users\demo` on macOS. New code MUST
  * import from here instead of writing `replace(/\//g, "\\")` on its own.
  * Provider URIs (`awam://…`) are an application-level concept and stay in
  * their own modules.

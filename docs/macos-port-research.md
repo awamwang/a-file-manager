@@ -585,17 +585,17 @@
 
 **前提**：本轮反馈发生在 `mac` 分支合并 `origin/master`（`f3979fd`）之后。该 merge 引入任务中心 / 文件操作进度等约 1792 行改动，并把 reveal 的最后一步从 JS `win.show()+setFocus()` 换成宿主命令 `afm_reveal_main_window`（Windows FIL-72）。复核确认：`show_main_window()` 本体是跨平台的（`show` / `unminimize` / `set_focus`），Windows 专属的强制前置激活是 `#[cfg(windows)]`；第 7 轮的 `setTimeout` 兜底 + macOS 跳过 maximize、第 8 轮的 OLE 门控 + `text/uri-list` 拖出**均仍在**。用户能看到界面 → 新的宿主 reveal 路径在 macOS 上也可用。
 
-**反馈 1（已修）：`Path does not exist: Users\wangmeng`**
+**反馈 1（已修）：`Path does not exist: Users\demo`**
 
 根因不在 Rust（7.10 已把 `paths.rs` / platform adapter 平台化，macOS 的 `to_native_fs_path` 不改写分隔符），而在**前端仍有一批 Windows 假设的路径工具**，且它们的输出会被当成真实路径交给 `navigator_list`：
 
 | 位置 | 坏行为 | 影响 |
 |---|---|---|
-| `src/state/navHistory.ts` `buildBreadcrumbs` | `trimmed.replace(/\//g, "\\")` 后按 `\` 分段并丢掉前导根 → `/Users/wangmeng` 变 `Users\wangmeng` | 地址栏面包屑、`navigableParentPath()`（上一级）把它当真实路径 |
-| `src/state/pathKey.ts` `toNativeFsPath` | 无条件 `/`→`\` → `/Users/wangmeng` 变 `\Users\wangmeng` | `openState/model.ts`、`tabPins.ts`、`navigatorBrowse.ts` 都用它生成真实路径 |
+| `src/state/navHistory.ts` `buildBreadcrumbs` | `trimmed.replace(/\//g, "\\")` 后按 `\` 分段并丢掉前导根 → `/Users/demo` 变 `Users\demo` | 地址栏面包屑、`navigableParentPath()`（上一级）把它当真实路径 |
+| `src/state/pathKey.ts` `toNativeFsPath` | 无条件 `/`→`\` → `/Users/demo` 变 `\Users\demo` | `openState/model.ts`、`tabPins.ts`、`navigatorBrowse.ts` 都用它生成真实路径 |
 | `src/state/navigatorBrowse.ts` `joinListingChildPath` | 硬编码 `` `${native}\\${name}` `` 拼子项 | 文件列表里每个条目的 `path` 在 macOS 都是反斜杠路径 |
 
-**修复（按输入形态分流，不改 Windows 行为）**：三处都新增「POSIX 绝对路径」分支——以**单个** `/` 开头且不是 `//`（UNC）时保留 `/` 与前导根、按 `/` 分段/拼接；Windows 盘符与 UNC 路径不会出现这种形态，因此原分支与其静态断言全部保持不变。补回归断言到 `scripts/nav-history-checks.ts`（`/Users/wangmeng/Docs` 面包屑、上一级）与 `scripts/path-key-checks.ts`（`toNativeFsPath` / `normalizePathKey` / openState 转出）。
+**修复（按输入形态分流，不改 Windows 行为）**：三处都新增「POSIX 绝对路径」分支——以**单个** `/` 开头且不是 `//`（UNC）时保留 `/` 与前导根、按 `/` 分段/拼接；Windows 盘符与 UNC 路径不会出现这种形态，因此原分支与其静态断言全部保持不变。补回归断言到 `scripts/nav-history-checks.ts`（`/Users/demo/Docs` 面包屑、上一级）与 `scripts/path-key-checks.ts`（`toNativeFsPath` / `normalizePathKey` / openState 转出）。
 
 **验证**：`test:nav-history` ✓ · `test:path-key` ✓ · `test:open-state` ✓ · `npm run build` ✓（27–29s，仅既有 chunk 提示）。
 
@@ -649,7 +649,7 @@
 
 ### 7.16 架构收口（第 11 轮）：把第 7~10 轮的旁路压回适配层
 
-**触发**：用户实机截图（交通灯单栏、无双层标题栏，地址栏 `/Users/wangmeng/Downloads` 已是 POSIX 路径）+「收口」。上一轮审计结论：适配层骨架符合 6.1 设计，但 7~10 轮的修复全在业务模块就地打平台分支。
+**触发**：用户实机截图（交通灯单栏、无双层标题栏，地址栏 `/Users/demo/Downloads` 已是 POSIX 路径）+「收口」。上一轮审计结论：适配层骨架符合 6.1 设计，但 7~10 轮的修复全在业务模块就地打平台分支。
 
 **改动前基线**：Rust 端 210 处平台 `#[cfg]` 分布在 36 个文件；`Platform` trait 仅 8 个方法、`PlatformCapabilities` 24 个静态 bool 且前端只消费 3–4 个；前端 `navHistory.ts` / `pathKey.ts` / `navigatorBrowse.ts` / `settingsEffectiveDefaults.ts` 四份各自实现 POSIX/Windows 判定；`macos.rs` 仍声明 `native_drag_out = true`，而 7.13 已禁用 AppKit 拖出改走 WebView `text/uri-list` —— 能力层不再是单一事实源。
 

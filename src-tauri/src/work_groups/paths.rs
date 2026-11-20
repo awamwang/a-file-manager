@@ -52,16 +52,16 @@ mod tests {
     #[test]
     fn unique_and_exact_match_use_posix_paths() {
         let paths = vec![
-            "/Users/wangmeng/Projects".to_string(),
-            "/Users/wangmeng/Projects/".to_string(),
-            "/Users/wangmeng/Other".to_string(),
+            "/Users/demo/Projects".to_string(),
+            "/Users/demo/Projects/".to_string(),
+            "/Users/demo/Other".to_string(),
         ];
         let unique = unique_member_paths(&paths);
         assert_eq!(unique.len(), 2);
-        assert_eq!(unique[0], "/Users/wangmeng/Projects");
-        assert_eq!(unique[1], "/Users/wangmeng/Other");
-        assert!(is_exact_member_path("/Users/wangmeng/Projects/", &unique));
-        assert!(!is_exact_member_path("/users/wangmeng/projects", &unique));
+        assert_eq!(unique[0], "/Users/demo/Projects");
+        assert_eq!(unique[1], "/Users/demo/Other");
+        assert!(is_exact_member_path("/Users/demo/Projects/", &unique));
+        assert!(!is_exact_member_path("/users/demo/projects", &unique));
     }
 
     #[test]

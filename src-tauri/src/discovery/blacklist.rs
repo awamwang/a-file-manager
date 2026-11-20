@@ -92,17 +92,17 @@ mod tests {
     #[cfg(not(windows))]
     #[test]
     fn posix_blacklist_stays_posix_and_matches_on_boundary() {
-        let list = sanitize_blacklist(&["/Users/wangmeng/Library".into()]);
-        assert_eq!(list, vec!["/Users/wangmeng/Library".to_string()]);
+        let list = sanitize_blacklist(&["/Users/demo/Library".into()]);
+        assert_eq!(list, vec!["/Users/demo/Library".to_string()]);
         assert!(path_is_blacklisted(
-            "/Users/wangmeng/Library/Caches/a.txt",
+            "/Users/demo/Library/Caches/a.txt",
             &list
         ));
         assert!(!path_is_blacklisted(
-            "/Users/wangmeng/LibraryOther/a.txt",
+            "/Users/demo/LibraryOther/a.txt",
             &list
         ));
-        assert!(!path_is_blacklisted("/Users/wangmeng/Documents", &list));
+        assert!(!path_is_blacklisted("/Users/demo/Documents", &list));
     }
 
     #[test]

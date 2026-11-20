@@ -55,7 +55,7 @@ assert.equal(
 assert.equal(
   specialEntryIcon({
     name: "smart-review",
-    path: "C:\\Users\\Administrator\\.cursor\\skills\\smart-review",
+    path: "C:\\Users\\Demo\\.cursor\\skills\\smart-review",
     kind: "dir",
     isLink: true,
   }),

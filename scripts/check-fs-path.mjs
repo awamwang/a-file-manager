@@ -2,7 +2,7 @@
 /**
  * 7.16 architecture gate: all frontend producers of *real filesystem paths*
  * must delegate shape detection / normalization / joining to fsPath.ts.
- * A fifth local copy is what produced "Path does not exist: Users\wangmeng".
+ * A fifth local copy is what produced "Path does not exist: Users\demo".
  */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";

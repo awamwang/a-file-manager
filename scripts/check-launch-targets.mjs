@@ -113,7 +113,7 @@ assert.ok(ide.includes("platform::configured_launch_target"));
 assert.ok(ide.includes("core.openTool.{id}.enabled"), "settings keys must not drift");
 
 // 6. Real-path producers delegate to crate::paths — one remaining local
-//    rewrite is exactly the bug that produced "Users\\wangmeng".
+//    rewrite is exactly the bug that produced "Users\\demo".
 const realPathConsumers = [
   "src-tauri/src/ai/mcp.rs",
   "src-tauri/src/ai/mod.rs",
