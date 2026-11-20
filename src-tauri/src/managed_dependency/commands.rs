@@ -540,6 +540,14 @@ pub fn reconcile_managed_on_startup(app_data: &Path, app: &AppHandle) {
         if record.mode != DependencyMode::Managed {
             continue;
         }
+        // 已安装但被用户禁用的 pack：静默跳过，不作为错误刷启动日志（与下文「产物暂不可得」
+        // 同属良性跳过）。绝不自动拉起被禁用 pack 的 sidecar；若记录存在但 pack 未安装，则不在此列，
+        // 仍进入 ensure 报「not installed」——那是需要暴露的真不一致。
+        if let Some(pack) = find_pack_by_id(&record.pack_id) {
+            if pack.state != crate::extension_host::types::ExtensionRuntimeState::Enabled {
+                continue;
+            }
+        }
         let outcome = (|| -> Result<(), String> {
             let (pack_install_dir, contrib) = resolve_pack_sidecar(&record)?;
             let Some(mut contrib) =

@@ -36,7 +36,7 @@ pub use registry::{
 };
 #[allow(unused_imports)]
 pub use store::{
-    download_and_verify, download_verify_url_with_fallback, find_entry, find_entry_for_platform,
+    download_and_verify, download_verify_url_with_fallback, find_entry_for_platform,
     is_host_allowed, materialize, parse_manifest, verify_sha256, PackEntry, StoreEntry,
     StoreManifest,
 };

@@ -113,6 +113,11 @@ pub fn parse_manifest(json: &str) -> Result<StoreManifest, String> {
 /// 仅用于不关心产物的调用点（如已有记录的版本比对）与旧式单平台 feed。
 /// 真正要下载/落盘/拉起产物时请用 [`find_entry_for_platform`]，否则 macOS
 /// 可能选中 feed 里的 Windows `.exe`。
+///
+/// 生产路径一律走 [`find_entry_for_platform`]（门禁 `check-platform-adaptation.mjs`
+/// 禁止 `commands.rs` 直接调用本函数）；本函数仅供不区分平台的单测与旧式 feed 比对使用，
+/// 故限定为 `#[cfg(test)]`。
+#[cfg(test)]
 pub fn find_entry<'a>(manifest: &'a StoreManifest, pack_id: &str) -> Option<&'a StoreEntry> {
     manifest.entries.iter().find(|e| e.pack_id == pack_id)
 }
@@ -123,7 +128,7 @@ pub fn find_entry<'a>(manifest: &'a StoreManifest, pack_id: &str) -> Option<&'a 
 /// - feed 里该 pack 存在任何带 `platform` 的条目时，视为「多平台 feed」，
 ///   必须精确匹配 `platform_key`，匹配不到返回 `None`（绝不回退到 Windows 产物）；
 /// - feed 里该 pack 全部条目都无 `platform` 时，视为旧式单平台 feed，
-///   退回第一条以兼容历史 feed（行为与 [`find_entry`] 一致）。
+///   退回第一条以兼容历史 feed（行为与 `find_entry` 一致）。
 ///
 /// `platform_key` 来自 [`crate::platform::artifact_platform_key`]，本函数保持纯函数
 /// 以便单测 distinct hosts 不会互相串台。
