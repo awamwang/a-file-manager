@@ -19,8 +19,11 @@
       "portEnv": "KM_SERVICE_PORT",
       "env": {
         "KM_SERVICE_HOST": "127.0.0.1",
+        "KM_SERVICE_PORT": "18790",
         "KM_SERVICE_LOG": "0",
-        "KM_SERVICE_TOKEN": "${afm:settings:power.awamKnowledgeServiceToken}"
+        "KM_SERVICE_TOKEN": "${afm:settings:power.awamKnowledgeServiceToken}",
+        "KM_DATA_ROOT": "${afm:settings:power.awamKnowledgeDataRoot}",
+        "KM_SOURCE_ID": "${afm:settings:power.awamKnowledgeSourceId}"
       }
     }],
     "search": []

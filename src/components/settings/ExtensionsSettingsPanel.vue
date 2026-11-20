@@ -23,6 +23,8 @@ const { t } = useI18n();
 const GATEWAY_URL_KEY = "power.awamGatewayUrl";
 const KNOWLEDGE_URL_KEY = "power.awamKnowledgeServiceUrl";
 const KNOWLEDGE_TOKEN_KEY = "power.awamKnowledgeServiceToken";
+const KNOWLEDGE_DATA_ROOT_KEY = "power.awamKnowledgeDataRoot";
+const KNOWLEDGE_SOURCE_ID_KEY = "power.awamKnowledgeSourceId";
 const DEFAULT_GATEWAY_URL = "http://127.0.0.1:18787";
 const DEFAULT_KNOWLEDGE_URL = "http://127.0.0.1:18790";
 // 托管记录 id = pack id（register_for_enabled_pack 约定）。
@@ -35,11 +37,15 @@ type KnowledgeStatus = {
   baseUrl: string;
   detail: string | null;
   vaultConfigured: boolean;
+  indexConfigured: boolean;
+  indexRoot: string | null;
 };
 
 const gatewayUrl = ref(DEFAULT_GATEWAY_URL);
 const knowledgeUrl = ref(DEFAULT_KNOWLEDGE_URL);
 const knowledgeToken = ref("");
+const knowledgeDataRoot = ref("");
+const knowledgeSourceId = ref("");
 const saving = ref(false);
 
 const managedModes = ref<Record<string, string>>({});
@@ -52,10 +58,13 @@ const knowledgeStatusText = computed(() => {
   const s = knowledgeStatus.value;
   if (!s) return "";
   if (!s.online) return t("settings.search.knowledgeStatusOffline");
+  if (!s.indexConfigured) return t("settings.extensions.indexUnconfigured");
   return s.vaultConfigured
     ? t("settings.search.knowledgeStatusOnlineVault")
     : t("settings.search.knowledgeStatusOnlineNoVault");
 });
+
+const knowledgeIndexRoot = computed(() => knowledgeStatus.value?.indexRoot ?? "");
 
 function normalizeUrl(raw: string, fallback: string): string {
   const trimmed = raw.trim().replace(/\/+$/, "");
@@ -71,6 +80,10 @@ async function load() {
     if (typeof ku === "string" && ku.trim()) knowledgeUrl.value = ku.trim().replace(/\/+$/, "");
     const kt = doc.values[KNOWLEDGE_TOKEN_KEY];
     if (typeof kt === "string") knowledgeToken.value = kt;
+    const dr = doc.values[KNOWLEDGE_DATA_ROOT_KEY];
+    if (typeof dr === "string") knowledgeDataRoot.value = dr;
+    const sid = doc.values[KNOWLEDGE_SOURCE_ID_KEY];
+    if (typeof sid === "string") knowledgeSourceId.value = sid;
   } catch {
     /* 读取失败保留默认草稿 */
   }
@@ -100,6 +113,8 @@ async function save() {
       [GATEWAY_URL_KEY]: normalizeUrl(gatewayUrl.value, DEFAULT_GATEWAY_URL),
       [KNOWLEDGE_URL_KEY]: normalizeUrl(knowledgeUrl.value, DEFAULT_KNOWLEDGE_URL),
       [KNOWLEDGE_TOKEN_KEY]: knowledgeToken.value.trim(),
+      [KNOWLEDGE_DATA_ROOT_KEY]: knowledgeDataRoot.value.trim(),
+      [KNOWLEDGE_SOURCE_ID_KEY]: knowledgeSourceId.value.trim(),
     };
     const doc = await invoke<SettingsDocument>("settings_set", { patch });
     rememberSettingsDocument(doc);
@@ -147,6 +162,7 @@ onMounted(() => {
       />
       <p v-if="knowledgeManaged" class="field-hint">{{ t("settings.extensions.managedReadonly") }}</p>
       <p v-if="knowledgeStatusText" class="field-status">{{ knowledgeStatusText }}</p>
+      <p v-if="knowledgeIndexRoot" class="field-hint">{{ knowledgeIndexRoot }}</p>
     </div>
 
     <div class="field">
@@ -157,6 +173,30 @@ onMounted(() => {
         class="fluent-field"
         type="text"
         spellcheck="false"
+      />
+    </div>
+
+    <div class="field">
+      <label class="field-label">{{ t("settings.fields.power.awamKnowledgeDataRoot.title") }}</label>
+      <p class="field-desc">{{ t("settings.fields.power.awamKnowledgeDataRoot.description") }}</p>
+      <input
+        v-model="knowledgeDataRoot"
+        class="fluent-field"
+        type="text"
+        spellcheck="false"
+        :placeholder="t('settings.extensions.dataRootPlaceholder')"
+      />
+    </div>
+
+    <div class="field">
+      <label class="field-label">{{ t("settings.fields.power.awamKnowledgeSourceId.title") }}</label>
+      <p class="field-desc">{{ t("settings.fields.power.awamKnowledgeSourceId.description") }}</p>
+      <input
+        v-model="knowledgeSourceId"
+        class="fluent-field"
+        type="text"
+        spellcheck="false"
+        :placeholder="t('settings.extensions.sourceIdPlaceholder')"
       />
     </div>
 

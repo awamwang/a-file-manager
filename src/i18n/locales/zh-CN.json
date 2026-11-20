@@ -628,6 +628,9 @@
       "title": "托管后端服务",
       "meta": "AFM 托管后端服务的连接配置（awam-file 网关、awam-knowledge）。对应 pack 以托管模式启用时地址只读（由 AFM 派生）；config 模式可编辑。知识令牌是 AFM 鉴权并注入被拉起服务的共享密钥。",
       "managedReadonly": "由已启用的托管 pack 管理——地址固定且只读。",
+      "indexUnconfigured": "已连接，但未配置知识库——请在下方设置数据根，或用知识服务自身的 settings.yaml。",
+      "dataRootPlaceholder": "例如 C:\\Users\\你\\Knowledge\\data",
+      "sourceIdPlaceholder": "例如 logseq-main",
       "save": "保存配置",
       "saved": "后端服务设置已保存"
     },
@@ -844,6 +847,14 @@
         "awamKnowledgeServiceToken": {
           "title": "awam-knowledge 服务令牌",
           "description": "知识服务的 Bearer token（KM_SERVICE_TOKEN）；留空则不带鉴权调用。"
+        },
+        "awamKnowledgeDataRoot": {
+          "title": "知识库数据根",
+          "description": "脱敏知识工作副本根目录的绝对路径（KM_DATA_ROOT）。AFM 会注入到托管的 awam-knowledge 服务。留空=用服务自身的 settings.yaml。服务重启后生效。"
+        },
+        "awamKnowledgeSourceId": {
+          "title": "知识库源 id",
+          "description": "数据根下要索引的源目录（KM_SOURCE_ID）；索引根 = <数据根>/<源 id>。留空=服务默认。"
         },
         "voiceSearchAutoStart": {
           "title": "语音搜索",

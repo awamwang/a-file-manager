@@ -628,6 +628,9 @@
       "title": "Managed backend services",
       "meta": "Connection settings for the AFM-managed backend services (awam-file gateway, awam-knowledge). When the corresponding pack is enabled in managed mode, the address is read-only (derived by AFM); in config mode you may edit it. The knowledge token is the shared secret AFM uses to authenticate and to seed the spawned service.",
       "managedReadonly": "Managed by an enabled pack — address is fixed and read-only.",
+      "indexUnconfigured": "Connected, but no knowledge base is configured — set the data root below or via the knowledge service's settings.yaml.",
+      "dataRootPlaceholder": "e.g. C:\\Users\\you\\Knowledge\\data",
+      "sourceIdPlaceholder": "e.g. logseq-main",
       "save": "Save configuration",
       "saved": "Backend service settings saved"
     },
@@ -844,6 +847,14 @@
         "awamKnowledgeServiceToken": {
           "title": "awam-knowledge service token",
           "description": "Bearer token for the knowledge service (KM_SERVICE_TOKEN); empty sends unauthenticated calls."
+        },
+        "awamKnowledgeDataRoot": {
+          "title": "Knowledge data root",
+          "description": "Absolute path to the sanitized knowledge working-copy root (KM_DATA_ROOT). AFM injects it into the managed awam-knowledge service. Empty = use the service's own settings.yaml. Takes effect after the service restarts."
+        },
+        "awamKnowledgeSourceId": {
+          "title": "Knowledge source id",
+          "description": "Source folder under the data root to index (KM_SOURCE_ID); index root = <data root>/<source id>. Empty = service default."
         },
         "voiceSearchAutoStart": {
           "title": "Voice search",

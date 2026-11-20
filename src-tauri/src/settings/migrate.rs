@@ -214,6 +214,16 @@ fn migrate_step(
             );
             Ok(())
         }
+        (13, 14) => {
+            for (key, value) in default_document().values {
+                values.entry(key).or_insert(value);
+            }
+            notes.push(
+                "Added power.awamKnowledgeDataRoot + power.awamKnowledgeSourceId (schema v14)"
+                    .to_string(),
+            );
+            Ok(())
+        }
         _ => Err(format!("No migration path from {from} → {to}")),
     }
 }

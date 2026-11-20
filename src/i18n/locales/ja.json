@@ -1112,6 +1112,14 @@
           "title": "awam-knowledge サービストークン",
           "description": "ナレッジサービスの Bearer トークン（KM_SERVICE_TOKEN）。空の場合は認証なしで呼び出します。"
         },
+        "awamKnowledgeDataRoot": {
+          "title": "ナレッジデータルート",
+          "description": "匿名化されたナレッジ作業コピーのルート絶対パス（KM_DATA_ROOT）。AFM が管理された awam-knowledge サービスに注入します。空 = サービス自身の settings.yaml を使用。サービス再起動後に反映。"
+        },
+        "awamKnowledgeSourceId": {
+          "title": "ナレッジソース ID",
+          "description": "データルート配下でインデックス対象のソース（KM_SOURCE_ID）。インデックスルート = <データルート>/<ソース ID>。空 = サービス既定。"
+        },
         "voiceSearchAutoStart": {
           "title": "音声検索",
           "description": "検索パレットを開いたときに自動で録音を開始し、認識テキストを検索語に追記します"
@@ -1145,6 +1153,9 @@
       "title": "管理されたバックエンドサービス",
       "meta": "AFM 管理バックエンド（awam-file ゲートウェイ、awam-knowledge）の接続設定。対応パックを管理モードで有効化するとアドレスは読み取り専用（AFM が導出）。config モードでは編集可。knowledge トークンは AFM の認証と起動サービスへの注入に使う共有秘密です。",
       "managedReadonly": "有効化された管理パックが制御 — アドレスは固定で読み取り専用。",
+      "indexUnconfigured": "接続済みですがナレッジベース未設定 — 下のデータルートを設定するか、サービス自身の settings.yaml を使ってください。",
+      "dataRootPlaceholder": "例: C:\\Users\\you\\Knowledge\\data",
+      "sourceIdPlaceholder": "例: logseq-main",
       "save": "設定を保存",
       "saved": "バックエンド設定を保存しました"
     },

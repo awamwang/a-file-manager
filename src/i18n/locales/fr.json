@@ -1112,6 +1112,14 @@
           "title": "Jeton du service awam-knowledge",
           "description": "Jeton Bearer du service connaissances (KM_SERVICE_TOKEN) ; vide = appels sans authentification."
         },
+        "awamKnowledgeDataRoot": {
+          "title": "Racine de données connaissances",
+          "description": "Chemin absolu de la racine de la copie de travail anonymisée (KM_DATA_ROOT). AFM l'injecte dans le service awam-knowledge géré. Vide = utiliser le settings.yaml du service. Effectif après redémarrage du service."
+        },
+        "awamKnowledgeSourceId": {
+          "title": "ID de source connaissances",
+          "description": "Source à indexer sous la racine de données (KM_SOURCE_ID) ; racine d'index = <racine>/<id source>. Vide = valeur par défaut du service."
+        },
         "voiceSearchAutoStart": {
           "title": "Recherche vocale",
           "description": "Démarrer automatiquement la capture à l'ouverture de la palette ; le texte reconnu est ajouté à la requête"
@@ -1145,6 +1153,9 @@
       "title": "Services backend gérés",
       "meta": "Paramètres de connexion des backends gérés par AFM (passerelle awam-file, awam-knowledge). Quand le pack correspondant est activé en mode géré, l'adresse est en lecture seule (dérivée par AFM) ; en mode config, elle est modifiable. Le jeton knowledge est le secret partagé qu'AFM utilise pour s'authentifier et alimenter le service lancé.",
       "managedReadonly": "Géré par un pack activé — adresse fixe et en lecture seule.",
+      "indexUnconfigured": "Connecté, mais aucune base de connaissances configurée — définissez la racine de données ci-dessous ou via le settings.yaml du service.",
+      "dataRootPlaceholder": "ex. C:\\Users\\vous\\Knowledge\\data",
+      "sourceIdPlaceholder": "ex. logseq-main",
       "save": "Enregistrer la configuration",
       "saved": "Paramètres des services backend enregistrés"
     },

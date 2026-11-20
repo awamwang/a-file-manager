@@ -258,6 +258,10 @@ pub struct KnowledgeServiceStatus {
     pub base_url: String,
     pub detail: Option<String>,
     pub vault_configured: bool,
+    /// /health 报告的索引根是否已配置（有可检索语料）。
+    pub index_configured: bool,
+    /// 解析出的索引根绝对路径（未配置为 None）。
+    pub index_root: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -382,12 +386,24 @@ pub fn knowledge_service_status() -> KnowledgeServiceStatus {
                 .and_then(|v| v.get("configured"))
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false),
+            index_configured: value
+                .get("index")
+                .and_then(|v| v.get("configured"))
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
+            index_root: value
+                .get("index")
+                .and_then(|v| v.get("root"))
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
         },
         Err(detail) => KnowledgeServiceStatus {
             online: false,
             base_url: base_url(),
             detail: Some(detail),
             vault_configured: false,
+            index_configured: false,
+            index_root: None,
         },
     }
 }

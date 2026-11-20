@@ -25,9 +25,12 @@ export const SETTINGS_UI_HIDDEN_KEYS = [
   "core.everythingPreferred",
   // Providers 页已有网关地址编辑，避免双入口。
   "power.awamGatewayUrl",
-  // ADR 0016：知识服务地址/令牌编辑入口在设置 → 搜索板块（SearchSettingsPanel）。
+  // ADR 0016：知识服务地址/令牌编辑入口在设置 → 扩展能力（ExtensionsSettingsPanel）。
   "power.awamKnowledgeServiceUrl",
   "power.awamKnowledgeServiceToken",
+  // 知识库工作副本路径/源 id：编辑入口在设置 → 扩展能力。
+  "power.awamKnowledgeDataRoot",
+  "power.awamKnowledgeSourceId",
   // ADR 0018：语音输入四键的编辑入口在设置 → 搜索板块（SearchSettingsPanel）。
   "power.voiceSearchAutoStart",
   "power.sttBaseUrl",
@@ -78,9 +81,11 @@ const KEY_GROUP: Record<string, SettingsUiGroupId> = {
   "power.confirmBeforeDelete": "safety",
   "power.perPathOverridesEnabled": "advanced",
   "power.providerPreloadKnowledge": "advanced",
-  // ADR 0016：知识服务地址/令牌在设置 → 搜索板块渲染；分组仅供排序/诊断。
+  // ADR 0016：知识服务地址/令牌在设置 → 扩展能力渲染；分组仅供排序/诊断。
   "power.awamKnowledgeServiceUrl": "advanced",
   "power.awamKnowledgeServiceToken": "advanced",
+  "power.awamKnowledgeDataRoot": "advanced",
+  "power.awamKnowledgeSourceId": "advanced",
   // ADR 0018：语音输入在设置 → 搜索板块渲染；分组仅供排序/诊断。
   "power.voiceSearchAutoStart": "advanced",
   "power.sttBaseUrl": "advanced",

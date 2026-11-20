@@ -1112,6 +1112,14 @@
           "title": "awam-knowledge-Dienst-Token",
           "description": "Bearer-Token des Wissensdienstes (KM_SERVICE_TOKEN); leer = Aufrufe ohne Authentifizierung."
         },
+        "awamKnowledgeDataRoot": {
+          "title": "Wissens-Datenstamm",
+          "description": "Absoluter Pfad zum anonymisierten Arbeitskopie-Stamm (KM_DATA_ROOT). AFM injiziert ihn in den verwalteten awam-knowledge-Dienst. Leer = eigene settings.yaml des Dienstes. Wirkt nach Dienstneustart."
+        },
+        "awamKnowledgeSourceId": {
+          "title": "Wissens-Quell-ID",
+          "description": "Unter dem Datenstamm zu indexierende Quelle (KM_SOURCE_ID); Indexstamm = <Datenstamm>/<Quell-ID>. Leer = Dienststandard."
+        },
         "voiceSearchAutoStart": {
           "title": "Sprachsuche",
           "description": "Beim Öffnen der Suchpalette automatisch Aufnahme starten; erkannter Text wird an die Suchanfrage angehängt"
@@ -1145,6 +1153,9 @@
       "title": "Verwaltte Backend-Dienste",
       "meta": "Verbindungseinstellungen der AFM-verwalteten Backends (awam-file-Gateway, awam-knowledge). Ist das zugehörige Paket im verwalteten Modus aktiviert, ist die Adresse schreibgeschützt (von AFM abgeleitet); im Konfigurationsmodus editierbar. Das Knowledge-Token ist das gemeinsame Geheimnis, mit dem AFM sich authentifiziert und den gestarteten Dienst versieht.",
       "managedReadonly": "Wird von einem aktivierten verwalteten Paket gesteuert — Adresse fest und schreibgeschützt.",
+      "indexUnconfigured": "Verbunden, aber keine Wissensbasis konfiguriert — setzen Sie unten den Datenstamm oder nutzen Sie die settings.yaml des Dienstes.",
+      "dataRootPlaceholder": "z. B. C:\\Users\\you\\Knowledge\\data",
+      "sourceIdPlaceholder": "z. B. logseq-main",
       "save": "Konfiguration speichern",
       "saved": "Backend-Einstellungen gespeichert"
     },
