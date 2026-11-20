@@ -1,6 +1,6 @@
 [package]
 name = "a-file-manager"
-version = "0.3.0"
+version = "0.4.0"
 description = "A File Manager — Windows-first file manager (Tauri 2 + Vue 3)"
 authors = ["Awam"]
 license = "GPL-3.0-or-later"
