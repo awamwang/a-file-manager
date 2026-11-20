@@ -47,6 +47,8 @@ const routes: RouteRecordRaw[] = [
     name: "extensions",
     component: () => import("../views/ExtensionsView.vue"),
   },
+  // overview 即 /extensions 基路径；补重定向，避免无 catch-all 时直接访问 /extensions/overview 空白。
+  { path: "/extensions/overview", redirect: "/extensions" },
   {
     path: "/extensions/installed",
     name: "extensions-installed",
