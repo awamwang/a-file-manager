@@ -63,7 +63,6 @@ import {
 import {
   activeWorkGroupId,
   bootstrapNavigatorOpenState,
-  closeAllNavigatorTabs,
   closeNavigatorTab,
   closeNavigatorTabsToRight,
   closeOtherNavigatorTabs,
@@ -1588,8 +1587,12 @@ async function onTabPointerUp(event: PointerEvent) {
   }
 }
 
-async function onTabClick(groupIndex: number) {
+async function onTabClick(event: MouseEvent, groupIndex: number) {
   if (tabDragMoved.value) return;
+  if (event.altKey) {
+    await duplicateNavigatorTab(groupIndex);
+    return;
+  }
   await onSwitchNavigatorTab(groupIndex);
 }
 
@@ -1756,8 +1759,8 @@ function onTabContextMenu(event: MouseEvent, groupIndex: number) {
   if (!Number.isInteger(groupIndex) || groupIndex < 0) return;
   tabContextGroupIndex.value = groupIndex;
   const menuWidth = Math.min(220, window.innerWidth * 0.7);
-  // 7 项（复制 / 在第二窗口打开 / 发送到工作组 / 关闭 ×4）留出完整的点击高度。
-  const menuHeight = 292;
+  // 6 项（关闭 / 关闭其他 / 关闭右侧 / 复制 + 分隔线 + 在第二窗格打开 / 发送到工作组）。
+  const menuHeight = 268;
   let left = event.clientX;
   if (left + menuWidth > window.innerWidth - 8) {
     left = Math.max(8, window.innerWidth - menuWidth - 8);
@@ -1774,16 +1777,19 @@ function onTabContextMenu(event: MouseEvent, groupIndex: number) {
   };
 }
 
-async function onDuplicateTabFromContext() {
-  const idx = tabContextGroupIndex.value;
-  const path =
-    idx != null
-      ? stripTabs.value.find((item) => item.groupIndex === idx)?.path?.trim()
-      : "";
-  closeTabContextMenu();
+/** 复制指定标签页：在其路径上新开一个标签页（右键菜单与 Alt+单击共用）。 */
+async function duplicateNavigatorTab(groupIndex: number) {
+  const path = stripTabs.value.find((item) => item.groupIndex === groupIndex)?.path?.trim();
   if (!path) return;
   await ensureNavigatorRoute();
   await newNavigatorTab(path);
+}
+
+async function onDuplicateTabFromContext() {
+  const idx = tabContextGroupIndex.value;
+  closeTabContextMenu();
+  if (idx == null) return;
+  await duplicateNavigatorTab(idx);
 }
 
 /** FIL-74: 标签右键 → 在第二窗口（双栏副栏）打开该标签的目录。 */
@@ -1821,12 +1827,6 @@ async function onCloseRightTabsFromContext() {
   if (idx == null) return;
   await ensureNavigatorRoute();
   await closeNavigatorTabsToRight(idx);
-}
-
-async function onCloseAllTabsFromContext() {
-  closeTabContextMenu();
-  await ensureNavigatorRoute();
-  await closeAllNavigatorTabs();
 }
 
 async function onCloseNavigatorTab(event: Event, groupIndex: number) {
@@ -2129,7 +2129,7 @@ onUnmounted(() => {
             :data-entry-path="tab.path"
             :aria-selected="liveOpenState.currentTabGroupIndex === tab.groupIndex"
             :title="tab.path"
-            @click="onTabClick(tab.groupIndex)"
+            @click="onTabClick($event, tab.groupIndex)"
             @dblclick.stop="onToggleTabPin(tab.id)"
             @contextmenu="onTabContextMenu($event, tab.groupIndex)"
             @pointerdown="onTabPointerDown($event, tab.groupIndex)"
@@ -2648,11 +2648,38 @@ onUnmounted(() => {
               type="button"
               class="tab-context-item"
               role="menuitem"
+              @click="onCloseTabFromContext"
+            >
+              {{ t("chrome.tabClose") }}
+            </button>
+            <button
+              type="button"
+              class="tab-context-item"
+              role="menuitem"
+              :disabled="!tabContextCanCloseOthers"
+              @click="onCloseOtherTabsFromContext"
+            >
+              {{ t("chrome.closeOtherTabs") }}
+            </button>
+            <button
+              type="button"
+              class="tab-context-item"
+              role="menuitem"
+              :disabled="!tabContextCanCloseRight"
+              @click="onCloseRightTabsFromContext"
+            >
+              {{ t("chrome.closeRightTabs") }}
+            </button>
+            <button
+              type="button"
+              class="tab-context-item"
+              role="menuitem"
               :disabled="!tabContextHasPath"
               @click="onDuplicateTabFromContext"
             >
               {{ t("chrome.duplicateTab") }}
             </button>
+            <div class="tab-context-sep" role="separator" />
             <button
               type="button"
               class="tab-context-item"
@@ -2683,40 +2710,6 @@ onUnmounted(() => {
                 <span class="tab-context-chevron" aria-hidden="true">›</span>
               </button>
             </div>
-            <button
-              type="button"
-              class="tab-context-item"
-              role="menuitem"
-              @click="onCloseTabFromContext"
-            >
-              {{ t("chrome.tabClose") }}
-            </button>
-            <button
-              type="button"
-              class="tab-context-item"
-              role="menuitem"
-              :disabled="!tabContextCanCloseOthers"
-              @click="onCloseOtherTabsFromContext"
-            >
-              {{ t("chrome.closeOtherTabs") }}
-            </button>
-            <button
-              type="button"
-              class="tab-context-item"
-              role="menuitem"
-              :disabled="!tabContextCanCloseRight"
-              @click="onCloseRightTabsFromContext"
-            >
-              {{ t("chrome.closeRightTabs") }}
-            </button>
-            <button
-              type="button"
-              class="tab-context-item"
-              role="menuitem"
-              @click="onCloseAllTabsFromContext"
-            >
-              {{ t("chrome.closeAllTabs") }}
-            </button>
           </div>
         </Teleport>
         <Teleport to="body">
@@ -3671,6 +3664,12 @@ onUnmounted(() => {
 .tab-context-menu.tab-context-sub {
   min-width: 12rem;
   z-index: 1201;
+}
+
+.tab-context-sep {
+  height: 1px;
+  margin: var(--fluent-space-xs) var(--fluent-space-sm);
+  background: var(--fluent-color-stroke-divider);
 }
 
 .tab-context-item--submenu {
