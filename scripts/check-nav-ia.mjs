@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// AIA-46 / FIL-77: Providers above Settings; Health + Search(Discovery) are Settings-only.
+// AIA-46 / FIL-77 / ADR-0023: Providers folded into the Extensions hub (no top-level item);
+// Health + Search(Discovery) are Settings-only; Help is last.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -23,12 +24,11 @@ assert.deepEqual(
     "work-groups",
     "projects",
     "ai",
-    "providers",
     "extensions",
     "settings",
     "help",
   ],
-  "expected IA order: AI after Projects; Providers/Extensions; Help last; no top-level health or discovery",
+  "expected IA order: AI after Projects; Extensions hub (Providers folded in, ADR-0023); Help last; no top-level providers/health/discovery",
 );
 assert.ok(
   sideNav.includes("export const SIDE_NAV_ITEMS"),
@@ -47,4 +47,4 @@ assert.ok(settings.includes("sectionSearch") || settings.includes("settings.sect
 assert.ok(settings.includes("HealthView"));
 assert.ok(settings.includes("SearchSettingsPanel"));
 
-console.log("Nav IA checks OK (AIA-46 / FIL-77 sidenav + Settings Health/Search).");
+console.log("Nav IA checks OK (AIA-46 / FIL-77 / ADR-0023 sidenav + Settings Health/Search).");
