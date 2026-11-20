@@ -16,6 +16,7 @@ const read = (rel) => readFileSync(join(root, rel), "utf8");
 
 const platformRs = read("src-tauri/src/platform/mod.rs");
 const macosRs = read("src-tauri/src/platform/macos.rs");
+const windowsRsSource = read("src-tauri/src/platform/windows.rs");
 const policyRs = read("src-tauri/src/settings/platform_policy.rs");
 const defaultsRs = read("src-tauri/src/settings/defaults.rs");
 const sanitizeRs = read("src-tauri/src/settings/sanitize.rs");
@@ -78,4 +79,87 @@ for (const id of localeIds) {
   assert.ok(catalog.health.deps.items.quicklook?.detail, `${id}: missing Quick Look detail copy`);
 }
 
-console.log("Unified platform adaptation OK (schema + preview + health + menu + copy).");
+// 6. Post-unification features (ADR 0018 voice / ADR 0022 managed sidecars).
+// New platform differences must route through the same contract, never through
+// a naked #[cfg] or a hardcoded Windows env var in a business module.
+for (const field of ["microphone_permission_precheck", "sidecar_native_artifacts"]) {
+  assert.match(platformRs, new RegExp(`pub ${field}: bool`), `Rust caps missing ${field}`);
+}
+for (const field of ["microphonePermissionPrecheck", "sidecarNativeArtifacts"]) {
+  assert.match(platformTs, new RegExp(`${field}: boolean`), `TS caps missing ${field}`);
+  assert.match(platformTs, new RegExp(`${field}: false`), `neutral caps missing ${field}`);
+}
+// Windows owns the synchronous mic consent store. Native feed artifacts ship
+// on both Windows and macOS; platform-scoped lookup keeps each host on its own
+// binary (a Mac must never pick a Windows .exe).
+assert.match(windowsRsSource, /caps\.microphone_permission_precheck = true/, "Windows owns consent precheck");
+assert.match(windowsRsSource, /caps\.sidecar_native_artifacts = true/, "Windows ships native sidecars");
+assert.match(macosRs, /caps\.sidecar_native_artifacts = true/, "macOS ships native sidecars");
+assert.ok(
+  !/caps\.microphone_permission_precheck = true/.test(macosRs),
+  "macOS must not claim a synchronous mic precheck",
+);
+assert.match(
+  read("src-tauri/src/voice/mod.rs"),
+  /capabilities\(\)\.microphone_permission_precheck/,
+  "voice precheck must be capability-gated",
+);
+// Microphone TCC prompt needs a usage description in the merged Info.plist.
+const infoPlist = read("src-tauri/Info.plist");
+assert.match(infoPlist, /NSMicrophoneUsageDescription/, "Info.plist must declare mic usage");
+assert.ok(
+  !/com\.apple\.security\.app-sandbox/.test(infoPlist),
+  "do not enable App Sandbox (would need audio-input entitlement + break file access)",
+);
+// Sidecar exec-bit + interpreter resolution live in the adapter, not callers.
+assert.match(platformRs, /fn make_executable\(&self/, "platform declares exec-bit contract");
+assert.match(platformRs, /fn node_command\(&self/, "platform declares Node interpreter contract");
+assert.match(macosRs, /fn make_executable\(&self/, "macOS implements chmod");
+assert.match(macosRs, /fn node_command\(&self/, "macOS probes Homebrew node");
+assert.match(
+  read("src-tauri/src/managed_dependency/store.rs"),
+  /platform::make_executable\(&tmp, None\)/,
+  "downloaded artifacts must get an exec bit via platform",
+);
+assert.match(
+  read("src-tauri/src/extension_host/pack_fs.rs"),
+  /platform::make_executable\(&out_path, unix_mode\)/,
+  "pack zip extraction must preserve Unix mode via platform",
+);
+assert.match(
+  read("src-tauri/src/tool_runtime/sidecar.rs"),
+  /platform::node_command\(\)/,
+  "shared Node runtime must resolve interpreter via platform",
+);
+assert.ok(
+  !/std::env::var\("USERPROFILE"\)/.test(read("src-tauri/src/tool_runtime/gateway.rs")),
+  "gateway must not hardcode USERPROFILE (use platform::home_dir)",
+);
+// A host without a published artifact for its platform must not be flipped to
+// Managed mode. Safety now comes from platform-scoped feed lookup, not from
+// disabling the capability on macOS.
+assert.match(
+  read("src-tauri/src/extension_host/host.rs"),
+  /capabilities\(\)\.sidecar_native_artifacts/,
+  "managed-mode decision must be gated by the host artifact capability",
+);
+
+// 7. ADR 0022 macOS packaging: per-platform feed entries.
+const storeRs = read("src-tauri/src/managed_dependency/store.rs");
+const feedRs = read("src-tauri/src/managed_dependency/feed.rs");
+const commandsRs = read("src-tauri/src/managed_dependency/commands.rs");
+const buildFeedPy = read("scripts/build_pack_feed.py");
+assert.match(platformRs, /pub fn artifact_platform_key\(\)/, "platform derives the feed artifact key");
+assert.match(storeRs, /pub platform: Option<String>/, "feed entry carries an optional platform tag");
+assert.match(storeRs, /pub fn find_entry_for_platform/, "feed lookup is platform-aware");
+assert.match(feedRs, /resolve_managed_binding_for_platform/, "binding resolver is platform-scoped");
+assert.ok(
+  !/store::find_entry\(m, &record\.pack_id\)/.test(commandsRs),
+  "provisioning paths must not blind-pick a feed entry by packId",
+);
+assert.match(commandsRs, /find_host_entry/, "provisioning paths use the host-scoped lookup");
+assert.match(buildFeedPy, /def artifact_platform_key/, "build script derives Rust-compatible platform keys");
+assert.match(buildFeedPy, /"platform": platform_key/, "build script writes platform into feed entries");
+assert.match(buildFeedPy, /e\.get\("packId"\), e\.get\("platform"\)/, "feed merge dedups by (packId, platform)");
+
+console.log("Unified platform adaptation OK (schema + preview + health + menu + copy + post-port features + per-platform feed).");

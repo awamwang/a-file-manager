@@ -281,7 +281,7 @@ pub(crate) fn resolve_spawn_command(contrib: &SidecarContribution) -> (String, V
         SidecarRuntime::Shared(kind) => {
             let exe = match kind {
                 SharedRuntime::Python => crate::platform::python_command().to_string(),
-                SharedRuntime::Node => "node".to_string(),
+                SharedRuntime::Node => crate::platform::node_command().to_string(),
             };
             let mut argv = Vec::with_capacity(1 + contrib.args.len());
             argv.push(contrib.command.clone());

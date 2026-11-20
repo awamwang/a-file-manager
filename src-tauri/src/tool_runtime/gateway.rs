@@ -40,7 +40,13 @@ pub struct GatewayStatus {
     pub version: Option<String>,
 }
 
-/// 解析 awam-tool-manager 运行时目录：`AWAM_RUNTIME_DIR` 优先，否则 `%LOCALAPPDATA%\.awam-tool-manager`。
+/// 解析 awam-tool-manager 运行时目录：`AWAM_RUNTIME_DIR` 优先；Windows 再用
+/// `%LOCALAPPDATA%`，其余平台回退到平台适配层的 home 目录。
+///
+/// 与 sidecar 自身的 token 落盘路径约定保持一致：Windows 用 `%LOCALAPPDATA%`，
+/// macOS 用 `~/.awam-tool-manager`。home 解析统一交给 `platform::home_dir()`
+/// （遵守 platform/mod.rs 的「不要在本模块外硬编码 USERPROFILE」契约），
+/// 避免 HOME 缺失时静默退回相对路径 "."。产物按平台发布，与本路径选择无关。
 pub fn resolve_runtime_dir() -> PathBuf {
     if let Ok(override_dir) = std::env::var(RUNTIME_DIR_ENV) {
         let trimmed = override_dir.trim();
@@ -48,25 +54,16 @@ pub fn resolve_runtime_dir() -> PathBuf {
             return PathBuf::from(trimmed);
         }
     }
+    #[cfg(windows)]
     if let Ok(local) = std::env::var("LOCALAPPDATA") {
         let trimmed = local.trim();
         if !trimmed.is_empty() {
             return Path::new(trimmed).join(RUNTIME_DIR_NAME);
         }
     }
-    home_dir().join(RUNTIME_DIR_NAME)
-}
-
-fn home_dir() -> PathBuf {
-    for key in ["USERPROFILE", "HOME"] {
-        if let Ok(value) = std::env::var(key) {
-            let trimmed = value.trim();
-            if !trimmed.is_empty() {
-                return PathBuf::from(trimmed);
-            }
-        }
-    }
-    PathBuf::from(".")
+    crate::platform::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(RUNTIME_DIR_NAME)
 }
 
 /// 解析 HTTP Bearer token：`AWAM_HTTP_TOKEN` 优先，否则读运行时目录 `http-token`。

@@ -244,6 +244,16 @@ pub struct PlatformCapabilities {
     pub volume_list: bool,
     pub system_tray: bool,
     pub webview2_required: bool,
+    /// A synchronous OS permission pre-check exists for microphone capture
+    /// (Windows ConsentStore). Derived from `microphone_permission_provider()`.
+    /// macOS reports false: TCC asks at device-open time, so no pre-check can
+    /// be performed before the stream starts.
+    pub microphone_permission_precheck: bool,
+    /// The managed-dependency feed ships native sidecar artifacts for this host.
+    /// Both Windows and macOS opt in; each feed entry is tagged with
+    /// `artifact_platform_key()` so a host downloads only its own binary.
+    /// A host with no published artifact simply gets no managed binding.
+    pub sidecar_native_artifacts: bool,
 }
 
 impl PlatformCapabilities {
@@ -278,6 +288,8 @@ impl PlatformCapabilities {
             volume_list: false,
             system_tray: false,
             webview2_required: false,
+            microphone_permission_precheck: false,
+            sidecar_native_artifacts: false,
         }
     }
 
@@ -361,6 +373,15 @@ pub trait Platform: Send + Sync {
     fn kill_process_tree(&self, pid: u32);
     /// Default interpreter for MCP sidecars (`python` on Windows, `python3` on Unix).
     fn python_command(&self) -> &'static str;
+    /// Default Node interpreter for shared-runtime sidecars. On macOS a GUI
+    /// launch does not inherit the shell PATH, so probe the standard Homebrew
+    /// locations before falling back to the bare name (7.x follow-up).
+    fn node_command(&self) -> &'static str;
+    /// Grant execute permission on a downloaded sidecar artifact. Windows is a
+    /// no-op (PE files need no exec bit); Unix adds owner/group/other exec.
+    /// `Some(mode)` (from a zip entry's `unix_mode`) applies that exact mode
+    /// so pack-provided scripts keep their executable bit across install.
+    fn make_executable(&self, path: &std::path::Path, mode: Option<u32>) -> Result<(), String>;
     /// Native file-type icon in RGBA form, without leaking OS image types.
     fn file_icon(&self, path: &std::path::Path, size: u16) -> Result<RgbaIcon, String>;
     /// Native content thumbnail when the host exposes one; otherwise `Err` and
@@ -526,6 +547,28 @@ pub fn kill_process_tree(pid: u32) {
 
 pub fn python_command() -> &'static str {
     current().python_command()
+}
+
+pub fn node_command() -> &'static str {
+    current().node_command()
+}
+
+/// Single entry point for marking a downloaded/provisioned artifact executable.
+pub fn make_executable(path: &std::path::Path, mode: Option<u32>) -> Result<(), String> {
+    current().make_executable(path, mode)
+}
+
+/// Canonical `<os>-<arch>` key for selecting a managed-feed sidecar artifact,
+/// e.g. `windows-x86_64`, `macos-x86_64`, `macos-aarch64`.
+///
+/// The managed-dependency feed may publish several native builds of one
+/// sidecar; each `StoreEntry` is tagged with this key so a host downloads only
+/// its own binary. Keeping the format here (not in the feed/store layer)
+/// ensures every consumer agrees on the spelling and no `#[cfg]` leaks into
+/// business modules (7.24 / ADR 0022 macOS packaging).
+pub fn artifact_platform_key() -> String {
+    let caps = current().capabilities();
+    format!("{}-{}", caps.os, caps.arch)
 }
 
 pub fn file_icon(path: &std::path::Path, size: u16) -> Result<RgbaIcon, String> {
@@ -698,6 +741,20 @@ mod tests {
     #[test]
     fn native_path_keeps_uri_untouched() {
         assert_eq!(to_native_fs_path("afm://guide"), "afm://guide");
+    }
+
+    #[test]
+    fn artifact_platform_key_is_os_dash_arch() {
+        let key = artifact_platform_key();
+        let caps = current().capabilities();
+        assert_eq!(key, format!("{}-{}", caps.os, caps.arch));
+        assert!(key.contains('-'), "key must be <os>-<arch>: {key}");
+        // Two hosts must never collide on one key.
+        assert_ne!(key, format!("{}-{}", "other-os", caps.arch));
+        #[cfg(target_os = "macos")]
+        assert!(key.starts_with("macos-"), "{key}");
+        #[cfg(windows)]
+        assert!(key.starts_with("windows-"), "{key}");
     }
 
     /// Same shared contract also runs against each adapter in its own module.

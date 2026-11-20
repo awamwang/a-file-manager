@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::store::{find_entry, is_host_allowed, parse_manifest, StoreManifest};
+use super::store::{find_entry_for_platform, is_host_allowed, parse_manifest, StoreManifest};
 
 /// feed 配置文件名（位于 app_data 顶层，**不在** `managed-dependencies/` 内，
 /// 避免被 `registry::list_records` 当作托管记录解析）。
@@ -121,7 +121,21 @@ pub struct ManagedBinding {
 /// 纯函数：按 pack_id 解析 managed 绑定。命中 feed entry 时返回其声明产物版本与本机探活地址
 /// （供启用时写入 `record.declared_version` / `base_url`、并把 `mode` 切成 Managed）；未命中返回 `None`。
 pub fn resolve_managed_binding(manifest: Option<&StoreManifest>, pack_id: &str) -> Option<ManagedBinding> {
-    let entry = manifest.and_then(|m| find_entry(m, pack_id))?;
+    resolve_managed_binding_for_platform(
+        manifest,
+        pack_id,
+        &crate::platform::artifact_platform_key(),
+    )
+}
+
+/// 纯函数：显式宿主平台键版的 managed 绑定解析（供单测注入任意 host，互不串台）。
+/// 生产代码请用 [`resolve_managed_binding`]，它从平台契约派生当前 host 的键。
+pub fn resolve_managed_binding_for_platform(
+    manifest: Option<&StoreManifest>,
+    pack_id: &str,
+    platform_key: &str,
+) -> Option<ManagedBinding> {
+    let entry = manifest.and_then(|m| find_entry_for_platform(m, pack_id, platform_key))?;
     Some(ManagedBinding {
         declared_version: entry.artifact_version.clone(),
         base_url: entry.base_url.clone(),
@@ -193,6 +207,36 @@ mod tests {
     }
 
     #[test]
+    fn resolve_binding_is_platform_scoped() {
+        let multi = r#"{
+            "schema": 1,
+            "entries": [
+                { "packId": "awam.tool-runtime", "artifactVersion": "0.2.0",
+                  "assetUrl": "https://f.local/a/tool.exe",
+                  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                  "fileName": "tool.exe", "baseUrl": "http://127.0.0.1:18778",
+                  "platform": "windows-x86_64" },
+                { "packId": "awam.tool-runtime", "artifactVersion": "0.3.0",
+                  "assetUrl": "https://f.local/a/tool",
+                  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                  "fileName": "tool", "baseUrl": "http://127.0.0.1:18779",
+                  "platform": "macos-aarch64" }
+            ]
+        }"#;
+        let m = parse_manifest(multi).unwrap();
+        let win = resolve_managed_binding_for_platform(Some(&m), "awam.tool-runtime", "windows-x86_64").unwrap();
+        assert_eq!(win.declared_version, "0.2.0");
+        let mac = resolve_managed_binding_for_platform(Some(&m), "awam.tool-runtime", "macos-aarch64").unwrap();
+        assert_eq!(mac.declared_version, "0.3.0");
+        assert_eq!(mac.base_url, "http://127.0.0.1:18779");
+        // No artifact for this host → no managed binding (fall back to Config).
+        assert_eq!(
+            resolve_managed_binding_for_platform(Some(&m), "awam.tool-runtime", "macos-x86_64"),
+            None,
+        );
+    }
+
+    #[test]
     fn manifest_failover_uses_fallback_when_primary_unreachable() {
         use std::cell::RefCell;
         let cfg = FeedConfig {
@@ -211,7 +255,7 @@ mod tests {
         })
         .unwrap()
         .expect("fallback manifest");
-        assert!(find_entry(&m, "awam.tool-runtime").is_some());
+        assert!(crate::managed_dependency::store::find_entry(&m, "awam.tool-runtime").is_some());
         let urls = called.borrow();
         assert_eq!(urls.len(), 2, "primary then fallback");
         assert!(urls[0].contains("primary") && urls[1].contains("mirror"), "{urls:?}");

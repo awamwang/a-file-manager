@@ -86,6 +86,31 @@ const EXPECTED_KEYS = [
   // "PC" wording in search copy.
   "discovery.meta",
   "discovery.everythingConfigHint",
+  // Post-7.22 features that shipped with Windows-only copy in the base catalog:
+  // search palette shortcuts / Everything, extension paths, voice permission
+  // guidance, Finder/open-in text, release asset name, skill deploy mode.
+  "discovery.testMeta",
+  "settings.search.paletteMeta",
+  "settings.search.knowledgeMeta",
+  "settings.search.fuzzyHint",
+  "settings.extensions.dataRootPlaceholder",
+  "settings.openTools.customMeta",
+  "voice.error.permission",
+  "voice.selftest.permissionHint",
+  "voice.error.noAudio",
+  "knowledgeView.openInExplorer",
+  "about.link.releases.desc",
+  "ai.skills.deployModeJunction",
+  // QuickLook health status-specific copy (depText() prefers `...<status>.detail`
+  // over the generic key, so each status leaf needs its own override).
+  "health.deps.items.quicklook.ok.detail",
+  "health.deps.items.quicklook.ok.fix",
+  "health.deps.items.quicklook.missing.detail",
+  "health.deps.items.quicklook.missing.fix",
+  "health.deps.items.quicklook.warn.detail",
+  "health.deps.items.quicklook.warn.fix",
+  "health.deps.items.quicklook.unbridged.detail",
+  "health.deps.items.quicklook.unbridged.fix",
 ];
 const expectedSorted = [...EXPECTED_KEYS].sort();
 
@@ -193,6 +218,47 @@ for (const id of localeIds) {
     !/C:\\/.test(macos["discovery.blacklistPlaceholder"]),
     `${id}: blacklist example must use a macOS path`,
   );
+  // Post-adaptation features: macOS copy must name the system surfaces and the
+  // ⌘/⌥ chords, never Windows Settings / Everything / .exe / a Windows path.
+  for (const key of [
+    "discovery.testMeta",
+    "settings.search.paletteMeta",
+  ]) {
+    assert.match(macos[key], /⌘\+⇧\+P/, `${id}:${key} must use the ⌘ chord`);
+  }
+  assert.match(macos["settings.search.knowledgeMeta"], /⌥\+7/, `${id}: knowledge source uses ⌥+7`);
+  for (const key of [
+    "settings.search.fuzzyHint",
+    "discovery.testMeta",
+  ]) {
+    assert.doesNotMatch(macos[key], /Everything/i, `${id}:${key} must not advertise Everything`);
+  }
+  for (const key of ["voice.error.permission", "voice.selftest.permissionHint"]) {
+    assert.match(
+      macos[key],
+      /System Settings|系统设置|システム設定|Systemeinstellungen|Réglages système/,
+      `${id}:${key} must point to macOS System Settings`,
+    );
+  }
+  assert.match(macos["knowledgeView.openInExplorer"], /Finder|访达|ファインダー/i,
+    `${id}: knowledge reveal must say Finder`);
+  assert.match(macos["about.link.releases.desc"], /\.dmg|macOS/i,
+    `${id}: releases link must name the macOS asset`);
+  assert.ok(
+    !/C:\\|%APPDATA%|\.exe/.test(macos["settings.extensions.dataRootPlaceholder"] + macos["settings.openTools.customMeta"]),
+    `${id}: extension / opener copy must not use Windows paths or .exe`,
+  );
+  assert.match(macos["ai.skills.deployModeJunction"], /symboli|符号|シンボリック/i,
+    `${id}: skill deploy mode is a symlink on macOS`);
+  for (const status of ["ok", "missing", "warn", "unbridged"]) {
+    assert.ok(
+      !/named pipe|PowerToys| SID |poizan42|名前付きパイプ|命名管道/i.test(
+        macos[`health.deps.items.quicklook.${status}.detail`] +
+        macos[`health.deps.items.quicklook.${status}.fix`],
+      ),
+      `${id}: quicklook ${status} copy must not leak Windows pipe/Peek concepts`,
+    );
+  }
 }
 assert.ok(
   effectiveOverrides >= 100,

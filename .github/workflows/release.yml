@@ -550,14 +550,31 @@ jobs:
           gh release upload "${{ needs.prepare.outputs.tag }}" "${files[@]}" --clobber
 
   # P2-5 / ADR0022：AFM 作为集成方，从 upstream/ submodule 源码 in-tree 构建 managed 后端
-  # 产物（PyInstaller onefile），产 feed manifest，并把产物 + manifest 作为本 GitHub Release
-  # 的资产发布（**主源**）；配了 OSS_* secrets 时额外镜像一份到对象存储（**回落源**）。
-  # 仅 Windows 产物；macOS/Linux runner + 按 OS 的 manifest.<os>.json 为后续扩展（见 runbook §3）。
-  # 说明：本 job 失败时 finalize 会因「依赖未全部 success/skipped」而保留 draft，不会发布坏 release。
+  # 产物（PyInstaller onefile）。PyInstaller 不可跨平台冻结，故三个平台各在对应 runner 上
+  # build 一个 feed slice（局部 manifest + 产物），交给 merge-pack-feed 合成唯一 manifest
+  # 后统一上传 Release（主源）+ 可选 OSS 镜像（回落源）。
+  # Mac x64 产物名加 -x64 后缀，避免与 Apple Silicon 的无扩展名同名产物在扁平 Release 里互相覆盖。
+  # 说明：任一 job 失败时 finalize 会因「依赖未全部 success/skipped」而保留 draft，不会发布坏 release。
   build-pack-feed:
     needs: prepare
     if: needs.prepare.outputs.want_feature_pack == 'true'
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows-x86_64
+            name_suffix: ""
+            python_rel: ".venv-feed/Scripts/python.exe"
+          - os: macos-latest            # Apple Silicon (arm64)
+            platform: macos-aarch64
+            name_suffix: ""
+            python_rel: ".venv-feed/bin/python"
+          - os: macos-15-intel          # Intel (x86_64)
+            platform: macos-x86_64
+            name_suffix: "-x64"
+            python_rel: ".venv-feed/bin/python"
+    runs-on: ${{ matrix.os }}
     env:
       TAG: ${{ needs.prepare.outputs.tag }}
       # 主源：GitHub Release 扁平资产下载 URL 基址（feed manifest 的 assetUrl/installUrl 用 flat 布局指这里）。
@@ -582,47 +599,114 @@ jobs:
         run: |
           set -euo pipefail
           uv venv .venv-feed --python 3.12
-          PY=.venv-feed/Scripts/python.exe
+          # venv 解释器路径按平台不同：Windows Scripts/python.exe，Unix bin/python。
+          PY="$PWD/${{ matrix.python_rel }}"
           # tool-manager 用全 pin 的 requirements.lock；awam-file 用 pyproject/requirements + 冻结/分析工具。
           uv pip install --python "$PY" -r upstream/awam-tool-manager/requirements.lock
           uv pip install --python "$PY" -r upstream/awam-file/requirements.txt
           uv pip install --python "$PY" PyInstaller typer rich
-          echo "PY_ABS=$PWD/.venv-feed/Scripts/python.exe" >> "$GITHUB_ENV"
+          echo "PY_ABS=$PY" >> "$GITHUB_ENV"
 
-      - name: Build managed backend artifacts + feed manifest (GitHub Release URLs)
+      - name: Build managed backend artifacts + feed slice (${{ matrix.platform }})
         shell: bash
         run: |
           set -euo pipefail
-          FEED="$(mktemp -d)"
-          echo "FEED_DIR=$FEED" >> "$GITHUB_ENV"
+          # 固定路径，便于 upload-artifact 用 runner.temp context 引用
+          # （GITHUB_ENV 写入的变量不会进入 with: 里的 env context）。
+          FEED="${RUNNER_TEMP}/afm-feed-${{ matrix.platform }}"
+          mkdir -p "$FEED"
           VER_TOOL="$(node -p "require('./packs/tool-runtime/pack.json').version")"
           VER_FILE="$(node -p "require('./packs/file-gateway/pack.json').version")"
+          SUFFIX="${{ matrix.name_suffix }}"
+          PLATFORM="${{ matrix.platform }}"
           # tool-runtime（扁平 server.py 入口）
           "$PY_ABS" scripts/build_pack_feed.py build \
-            --pack-id awam.tool-runtime --name awam-tool-manager \
+            --pack-id awam.tool-runtime --name "awam-tool-manager${SUFFIX}" \
             --src upstream/awam-tool-manager --entry src/server.py \
             --version "$VER_TOOL" --out "$FEED" --url-layout flat \
             --base-feed-url "$GH_FEED_BASE" --base-probe-url http://127.0.0.1:18778 \
-            --python "$PY_ABS"
+            --platform "$PLATFORM" --python "$PY_ABS"
           # file-gateway（包式入口，需 collect 包 + 内嵌 filesystems.html）
           "$PY_ABS" scripts/build_pack_feed.py build \
-            --pack-id awam.file-gateway --name awam-resource-gateway \
+            --pack-id awam.file-gateway --name "awam-resource-gateway${SUFFIX}" \
             --src upstream/awam-file --entry src/awam_resource_gateway/__main__.py \
             --paths src --collect awam_resource_gateway \
             --add-data "src/awam_resource_gateway/filesystems.html;awam_resource_gateway" \
             --version "$VER_FILE" --out "$FEED" --url-layout flat \
             --base-feed-url "$GH_FEED_BASE" --base-probe-url http://127.0.0.1:18787 \
-            --python "$PY_ABS"
-          # 可安装 pack 安装包（含 pack.json + UI 资源），flat URL 指向本 release 资产。
+            --platform "$PLATFORM" --python "$PY_ABS"
+          echo "=== slice manifest ($PLATFORM) ==="; cat "$FEED/manifest.json"
+
+      # pack zip 平台无关，只构建一次（Windows slice），避免三份同 SHA 资产重复上传。
+      - name: Package Feature Pack zips (platform-neutral, once)
+        if: matrix.platform == 'windows-x86_64'
+        shell: bash
+        run: |
+          set -euo pipefail
+          FEED="${RUNNER_TEMP}/afm-feed-${{ matrix.platform }}"
+          VER_TOOL="$(node -p "require('./packs/tool-runtime/pack.json').version")"
+          VER_FILE="$(node -p "require('./packs/file-gateway/pack.json').version")"
           "$PY_ABS" scripts/build_pack_feed.py pack-dir \
             --pack-id awam.tool-runtime --name "工具管理运行时" --version "$VER_TOOL" \
             --src packs/tool-runtime --out "$FEED" --url-layout flat --base-feed-url "$GH_FEED_BASE"
           "$PY_ABS" scripts/build_pack_feed.py pack-dir \
             --pack-id awam.file-gateway --name "awam 资源网关" --version "$VER_FILE" \
             --src packs/file-gateway --out "$FEED" --url-layout flat --base-feed-url "$GH_FEED_BASE"
-          echo "=== manifest ==="; cat "$FEED/manifest.json"
+          echo "=== slice manifest with packs ==="; cat "$FEED/manifest.json"
 
-      - name: Upload feed artifacts + manifest to GitHub Release (主源)
+      - name: Upload feed slice as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: afm-feed-${{ matrix.platform }}
+          path: ${{ runner.temp }}/afm-feed-${{ matrix.platform }}
+          if-no-files-found: error
+          retention-days: 1
+
+  # 三平台 slice → 唯一 manifest：多 job 并发上传同名 manifest.json 会互相覆盖，
+  # 所以 Release 上传与 OSS 镜像都集中在本 job（聚合后只上传一次）。
+  merge-pack-feed:
+    needs: [prepare, build-pack-feed]
+    if: needs.prepare.outputs.want_feature_pack == 'true'
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ needs.prepare.outputs.tag }}
+      GH_FEED_BASE: https://github.com/${{ github.repository }}/releases/download/${{ needs.prepare.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download per-platform feed slices
+        uses: actions/download-artifact@v4
+        with:
+          pattern: afm-feed-*
+          path: ${{ runner.temp }}/feed-slices
+          merge-multiple: false
+
+      - name: Merge slices into single feed
+        shell: bash
+        run: |
+          set -euo pipefail
+          SLICES="${RUNNER_TEMP}/feed-slices"
+          OUT="${RUNNER_TEMP}/afm-feed-final"
+          ARGS=()
+          for d in "$SLICES"/afm-feed-*; do
+            [ -f "$d/manifest.json" ] || continue
+            ARGS+=(--slice "$d")
+          done
+          if [ ${#ARGS[@]} -eq 0 ]; then
+            echo "no feed slices found"
+            exit 1
+          fi
+          python3 scripts/build_pack_feed.py merge-feed "${ARGS[@]}" --out "$OUT"
+          echo "FEED_FINAL=$OUT" >> "$GITHUB_ENV"
+          echo "=== merged manifest ==="; cat "$OUT/manifest.json"
+
+      - name: Upload merged feed to GitHub Release (主源)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
@@ -630,10 +714,10 @@ jobs:
           set -euo pipefail
           shopt -s nullglob
           # GitHub Release 资产是扁平的：上传时只取 basename，与 manifest 的 flat URL（<base>/<name>）对齐。
-          files=( "$FEED_DIR"/artifacts/* "$FEED_DIR"/packs/* "$FEED_DIR"/manifest.json )
+          files=( "$FEED_FINAL"/artifacts/* "$FEED_FINAL"/packs/* "$FEED_FINAL"/manifest.json )
           if [ ${#files[@]} -eq 0 ]; then echo "no feed files"; exit 1; fi
           gh release upload "$TAG" "${files[@]}" --clobber
-          echo "Uploaded feed: ${files[*]}"
+          echo "Uploaded merged feed: ${files[*]}"
 
       # 回落源镜像（可选）：配齐 OSS_* secrets 才执行；缺失则静默跳过（单源 GitHub 仍完整可用）。
       # OSS 具体配置（bucket/endpoint/region/密钥/前缀）后续接入；此处用 rclone 泛化对象存储。
@@ -659,13 +743,13 @@ jobs:
             -e RCLONE_CONFIG_T_ACCESS_KEY_ID="$OSS_ACCESS_KEY_ID" \
             -e RCLONE_CONFIG_T_SECRET_ACCESS_KEY="$OSS_SECRET_ACCESS_KEY" \
             -e RCLONE_CONFIG_T_REGION="${OSS_REGION:-}" \
-            -v "$FEED_DIR:/feed:ro" rclone/rclone \
+            -v "$FEED_FINAL:/feed:ro" rclone/rclone \
             copy /feed "t:${OSS_BUCKET}/${PREFIX}" --max-transfer 2G -vv
           echo "已镜像到 s3://${OSS_BUCKET}/${PREFIX}"
           echo "注：启用回落时，把 AFM feed 的 fallbackManifestUrl 与 OSS 主机 allowHost 配到该镜像地址。"
 
   finalize:
-    needs: [prepare, build-app, build-app-macos, build-feature-packs, build-pack-feed]
+    needs: [prepare, build-app, build-app-macos, build-feature-packs, build-pack-feed, merge-pack-feed]
     if: always() && needs.prepare.result == 'success'
     runs-on: ubuntu-latest
     steps:
@@ -684,10 +768,12 @@ jobs:
           echo "build-app-macos=${{ needs.build-app-macos.result }}"
           echo "build-feature-packs=${{ needs.build-feature-packs.result }}"
           echo "build-pack-feed=${{ needs.build-pack-feed.result }}"
+          echo "merge-pack-feed=${{ needs.merge-pack-feed.result }}"
           app="${{ needs.build-app.result }}"
           mac="${{ needs.build-app-macos.result }}"
           fp="${{ needs.build-feature-packs.result }}"
-          feed="${{ needs.build-pack-feed.result }}"
+          feed_build="${{ needs.build-pack-feed.result }}"
+          feed_merge="${{ needs.merge-pack-feed.result }}"
           ok_app=false
           ok_mac=false
           ok_fp=false
@@ -695,7 +781,12 @@ jobs:
           [[ "$app" == "success" || "$app" == "skipped" ]] && ok_app=true
           [[ "$mac" == "success" || "$mac" == "skipped" ]] && ok_mac=true
           [[ "$fp" == "success" || "$fp" == "skipped" ]] && ok_fp=true
-          [[ "$feed" == "success" || "$feed" == "skipped" ]] && ok_feed=true
+          # 两段 feed 链路都要健康：build 失败时 merge 会被跳过，单看 merge
+          # 会把「跳过」误判为正常并发布一个缺产物的 release。
+          if [[ ( "$feed_build" == "success" || "$feed_build" == "skipped" ) && \
+               ( "$feed_merge" == "success" || "$feed_merge" == "skipped" ) ]]; then
+            ok_feed=true
+          fi
           if [ "$ok_app" != true ] || [ "$ok_mac" != true ] || [ "$ok_fp" != true ] || [ "$ok_feed" != true ]; then
             echo "One or more build jobs failed; leaving release as draft"
             exit 1

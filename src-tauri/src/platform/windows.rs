@@ -176,6 +176,10 @@ impl Platform for WindowsPlatform {
         caps.volume_list = true; // volumes() enumerates the drive-letter bitmap
         caps.system_tray = true;
         caps.webview2_required = true;
+        // Windows exposes a synchronous ConsentStore pre-check for the
+        // microphone and the managed feed publishes native .exe sidecars.
+        caps.microphone_permission_precheck = true;
+        caps.sidecar_native_artifacts = true;
         caps
     }
 
@@ -379,6 +383,17 @@ impl Platform for WindowsPlatform {
 
     fn python_command(&self) -> &'static str {
         "python"
+    }
+
+    fn node_command(&self) -> &'static str {
+        // Windows installers put node.exe on PATH; CREATE_NO_WINDOW is applied
+        // by the shared spawn helper in tool_runtime::sidecar.
+        "node"
+    }
+
+    fn make_executable(&self, _path: &Path, _mode: Option<u32>) -> Result<(), String> {
+        // Windows has no execute bit; PE artifacts need no chmod.
+        Ok(())
     }
 
     fn file_icon(&self, path: &Path, size: u16) -> Result<RgbaIcon, String> {

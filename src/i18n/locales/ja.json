@@ -51,7 +51,27 @@
       "settings.fields.core.openTool.trae.path.description": "自動検出できない場合のアプリのパス（任意）",
       "settings.fields.core.openTool.qoder.path.description": "自動検出できない場合のアプリのパス（任意）",
       "providers.searchBlocked": "Spotlight は「検索」に接続されています。プロバイダーの search ではなく検索ページを使用してください。",
-      "settings.favoritesMeta": "Finder の右クリック → AFM お気に入りに追加"
+      "settings.favoritesMeta": "Finder の右クリック → AFM お気に入りに追加",
+      "discovery.testMeta": "ここで Spotlight と予備エンジンを試します。日常検索は検索パレット（⌘+⇧+P）を使います。",
+      "settings.search.paletteMeta": "⌘+⇧+P で検索パレットを開きます（コマンド・ファイル・プロジェクトなどの日常入口）。以下の既定値は次回開いたときに適用されます。",
+      "settings.search.knowledgeMeta": "検索パレットの知識ソース（⌥+7）が使うナレッジ サービスです。ノート本文と保存済みの項目を検索します。",
+      "settings.search.fuzzyHint": "検索パレットの既定ファジー一致（ファイルは部分列一致）。",
+      "settings.extensions.dataRootPlaceholder": "例: ~/Library/Application Support/A File Manager/knowledge/data",
+      "settings.openTools.customMeta": "任意の実行ファイルや .app を開き方として追加できます。ファイルとプロジェクトの「プログラムから開く」は同じ一覧を共有します。",
+      "voice.error.permission": "マイクへのアクセスがブロックされています——「システム設定 → プライバシーとセキュリティ → マイク」で許可してください",
+      "voice.selftest.permissionHint": "このアプリのマイクアクセスを許可してください：システム設定 → プライバシーとセキュリティ → マイク。初回録音時にシステムの許可ダイアログが表示されます。",
+      "voice.error.noAudio": "マイクから音声が入力されませんでした——入力デバイスが有効・ミュート解除・他アプリに占有されていないか確認してください",
+      "knowledgeView.openInExplorer": "Finder で表示",
+      "about.link.releases.desc": "最新の macOS インストーラー（.dmg）を入手",
+      "ai.skills.deployModeJunction": "シンボリック リンク（既定）",
+      "health.deps.items.quicklook.ok.detail": "クイックルックが利用可能です。Space プレビューは macOS のシステム プレビューで行われます。",
+      "health.deps.items.quicklook.ok.fix": "対応不要です。プレビュー可能なファイル種は macOS クイックルック次第で、非対応の場合は内蔵プレビューに切り替わります。",
+      "health.deps.items.quicklook.missing.detail": "クイックルックが利用できません。Space プレビューは内蔵プレビューを使用します。",
+      "health.deps.items.quicklook.missing.fix": "対応不要です。Space プレビューは内蔵プレビューで提供されます。macOS を再インストールするとシステムのクイックルックが復元されます。",
+      "health.deps.items.quicklook.warn.detail": "クイックルックのプレビュー状態を判定できませんでした。",
+      "health.deps.items.quicklook.warn.fix": "対応不要です。Space プレビューは内蔵プレビューへフォールバックします。",
+      "health.deps.items.quicklook.unbridged.detail": "Space プレビューは macOS のクイックルックまたは内蔵プレビューで提供されます。",
+      "health.deps.items.quicklook.unbridged.fix": "対応不要です。プレビューは macOS がネイティブに提供します。"
     }
   },
   "app": {

@@ -162,8 +162,12 @@ async fn start_session(app: &AppHandle, source: &str) -> Result<(), VoiceError> 
     engine::read_config(app)?;
     // Windows 麦克风隐私预检：ConsentStore 任一 Deny 时 WASAPI 只给
     // 死流或开流失败，直接报 permission（含设置路径），不浪费一次开流。
-    if let Some(detail) = capture::microphone_consent_denied() {
-        return Err(VoiceError::permission(detail));
+    // 只在平台能力声明存在同步预检的宿主上调用；macOS 的 TCC 在开流时
+    // 弹窗，`microphone_consent_denied()` 恒为 None，无需预检（见 7.x 适配）。
+    if crate::platform::current().capabilities().microphone_permission_precheck {
+        if let Some(detail) = capture::microphone_consent_denied() {
+            return Err(VoiceError::permission(detail));
+        }
     }
     {
         let guard = SESSION.lock().map_err(|_| VoiceError::busy())?;

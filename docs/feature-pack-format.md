@@ -2,6 +2,8 @@
 
 v1 安装入口为本机 zip 或目录；包根目录需包含 `pack.json`，`apiVersion` 固定为 `feature-pack.1`。JSON 键使用 camelCase，与 Rust `FeaturePackManifest` 序列化一致。样例：`packs/_template/pack.json`。
 
+> **平台无关**：pack zip（`npm run package:feature-packs`）只含清单/UI/占位目录，Windows 与 macOS 共用同一份，无需按平台分别打。sidecar 的平台差异在 feed 侧解决——各平台产物带 `platform: <os>-<arch>` 写进同一份 manifest，客户端按宿主精确选择。详见 `docs/feed-operations-runbook.md` §2.5。`contributions.sidecars[].command` 在 managed 模式下会被运行时改写为所下载产物的绝对路径，因此清单里写的 `.exe` 名不会在 macOS 上被执行。
+
 ## 根字段
 
 | 字段 | 类型 | 必填 | 说明 |

@@ -50,6 +50,10 @@ export type PlatformCapabilities = {
   volumeList: boolean;
   systemTray: boolean;
   webview2Required: boolean;
+  /** Synchronous OS microphone permission pre-check (Windows ConsentStore). */
+  microphonePermissionPrecheck: boolean;
+  /** Managed feed ships native sidecar artifacts for this host (per-OS builds). */
+  sidecarNativeArtifacts: boolean;
 };
 
 export const PLATFORM_COMMAND = "platform_capabilities";
@@ -88,6 +92,8 @@ export const NEUTRAL_PLATFORM: PlatformCapabilities = {
   volumeList: false,
   systemTray: false,
   webview2Required: false,
+  microphonePermissionPrecheck: false,
+  sidecarNativeArtifacts: false,
 };
 
 let cached: PlatformCapabilities | null = null;

@@ -127,6 +127,70 @@ assert.ok(
 );
 assert.ok(release.includes(".dmg"), "release notes must mention macOS assets");
 
+// 2d. Feed sidecars must also be built on all three hosts, then merged into a
+// single manifest by ONE job — concurrent `gh release upload ... manifest.json`
+// would clobber each other and leave mac users with no matching artifact.
+const feedJob = release.slice(
+  release.indexOf("  build-pack-feed:"),
+  release.indexOf("  merge-pack-feed:"),
+);
+const mergeJob = release.slice(
+  release.indexOf("  merge-pack-feed:"),
+  release.indexOf("  finalize:"),
+);
+for (const label of ["windows-latest", "macos-latest", "macos-15-intel"]) {
+  assert.ok(feedJob.includes(label), `feed build matrix must include ${label}`);
+}
+for (const key of ["windows-x86_64", "macos-aarch64", "macos-x86_64"]) {
+  assert.ok(feedJob.includes(key), `feed build matrix must declare platform ${key}`);
+}
+assert.ok(feedJob.includes("--platform"), "feed build must tag every entry with its platform");
+assert.ok(
+  feedJob.includes('name_suffix: "-x64"'),
+  "Mac x64 sidecars need a -x64 suffix so flat Release assets never collide",
+);
+assert.ok(
+  feedJob.includes("actions/upload-artifact@v4"),
+  "each host's feed slice must be handed off as an Actions artifact",
+);
+assert.ok(
+  !/gh release upload/.test(feedJob),
+  "feed build jobs must not upload to Release directly (would clobber manifest.json)",
+);
+assert.ok(
+  mergeJob.includes("actions/download-artifact@v4") && mergeJob.includes("merge-feed"),
+  "merge job must download all slices and fold them into one feed",
+);
+assert.ok(
+  mergeJob.includes("gh release upload") && mergeJob.includes("GH_FEED_BASE"),
+  "merge job owns the single flat-URL Release upload",
+);
+assert.ok(
+  release.includes("merge-pack-feed.result") &&
+    release.includes("feed_build") &&
+    release.includes("feed_merge"),
+  "finalize must check both feed stages (a skipped merge after a failed build is not success)",
+);
+const feedBuilder = read("scripts/build_pack_feed.py");
+assert.ok(
+  feedBuilder.includes('add_parser("merge-feed"'),
+  "feed builder must expose the merge-feed subcommand",
+);
+// macOS sidecars follow the same zero-credential ad-hoc policy as AFM.app:
+// the build script signs onefiles on darwin hosts; no Developer ID / notarization.
+assert.ok(
+  feedBuilder.includes("def adhoc_sign_macos") &&
+    feedBuilder.includes('codesign", "--force", "--sign", "-", "--timestamp=none"') &&
+    feedBuilder.includes("Signature=adhoc") &&
+    feedBuilder.includes('platform_key.startswith("macos-")'),
+  "feed builder must ad-hoc sign macOS onefiles (no Developer ID / notarization)",
+);
+assert.ok(
+  !/APPLE_(CERTIFICATE|ID|PASSWORD|TEAM_ID)/.test(feedJob) &&
+    !/Developer ID|notarytool|notariz/.test(feedJob),
+  "feed sidecar builds must stay on the zero-credential ad-hoc path",
+);
+
 // 2c. 7.27: the zero-credential path must not ship a completely unsigned app,
 // and the help file must exist both in the bundle and at DMG/Release level.
 assert.ok(
@@ -208,4 +272,4 @@ assert.equal(conf.bundle.macOS.signingIdentity, undefined, "signing stays opt-in
 assert.ok(pkg.scripts.test.includes("npm run test:macos-bundle"));
 assert.ok(pkg.scripts.test.includes("npm run test:ci-macos"));
 
-console.log("CI macOS packaging checks OK (7.25 + 7.26 opt-in signing + 7.27 ad-hoc help).");
+console.log("CI macOS packaging checks OK (7.25 + 7.26 signing + 7.27 help + 3-host feed).");

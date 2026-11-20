@@ -51,7 +51,27 @@
       "settings.fields.core.openTool.trae.path.description": "Optional app path when auto-discovery fails",
       "settings.fields.core.openTool.qoder.path.description": "Optional app path when auto-discovery fails",
       "providers.searchBlocked": "Spotlight is connected to Search; use the Search page instead of the provider search backend.",
-      "settings.favoritesMeta": "Finder context menu → Add to AFM Favorites"
+      "settings.favoritesMeta": "Finder context menu → Add to AFM Favorites",
+      "discovery.testMeta": "Try Spotlight and the backup engine here. Daily search stays on the Search Palette (⌘+⇧+P).",
+      "settings.search.paletteMeta": "⌘+⇧+P opens the Search Palette — the everyday entry for commands, files, projects, and more. Defaults below apply the next time you open it.",
+      "settings.search.knowledgeMeta": "The knowledge service behind the search panel's knowledge source (⌥+7) — searches the content of your notes and stored entries.",
+      "settings.search.fuzzyHint": "Default fuzzy matching for Search Palette queries (subsequence matching for files).",
+      "settings.extensions.dataRootPlaceholder": "e.g. ~/Library/Application Support/A File Manager/knowledge/data",
+      "settings.openTools.customMeta": "Add any executable or .app as an opener; the file and Project Open-with lists share this list.",
+      "voice.error.permission": "Microphone access is blocked — enable it in System Settings → Privacy & Security → Microphone",
+      "voice.selftest.permissionHint": "Allow microphone access for this app: System Settings → Privacy & Security → Microphone. The first recording shows a system prompt.",
+      "voice.error.noAudio": "The microphone produced no audio — check the input device is enabled, not muted, and not reserved by another app",
+      "knowledgeView.openInExplorer": "Reveal in Finder",
+      "about.link.releases.desc": "Get the latest macOS installer (.dmg)",
+      "ai.skills.deployModeJunction": "Symbolic link (default)",
+      "health.deps.items.quicklook.ok.detail": "Quick Look is available; Space previews are served by the macOS system preview.",
+      "health.deps.items.quicklook.ok.fix": "No action needed. Supported file types depend on macOS Quick Look; preview files fall back to the built-in pane.",
+      "health.deps.items.quicklook.missing.detail": "Quick Look is unavailable on this system; Space previews use the built-in pane.",
+      "health.deps.items.quicklook.missing.fix": "No action needed — the built-in preview handles Space. Reinstalling macOS restores system Quick Look.",
+      "health.deps.items.quicklook.warn.detail": "Could not determine the Quick Look preview status.",
+      "health.deps.items.quicklook.warn.fix": "No action needed — Space previews fall back to the built-in pane.",
+      "health.deps.items.quicklook.unbridged.detail": "Space previews use the macOS system Quick Look / built-in pane.",
+      "health.deps.items.quicklook.unbridged.fix": "No action needed — previews are served natively by macOS."
     }
   },
   "app": {

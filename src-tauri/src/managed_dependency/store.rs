@@ -47,6 +47,11 @@ pub struct StoreEntry {
     /// 缺省 None=不回落（仅本地/单源 feed 不变）。回落主机同样须命中 allow-list。
     #[serde(default)]
     pub asset_fallback_url: Option<String>,
+    /// 可选：该产物面向的宿主平台键（`<os>-<arch>`，如 `macos-aarch64`）。
+    /// 一份 feed 可同时发布同一 pack 的多平台产物；查找时按当前宿主精确匹配。
+    /// 缺省 None=旧式单平台 feed，视为通用条目（保持向后兼容）。
+    #[serde(default)]
+    pub platform: Option<String>,
 }
 
 /// 单条可安装 pack 包条目（pack 安装包 = zip，含 pack.json + UI 资源；sidecar 产物另由 entries 描述）。
@@ -103,9 +108,45 @@ pub fn parse_manifest(json: &str) -> Result<StoreManifest, String> {
     Ok(manifest)
 }
 
-/// 按 pack_id 取条目。
+/// 按 pack_id 取条目（不区分平台）。
+///
+/// 仅用于不关心产物的调用点（如已有记录的版本比对）与旧式单平台 feed。
+/// 真正要下载/落盘/拉起产物时请用 [`find_entry_for_platform`]，否则 macOS
+/// 可能选中 feed 里的 Windows `.exe`。
 pub fn find_entry<'a>(manifest: &'a StoreManifest, pack_id: &str) -> Option<&'a StoreEntry> {
     manifest.entries.iter().find(|e| e.pack_id == pack_id)
+}
+
+/// 按 pack_id + 宿主平台键取条目（ADR 0022 多平台 feed）。
+///
+/// 规则：
+/// - feed 里该 pack 存在任何带 `platform` 的条目时，视为「多平台 feed」，
+///   必须精确匹配 `platform_key`，匹配不到返回 `None`（绝不回退到 Windows 产物）；
+/// - feed 里该 pack 全部条目都无 `platform` 时，视为旧式单平台 feed，
+///   退回第一条以兼容历史 feed（行为与 [`find_entry`] 一致）。
+///
+/// `platform_key` 来自 [`crate::platform::artifact_platform_key`]，本函数保持纯函数
+/// 以便单测 distinct hosts 不会互相串台。
+pub fn find_entry_for_platform<'a>(
+    manifest: &'a StoreManifest,
+    pack_id: &str,
+    platform_key: &str,
+) -> Option<&'a StoreEntry> {
+    let mut candidates = manifest.entries.iter().filter(|e| e.pack_id == pack_id).peekable();
+    let first = candidates.next()?;
+    // Legacy feed: no platform metadata anywhere for this pack → keep old behaviour.
+    if manifest
+        .entries
+        .iter()
+        .filter(|e| e.pack_id == pack_id)
+        .all(|e| e.platform.is_none())
+    {
+        return Some(first);
+    }
+    // Multi-platform feed: exact match only, including the first candidate.
+    std::iter::once(first)
+        .chain(candidates)
+        .find(|e| e.platform.as_deref() == Some(platform_key))
 }
 
 /// 提取小写主机名（仅 http/https，剥离 userinfo 与端口）。
@@ -218,6 +259,9 @@ pub fn materialize(dir: &std::path::Path, name: &str, bytes: &[u8]) -> Result<st
     let target = dir.join(name);
     let tmp = dir.join(format!(".{name}.tmp"));
     std::fs::write(&tmp, bytes).map_err(|e| format!("store write tmp: {e}"))?;
+    // Unix needs an explicit exec bit for downloaded native sidecars; Windows
+    // is a no-op. Route through the platform adapter so no `#[cfg]` leaks here.
+    crate::platform::make_executable(&tmp, None)?;
     std::fs::rename(&tmp, &target).map_err(|e| format!("store rename onto artifact: {e}"))?;
     Ok(target)
 }
@@ -277,6 +321,69 @@ mod tests {
         assert!(find_entry(&m, "nope").is_none());
     }
 
+    /// Multi-platform feed: one pack publishes a Windows `.exe` and two macOS
+    /// builds. Each host must pick exactly its own artifact, never the `.exe`.
+    #[test]
+    fn find_entry_for_platform_selects_only_the_matching_host_artifact() {
+        let json = r#"{
+            "schema": 1,
+            "entries": [
+                {
+                    "packId": "awam.tool-runtime", "artifactVersion": "0.2.0",
+                    "assetUrl": "https://f.local/a/awam-tool-manager.exe",
+                    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                    "fileName": "awam-tool-manager.exe", "platform": "windows-x86_64"
+                },
+                {
+                    "packId": "awam.tool-runtime", "artifactVersion": "0.2.0",
+                    "assetUrl": "https://f.local/a/awam-tool-manager",
+                    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                    "fileName": "awam-tool-manager", "platform": "macos-aarch64"
+                },
+                {
+                    "packId": "awam.tool-runtime", "artifactVersion": "0.2.0",
+                    "assetUrl": "https://f.local/a/awam-tool-manager-x64",
+                    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                    "fileName": "awam-tool-manager-x64", "platform": "macos-x86_64"
+                }
+            ]
+        }"#;
+        let m = parse_manifest(json).unwrap();
+        assert_eq!(
+            find_entry_for_platform(&m, "awam.tool-runtime", "macos-aarch64")
+                .unwrap()
+                .file_name
+                .as_deref(),
+            Some("awam-tool-manager")
+        );
+        assert_eq!(
+            find_entry_for_platform(&m, "awam.tool-runtime", "macos-x86_64")
+                .unwrap()
+                .file_name
+                .as_deref(),
+            Some("awam-tool-manager-x64")
+        );
+        assert_eq!(
+            find_entry_for_platform(&m, "awam.tool-runtime", "windows-x86_64")
+                .unwrap()
+                .file_name
+                .as_deref(),
+            Some("awam-tool-manager.exe")
+        );
+        // A host with no published artifact must not fall back to another
+        // platform's binary — that is how a Mac would end up spawning a .exe.
+        assert!(find_entry_for_platform(&m, "awam.tool-runtime", "linux-x86_64").is_none());
+    }
+
+    /// Legacy single-platform feed has no `platform` metadata: keep the old
+    /// "first match" behaviour so existing feeds keep working on Windows.
+    #[test]
+    fn find_entry_for_platform_falls_back_on_legacy_feed() {
+        let m = parse_manifest(manifest_json()).unwrap();
+        let any = find_entry_for_platform(&m, "awam.file-gateway", "macos-aarch64").unwrap();
+        assert_eq!(any.artifact_version, "0.4.2");
+    }
+
     #[test]
     fn parse_rejects_unsupported_schema() {
         let json = r#"{"schema":2,"entries":[]}"#;
@@ -318,6 +425,18 @@ mod tests {
             "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
         ));
         assert!(!verify_sha256(b"x", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn materialized_artifact_is_executable_on_unix() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("afm-store-exec-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let p = materialize(&dir, "sidecar", b"binary").unwrap();
+        let mode = std::fs::metadata(&p).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode & 0o111, 0o111, "downloaded sidecar must be executable: {mode:o}");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
