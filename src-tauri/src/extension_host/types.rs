@@ -121,6 +121,11 @@ pub struct SidecarContribution {
     /// 值可含 `${afm:settings:<key>}` 占位，由托管命令层从 AFM 设置解析（密钥不落 pack.json）。
     #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
     pub env: std::collections::BTreeMap<String, String>,
+    /// 子进程读取监听端口的环境变量名（ADR 0022 / 端口回退）。设了它，AFM 在托管 spawn 前
+    /// 可在目标端口被**非本服务**占用时顺延到一个可绑端口，并把最终端口写进该 env；
+    /// 缺省则不启用端口回退（子进程用其自身默认端口，行为同迁移前）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub port_env: Option<String>,
 }
 
 /// 搜索面板静态条目贡献项；聚合时宿主写入 `packId` / `packName`（清单内声明无效）。
@@ -299,14 +304,14 @@ mod tests {
             parsed.contributions.sidecars[0].working_dir_rel.as_deref(),
             Some("sidecar")
         );
-        assert_eq!(
-            parsed.contributions.search[0].label_key,
-            "demo.openEntry"
-        );
+        assert_eq!(parsed.contributions.search[0].label_key, "demo.openEntry");
         assert_eq!(parsed.contributions.search[0].keywords.len(), 2);
         assert_eq!(parsed.contributions.search[0].pack_id, None);
         assert_eq!(
-            parsed.gateway_compat.as_ref().map(|g| g.min_version.as_str()),
+            parsed
+                .gateway_compat
+                .as_ref()
+                .map(|g| g.min_version.as_str()),
             Some("0.9.0")
         );
         assert!(re_json.contains("\"sideNav\""));

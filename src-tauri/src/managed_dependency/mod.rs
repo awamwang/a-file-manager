@@ -10,9 +10,10 @@
 pub mod commands;
 pub mod credential;
 pub mod feed;
+pub mod net_port;
 pub mod orchestrator;
-pub mod provision;
 pub mod projection;
+pub mod provision;
 pub mod registry;
 pub mod store;
 
@@ -21,11 +22,6 @@ pub use credential::{resolve_credential, resolve_credential_native};
 #[allow(unused_imports)]
 pub use orchestrator::{
     attach_or_spawn, find_pack_by_id, pick_sidecar_for_pack, stop_self_spawned, AttachOutcome,
-};
-#[allow(unused_imports)]
-pub use store::{
-    download_and_verify, download_verify_url_with_fallback, find_entry, is_host_allowed,
-    materialize, parse_manifest, verify_sha256, PackEntry, StoreEntry, StoreManifest,
 };
 #[allow(unused_imports)]
 pub use provision::{
@@ -37,4 +33,9 @@ pub use registry::{
     delete_record, list_records, load_record, prune_orphans, record_path, records_root,
     register_for_enabled_pack, save_record, unregister_for_pack, CredentialSource, DependencyMode,
     HealthState, ManagedDependencyRecord,
+};
+#[allow(unused_imports)]
+pub use store::{
+    download_and_verify, download_verify_url_with_fallback, find_entry, is_host_allowed,
+    materialize, parse_manifest, verify_sha256, PackEntry, StoreEntry, StoreManifest,
 };

@@ -54,6 +54,14 @@ pub fn set_configured(url: Option<&str>, token: Option<&str>) {
     }
 }
 
+/// 仅更新生效服务地址（managed 端口回退后由命令层推送实际绑定端口），**不触碰 token**。
+/// 与 `set_configured` 分开，避免传 `url=Some、token=None` 误清已配置的鉴权 token。
+pub fn set_effective_base_url(url: &str) {
+    if let Ok(mut guard) = CONFIGURED_URL.lock() {
+        *guard = normalize_service_url(url);
+    }
+}
+
 /// 解析顺序：环境变量 → 设置 → 默认 `http://127.0.0.1:18790`。
 fn base_url() -> String {
     if let Ok(env) = std::env::var("AFM_KNOWLEDGE_SERVICE_URL") {
@@ -98,7 +106,11 @@ pub struct KnowledgeError {
 
 impl std::fmt::Display for KnowledgeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "knowledge service error [{}]: {}", self.code, self.reason)
+        write!(
+            f,
+            "knowledge service error [{}]: {}",
+            self.code, self.reason
+        )
     }
 }
 
@@ -152,14 +164,21 @@ fn post_json(
     if let Some(token) = token() {
         request = request.header("Authorization", format!("Bearer {token}").as_str());
     }
-    let mut response = request
-        .send_json(body)
-        .map_err(|e| err("offline", format!("knowledge service request failed ({url}): {e}"), 0))?;
+    let mut response = request.send_json(body).map_err(|e| {
+        err(
+            "offline",
+            format!("knowledge service request failed ({url}): {e}"),
+            0,
+        )
+    })?;
     let status = response.status().as_u16();
-    let value: serde_json::Value = response
-        .body_mut()
-        .read_json()
-        .map_err(|e| err("bad_response", format!("knowledge service JSON decode failed ({url}): {e}"), status))?;
+    let value: serde_json::Value = response.body_mut().read_json().map_err(|e| {
+        err(
+            "bad_response",
+            format!("knowledge service JSON decode failed ({url}): {e}"),
+            status,
+        )
+    })?;
     if status >= 400 {
         return Err(error_from_response(status, &value));
     }
@@ -292,7 +311,10 @@ pub struct VaultCopyResult {
 /// 条目名严格匹配 `[REDACTED:<label>:<hash8>]`（label [A-Za-z0-9_-]+，hash8 小写十六进制），
 /// 杜绝任意字符串进入 vault 链路。
 fn is_valid_entry_name(entry: &str) -> bool {
-    let Some(inner) = entry.strip_prefix("[REDACTED:").and_then(|s| s.strip_suffix(']')) else {
+    let Some(inner) = entry
+        .strip_prefix("[REDACTED:")
+        .and_then(|s| s.strip_suffix(']'))
+    else {
         return false;
     };
     let Some((label, hash)) = inner.split_once(':') else {
@@ -393,8 +415,13 @@ pub fn knowledge_service_search(
         body["dedup"] = serde_json::json!("file");
     }
     let value = post_json("/search", body, SEARCH_TIMEOUT)?;
-    serde_json::from_value::<KnowledgeSearchResponse>(value)
-        .map_err(|e| err("bad_response", format!("unexpected /search payload: {e}"), 0))
+    serde_json::from_value::<KnowledgeSearchResponse>(value).map_err(|e| {
+        err(
+            "bad_response",
+            format!("unexpected /search payload: {e}"),
+            0,
+        )
+    })
 }
 
 /// 读取索引根下文档全文（知识页渲染用）。path 为相对索引根的路径（正斜杠）；
@@ -418,8 +445,13 @@ pub fn knowledge_service_read_doc(path: String) -> Result<KnowledgeDoc, Knowledg
 #[tauri::command]
 pub fn knowledge_service_vault_status() -> Result<VaultStatus, KnowledgeError> {
     let value = post_json("/vault/status", serde_json::json!({}), VAULT_TIMEOUT)?;
-    serde_json::from_value::<VaultStatus>(value)
-        .map_err(|e| err("bad_response", format!("unexpected /vault/status payload: {e}"), 0))
+    serde_json::from_value::<VaultStatus>(value).map_err(|e| {
+        err(
+            "bad_response",
+            format!("unexpected /vault/status payload: {e}"),
+            0,
+        )
+    })
 }
 
 /// 取明文（短显 5s 用）：响应含 value，仅密钥行组件短暂持有，不入 store。
@@ -437,8 +469,13 @@ pub fn knowledge_service_reveal(entry: String) -> Result<VaultReveal, KnowledgeE
         serde_json::json!({ "entry": entry }),
         VAULT_TIMEOUT,
     )?;
-    serde_json::from_value::<VaultReveal>(value)
-        .map_err(|e| err("bad_response", format!("unexpected /vault/reveal payload: {e}"), 0))
+    serde_json::from_value::<VaultReveal>(value).map_err(|e| {
+        err(
+            "bad_response",
+            format!("unexpected /vault/reveal payload: {e}"),
+            0,
+        )
+    })
 }
 
 /// 复制密钥：明文由本命令直写系统剪贴板，响应只带掩码元数据（Enter 主路径）。
@@ -477,16 +514,26 @@ pub fn knowledge_service_unlock(
         serde_json::json!({ "confirm": true, "ttl": ttl }),
         VAULT_TIMEOUT,
     )?;
-    serde_json::from_value::<VaultStatus>(value)
-        .map_err(|e| err("bad_response", format!("unexpected /vault/unlock payload: {e}"), 0))
+    serde_json::from_value::<VaultStatus>(value).map_err(|e| {
+        err(
+            "bad_response",
+            format!("unexpected /vault/unlock payload: {e}"),
+            0,
+        )
+    })
 }
 
 /// 提前关闭解锁窗口。
 #[tauri::command]
 pub fn knowledge_service_lock() -> Result<VaultStatus, KnowledgeError> {
     let value = post_json("/vault/lock", serde_json::json!({}), VAULT_TIMEOUT)?;
-    serde_json::from_value::<VaultStatus>(value)
-        .map_err(|e| err("bad_response", format!("unexpected /vault/lock payload: {e}"), 0))
+    serde_json::from_value::<VaultStatus>(value).map_err(|e| {
+        err(
+            "bad_response",
+            format!("unexpected /vault/lock payload: {e}"),
+            0,
+        )
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -515,12 +562,21 @@ mod tests {
     fn entry_name_validation() {
         assert!(is_valid_entry_name("[REDACTED:llm-key:1a2b3c4d]"));
         assert!(is_valid_entry_name("[REDACTED:pw_1:99887766]"));
-        assert!(!is_valid_entry_name("[REDACTED:llm-key:1A2B3C4D]"), "hash 大写拒绝");
-        assert!(!is_valid_entry_name("[REDACTED:llm-key:1a2b3c4]"), "hash 7 位拒绝");
+        assert!(
+            !is_valid_entry_name("[REDACTED:llm-key:1A2B3C4D]"),
+            "hash 大写拒绝"
+        );
+        assert!(
+            !is_valid_entry_name("[REDACTED:llm-key:1a2b3c4]"),
+            "hash 7 位拒绝"
+        );
         assert!(!is_valid_entry_name("见保险库：x [vault:a:1a2b3c4d]"));
         assert!(!is_valid_entry_name("[REDACTED:llm-key]"));
         assert!(!is_valid_entry_name(""));
-        assert!(!is_valid_entry_name("[REDACTED:a b:1a2b3c4d]"), "label 带空格拒绝");
+        assert!(
+            !is_valid_entry_name("[REDACTED:a b:1a2b3c4d]"),
+            "label 带空格拒绝"
+        );
     }
 
     #[test]
@@ -534,7 +590,10 @@ mod tests {
     #[test]
     fn doc_path_validation() {
         assert!(is_valid_doc_path("pages/notes.md"));
-        assert!(is_valid_doc_path("a\\b.md"), "反斜杠相对路径放行（服务端 resolve）");
+        assert!(
+            is_valid_doc_path("a\\b.md"),
+            "反斜杠相对路径放行（服务端 resolve）"
+        );
         assert!(!is_valid_doc_path(""), "空路径拒绝");
         assert!(!is_valid_doc_path("  "), "纯空白拒绝");
         assert!(!is_valid_doc_path("../escape.md"), ".. 段拒绝");
@@ -601,7 +660,8 @@ mod tests {
                 .unwrap();
         assert!(with_window.window.as_ref().unwrap().active);
         let locked: VaultStatus =
-            serde_json::from_value(json!({"ok": true, "window": null, "map_exists": true})).unwrap();
+            serde_json::from_value(json!({"ok": true, "window": null, "map_exists": true}))
+                .unwrap();
         assert!(locked.window.is_none());
     }
 

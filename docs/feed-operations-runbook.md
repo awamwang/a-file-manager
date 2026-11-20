@@ -160,7 +160,9 @@ AFM 通过 `upstream/` 下的 git submodule 锁定三个后端源码（`awam-fil
 
 ## 7. 排障速查
 
-- **网关连不上 / 报 timeout 某地址**：① entry `baseUrl` 端口是否 == 实例实际端口（tool-manager=18778）；② 该 host 是否在 `allowHosts`；③ managed pack 的地址是**只读**的（来自 record.base_url），不在工具页改；config-mode 实例地址才在工具页填。
+- **网关连不上 / 报 timeout 某地址**：① entry `baseUrl` 端口是否 == 实例实际端口（默认 tool-manager=18778 / file=18787 / knowledge=18790；**若该端口被非本服务占用，AFM 会自动顺延到邻近可绑端口并写回 record**，见下「端口被占」）；② 该 host 是否在 `allowHosts`；③ managed pack 的地址是**只读**的（来自 record.base_url），不在工具页改；config-mode 实例地址才在工具页填。
+- **端口被占**：托管 spawn 前若目标端口探活不通且不可绑（被别的服务占），AFM 顺延到 `+1..+32` 内第一个可绑端口、写回 `record.base_url`、经 pack 的 `port_env`（`AWAM_HTTP_PORT`/`AWAM_GATEWAY_PORT`/`KM_SERVICE_PORT`）注入子进程，并把实际地址同步进 file/knowledge 客户端。所以 entry `baseUrl` 的端口只是**首选默认**，不必为偶发冲突去改后端或 feed；想复位回默认端口：扩展页对该 pack **禁用再启用**（启用从 feed entry 重读 base_url）。pack 未声明 `port_env` 则不回退（沿用其内置默认端口）。
+
 - **工具列表空（托管）**：产物没带 `--add-data data` → 重 build。托管与源码 config-mode 应一致返回声明工具数。
 - **点「升级」失败**：多为旧进程未停导致 exe 文件锁 → 看 `record.spawnedPid`，AFM 升级会先停它；若 pid 不属于 AFM（你手动起的）则停不掉，需先手动停那个进程。feed 主机不在 allow-list → 报 `not allow-listed`。
 - **`available_version` 反复出现**：盘上产物 sha 与 entry 不符。要新版就点「升级」接受；不要就回退 manifest entry。AFM 不会自动消解这个标记。

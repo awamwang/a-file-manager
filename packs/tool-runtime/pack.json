@@ -15,7 +15,8 @@
       "command": "awam-tool-manager.exe",
       "args": ["--transport", "http"],
       "workingDirRel": "sidecar",
-      "runtime": "self"
+      "runtime": "self",
+      "portEnv": "AWAM_HTTP_PORT"
     }]
   }
 }

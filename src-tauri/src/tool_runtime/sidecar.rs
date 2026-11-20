@@ -14,6 +14,9 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 
+/// 工具页托管 spawn 端口被占时最多顺延跨度（与 managed_dependency 命令层保持一致语义）。
+const TOOL_PORT_SPAN: u16 = 32;
+
 /// 占位 sidecar 贡献。真实启动命令以 awam-tool-manager README 为准：`python server.py`（stdio MCP）。
 /// HTTP sidecar（计划中的 `--transport http` / 端口 18778）尚未写入该 README，故此处不写死仓库路径。
 pub fn placeholder_sidecar_contribution() -> SidecarContribution {
@@ -27,6 +30,7 @@ pub fn placeholder_sidecar_contribution() -> SidecarContribution {
         working_dir_rel: Some("sidecar".to_string()),
         runtime: SidecarRuntime::Self_,
         env: Default::default(),
+        port_env: Some("AWAM_HTTP_PORT".to_string()),
     }
 }
 
@@ -87,11 +91,29 @@ where
 {
     let cfg = load_config(app_data);
     let mut record = tool_runtime_record(app_data);
+    // 端口回退（ADR 0022）：托管且声明了 port_env 时，若目标端口探活不通且被占，顺延到可绑端口，
+    // 写回 record.base_url 并注入子进程 env；探活健康（附着）则绝不改端口。
+    let mut contrib_owned = contrib.clone();
+    let mut base_url = effective_base_url(&cfg, &record);
+    if record.mode == crate::managed_dependency::registry::DependencyMode::Managed {
+        if let Some(var) = contrib_owned.port_env.clone() {
+            if probe.health_check(&base_url).is_err() {
+                base_url = crate::managed_dependency::net_port::relocate_if_occupied(
+                    &base_url,
+                    TOOL_PORT_SPAN,
+                );
+                record.base_url = base_url.clone();
+            }
+            if let Some(port) = crate::managed_dependency::net_port::port_of(&base_url) {
+                contrib_owned.env.insert(var, port.to_string());
+            }
+        }
+    }
     let outcome = crate::managed_dependency::orchestrator::attach_or_spawn(
-        &effective_base_url(&cfg, &record),
+        &base_url,
         record.spawned_pid,
         pack_install_dir,
-        contrib,
+        &contrib_owned,
         |url| probe.health_check(url),
         spawn,
     )?;
@@ -298,8 +320,8 @@ pub(crate) fn spawn_sidecar_process(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::config::save_to_path;
+    use super::*;
     use std::cell::Cell;
 
     fn health_ok(_url: &str) -> Result<HealthOk, String> {
@@ -325,6 +347,7 @@ mod tests {
             working_dir_rel: Some("sidecar".to_string()),
             runtime: SidecarRuntime::Self_,
             env: Default::default(),
+            port_env: None,
         }
     }
 
@@ -480,6 +503,7 @@ mod tests {
             working_dir_rel: None,
             runtime: SidecarRuntime::Self_,
             env: Default::default(),
+            port_env: None,
         };
         let (exe, argv) = resolve_spawn_command(&c);
         assert_eq!(exe, "tool.exe");
@@ -495,6 +519,7 @@ mod tests {
             working_dir_rel: None,
             runtime: SidecarRuntime::Shared(SharedRuntime::Python),
             env: Default::default(),
+            port_env: None,
         };
         let (exe, argv) = resolve_spawn_command(&c);
         assert_eq!(exe, crate::platform::python_command());
@@ -513,6 +538,7 @@ mod tests {
             working_dir_rel: None,
             runtime: SidecarRuntime::Shared(SharedRuntime::Node),
             env: Default::default(),
+            port_env: None,
         };
         let (exe, argv) = resolve_spawn_command(&c);
         assert_eq!(exe, "node");
@@ -526,10 +552,12 @@ mod tests {
         let parsed: SidecarContribution = serde_json::from_str(legacy).unwrap();
         assert_eq!(parsed.runtime, SidecarRuntime::Self_);
         // 显式 shared(python) 能解析。
-        let shared =
-            r#"{"id":"s","command":"server.py","args":[],"runtime":{"shared":"python"}}"#;
+        let shared = r#"{"id":"s","command":"server.py","args":[],"runtime":{"shared":"python"}}"#;
         let parsed: SidecarContribution = serde_json::from_str(shared).unwrap();
-        assert_eq!(parsed.runtime, SidecarRuntime::Shared(SharedRuntime::Python));
+        assert_eq!(
+            parsed.runtime,
+            SidecarRuntime::Shared(SharedRuntime::Python)
+        );
     }
 
     #[test]

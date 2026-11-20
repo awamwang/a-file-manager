@@ -16,9 +16,9 @@
       "args": [],
       "workingDirRel": "sidecar",
       "runtime": "self",
+      "portEnv": "KM_SERVICE_PORT",
       "env": {
         "KM_SERVICE_HOST": "127.0.0.1",
-        "KM_SERVICE_PORT": "18790",
         "KM_SERVICE_LOG": "0",
         "KM_SERVICE_TOKEN": "${afm:settings:power.awamKnowledgeServiceToken}"
       }

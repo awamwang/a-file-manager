@@ -143,6 +143,17 @@ awam-file 与 tool-manager 同为自有 Python 后端，可复用同一条 in-tr
 
 **仍待**：① **M2d mcp-server**（9 工具，面向 AI Agent，非 AFM 搜索面板所需）；② **M2b import-md-dir + eval-recall**（离线建索引 + 全语料召回回归 oracle；serve 路径经 `build_corpus` 直读 .md，不阻塞对接）；③ **M3 脱敏管道融合**（用户明确后续再做）；④ 合并仓 push 前跑 **awam-code-publish preflight**。knowledge Node 版保存于 `archive/node`。
 
+## 落地记录：托管 sidecar 端口回退（2026-11-20）
+
+三个后端各按固定回环端口监听（18778/18787/18790）。端口若被**非本服务**进程占用，原 managed spawn 会拉起子进程 bind 失败 → 静默崩溃 → AFM 反复探活失败。补端口回退：
+
+- **数据声明**：`SidecarContribution.port_env`（serde 可选，向后兼容=无字段即不启用回退）。三个 pack.json 各自声明子进程读端口的 env 名：tool-runtime `AWAM_HTTP_PORT`、file-gateway `AWAM_GATEWAY_PORT`、knowledge `KM_SERVICE_PORT`（并从 knowledge 静态 env 移除写死的 `KM_SERVICE_PORT`，改由 AFM 注入权威端口）。
+- **分配内核** `managed_dependency::net_port`：`relocate_if_occupied(url, span)`——目标端口**探活健康=附着、绝不动**；否则 bind 探测，空闲则保留默认，被占则从 `+1` 顺延到最多 `span=32` 内第一个可绑端口。`split_base_url`/`port_of`/`is_bindable`（含 IPv6 中括号、仅回环 bind）。
+- **接线**：spawn 前三处统一调 `apply_managed_port`（`managed_dependency_ensure`/`_upgrade`/启动 `reconcile`）→ 写回 `record.base_url` 并把最终端口注入子进程 env；tool-runtime 工具页路径在 `tool_runtime::start_sidecar_with_probe` 内联同等逻辑。`spawn_sidecar_process` 已 `envs(&contrib.env)`，子进程经 env 拿到实际端口（三后端均优先 env>内置默认，已实测）。
+- **客户端一致**：换端口后 AFM 客户端必须连实际端口。tool-runtime 客户端本就读 `record.base_url` 权威（C-4/effective_base_url）→ 自动跟随。file/knowledge 客户端走各自 `CONFIGURED_URL` 全局 → spawn 后由 `sync_managed_client_url` 把 `record.base_url` 推入（file→`set_configured_gateway_url`、knowledge→新增 url-only `set_effective_base_url`，不清 token）。config-mode 不推（设置/默认仍主导）。
+- **持久化**：relocate 后 `record.base_url` 落库，重启 reconcile 以已顺延端口为 `want` 再探（空闲则保留、不反复漂移）；下次在扩展页**重新启用**会从 feed entry 复位回默认端口。
+- 验证：`cargo test --lib` **458 passed / 0 警告**（含 net_port 解析/顺延 5 测试）。
+
 ## Consequences
 
 - ADR 0019 的白名单/元清单/SHA-from-GitHub 全套下载逻辑不再作为 managed-mode 的唯一前提；managed 改为 AFM 自产产物。`store.rs`（allow-list + 下载 + SHA-256 摘要校验）由「待接线」升为 managed **主路径**：经 `feed::fetch_manifest` 取 AFM 自有元清单、`provision::ensure_artifact` 按需下载校验落盘（见上「B-正式」落地记录）；config-mode 仍可连用户自跑实例不经此路。

@@ -3,7 +3,9 @@
 //! 纯 `&Path` + 注入闭包，离线单测；Tauri 包装仅做目录解析与 spawn_blocking。
 
 use super::feed;
-use super::orchestrator::{attach_or_spawn, find_pack_by_id, pick_sidecar_for_pack, stop_self_spawned};
+use super::orchestrator::{
+    attach_or_spawn, find_pack_by_id, pick_sidecar_for_pack, stop_self_spawned,
+};
 use super::provision;
 use super::registry::{self, DependencyMode, HealthState, ManagedDependencyRecord};
 use super::store;
@@ -11,6 +13,13 @@ use crate::extension_host::types::SidecarContribution;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
+
+/// 端口被占时，从默认端口起最多顺延尝试的跨度（ADR 0022 端口回退）。
+const MANAGED_PORT_SPAN: u16 = 32;
+/// awam-file 网关 pack id（managed 客户端同步用）。
+const FILE_GATEWAY_PACK_ID: &str = "awam.file-gateway";
+/// awam-knowledge pack id（managed 客户端同步用）。
+const KNOWLEDGE_PACK_ID: &str = "awam.knowledge";
 
 // ---- 可测内核 ----
 
@@ -52,7 +61,10 @@ where
 }
 
 /// 停止并回写记录：只 kill 自启 pid；成功后清 pid、置 Unhealthy。非自启 → `Err` 拒绝（Q8）。
-pub(crate) fn stop_record_with<K>(record: &mut ManagedDependencyRecord, kill: K) -> Result<(), String>
+pub(crate) fn stop_record_with<K>(
+    record: &mut ManagedDependencyRecord,
+    kill: K,
+) -> Result<(), String>
 where
     K: FnOnce(u32),
 {
@@ -89,17 +101,27 @@ fn expand_contrib_env(contrib: &mut SidecarContribution, app: &AppHandle) {
 }
 
 /// ensure 的公共前置：按 `record.pack_id` 解析启用 pack + 其 sidecar 贡献（1:1 校验）。
-fn resolve_pack_sidecar(record: &ManagedDependencyRecord) -> Result<(PathBuf, SidecarContribution), String> {
-    let pack = find_pack_by_id(&record.pack_id)
-        .ok_or_else(|| format!("managed_dependency ensure: pack '{}' not installed", record.pack_id))?;
+fn resolve_pack_sidecar(
+    record: &ManagedDependencyRecord,
+) -> Result<(PathBuf, SidecarContribution), String> {
+    let pack = find_pack_by_id(&record.pack_id).ok_or_else(|| {
+        format!(
+            "managed_dependency ensure: pack '{}' not installed",
+            record.pack_id
+        )
+    })?;
     if pack.state != crate::extension_host::types::ExtensionRuntimeState::Enabled {
         return Err(format!(
             "managed_dependency ensure: pack '{}' not enabled",
             record.pack_id
         ));
     }
-    let contrib = pick_sidecar_for_pack(&pack)
-        .ok_or_else(|| format!("managed_dependency ensure: pack '{}' declares no sidecar", record.pack_id))?;
+    let contrib = pick_sidecar_for_pack(&pack).ok_or_else(|| {
+        format!(
+            "managed_dependency ensure: pack '{}' declares no sidecar",
+            record.pack_id
+        )
+    })?;
     Ok((PathBuf::from(&pack.install_path), contrib))
 }
 
@@ -123,7 +145,9 @@ fn prepare_contrib_for_spawn(
         Ok(m) => m,
         Err(_) => return Ok(resolve_offline_or_skip(pack_install_dir, contrib)),
     };
-    let entry = manifest.as_ref().and_then(|m| store::find_entry(m, &record.pack_id));
+    let entry = manifest
+        .as_ref()
+        .and_then(|m| store::find_entry(m, &record.pack_id));
     match provision::ensure_artifact(
         entry,
         &feed_cfg.allow_hosts,
@@ -183,11 +207,47 @@ fn probe(url: &str) -> Result<crate::tool_runtime::HealthOk, String> {
 }
 
 /// 生产 spawn：复用 tool_runtime 的进程拉起实现（CREATE_NO_WINDOW、workingDirRel 解析）。
-fn native_spawn(
-    pack_install_dir: &Path,
-    contrib: &SidecarContribution,
-) -> Result<u32, String> {
+fn native_spawn(pack_install_dir: &Path, contrib: &SidecarContribution) -> Result<u32, String> {
     crate::tool_runtime::spawn_sidecar_process(pack_install_dir, contrib)
+}
+
+/// 托管 spawn 前的端口回退（ADR 0022）。仅对 `Managed` 且 pack 声明了 `port_env` 的 contrib 生效：
+/// - 目标端口若探活健康 → 视为附着，**绝不改端口**（避免误伤用户自跑的同一服务）。
+/// - 否则若被**非本服务**占用 → 顺延到一个可绑端口并写回 `record.base_url`。
+/// - 无论是否顺延，都把最终端口注入 `contrib.env[port_env]`，使 managed 记录的端口成为子进程的实际监听端口。
+pub(crate) fn apply_managed_port(
+    record: &mut ManagedDependencyRecord,
+    contrib: &mut SidecarContribution,
+) {
+    if record.mode != DependencyMode::Managed {
+        return;
+    }
+    let Some(var) = contrib.port_env.clone() else {
+        return;
+    };
+    if probe(&record.base_url).is_err() {
+        record.base_url =
+            super::net_port::relocate_if_occupied(&record.base_url, MANAGED_PORT_SPAN);
+    }
+    if let Some(port) = super::net_port::port_of(&record.base_url) {
+        contrib.env.insert(var, port.to_string());
+    }
+}
+
+/// managed 权威同步：把生效 URL 推入对应后端的客户端解析全局，使换端口后 AFM 客户端连到实际端口。
+/// file→`providers::gateway`、knowledge→`knowledge_service`；tool-runtime 客户端本就读 record 无需推。
+/// config-mode 不推（由设置/默认主导）。仅 `Managed` 且 `base_url` 非空时动作。
+pub(crate) fn sync_managed_client_url(record: &ManagedDependencyRecord) {
+    if record.mode != DependencyMode::Managed || record.base_url.trim().is_empty() {
+        return;
+    }
+    match record.pack_id.as_str() {
+        FILE_GATEWAY_PACK_ID => {
+            crate::providers::gateway::set_configured_gateway_url(Some(&record.base_url))
+        }
+        KNOWLEDGE_PACK_ID => crate::knowledge_service::set_effective_base_url(&record.base_url),
+        _ => {}
+    }
 }
 
 fn app_config_dir(app: &AppHandle) -> Result<PathBuf, String> {
@@ -198,7 +258,9 @@ fn app_config_dir(app: &AppHandle) -> Result<PathBuf, String> {
 
 /// 列出全部托管依赖记录（权威态；投影给 Health/deps_probe）。
 #[tauri::command]
-pub async fn managed_dependency_list(app: AppHandle) -> Result<Vec<ManagedDependencyRecord>, String> {
+pub async fn managed_dependency_list(
+    app: AppHandle,
+) -> Result<Vec<ManagedDependencyRecord>, String> {
     let dir = app_config_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || registry::list_records(&dir))
         .await
@@ -233,12 +295,17 @@ pub async fn managed_dependency_get_feed(app: AppHandle) -> Result<feed::FeedCon
 
 /// 停止指定托管依赖（仅 AFM 自启 pid；附着/远程实例一律拒绝）。
 #[tauri::command]
-pub async fn managed_dependency_stop(app: AppHandle, id: String) -> Result<ManagedDependencyRecord, String> {
+pub async fn managed_dependency_stop(
+    app: AppHandle,
+    id: String,
+) -> Result<ManagedDependencyRecord, String> {
     let dir = app_config_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
         let mut record = registry::load_record(&dir, &id)?
             .ok_or_else(|| format!("managed_dependency stop: unknown id '{id}'"))?;
-        stop_record_with(&mut record, |pid| crate::win_process::kill_process_tree(pid))?;
+        stop_record_with(&mut record, |pid| {
+            crate::win_process::kill_process_tree(pid)
+        })?;
         registry::save_record(&dir, &record)?;
         Ok(record)
     })
@@ -248,7 +315,10 @@ pub async fn managed_dependency_stop(app: AppHandle, id: String) -> Result<Manag
 
 /// 确保指定托管依赖可用：先探 config-mode，健康附着；否则按 pack sidecar 贡献拉起。
 #[tauri::command]
-pub async fn managed_dependency_ensure(app: AppHandle, id: String) -> Result<ManagedDependencyRecord, String> {
+pub async fn managed_dependency_ensure(
+    app: AppHandle,
+    id: String,
+) -> Result<ManagedDependencyRecord, String> {
     let dir = app_config_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
         let mut record = registry::load_record(&dir, &id)?
@@ -258,14 +328,24 @@ pub async fn managed_dependency_ensure(app: AppHandle, id: String) -> Result<Man
             return Ok(record);
         }
         let (pack_install_dir, contrib) = resolve_pack_sidecar(&record)?;
-        let Some(mut contrib) = prepare_contrib_for_spawn(&dir, &mut record, &pack_install_dir, contrib)? else {
+        let Some(mut contrib) =
+            prepare_contrib_for_spawn(&dir, &mut record, &pack_install_dir, contrib)?
+        else {
             // 产物暂不可得（feed 不可达且盘上无产物）：不 spawn，落库后返回（下次启动/检查/手动再试）。
             registry::save_record(&dir, &record)?;
             return Ok(record);
         };
         expand_contrib_env(&mut contrib, &app);
-        ensure_record_with(&mut record, &pack_install_dir, &contrib, probe, native_spawn)?;
+        apply_managed_port(&mut record, &mut contrib);
+        ensure_record_with(
+            &mut record,
+            &pack_install_dir,
+            &contrib,
+            probe,
+            native_spawn,
+        )?;
         registry::save_record(&dir, &record)?;
+        sync_managed_client_url(&record);
         Ok(record)
     })
     .await
@@ -292,11 +372,18 @@ pub async fn managed_dependency_upgrade(
         let manifest = feed::fetch_manifest(&feed_cfg, store::fetch_manifest_text)?
             .ok_or_else(|| "managed_dependency upgrade: feed not configured".to_string())?;
         let entry = store::find_entry(&manifest, &record.pack_id)
-            .ok_or_else(|| format!("managed_dependency upgrade: no feed entry for '{}'", record.pack_id))?
+            .ok_or_else(|| {
+                format!(
+                    "managed_dependency upgrade: no feed entry for '{}'",
+                    record.pack_id
+                )
+            })?
             .clone();
         // 1. 停旧（仅自启 pid）；附着/未拉起时 pid 为 None，跳过。
         if record.spawned_pid.is_some() {
-            stop_record_with(&mut record, |pid| crate::win_process::kill_process_tree(pid))?;
+            stop_record_with(&mut record, |pid| {
+                crate::win_process::kill_process_tree(pid)
+            })?;
         }
         // 2. 强制重下 + 校验 + 原子替换落盘。
         let path = provision::force_provision(
@@ -312,8 +399,16 @@ pub async fn managed_dependency_upgrade(
         let mut contrib = contrib;
         contrib.command = path.to_string_lossy().into_owned();
         expand_contrib_env(&mut contrib, &app);
-        ensure_record_with(&mut record, &pack_install_dir, &contrib, probe, native_spawn)?;
+        apply_managed_port(&mut record, &mut contrib);
+        ensure_record_with(
+            &mut record,
+            &pack_install_dir,
+            &contrib,
+            probe,
+            native_spawn,
+        )?;
         registry::save_record(&dir, &record)?;
+        sync_managed_client_url(&record);
         Ok(record)
     })
     .await
@@ -360,8 +455,11 @@ pub fn check_updates(app_data: &Path) -> Result<(), String> {
         let Some(entry) = store::find_entry(&manifest, &record.pack_id) else {
             continue;
         };
-        let status =
-            provision::inspect_artifact_offline(entry, &pack_install_dir, contrib.working_dir_rel.as_deref());
+        let status = provision::inspect_artifact_offline(
+            entry,
+            &pack_install_dir,
+            contrib.working_dir_rel.as_deref(),
+        );
         apply_feed_check(&mut record, entry, status);
         // 单条落库失败不影响其它记录（尽力而为）。
         let _ = registry::save_record(app_data, &record);
@@ -385,7 +483,10 @@ pub async fn managed_dependency_check_update(
         let (pack_install_dir, contrib) = resolve_pack_sidecar(&record)?;
         let feed_cfg = feed::load_feed(&dir);
         let manifest = feed::fetch_manifest(&feed_cfg, store::fetch_manifest_text)?;
-        if let Some(entry) = manifest.as_ref().and_then(|m| store::find_entry(m, &record.pack_id)) {
+        if let Some(entry) = manifest
+            .as_ref()
+            .and_then(|m| store::find_entry(m, &record.pack_id))
+        {
             let status = provision::inspect_artifact_offline(
                 entry,
                 &pack_install_dir,
@@ -431,13 +532,24 @@ pub fn reconcile_managed_on_startup(app_data: &Path, app: &AppHandle) {
         }
         let outcome = (|| -> Result<(), String> {
             let (pack_install_dir, contrib) = resolve_pack_sidecar(&record)?;
-            let Some(mut contrib) = prepare_contrib_for_spawn(app_data, &mut record, &pack_install_dir, contrib)? else {
+            let Some(mut contrib) =
+                prepare_contrib_for_spawn(app_data, &mut record, &pack_install_dir, contrib)?
+            else {
                 // 产物暂不可得（feed 不可达且盘上无产物）：跳过 spawn，不算错误、不刷日志。
                 return registry::save_record(app_data, &record);
             };
             expand_contrib_env(&mut contrib, app);
-            ensure_record_with(&mut record, &pack_install_dir, &contrib, probe, native_spawn)?;
-            registry::save_record(app_data, &record)
+            apply_managed_port(&mut record, &mut contrib);
+            ensure_record_with(
+                &mut record,
+                &pack_install_dir,
+                &contrib,
+                probe,
+                native_spawn,
+            )?;
+            registry::save_record(app_data, &record)?;
+            sync_managed_client_url(&record);
+            Ok(())
         })();
         if let Err(err) = outcome {
             eprintln!("managed startup reconcile '{}': {err}", record.id);
@@ -467,6 +579,7 @@ mod tests {
             working_dir_rel: None,
             runtime: Default::default(),
             env: Default::default(),
+            port_env: None,
         }
     }
 
@@ -474,9 +587,17 @@ mod tests {
     fn ensure_requires_configured_base_url() {
         let mut rec = record("");
         let called = Cell::new(false);
-        let err = ensure_record_with(&mut rec, Path::new("/tmp"), &contrib(),
-            |_| Ok(()), |_d, _c| { called.set(true); Ok(1) })
-            .unwrap_err();
+        let err = ensure_record_with(
+            &mut rec,
+            Path::new("/tmp"),
+            &contrib(),
+            |_| Ok(()),
+            |_d, _c| {
+                called.set(true);
+                Ok(1)
+            },
+        )
+        .unwrap_err();
         assert!(err.contains("base_url not configured"), "{err}");
         assert!(!called.get());
     }
@@ -486,9 +607,17 @@ mod tests {
         let mut rec = record("http://127.0.0.1:18787");
         rec.spawned_pid = Some(7);
         let spawned = Cell::new(false);
-        ensure_record_with(&mut rec, Path::new("/tmp"), &contrib(),
-            |_| Ok(()), |_d, _c| { spawned.set(true); Ok(99) })
-            .unwrap();
+        ensure_record_with(
+            &mut rec,
+            Path::new("/tmp"),
+            &contrib(),
+            |_| Ok(()),
+            |_d, _c| {
+                spawned.set(true);
+                Ok(99)
+            },
+        )
+        .unwrap();
         assert!(!spawned.get());
         assert_eq!(rec.spawned_pid, Some(7), "attach must not clobber pid");
         assert_eq!(rec.health, HealthState::Healthy);
@@ -497,9 +626,14 @@ mod tests {
     #[test]
     fn ensure_spawn_records_new_pid() {
         let mut rec = record("http://127.0.0.1:18787");
-        ensure_record_with(&mut rec, Path::new("/tmp"), &contrib(),
-            |_| Err::<(), _>("down".to_string()), |_d, _c| Ok(42))
-            .unwrap();
+        ensure_record_with(
+            &mut rec,
+            Path::new("/tmp"),
+            &contrib(),
+            |_| Err::<(), _>("down".to_string()),
+            |_d, _c| Ok(42),
+        )
+        .unwrap();
         assert_eq!(rec.spawned_pid, Some(42));
         assert_eq!(rec.health, HealthState::Unhealthy);
     }
@@ -535,7 +669,14 @@ mod tests {
         let mut rec = record("http://x");
         rec.mode = DependencyMode::Managed;
         rec.available_version = "0.0.9".to_string();
-        apply_feed_check(&mut rec, &entry("0.1.0"), provision::OfflineArtifactStatus { present: true, up_to_date: true });
+        apply_feed_check(
+            &mut rec,
+            &entry("0.1.0"),
+            provision::OfflineArtifactStatus {
+                present: true,
+                up_to_date: true,
+            },
+        );
         assert_eq!(rec.installed_version, "0.1.0");
         assert_eq!(rec.available_version, "");
     }
@@ -544,13 +685,33 @@ mod tests {
     fn apply_feed_check_stale_or_absent_marks_available_without_touching_installed() {
         let mut stale = record("http://x");
         stale.installed_version = "0.1.0".to_string();
-        apply_feed_check(&mut stale, &entry("0.2.0"), provision::OfflineArtifactStatus { present: true, up_to_date: false });
+        apply_feed_check(
+            &mut stale,
+            &entry("0.2.0"),
+            provision::OfflineArtifactStatus {
+                present: true,
+                up_to_date: false,
+            },
+        );
         assert_eq!(stale.available_version, "0.2.0");
-        assert_eq!(stale.installed_version, "0.1.0", "stale keeps known installed version");
+        assert_eq!(
+            stale.installed_version, "0.1.0",
+            "stale keeps known installed version"
+        );
 
         let mut absent = record("http://x");
-        apply_feed_check(&mut absent, &entry("0.2.0"), provision::OfflineArtifactStatus { present: false, up_to_date: false });
-        assert_eq!(absent.available_version, "0.2.0", "absent artifact is an installable update target");
+        apply_feed_check(
+            &mut absent,
+            &entry("0.2.0"),
+            provision::OfflineArtifactStatus {
+                present: false,
+                up_to_date: false,
+            },
+        );
+        assert_eq!(
+            absent.available_version, "0.2.0",
+            "absent artifact is an installable update target"
+        );
     }
 
     #[test]
@@ -564,8 +725,14 @@ mod tests {
 
     #[test]
     fn resolve_env_value_passthrough_without_lookup() {
-        assert_eq!(resolve_env_value("plain-value", |_| panic!("must not look up")), "plain-value");
+        assert_eq!(
+            resolve_env_value("plain-value", |_| panic!("must not look up")),
+            "plain-value"
+        );
         // 前缀不匹配 / 缺尾 `}` 都原样返回。
-        assert_eq!(resolve_env_value("${afm:settings:x", |_| panic!("no lookup")), "${afm:settings:x");
+        assert_eq!(
+            resolve_env_value("${afm:settings:x", |_| panic!("no lookup")),
+            "${afm:settings:x"
+        );
     }
 }

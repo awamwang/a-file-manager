@@ -59,9 +59,9 @@ where
             kill(pid);
             Ok(pid)
         }
-        None => Err(
-            "managed_dependency stop: refusing to stop non-self-spawned process".to_string(),
-        ),
+        None => {
+            Err("managed_dependency stop: refusing to stop non-self-spawned process".to_string())
+        }
     }
 }
 
@@ -93,6 +93,7 @@ mod tests {
             working_dir_rel: Some("sidecar".to_string()),
             runtime: Default::default(),
             env: Default::default(),
+            port_env: None,
         }
     }
 
@@ -121,7 +122,14 @@ mod tests {
         )
         .unwrap();
         assert!(!spawned.get(), "reachable must not spawn");
-        assert_eq!(outcome, AttachOutcome { pid: 7, spawned: false, reachable: true });
+        assert_eq!(
+            outcome,
+            AttachOutcome {
+                pid: 7,
+                spawned: false,
+                reachable: true
+            }
+        );
     }
 
     #[test]
@@ -141,7 +149,14 @@ mod tests {
         )
         .unwrap();
         assert!(spawned.get());
-        assert_eq!(outcome, AttachOutcome { pid: 42, spawned: true, reachable: false });
+        assert_eq!(
+            outcome,
+            AttachOutcome {
+                pid: 42,
+                spawned: true,
+                reachable: false
+            }
+        );
     }
 
     #[test]
@@ -157,15 +172,16 @@ mod tests {
         let killed = Cell::new(false);
         let err = stop_self_spawned(None, |_| killed.set(true)).unwrap_err();
         assert!(err.contains("refusing to stop non-self-spawned"), "{err}");
-        assert!(!killed.get(), "must not kill anything when not self-spawned");
+        assert!(
+            !killed.get(),
+            "must not kill anything when not self-spawned"
+        );
     }
 
     #[test]
     fn pick_sidecar_for_pack_reads_first_contribution_from_pack_json() {
-        let dir = std::env::temp_dir().join(format!(
-            "afm-orchestrator-pack-{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("afm-orchestrator-pack-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         let manifest = r#"{

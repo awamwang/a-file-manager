@@ -15,7 +15,8 @@
       "command": "awam-resource-gateway.exe",
       "args": ["http"],
       "workingDirRel": "sidecar",
-      "runtime": "self"
+      "runtime": "self",
+      "portEnv": "AWAM_GATEWAY_PORT"
     }],
     "search": []
   }
