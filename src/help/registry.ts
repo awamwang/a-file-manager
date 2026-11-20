@@ -185,11 +185,6 @@ const ALL_TOURS: readonly TourDefinition[] = [
     titleKey: "help.entries.workGroups.title",
     steps: [
       {
-        anchor: "tour-workgroups-header",
-        titleKey: "tour.workGroups.header.title",
-        bodyKey: "tour.workGroups.header.body",
-      },
-      {
         anchor: "tour-workgroups-list",
         titleKey: "tour.workGroups.list.title",
         bodyKey: "tour.workGroups.list.body",
@@ -211,11 +206,6 @@ const ALL_TOURS: readonly TourDefinition[] = [
     id: "projects",
     titleKey: "help.entries.projects.title",
     steps: [
-      {
-        anchor: "tour-projects-header",
-        titleKey: "tour.projects.header.title",
-        bodyKey: "tour.projects.header.body",
-      },
       {
         anchor: "tour-projects-list",
         titleKey: "tour.projects.list.title",
@@ -260,11 +250,6 @@ const ALL_TOURS: readonly TourDefinition[] = [
     id: "ai",
     titleKey: "help.entries.ai.title",
     steps: [
-      {
-        anchor: "tour-ai-header",
-        titleKey: "tour.ai.header.title",
-        bodyKey: "tour.ai.header.body",
-      },
       {
         anchor: "tour-ai-nav",
         titleKey: "tour.ai.nav.title",

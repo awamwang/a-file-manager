@@ -1704,6 +1704,7 @@
       },
       "hintLabel": "Conseil de démarrage",
     "hintDismiss": "Compris",
+    "hintTryTour": "Guidez-moi pas à pas",
       "articleLabel": "Article d'aide",
       "tourLabel": "Démonstration guidée",
       "replay": "Rejouer cette démonstration",
@@ -1721,15 +1722,15 @@
       "entries": {
         "navigator": {
           "title": "Parcourir les fichiers",
-          "hint": "Ouvrez ici vos dossiers et fichiers. La barre de chemin permet de sauter à un emplacement, le menu étoile de revenir aux lieux fréquents."
+          "hint": "C'est ici que vous parcourez vos dossiers et fichiers."
         },
         "search": {
           "title": "Recherche unifiée",
-          "hint": "La recherche couvre fichiers, dossiers et autres contenus en une fois. Les filtres de source affinent les résultats."
+          "hint": "La recherche couvre fichiers, dossiers et autres contenus en une seule fois."
         },
         "workGroups": {
           "title": "Groupes de travail",
-          "hint": "Un groupe de travail rassemble les dossiers d'une même tâche. Changer de groupe retrouve tous ces lieux d'un coup."
+          "hint": "Un groupe de travail rassemble les dossiers d'une même tâche."
         },
         "projects": {
           "title": "Projets",
@@ -1795,10 +1796,6 @@
         }
       },
       "workGroups": {
-        "header": {
-          "title": "Qu'est-ce qu'un groupe de travail ?",
-          "body": "Il rassemble les dossiers liés à une même tâche, par exemple tout un client."
-        },
         "list": {
           "title": "Vos groupes de travail",
           "body": "Choisissez un groupe à gauche pour charger ses dossiers. Glissez pour changer l'ordre."
@@ -1813,10 +1810,6 @@
         }
       },
       "projects": {
-        "header": {
-          "title": "Qu'est-ce qu'un projet ?",
-          "body": "Un projet rassemble les dossiers, liens et tâches d'un travail en cours."
-        },
         "list": {
           "title": "Vos projets",
           "body": "Sélectionnez un projet à gauche pour voir ses détails. Glissez pour réordonner."
@@ -1845,10 +1838,6 @@
         }
       },
       "ai": {
-        "header": {
-          "title": "Fonctions IA optionnelles",
-          "body": "Cette page n'existe que dans les versions IA. Les versions Core n'affichent aucune option IA."
-        },
         "nav": {
           "title": "Choisir une section",
           "body": "Chaque section à gauche regroupe une fonction IA et ses réglages."

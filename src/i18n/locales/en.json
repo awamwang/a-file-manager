@@ -1704,6 +1704,7 @@
       },
       "hintLabel": "Getting-started tip",
     "hintDismiss": "Got it",
+    "hintTryTour": "Guide me through it",
       "articleLabel": "Help article",
       "tourLabel": "Guided tour",
       "replay": "Replay this walkthrough",
@@ -1721,15 +1722,15 @@
       "entries": {
         "navigator": {
           "title": "Browsing files",
-          "hint": "This is where you open folders and files. Use the path bar to jump to a location, or the star menu to get back to places you use often."
+          "hint": "This is where you browse folders and files."
         },
         "search": {
           "title": "Unified search",
-          "hint": "Search looks across files, folders and other content at once. Switch source tags to narrow down what you see."
+          "hint": "Search looks across files, folders and other content at once."
         },
         "workGroups": {
           "title": "Work Groups",
-          "hint": "A Work Group gathers the folders for one piece of work. Switching groups brings all of those places back at once."
+          "hint": "A Work Group gathers the folders for one piece of work."
         },
         "projects": {
           "title": "Projects",
@@ -1795,10 +1796,6 @@
         }
       },
       "workGroups": {
-        "header": {
-          "title": "What is a Work Group?",
-          "body": "A Work Group is a bundle of folders that belong together — for example everything for one client."
-        },
         "list": {
           "title": "Your Work Groups",
           "body": "Pick a group on the left to load its folders. Drag a group to change the order."
@@ -1813,10 +1810,6 @@
         }
       },
       "projects": {
-        "header": {
-          "title": "What is a Project?",
-          "body": "A Project holds the folders, links and tasks for one thing you are working on."
-        },
         "list": {
           "title": "Your Projects",
           "body": "Select a project on the left to see its details. You can drag projects to reorder them."
@@ -1845,10 +1838,6 @@
         }
       },
       "ai": {
-        "header": {
-          "title": "Optional AI features",
-          "body": "This page only exists in AI builds. Core builds do not show AI options at all."
-        },
         "nav": {
           "title": "Pick a section",
           "body": "Each section on the left groups one AI capability and its settings."

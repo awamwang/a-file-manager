@@ -63,7 +63,9 @@ const progress = read("src/help/progress.ts");
 const tourState = read("src/help/tourState.ts");
 const guidedTour = read("src/help/components/GuidedTour.vue");
 const helpCenter = read("src/help/components/HelpCenter.vue");
-const firstRun = read("src/help/useFirstRunTour.ts");
+const hintBubble = read("src/help/components/HintBubble.vue");
+const appShell = read("src/components/shell/AppShell.vue");
+const navigatorView = read("src/views/NavigatorView.vue");
 const router = read("src/router/index.ts");
 
 /* ------------------------------------------------------------------ 1 ---- */
@@ -88,7 +90,7 @@ check("锚点全覆盖：registry 的每个 anchor 都有 data-tour-id", () => {
 });
 
 /* ------------------------------------------------------------------ 2 ---- */
-check("重播不写进度：replay 传 recordProgress=false 且 finish 只在 true 时 markDone", () => {
+check("进度语义：重播不写进度（false），主动试一试写进度（true）", () => {
   const replayBody = helpCenter.match(/function replay\([\s\S]*?\n\}/)?.[0] ?? "";
   assert(replayBody.includes("startTour("), "HelpCenter.replay 未调用 startTour");
   assert(
@@ -104,10 +106,10 @@ check("重播不写进度：replay 传 recordProgress=false 且 finish 只在 tr
     "GuidedTour.finish 未用 recordProgress 门控 markDone",
   );
   assert(
-    /startTour\([^)]*,\s*true\s*\)/.test(firstRun),
-    "首次运行播放未传 recordProgress=true",
+    /startTour\([^)]*,\s*true\s*\)/.test(hintBubble),
+    "HintBubble 的主动试一试未以 recordProgress=true 启动教学",
   );
-  return "HelpCenter.replay=false；finish 门控=true；first-run=true";
+  return "HelpCenter.replay=false；finish 门控=true；主动试一试=true";
 });
 
 /* ------------------------------------------------------------------ 3 ---- */
@@ -172,7 +174,7 @@ check("五语齐全：注册表 key 在 en/zh-CN/ja/de/fr 全部存在", () => {
       [...registry.matchAll(/\b(?:titleKey|hintKey|bodyKey):\s*"([^"]+)"/g)].map((m) => m[1]),
     ),
   ];
-  assert(keys.length === 59, `注册表 key 期望 59，实得 ${keys.length}`);
+  assert(keys.length === 53, `注册表 key 期望 53，实得 ${keys.length}`);
   const catalogs = {};
   for (const id of LOCALES) {
     catalogs[id] = flatten(JSON.parse(read(`src/i18n/locales/${id}.json`)));
@@ -184,7 +186,7 @@ check("五语齐全：注册表 key 在 en/zh-CN/ja/de/fr 全部存在", () => {
   }
   const counts = LOCALES.map((id) => Object.keys(catalogs[id]).length);
   assert(new Set(counts).size === 1, `五语 key 总数不一致: ${counts.join("/")}`);
-  return `59 key × 5 语齐全；各语 ${counts[0]} keys`;
+  return `53 key × 5 语齐全；各语 ${counts[0]} keys`;
 });
 
 /* ------------------------------------------------------------------ 6 ---- */
@@ -405,7 +407,7 @@ check("功能页 ? 深链接线：HelpLink 传 tour、HelpView 解析 autoTour�
 });
 
 /* ----------------------------------------------------------------- 14 ---- */
-check("超时/路由不符只放弃本次启动，绝不误停并发教学（如首次启动 quickstart）", () => {
+check("超时/路由不符只放弃本次启动，绝不误停并发教学", () => {
   // Static: the abort branch must not call stopTour().
   const bridge = tourState.match(
     /export function startTourWhenAnchorReady[\s\S]*?\n\}/,
@@ -578,7 +580,6 @@ check("功能级开关：6 条 entry 双开关齐备，L2/L3/? 三端消费且 L
 
   // Protected modules must stay free of feature-level switch coupling.
   for (const [name, source] of [
-    ["useFirstRunTour", firstRun],
     ["GuidedTour", guidedTour],
     ["tourState", tourState],
     ["progress", progress],
@@ -589,6 +590,87 @@ check("功能级开关：6 条 entry 双开关齐备，L2/L3/? 三端消费且 L
     );
   }
   return "6 entry 双开关；HintBubble/HelpCenter/HelpLink 三端消费；L1 与受保护模块不变";
+});
+
+/* ----------------------------------------------------------------- 17 ---- */
+check("主动触发：气泡试一试按 tourId 播教学，Navigator 映射 quickstart，无自动定时器", () => {
+  assert(/tourId\?: string/.test(hintBubble), "HintBubble 缺少可选 tourId prop");
+  assert(
+    /props\.tourId \|\| entry\.value\?\.tourId/.test(hintBubble),
+    "HintBubble 未回退到 entry.tourId",
+  );
+  assert(/t\("help\.hintTryTour"\)/.test(hintBubble), "试一试按钮缺少 i18n 文案");
+  assert(/@click="tryTour"/.test(hintBubble), "试一试按钮未绑定 tryTour");
+  const tryBody = hintBubble.match(/function tryTour\([\s\S]*?\n\}/)?.[0] ?? "";
+  assert(tryBody.length > 0, "未找到 tryTour 实现");
+  assert(/dismiss\(\)/.test(tryBody), "tryTour 未关闭气泡");
+  const dismissBody = hintBubble.match(/function dismiss\([\s\S]*?\n\}/)?.[0] ?? "";
+  assert(
+    /markSeen\(props\.entryId\)/.test(dismissBody),
+    "关闭气泡未 markSeen（试一试必须同关闭一样记住已看过）",
+  );
+  assert(/tourRegistry\[resolvedTourId\.value\]/.test(tryBody), "tryTour 未从 tourRegistry 取步骤");
+  assert(
+    /startTour\([^)]*,\s*true\s*\)/.test(tryBody),
+    "tryTour 未以 recordProgress=true 启动教学",
+  );
+  assert(/if \(!canTryTour\.value\) return/.test(tryBody), "tryTour 未按开关/有效 id 守卫");
+  assert(/canTryTour[\s\S]*?tourAllowed/.test(hintBubble), "tourEnabled=false 时按钮未隐藏");
+  assert(!/setTimeout/.test(hintBubble), "HintBubble 含 setTimeout 自动播放");
+  assert(
+    (hintBubble.match(/startTour\s*\(/g) ?? []).length === 1,
+    "HintBubble 只允许 tryTour 内一处 startTour 调用",
+  );
+  const mounted = hintBubble.match(/onMounted\(\(\) => \{[\s\S]*?\n\}\)/)?.[0] ?? "";
+  assert(mounted.length > 0, "未找到 HintBubble 的 onMounted 钩子");
+  assert(!/startTour\s*\(/.test(mounted), "onMounted 不得自动播放教学");
+
+  assert(
+    /<HintBubble entry-id="navigator" tour-id="quickstart"/.test(navigatorView),
+    "Navigator 气泡未把试一试映射到 quickstart 主线",
+  );
+  for (const rel of [
+    "src/views/AiView.vue",
+    "src/views/ProjectsView.vue",
+    "src/views/ProvidersView.vue",
+    "src/views/WorkGroupsView.vue",
+  ]) {
+    const source = read(rel);
+    const bubbles = [...source.matchAll(/<HintBubble\b[^>]*\/?>/g)].map((m) => m[0]);
+    assert(bubbles.length > 0, `${rel} 没有 HintBubble`);
+    for (const bubble of bubbles) {
+      assert(!/tour-id=/.test(bubble), `${rel} 不应覆盖 tourId: ${bubble}`);
+    }
+  }
+  return "5 处气泡：Navigator→quickstart、其余回退 entry.tourId；点击才播、recordProgress=true";
+});
+
+/* ----------------------------------------------------------------- 18 ---- */
+check("零自动播放：src 无 useFirstRunTour 残留，也无 setTimeout 包围的 startTour", () => {
+  assert(!existsSync(join(root, "src/help/useFirstRunTour.ts")), "useFirstRunTour.ts 仍存在");
+  const sources = [
+    ...walk(join(root, "src"), ".ts"),
+    ...walk(join(root, "src"), ".vue"),
+  ];
+  for (const file of sources) {
+    const source = readFileSync(file, "utf8");
+    assert(
+      !/useFirstRunTour/.test(source),
+      `src 残留 useFirstRunTour 引用: ${relative(root, file)}`,
+    );
+  }
+  assert(!/useFirstRunTour/.test(appShell), "AppShell 仍 import/调用 useFirstRunTour");
+  for (const file of sources) {
+    const source = readFileSync(file, "utf8");
+    for (const match of source.matchAll(/setTimeout\s*\(/g)) {
+      const tail = source.slice(match.index, match.index + 900);
+      assert(
+        !/startTour\s*\(/.test(tail),
+        `检测到 setTimeout 包围的 startTour 自动播放: ${relative(root, file)}`,
+      );
+    }
+  }
+  return `${sources.length} 个源文件零残留；零 setTimeout→startTour 自动播放`;
 });
 
 /* ------------------------------------------------------------------------- */

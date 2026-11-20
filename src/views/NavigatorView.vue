@@ -2854,7 +2854,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
       @close="closeProperties"
       @attributes-changed="refreshListing"
     />
-    <HintBubble entry-id="navigator" />
+    <HintBubble entry-id="navigator" tour-id="quickstart" />
   </section>
 </template>
 

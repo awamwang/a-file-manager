@@ -1704,6 +1704,7 @@
       },
       "hintLabel": "Einstiegshinweis",
     "hintDismiss": "Verstanden",
+    "hintTryTour": "Schritt für Schritt ausprobieren",
       "articleLabel": "Hilfeartikel",
       "tourLabel": "Geführte Demonstration",
       "replay": "Demonstration erneut abspielen",
@@ -1721,15 +1722,15 @@
       "entries": {
         "navigator": {
           "title": "Dateien durchsuchen",
-          "hint": "Hier öffnen Sie Ordner und Dateien. Über die Pfadleiste springen Sie zu einem Ort, über das Sterne-Menü kehren Sie zu häufig genutzten Ordnern zurück."
+          "hint": "Hier finden Sie Ihre Ordner und Dateien."
         },
         "search": {
           "title": "Einheitliche Suche",
-          "hint": "Die Suche durchsucht Dateien, Ordner und weitere Inhalte gleichzeitig. Quellfilter grenzen die Ergebnisse ein."
+          "hint": "Die Suche durchsucht Dateien, Ordner und weitere Inhalte gleichzeitig."
         },
         "workGroups": {
           "title": "Arbeitsgruppen",
-          "hint": "Eine Arbeitsgruppe bündelt die Ordner zu einer Aufgabe. Beim Wechseln sind alle diese Orte wieder verfügbar."
+          "hint": "Eine Arbeitsgruppe bündelt die Ordner zu einer Aufgabe."
         },
         "projects": {
           "title": "Projekte",
@@ -1795,10 +1796,6 @@
         }
       },
       "workGroups": {
-        "header": {
-          "title": "Was ist eine Arbeitsgruppe?",
-          "body": "Sie bündelt zusammengehörige Ordner, etwa alles zu einem Kunden."
-        },
         "list": {
           "title": "Ihre Arbeitsgruppen",
           "body": "Wählen Sie links eine Gruppe, um ihre Ordner zu laden. Ziehen ändert die Reihenfolge."
@@ -1813,10 +1810,6 @@
         }
       },
       "projects": {
-        "header": {
-          "title": "Was ist ein Projekt?",
-          "body": "Ein Projekt vereint Ordner, Links und Aufgaben zu einer Sache."
-        },
         "list": {
           "title": "Ihre Projekte",
           "body": "Wählen Sie links ein Projekt für die Details. Ziehen ändert die Reihenfolge."
@@ -1845,10 +1838,6 @@
         }
       },
       "ai": {
-        "header": {
-          "title": "Optionale KI-Funktionen",
-          "body": "Diese Seite gibt es nur in KI-Builds. Core-Builds zeigen keine KI-Optionen."
-        },
         "nav": {
           "title": "Bereich wählen",
           "body": "Jeder Bereich links fasst eine KI-Funktion und ihre Einstellungen zusammen."

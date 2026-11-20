@@ -17,7 +17,6 @@ import PromptDialogHost from "./PromptDialogHost.vue";
 import KnowledgeDocDialog from "../knowledge/KnowledgeDocDialog.vue";
 import FluentIcon from "../icons/FluentIcon.vue";
 import HelpTourHost from "../../help/components/HelpTourHost.vue";
-import { useFirstRunTour } from "../../help/useFirstRunTour.ts";
 import FolderTree from "./FolderTree.vue";
 import { toastError, toastInfo, toastSuccess } from "../../state/toast";
 import { initTaskCenter } from "../../state/taskCenter";
@@ -201,8 +200,6 @@ type HealthPayload = {
 
 const route = useRoute();
 const router = useRouter();
-// First-run quick start is a detached timer; it never awaits settings hydration.
-useFirstRunTour();
 
 const addressDraft = ref("");
 const addressEditing = ref(false);
