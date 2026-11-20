@@ -616,7 +616,6 @@
       "store": "ストア",
       "providers": "プロバイダー",
       "config": "サービス設定",
-      "toolRuntime": "ツールランタイム",
       "toolRuntimeHint": "ツールランタイムは awam.tool-runtime Feature Pack が提供します。以下から開くか、ストアからパックをインストールしてください。",
       "toolRuntimeOpen": "ツールランタイムを開く"
     },

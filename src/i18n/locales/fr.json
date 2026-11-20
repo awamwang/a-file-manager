@@ -616,7 +616,6 @@
       "store": "Boutique",
       "providers": "Fournisseurs",
       "config": "Config. services",
-      "toolRuntime": "Exécuteur d'outils",
       "toolRuntimeHint": "L'exécuteur d'outils est fourni par le Feature Pack awam.tool-runtime. Ouvrez-le ci-dessous ou installez le pack depuis la boutique.",
       "toolRuntimeOpen": "Ouvrir l'exécuteur d'outils"
     },

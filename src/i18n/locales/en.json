@@ -1266,7 +1266,6 @@
       "store": "Store",
       "providers": "Providers",
       "config": "Service Config",
-      "toolRuntime": "Tool Runtime",
       "toolRuntimeHint": "Tool Runtime is provided by the awam.tool-runtime Feature Pack. Open it below or install the pack from Store.",
       "toolRuntimeOpen": "Open Tool Runtime"
     },

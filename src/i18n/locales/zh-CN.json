@@ -1266,7 +1266,6 @@
       "store": "商店",
       "providers": "提供程序",
       "config": "服务配置",
-      "toolRuntime": "工具运行时",
       "toolRuntimeHint": "工具运行时由 awam.tool-runtime Feature Pack 提供。可在下方打开，或从商店安装该 Pack。",
       "toolRuntimeOpen": "打开工具运行时"
     },

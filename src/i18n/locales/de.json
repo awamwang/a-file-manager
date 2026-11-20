@@ -616,7 +616,6 @@
       "store": "Store",
       "providers": "Anbieter",
       "config": "Dienstkonfiguration",
-      "toolRuntime": "Tool-Laufzeit",
       "toolRuntimeHint": "Die Tool-Laufzeit wird vom awam.tool-runtime Feature Pack bereitgestellt. Unten öffnen oder das Pack im Store installieren.",
       "toolRuntimeOpen": "Tool-Laufzeit öffnen"
     },
