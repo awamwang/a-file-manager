@@ -172,7 +172,7 @@ check("五语齐全：注册表 key 在 en/zh-CN/ja/de/fr 全部存在", () => {
       [...registry.matchAll(/\b(?:titleKey|hintKey|bodyKey):\s*"([^"]+)"/g)].map((m) => m[1]),
     ),
   ];
-  assert(keys.length === 55, `注册表 key 期望 55，实得 ${keys.length}`);
+  assert(keys.length === 59, `注册表 key 期望 59，实得 ${keys.length}`);
   const catalogs = {};
   for (const id of LOCALES) {
     catalogs[id] = flatten(JSON.parse(read(`src/i18n/locales/${id}.json`)));
@@ -184,7 +184,7 @@ check("五语齐全：注册表 key 在 en/zh-CN/ja/de/fr 全部存在", () => {
   }
   const counts = LOCALES.map((id) => Object.keys(catalogs[id]).length);
   assert(new Set(counts).size === 1, `五语 key 总数不一致: ${counts.join("/")}`);
-  return `55 key × 5 语齐全；各语 ${counts[0]} keys`;
+  return `59 key × 5 语齐全；各语 ${counts[0]} keys`;
 });
 
 /* ------------------------------------------------------------------ 6 ---- */
@@ -386,7 +386,14 @@ check("功能页 ? 深链接线：HelpLink 传 tour、HelpView 解析 autoTour�
     }
   }
   const helpLink = read("src/help/components/HelpLink.vue");
-  assert(/props\.tour \? \{ tour: "1" \}/.test(helpLink), "HelpLink 未把 tour 转成 ?tour=1");
+  assert(
+    /getHelpEntry\(props\.entryId\)\?\.tourEnabled !== false/.test(helpLink),
+    "HelpLink 未按 entryId 读取 tourEnabled 开关",
+  );
+  assert(
+    /props\.tour\s*&&\s*tourAllowed\.value\s*\?\s*\{\s*tour:\s*"1"\s*\}/.test(helpLink),
+    "HelpLink 未在 tour=true 且 tourEnabled 未关闭时生成 ?tour=1",
+  );
   const helpView = read("src/views/HelpView.vue");
   assert(/route\.query\["tour"\]\s*===\s*"1"/.test(helpView), "HelpView 未解析 ?tour=1");
   assert(/:auto-tour="autoTour"/.test(helpView), "HelpView 未把 autoTour 传给 HelpCenter");
@@ -445,6 +452,143 @@ check("超时/路由不符只放弃本次启动，绝不误停并发教学（如
   );
   assert(output.includes("abort-ok"), "并发教学存活行为测试未通过");
   return "放弃分支零 stopTour()；并发 quickstart 存活、onReady 未触发";
+});
+
+/* ----------------------------------------------------------------- 15 ---- */
+check("启动路径不裁剪注册表：helpRegistry 只按风味/平台门控（AI 6 / core 5）", () => {
+  const registryDecl = registry.match(/export const helpRegistry[\s\S]*?\n\);/)?.[0] ?? "";
+  assert(registryDecl.length > 0, "未找到 helpRegistry 定义");
+  assert(!/\broutes\b/.test(registryDecl), "helpRegistry 的 filter 仍按 routes 过滤");
+  assert(
+    !/defaultContext\s*\(/.test(registryDecl),
+    "helpRegistry 的 filter 仍依赖 defaultContext()（模块加载时的启动路径）",
+  );
+  assert(
+    /buildGateAllows\(entry\.applicability\)/.test(registryDecl),
+    "helpRegistry 未按构建门控过滤",
+  );
+
+  // Evaluate the real shipped predicates and the real entry literals under
+  // both flavors x platforms x startup paths. No import.meta.glob needed.
+  const extractFn = (name) => {
+    const source = registry.match(new RegExp(`function ${name}\\([\\s\\S]*?\\n\\}`))?.[0] ?? "";
+    // Strip the TypeScript signature so the real body can run in new Function.
+    const header = source.match(/^function\s+(\w+)\s*\(([\s\S]*?)\)\s*:\s*[^{]+\{/);
+    if (!header) return source;
+    const params = header[2]
+      .split(",")
+      .map((param) => param.split(":")[0].trim())
+      .filter(Boolean);
+    return `function ${header[1]}(${params.join(", ")}) {${source.slice(header[0].length)}`;
+  };
+  const pure = extractFn("flavorAndPlatformAllowed");
+  const build = extractFn("buildGateAllows");
+  const applicable = extractFn("isApplicable");
+  assert(pure && build && applicable, "未能从 registry.ts 提取门控函数");
+  const entriesLiteral = (
+    registry.match(/const ALL_ENTRIES[^=]*=\s*\[[\s\S]*?\n\];/)?.[0] ?? ""
+  ).replace(/^const ALL_ENTRIES[^=]*=/, "const ALL_ENTRIES =");
+  assert(entriesLiteral.includes("id:"), "未能从 registry.ts 提取 ALL_ENTRIES");
+
+  const simulate = (aiEnabled, mac, startupPath) =>
+    new Function("AI_ADDON_ENABLED", "isMacPlatform", "STARTUP_PATH", `
+      ${pure}
+      ${build}
+      ${applicable}
+      ${entriesLiteral}
+      const registered = ALL_ENTRIES.filter((entry) => buildGateAllows(entry.applicability));
+      // What the old buggy code did at module load — the regression detector.
+      const legacy = ALL_ENTRIES.filter((entry) => isApplicable(
+        entry.applicability,
+        { path: STARTUP_PATH, aiEnabled: AI_ADDON_ENABLED, mac: isMacPlatform() },
+      ));
+      const visibleAt = (path) => registered.filter((entry) => isApplicable(
+        entry.applicability,
+        { path, aiEnabled: AI_ADDON_ENABLED, mac: isMacPlatform() },
+      ));
+      return { registered, legacy, visibleAt };
+    `)(aiEnabled, () => mac, startupPath);
+
+  for (const mac of [false, true]) {
+    for (const startupPath of ["/", "/navigator"]) {
+      const ai = simulate(true, mac, startupPath);
+      assert(ai.legacy.length < 6, `回归探针失效：启动路径 ${startupPath} 的旧逻辑未裁剪条目`);
+      assert(
+        ai.registered.length === 6,
+        `AI 构建启动路径 ${startupPath}: 注册表只剩 ${ai.registered.length} 条，期望 6`,
+      );
+      assert(
+        ai.visibleAt("/help").length === 6,
+        `AI 构建帮助中心可见 ${ai.visibleAt("/help").length} 条，期望 6`,
+      );
+      const core = simulate(false, mac, startupPath);
+      assert(
+        core.registered.length === 5,
+        `core 构建启动路径 ${startupPath}: 注册表只剩 ${core.registered.length} 条，期望 5`,
+      );
+      assert(!core.registered.some((entry) => entry.id === "ai"), "core 构建仍注册 ai entry");
+      assert(
+        core.visibleAt("/help").length === 5,
+        `core 构建帮助中心可见 ${core.visibleAt("/help").length} 条，期望 5`,
+      );
+    }
+  }
+  return "AI 6 / core 5；启动路径 / 与 /navigator 均不裁剪；/help 全量可见";
+});
+
+/* ----------------------------------------------------------------- 16 ---- */
+check("功能级开关：6 条 entry 双开关齐备，L2/L3/? 三端消费且 L1 不受影响", () => {
+  const entriesLiteral = (
+    registry.match(/const ALL_ENTRIES[^=]*=\s*\[[\s\S]*?\n\];/)?.[0] ?? ""
+  );
+  const ids = [...entriesLiteral.matchAll(/\bid:\s*"([^"]+)"/g)].map((match) => match[1]);
+  assert(ids.length === 6, `entry 数期望 6，实得 ${ids.length}`);
+  const flagCount = (name) =>
+    (entriesLiteral.match(new RegExp(`\\b${name}:\\s*true`, "g")) ?? []).length;
+  assert(flagCount("tourEnabled") === 6, `仅 ${flagCount("tourEnabled")}/6 条声明 tourEnabled`);
+  assert(flagCount("hintEnabled") === 6, `仅 ${flagCount("hintEnabled")}/6 条声明 hintEnabled`);
+  assert(/tourEnabled\?: boolean/.test(read("src/help/types.ts")), "HelpEntry 缺少 tourEnabled 类型");
+  assert(/hintEnabled\?: boolean/.test(read("src/help/types.ts")), "HelpEntry 缺少 hintEnabled 类型");
+
+  const hintBubble = read("src/help/components/HintBubble.vue");
+  assert(
+    /getHelpEntry\(props\.entryId\)/.test(hintBubble) && /hintEnabled !== false/.test(hintBubble),
+    "HintBubble 未按 entryId 读取 hintEnabled",
+  );
+  assert(/if\s*\(!hintAllowed\.value\)\s*return/.test(hintBubble), "HintBubble 关闭时仍显示气泡");
+
+  const replayBody = helpCenter.match(/function replay\([\s\S]*?\n\}/)?.[0] ?? "";
+  assert(/if\s*\(!tourAllowed\(entry\)\)\s*return/.test(replayBody), "HelpCenter.replay 未检查 tourEnabled");
+  assert(
+    /if\s*\(!tourAllowed\(activeEntry\.value\)\)\s*return/.test(helpCenter),
+    "HelpCenter.maybeAutoTour 未检查 tourEnabled",
+  );
+  assert(
+    /<template v-if="tourAllowed\(entry\)">[\s\S]*?v-if="tourForEntry\(entry\)"/.test(helpCenter),
+    "重播按钮未按 tourEnabled 隐藏",
+  );
+  assert(/t\("help\.tourDisabled"\)/.test(helpCenter), "关闭教学时缺少说明文案");
+
+  // L1 stays unconditional: entry list + article block must not consult switches.
+  assert(/applicableHelpEntries\("\/help"\)/.test(helpCenter), "帮助中心条目列表被开关影响");
+  assert(
+    /t\("help\.articleLabel"\)/.test(helpCenter) && /articleHtml/.test(helpCenter),
+    "帮助文档区块被开关影响",
+  );
+
+  // Protected modules must stay free of feature-level switch coupling.
+  for (const [name, source] of [
+    ["useFirstRunTour", firstRun],
+    ["GuidedTour", guidedTour],
+    ["tourState", tourState],
+    ["progress", progress],
+  ]) {
+    assert(
+      !/tourEnabled|hintEnabled/.test(source),
+      `${name} 被功能级开关污染`,
+    );
+  }
+  return "6 entry 双开关；HintBubble/HelpCenter/HelpLink 三端消费；L1 与受保护模块不变";
 });
 
 /* ------------------------------------------------------------------------- */

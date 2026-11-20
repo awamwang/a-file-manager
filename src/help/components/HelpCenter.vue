@@ -50,6 +50,11 @@ const activeEntry = computed<HelpEntry | undefined>(() =>
   expandedId.value ? getHelpEntry(expandedId.value) : undefined,
 );
 
+/** `tourEnabled` defaults to true; L1 articles are never gated by it. */
+function tourAllowed(entry: HelpEntry): boolean {
+  return entry.tourEnabled !== false;
+}
+
 const articleHtml = computed<string>(() => {
   if (!activeEntry.value) return "";
   const parsed = marked.parse(articleMarkdown(activeEntry.value.articlePath), {
@@ -71,6 +76,7 @@ function toggleEntry(id: string): void {
 
 /** Replay is intentionally progress-neutral (R2-2). */
 function replay(entry: HelpEntry): void {
+  if (!tourAllowed(entry)) return;
   const tour = tourForEntry(entry);
   if (!tour) return;
   // Lazy views are not in the DOM yet at /help; wait for the first anchor
@@ -96,6 +102,7 @@ watch(
 
 function maybeAutoTour(): void {
   if (!props.autoTour || !activeEntry.value) return;
+  if (!tourAllowed(activeEntry.value)) return;
   replay(activeEntry.value);
 }
 
@@ -141,16 +148,19 @@ onMounted(maybeAutoTour);
             </section>
             <section class="help-block">
               <h4 class="help-block-title">{{ t("help.tourLabel") }}</h4>
-              <p class="help-block-text">{{ t("help.replayHint") }}</p>
-              <button
-                v-if="tourForEntry(entry)"
-                type="button"
-                class="fluent-control fluent-control--accent"
-                @click="replay(entry)"
-              >
-                {{ t("help.replay") }}
-              </button>
-              <p v-else class="help-block-text">{{ t("help.noTour") }}</p>
+              <template v-if="tourAllowed(entry)">
+                <p class="help-block-text">{{ t("help.replayHint") }}</p>
+                <button
+                  v-if="tourForEntry(entry)"
+                  type="button"
+                  class="fluent-control fluent-control--accent"
+                  @click="replay(entry)"
+                >
+                  {{ t("help.replay") }}
+                </button>
+                <p v-else class="help-block-text">{{ t("help.noTour") }}</p>
+              </template>
+              <p v-else class="help-block-text">{{ t("help.tourDisabled") }}</p>
             </section>
           </div>
         </article>

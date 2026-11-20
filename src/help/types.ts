@@ -56,6 +56,18 @@ export type HelpEntry = {
   hintKey?: string;
   tourId?: string;
   applicability?: Applicability;
+  /**
+   * Whether a guided tour (L3) is offered for this feature. Defaults to `true`.
+   * When `false`: no autoplay, no `?tour=1` deep link and no replay button.
+   * The help article (L1) and the Help Center entry list are never affected.
+   */
+  tourEnabled?: boolean;
+  /**
+   * Whether the getting-started hint (L2) is shown for this feature. Defaults
+   * to `true`. When `false` the hint bubble never appears. The help article
+   * (L1) and the Help Center entry list are never affected.
+   */
+  hintEnabled?: boolean;
 };
 
 /** Context used to decide whether an entry applies to the current surface. */

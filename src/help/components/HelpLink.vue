@@ -3,6 +3,7 @@
 /** Shared "?" deep link used by every feature surface. */
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import { getHelpEntry } from "../registry.ts";
 
 const props = withDefaults(
   defineProps<{
@@ -15,9 +16,15 @@ const props = withDefaults(
 
 const { t } = useI18n();
 
+/** `tourEnabled` defaults to true; a disabled tour still opens the article. */
+const tourAllowed = computed<boolean>(() => getHelpEntry(props.entryId)?.tourEnabled !== false);
+
 const target = computed(() => ({
   path: "/help",
-  query: { entry: props.entryId, ...(props.tour ? { tour: "1" } : {}) },
+  query: {
+    entry: props.entryId,
+    ...(props.tour && tourAllowed.value ? { tour: "1" } : {}),
+  },
 }));
 </script>
 

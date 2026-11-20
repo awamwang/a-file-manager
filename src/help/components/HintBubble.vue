@@ -13,9 +13,13 @@ const props = defineProps<{
 const { t } = useI18n();
 const visible = ref(false);
 
-const hintKey = computed<string>(() => getHelpEntry(props.entryId)?.hintKey ?? "");
+const entry = computed(() => getHelpEntry(props.entryId));
+const hintKey = computed<string>(() => entry.value?.hintKey ?? "");
+/** `hintEnabled` defaults to true; a missing entry is a safe no-op. */
+const hintAllowed = computed<boolean>(() => entry.value?.hintEnabled !== false);
 
 onMounted(() => {
+  if (!hintAllowed.value) return;
   if (hintKey.value && !isSeen(props.entryId)) visible.value = true;
 });
 

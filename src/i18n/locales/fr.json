@@ -1710,6 +1710,7 @@
       "replay": "Rejouer cette démonstration",
       "replayHint": "Le rejeu ne modifie jamais la progression enregistrée.",
       "noTour": "Aucune démonstration n'est encore disponible pour cette fonctionnalité.",
+      "tourDisabled": "La démonstration guidée est désactivée pour cette fonctionnalité. L'article d'aide reste disponible.",
       "openEntry": "Ouvrir l'aide de cette fonctionnalité",
       "reset": "Réinitialiser toute la progression d'accueil",
       "resetTitle": "Réinitialiser la progression d'accueil",
@@ -1803,6 +1804,10 @@
           "title": "Vos groupes de travail",
           "body": "Choisissez un groupe à gauche pour charger ses dossiers. Glissez pour changer l'ordre."
         },
+        "create": {
+          "title": "Créer un groupe de travail",
+          "body": "Saisissez un nom ici et appuyez sur Entrée. Le nouveau groupe reste vide jusqu'à l'ajout de dossiers."
+        },
         "group": {
           "title": "Changer de groupe",
           "body": "Un clic active le groupe et affiche ses dossiers à droite. Cliquez sur le groupe surligné."
@@ -1816,6 +1821,10 @@
         "list": {
           "title": "Vos projets",
           "body": "Sélectionnez un projet à gauche pour voir ses détails. Glissez pour réordonner."
+        },
+        "create": {
+          "title": "Créer un projet",
+          "body": "Saisissez un nom ici et appuyez sur Entrée, puis ajoutez les dossiers et tâches liés à ce travail."
         },
         "group": {
           "title": "Ouvrir un projet",

@@ -1710,6 +1710,7 @@
       "replay": "Demonstration erneut abspielen",
       "replayHint": "Das erneute Abspielen verändert keinen gespeicherten Fortschritt.",
       "noTour": "Für diese Funktion gibt es noch keine Demonstration.",
+      "tourDisabled": "Die geführte Demonstration ist für diese Funktion deaktiviert. Der Hilfeartikel bleibt verfügbar.",
       "openEntry": "Hilfe zu dieser Funktion öffnen",
       "reset": "Gesamten Einstiegsfortschritt zurücksetzen",
       "resetTitle": "Einstiegsfortschritt zurücksetzen",
@@ -1803,6 +1804,10 @@
           "title": "Ihre Arbeitsgruppen",
           "body": "Wählen Sie links eine Gruppe, um ihre Ordner zu laden. Ziehen ändert die Reihenfolge."
         },
+        "create": {
+          "title": "Arbeitsgruppe erstellen",
+          "body": "Geben Sie hier einen Namen ein und drücken Sie Enter. Die neue Gruppe bleibt leer, bis Sie Ordner hinzufügen."
+        },
         "group": {
           "title": "Gruppe wechseln",
           "body": "Ein Klick aktiviert die Gruppe und zeigt rechts ihre Ordner. Klicken Sie jetzt auf die markierte Gruppe."
@@ -1816,6 +1821,10 @@
         "list": {
           "title": "Ihre Projekte",
           "body": "Wählen Sie links ein Projekt für die Details. Ziehen ändert die Reihenfolge."
+        },
+        "create": {
+          "title": "Projekt erstellen",
+          "body": "Geben Sie hier einen Namen ein und drücken Sie Enter. Fügen Sie dann die zugehörigen Ordner und Aufgaben hinzu."
         },
         "group": {
           "title": "Projekt öffnen",

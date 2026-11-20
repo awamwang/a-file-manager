@@ -1710,6 +1710,7 @@
       "replay": "Replay this walkthrough",
       "replayHint": "Replaying never changes the progress we remember.",
       "noTour": "No walkthrough is available for this feature yet.",
+      "tourDisabled": "Guided walkthrough is turned off for this feature. You can still read the help article.",
       "openEntry": "Open help for this feature",
       "reset": "Reset all onboarding progress",
       "resetTitle": "Reset onboarding progress",
@@ -1803,6 +1804,10 @@
           "title": "Your Work Groups",
           "body": "Pick a group on the left to load its folders. Drag a group to change the order."
         },
+        "create": {
+          "title": "Create a Work Group",
+          "body": "Type a name here and press Enter to start a new group. It stays empty until you add folders to it."
+        },
         "group": {
           "title": "Switch groups",
           "body": "Click a group to make it active. Its folders appear in the details on the right. Click the highlighted group now."
@@ -1816,6 +1821,10 @@
         "list": {
           "title": "Your Projects",
           "body": "Select a project on the left to see its details. You can drag projects to reorder them."
+        },
+        "create": {
+          "title": "Create a Project",
+          "body": "Type a name here and press Enter. Then add the folders and tasks that belong to this piece of work."
         },
         "group": {
           "title": "Open a project",

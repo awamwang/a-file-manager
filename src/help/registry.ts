@@ -65,6 +65,8 @@ const ALL_ENTRIES: readonly HelpEntry[] = [
     hintKey: "help.entries.navigator.hint",
     tourId: "navigator",
     applicability: { routes: ["/navigator", "/"] },
+    tourEnabled: true,
+    hintEnabled: true,
   },
   {
     id: "search",
@@ -75,6 +77,8 @@ const ALL_ENTRIES: readonly HelpEntry[] = [
     hintKey: "help.entries.search.hint",
     tourId: "search",
     applicability: { routes: ["/settings/discovery", "/navigator"] },
+    tourEnabled: true,
+    hintEnabled: true,
   },
   {
     id: "work-groups",
@@ -85,6 +89,8 @@ const ALL_ENTRIES: readonly HelpEntry[] = [
     hintKey: "help.entries.workGroups.hint",
     tourId: "work-groups",
     applicability: { routes: ["/work-groups"] },
+    tourEnabled: true,
+    hintEnabled: true,
   },
   {
     id: "projects",
@@ -95,6 +101,8 @@ const ALL_ENTRIES: readonly HelpEntry[] = [
     hintKey: "help.entries.projects.hint",
     tourId: "projects",
     applicability: { routes: ["/projects"] },
+    tourEnabled: true,
+    hintEnabled: true,
   },
   {
     id: "providers",
@@ -105,6 +113,8 @@ const ALL_ENTRIES: readonly HelpEntry[] = [
     hintKey: "help.entries.providers.hint",
     tourId: "providers",
     applicability: { routes: ["/extensions/providers", "/providers"] },
+    tourEnabled: true,
+    hintEnabled: true,
   },
   {
     id: "ai",
@@ -115,6 +125,8 @@ const ALL_ENTRIES: readonly HelpEntry[] = [
     hintKey: "help.entries.ai.hint",
     tourId: "ai",
     applicability: { routes: ["/ai"], featureFlag: "ai" },
+    tourEnabled: true,
+    hintEnabled: true,
   },
 ];
 
@@ -183,6 +195,11 @@ const ALL_TOURS: readonly TourDefinition[] = [
         bodyKey: "tour.workGroups.list.body",
       },
       {
+        anchor: "tour-workgroups-create",
+        titleKey: "tour.workGroups.create.title",
+        bodyKey: "tour.workGroups.create.body",
+      },
+      {
         anchor: "tour-workgroups-group",
         titleKey: "tour.workGroups.group.title",
         bodyKey: "tour.workGroups.group.body",
@@ -203,6 +220,11 @@ const ALL_TOURS: readonly TourDefinition[] = [
         anchor: "tour-projects-list",
         titleKey: "tour.projects.list.title",
         bodyKey: "tour.projects.list.body",
+      },
+      {
+        anchor: "tour-projects-create",
+        titleKey: "tour.projects.create.title",
+        bodyKey: "tour.projects.create.body",
       },
       {
         anchor: "tour-projects-group",
@@ -257,17 +279,35 @@ const ALL_TOURS: readonly TourDefinition[] = [
   },
 ];
 
+/**
+ * Build gates only (feature flavor + host platform). Deliberately independent
+ * of the current route: route gates belong to a surface, not to the registry.
+ */
+function flavorAndPlatformAllowed(
+  applicability: Applicability | undefined,
+  aiEnabled: boolean,
+  mac: boolean,
+): boolean {
+  if (!applicability) return true;
+  if (applicability.featureFlag === "ai" && !aiEnabled) return false;
+  if (applicability.platform && applicability.platform !== (mac ? "macos" : "windows")) {
+    return false;
+  }
+  return true;
+}
+
+/** Build gates evaluated once at module load, without a path. */
+function buildGateAllows(applicability: Applicability | undefined): boolean {
+  return flavorAndPlatformAllowed(applicability, AI_ADDON_ENABLED, isMacPlatform());
+}
+
 /** True when an entry's conditions are satisfied in the given context. */
 export function isApplicable(
   applicability: Applicability | undefined,
   context: ApplicabilityContext,
 ): boolean {
-  if (!applicability) return true;
-  if (applicability.featureFlag === "ai" && !context.aiEnabled) return false;
-  if (applicability.platform && applicability.platform !== (context.mac ? "macos" : "windows")) {
-    return false;
-  }
-  if (applicability.routes?.length) {
+  if (!flavorAndPlatformAllowed(applicability, context.aiEnabled, context.mac)) return false;
+  if (applicability?.routes?.length) {
     const onRoute = applicability.routes.some(
       (route) => context.path === route || context.path.startsWith(`${route}/`),
     );
@@ -282,9 +322,16 @@ export function defaultContext(path: string = window.location.pathname): Applica
   return { path, aiEnabled: AI_ADDON_ENABLED, mac: isMacPlatform() };
 }
 
-/** Registry filtered by build flavor / platform gates (route gates are per-surface). */
+/**
+ * Registry filtered by build flavor / platform only — NOT by route.
+ *
+ * Route gates are per-surface: applying them here would freeze the registry to
+ * the startup path (e.g. `/` keeps only `navigator`), so the Help Center could
+ * never list the other features. `applicableHelpEntries(path)` applies routes
+ * at consumption time instead.
+ */
 export const helpRegistry: readonly HelpEntry[] = ALL_ENTRIES.filter((entry) =>
-  isApplicable(entry.applicability, defaultContext()),
+  buildGateAllows(entry.applicability),
 );
 
 /** All tours whose gates are satisfied in this build. */
