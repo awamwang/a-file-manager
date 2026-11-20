@@ -220,6 +220,8 @@ const crumbMenuLoading = ref(false);
 const crumbMenuError = ref<string | null>(null);
 const crumbMenuActivePath = ref<string | null>(null);
 const crumbMenuStyle = ref<Record<string, string>>({});
+/** File-drag highlight on a breadcrumb segment (indexed by crumb position). */
+const crumbFileDropOver = ref<number | null>(null);
 const closeConfirmOpen = ref(false);
 const closeConfirmRemember = ref(true);
 const closeConfirmBusy = ref(false);
@@ -535,19 +537,45 @@ async function onSilentSwitchWorkGroup(targetId: string) {
   }
 }
 
-/** 按当前列表排序切换工作组（1-based；超出范围则忽略）。 */
-async function onSilentSwitchWorkGroupByIndex(index1Based: number) {
+/**
+ * 工作组快捷键顺序：默认组固定占 Alt+0，其余按列表排序依次后排 Alt+1…9。
+ * 数组下标即快捷键槽位（0=默认）。
+ */
+const workGroupsInShortcutOrder = computed(() => {
   const groups = workGroupsDoc.value?.workGroups ?? [];
-  const target = groups[index1Based - 1];
+  return [
+    ...groups.filter((group) => group.isDefault),
+    ...groups.filter((group) => !group.isDefault),
+  ];
+});
+
+/** 工作组对应的快捷键槽位（0…9；超出可绑定范围返回 null）。 */
+function workGroupShortcutSlot(groupId: string): number | null {
+  const slot = workGroupsInShortcutOrder.value.findIndex(
+    (group) => group.id === groupId,
+  );
+  return slot >= 0 && slot <= 9 ? slot : null;
+}
+
+/** 按工作组快捷键槽位切换（0=默认，1…9=其余按排序；超出则忽略）。 */
+async function onSilentSwitchWorkGroupBySlot(slot: number) {
+  const target = workGroupsInShortcutOrder.value[slot];
   if (!target) return;
   if (target.id === workGroupsDoc.value?.activeWorkGroupId) return;
   await onSilentSwitchWorkGroup(target.id);
 }
 
 /** Fixed x+N group: still resolved through the registry so it can never go stale. */
-function workGroupChordLabel(index0Based: number): string | null {
-  if (index0Based < 0 || index0Based >= 9) return null;
-  return effectiveChordLabelsForId(`workGroup.switch${index0Based + 1}`)[0] ?? null;
+function workGroupChordLabel(group: { id: string }): string | null {
+  const slot = workGroupShortcutSlot(group.id);
+  if (slot === null) return null;
+  return effectiveChordLabelsForId(`workGroup.switch${slot}`)[0] ?? null;
+}
+
+/** Tooltip action id for a group; empty when the group sits beyond the Alt+0…9 slots. */
+function workGroupActionTipId(groupId: string): string {
+  const slot = workGroupShortcutSlot(groupId);
+  return slot === null ? "" : `workGroup.switch${slot}`;
 }
 
 async function onSaveMembersFromTabs() {
@@ -709,6 +737,50 @@ async function onRootCrumb() {
   addressEditing.value = false;
   await ensureNavigatorRoute();
   await navigateTo(GUIDE_PATH);
+}
+
+/** Real folder segments only — drop-to-move target aligned with tabs / Places. */
+function crumbAcceptsFileDrop(crumb: { path: string; kind?: string }): boolean {
+  if (crumb.kind === "root") return false;
+  const path = crumb.path;
+  if (!path || !path.trim()) return false;
+  if (isGuidePath(path) || isRecyclePath(path) || isProviderPath(path)) return false;
+  if (path.toLowerCase().startsWith("afm://")) return false;
+  return true;
+}
+
+function onCrumbFileDragOver(event: DragEvent, index: number, crumb: { path: string; kind?: string }) {
+  if (!crumbAcceptsFileDrop(crumb)) return;
+  const mode = acceptFolderDragOver(event, crumb.path, {
+    hintTarget: crumb.label,
+    hintKey: `crumb:${index}`,
+  });
+  crumbFileDropOver.value = mode == null ? null : index;
+}
+
+function onCrumbFileDragLeave(event: DragEvent, index: number) {
+  const related = event.relatedTarget as Node | null;
+  const root = event.currentTarget as HTMLElement | null;
+  if (root && related && root.contains(related)) return;
+  hideDropHint(`crumb:${index}`);
+  if (crumbFileDropOver.value === index) {
+    crumbFileDropOver.value = null;
+  }
+}
+
+async function onCrumbFileDrop(event: DragEvent, crumb: { path: string; kind?: string }) {
+  crumbFileDropOver.value = null;
+  if (!crumbAcceptsFileDrop(crumb)) return;
+  const result = await commitFolderDrop(event, crumb.path);
+  if (!result.ok) {
+    if (result.error && result.error !== "empty") {
+      toastError(result.error === "failed" ? t("contextMenu.opFailed") : result.error);
+    }
+    return;
+  }
+  if (result.mode && result.count != null) {
+    toastSuccess(t(noticeKeyForDropMode(result.mode), { count: result.count, name: crumb.label }));
+  }
 }
 
 /** Path segment = folder: same directory context menu as a list dir entry. */
@@ -888,10 +960,10 @@ function registerShellShortcuts() {
   registerShortcutHandler("view.work-groups", () => {
     void openWorkGroupsPage();
   });
-  for (let workGroupNumber = 1; workGroupNumber <= 9; workGroupNumber += 1) {
-    const n = workGroupNumber;
-    registerShortcutHandler(`workGroup.switch${n}`, () => {
-      void onSilentSwitchWorkGroupByIndex(n);
+  for (let workGroupNumber = 0; workGroupNumber <= 9; workGroupNumber += 1) {
+    const slot = workGroupNumber;
+    registerShortcutHandler(`workGroup.switch${slot}`, () => {
+      void onSilentSwitchWorkGroupBySlot(slot);
     });
   }
 }
@@ -921,6 +993,7 @@ function unregisterShellShortcuts() {
     "view.settings",
     "view.shortcuts",
     "view.work-groups",
+    "workGroup.switch0",
     "workGroup.switch1",
     "workGroup.switch2",
     "workGroup.switch3",
@@ -2215,7 +2288,7 @@ onUnmounted(() => {
                 <p class="places-heading">{{ t("chrome.workGroupSwitch") }}</p>
                 <div class="wg-popover-scroll">
                   <button
-                    v-for="(group, groupIndex) in workGroupsDoc?.workGroups ?? []"
+                    v-for="group in workGroupsDoc?.workGroups ?? []"
                     :key="'wg-' + group.id"
                     type="button"
                     class="fluent-list-row places-item"
@@ -2224,7 +2297,7 @@ onUnmounted(() => {
                     :disabled="workGroupChromeBusy || group.id === workGroupsDoc?.activeWorkGroupId"
                     v-action-tip="{
                       label: workGroupDisplayName(group, t('workGroups.defaultName')),
-                      actionId: `workGroup.switch${groupIndex + 1}`,
+                      actionId: workGroupActionTipId(group.id),
                     }"
                     @click="onSilentSwitchWorkGroup(group.id)"
                   >
@@ -2233,9 +2306,9 @@ onUnmounted(() => {
                       workGroupDisplayName(group, t("workGroups.defaultName"))
                     }}</span>
                     <span
-                      v-if="workGroupChordLabel(groupIndex)"
+                      v-if="workGroupChordLabel(group)"
                       class="places-item-chord"
-                    >{{ workGroupChordLabel(groupIndex) }}</span>
+                    >{{ workGroupChordLabel(group) }}</span>
                   </button>
                   <p v-if="!(workGroupsDoc?.workGroups.length)" class="places-empty">
                     {{ t("chrome.workGroupEmpty") }}

@@ -301,8 +301,8 @@ for (let tabNumber = 1; tabNumber <= 9; tabNumber += 1) {
   });
 }
 
-/** Alt+1…9：按当前排序切换到对应工作组（超出列表长度时忽略）。 */
-for (let workGroupNumber = 1; workGroupNumber <= 9; workGroupNumber += 1) {
+/** Alt+0：默认工作组；Alt+1…9：其余工作组按当前排序依次后排（超出槽位时忽略）。 */
+for (let workGroupNumber = 0; workGroupNumber <= 9; workGroupNumber += 1) {
   BUILTIN_SHORTCUTS.push({
     id: `workGroup.switch${workGroupNumber}`,
     labelKey: `shortcuts.items.workGroupSwitch${workGroupNumber}`,
@@ -363,8 +363,8 @@ export function listShortcutsForDisplay(
  * 功能（action）模型：一个功能 → 1..N 个组合键
  * -------------------------------------------------------------------------- */
 
-/** x+N 键组固定不可配置：Ctrl+1…9 切标签、Alt+1…9 切工作组。 */
-const FIXED_ACTION_ID = /^(?:navigator\.jumpTab[1-9]|workGroup\.switch[1-9])$/;
+/** x+N 键组固定不可配置：Ctrl+1…9 切标签、Alt+0…9 切工作组（Alt+0=默认组）。 */
+const FIXED_ACTION_ID = /^(?:navigator\.jumpTab[1-9]|workGroup\.switch[0-9])$/;
 
 /**
  * Legacy alias definitions share a `labelKey`; fold them into one action so the
