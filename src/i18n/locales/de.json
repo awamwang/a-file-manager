@@ -51,7 +51,27 @@
       "settings.fields.core.openTool.trae.path.description": "Optionaler App-Pfad, falls die automatische Erkennung fehlschlägt",
       "settings.fields.core.openTool.qoder.path.description": "Optionaler App-Pfad, falls die automatische Erkennung fehlschlägt",
       "providers.searchBlocked": "Spotlight ist mit der Suche verbunden. Bitte die Suchseite statt des Provider-Backends verwenden.",
-      "settings.favoritesMeta": "Finder-Kontextmenü → Zu AFM-Favoriten hinzufügen"
+      "settings.favoritesMeta": "Finder-Kontextmenü → Zu AFM-Favoriten hinzufügen",
+      "discovery.testMeta": "Hier Spotlight und die Ersatz-Engine testen. Die tägliche Suche bleibt in der Suchpalette (⌘+⇧+P).",
+      "settings.search.paletteMeta": "⌘+⇧+P öffnet die Suchpalette — den Alltagseinstieg für Befehle, Dateien, Projekte und mehr. Die Defaults unten gelten beim nächsten Öffnen.",
+      "settings.search.knowledgeMeta": "Der Wissensdienst hinter der Quelle „Wissen“ der Suchpalette (⌥+7) — durchsucht Notizinhalte und gespeicherte Einträge.",
+      "settings.search.fuzzyHint": "Standard-Fuzzy-Suche in der Suchpalette (Teilfolgenabgleich für Dateien).",
+      "settings.extensions.dataRootPlaceholder": "z. B. ~/Library/Application Support/A File Manager/knowledge/data",
+      "settings.openTools.customMeta": "Beliebige ausführbare Datei oder .app als Öffner hinzufügen; Öffnen-mit für Dateien und Projekte teilt diese Liste.",
+      "voice.error.permission": "Mikrofonzugriff ist blockiert — aktivieren Sie ihn unter Systemeinstellungen → Datenschutz und Sicherheit → Mikrofon",
+      "voice.selftest.permissionHint": "Erlauben Sie den Mikrofonzugriff für diese App: Systemeinstellungen → Datenschutz und Sicherheit → Mikrofon. Beim ersten Aufnehmen erscheint ein Systemdialog.",
+      "voice.error.noAudio": "Das Mikrofon lieferte keine Audiodaten — prüfen, ob das Eingabegerät aktiviert, nicht stummgeschaltet und nicht von einer anderen App belegt ist",
+      "knowledgeView.openInExplorer": "Im Finder anzeigen",
+      "about.link.releases.desc": "Neuesten macOS-Installer (.dmg) erhalten",
+      "ai.skills.deployModeJunction": "Symbolische Verknüpfung (Standard)",
+      "health.deps.items.quicklook.ok.detail": "Quick Look ist verfügbar; die Leertaste-Vorschau läuft über die macOS-Systemvorschau.",
+      "health.deps.items.quicklook.ok.fix": "Kein Handeln nötig. Vorschaubare Dateitypen hängen von macOS Quick Look ab; andere fallen auf die integrierte Vorschau zurück.",
+      "health.deps.items.quicklook.missing.detail": "Quick Look ist nicht verfügbar; die Leertaste-Vorschau nutzt den integrierten Bereich.",
+      "health.deps.items.quicklook.missing.fix": "Kein Handeln nötig — die Leertaste-Vorschau läuft über die integrierte Vorschau. Eine Neuinstallation von macOS stellt Quick Look wieder her.",
+      "health.deps.items.quicklook.warn.detail": "Quick-Look-Vorschaustatus konnte nicht ermittelt werden.",
+      "health.deps.items.quicklook.warn.fix": "Kein Handeln nötig — die Leertaste-Vorschau fällt auf die integrierte Vorschau zurück.",
+      "health.deps.items.quicklook.unbridged.detail": "Die Leertaste-Vorschau läuft über macOS Quick Look bzw. die integrierte Vorschau.",
+      "health.deps.items.quicklook.unbridged.fix": "Kein Handeln nötig — die Vorschau wird nativ von macOS bereitgestellt."
     }
   },
   "app": {

@@ -111,10 +111,18 @@ pub fn extract_pack_zip(zip_path: &Path, dest_dir: &Path) -> Result<(), String> 
                 format!("Failed to create zip parent {}: {err}", parent.display())
             })?;
         }
+        // Preserve the archive's Unix mode for scripts/sidecars. Without this,
+        // a pack installed from the feed loses +x and its sidecar cannot start
+        // on macOS — while the same pack installed from a folder keeps +x via
+        // fs::copy. The platform adapter no-ops on Windows.
+        let unix_mode = entry.unix_mode();
         let mut outfile = File::create(&out_path)
             .map_err(|err| format!("Failed to create {}: {err}", out_path.display()))?;
         io::copy(&mut entry, &mut outfile)
             .map_err(|err| format!("Failed to extract {}: {err}", out_path.display()))?;
+        drop(outfile);
+        crate::platform::make_executable(&out_path, unix_mode)
+            .map_err(|err| format!("Failed to set mode for {}: {err}", out_path.display()))?;
     }
     Ok(())
 }
@@ -516,6 +524,38 @@ mod tests {
         assert!(pack_dir(&packs_root(&app), "demo.pack")
             .join("pack.json")
             .is_file());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn extract_pack_zip_makes_entries_executable_on_unix() {
+        use std::io::Write;
+        use std::os::unix::fs::PermissionsExt;
+        use zip::write::SimpleFileOptions;
+        use zip::CompressionMethod;
+        let tmp = tempfile::tempdir().unwrap();
+        let zip_path = tmp.path().join("tool.zip");
+        let file = File::create(&zip_path).unwrap();
+        let mut zip = zip::ZipWriter::new(file);
+        zip.start_file(
+            "sidecar",
+            SimpleFileOptions::default()
+                .compression_method(CompressionMethod::Deflated)
+                .unix_permissions(0o755),
+        )
+        .unwrap();
+        zip.write_all(b"#!/bin/sh\necho hi\n").unwrap();
+        zip.finish().unwrap();
+
+        let dest = tmp.path().join("out");
+        extract_pack_zip(&zip_path, &dest).unwrap();
+        let mode = std::fs::metadata(dest.join("sidecar"))
+            .unwrap()
+            .permissions()
+            .mode()
+            & 0o777;
+        // Even a zip without a stored Unix mode gets +x so pack scripts run.
+        assert_eq!(mode & 0o111, 0o111, "extracted script must be executable: {mode:o}");
     }
 
     #[test]

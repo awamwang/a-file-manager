@@ -41,6 +41,18 @@ assert.equal(
   "pin macOS minimumSystemVersion to 10.15",
 );
 
+// ADR 0018 语音输入：麦克风采集需要 Info.plist 用途说明，否则 macOS TCC 不弹
+// 授权框、CoreAudio 返回无声道死流（表现为 no-audio）。Tauri 会自动合并
+// src-tauri/Info.plist；显式钉住该契约，防止新成员删文件后ci全绿。
+const infoPlistPath = join(root, "src-tauri", "Info.plist");
+assert.ok(existsSync(infoPlistPath), "src-tauri/Info.plist must exist for voice input");
+const infoPlist = read("src-tauri/Info.plist");
+assert.match(infoPlist, /NSMicrophoneUsageDescription/, "Info.plist must declare microphone usage");
+assert.ok(
+  !/com\.apple\.security\.app-sandbox/.test(infoPlist),
+  "Info.plist must not enable App Sandbox (breaks files + needs extra entitlements)",
+);
+
 // 增加平台 target 不得以牺牲既有 Windows 发布 / 窗口契约为代价。
 assert.equal(
   bundle.windows?.webviewInstallMode?.type,

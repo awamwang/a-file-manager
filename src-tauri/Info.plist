@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Tauri merges this file into the generated .app/Info.plist (production bundle)
+  and embeds it in the binary during development.
+
+  Voice input (ADR 0018) uses cpal/CoreAudio to capture the microphone. macOS
+  TCC requires a usage description string for every protected resource; without
+  it the authorization prompt never appears and CoreAudio returns a silent dead
+  stream, which surfaces as the voice `no-audio` error. This is the macOS
+  counterpart of the Windows ConsentStore pre-check — declare it here so the
+  runtime prompt can actually be shown.
+
+  No custom entitlements file is needed: AFM is not App-Sandboxed, so
+  `com.apple.security.device.audio-input` (a sandbox entitlement) does not
+  apply. Supplying a custom entitlements file would REPLACE Tauri's defaults
+  (allow-jit / allow-unsigned-executable-memory / disable-library-validation)
+  that WKWebView needs to render, so we deliberately leave it untouched.
+-->
+<plist version="1.0">
+<dict>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>A File Manager uses the microphone for voice input in the Search Palette ( Speech to Text ). Recordings are sent to the transcription service you configure in Settings.</string>
+</dict>
+</plist>

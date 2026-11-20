@@ -43,7 +43,8 @@ afm-feed/
       "assetUrl": "http://127.0.0.1:8078/artifacts/awam-tool-manager.exe",
       "sha256": "<64位十六进制>",
       "fileName": "awam-tool-manager.exe",
-      "baseUrl": "http://127.0.0.1:18778"
+      "baseUrl": "http://127.0.0.1:18778",
+      "platform": "windows-x86_64"
     }
   ],
   "packs": [
@@ -66,6 +67,7 @@ afm-feed/
 | `entries[].artifactVersion` | 展示/记录用版本 | 建议随 sha 一起 bump |
 | `entries[].baseUrl` | managed 拉起后 AFM 探活/附着的地址 | **必须等于实例实际监听端口**（tool-manager 现为 `18778`），否则连不上 |
 | `entries[].fileName` | 落盘名（缺省从 assetUrl 末段推断） | onefile 名 = spawn 的 exe 名 |
+| `entries[].platform` | 产物面向的宿主 `<os>-<arch>`（如 `macos-aarch64`、`macos-x86_64`、`windows-x86_64`） | **可缺省**（旧单平台 feed 兼容）。同一 pack 一旦有条目带此字段，客户端就只按当前宿主精确匹配，匹配不到 = 降级 config-mode，绝不误下别平台二进制 |
 | `packs[].installUrl/sha256` | 一键安装的 zip 来源与摘要 | zip 根须含 `pack.json` |
 
 **allow-list 不变量（安全关键，勿破）**：`manifestUrl`、每个 `assetUrl`、每个 `installUrl` 的主机都必须在 `allowHosts` 内（精确主机或点分子域）。**不在 → AFM 绝不发起该下载**，直接报错。切线上时这三类 URL 的域都要加进 `allowHosts`。
@@ -98,8 +100,36 @@ python scripts/build_pack_feed.py emit-feed-config \
 
 - **`build` 会带 `--add-data "<src>/data;data"`** —— 这是托管实例 `list_tools` 不致空的关键（server.py 在 frozen 下从 `_MEIPASS/data` 读声明）。换其它 Python 后端同理需带各自的 data。
 - **包式后端**（file-gateway / knowledge）入口在 `src/<pkg>/__main__.py`，用 `--paths src --collect <pkg>` 让 PyInstaller 跟随包并随包分发 `config/*.json`（knowledge 即此法，数据在包目录内、不走 `src/data`）；file-gateway 另需 `--add-data` 带 `filesystems.html`。canonical 三后端调用见 `release.yml` 的 `build-pack-feed`。
-- **每个 OS 单独 build**：PyInstaller 冻结不可跨平台。Win 产物只能在 Win 上产；Linux/macOS 各跑对应 agent。
+- **每个 OS 单独 build**：PyInstaller 冻结不可跨平台。Win 产物只能在 Win 上产；macOS 的 aarch64 / x86_64 各在对应架构 runner 上产（详见 §2.5）。
 - `--base-probe-url` 写进 entry 的 `baseUrl`，要与该后端实际监听端口一致（tool-manager = 18778；改端口要三处同步：后端 `DEFAULT_PORT`、feed `baseUrl`、AFM 默认）。
+
+## 2.5 Mac 版本打包（Feature Pack 的 sidecar 产物）
+
+Feature Pack 的安装包 zip（`npm run package:feature-packs` → `dist/release/*_feature-pack-*.zip`）**本身平台无关**——里面只有 `pack.json` + UI 资源 + 空的 `sidecar/` 占位，不需要为 Mac 单独打。Mac 适配的全部工作在 **feed 的 sidecar 产物**：
+
+**关键机制**：`build_pack_feed.py build` 给每条 entry 写 `platform: <os>-<arch>`（省略时按构建宿主自动派生，`arm64 → aarch64`、`AMD64 → x86_64` 对齐 Rust 常量）；manifest 按 `(packId, platform)` 去重合并，因此三份产物可共存于一份 feed。客户端 `platform::artifact_platform_key()` 精确选本平台的条目——**macOS 只会下载 `macos-*`，绝不碰 Windows `.exe`**；某平台无条目时该 pack 降级为 config-mode（不阻断启用）。
+
+**发布步骤**（每个架构在对应本机上 build，产物上传同一个 feed 目录）：
+
+```bash
+# ① Apple Silicon runner
+python scripts/build_pack_feed.py build --pack-id awam.tool-runtime \
+  --name awam-tool-manager --src <src> --entry src/server.py \
+  --version 0.1.0 --out <shared-feed> --base-feed-url <base> \
+  --platform macos-aarch64
+# ② Intel runner（同一 --out 目录；manifest 自动追加，不覆盖 ①）
+python scripts/build_pack_feed.py build ... --platform macos-x86_64
+# ③ Windows runner（可选，同一 feed 共存）
+python scripts/build_pack_feed.py build ... --platform windows-x86_64
+# ④ pack zip 只需打一次（平台无关），三端共用
+python scripts/build_pack_feed.py pack-dir --pack-id awam.tool-runtime \
+  --name "工具管理运行时" --version 0.1.0 --src packs/tool-runtime \
+  --out <shared-feed> --base-feed-url <base>
+```
+
+最终 `manifest.json` 的 `entries` 应有同一 `packId` 的 2~3 条、各自 `platform` 不同（`fileName` 分别是 `awam-tool-manager`（Mac，无扩展名）、`awam-tool-manager-x64`、`awam-tool-manager.exe`）。产物落盘时经 `platform::make_executable()` 加 Unix 执行位（Windows no-op），无需手动 `chmod`。
+
+> macOS 上的 onefile 在 Mac runner 构建时由 `build_pack_feed.py` 自动做 **ad-hoc 签名**（与 AFM 主程序零证书回退同一策略），**暂不做 Developer ID / 公证**。AFM 自身下载落盘的 sidecar 不带 quarantine，可正常拉起；用户若从 Release 手动下载产物，浏览器会加 quarantine，Gatekeeper 拦截时用 `xattr -d com.apple.quarantine <产物>` 放行，或在「系统设置 → 隐私与安全性 → 仍要打开」，也可 Finder 右键 →「打开」。临时使用方式与 AFM 主程序一致。
 
 ## 3. 接线上 feed（dogfood → 生产）
 
@@ -108,7 +138,11 @@ python scripts/build_pack_feed.py emit-feed-config \
    - `manifestUrl` → `https://<AFM 线上域>/.../manifest.json`
    - `allowHosts` → 加上线上域（manifest 与 asset/install 同域即可，多域则都列）
 3. AFM 无需改代码：feed 拉取/下载/SHA 校验/落盘/spawn/升级全走既有接缝。
-4. **CI 已接（P2-5）**：`release.yml` 的 `build-pack-feed` job 在打 tag 时 `checkout` 带 `submodules: recursive` → 按各仓 lockfile 从 `upstream/awam-*` 源码产 onefile + manifest（flat URL）→ 上传 GitHub Release（主源）；配了 `OSS_*` secrets 再镜像对象存储（回落源），未配则跳过。**当前仅产 Windows 产物**；macOS/Linux 需加 runner + `manifest.<os>.json` 与按 OS 选 manifestUrl（后续）。整链以一次真实 release 运行为准。
+4. **CI 已接（P2-5 → 三平台）**：打 tag 时 `release.yml` 依次跑两段 job：
+   - `build-pack-feed`（matrix，`windows-latest` / `macos-latest`(arm64) / `macos-15-intel`(x64)）：`checkout` 带 `submodules: recursive` → 按各仓 lockfile 从 `upstream/awam-*` 源码产 onefile → 每平台各写一份**局部** manifest（`--platform <key>`，`--url-layout flat`），整目录作为 Actions artifact `afm-feed-<platform>` 交接。pack zip 平台无关，只在 Windows slice 打一次。
+   - `merge-pack-feed`（ubuntu）：下载全部 slice → `build_pack_feed.py merge-feed` 合成**唯一** `manifest.json`（entries 按 `(packId, platform)` 合并；同名产物摘要不同直接报错）→ 统一上传 Release（主源）→ 配了 `OSS_*` secrets 再镜像对象存储（回落源），未配跳过。
+
+   Mac x64 的 `--name` 必须带 `-x64` 后缀：`awam-tool-manager-x64` / `awam-resource-gateway-x64`，否则与 Apple Silicon 的无扩展名同名产物在扁平 Release 资产里互相覆盖。`finalize` 同时检查 build 与 merge 两段结果（build 失败时 merge 会被跳过，单看 merge 会误判成功发布缺产物的 release）。客户端按宿主精确选条目，不必按 OS 拆 manifestUrl。整链以一次真实 release 运行为准。
 
 ## 3.1 源码来源（submodule）
 
@@ -176,3 +210,4 @@ AFM 通过 `upstream/` 下的 git submodule 锁定三个后端源码（`awam-fil
 3. **非静默替换**：仅手动「升级」可覆盖运行产物。
 4. 停止权只作用 AFM 自启 pid（`record.spawned_pid`）；附着/外部实例绝不 kill。
 5. 进程态唯一权威 = `ManagedDependencyRecord.spawned_pid`（无 `last_sidecar_pid` 残留）。
+6. **产物按宿主平台精确匹配**：真正下载/落盘/探活的代码路径必须走 `find_entry_for_platform`，绝不按 packId 盲取——否则多平台 feed 下 macOS 会选中 Windows `.exe` 并当命令 spawn。`platform` 键只能由 `platform::artifact_platform_key()` 派生，业务模块不得硬编码。

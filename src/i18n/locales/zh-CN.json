@@ -51,7 +51,27 @@
       "settings.fields.core.openTool.trae.path.description": "自动发现失败时的可选应用路径",
       "settings.fields.core.openTool.qoder.path.description": "自动发现失败时的可选应用路径",
       "providers.searchBlocked": "Spotlight 已接入「搜索」，请使用搜索页，而不是提供程序中的 search 后端。",
-      "settings.favoritesMeta": "访达右键「添加到 AFM 收藏」"
+      "settings.favoritesMeta": "访达右键「添加到 AFM 收藏」",
+      "discovery.testMeta": "在此试探 Spotlight 与备用引擎。日常检索请用搜索面板（⌘+⇧+P）。",
+      "settings.search.paletteMeta": "⌘+⇧+P 打开搜索面板——日常检索入口（命令、文件、项目等）。下列默认值在下次打开面板时生效。",
+      "settings.search.knowledgeMeta": "搜索面板知识源（⌥+7）所连接的知识服务——可检索笔记正文和已保存的条目。",
+      "settings.search.fuzzyHint": "搜索面板查询的默认模糊匹配（文件源使用子序列匹配）。",
+      "settings.extensions.dataRootPlaceholder": "例如 ~/Library/Application Support/A File Manager/knowledge/data",
+      "settings.openTools.customMeta": "添加任意可执行文件或 .app 作为打开方式；文件「打开方式」与项目「打开方式」共用此列表。",
+      "voice.error.permission": "麦克风访问被阻止——请在「系统设置 → 隐私与安全性 → 麦克风」中开启",
+      "voice.selftest.permissionHint": "请允许本应用使用麦克风：系统设置 → 隐私与安全性 → 麦克风。首次录音时会弹出系统授权对话框。",
+      "voice.error.noAudio": "麦克风没有产出任何音频——请检查输入设备是否已启用、未静音且未被其他应用独占",
+      "knowledgeView.openInExplorer": "在访达中显示",
+      "about.link.releases.desc": "获取最新的 macOS 安装包（.dmg）",
+      "ai.skills.deployModeJunction": "符号链接（默认）",
+      "health.deps.items.quicklook.ok.detail": "系统「快速查看」可用，空格预览由 macOS 系统预览提供。",
+      "health.deps.items.quicklook.ok.fix": "无需处理；可预览的文件类型取决于 macOS「快速查看」，不支持的类型回退到内置预览。",
+      "health.deps.items.quicklook.missing.detail": "本机「快速查看」不可用，空格预览使用内置预览窗格。",
+      "health.deps.items.quicklook.missing.fix": "无需处理——空格预览由内置预览提供。重装 macOS 可恢复系统「快速查看」。",
+      "health.deps.items.quicklook.warn.detail": "无法确定「快速查看」预览状态。",
+      "health.deps.items.quicklook.warn.fix": "无需处理——空格预览会回退到内置预览窗格。",
+      "health.deps.items.quicklook.unbridged.detail": "空格预览由 macOS 系统「快速查看」或内置预览窗格提供。",
+      "health.deps.items.quicklook.unbridged.fix": "无需处理——预览由 macOS 原生提供。"
     }
   },
   "app": {

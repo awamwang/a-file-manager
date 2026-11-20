@@ -135,6 +135,7 @@ mod tests {
             file_name: Some("awam-file-gateway.exe".to_string()),
             base_url: String::new(),
             asset_fallback_url: None,
+            platform: None,
         }
     }
 

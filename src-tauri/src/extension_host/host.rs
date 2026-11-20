@@ -261,15 +261,23 @@ impl ExtensionHost {
                 .contains(&ExtensionPermission::SpawnSidecar)
         {
             let sync = if enabled {
-                // ADR 0022：启用时按 feed 元清单决定该 pack 是否 managed（有 entry→Managed）。
-                // 未配置 / 元清单不可达 / 主机不在 allow-list → 静默降级 Config（尽力而为，不阻断启用）。
+                // ADR 0022：启用时按 feed 元清单决定该 pack 是否 managed。
+                // 目标平台须有原生产物且宿主具备 sidecar 产物能力，才标 Managed；
+                // 否则（未配置 / 清单不可达 / 无本平台 entry / 能力关闭）静默降级
+                // Config。`resolve_managed_binding` 内部按 artifact_platform_key()
+                // 精确选条目——多平台 feed 下 macOS 绝不会选中 Windows .exe。
+                let host_can_run_feed_artifacts =
+                    crate::platform::current().capabilities().sidecar_native_artifacts;
                 let feed_cfg = crate::managed_dependency::feed::load_feed(&app_data);
                 let manifest = crate::managed_dependency::feed::fetch_manifest(
                     &feed_cfg,
                     crate::managed_dependency::store::fetch_manifest_text,
                 )
                 .unwrap_or(None);
-                let (mode, base_url, declared_version) = match crate::managed_dependency::feed::resolve_managed_binding(manifest.as_ref(), id) {
+                let (mode, base_url, declared_version) = match manifest.as_ref()
+                    .filter(|_| host_can_run_feed_artifacts)
+                    .and_then(|m| crate::managed_dependency::feed::resolve_managed_binding(Some(m), id))
+                {
                     Some(b) => (
                         crate::managed_dependency::registry::DependencyMode::Managed,
                         b.base_url,

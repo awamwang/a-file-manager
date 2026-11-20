@@ -257,7 +257,17 @@ impl Platform for MacosPlatform {
         // Provider-backed bits (trash / clipboard / search) come from the
         // registered providers, not hand-written booleans (7.24).
         caps.apply_provider_capabilities(self);
-        // Deliberately false until implemented: see docs/macos-port-research.md.
+        // microphone_permission_precheck stays false: macOS asks for TCC
+        // microphone access when the capture device opens, so there is no
+        // synchronous ConsentStore-style check to run beforehand. The bundle
+        // ships NSMicrophoneUsageDescription + the audio-input entitlement so
+        // that prompt actually appears (see Info.plist / entitlements).
+        // ADR 0022 macOS packaging: native sidecars are published per host and
+        // selected by `artifact_platform_key()` (e.g. macos-aarch64). Opting in
+        // lets macOS enter managed provisioning; a feed with no macOS artifact
+        // still yields no binding and degrades to Config, and a Windows .exe is
+        // never selected because feed lookup is platform-scoped.
+        caps.sidecar_native_artifacts = true;
         caps
     }
 
@@ -505,6 +515,35 @@ impl Platform for MacosPlatform {
     fn python_command(&self) -> &'static str {
         // macOS ships `python3`; bare `python` may be absent or Python 2.
         "python3"
+    }
+
+    fn node_command(&self) -> &'static str {
+        // A GUI launch from Finder does not inherit the shell PATH. Node is
+        // usually installed under Homebrew, so probe the standard prefixes;
+        // fall back to the bare name for nvm/fnm setups that add it to PATH.
+        for candidate in ["/opt/homebrew/bin/node", "/usr/local/bin/node"] {
+            if Path::new(candidate).is_file() {
+                return candidate;
+            }
+        }
+        "node"
+    }
+
+    fn make_executable(&self, path: &Path, mode: Option<u32>) -> Result<(), String> {
+        use std::os::unix::fs::PermissionsExt;
+        let mut permissions = std::fs::metadata(path)
+            .map_err(|err| format!("stat for chmod {}: {err}", path.display()))?
+            .permissions();
+        let mode = match mode {
+            // Zip entries carry the original Unix mode; keep it verbatim.
+            Some(raw) => raw & 0o7777,
+            // Downloaded artifacts: add execute bits for owner/group/other,
+            // preserving whatever read/write bits the writer produced.
+            None => permissions.mode() | 0o111,
+        };
+        permissions.set_mode(mode);
+        std::fs::set_permissions(path, permissions)
+            .map_err(|err| format!("chmod {}: {err}", path.display()))
     }
 
     fn file_icon(&self, path: &Path, size: u16) -> Result<RgbaIcon, String> {
@@ -936,6 +975,48 @@ mod tests {
     #[test]
     fn python_command_is_python3_on_unix() {
         assert_eq!(MacosPlatform.python_command(), "python3");
+    }
+
+    #[test]
+    fn node_command_resolves_to_an_existing_binary_or_a_bare_name() {
+        let node = MacosPlatform.node_command();
+        // Either a probed absolute Homebrew path that really exists, or the
+        // bare name fallback when Node is managed via nvm/fnm on PATH.
+        assert!(
+            node == "node"
+                || (node.starts_with('/') && Path::new(node).is_file()),
+            "unexpected node command: {node}"
+        );
+    }
+
+    #[test]
+    fn make_executable_adds_exec_bits_and_honours_zip_mode() {
+        use std::fs;
+        let dir = std::env::temp_dir().join(format!("afm-chmod-{}", std::process::id()));
+        let _ = fs::create_dir_all(&dir);
+        let file = dir.join("sidecar");
+        fs::write(&file, b"#!/bin/sh\n").unwrap();
+
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o644)).unwrap();
+        MacosPlatform.make_executable(&file, None).unwrap();
+        assert_eq!(fs::metadata(&file).unwrap().permissions().mode() & 0o777, 0o755);
+
+        // A zip entry with an explicit mode (e.g. 0o700) is applied verbatim.
+        MacosPlatform.make_executable(&file, Some(0o700)).unwrap();
+        assert_eq!(fs::metadata(&file).unwrap().permissions().mode() & 0o777, 0o700);
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn post_port_host_facts_are_honest_on_macos() {
+        let caps = MacosPlatform.capabilities();
+        // macOS asks via TCC at device-open time: no synchronous pre-check.
+        assert!(!caps.microphone_permission_precheck);
+        // macOS provisions native sidecars; platform-scoped feed lookup keeps
+        // it from ever selecting the Windows .exe.
+        assert!(caps.sidecar_native_artifacts);
     }
 
     #[test]

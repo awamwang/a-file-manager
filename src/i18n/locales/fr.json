@@ -51,7 +51,27 @@
       "settings.fields.core.openTool.trae.path.description": "Chemin de l’application si la détection automatique échoue",
       "settings.fields.core.openTool.qoder.path.description": "Chemin de l’application si la détection automatique échoue",
       "providers.searchBlocked": "Spotlight est connecté à la recherche. Utilisez la page Recherche plutôt que le backend du fournisseur.",
-      "settings.favoritesMeta": "Menu contextuel Finder → Ajouter aux favoris AFM"
+      "settings.favoritesMeta": "Menu contextuel Finder → Ajouter aux favoris AFM",
+      "discovery.testMeta": "Testez ici Spotlight et le moteur de secours. La recherche quotidienne reste dans la palette (⌘+⇧+P).",
+      "settings.search.paletteMeta": "⌘+⇧+P ouvre la palette — l’entrée quotidienne pour commandes, fichiers, projets, etc. Les défauts ci-dessous s’appliquent à la prochaine ouverture.",
+      "settings.search.knowledgeMeta": "Le service de connaissances utilisé par la source « Connaissances » de la palette (⌥+7) — recherche le contenu des notes et les entrées enregistrées.",
+      "settings.search.fuzzyHint": "Correspondance floue par défaut dans la palette (sous-séquence pour les fichiers).",
+      "settings.extensions.dataRootPlaceholder": "ex. ~/Library/Application Support/A File Manager/knowledge/data",
+      "settings.openTools.customMeta": "Ajoutez tout exécutable ou .app comme ouvreur ; Ouvrir avec pour fichiers et projets partage cette liste.",
+      "voice.error.permission": "L’accès au micro est bloqué — activez-le dans Réglages système → Confidentialité et sécurité → Micro",
+      "voice.selftest.permissionHint": "Autorisez l’accès au micro pour cette application : Réglages système → Confidentialité et sécurité → Micro. Un dialogue système s’affiche au premier enregistrement.",
+      "voice.error.noAudio": "Le micro n’a produit aucun son — vérifiez que le périphérique d’entrée est activé, non coupé et non réservé par une autre application",
+      "knowledgeView.openInExplorer": "Afficher dans le Finder",
+      "about.link.releases.desc": "Obtenir le dernier installateur macOS (.dmg)",
+      "ai.skills.deployModeJunction": "Lien symbolique (par défaut)",
+      "health.deps.items.quicklook.ok.detail": "Quick Look est disponible ; l’aperçu Espace passe par l’aperçu système macOS.",
+      "health.deps.items.quicklook.ok.fix": "Aucune action nécessaire. Les types prévisualisables dépendent de Quick Look ; les autres basculent vers l’aperçu intégré.",
+      "health.deps.items.quicklook.missing.detail": "Quick Look n’est pas disponible ; l’aperçu Espace utilise le volet intégré.",
+      "health.deps.items.quicklook.missing.fix": "Aucune action nécessaire — l’aperçu Espace est fourni par le volet intégré. Réinstaller macOS restaure Quick Look.",
+      "health.deps.items.quicklook.warn.detail": "Impossible de déterminer l’état de l’aperçu Quick Look.",
+      "health.deps.items.quicklook.warn.fix": "Aucune action nécessaire — l’aperçu Espace bascule vers le volet intégré.",
+      "health.deps.items.quicklook.unbridged.detail": "L’aperçu Espace est fourni par Quick Look ou le volet intégré de macOS.",
+      "health.deps.items.quicklook.unbridged.fix": "Aucune action nécessaire — l’aperçu est fourni nativement par macOS."
     }
   },
   "app": {

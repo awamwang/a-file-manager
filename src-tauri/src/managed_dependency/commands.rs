@@ -21,6 +21,15 @@ const FILE_GATEWAY_PACK_ID: &str = "awam.file-gateway";
 /// awam-knowledge pack id（managed 客户端同步用）。
 const KNOWLEDGE_PACK_ID: &str = "awam.knowledge";
 
+/// 取当前宿主平台的 feed 产物条目。所有真正下载/落盘/探活的路径都必须走这里，
+/// 避免多平台 feed 下 macOS 选中 Windows `.exe`（ADR 0022 macOS packaging）。
+fn find_host_entry<'a>(
+    manifest: &'a store::StoreManifest,
+    pack_id: &str,
+) -> Option<&'a store::StoreEntry> {
+    store::find_entry_for_platform(manifest, pack_id, &crate::platform::artifact_platform_key())
+}
+
 // ---- 可测内核 ----
 
 /// attach-or-spawn 并把结果回写记录。
@@ -147,7 +156,7 @@ fn prepare_contrib_for_spawn(
     };
     let entry = manifest
         .as_ref()
-        .and_then(|m| store::find_entry(m, &record.pack_id));
+        .and_then(|m| find_host_entry(m, &record.pack_id));
     match provision::ensure_artifact(
         entry,
         &feed_cfg.allow_hosts,
@@ -371,11 +380,12 @@ pub async fn managed_dependency_upgrade(
         let feed_cfg = feed::load_feed(&dir);
         let manifest = feed::fetch_manifest(&feed_cfg, store::fetch_manifest_text)?
             .ok_or_else(|| "managed_dependency upgrade: feed not configured".to_string())?;
-        let entry = store::find_entry(&manifest, &record.pack_id)
+        let entry = find_host_entry(&manifest, &record.pack_id)
             .ok_or_else(|| {
                 format!(
-                    "managed_dependency upgrade: no feed entry for '{}'",
-                    record.pack_id
+                    "managed_dependency upgrade: no feed entry for '{}' on {}",
+                    record.pack_id,
+                    crate::platform::artifact_platform_key()
                 )
             })?
             .clone();
@@ -452,7 +462,7 @@ pub fn check_updates(app_data: &Path) -> Result<(), String> {
         let Ok((pack_install_dir, contrib)) = resolve_pack_sidecar(&record) else {
             continue;
         };
-        let Some(entry) = store::find_entry(&manifest, &record.pack_id) else {
+        let Some(entry) = find_host_entry(&manifest, &record.pack_id) else {
             continue;
         };
         let status = provision::inspect_artifact_offline(
@@ -485,7 +495,7 @@ pub async fn managed_dependency_check_update(
         let manifest = feed::fetch_manifest(&feed_cfg, store::fetch_manifest_text)?;
         if let Some(entry) = manifest
             .as_ref()
-            .and_then(|m| store::find_entry(m, &record.pack_id))
+            .and_then(|m| find_host_entry(m, &record.pack_id))
         {
             let status = provision::inspect_artifact_offline(
                 entry,
@@ -661,6 +671,7 @@ mod tests {
             file_name: Some("awam-tool-manager.exe".to_string()),
             base_url: "http://127.0.0.1:18778".to_string(),
             asset_fallback_url: None,
+            platform: None,
         }
     }
 

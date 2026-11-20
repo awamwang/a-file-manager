@@ -45,10 +45,17 @@ for (const code of ["busy", "no-device", "permission", "not-configured", "empty"
   assert.ok(voiceMod.includes(`"${code}"`), `voice error code: ${code}`);
 }
 
-// Windows microphone consent pre-check: registry ConsentStore read before opening the device.
+// Windows microphone consent pre-check: registry ConsentStore read before
+// opening the device, gated by the platform capability so macOS never runs a
+// Windows-only check (macOS relies on the TCC prompt declared in Info.plist).
 const voiceCapture = read("src-tauri/src/voice/capture.rs");
 assert.ok(voiceCapture.includes("microphone_consent_denied"), "consent check entry point");
 assert.ok(voiceCapture.includes("CapabilityAccessManager"), "consent store registry path queried");
+const voiceModRs = read("src-tauri/src/voice/mod.rs");
+assert.ok(
+  voiceModRs.includes("capabilities().microphone_permission_precheck"),
+  "voice pre-check must be gated by the platform capability",
+);
 
 const voiceEngine = read("src-tauri/src/voice/engine.rs");
 assert.ok(voiceEngine.includes("pub fn normalize_base_url"), "engine normalizes base URL");
@@ -64,7 +71,12 @@ assert.ok(voiceEngine.includes("power.sttApiKey"), "engine reads power.sttApiKey
 // ---------------------------------------------------------------------------
 
 const typesRs = read("src-tauri/src/settings/types.rs");
-assert.ok(/SETTINGS_SCHEMA_VERSION:\s*u32\s*=\s*15/.test(typesRs), "schema version bumped to 15");
+// Keep this in lockstep with src-tauri/src/settings/types.rs. ADR 0022 (managed dependency
+// config keys) bumped the schema to v14; open-tools / agent-presets work bumped it to v15.
+const schemaVersion = Number(
+  /SETTINGS_SCHEMA_VERSION:\s*u32\s*=\s*(\d+)/.exec(typesRs)?.[1] ?? "0",
+);
+assert.ok(schemaVersion >= 15, `schema version must be >= 15 (got ${schemaVersion})`);
 
 const defaultsRs = read("src-tauri/src/settings/defaults.rs");
 for (const key of [
@@ -223,6 +235,17 @@ const voiceI18nKeys = [
 ];
 for (const locale of locales) {
   const doc = JSON.parse(read(`src/i18n/locales/${locale}.json`));
+  // macOS TCC guidance must override the Windows Settings copy in the base
+  // catalog (see platform.macos in check-platform-terms.mjs).
+  for (const key of ["voice.error.permission", "voice.selftest.permissionHint"]) {
+    const override = doc?.platform?.macos?.[key];
+    assert.equal(typeof override, "string", `${locale}: macOS override missing for ${key}`);
+    assert.doesNotMatch(
+      override,
+      /Windows Settings|Windows 设置|Windows の設定|Windows-Einstellungen|Paramètres Windows/,
+      `${locale}:${key} macOS copy must not mention Windows Settings`,
+    );
+  }
   const has = ( dotted ) => {
     let node = doc;
     for (const part of dotted.split(".")) {

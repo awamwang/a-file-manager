@@ -20,6 +20,29 @@
     python build_pack_feed.py emit-feed-config \\
         --out "G:/.../afm-feed" --app-config-dir "<AFM app_config_dir>"
 
+Mac 打包（每架构在对应 target 上各跑一次，产物写进同一 feed 目录/同一 manifest）：
+    # Apple Silicon runner (aarch64)
+    python build_pack_feed.py build --pack-id awam.tool-runtime \\
+        --name awam-tool-manager --src <src> --entry src/server.py \\
+        --version 0.1.0 --out <shared-feed> --base-feed-url <base> \\
+        --platform macos-aarch64
+    # Intel runner (x86_64) — 同一 out 目录，manifest 自动按 (packId, platform) 合并
+    python build_pack_feed.py build ... --platform macos-x86_64
+    # Windows 构建同样进来（windows-x86_64），三份产物共存于一份 feed。
+
+`platform` 省略时按构建宿主自动派生（sys.platform + machine → Rust 风格的
+`<os>-<arch>`）。客户端按 `platform::artifact_platform_key()` 精确选条目，
+macOS 绝不会误下 Windows `.exe`。详见 docs/feed-operations-runbook.md。
+
+CI 多平台聚合（发布链路）：每个平台 runner 产一个独立 feed slice（各自
+manifest.json + artifacts/），再由聚合 job 合成唯一 manifest 上传 Release：
+    python build_pack_feed.py merge-feed \\
+        --slice <win-slice> --slice <mac-arm64-slice> --slice <mac-x64-slice> \\
+        --out <final-feed>
+
+同名产物若摘要不同会直接报错：Mac x86_64 的 --name 须加 -x64 后缀，
+避免与 Apple Silicon 的同名无扩展名产物在扁平 Release 资产里互相覆盖。
+
 约束（ADR 0022）：产物冻结不可跨平台，须在目标 OS 上构建；本工具单 OS。
 """
 from __future__ import annotations
@@ -27,11 +50,61 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import platform as host_platform
 import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
+
+def merge_documents(base: dict, incoming: dict) -> dict:
+    """合并两份 feed 文档：entries 按 (packId, platform) 去重，packs 按 packId 去重。
+
+    incoming 覆盖同键旧条目（重建场景），其它平台条目原样保留。旧 feed 无
+    platform 字段时以 "" 参与比较，保持向后兼容。抽取为公共函数供 build /
+    pack_dir / merge-feed 共用，避免三处去重语义漂移。
+    """
+    entries: dict[tuple[str, str], dict] = {}
+    for e in base.get("entries", []):
+        entries[(e.get("packId"), e.get("platform") or "")] = e
+    packs: dict[str, dict] = {}
+    for p in base.get("packs", []):
+        packs[p.get("packId")] = p
+    for e in incoming.get("entries", []):
+        entries[(e.get("packId"), e.get("platform") or "")] = e
+    for p in incoming.get("packs", []):
+        packs[p.get("packId")] = p
+    return {"schema": 1, "entries": list(entries.values()), "packs": list(packs.values())}
+
+
+def artifact_platform_key(os_name: str | None = None, arch: str | None = None) -> str:
+    """规范化宿主平台键 `<os>-<arch>`，与 Rust `platform::artifact_platform_key()` 对齐。
+
+    Python 与 Rust 的架构命名不同：Python `arm64` ↔ Rust `aarch64`、
+    Python `AMD64` ↔ Rust `x86_64`。这里统一到 Rust consts 的拼写，确保
+    构建脚本写进 feed 的 `platform` 与客户端匹配逻辑是同一套键。
+    """
+    os_name = (os_name or sys.platform).lower()
+    if os_name.startswith("win") or os_name == "windows":
+        os_key = "windows"
+    elif os_name.startswith("darwin") or os_name == "macos":
+        os_key = "macos"
+    elif os_name.startswith("linux"):
+        os_key = "linux"
+    else:
+        os_key = os_name
+
+    raw_arch = (arch or host_platform.machine()).lower()
+    arch_map = {
+        "arm64": "aarch64",
+        "aarch64": "aarch64",
+        "x86_64": "x86_64",
+        "amd64": "x86_64",
+        "x64": "x86_64",
+    }
+    arch_key = arch_map.get(raw_arch, raw_arch)
+    return f"{os_key}-{arch_key}"
 
 
 def sha256_of(path: Path) -> str:
@@ -90,9 +163,14 @@ def pyinstaller_onefile(src: Path, entry: str, name: str, work: Path, python: st
         cmd += ["--paths", str((src / extra_path).resolve() if not Path(extra_path).is_absolute() else extra_path)]
     for pkg in collect:
         cmd += ["--collect-all", pkg]
+    alt_sep = ":" if sep == ";" else ";"
     for ad in add_data:
-        # 形如 "src/data;data"
-        local, _, dest = ad.partition(sep)
+        # 形如 "src/data;data"。CI 命令行在 Win/Mac 之间共用，两种分隔符都接受；
+        # 优先平台原生分隔符（Windows 盘符 C: 不能被冒号误切）。
+        split_on = sep if sep in ad else alt_sep
+        if split_on not in ad:
+            raise SystemExit(f"--add-data must be 'local{sep}dest': {ad}")
+        local, _, dest = ad.partition(split_on)
         local_path = Path(local)
         if not local_path.is_absolute():
             local_path = (src / local).resolve()
@@ -110,11 +188,38 @@ def pyinstaller_onefile(src: Path, entry: str, name: str, work: Path, python: st
     return exe
 
 
+def adhoc_sign_macos(path: Path) -> None:
+    """给 macOS onefile 做 ad-hoc 签名（零凭证回退，与 AFM.app 同一策略）。
+
+    不做 Developer ID、不做公证：这里只提供完整性印章，让系统把它识别为
+    已签名（而非“身份不明的开发者”），用户仍按 runbook 的临时放行方式打开。
+    Gatekeeper 的 quarantine 由下载端决定；AFM 自身下载落盘的 sidecar 不携带
+    quarantine，因此正常自动拉起不受影响。
+    """
+    if sys.platform != "darwin":
+        return
+    subprocess.run(
+        ["codesign", "--force", "--sign", "-", "--timestamp=none", str(path)],
+        check=True,
+    )
+    verify = subprocess.run(
+        ["codesign", "-dv", "--verbose=1", str(path)],
+        capture_output=True,
+        text=True,
+    )
+    details = (verify.stdout or "") + "\n" + (verify.stderr or "")
+    if "Signature=adhoc" not in details:
+        raise SystemExit(f"ad-hoc signature not applied to {path}: {details}")
+
+
 def build(args: argparse.Namespace) -> int:
     src = Path(args.src)
     out = Path(args.out)
     artifacts = out / "artifacts"
     artifacts.mkdir(parents=True, exist_ok=True)
+    # 平台键须在目标 OS 上构建时按宿主派生（ADR 0022：PyInstaller 不跨平台冻结）。
+    # 允许 --platform 显式覆盖（交叉发布已构建好的产物场景），否则自动探测。
+    platform_key = getattr(args, "platform", "") or artifact_platform_key()
 
     work = Path(tempfile.mkdtemp(prefix="afm-pack-build-"))
     try:
@@ -126,6 +231,9 @@ def build(args: argparse.Namespace) -> int:
         )
         dest = artifacts / exe.name
         shutil.copy2(exe, dest)
+        # Mac 产物与 AFM 主程序一致：ad-hoc 签名即可，暂不做 Developer ID / 公证。
+        if platform_key.startswith("macos-"):
+            adhoc_sign_macos(dest)
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
@@ -139,20 +247,21 @@ def build(args: argparse.Namespace) -> int:
         "sha256": digest,
         "fileName": exe.name,
         "baseUrl": args.base_probe_url,
+        "platform": platform_key,
     }
     # 可选：对象存储镜像回落地址（GitHub 主源不可达时同 SHA 下载）。未配则不写、不回落。
     fb = getattr(args, "fallback_base_url", "")
     if fb:
         entry["assetFallbackUrl"] = asset_url(fb, exe.name, layout)
-    manifest = {"schema": 1, "entries": [entry], "packs": []}
+    manifest: dict = {"schema": 1, "entries": [entry], "packs": []}
     manifest_path = out / "manifest.json"
-    # 合并：entries 按 packId 去重覆盖本条；packs（可安装列表）整段保留。
+    # 合并：entries 按 (packId, platform) 去重，让同一 out 目录在多次构建后
+    # 同时容纳 windows-x86_64 / macos-aarch64 / macos-x86_64 三份产物。
     if manifest_path.exists():
         try:
-            existing = json.loads(manifest_path.read_text(encoding="utf-8"))
-            others = [e for e in existing.get("entries", []) if e.get("packId") != args.pack_id]
-            manifest["entries"] = others + [entry]
-            manifest["packs"] = existing.get("packs", [])
+            manifest = merge_documents(
+                json.loads(manifest_path.read_text(encoding="utf-8")), manifest
+            )
         except Exception:
             pass
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
@@ -197,17 +306,14 @@ def pack_dir(args: argparse.Namespace) -> int:
     if fb:
         entry["installFallbackUrl"] = pack_url(fb, zip_name, layout)
     manifest_path = out / "manifest.json"
-    manifest: dict = {"schema": 1, "entries": [], "packs": []}
+    manifest: dict = {"schema": 1, "entries": [], "packs": [entry]}
     if manifest_path.exists():
         try:
-            existing = json.loads(manifest_path.read_text(encoding="utf-8"))
-            manifest["entries"] = existing.get("entries", [])
-            others = [e for e in existing.get("packs", []) if e.get("packId") != args.pack_id]
-            manifest["packs"] = others + [entry]
+            manifest = merge_documents(
+                json.loads(manifest_path.read_text(encoding="utf-8")), manifest
+            )
         except Exception:
-            manifest["packs"] = [entry]
-    else:
-        manifest["packs"] = [entry]
+            pass
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     print(f"[pack] zip      : {zp}  ({zp.stat().st_size} bytes)")
     print(f"[pack] sha256   : {digest}")
@@ -232,6 +338,49 @@ def emit_feed_config(args: argparse.Namespace) -> int:
     dest = app_cfg / "managed-dependency-feed.json"
     dest.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
     print(f"[feed] wrote {dest}: {json.dumps(cfg)}")
+    return 0
+
+
+def merge_feed(args: argparse.Namespace) -> int:
+    """把多个平台构建出的 feed slice 合成唯一 feed（manifest + artifacts + packs）。
+
+    PyInstaller 不可跨平台冻结，因此 Windows / macOS-arm64 / macOS-x64 各在
+    目标 runner 上 build 出一个 slice；本命令在聚合 job 中把它们合成发布用的
+    单份 feed。同名文件若摘要不同则直接报错，绝不静默覆盖（防止平台产物串味）。
+    """
+    out = Path(args.out)
+    (out / "artifacts").mkdir(parents=True, exist_ok=True)
+    (out / "packs").mkdir(parents=True, exist_ok=True)
+    merged: dict = {"schema": 1, "entries": [], "packs": []}
+    for raw in args.slice:
+        s = Path(raw)
+        mp = s / "manifest.json"
+        if not mp.is_file():
+            raise SystemExit(f"merge-feed: missing {mp}")
+        merged = merge_documents(merged, json.loads(mp.read_text(encoding="utf-8")))
+        for sub in ("artifacts", "packs"):
+            src = s / sub
+            if not src.is_dir():
+                continue
+            for f in sorted(src.iterdir()):
+                if not f.is_file():
+                    continue
+                dest = out / sub / f.name
+                digest = sha256_of(f)
+                if dest.exists():
+                    if sha256_of(dest) != digest:
+                        raise SystemExit(
+                            f"merge-feed: conflicting {sub}/{f.name} from {s} "
+                            "(platform artifacts must have distinct names)"
+                        )
+                    continue
+                shutil.copy2(f, dest)
+    manifest_path = out / "manifest.json"
+    manifest_path.write_text(json.dumps(merged, indent=2), encoding="utf-8")
+    print(f"[merge] slices   : {len(args.slice)}")
+    print(f"[merge] entries  : {len(merged['entries'])}")
+    print(f"[merge] packs    : {len(merged['packs'])}")
+    print(f"[merge] manifest : {manifest_path}")
     return 0
 
 
@@ -260,6 +409,9 @@ def main() -> int:
                    help="extra --paths (relative to --src or absolute); for package-style entries")
     b.add_argument("--add-data", dest="add_data", action="append", default=[],
                    help="extra PyInstaller --add-data 'local{sep}dest'")
+    b.add_argument("--platform", default="",
+                   help="feed entry platform key (e.g. macos-aarch64 / macos-x86_64 / "
+                        "windows-x86_64); default: derive from the build host")
     b.set_defaults(fn=build)
 
     e = sub.add_parser("emit-feed-config", help="write AFM managed-dependency-feed.json")
@@ -283,6 +435,12 @@ def main() -> int:
     pd.add_argument("--fallback-base-url", default="",
                     help="object-storage mirror base for installFallbackUrl (empty = no fallback)")
     pd.set_defaults(fn=pack_dir)
+
+    mg = sub.add_parser("merge-feed", help="merge per-platform feed slices into one release feed")
+    mg.add_argument("--slice", dest="slice", action="append", required=True,
+                    help="a build host's feed dir (repeatable); holds manifest.json + artifacts/ + packs/")
+    mg.add_argument("--out", required=True, help="merged feed output dir")
+    mg.set_defaults(fn=merge_feed)
 
     args = p.parse_args()
     return args.fn(args)
