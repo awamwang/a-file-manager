@@ -3,6 +3,8 @@
 import { onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
+
+defineProps<{ embedded?: boolean }>();
 import { invoke } from "@tauri-apps/api/core";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import HelpLink from "../help/components/HelpLink.vue";
@@ -188,8 +190,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="fluent-page">
-    <header class="fluent-page-header" data-tour-id="tour-providers-header">
+  <section class="fluent-page" :class="{ 'fluent-page--embedded': embedded }">
+    <header v-if="!embedded" class="fluent-page-header" data-tour-id="tour-providers-header">
       <h1 class="fluent-page-title">{{ t("providers.title") }}</h1>
       <p class="fluent-page-meta">{{ t("providers.meta") }}</p>
       <HelpLink entry-id="providers" tour />
@@ -324,6 +326,10 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.fluent-page--embedded {
+  padding: 0;
+}
+
 .backends {
   display: grid;
   /* 提高列宽下限：宽窗口下避免堆出过多过窄卡片导致文字被挤碎。 */

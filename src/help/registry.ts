@@ -100,11 +100,11 @@ const ALL_ENTRIES: readonly HelpEntry[] = [
     id: "providers",
     titleKey: "help.entries.providers.title",
     category: "connect",
-    route: "/providers",
+    route: "/extensions/providers",
     articlePath: "./content/providers.md",
     hintKey: "help.entries.providers.hint",
     tourId: "providers",
-    applicability: { routes: ["/providers"] },
+    applicability: { routes: ["/extensions/providers", "/providers"] },
   },
   {
     id: "ai",

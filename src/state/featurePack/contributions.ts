@@ -155,6 +155,12 @@ function coreShellRoutePaths(): Set<string> {
     "/settings/shortcuts",
     "/settings/favorites",
     "/settings/open-tools",
+    "/settings/extensions",
+    "/extensions/installed",
+    "/extensions/store",
+    "/extensions/providers",
+    "/extensions/config",
+    "/extensions/tool-runtime",
   ]);
   if (AI_ADDON_ENABLED) {
     paths.add("/ai");

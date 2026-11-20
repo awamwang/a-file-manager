@@ -1,296 +1,95 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+/**
+ * ADR-0023 — 扩展 = 能力后端统一中心（左侧分区导航单页）。
+ * 收编原 /providers、/settings/extensions 为内部路由子段。
+ * 布局模式同 AiView：左 nav + 右 panel。
+ */
+import { computed, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
-import { openConfirmDialog } from "../state/confirmDialog";
-import { openPromptDialog } from "../state/promptDialog";
-import { toastInfo, toastSuccess } from "../state/toast";
-import { reloadContributions } from "../state/uiReload";
 import FluentIcon from "../components/icons/FluentIcon.vue";
+import type { FluentGlyphId } from "../components/icons/glyphs.ts";
+
+import ExtensionsOverviewSection from "../components/extensions/ExtensionsOverviewSection.vue";
+import ExtensionsInstalledSection from "../components/extensions/ExtensionsInstalledSection.vue";
+import ExtensionsStoreSection from "../components/extensions/ExtensionsStoreSection.vue";
+import ExtensionsProvidersSection from "../components/extensions/ExtensionsProvidersSection.vue";
+import ExtensionsConfigSection from "../components/extensions/ExtensionsConfigSection.vue";
 
 const { t } = useI18n();
+const route = useRoute();
+const router = useRouter();
 
+type SectionId = "overview" | "installed" | "store" | "providers" | "config" | "tool-runtime";
+
+type SectionDef = {
+  id: SectionId;
+  labelKey: string;
+  icon: FluentGlyphId;
+};
+
+const SECTIONS: SectionDef[] = [
+  { id: "overview", labelKey: "extensions.sections.overview", icon: "viewAll" },
+  { id: "installed", labelKey: "extensions.sections.installed", icon: "library" },
+  { id: "store", labelKey: "extensions.sections.store", icon: "cloud" },
+  { id: "providers", labelKey: "extensions.sections.providers", icon: "cloud" },
+  { id: "config", labelKey: "extensions.sections.config", icon: "settings" },
+  { id: "tool-runtime", labelKey: "extensions.sections.toolRuntime", icon: "flash" },
+];
+
+const activeSection = ref<SectionId>("overview");
+
+const activeDef = computed(
+  () => SECTIONS.find((s) => s.id === activeSection.value) ?? SECTIONS[0],
+);
+
+function sectionFromPath(path: string): SectionId {
+  const seg = path.replace("/extensions", "").replace(/^\//, "");
+  if (seg === "installed") return "installed";
+  if (seg === "store") return "store";
+  if (seg === "providers") return "providers";
+  if (seg === "config") return "config";
+  if (seg === "tool-runtime") return "tool-runtime";
+  return "overview";
+}
+
+function selectSection(id: SectionId) {
+  activeSection.value = id;
+  const target = id === "overview" ? "/extensions" : `/extensions/${id}`;
+  if (route.path !== target) {
+    router.push(target);
+  }
+}
+
+function syncFromRoute() {
+  activeSection.value = sectionFromPath(route.path);
+}
+
+// Host status (kept at view level, shown in header)
 type ExtensionHostStatus = {
   apiVersion: string;
   installedCount: number;
   enabledCount: number;
   crashedCount: number;
 };
-
-type InstalledPack = {
-  id: string;
-  name: string;
-  version: string;
-  state: string;
-  permissions: string[];
-  installPath: string;
-  lastError: string | null;
-};
-
-type PackInstallResult = {
-  success: boolean;
-  pack: InstalledPack | null;
-  error: string | null;
-};
-
-type InstallablePack = {
-  packId: string;
-  name: string;
-  version: string;
-  installUrl: string;
-  sha256: string;
-  installed: boolean;
-  installedVersion: string | null;
-};
-
-type ManagedDep = {
-  id: string;
-  packId: string;
-  mode: string;
-  health: string;
-  spawnedPid: number | null;
-  declaredVersion: string;
-  installedVersion: string;
-  availableVersion: string;
-};
-
 const status = ref<ExtensionHostStatus | null>(null);
-const packs = ref<InstalledPack[]>([]);
-const error = ref<string | null>(null);
-const loading = ref(false);
-const loadedOnce = ref(false);
-const packBusy = ref(false);
-const installable = ref<InstallablePack[]>([]);
-const feedError = ref<string | null>(null);
-// packId → 托管记录（取 mode / installedVersion / availableVersion，渲染「升级可用」）。
-const managed = ref<Record<string, ManagedDep>>({});
-const upgrading = ref<Record<string, boolean>>({});
-const checking = ref(false);
 
-function invokeErrorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
-
-function packStateLabel(state: string): string {
-  const key = `extensions.packState.${state}`;
-  const label = t(key);
-  return label === key ? state : label;
-}
-
-async function refresh() {
-  // 仅首次加载显"加载中"；后续刷新保留旧内容静默更新，避免启用/关闭时文字闪烁抖动。
-  if (!loadedOnce.value) loading.value = true;
-  error.value = null;
+async function loadHostStatus() {
   try {
     status.value = await invoke<ExtensionHostStatus>("extension_host_status");
-    packs.value = await invoke<InstalledPack[]>("extension_host_list_packs");
-    await loadManaged();
-    await loadInstallable();
-  } catch (err) {
-    error.value = invokeErrorMessage(err);
-  } finally {
-    loading.value = false;
-    loadedOnce.value = true;
-  }
-}
-
-/** 拉取 feed「可安装 Store」列表；feed 不可达/未配置不污染主错误，单独记 feedError。 */
-async function loadInstallable() {
-  feedError.value = null;
-  try {
-    installable.value = await invoke<InstallablePack[]>("extension_host_list_installable");
-  } catch (err) {
-    installable.value = [];
-    feedError.value = invokeErrorMessage(err);
-  }
-}
-
-/** 拉取托管记录（权威态）。失败不污染主错误：无记录即不显示升级入口。 */
-async function loadManaged() {
-  try {
-    const records = await invoke<ManagedDep[]>("managed_dependency_list");
-    const map: Record<string, ManagedDep> = {};
-    for (const r of records) map[r.packId] = r;
-    managed.value = map;
   } catch {
-    managed.value = {};
-  }
-}
-
-/** 该 pack 是否有可用升级：托管模式 + feed 声明了比盘上更新的产物（availableVersion 非空）。 */
-function upgradeAvailable(packId: string): ManagedDep | null {
-  const rec = managed.value[packId];
-  return rec && rec.mode === "managed" && rec.availableVersion ? rec : null;
-}
-
-/** 手动升级：停旧进程 → 重下产物替换 → 重新拉起（后端保证非静默）。 */
-async function upgradePack(packId: string) {
-  upgrading.value = { ...upgrading.value, [packId]: true };
-  error.value = null;
-  try {
-    await invoke("managed_dependency_upgrade", { id: packId });
-    toastSuccess(t("extensions.noticePackUpgraded", { id: packId }));
-    await refresh();
-  } catch (err) {
-    error.value = invokeErrorMessage(err);
-  } finally {
-    upgrading.value = { ...upgrading.value, [packId]: false };
-  }
-}
-
-/** 检查全部托管记录是否有可用更新（纯读：不下载、不拉起）。结果回填「有可用更新」标记。 */
-async function checkAllUpdates() {
-  checking.value = true;
-  error.value = null;
-  try {
-    const records = await invoke<ManagedDep[]>("managed_dependency_check_all_updates");
-    const map: Record<string, ManagedDep> = {};
-    for (const r of records) map[r.packId] = r;
-    managed.value = map;
-    toastSuccess(t("extensions.noticeCheckedUpdates"));
-  } catch (err) {
-    error.value = invokeErrorMessage(err);
-  } finally {
-    checking.value = false;
-  }
-}
-
-/** 一键安装：从 feed 下载 pack 安装包（zip→SHA 校验→本机安装）。装后默认未启用，启用时才拉产物。 */
-async function installFromFeed(item: InstallablePack) {
-  packBusy.value = true;
-  error.value = null;
-  try {
-    const result = await invoke<PackInstallResult>("extension_host_install_pack_from_feed", {
-      packId: item.packId,
-    });
-    if (!result.success) {
-      error.value = result.error ?? t("extensions.errorInstallFailed");
-      return;
-    }
-    toastSuccess(t("extensions.noticePackInstalled", { id: result.pack?.id ?? "" }));
-    await refresh();
-    await reloadContributions();
-  } catch (err) {
-    error.value = invokeErrorMessage(err);
-  } finally {
-    packBusy.value = false;
-  }
-}
-
-/** 从本机文件夹或 zip 安装 Feature Pack（非商店）。 */
-async function installPackFromLocalPath() {
-  // 主路径：调起系统原生目录选择框（选含 pack.json 的文件夹）。
-  const picked = await open({
-    directory: true,
-    multiple: false,
-    title: t("extensions.installPathTitle"),
-  });
-  let sourcePath = typeof picked === "string" ? picked.trim() : "";
-  // 取消系统框 → 回退手输路径（仍可填本机 .zip）。
-  if (!sourcePath) {
-    const prompted = await openPromptDialog({
-      title: t("extensions.installPathTitle"),
-      message: t("extensions.installPathHint"),
-      label: t("extensions.installPathLabel"),
-      placeholder: t("extensions.installPathPlaceholder"),
-      confirmLabel: t("extensions.installFromFolder"),
-      cancelLabel: t("common.cancel"),
-    });
-    if (!prompted.confirmed) return;
-    sourcePath = prompted.value.trim();
-  }
-  if (!sourcePath) return;
-  packBusy.value = true;
-  error.value = null;
-  try {
-    const result = await invoke<PackInstallResult>("extension_host_install_pack", {
-      sourcePath,
-    });
-    if (!result.success) {
-      error.value = result.error ?? t("extensions.errorInstallFailed");
-      return;
-    }
-    toastSuccess(
-      t("extensions.noticePackInstalled", { id: result.pack?.id ?? "" }),
-    );
-    await refresh();
-    // 贡献可能变化：增量重取贡献 + 路由回退（响应式，无整窗 remount 抖动）。
-    await reloadContributions();
-  } catch (err) {
-    error.value = invokeErrorMessage(err);
-  } finally {
-    packBusy.value = false;
-  }
-}
-
-/** 启用或禁用已装 Feature Pack。 */
-async function setPackEnabled(id: string, enabled: boolean) {
-  packBusy.value = true;
-  error.value = null;
-  try {
-    await invoke("extension_host_set_pack_enabled", { id, enabled });
-    toastSuccess(
-      enabled
-        ? t("extensions.noticePackEnabled", { id })
-        : t("extensions.noticePackDisabled", { id }),
-    );
-    await refresh();
-    // 增量重取贡献 + 路由回退（响应式，无整窗 remount，避免启用/禁用闪烁）。
-    await reloadContributions();
-    if (enabled) {
-      // 托管 pack 启用即拉起服务：provision 产物 + spawn。config-mode/无产物由后端 no-op。
-      try {
-        await invoke("managed_dependency_ensure", { id });
-      } catch (err) {
-        // 启用已成功，仅服务暂不可达（如 feed 不可达）：提示可稍后在工具页重试。
-        toastInfo(t("extensions.noticePackEnsureDeferred", { error: invokeErrorMessage(err) }));
-      }
-    }
-  } catch (err) {
-    error.value = invokeErrorMessage(err);
-  } finally {
-    packBusy.value = false;
-  }
-}
-
-function onPackEnabledChange(pack: InstalledPack, event: Event) {
-  const checked = (event.target as HTMLInputElement).checked;
-  void setPackEnabled(pack.id, checked);
-}
-
-/** 从本机卸载 Feature Pack。 */
-async function uninstallPack(pack: InstalledPack) {
-  const confirmed = await openConfirmDialog({
-    title: t("extensions.uninstallPackTitle"),
-    message: t("extensions.uninstallPackMessage", {
-      name: pack.name,
-      id: pack.id,
-    }),
-    confirmLabel: t("extensions.uninstall"),
-    cancelLabel: t("common.cancel"),
-    danger: true,
-  });
-  if (!confirmed.confirmed) return;
-  packBusy.value = true;
-  error.value = null;
-  try {
-    await invoke("extension_host_uninstall_pack", { id: pack.id });
-    toastSuccess(t("extensions.noticePackUninstalled", { id: pack.id }));
-    await refresh();
-    // 卸载后增量重取贡献（侧栏/路由/命令），无整窗 remount。
-    await reloadContributions();
-  } catch (err) {
-    error.value = invokeErrorMessage(err);
-  } finally {
-    packBusy.value = false;
+    status.value = null;
   }
 }
 
 onMounted(() => {
-  void refresh();
+  syncFromRoute();
+  void loadHostStatus();
 });
+
+watch(() => route.path, syncFromRoute);
 </script>
 
 <template>
@@ -303,259 +102,142 @@ onMounted(() => {
       </p>
     </header>
 
-    <p v-if="loading" class="fluent-hint">{{ t("common.loading") }}</p>
-    <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
+    <div class="ext-layout">
+      <aside class="ext-nav fluent-surface" role="tablist" :aria-label="t('extensions.title')">
+        <button
+          v-for="section in SECTIONS"
+          :key="section.id"
+          type="button"
+          class="ext-nav-item"
+          :class="{ 'ext-nav-item--active': activeSection === section.id }"
+          role="tab"
+          :aria-selected="activeSection === section.id"
+          @click="selectSection(section.id)"
+        >
+          <span class="fluent-icon-wash">
+            <FluentIcon :name="section.icon" size="md" />
+          </span>
+          <span class="ext-nav-label">{{ t(section.labelKey) }}</span>
+        </button>
+      </aside>
 
-    <section class="fluent-surface card">
-      <div class="row-head">
-        <h2 class="section-title">
-          <span class="fluent-icon-wash"><FluentIcon name="library" size="md" /></span>
-          {{ t("extensions.packsTitle") }}
-        </h2>
-        <div class="actions">
-          <button
-            class="fluent-control"
-            type="button"
-            :disabled="packBusy || checking"
-            @click="checkAllUpdates"
-          >{{ checking ? t("extensions.checkingUpdates") : t("extensions.checkUpdates") }}</button>
+      <article
+        class="fluent-surface ext-panel"
+        role="tabpanel"
+        :data-ext-section="activeSection"
+      >
+        <header class="ext-panel-head">
+          <span class="fluent-icon-wash">
+            <FluentIcon :name="activeDef.icon" size="md" />
+          </span>
+          <div class="ext-panel-titles">
+            <h2 class="ext-panel-title">{{ t(activeDef.labelKey) }}</h2>
+          </div>
+        </header>
+
+        <ExtensionsOverviewSection v-if="activeSection === 'overview'" />
+        <ExtensionsInstalledSection v-else-if="activeSection === 'installed'" />
+        <ExtensionsStoreSection v-else-if="activeSection === 'store'" />
+        <ExtensionsProvidersSection v-else-if="activeSection === 'providers'" />
+        <ExtensionsConfigSection v-else-if="activeSection === 'config'" />
+        <div v-else-if="activeSection === 'tool-runtime'" class="tool-runtime-placeholder">
+          <p class="fluent-page-meta">{{ t("extensions.sections.toolRuntimeHint") }}</p>
           <button
             class="fluent-control fluent-control--accent"
             type="button"
-            :disabled="packBusy"
-            @click="installPackFromLocalPath"
-          >
-            {{ t("extensions.installFromFolder") }}
-          </button>
+            @click="router.push('/tools')"
+          >{{ t("extensions.sections.toolRuntimeOpen") }}</button>
         </div>
-      </div>
-      <p class="fluent-page-meta">{{ t("extensions.packsMeta") }}</p>
-      <p class="fluent-banner fluent-banner--info">{{ t("extensions.packsLocalOnly") }}</p>
-      <p class="fluent-page-meta">{{ t("extensions.reloadHint") }}</p>
-      <p v-if="!packs.length" class="fluent-page-meta">{{ t("extensions.noPacks") }}</p>
-      <ul v-else class="installed">
-        <li v-for="pack in packs" :key="pack.id">
-          <div>
-            <strong>{{ pack.name }}</strong>
-            <span class="fluent-page-meta"> {{ pack.id }} · v{{ pack.version }}</span>
-            <span
-              class="fluent-chip fluent-chip--status state-chip"
-              :class="{
-                'fluent-chip--ok': pack.state === 'enabled',
-                'fluent-chip--stub': pack.state === 'disabled' || pack.state === 'installed',
-                'fluent-chip--down': pack.state === 'crashed',
-              }"
-            >{{ packStateLabel(pack.state) }}</span>
-            <span
-              v-if="upgradeAvailable(pack.id)"
-              class="fluent-chip fluent-chip--warn state-chip"
-            >{{ t("extensions.packUpgradeAvailable", { to: upgradeAvailable(pack.id)?.availableVersion }) }}</span>
-            <p class="fluent-page-meta" :title="pack.installPath">{{ pack.installPath }}</p>
-            <p v-if="pack.lastError" class="fluent-banner fluent-banner--error inline">
-              {{ pack.lastError }}
-            </p>
-          </div>
-          <div class="actions">
-            <label class="pack-toggle">
-              <input
-                type="checkbox"
-                class="fluent-field-check"
-                :checked="pack.state === 'enabled'"
-                :disabled="packBusy || pack.state === 'crashed'"
-                @change="onPackEnabledChange(pack, $event)"
-              />
-              <span>{{ t("extensions.packEnable") }}</span>
-            </label>
-            <button
-              v-if="upgradeAvailable(pack.id)"
-              class="fluent-control fluent-control--accent"
-              type="button"
-              :disabled="packBusy || upgrading[pack.id] === true"
-              @click="upgradePack(pack.id)"
-            >{{ upgrading[pack.id] ? t("extensions.upgradingPack") : t("extensions.upgradePack") }}</button>
-            <button
-              class="fluent-control"
-              type="button"
-              :disabled="packBusy"
-              @click="uninstallPack(pack)"
-            >
-              {{ t("extensions.uninstall") }}
-            </button>
-          </div>
-        </li>
-      </ul>
-    </section>
-
-    <section class="fluent-surface card">
-      <div class="row-head">
-        <h2 class="section-title">
-          <span class="fluent-icon-wash"><FluentIcon name="cloud" size="md" /></span>
-          {{ t("extensions.storeTitle") }}
-        </h2>
-        <button class="fluent-control" type="button" :disabled="loading" @click="loadInstallable">
-          {{ t("common.refresh") }}
-        </button>
-      </div>
-      <p class="fluent-page-meta">{{ t("extensions.storeMeta") }}</p>
-      <p v-if="feedError" class="fluent-banner fluent-banner--info">
-        {{ t("extensions.storeUnavailable", { error: feedError }) }}
-      </p>
-      <p v-else-if="!installable.length" class="fluent-page-meta">{{ t("extensions.storeEmpty") }}</p>
-      <ul v-else class="installed">
-        <li v-for="item in installable" :key="item.packId">
-          <div>
-            <strong>{{ item.name }}</strong>
-            <span class="fluent-page-meta"> {{ item.packId }} · v{{ item.version }}</span>
-            <span
-              class="fluent-chip state-chip"
-              :class="item.installed ? 'fluent-chip--ok' : 'fluent-chip--stub'"
-            >{{ item.installed ? t("extensions.storeInstalled") : t("extensions.storeAvailable") }}</span>
-          </div>
-          <div class="actions">
-            <button
-              class="fluent-control fluent-control--accent"
-              type="button"
-              :disabled="packBusy || item.installed"
-              @click="installFromFeed(item)"
-            >
-              {{ t("extensions.storeInstall") }}
-            </button>
-          </div>
-        </li>
-      </ul>
-    </section>
-
-    <section v-if="status" class="fluent-surface card">
-      <h2 class="section-title">
-        <span class="fluent-icon-wash"><FluentIcon name="heartPulse" size="md" /></span>
-        {{ t("extensions.hostStatus") }}
-      </h2>
-      <ul>
-        <li>{{ t("extensions.api", { version: status.apiVersion }) }}</li>
-        <li class="counts">
-          <span class="fluent-chip fluent-chip--stub count-chip">{{
-            t("extensions.counts", {
-              installed: status.installedCount,
-              enabled: status.enabledCount,
-              crashed: status.crashedCount,
-            })
-          }}</span>
-          <span
-            v-if="status.crashedCount > 0"
-            class="fluent-chip fluent-chip--down count-chip"
-          >crashed: {{ status.crashedCount }}</span>
-        </li>
-      </ul>
-      <button class="fluent-control" type="button" @click="refresh">
-        {{ t("common.refresh") }}
-      </button>
-    </section>
+      </article>
+    </div>
   </section>
 </template>
 
 <style scoped>
-.inline {
-  margin-top: var(--fluent-space-sm);
-  padding: var(--fluent-space-sm) var(--fluent-space-md);
-}
-
-.counts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--fluent-space-sm);
-  list-style: none;
-}
-
-.count-chip,
-.state-chip {
-  min-height: 22px;
-  pointer-events: none;
-  cursor: default;
-  font-size: var(--fluent-font-size-caption);
-}
-
-.grid {
+.ext-layout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--fluent-space-md);
+  grid-template-columns: minmax(14rem, max-content) minmax(0, 1fr);
+  gap: var(--fluent-space-lg);
+  align-items: start;
+  margin-top: var(--fluent-space-lg);
+  max-width: min(100%, 88rem);
 }
 
-.card {
+.ext-nav {
   display: flex;
   flex-direction: column;
+  gap: var(--fluent-space-xs);
+  padding: var(--fluent-space-sm);
+  background: var(--fluent-color-fill-layer-alt);
+}
+
+.ext-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  width: 100%;
+  min-height: var(--fluent-control-height-comfortable);
+  padding: var(--fluent-space-sm);
+  border: 0;
+  border-radius: var(--fluent-radius-md);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ext-nav-item:hover {
+  background: var(--fluent-color-fill-control-hover);
+}
+
+.ext-nav-item--active {
+  background: var(--fluent-color-fill-selected);
+  font-weight: var(--fluent-font-weight-semibold);
+  color: var(--fluent-color-text-primary);
+  box-shadow: inset 3px 0 0 var(--fluent-color-stroke-accent-soft);
+}
+
+.ext-nav-label {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.ext-panel {
+  padding: var(--fluent-space-md) var(--fluent-space-lg);
+  min-width: 0;
+}
+
+.ext-panel-head {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-md);
+  margin-bottom: var(--fluent-space-md);
+}
+
+.ext-panel-titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.ext-panel-title {
+  margin: 0;
+  font-size: var(--fluent-font-size-body);
+  font-weight: 600;
+}
+
+.tool-runtime-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   gap: var(--fluent-space-md);
   padding: var(--fluent-space-lg);
 }
 
-.card--warn {
-  /* 中性底 + 左侧警示描边，避免整卡染色（与 Providers 后端卡片一致） */
-  box-shadow: inset 3px 0 0 var(--fluent-color-status-warning);
-}
-
-.card h2,
-.section-title {
-  margin: 0;
-  font-size: var(--fluent-font-size-subtitle);
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: var(--fluent-space-sm);
-}
-
-.card ul {
-  margin: 0;
-  padding-left: var(--fluent-space-lg);
-}
-
-.empty-mark {
-  margin: 0;
-  font-weight: var(--fluent-font-weight-semibold);
-}
-
-.row-head {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--fluent-space-md);
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.installed {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--fluent-space-md);
-}
-
-.installed li {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--fluent-space-md);
-  flex-wrap: wrap;
-  padding-bottom: var(--fluent-space-md);
-  border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--fluent-space-sm);
-  align-items: center;
-}
-
-.pack-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--fluent-space-sm);
-  min-height: var(--fluent-control-height-standard);
-}
-
-@media (max-width: 800px) {
-  .grid {
+@media (max-width: 720px) {
+  .ext-layout {
     grid-template-columns: 1fr;
   }
 }

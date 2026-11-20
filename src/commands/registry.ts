@@ -56,7 +56,7 @@ export function buildAppCommands(deps: CommandPanelDeps): AppCommand[] {
       title: t("commands.openProviders"),
       group: "View",
       keywords: ["rclone", "knowledge", "awam"],
-      run: () => go("/providers"),
+      run: () => go("/extensions/providers"),
     },
     {
       id: "view.work-groups",

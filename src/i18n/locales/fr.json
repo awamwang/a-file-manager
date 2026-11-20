@@ -609,7 +609,36 @@
     "noticeCheckedUpdates": "Composants gérés vérifiés pour les mises à jour.",
     "reloadHint": "Activer ou désactiver un pack actualise automatiquement la barre latérale et les routes.",
     "demoTitle": "Extensions d'exemple",
-    "demoMeta": "Hôte démo en mémoire — distinct des Feature Packs. Pas une boutique."
+    "demoMeta": "Hôte démo en mémoire — distinct des Feature Packs. Pas une boutique.",
+    "sections": {
+      "overview": "Vue d'ensemble",
+      "installed": "Installés",
+      "store": "Boutique",
+      "providers": "Fournisseurs",
+      "config": "Config. services",
+      "toolRuntime": "Exécuteur d'outils",
+      "toolRuntimeHint": "L'exécuteur d'outils est fourni par le Feature Pack awam.tool-runtime. Ouvrez-le ci-dessous ou installez le pack depuis la boutique.",
+      "toolRuntimeOpen": "Ouvrir l'exécuteur d'outils"
+    },
+    "cap": {
+      "fileGateway": { "name": "Passerelle de fichiers", "desc": "Backend awam-file — sources de fichiers cloud, virtuelles et réseau" },
+      "knowledge": { "name": "Connaissances", "desc": "Service awam-knowledge — recherche de contenu et indexation de base de connaissances" },
+      "toolRuntime": { "name": "Exécuteur d'outils", "desc": "awam.tool-runtime — invocation d'outils externes et pont de capacités" }
+    },
+    "capMode": {
+      "managed": "Géré",
+      "config": "Configuré",
+      "builtin": "Intégré",
+      "absent": "Non installé"
+    },
+    "capHealth": {
+      "online": "En ligne",
+      "unknown": "Inconnu"
+    },
+    "capAction": {
+      "install": "Installer",
+      "manage": "Gérer"
+    }
   },
   "managedDep": {
     "status": { "config": "Mode connexion", "managed": "Géré par AFM" },

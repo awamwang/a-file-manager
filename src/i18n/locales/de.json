@@ -609,7 +609,36 @@
     "noticeCheckedUpdates": "Verwaltete Komponenten auf Updates geprüft.",
     "reloadHint": "Aktivieren oder Deaktivieren eines Packs aktualisiert Seitenleiste und Routen automatisch.",
     "demoTitle": "Beispielerweiterungen",
-    "demoMeta": "In-Memory-Demo-Host — getrennt von Feature Packs. Kein Store."
+    "demoMeta": "In-Memory-Demo-Host — getrennt von Feature Packs. Kein Store.",
+    "sections": {
+      "overview": "Übersicht",
+      "installed": "Installiert",
+      "store": "Store",
+      "providers": "Anbieter",
+      "config": "Dienstkonfiguration",
+      "toolRuntime": "Tool-Laufzeit",
+      "toolRuntimeHint": "Die Tool-Laufzeit wird vom awam.tool-runtime Feature Pack bereitgestellt. Unten öffnen oder das Pack im Store installieren.",
+      "toolRuntimeOpen": "Tool-Laufzeit öffnen"
+    },
+    "cap": {
+      "fileGateway": { "name": "Datei-Gateway", "desc": "awam-file-Backend — Cloud-, virtuelle und Netzwerk-Dateiquellen" },
+      "knowledge": { "name": "Wissen", "desc": "awam-knowledge-Dienst — Inhaltssuche und Wissensbasis-Indexierung" },
+      "toolRuntime": { "name": "Tool-Laufzeit", "desc": "awam.tool-runtime — Externer Toolaufruf und Capability-Bridge" }
+    },
+    "capMode": {
+      "managed": "Verwaltet",
+      "config": "Konfiguriert",
+      "builtin": "Integriert",
+      "absent": "Nicht installiert"
+    },
+    "capHealth": {
+      "online": "Online",
+      "unknown": "Unbekannt"
+    },
+    "capAction": {
+      "install": "Installieren",
+      "manage": "Verwalten"
+    }
   },
   "managedDep": {
     "status": { "config": "Verbindungsmodus", "managed": "AFM-verwaltet" },

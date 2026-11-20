@@ -609,7 +609,36 @@
     "noticeCheckedUpdates": "管理コンポーネントの更新を確認しました。",
     "reloadHint": "Pack の有効/無効切替でサイドナビとルートが自動更新されます。",
     "demoTitle": "サンプル拡張",
-    "demoMeta": "メモリ上のデモホスト — Feature Pack とは別です。ストアではありません。"
+    "demoMeta": "メモリ上のデモホスト — Feature Pack とは別です。ストアではありません。",
+    "sections": {
+      "overview": "概要",
+      "installed": "インストール済み",
+      "store": "ストア",
+      "providers": "プロバイダー",
+      "config": "サービス設定",
+      "toolRuntime": "ツールランタイム",
+      "toolRuntimeHint": "ツールランタイムは awam.tool-runtime Feature Pack が提供します。以下から開くか、ストアからパックをインストールしてください。",
+      "toolRuntimeOpen": "ツールランタイムを開く"
+    },
+    "cap": {
+      "fileGateway": { "name": "ファイルゲートウェイ", "desc": "awam-file バックエンド — クラウド・仮想・ネットワークファイルソース" },
+      "knowledge": { "name": "ナレッジ", "desc": "awam-knowledge サービス — コンテンツ検索とナレッジベースインデックス" },
+      "toolRuntime": { "name": "ツールランタイム", "desc": "awam.tool-runtime — 外部ツール呼び出しとケイパビリティブリッジ" }
+    },
+    "capMode": {
+      "managed": "マネージド",
+      "config": "設定",
+      "builtin": "組み込み",
+      "absent": "未インストール"
+    },
+    "capHealth": {
+      "online": "オンライン",
+      "unknown": "不明"
+    },
+    "capAction": {
+      "install": "インストール",
+      "manage": "管理"
+    }
   },
   "managedDep": {
     "status": { "config": "接続モード", "managed": "AFM 管理" },

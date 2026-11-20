@@ -1259,7 +1259,36 @@
     "noticeUninstalled": "已卸载 {id}",
     "noticeHelloOk": "命令 hello 在 {id} 上成功",
     "noticeHelloFail": "命令失败：{error}",
-    "unknownError": "未知"
+    "unknownError": "未知",
+    "sections": {
+      "overview": "总览",
+      "installed": "已安装",
+      "store": "商店",
+      "providers": "提供程序",
+      "config": "服务配置",
+      "toolRuntime": "工具运行时",
+      "toolRuntimeHint": "工具运行时由 awam.tool-runtime Feature Pack 提供。可在下方打开，或从商店安装该 Pack。",
+      "toolRuntimeOpen": "打开工具运行时"
+    },
+    "cap": {
+      "fileGateway": { "name": "文件网关", "desc": "awam-file 后端 — 云端、虚拟和网络文件源" },
+      "knowledge": { "name": "知识库", "desc": "awam-knowledge 服务 — 内容搜索与知识库索引" },
+      "toolRuntime": { "name": "工具运行时", "desc": "awam.tool-runtime — 外部工具调用与能力桥接" }
+    },
+    "capMode": {
+      "managed": "托管",
+      "config": "配置",
+      "builtin": "内置",
+      "absent": "未安装"
+    },
+    "capHealth": {
+      "online": "在线",
+      "unknown": "未知"
+    },
+    "capAction": {
+      "install": "安装",
+      "manage": "管理"
+    }
   },
   "voice": {
     "palette": {

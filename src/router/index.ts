@@ -26,8 +26,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: "/providers",
-    name: "providers",
-    component: () => import("../views/ProvidersView.vue"),
+    redirect: "/extensions/providers",
   },
   {
     path: "/work-groups",
@@ -42,6 +41,31 @@ const routes: RouteRecordRaw[] = [
   {
     path: "/extensions",
     name: "extensions",
+    component: () => import("../views/ExtensionsView.vue"),
+  },
+  {
+    path: "/extensions/installed",
+    name: "extensions-installed",
+    component: () => import("../views/ExtensionsView.vue"),
+  },
+  {
+    path: "/extensions/store",
+    name: "extensions-store",
+    component: () => import("../views/ExtensionsView.vue"),
+  },
+  {
+    path: "/extensions/providers",
+    name: "extensions-providers",
+    component: () => import("../views/ExtensionsView.vue"),
+  },
+  {
+    path: "/extensions/config",
+    name: "extensions-config",
+    component: () => import("../views/ExtensionsView.vue"),
+  },
+  {
+    path: "/extensions/tool-runtime",
+    name: "extensions-tool-runtime",
     component: () => import("../views/ExtensionsView.vue"),
   },
   {
@@ -61,8 +85,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: "/settings/extensions",
-    name: "settings-extensions",
-    component: () => import("../views/SettingsView.vue"),
+    redirect: "/extensions/config",
   },
   {
     path: "/settings/shortcuts",

@@ -1259,7 +1259,36 @@
     "noticeUninstalled": "Uninstalled {id}",
     "noticeHelloOk": "Command hello ok on {id}",
     "noticeHelloFail": "Command failed: {error}",
-    "unknownError": "unknown"
+    "unknownError": "unknown",
+    "sections": {
+      "overview": "Overview",
+      "installed": "Installed",
+      "store": "Store",
+      "providers": "Providers",
+      "config": "Service Config",
+      "toolRuntime": "Tool Runtime",
+      "toolRuntimeHint": "Tool Runtime is provided by the awam.tool-runtime Feature Pack. Open it below or install the pack from Store.",
+      "toolRuntimeOpen": "Open Tool Runtime"
+    },
+    "cap": {
+      "fileGateway": { "name": "File Gateway", "desc": "awam-file backend — cloud, virtual and network file sources" },
+      "knowledge": { "name": "Knowledge", "desc": "awam-knowledge service — content search and knowledge base indexing" },
+      "toolRuntime": { "name": "Tool Runtime", "desc": "awam.tool-runtime — external tool invocation and capability bridge" }
+    },
+    "capMode": {
+      "managed": "Managed",
+      "config": "Config",
+      "builtin": "Built-in",
+      "absent": "Not installed"
+    },
+    "capHealth": {
+      "online": "Online",
+      "unknown": "Unknown"
+    },
+    "capAction": {
+      "install": "Install",
+      "manage": "Manage"
+    }
   },
   "voice": {
     "palette": {
