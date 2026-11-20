@@ -749,7 +749,7 @@ function crumbAcceptsFileDrop(crumb: { path: string; kind?: string }): boolean {
   return true;
 }
 
-function onCrumbFileDragOver(event: DragEvent, index: number, crumb: { path: string; kind?: string }) {
+function onCrumbFileDragOver(event: DragEvent, index: number, crumb: { path: string; kind?: string; label: string }) {
   if (!crumbAcceptsFileDrop(crumb)) return;
   const mode = acceptFolderDragOver(event, crumb.path, {
     hintTarget: crumb.label,
@@ -768,7 +768,7 @@ function onCrumbFileDragLeave(event: DragEvent, index: number) {
   }
 }
 
-async function onCrumbFileDrop(event: DragEvent, crumb: { path: string; kind?: string }) {
+async function onCrumbFileDrop(event: DragEvent, crumb: { path: string; kind?: string; label: string }) {
   crumbFileDropOver.value = null;
   if (!crumbAcceptsFileDrop(crumb)) return;
   const result = await commitFolderDrop(event, crumb.path);
@@ -2572,12 +2572,18 @@ onUnmounted(() => {
                 <button
                   type="button"
                   class="crumb"
-                  :class="{ 'crumb--root': crumb.kind === 'root' }"
+                  :class="{
+                    'crumb--root': crumb.kind === 'root',
+                    'crumb--file-drop': crumbFileDropOver === index,
+                  }"
                   :title="crumb.kind === 'root' ? t('guide.rootTitle') : crumb.path"
                   @click.stop="
                     crumb.kind === 'root' ? onRootCrumb() : onBreadcrumb(crumb.path)
                   "
                   @contextmenu="onBreadcrumbContextMenu($event, crumb)"
+                  @dragover="onCrumbFileDragOver($event, index, crumb)"
+                  @dragleave="onCrumbFileDragLeave($event, index)"
+                  @drop="onCrumbFileDrop($event, crumb)"
                 >
                   <FluentIcon
                     v-if="crumb.kind === 'root'"
@@ -3353,6 +3359,13 @@ onUnmounted(() => {
 .crumb:focus-visible {
   background: var(--fluent-color-fill-selected);
   outline: none;
+}
+
+/* File-drag drop target on a real folder segment (matches tab / Places highlight). */
+.crumb--file-drop {
+  outline: 2px solid var(--fluent-color-stroke-accent-soft, var(--fluent-color-fill-accent));
+  outline-offset: -2px;
+  background: var(--fluent-color-fill-selected);
 }
 
 .crumb-label {
