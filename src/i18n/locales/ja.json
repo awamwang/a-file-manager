@@ -890,7 +890,7 @@
     "gatewayOffline": "awam-file ゲートウェイオフライン — 内蔵プロバイダ（rclone）を表示。ブラウザブックマークにはゲートウェイが必要です。起動するか、下の URL を変更（既定 http://127.0.0.1:18787）。",
     "gatewayOnline": "awam-file ゲートウェイオンライン — {url} 経由で {count} バックエンド",
     "gatewayUrlLabel": "ゲートウェイ URL",
-    "gatewayEditHint": "設定 → 拡張機能 で編集",
+    "gatewayEditHint": "拡張機能 → サービス設定 で編集",
     "gatewayUrlPlaceholder": "http://127.0.0.1:18787",
     "gatewayUrlSave": "保存して再接続",
     "gatewayUrlSaving": "保存中…",

@@ -890,7 +890,7 @@
     "gatewayOffline": "awam-file-Gateway offline — eingebaute Provider (rclone). Browser-Lesezeichen brauchen das Gateway. Starten oder URL unten ändern (Standard http://127.0.0.1:18787).",
     "gatewayOnline": "awam-file-Gateway online — {count} Backends über {url}",
     "gatewayUrlLabel": "Gateway-URL",
-    "gatewayEditHint": "In Einstellungen → Erweiterungen bearbeiten",
+    "gatewayEditHint": "In Erweiterungen → Dienstkonfiguration bearbeiten",
     "gatewayUrlPlaceholder": "http://127.0.0.1:18787",
     "gatewayUrlSave": "Speichern & neu verbinden",
     "gatewayUrlSaving": "Speichern…",

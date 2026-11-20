@@ -890,7 +890,7 @@
     "gatewayOffline": "Passerelle awam-file hors ligne — fournisseurs intégrés (rclone). Les favoris navigateur nécessitent la passerelle. Démarrez-la, ou changez l’URL ci-dessous (défaut http://127.0.0.1:18787).",
     "gatewayOnline": "Passerelle awam-file en ligne — {count} backends via {url}",
     "gatewayUrlLabel": "URL de la passerelle",
-    "gatewayEditHint": "Modifier dans Réglages → Extensions",
+    "gatewayEditHint": "Modifier dans Extensions → Config. services",
     "gatewayUrlPlaceholder": "http://127.0.0.1:18787",
     "gatewayUrlSave": "Enregistrer et reconnecter",
     "gatewayUrlSaving": "Enregistrement…",

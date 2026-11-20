@@ -86,9 +86,6 @@ const AboutView = defineAsyncComponent(() => import("./AboutView.vue"));
 const SearchSettingsPanel = defineAsyncComponent(
   () => import("../components/settings/SearchSettingsPanel.vue"),
 );
-const ExtensionsSettingsPanel = defineAsyncComponent(
-  () => import("../components/settings/ExtensionsSettingsPanel.vue"),
-);
 
 const { t, te, locale } = useI18n();
 const route = useRoute();
@@ -133,7 +130,6 @@ type SettingsSection =
   | SettingsTier
   | "health"
   | "search"
-  | "extensions"
   | "shortcuts"
   | "openTools"
   | "about";
@@ -164,11 +160,6 @@ const sections = computed(() => [
     id: "search" as const,
     label: t("settings.sectionSearch"),
     icon: "search" as FluentGlyphId,
-  },
-  {
-    id: "extensions" as const,
-    label: t("settings.sectionExtensions"),
-    icon: "cloud" as FluentGlyphId,
   },
   {
     id: "openTools" as const,
@@ -390,7 +381,6 @@ function isSpecialSettingsPath(path: string) {
   return (
     path.endsWith("/health") ||
     path.endsWith("/discovery") ||
-    path.endsWith("/extensions") ||
     path.endsWith("/shortcuts") ||
     path.endsWith("/favorites") ||
     path.endsWith("/open-tools") ||
@@ -403,8 +393,6 @@ function syncSectionFromRoute() {
     activeSection.value = "health";
   } else if (route.path.endsWith("/discovery")) {
     activeSection.value = "search";
-  } else if (route.path.endsWith("/extensions")) {
-    activeSection.value = "extensions";
   } else if (route.path.endsWith("/shortcuts")) {
     activeSection.value = "shortcuts";
   } else if (route.path.endsWith("/favorites")) {
@@ -417,7 +405,6 @@ function syncSectionFromRoute() {
   } else if (
     activeSection.value === "health" ||
     activeSection.value === "search" ||
-    activeSection.value === "extensions" ||
     activeSection.value === "shortcuts" ||
     activeSection.value === "openTools" ||
     activeSection.value === "about"
@@ -544,12 +531,6 @@ function selectSection(section: SettingsSection) {
   if (section === "search") {
     if (route.path !== "/settings/discovery") {
       void router.push("/settings/discovery");
-    }
-    return;
-  }
-  if (section === "extensions") {
-    if (route.path !== "/settings/extensions") {
-      void router.push("/settings/extensions");
     }
     return;
   }
@@ -805,10 +786,6 @@ onMounted(() => {
           :everything-preferred-saving="savingKey === 'core.everythingPreferred'"
           @update:everything-preferred="onEverythingPreferredChange"
         />
-      </div>
-
-      <div v-else-if="activeSection === 'extensions'" class="search-slot">
-        <ExtensionsSettingsPanel />
       </div>
 
       <div v-else-if="activeSection === 'openTools'" class="fluent-surface open-tools-panel">
