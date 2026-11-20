@@ -324,6 +324,8 @@
       "defaultInProjectsHint": "Project default pre-fills new project agent sets; Enable controls global deploy fan-out.",
       "installHint": "Installed = global Skills dir or MCP file found on disk; only installed agents appear in MCP/Skill import and project configuration.",
       "noInstalledHint": "No installed agents detected. Install an agent (or refresh discovery) before importing MCP/Skills or configuring a project.",
+      "showAll": "Show all ({count} more)",
+      "collapseList": "Show common agents only",
       "save": "Save",
       "kindBuiltin": "Built-in",
       "kindCustom": "Custom",

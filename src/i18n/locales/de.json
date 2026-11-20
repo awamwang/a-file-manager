@@ -303,6 +303,8 @@
       "defaultInProjectsHint": "Der Projektstandard befüllt die Agent-Sätze neuer Projekte vor; „Aktiviert“ steuert die globale Verteilung.",
       "installHint": "Installiert = globales Skills-Verzeichnis oder MCP-Datei auf Datenträger vorhanden. Nur installierte Agents erscheinen beim MCP/Skill-Import und in der Projektkonfiguration.",
       "noInstalledHint": "Keine installierten Agents erkannt. Installieren Sie einen Agent bzw. aktualisieren Sie die Erkennung, bevor Sie MCP/Skills importieren oder ein Projekt konfigurieren.",
+      "showAll": "Alle anzeigen ({count} weitere)",
+      "collapseList": "Nur häufige Agents anzeigen",
       "defaultInProjectsOff": "Projektstandard: aus",
       "defaultInProjectsOn": "Projektstandard: ein"
     },

@@ -70,6 +70,26 @@ const enabledCount = computed(
   () => document.value?.agentTargets.filter((a) => a.enabled).length ?? 0,
 );
 
+// 仿 skills-manager：默认只展开「常用」Agent（已安装 / 已启用 / 自定义），
+// 其余内置预设折叠在「显示全部」之后，点击再加载。
+const expandedAll = ref(false);
+
+const visibleAgents = computed(() => {
+  const all = document.value?.agentTargets ?? [];
+  if (expandedAll.value) return all;
+  return all.filter((a) => a.discovered || a.enabled || a.kind === "custom");
+});
+
+const hiddenAgentCount = computed(
+  () => (document.value?.agentTargets.length ?? 0) - visibleAgents.value.length,
+);
+
+watch(visibleAgents, (list) => {
+  if (list.length && !list.some((a) => a.id === selectedId.value)) {
+    selectedId.value = list[0]?.id ?? null;
+  }
+});
+
 function syncDraft(target: AgentTarget | null) {
   if (!target) {
     draftName.value = "";
@@ -285,56 +305,73 @@ onMounted(() => {
     </div>
 
     <div v-if="document" class="agents-layout">
-      <ul class="agents-list" role="listbox" :aria-label="t('ai.sections.agents.title')">
-        <li
-          v-for="agent in document.agentTargets"
-          :key="agent.id"
-          class="agents-list-item"
-          :class="{ 'agents-list-item--active': agent.id === selectedId }"
-          role="option"
-          :aria-selected="agent.id === selectedId"
-          @click="selectedId = agent.id"
-        >
-          <div class="agents-item-top">
-            <strong class="agents-item-name">{{ agent.displayName }}</strong>
-            <span
-              class="fluent-chip fluent-chip--status agents-install-chip"
-              :class="agent.discovered ? 'fluent-chip--ok' : 'fluent-chip--stub'"
-            >
-              {{ agent.discovered ? t("ai.agents.installed") : t("ai.agents.notInstalled") }}
-            </span>
-          </div>
-          <span class="agents-list-meta">
-            {{ agent.id }}
-            ·
-            {{
-              agent.kind === "custom"
-                ? t("ai.agents.kindCustom")
-                : t("ai.agents.kindBuiltin")
-            }}
-          </span>
-          <div class="agents-list-toggles">
-            <button
-              type="button"
-              class="fluent-control agents-enable"
-              @click.stop="toggleEnabled(agent)"
-            >
-              {{ agent.enabled ? t("ai.agents.disable") : t("ai.agents.enable") }}
-            </button>
-            <button
-              type="button"
-              class="fluent-control agents-enable"
-              @click.stop="toggleDefaultInProjects(agent)"
-            >
+      <div class="agents-list-col">
+        <ul class="agents-list" role="listbox" :aria-label="t('ai.sections.agents.title')">
+          <li
+            v-for="agent in visibleAgents"
+            :key="agent.id"
+            class="agents-list-item"
+            :class="{ 'agents-list-item--active': agent.id === selectedId }"
+            role="option"
+            :aria-selected="agent.id === selectedId"
+            @click="selectedId = agent.id"
+          >
+            <div class="agents-item-top">
+              <strong class="agents-item-name">{{ agent.displayName }}</strong>
+              <span
+                class="fluent-chip fluent-chip--status agents-install-chip"
+                :class="agent.discovered ? 'fluent-chip--ok' : 'fluent-chip--stub'"
+              >
+                {{ agent.discovered ? t("ai.agents.installed") : t("ai.agents.notInstalled") }}
+              </span>
+            </div>
+            <span class="agents-list-meta">
+              {{ agent.id }}
+              ·
               {{
-                agent.defaultInProjects
-                  ? t("ai.agents.defaultInProjectsOn")
-                  : t("ai.agents.defaultInProjectsOff")
+                agent.kind === "custom"
+                  ? t("ai.agents.kindCustom")
+                  : t("ai.agents.kindBuiltin")
               }}
-            </button>
-          </div>
-        </li>
-      </ul>
+            </span>
+            <div class="agents-list-toggles">
+              <button
+                type="button"
+                class="fluent-control agents-enable"
+                @click.stop="toggleEnabled(agent)"
+              >
+                {{ agent.enabled ? t("ai.agents.disable") : t("ai.agents.enable") }}
+              </button>
+              <button
+                type="button"
+                class="fluent-control agents-enable"
+                @click.stop="toggleDefaultInProjects(agent)"
+              >
+                {{
+                  agent.defaultInProjects
+                    ? t("ai.agents.defaultInProjectsOn")
+                    : t("ai.agents.defaultInProjectsOff")
+                }}
+              </button>
+            </div>
+          </li>
+        </ul>
+        <p v-if="!visibleAgents.length" class="fluent-hint">
+          {{ t("ai.agents.noInstalledHint") }}
+        </p>
+        <button
+          v-if="hiddenAgentCount > 0 || expandedAll"
+          type="button"
+          class="fluent-control agents-show-all"
+          @click="expandedAll = !expandedAll"
+        >
+          {{
+            expandedAll
+              ? t("ai.agents.collapseList")
+              : t("ai.agents.showAll", { count: hiddenAgentCount })
+          }}
+        </button>
+      </div>
 
       <div v-if="selected" class="fluent-surface agents-detail">
         <div class="agents-detail-head">
@@ -439,6 +476,13 @@ onMounted(() => {
   }
 }
 
+.agents-list-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-xs);
+  min-width: 0;
+}
+
 .agents-list {
   list-style: none;
   margin: 0;
@@ -448,6 +492,11 @@ onMounted(() => {
   gap: var(--fluent-space-xs);
   max-height: 28rem;
   overflow: auto;
+}
+
+.agents-show-all {
+  align-self: flex-start;
+  font-size: var(--fluent-font-size-caption);
 }
 
 .agents-list-item {

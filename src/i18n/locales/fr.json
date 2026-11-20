@@ -303,6 +303,8 @@
       "defaultInProjectsHint": "La valeur par défaut du projet préremplit les ensembles d'agents des nouveaux projets ; « Activé » contrôle la distribution globale.",
       "installHint": "Installé = répertoire Skills global ou fichier MCP présent sur le disque. Seuls les agents installés apparaissent dans l'import MCP/Skill et la configuration du projet.",
       "noInstalledHint": "Aucun agent installé détecté. Installez un agent ou actualisez la détection avant d'importer des MCP/Skills ou de configurer un projet.",
+      "showAll": "Tout afficher ({count} de plus)",
+      "collapseList": "Afficher seulement les agents courants",
       "defaultInProjectsOff": "Valeur par défaut du projet : désactivée",
       "defaultInProjectsOn": "Valeur par défaut du projet : activée"
     },

@@ -207,6 +207,411 @@ const BUILTIN_DEFS: &[BuiltinDef] = &[
         global_mcp_path: r"%USERPROFILE%\.continue\config.json",
         project_mcp_path: r".continue\config.json",
     },
+    // ------------------------------------------------------------------
+    // 扩展内置清单（2026-11 单次批量收录，来源：skills-manager v1.44 的
+    // `default_tool_adapters()` 静态注册表，路径约定以其 CLI `agents list`
+    // 实测输出为准）。该项目无远程清单更新机制——清单随版本编译，AFM 同理：
+    // `sync_builtins_and_discover()` 会在加载时把缺失的内置预设补种进
+    // ai-config.json，因此本批新增对存量配置零迁移成本。
+    // 新增预设路径统一用 `~` + `/` 记法（`expand_agent_path` 原生支持，
+    // 与上方 `%USERPROFILE%` 反斜杠记法等价）。MCP 路径一律留空：
+    // skills-manager 不管理 MCP，其注册表不含可靠的全局/项目 MCP 文件
+    // 约定，留空表示「仅 Skills 部署/发现」，与 `cline`/`qwenwork` 预设
+    // 同一形态；需要 MCP 的用户可自行在详情页补路径。
+    // ------------------------------------------------------------------
+    BuiltinDef {
+        id: "codex",
+        display_name: "Codex",
+        global_skills_dir: r"~/.codex/skills",
+        project_skills_dir: r".codex/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "github-copilot",
+        display_name: "GitHub Copilot",
+        global_skills_dir: r"~/.copilot/skills",
+        project_skills_dir: r".copilot/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "gemini-cli",
+        display_name: "Gemini CLI",
+        global_skills_dir: r"~/.gemini/skills",
+        project_skills_dir: r".gemini/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        // Google Antigravity：全局 Skills 在 `~/.gemini/config/skills`，
+        // 工作区级在 `<ws>/.agents/skills`（skills-manager 同源注释）。
+        id: "antigravity",
+        display_name: "Antigravity",
+        global_skills_dir: r"~/.gemini/config/skills",
+        project_skills_dir: r".agents/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "grok",
+        display_name: "Grok",
+        global_skills_dir: r"~/.grok/skills",
+        project_skills_dir: r".grok/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "windsurf",
+        display_name: "Windsurf",
+        global_skills_dir: r"~/.codeium/windsurf/skills",
+        project_skills_dir: r".codeium/windsurf/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "goose",
+        display_name: "Goose",
+        global_skills_dir: r"~/.config/goose/skills",
+        project_skills_dir: r".config/goose/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "amp",
+        display_name: "Amp",
+        global_skills_dir: r"~/.config/agents/skills",
+        project_skills_dir: r".config/agents/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "kilo-code",
+        display_name: "Kilo Code",
+        global_skills_dir: r"~/.kilocode/skills",
+        project_skills_dir: r".kilocode/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "roo-code",
+        display_name: "Roo Code",
+        global_skills_dir: r"~/.roo/skills",
+        project_skills_dir: r".roo/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "droid",
+        display_name: "Droid",
+        global_skills_dir: r"~/.factory/skills",
+        project_skills_dir: r".factory/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "openclaw",
+        display_name: "OpenClaw",
+        global_skills_dir: r"~/.openclaw/skills",
+        project_skills_dir: r".openclaw/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "openhands",
+        display_name: "OpenHands",
+        global_skills_dir: r"~/.openhands/skills",
+        project_skills_dir: r".openhands/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "hermes",
+        display_name: "Hermes Agent",
+        global_skills_dir: r"~/.hermes/skills",
+        project_skills_dir: r".hermes/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "deepagents",
+        display_name: "Deep Agents",
+        global_skills_dir: r"~/.deepagents/agent/skills",
+        project_skills_dir: r".deepagents/agent/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "firebender",
+        display_name: "Firebender",
+        global_skills_dir: r"~/.firebender/skills",
+        project_skills_dir: r".firebender/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "kimi",
+        display_name: "Kimi Code CLI",
+        global_skills_dir: r"~/.kimi-code/skills",
+        project_skills_dir: r".kimi-code/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "replit",
+        display_name: "Replit",
+        global_skills_dir: r"~/.config/agents/skills",
+        project_skills_dir: r".config/agents/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        // Warp 与 cline 共用 `~/.agents/skills` 共享根（skills-manager 同源）。
+        id: "warp",
+        display_name: "Warp",
+        global_skills_dir: r"~/.agents/skills",
+        project_skills_dir: r".agents/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "augment",
+        display_name: "Augment",
+        global_skills_dir: r"~/.augment/skills",
+        project_skills_dir: r".augment/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "bob",
+        display_name: "IBM Bob",
+        global_skills_dir: r"~/.bob/skills",
+        project_skills_dir: r".bob/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "codebuddy",
+        display_name: "CodeBuddy",
+        global_skills_dir: r"~/.codebuddy/skills",
+        project_skills_dir: r".codebuddy/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "command-code",
+        display_name: "Command Code",
+        global_skills_dir: r"~/.commandcode/skills",
+        project_skills_dir: r".commandcode/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "cortex",
+        display_name: "Cortex Code",
+        global_skills_dir: r"~/.snowflake/cortex/skills",
+        project_skills_dir: r".snowflake/cortex/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "crush",
+        display_name: "Crush",
+        global_skills_dir: r"~/.config/crush/skills",
+        project_skills_dir: r".config/crush/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "iflow",
+        display_name: "iFlow CLI",
+        global_skills_dir: r"~/.iflow/skills",
+        project_skills_dir: r".iflow/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "junie",
+        display_name: "Junie",
+        global_skills_dir: r"~/.junie/skills",
+        project_skills_dir: r".junie/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "kiro",
+        display_name: "Kiro CLI",
+        global_skills_dir: r"~/.kiro/skills",
+        project_skills_dir: r".kiro/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "kode",
+        display_name: "Kode",
+        global_skills_dir: r"~/.kode/skills",
+        project_skills_dir: r".kode/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "mcpjam",
+        display_name: "MCPJam",
+        global_skills_dir: r"~/.mcpjam/skills",
+        project_skills_dir: r".mcpjam/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "mistral-vibe",
+        display_name: "Mistral Vibe",
+        global_skills_dir: r"~/.vibe/skills",
+        project_skills_dir: r".vibe/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "mux",
+        display_name: "Mux",
+        global_skills_dir: r"~/.mux/skills",
+        project_skills_dir: r".mux/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "neovate",
+        display_name: "Neovate",
+        global_skills_dir: r"~/.neovate/skills",
+        project_skills_dir: r".neovate/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        // oh-my-pi (OMP)：全局读 `~/.omp/agent/skills`，项目读 `<repo>/.omp/skills`
+        // （非对称路径，skills-manager 同源注释）。
+        id: "omp-agent",
+        display_name: "OMP Agent",
+        global_skills_dir: r"~/.omp/agent/skills",
+        project_skills_dir: r".omp/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "pi",
+        display_name: "Pi",
+        global_skills_dir: r"~/.pi/agent/skills",
+        project_skills_dir: r".pi/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "pochi",
+        display_name: "Pochi",
+        global_skills_dir: r"~/.pochi/skills",
+        project_skills_dir: r".pochi/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "qwen-code",
+        display_name: "Qwen Code",
+        global_skills_dir: r"~/.qwen/skills",
+        project_skills_dir: r".qwen/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        // TRAE CN：全局 `~/.trae-cn/skills`，项目级沿用 `.trae/skills`
+        // （docs.trae.cn solo_skills，skills-manager 同源注释）。
+        id: "trae-cn",
+        display_name: "TRAE CN",
+        global_skills_dir: r"~/.trae-cn/skills",
+        project_skills_dir: r".trae/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "zencoder",
+        display_name: "Zencoder",
+        global_skills_dir: r"~/.zencoder/skills",
+        project_skills_dir: r".zencoder/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "zcode",
+        display_name: "ZCode",
+        global_skills_dir: r"~/.zcode/skills",
+        project_skills_dir: r".zcode/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "adal",
+        display_name: "AdaL",
+        global_skills_dir: r"~/.adal/skills",
+        project_skills_dir: r".adal/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "qclaw",
+        display_name: "QClaw",
+        global_skills_dir: r"~/.qclaw/skills",
+        project_skills_dir: r".qclaw/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "easyclaw",
+        display_name: "EasyClaw",
+        global_skills_dir: r"~/.easyclaw/skills",
+        project_skills_dir: r".easyclaw/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "autoclaw",
+        display_name: "AutoClaw",
+        global_skills_dir: r"~/.openclaw-autoclaw/skills",
+        project_skills_dir: r".openclaw-autoclaw/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "workbuddy-overseas",
+        display_name: "WorkBuddy AI",
+        global_skills_dir: r"~/.workbuddy-ai/skills",
+        project_skills_dir: r".workbuddy-ai/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "deepseek-harness",
+        display_name: "DeepSeek Harness",
+        global_skills_dir: r"~/.dsh/skills",
+        project_skills_dir: r".dsh/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        // GitLab Duo：全局 `~/.gitlab/duo/skills`，项目级共享 `.agents/skills`
+        // （skills-manager 同源注释）。
+        id: "gitlab-duo",
+        display_name: "GitLab Duo",
+        global_skills_dir: r"~/.gitlab/duo/skills",
+        project_skills_dir: r".agents/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
+    BuiltinDef {
+        id: "minimax-code",
+        display_name: "MiniMax Code",
+        global_skills_dir: r"~/.minimax/skills",
+        project_skills_dir: r".minimax/skills",
+        global_mcp_path: "",
+        project_mcp_path: "",
+    },
 ];
 
 fn now_millis() -> u64 {
@@ -625,6 +1030,38 @@ mod tests {
         assert!(doc.agent_targets.len() >= BUILTIN_DEFS.len());
         assert!(doc.agent_targets.iter().any(|t| t.id == "cursor"));
         assert!(ai_config_path(&dir).is_file());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn seeds_expanded_builtin_registry_from_skills_manager() {
+        // 2026-11 批量收录（skills-manager v1.44 注册表）：加载即补种，
+        // 无需 schema 迁移；内置 id 不得重复。
+        let dir = temp_dir("expanded");
+        let doc = load_from_path(&dir).unwrap();
+        for id in [
+            "codex",
+            "github-copilot",
+            "gemini-cli",
+            "antigravity",
+            "windsurf",
+            "kilo-code",
+            "omp-agent",
+            "trae-cn",
+            "gitlab-duo",
+            "minimax-code",
+            "deepseek-harness",
+        ] {
+            assert!(
+                doc.agent_targets.iter().any(|t| t.id == id),
+                "missing builtin {id}"
+            );
+        }
+        let mut ids: Vec<&str> = BUILTIN_DEFS.iter().map(|d| d.id).collect();
+        ids.sort_unstable();
+        let before = ids.len();
+        ids.dedup();
+        assert_eq!(ids.len(), before, "builtin ids must be unique");
         let _ = fs::remove_dir_all(&dir);
     }
 
