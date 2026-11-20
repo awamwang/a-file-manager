@@ -2429,8 +2429,10 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
       :open-path="(path) => navigateTo(path)"
     />
     <div v-if="listSurfaceMounted" v-show="!showingGuide" class="pane-list-surface">
-    <p class="pane-path" data-tour-id="tour-navigator-path" :title="currentPath">{{ currentPath || t("navigator.noPath") }}</p>
-    <HelpLink entry-id="navigator" tour data-tour-id="tour-navigator-help" />
+    <div class="pane-path-row">
+      <p class="pane-path" data-tour-id="tour-navigator-path" :title="currentPath">{{ currentPath || t("navigator.noPath") }}</p>
+      <HelpLink entry-id="navigator" tour data-tour-id="tour-navigator-help" />
+    </div>
     <ProviderErrorBanner v-if="listError && !listLoading" :error="listError" />
     <p v-else-if="folderSearchActive && primarySearchLoading" class="fluent-banner">
       {{ t("navigator.filterSearching") }}
@@ -2918,6 +2920,20 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
 
 .pane--active {
   border-color: var(--fluent-color-stroke-focus);
+}
+
+.pane-path-row {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-xs);
+  margin-bottom: var(--fluent-space-xs);
+}
+
+/* 长路径仍需省略号；按钮不收缩，始终留在可视区内。 */
+.pane-path-row .pane-path {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
 }
 
 .pane-path {

@@ -1079,8 +1079,10 @@ onUnmounted(() => {
     <header class="fluent-page-header" data-tour-id="tour-projects-header">
       <h1 class="fluent-page-title">{{ t("projects.title") }}</h1>
       <p class="fluent-page-meta">{{ t("projects.meta") }}</p>
-      <p class="fluent-page-meta usage-hint">{{ t("projects.usageHint") }}</p>
-      <HelpLink entry-id="projects" tour />
+      <div class="fluent-page-help-row">
+        <p class="fluent-page-meta usage-hint">{{ t("projects.usageHint") }}</p>
+        <HelpLink entry-id="projects" tour />
+      </div>
     </header>
 
     <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>

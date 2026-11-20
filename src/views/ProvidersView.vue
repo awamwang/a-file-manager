@@ -193,8 +193,10 @@ onMounted(() => {
   <section class="fluent-page" :class="{ 'fluent-page--embedded': embedded }">
     <header v-if="!embedded" class="fluent-page-header" data-tour-id="tour-providers-header">
       <h1 class="fluent-page-title">{{ t("providers.title") }}</h1>
-      <p class="fluent-page-meta">{{ t("providers.meta") }}</p>
-      <HelpLink entry-id="providers" tour />
+      <div class="fluent-page-help-row">
+        <p class="fluent-page-meta">{{ t("providers.meta") }}</p>
+        <HelpLink entry-id="providers" tour />
+      </div>
     </header>
 
     <p

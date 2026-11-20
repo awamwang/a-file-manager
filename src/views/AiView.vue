@@ -58,8 +58,10 @@ onMounted(() => {
     <header class="fluent-page-header" data-tour-id="tour-ai-header">
       <h1 class="fluent-page-title">{{ t("ai.title") }}</h1>
       <p class="fluent-page-meta">{{ t("ai.meta") }}</p>
-      <p class="fluent-page-meta usage-hint">{{ t("ai.usageHint") }}</p>
-      <HelpLink entry-id="ai" tour />
+      <div class="fluent-page-help-row">
+        <p class="fluent-page-meta usage-hint">{{ t("ai.usageHint") }}</p>
+        <HelpLink entry-id="ai" tour />
+      </div>
     </header>
 
     <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>

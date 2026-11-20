@@ -393,6 +393,17 @@ html[data-list-density="compact"] .fluent-list-row--density {
   gap: var(--fluent-space-xs);
 }
 
+/* 帮助「?」与页头最后一行文字并排，避免列式 flex 把它挤成独占一行。 */
+.fluent-page-help-row {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-xs);
+}
+
+.fluent-page-help-row > p {
+  min-width: 0;
+}
+
 .fluent-page-title {
   margin: 0;
   font-size: var(--fluent-font-size-title);

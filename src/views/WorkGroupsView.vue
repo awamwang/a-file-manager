@@ -674,8 +674,10 @@ onUnmounted(() => {
         {{ t("workGroups.title") }}
       </h1>
       <p class="fluent-page-meta">{{ t("workGroups.meta") }}</p>
-      <p class="fluent-page-meta usage-hint">{{ t("workGroups.usageHint") }}</p>
-      <HelpLink entry-id="work-groups" tour />
+      <div class="fluent-page-help-row">
+        <p class="fluent-page-meta usage-hint">{{ t("workGroups.usageHint") }}</p>
+        <HelpLink entry-id="work-groups" tour />
+      </div>
     </header>
 
     <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
