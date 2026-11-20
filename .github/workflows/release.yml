@@ -597,6 +597,7 @@ jobs:
           echo "FEED_DIR=$FEED" >> "$GITHUB_ENV"
           VER_TOOL="$(node -p "require('./packs/tool-runtime/pack.json').version")"
           VER_FILE="$(node -p "require('./packs/file-gateway/pack.json').version")"
+          VER_KM="$(node -p "require('./packs/knowledge/pack.json').version")"
           # tool-runtime（扁平 server.py 入口）
           "$PY_ABS" scripts/build_pack_feed.py build \
             --pack-id awam.tool-runtime --name awam-tool-manager \
@@ -613,6 +614,15 @@ jobs:
             --version "$VER_FILE" --out "$FEED" --url-layout flat \
             --base-feed-url "$GH_FEED_BASE" --base-probe-url http://127.0.0.1:18787 \
             --python "$PY_ABS"
+          # knowledge（包式入口；stdlib http_service，零外部依赖；随包分发 config/*.json）
+          # ADR 0024：knowledge 与 file/tool 同构（runtime:self onefile），非版本特例、不再内置安装器。
+          "$PY_ABS" scripts/build_pack_feed.py build \
+            --pack-id awam.knowledge --name awam-knowledge \
+            --src upstream/awam-knowledge --entry src/awam_knowledge/__main__.py \
+            --paths src --collect awam_knowledge \
+            --version "$VER_KM" --out "$FEED" --url-layout flat \
+            --base-feed-url "$GH_FEED_BASE" --base-probe-url http://127.0.0.1:18790 \
+            --python "$PY_ABS"
           # 可安装 pack 安装包（含 pack.json + UI 资源），flat URL 指向本 release 资产。
           "$PY_ABS" scripts/build_pack_feed.py pack-dir \
             --pack-id awam.tool-runtime --name "工具管理运行时" --version "$VER_TOOL" \
@@ -620,6 +630,9 @@ jobs:
           "$PY_ABS" scripts/build_pack_feed.py pack-dir \
             --pack-id awam.file-gateway --name "awam 资源网关" --version "$VER_FILE" \
             --src packs/file-gateway --out "$FEED" --url-layout flat --base-feed-url "$GH_FEED_BASE"
+          "$PY_ABS" scripts/build_pack_feed.py pack-dir \
+            --pack-id awam.knowledge --name "awam 知识库" --version "$VER_KM" \
+            --src packs/knowledge --out "$FEED" --url-layout flat --base-feed-url "$GH_FEED_BASE"
           echo "=== manifest ==="; cat "$FEED/manifest.json"
 
       - name: Upload feed artifacts + manifest to GitHub Release (主源)

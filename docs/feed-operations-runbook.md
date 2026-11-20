@@ -97,6 +97,7 @@ python scripts/build_pack_feed.py emit-feed-config \
 要点：
 
 - **`build` 会带 `--add-data "<src>/data;data"`** —— 这是托管实例 `list_tools` 不致空的关键（server.py 在 frozen 下从 `_MEIPASS/data` 读声明）。换其它 Python 后端同理需带各自的 data。
+- **包式后端**（file-gateway / knowledge）入口在 `src/<pkg>/__main__.py`，用 `--paths src --collect <pkg>` 让 PyInstaller 跟随包并随包分发 `config/*.json`（knowledge 即此法，数据在包目录内、不走 `src/data`）；file-gateway 另需 `--add-data` 带 `filesystems.html`。canonical 三后端调用见 `release.yml` 的 `build-pack-feed`。
 - **每个 OS 单独 build**：PyInstaller 冻结不可跨平台。Win 产物只能在 Win 上产；Linux/macOS 各跑对应 agent。
 - `--base-probe-url` 写进 entry 的 `baseUrl`，要与该后端实际监听端口一致（tool-manager = 18778；改端口要三处同步：后端 `DEFAULT_PORT`、feed `baseUrl`、AFM 默认）。
 
@@ -153,8 +154,8 @@ AFM 通过 `upstream/` 下的 git submodule 锁定三个后端源码（`awam-fil
 
 ## 6. 现状边界与遗留（运维须知的"还没自动化"的部分）
 
-- feed 发布目前**手动跑脚本 + 手动上传**；CI release job 未接。
-- 当前只有 `awam.tool-runtime` 一个成形 pack（`packs/tool-runtime`）+ 产物；`awam-file` / `awam-knowledge` 尚无 pack 目录/产物 feed 条目（knowledge 计划"内置"、file 计划"按需拉"，均待建）。
+- feed 发布已由 CI 接管：`.github/workflows/release.yml` 的 `build-pack-feed` job 在 Windows runner 上从 `upstream/` submodule 源码 in-tree 产 **tool-runtime / file-gateway / knowledge** 三个 onefile 产物 + manifest + pack 安装包，作为 GitHub Release 主源上传（配齐 `OSS_*` secrets 时另镜像到对象存储作回落源）。
+- 三个 pack 均已成形并进 feed：`awam.tool-runtime` / `awam.file-gateway` / `awam.knowledge`。knowledge **非版本特例、与另两者同构**（`runtime: self` PyInstaller onefile、`--paths src --collect awam_knowledge` 随包分发 `config/*.json`、probe 端口 18790），不再"内置安装器"（ADR 0024）。包式后端的数据在包目录内、靠 `--collect` 携带；扁平 `server.py` 类（tool-runtime）才用 `--add-data "<src>/data;data"`。
 - `runtime: shared`（AFM 自带共享运行时）语义已决策但**产物仍全走 `runtime: self`（onefile 自带解释器）**；共享 env 安装/薄产物分发未落地。
 - 遗留任务全清单见本次交付说明与 ADR0022「跨仓待办 / 落地记录」。
 

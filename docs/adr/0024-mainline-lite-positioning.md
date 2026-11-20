@@ -26,9 +26,11 @@
    **过时描述**。本 ADR 取代 ADR 0022「分发档位」与 `glossary-feature-pack`「共享运行时」里把
    knowledge 单列为 Node/内置的说法：**三者一致，均为 feed 分发、首启按需 provision 的 Feature Pack，
    不打进任何安装器，主线版与精简版都可安装。**
-   - 注：`package-feature-packs.mjs` 已会把 `packs/*`（含 knowledge）打成 `feature-pack-*.zip`；
-     但 `release.yml` 的 `build-pack-feed` 目前只对 tool-runtime + file-gateway 产 managed 产物与
-     feed 条目，**漏了 knowledge**。这是与本次定位**正交的既有打包缺口**，单列后续修复（非本 ADR 范围）。
+   - 注：`package-feature-packs.mjs` 已会把 `packs/*`（含 knowledge）打成 `feature-pack-*.zip`。原
+     `release.yml` 的 `build-pack-feed` 只对 tool-runtime + file-gateway 产 managed 产物与 feed 条目、
+     **漏了 knowledge**；该缺口已在后续 commit 补齐——`build-pack-feed` 现对三后端都跑 `build` +
+     `pack-dir`，knowledge 用 `--paths src --collect awam_knowledge`（onefile 于 release runner 各 OS 产）。
+     详见 `docs/feed-operations-runbook.md` §2/§6。
 
 ## 不做什么
 
