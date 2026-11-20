@@ -186,9 +186,9 @@ assert.ok(assets.includes("export function dmgAssetName"), "asset naming helper 
 // 4. Naming contract (source name from Tauri vs canonical GitHub asset name).
 assert.equal(tauriDmgFileName("0.3.0", "aarch64"), "A File Manager_0.3.0_aarch64.dmg");
 assert.equal(tauriDmgFileName("0.3.0", "x64"), "A File Manager_0.3.0_x64.dmg");
-assert.equal(dmgAssetName("0.3.0", "core", "aarch64"), "A.File.Manager_0.3.0_aarch64.dmg");
-assert.equal(dmgAssetName("0.3.0", "ai", "x64"), "A.File.Manager_0.3.0_x64-ai.dmg");
-assert.equal(appZipAssetName("0.3.0", "core", "x64"), "A.File.Manager_0.3.0_x64.app.zip");
+assert.equal(dmgAssetName("0.3.0", "core", "aarch64"), "A.File.Manager_0.3.0_aarch64-lite.dmg");
+assert.equal(dmgAssetName("0.3.0", "ai", "x64"), "A.File.Manager_0.3.0_x64.dmg");
+assert.equal(appZipAssetName("0.3.0", "core", "x64"), "A.File.Manager_0.3.0_x64-lite.app.zip");
 assert.equal(
   macReleaseMatrix(["core", "ai"]).length,
   4,

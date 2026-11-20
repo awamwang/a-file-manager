@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * 本地发版准备：同步版本 →（可选）提交 → 打 annotated tag。
- * 推送 tag 后由 GitHub Actions 按同一 vX.Y.Z 打 Core / AI / Feature Pack 并挂到一个 Release。
+ * 推送 tag 后由 GitHub Actions 按同一 vX.Y.Z 打 主线版(ai) / 精简版(core) / Feature Pack 并挂到一个 Release。
  *
  * Usage:
  *   node scripts/prepare-release.mjs 0.3.0
@@ -37,8 +37,8 @@ function run(cmd, args, opts = {}) {
 
 function printAssetPlan(ver) {
   console.log("同一 Release 将挂载（CI / build-release-artifacts）：");
-  console.log(`  - ${nsisAssetName(ver, "core")}  (Core)`);
-  console.log(`  - ${nsisAssetName(ver, "ai")}  (AI)`);
+  console.log(`  - ${nsisAssetName(ver, "ai")}  (主线版 Mainline，推荐)`);
+  console.log(`  - ${nsisAssetName(ver, "core")}  (精简版 Lite)`);
   for (const p of listFeaturePacks()) {
     console.log(
       `  - ${featurePackAssetName(ver, p.dirName)}  (Feature Pack ${p.manifest.id})`,

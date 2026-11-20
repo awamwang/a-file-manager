@@ -39,11 +39,12 @@ assert.ok(buildArts.includes("--dry-run"), "build-release-artifacts 支持 --dry
 assert.ok(releaseYml.includes("flavor_matrix"), "release.yml 输出 flavor matrix");
 assert.ok(releaseYml.includes("feature-pack"), "release.yml 包含 feature-pack");
 assert.ok(releaseYml.includes("gh release upload"), "release.yml 上传资产");
-assert.ok(releaseYml.includes("x64-ai-setup.exe"), "release notes 提及 AI 资产名");
+assert.ok(releaseYml.includes("x64-lite-setup.exe"), "release notes 提及精简版资产名");
+assert.ok(!releaseYml.includes("x64-ai-setup.exe"), "release notes 不再使用旧的 -ai 后缀名（主线版占用素名）");
 assert.ok(!releaseYml.includes("tauri-apps/tauri-action"), "多包发版不再依赖单包 tauri-action");
 
-assert.equal(nsisAssetName("0.3.0", "core"), `${PRODUCT_ASSET_PREFIX}_0.3.0_x64-setup.exe`);
-assert.equal(nsisAssetName("0.3.0", "ai"), `${PRODUCT_ASSET_PREFIX}_0.3.0_x64-ai-setup.exe`);
+assert.equal(nsisAssetName("0.3.0", "core"), `${PRODUCT_ASSET_PREFIX}_0.3.0_x64-lite-setup.exe`);
+assert.equal(nsisAssetName("0.3.0", "ai"), `${PRODUCT_ASSET_PREFIX}_0.3.0_x64-setup.exe`);
 assert.equal(
   featurePackAssetName("0.3.0", "tool-runtime"),
   `${PRODUCT_ASSET_PREFIX}_0.3.0_feature-pack-tool-runtime.zip`,

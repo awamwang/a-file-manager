@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Tag 驱动多包发版：同一 vX.Y.Z → Core NSIS + AI NSIS + Feature Pack zip 挂到一个 GitHub Release。
+# Tag 驱动多包发版：同一 vX.Y.Z → 主线版(Mainline, ai) NSIS + 精简版(Lite, core) NSIS + Feature Pack zip 挂到一个 GitHub Release。
 name: Release
 
 on:
@@ -13,7 +13,7 @@ on:
         required: false
         type: string
       packs:
-        description: "要构建的包：all 或 core,ai,feature-pack"
+        description: "要构建的包：all 或 core,ai,feature-pack（ai=主线版 / core=精简版）"
         required: false
         default: "all"
         type: string
@@ -217,11 +217,11 @@ jobs:
             echo
             echo "| Asset | 说明 |"
             echo "|---|---|"
-            echo "| \`A.File.Manager_${VERSION}_x64-setup.exe\` | **Core**（无 AI Add-on） |"
-            echo "| \`A.File.Manager_${VERSION}_x64-ai-setup.exe\` | **AI**（默认含 ai-addon） |"
-            echo "| \`A.File.Manager_${VERSION}_{aarch64|x64}[-ai].dmg\` | **macOS**（Apple Silicon / Intel，Core / AI） |"
-            echo "| \`A.File.Manager_${VERSION}_{aarch64|x64}[-ai].app.zip\` | **macOS 应用包**（与对应 DMG 同源） |"
-            echo "| \`A.File.Manager_${VERSION}_feature-pack-*.zip\` | **Feature Pack**（本机 zip 安装） |"
+            echo "| \`A.File.Manager_${VERSION}_x64-setup.exe\` | **主线版 Mainline**（默认含 ai-addon，= 普通正式版，推荐） |"
+            echo "| \`A.File.Manager_${VERSION}_x64-lite-setup.exe\` | **精简版 Lite**（无 AI Add-on） |"
+            echo "| \`A.File.Manager_${VERSION}_{aarch64|x64}[-lite].dmg\` | **macOS**（Apple Silicon / Intel；主线版无后缀 / 精简版带 \`-lite\`） |"
+            echo "| \`A.File.Manager_${VERSION}_{aarch64|x64}[-lite].app.zip\` | **macOS 应用包**（与对应 DMG 同源） |"
+            echo "| \`A.File.Manager_${VERSION}_feature-pack-*.zip\` | **Feature Pack**（与版本无关，本机 zip 安装） |"
             echo
             echo
             if [ "${MAC_SIGNING}" = "true" ]; then

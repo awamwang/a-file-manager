@@ -2,12 +2,16 @@
 /**
  * 多包发版产物命名与发现（同一 semver / 同一 GitHub Release）。
  *
+ * 版本定位（ADR 0024）：内部 flavor 标识符不变（core/ai），但面向用户的命名层反转——
+ *   - `ai` flavor   = **主线版 Mainline**（默认含 ai-addon，= 普通正式版）→ 占用「素名」
+ *   - `core` flavor = **精简版 Lite**（无 ai-addon）→ 带 `-lite` 标记后缀
+ *
  * 约定资产名（空格→点，与历史 GitHub asset 一致）：
- *   - Core:         A.File.Manager_${ver}_x64-setup.exe
- *   - AI:           A.File.Manager_${ver}_x64-ai-setup.exe
+ *   - 主线版:        A.File.Manager_${ver}_x64-setup.exe
+ *   - 精简版:        A.File.Manager_${ver}_x64-lite-setup.exe
  *   - Feature Pack: A.File.Manager_${ver}_feature-pack-${dir}.zip
- *   - macOS Core:   A.File.Manager_${ver}_${arch}.dmg / .app.zip
- *   - macOS AI:     A.File.Manager_${ver}_${arch}-ai.dmg / -ai.app.zip
+ *   - 主线版 macOS:  A.File.Manager_${ver}_${arch}.dmg / .app.zip
+ *   - 精简版 macOS:  A.File.Manager_${ver}_${arch}-lite.dmg / -lite.app.zip
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -26,11 +30,12 @@ export function tauriNsisFileName(version) {
 
 /** @param {string} version @param {"core"|"ai"} flavor */
 export function nsisAssetName(version, flavor) {
+  // 主线版 = ai flavor → 占用素名；精简版 = core flavor → `-lite` 后缀。见 ADR 0024。
   if (flavor === "ai") {
-    return `${PRODUCT_ASSET_PREFIX}_${version}_x64-ai-setup.exe`;
+    return `${PRODUCT_ASSET_PREFIX}_${version}_x64-setup.exe`;
   }
   if (flavor === "core") {
-    return `${PRODUCT_ASSET_PREFIX}_${version}_x64-setup.exe`;
+    return `${PRODUCT_ASSET_PREFIX}_${version}_x64-lite-setup.exe`;
   }
   throw new Error(`未知 NSIS flavor: ${flavor}`);
 }
@@ -53,7 +58,7 @@ export function tauriDmgFileName(version, arch) {
 export function dmgAssetName(version, flavor, arch) {
   if (flavor !== "core" && flavor !== "ai") throw new Error(`未知 macOS flavor: ${flavor}`);
   tauriDmgFileName(version, arch);
-  const suffix = flavor === "ai" ? "-ai" : "";
+  const suffix = flavor === "core" ? "-lite" : "";
   return `${PRODUCT_ASSET_PREFIX}_${version}_${arch}${suffix}.dmg`;
 }
 
@@ -61,7 +66,7 @@ export function dmgAssetName(version, flavor, arch) {
 export function appZipAssetName(version, flavor, arch) {
   if (flavor !== "core" && flavor !== "ai") throw new Error(`未知 macOS flavor: ${flavor}`);
   tauriDmgFileName(version, arch);
-  const suffix = flavor === "ai" ? "-ai" : "";
+  const suffix = flavor === "core" ? "-lite" : "";
   return `${PRODUCT_ASSET_PREFIX}_${version}_${arch}${suffix}.app.zip`;
 }
 
