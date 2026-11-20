@@ -303,6 +303,16 @@ impl ExtensionHost {
 
     pub fn uninstall_pack(&self, id: &str) -> Result<(), String> {
         let app_data = self.require_app_data_dir()?;
+        // 卸载前先终止该 Pack 自启的 sidecar 进程，否则 Windows 文件锁导致目录删除失败 (os error 5)。
+        if let Ok(Some(record)) =
+            crate::managed_dependency::registry::load_record(&app_data, id)
+        {
+            if let Some(pid) = record.spawned_pid {
+                crate::platform::kill_process_tree(pid);
+                // 给 OS 短暂时间释放文件句柄。
+                std::thread::sleep(std::time::Duration::from_millis(300));
+            }
+        }
         pack_fs::uninstall_pack(&app_data, id)?;
         self.packs
             .lock()
@@ -342,6 +352,9 @@ impl ExtensionHost {
             aggregated
                 .sidecars
                 .extend(contrib.sidecars.iter().cloned());
+            aggregated
+                .extensions_sections
+                .extend(contrib.extensions_sections.iter().cloned());
             // 搜索条目：聚合时写入 packId / packName（副标题显示 Pack 名）。
             for entry in &contrib.search {
                 let mut item = entry.clone();
