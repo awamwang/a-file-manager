@@ -78,8 +78,9 @@ Removing, weakening, or `#[ignore]`-ing an existing gate is an **Ask-first** bou
 
 ## Where to edit
 
-- **New or renamed UI string** → add the key to *all five* locale files under
-  `src/i18n/locales/` (`zh-CN`, `en`, `de`, `fr`, `ja`).
+- **New or renamed UI string** → add the key to **every** locale file under
+  `src/i18n/locales/` (the set grows over time; `npm run test:i18n` enforces key
+  parity across whatever locales exist).
 - **New setting / changed settings shape** → `src-tauri/src/settings/` (`defaults.rs`,
   `types.rs`) plus a migration in `migrate.rs` (see gotcha).
 - **Shared visual primitives** (chips, banners, accent edges, page chrome) →

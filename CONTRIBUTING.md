@@ -66,8 +66,9 @@ npm test                                      # aggregated static gates (see pac
 
 Notes:
 
-- **i18n parity:** translations live in 5 locales (`zh-CN`, `en`, `de`, `fr`, `ja`) and the
-  key sets must stay identical. If you add or rename a string, update **all** locales.
+- **i18n parity:** translations live in every locale file under `src/i18n/locales/`
+  and the key sets must stay identical. If you add or rename a string, update **all**
+  locales (`npm run test:i18n` fails on any drift).
 - `npm test` runs many `scripts/check-*.mjs` gates and stops at the first failure, so run
   individual gates while iterating to isolate new failures from pre-existing ones.
 
@@ -86,8 +87,8 @@ Notes:
   (help article, getting-started hint and, where useful, guided tour) so the
   Help & Guidance hub can discover it.
 - Put all user-facing copy in i18n under `help.*` / `tour.*` (or the existing
-  namespace) and add a real translation to **all five locales**: `en`, `zh-CN`,
-  `ja`, `de`, `fr`. Never leave a locale falling back to English.
+  namespace) and add a real translation to **every locale** under
+  `src/i18n/locales/`. Never leave a locale falling back to English.
 - Prefer user language over developer terms (no internal IDs, ADR numbers or
   code names in descriptions, hints, tooltips or confirmations).
 - Ensure CI is green. A maintainer will review and squash-merge when ready.
