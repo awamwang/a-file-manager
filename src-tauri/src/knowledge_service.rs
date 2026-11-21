@@ -357,8 +357,23 @@ fn is_valid_doc_path(path: &str) -> bool {
 // ---------------------------------------------------------------------------
 
 /// 服务探活：`/health`（无需鉴权）；失败不抛错，由源状态机消费。
+/// 命令壳为 async + spawn_blocking：同步 HTTP 最长阻塞 2s（HEALTH_TIMEOUT），
+/// 不能占住 Tauri 主线程（否则服务离线时整个 UI 卡顿）。
 #[tauri::command]
-pub fn knowledge_service_status() -> KnowledgeServiceStatus {
+pub async fn knowledge_service_status() -> KnowledgeServiceStatus {
+    tauri::async_runtime::spawn_blocking(knowledge_service_status_blocking)
+        .await
+        .unwrap_or_else(|_| KnowledgeServiceStatus {
+            online: false,
+            base_url: base_url(),
+            detail: Some("knowledge service status task failed".to_string()),
+            vault_configured: false,
+            index_configured: false,
+            index_root: None,
+        })
+}
+
+fn knowledge_service_status_blocking() -> KnowledgeServiceStatus {
     let url = format!("{}/health", base_url());
     let request = || {
         let response = agent(HEALTH_TIMEOUT)
