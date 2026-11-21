@@ -675,7 +675,7 @@ onUnmounted(() => {
     <p v-if="loading" class="fluent-banner">{{ t("common.loading") }}</p>
 
     <div v-if="document" class="layout">
-      <aside
+      <div
         ref="masterListEl"
         data-tour-id="tour-workgroups-list"
         class="master-list"
@@ -763,7 +763,7 @@ onUnmounted(() => {
             {{ t("common.create") }}
           </button>
         </form>
-      </aside>
+      </div>
 
       <div v-if="active" class="fluent-surface detail">
         <div ref="detailTitleRowEl" class="detail-title-row">

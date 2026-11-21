@@ -1114,7 +1114,7 @@ onUnmounted(() => {
     <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
 
     <div v-if="document" class="layout">
-      <aside
+      <div
         ref="masterListEl"
         data-tour-id="tour-projects-list"
         class="master-list"
@@ -1232,7 +1232,7 @@ onUnmounted(() => {
             {{ t("projects.createFromWorkGroup") }}
           </button>
         </form>
-      </aside>
+      </div>
 
       <div v-if="selected" class="fluent-surface detail">
         <div ref="projectTitleRowEl" class="detail-title-row">
@@ -1452,7 +1452,7 @@ onUnmounted(() => {
             />
           </div>
 
-          <aside v-if="sidePanelOpen" class="side-panel">
+          <div v-if="sidePanelOpen" class="side-panel">
             <h3>{{ t("projects.sidePanelTitle") }}</h3>
             <div class="side-panel-section">
               <h4>{{ t("projects.context") }}</h4>
@@ -1561,7 +1561,7 @@ onUnmounted(() => {
                 </section>
               </div>
             </div>
-          </aside>
+          </div>
         </div>
       </div>
 
