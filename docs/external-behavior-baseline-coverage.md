@@ -39,6 +39,12 @@ Rule reminders: no e2e; `#[ignore]` ≠ coverage; FE↔BE command-name parity is
 | one-time example presets (WG + 2 Projects — project 1 bound, project 2 unbound; home-dir tab; no re-seed after delete) | STATIC · CARGO | `check-example-presets.mjs`; `examples.rs` `seed_examples` (`seeds_work_group_and_two_projects_with_home_tab`, `marker_prevents_reseed_after_user_deletes_presets`, `partial_run_is_repaired_without_duplicating`) | startup wiring primary-only + non-fatal; marker file blocks resurrection |
 | rename-to-make-it-yours guidance steps (WG + Projects tour) | STATIC | `check-example-presets.mjs`, `check-help-guidance.mjs`, `check-i18n.mjs` | anchors on detail rename title; registry keys in 6 locales; registry key count 55 |
 
+## Help / onboarding
+
+| Behavior | Layers | Gate / test | Notes |
+| --- | --- | --- | --- |
+| L2 hint bound to its own page; switching routes hides the source hint (incl. keep-alive Navigator → WorkGroups) | STATIC · FE | `check-hint-route-scope.mjs` → `hint-route-scope-checks.ts` (`src/help/hintRouteScope.ts`); `check-help-guidance.mjs` | 5x5 route matrix + Navigator→WorkGroups transition; `/help` never carries a page hint; seen-once, opt-in tour, `hintEnabled`/`tourEnabled` unchanged |
+
 ## Backend command surfaces
 
 | Domain | Layers | Gate | Notes |
@@ -61,6 +67,12 @@ Rule reminders: no e2e; `#[ignore]` ≠ coverage; FE↔BE command-name parity is
 | Item | State |
 | --- | --- |
 | Orphan gates (defined but not in `test` chain) | Cleared to 0 (H8: `perf-probe`, `new-file-rename`, `properties-attrs`, `provider-torrent-open`, `delete-keep-selection` wired) |
+
+## Process / console hygiene
+
+| Behavior | Layers | Gate / test | Notes |
+| --- | --- | --- | --- |
+| no console window on helper spawn (where.exe / rclone / IDE / open_with / `net use`) | STATIC | `check-no-console-flash.mjs` | AIA-177; 2026-11-21 added `net use` (navigator/places.rs) — bare `Command::new("cmd")` made Win11 default-terminal handoff launch Windows Terminal (and its persisted window) on every app start |
 
 ## Known gaps (deliberate or open)
 

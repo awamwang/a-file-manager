@@ -168,7 +168,10 @@ fn list_network_places() -> Vec<NetworkPlace> {
 
     #[cfg(windows)]
     {
-        let output = std::process::Command::new("cmd")
+        // AIA-148: must go through win_process::command — a bare Command::new
+        // from the GUI subsystem allocates a console, which Win11 hands to the
+        // default terminal (Windows Terminal) and pops a window on startup.
+        let output = crate::win_process::command("cmd")
             .args(["/C", "net use"])
             .output();
         let Ok(output) = output else {

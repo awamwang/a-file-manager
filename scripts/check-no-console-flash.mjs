@@ -19,6 +19,7 @@ const platformMod = read("src-tauri/src/platform/mod.rs");
 const sidecar = read("src-tauri/src/tool_runtime/sidecar.rs");
 const rclone = read("src-tauri/src/providers/rclone.rs");
 const openWith = read("src-tauri/src/open_with/mod.rs");
+const places = read("src-tauri/src/navigator/places.rs");
 const menu = read("src/components/navigator/NavigatorContextMenu.vue");
 const lib = read("src-tauri/src/lib.rs");
 
@@ -115,6 +116,19 @@ assert.ok(rclone.includes("try_wait()"), "rclone must poll child instead of bloc
 assert.ok(
   openWith.includes("win_process::command"),
   "open_with Windows helpers must use win_process::command",
+);
+
+// AIA-148: `net use` network-place enumeration runs at Navigator startup.
+// A bare Command::new("cmd") from the GUI subsystem allocates a console that
+// Win11 hands off to the default terminal (Windows Terminal), popping a
+// window on every app launch (verified 2026-11-21).
+assert.ok(
+  places.includes('win_process::command("cmd")'),
+  "places `net use` must spawn via win_process::command (CREATE_NO_WINDOW)",
+);
+assert.ok(
+  !/Command::new\(\s*"cmd"\s*\)/.test(places),
+  "places must not spawn a bare cmd.exe console",
 );
 
 assert.ok(
