@@ -82,4 +82,7 @@ Rule reminders: no e2e; `#[ignore]` ≠ coverage; FE↔BE command-name parity is
 - **knowledge vault lock/unlock state machine** — invoke-coupled; command-surface covered, behavior not.
 - **reorder pure helper `createListPointerReorder`** — `import { ref } from vue`, never executed;
   optional vue-stub FE unit (W4).
-- **shell-icon queue/budget LRU eviction** — needs confirmation the trigger is executed in cargo.
+- ~~**shell-icon queue/budget LRU eviction**~~ — CLOSED (8eba40f): `scripts/shell-icons-state-checks.ts`
+  imports and executes the real `src/state/shellIcons.ts` cache/queue (entry cap, byte budget,
+  FIL-68 pinning, soft-vs-hard pin priority, FIL-50 pending dedup); both `check-shell-icon-*.mjs`
+  gates spawn it, so coverage is no longer mirror-simulation only.
