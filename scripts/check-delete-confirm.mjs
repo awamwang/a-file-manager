@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // AIA-185: Fluent delete confirm + 「以后不再提问」 → power.confirmBeforeDelete.
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -52,5 +53,15 @@ assert.equal(
   zh.settings.fields.power.confirmBeforeDelete.title,
   "删除前确认",
 );
+
+// Behavioral unit: pin the default-on parse rule (the gate's whole contract) by executing it.
+const unit = spawnSync(
+  process.execPath,
+  ["--experimental-strip-types", join(root, "scripts/confirm-before-delete-checks.ts")],
+  { cwd: root, encoding: "utf8" },
+);
+if (unit.stdout) process.stdout.write(unit.stdout);
+if (unit.stderr) process.stderr.write(unit.stderr);
+assert.equal(unit.status, 0, "confirm-before-delete behavior checks failed");
 
 console.log("delete-confirm checks OK (AIA-185).");

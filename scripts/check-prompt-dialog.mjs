@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // AIA-186: Fluent prompt dialog replaces window.prompt for new folder/file.
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -39,5 +40,15 @@ assert.equal(zh.dialog.promptTitle, "输入名称");
 assert.equal(en.dialog.promptTitle, "Enter a name");
 assert.equal(zh.dialog.promptLabel, "名称");
 assert.equal(en.dialog.promptLabel, "Name");
+
+// Behavioral unit: exercise the prompt dialog promise lifecycle (real behavior, not grep).
+const unit = spawnSync(
+  process.execPath,
+  ["--experimental-strip-types", join(root, "scripts/prompt-dialog-checks.ts")],
+  { cwd: root, encoding: "utf8" },
+);
+if (unit.stdout) process.stdout.write(unit.stdout);
+if (unit.stderr) process.stderr.write(unit.stderr);
+assert.equal(unit.status, 0, "prompt-dialog behavior checks failed");
 
 console.log("prompt-dialog checks OK (AIA-186).");

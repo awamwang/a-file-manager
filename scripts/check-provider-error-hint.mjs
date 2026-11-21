@@ -8,6 +8,7 @@
  * 注释先剥离，避免文档行满足断言。
  */
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -106,5 +107,15 @@ for (const loc of locales) {
     );
   }
 }
+
+// Behavioral unit: execute the real (order-sensitive) classifier, not just grep its source.
+const unit = spawnSync(
+  process.execPath,
+  ["--experimental-strip-types", join(root, "scripts/provider-error-message-checks.ts")],
+  { cwd: root, encoding: "utf8" },
+);
+if (unit.stdout) process.stdout.write(unit.stdout);
+if (unit.stderr) process.stderr.write(unit.stderr);
+assert.equal(unit.status, 0, "provider-error-message behavior checks failed");
 
 console.log("provider-error-hint checks passed");
