@@ -1,4 +1,9 @@
 {
+  "concepts": {
+    "workGroups": "Ordner zu einer Sache an einem Ort bündeln",
+    "projects": "Die weiterentwickelte Form einer Arbeitsgruppe: erstellt ein Arbeitsverzeichnis und eine KI-Entwicklungsgrundlage",
+    "ai": "Bietet Agent-Verwaltung sowie MCP / Skills-Werkzeugverwaltung für die KI-Entwicklung (nur in der Hauptversion)"
+  },
   "platform": {
     "macos": {
       "contextMenu.openWithExplorer": "Im Finder öffnen",
@@ -263,8 +268,6 @@
   },
   "ai": {
     "title": "AI",
-    "meta": "AI-Add-on — Agent Targets, gemeinsame MCP/Skills und Modell-Provider",
-    "usageHint": "Agent Targets hier verwalten. Öffentliches MCP, Skills und AI-Provider folgen in späteren Slices.",
     "shellStatus": "AI-Add-on-Shell v{version} · Schicht {layer}",
     "sections": {
       "providers": {
@@ -833,8 +836,6 @@
     "errorWorkGroupMutation": "Unerwartete Arbeitsgruppen-Änderung beim Öffnen aller",
     "list": "Liste",
     "listSummary": "{members} Mitglieder · {open} offen",
-    "meta": "Die weiterentwickelte Form einer Arbeitsgruppe: erstellt ein Arbeitsverzeichnis und eine KI-Entwicklungsgrundlage",
-    "usageHint": "Ein Projekt baut auf einer Arbeitsgruppe auf und erstellt ein eigenes Arbeitsverzeichnis sowie eine KI-Entwicklungsgrundlage (CONTEXT, Aufgaben, Ergebnisse).",
     "newNamePlaceholder": "Name des neuen Projekts",
     "noDescription": "Keine Beschreibung",
     "noFolderLinks": "Noch keine Projektmitglieder",
@@ -1282,8 +1283,6 @@
     "errorSavePrompt": "Unerwartete Speicherabfrage beim stillen Wechsel",
     "hardMembers": "Mitglieder",
     "membersCount": "{count} Mitglieder",
-    "meta": "Ordner zu einer Sache an einem Ort bündeln",
-    "usageHint": "Eine Arbeitsgruppe bündelt die Ordner zu einer Sache; beim Wechsel öffnet sich die ganze Gruppe.",
     "newNamePlaceholder": "Name der neuen Arbeitsgruppe",
     "noHardMembers": "Noch keine Mitglieder",
     "noOpenTabs": "Keine offenen Registerkarten",
@@ -1757,20 +1756,17 @@
           "hint": "Die Suche durchsucht Dateien, Ordner und weitere Inhalte gleichzeitig."
         },
         "workGroups": {
-          "title": "Arbeitsgruppen",
-          "hint": "Eine Arbeitsgruppe bündelt die Ordner zu einer Sache."
+          "title": "Arbeitsgruppen"
         },
         "projects": {
-          "title": "Projekte",
-          "hint": "Ein Projekt ist die weiterentwickelte Form einer Arbeitsgruppe: Es erstellt ein Arbeitsverzeichnis und eine Grundlage für die KI-Entwicklung."
+          "title": "Projekte"
         },
         "providers": {
           "title": "Providers (Verbindungen)",
           "hint": "Mit Providers durchsuchen Sie Orte außerhalb dieses Computers, etwa Cloud-Speicher, wie normale Ordner."
         },
         "ai": {
-          "title": "KI-Funktionen",
-          "hint": "KI-Funktionen bieten Agent-Verwaltung sowie MCP / Skills-Werkzeugverwaltung für die KI-Entwicklung (nur in der Hauptversion)."
+          "title": "KI-Funktionen"
         }
       }
     },

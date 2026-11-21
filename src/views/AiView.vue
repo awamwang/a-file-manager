@@ -57,9 +57,8 @@ onMounted(() => {
   <section class="fluent-page" data-ai-settings>
     <header class="fluent-page-header" data-tour-id="tour-ai-header">
       <h1 class="fluent-page-title">{{ t("ai.title") }}</h1>
-      <p class="fluent-page-meta">{{ t("ai.meta") }}</p>
       <div class="fluent-page-help-row">
-        <p class="fluent-page-meta usage-hint">{{ t("ai.usageHint") }}</p>
+        <p class="fluent-page-meta">{{ t("concepts.ai") }}</p>
         <HelpLink entry-id="ai" tour />
       </div>
     </header>
@@ -118,10 +117,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.usage-hint {
-  opacity: 0.85;
-}
-
 .ai-layout {
   display: grid;
   grid-template-columns: minmax(18rem, max-content) minmax(0, 1fr);

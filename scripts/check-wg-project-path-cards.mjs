@@ -15,7 +15,7 @@ const zh = JSON.parse(readFileSync(join(root, "src/i18n/locales/zh-CN.json"), "u
 
 assert.ok(wg.includes("path-card-grid"));
 assert.ok(wg.includes("openOrFocusNavigatorTab"));
-assert.ok(wg.includes("workGroups.usageHint"));
+assert.ok(wg.includes('t("concepts.workGroups")'));
 assert.ok(projects.includes("path-card-grid"));
 assert.ok(projects.includes("openLink"));
 // 成员/标签点击：优先切到对应工作组，再聚焦或新建该组标签。
@@ -24,11 +24,11 @@ assert.ok(chrome.includes("openWorkGroupMemberTab"), "member tab helper");
 assert.ok(wg.includes("ensureWorkGroupActive"), "WG view switches before opening a tab");
 assert.ok(projects.includes("openWorkGroupMemberTab"), "project member cards use WG switch");
 assert.ok(projects.includes("ensureWorkGroupActive"), "open-all lands on the bound WG");
-assert.ok(projects.includes("projects.usageHint"));
-assert.ok(en.workGroups.usageHint.length > 10);
-assert.ok(en.projects.usageHint.length > 10);
-assert.ok(zh.workGroups.usageHint.includes("标签") || zh.workGroups.usageHint.length > 8);
-assert.ok(zh.projects.usageHint.includes("项目") || zh.projects.usageHint.length > 8);
+assert.ok(projects.includes('t("concepts.projects")'));
+assert.ok(en.concepts.workGroups.length > 10);
+assert.ok(en.concepts.projects.length > 10);
+assert.ok(zh.concepts.workGroups.includes("文件夹") || zh.concepts.workGroups.length > 8);
+assert.ok(zh.concepts.projects.includes("项目") || zh.concepts.projects.length > 8);
 
 // Unified edit chrome: ⋯ only (no standalone delete tag), right-aligned.
 assert.ok(!wg.includes("name-tag--danger"));

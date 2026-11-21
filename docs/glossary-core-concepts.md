@@ -24,10 +24,11 @@ _Avoid_: 独立导引、收藏教程
 
 三个概念的「是什么」以本文件为准，并按 [帮助与导引](./glossary-help-guidance.md) 的三层规则落到各处：
 
-- **界面描述**（视图页 meta / usageHint）：用一句话给出本文件的核心定义，不展开操作步骤。
-- **上手提示**（`help.entries.*.hint`）：只讲「是什么」，文案与核心定义一致。
+- **唯一文案源**：每个概念在 i18n 中只有一个 key——`concepts.workGroups` / `concepts.projects` / `concepts.ai`，值为本文件的核心定义（一句话）。不再保留 `*.meta`、`*.usageHint`、`help.entries.*.hint` 等重复副本。
+- **界面描述**：三个核心视图页头只渲染一行 `concepts.*`，不再叠加第二行解释；帮助链接与这行并列。
+- **上手提示**：导引注册表 `hintKey` 直接指向同一个 `concepts.*` key，与页头同源，不再另写文案。
 - **帮助文档**（`src/help/content/*.md`）：在「它是什么」沿用核心定义，其余小节讲全貌与操作。
 - **引导教学**：只讲「怎么做」，不复述概念定义。
 - **i18n**：六个语言（en / zh-CN / zh-TW / ja / de / fr）表达同一定义，key 保持一致。
 
-改动本文件定义时，须同步检查 `src/i18n/locales/*.json` 与 `src/help/content/*.md`，并运行相应门控。
+改动本文件定义时，须同步修改 `src/i18n/locales/*.json` 中的 `concepts.*`（六语）与 `src/help/content/*.md`，并运行相应门控。

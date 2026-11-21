@@ -1115,9 +1115,8 @@ onUnmounted(() => {
   <section class="fluent-page">
     <header class="fluent-page-header" data-tour-id="tour-projects-header">
       <h1 class="fluent-page-title">{{ t("projects.title") }}</h1>
-      <p class="fluent-page-meta">{{ t("projects.meta") }}</p>
       <div class="fluent-page-help-row">
-        <p class="fluent-page-meta usage-hint">{{ t("projects.usageHint") }}</p>
+        <p class="fluent-page-meta">{{ t("concepts.projects") }}</p>
         <HelpLink entry-id="projects" tour />
       </div>
     </header>
@@ -2159,10 +2158,6 @@ onUnmounted(() => {
 .detail h3,
 .detail h4 {
   margin: 0;
-}
-
-.usage-hint {
-  max-width: 42rem;
 }
 
 .context {

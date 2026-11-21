@@ -1,4 +1,9 @@
 {
+  "concepts": {
+    "workGroups": "Rassemble les dossiers liés à une même chose",
+    "projects": "La forme évoluée d’un groupe de travail : crée un répertoire de travail et une base pour le développement IA",
+    "ai": "Fournit la gestion des Agents et des outils MCP / Skills pour le développement IA (version principale uniquement)"
+  },
   "platform": {
     "macos": {
       "contextMenu.openWithExplorer": "Ouvrir dans le Finder",
@@ -263,8 +268,6 @@
   },
   "ai": {
     "title": "IA",
-    "meta": "Module IA — cibles Agent, MCP / Skills publics et fournisseurs de modèles",
-    "usageHint": "Gérez les cibles Agent ici. MCP public, Skills et fournisseurs IA arriveront dans des tranches ultérieures.",
     "shellStatus": "Coque module IA v{version} · couche {layer}",
     "sections": {
       "providers": {
@@ -833,8 +836,6 @@
     "errorWorkGroupMutation": "Mutation inattendue de Groupe de travail lors de tout ouvrir",
     "list": "Liste",
     "listSummary": "{members} membres · {open} en cours",
-    "meta": "La forme évoluée d’un groupe de travail : crée un répertoire de travail et une base pour le développement IA",
-    "usageHint": "Un projet s’appuie sur un groupe de travail et crée son propre répertoire ainsi qu’une base de développement IA (CONTEXT, tâches, résultats).",
     "newNamePlaceholder": "Nom du nouveau projet",
     "noDescription": "Aucune description",
     "noFolderLinks": "Aucun membre de projet",
@@ -1282,8 +1283,6 @@
     "errorSavePrompt": "Invite d’enregistrement inattendue lors d’une bascule silencieuse",
     "hardMembers": "Membres",
     "membersCount": "{count} membres",
-    "meta": "Rassembler les dossiers liés à une même chose",
-    "usageHint": "Un groupe de travail rassemble les dossiers liés à une même chose ; basculer ouvre tout le groupe.",
     "newNamePlaceholder": "Nom du nouveau groupe de travail",
     "noHardMembers": "Aucun membre pour l’instant",
     "noOpenTabs": "Aucun onglet ouvert",
@@ -1757,20 +1756,17 @@
           "hint": "La recherche couvre fichiers, dossiers et autres contenus en une seule fois."
         },
         "workGroups": {
-          "title": "Groupes de travail",
-          "hint": "Un groupe de travail rassemble les dossiers liés à une même chose."
+          "title": "Groupes de travail"
         },
         "projects": {
-          "title": "Projets",
-          "hint": "Un projet est la forme évoluée d’un groupe de travail : il crée un répertoire de travail et une base pour le développement IA."
+          "title": "Projets"
         },
         "providers": {
           "title": "Providers (services connectés)",
           "hint": "Les Providers permettent de parcourir des lieux externes, comme un stockage cloud, comme des dossiers ordinaires."
         },
         "ai": {
-          "title": "Fonctions IA",
-          "hint": "Les fonctions IA fournissent la gestion des Agents et des outils MCP / Skills pour le développement IA (version principale uniquement)."
+          "title": "Fonctions IA"
         }
       }
     },

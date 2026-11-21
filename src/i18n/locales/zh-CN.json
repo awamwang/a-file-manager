@@ -1,4 +1,9 @@
 {
+  "concepts": {
+    "workGroups": "把同一件事相关的文件夹聚在一起",
+    "projects": "工作组的升级形式，创建工作目录并建立面向 AI 开发的基础结构",
+    "ai": "提供 AI 开发相关的 Agent 管理以及 MCP / Skills 等工具管理（仅主线版提供）"
+  },
   "platform": {
     "macos": {
       "contextMenu.openWithExplorer": "在访达（Finder）中打开",
@@ -308,8 +313,6 @@
   },
   "ai": {
     "title": "AI",
-    "meta": "AI 附加层 — Agent Target、公共 MCP / Skills 与模型 Providers",
-    "usageHint": "在此管理 Agent Target。公共 MCP、Skills 与 AI Providers 将在后续切片落地。",
     "shellStatus": "AI Add-on 壳 v{version} · 层 {layer}",
     "sections": {
       "providers": {
@@ -1091,8 +1094,6 @@
   },
   "workGroups": {
     "title": "工作组",
-    "meta": "把同一件事相关的文件夹聚在一起",
-    "usageHint": "工作组把同一件事相关的文件夹聚在一起；切换时整组标签一起打开。",
     "softSync": "软同步：已打开 {paths}",
     "default": "默认",
     "defaultName": "默认工作组",
@@ -1135,8 +1136,6 @@
   },
   "projects": {
     "title": "项目",
-    "meta": "工作组的升级形式，创建工作目录并建立面向 AI 开发的基础结构",
-    "usageHint": "项目在工作组之上创建独立工作目录与 AI 开发基础结构（CONTEXT、任务、成果）。",
     "listSummary": "{members} 个成员 · {open} 个进行中",
     "newNamePlaceholder": "新项目名称",
     "noDescription": "无描述",
@@ -1757,20 +1756,17 @@
           "hint": "搜索会同时查找文件、文件夹和其他内容。"
         },
         "workGroups": {
-          "title": "工作组",
-          "hint": "工作组把同一件事相关的文件夹聚在一起。"
+          "title": "工作组"
         },
         "projects": {
-          "title": "项目",
-          "hint": "项目是工作组的升级形式，会创建工作目录，建立面向 AI 开发的基础结构。"
+          "title": "项目"
         },
         "providers": {
           "title": "Providers（位置服务）",
           "hint": "位置服务让你像浏览本地文件夹一样浏览云端等外部位置。"
         },
         "ai": {
-          "title": "AI 功能",
-          "hint": "AI 功能提供 AI 开发相关的 Agent 管理以及 MCP / Skills 等工具管理（仅主线版提供）。"
+          "title": "AI 功能"
         }
       }
     },

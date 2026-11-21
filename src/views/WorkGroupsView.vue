@@ -673,9 +673,8 @@ onUnmounted(() => {
       <h1 id="work-groups-page-title" class="fluent-page-title" tabindex="-1">
         {{ t("workGroups.title") }}
       </h1>
-      <p class="fluent-page-meta">{{ t("workGroups.meta") }}</p>
       <div class="fluent-page-help-row">
-        <p class="fluent-page-meta usage-hint">{{ t("workGroups.usageHint") }}</p>
+        <p class="fluent-page-meta">{{ t("concepts.workGroups") }}</p>
         <HelpLink entry-id="work-groups" tour />
       </div>
     </header>
@@ -1359,10 +1358,6 @@ onUnmounted(() => {
 .detail h2,
 .detail h3 {
   margin: 0;
-}
-
-.usage-hint {
-  max-width: 42rem;
 }
 
 @media (max-width: 960px) {

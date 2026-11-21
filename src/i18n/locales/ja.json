@@ -1,4 +1,9 @@
 {
+  "concepts": {
+    "workGroups": "同じことに関係するフォルダーをまとめる",
+    "projects": "ワークグループのアップグレード形：作業ディレクトリを作成し、AI 開発向けの基盤を整える",
+    "ai": "AI 開発向けの Agent 管理と MCP / Skills などのツール管理を提供します（メインライン版のみ）"
+  },
   "platform": {
     "macos": {
       "contextMenu.openWithExplorer": "Finder で開く",
@@ -263,8 +268,6 @@
   },
   "ai": {
     "title": "AI",
-    "meta": "AI アドオン — Agent Target、共有 MCP / Skills、モデル Providers",
-    "usageHint": "ここで Agent Target を管理します。共有 MCP / Skills / AI Providers は後続スライスです。",
     "shellStatus": "AI Add-on シェル v{version} · レイヤー {layer}",
     "sections": {
       "providers": {
@@ -833,8 +836,6 @@
     "errorWorkGroupMutation": "すべて開くで予期しないワークグループ変更",
     "list": "リスト",
     "listSummary": "{members} メンバー · {open} 進行中",
-    "meta": "ワークグループのアップグレード形：作業ディレクトリを作成し、AI 開発向けの基盤を整える",
-    "usageHint": "プロジェクトはワークグループの上に独立した作業ディレクトリと AI 開発基盤（CONTEXT・タスク・成果）を構築します。",
     "newNamePlaceholder": "新しいプロジェクト名",
     "noDescription": "説明なし",
     "noFolderLinks": "プロジェクトメンバーはまだありません",
@@ -1282,8 +1283,6 @@
     "errorSavePrompt": "サイレント切替で予期しない保存プロンプト",
     "hardMembers": "メンバー",
     "membersCount": "{count} メンバー",
-    "meta": "同じことに関係するフォルダーをまとめる",
-    "usageHint": "ワークグループは同じことに関係するフォルダーをまとめます。切り替えるとその一式を開きます。",
     "newNamePlaceholder": "新しいワークグループ名",
     "noHardMembers": "メンバーはまだありません",
     "noOpenTabs": "開いているタブはありません",
@@ -1757,20 +1756,17 @@
           "hint": "検索はファイルやフォルダーなどをまとめて探します。"
         },
         "workGroups": {
-          "title": "ワークグループ",
-          "hint": "ワークグループは同じことに関係するフォルダーをまとめます。"
+          "title": "ワークグループ"
         },
         "projects": {
-          "title": "プロジェクト",
-          "hint": "プロジェクトはワークグループのアップグレード形で、作業ディレクトリを作成し、AI 開発向けの基盤を整えます。"
+          "title": "プロジェクト"
         },
         "providers": {
           "title": "Providers（接続先）",
           "hint": "Providers を使うと、クラウドなどの外部の場所を通常のフォルダーのように参照できます。"
         },
         "ai": {
-          "title": "AI 機能",
-          "hint": "AI 機能は AI 開発向けの Agent 管理と MCP / Skills などのツール管理を提供します（メインライン版のみ）。"
+          "title": "AI 機能"
         }
       }
     },

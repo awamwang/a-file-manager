@@ -1,4 +1,9 @@
 {
+  "concepts": {
+    "workGroups": "Gathers the folders related to one thing",
+    "projects": "The upgraded form of a Work Group: creates a working directory and an AI-development foundation",
+    "ai": "Provides Agent management and MCP / Skills tool management for AI development (Mainline build only)"
+  },
   "platform": {
     "macos": {
       "contextMenu.openWithExplorer": "Open in Finder",
@@ -308,8 +313,6 @@
   },
   "ai": {
     "title": "AI",
-    "meta": "AI Add-on — Agent targets, public MCP & Skills, and model providers",
-    "usageHint": "Manage Agent Targets here. Public MCP, Skills, and AI Providers land in later slices.",
     "shellStatus": "AI Add-on shell v{version} · layer {layer}",
     "sections": {
       "providers": {
@@ -1091,8 +1094,6 @@
   },
   "workGroups": {
     "title": "Work Groups",
-    "meta": "Gather the folders related to one thing",
-    "usageHint": "A Work Group gathers the folders related to one thing; switching opens the whole set of tabs.",
     "softSync": "Soft sync: opened {paths}",
     "default": "default",
     "defaultName": "Default",
@@ -1135,8 +1136,6 @@
   },
   "projects": {
     "title": "Projects",
-    "meta": "The upgraded form of a Work Group: creates a working directory and an AI-development foundation",
-    "usageHint": "A Project builds on a Work Group with its own working directory and AI-development foundation (CONTEXT, tasks, outcomes).",
     "listSummary": "{members} members · {open} in progress",
     "newNamePlaceholder": "New project name",
     "noDescription": "No description",
@@ -1757,20 +1756,17 @@
           "hint": "Search looks across files, folders and other content at once."
         },
         "workGroups": {
-          "title": "Work Groups",
-          "hint": "A Work Group gathers the folders related to one thing."
+          "title": "Work Groups"
         },
         "projects": {
-          "title": "Projects",
-          "hint": "A Project is the upgraded form of a Work Group: it creates a working directory and an AI-development foundation."
+          "title": "Projects"
         },
         "providers": {
           "title": "Providers",
           "hint": "Providers let you browse places outside this computer, such as cloud storage, just like ordinary folders."
         },
         "ai": {
-          "title": "AI features",
-          "hint": "AI features provide Agent management and MCP / Skills tool management for AI development (Mainline build only)."
+          "title": "AI features"
         }
       }
     },
