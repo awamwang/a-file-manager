@@ -54,7 +54,6 @@ for (const token of [
   "closeNavigatorTab",
   "closeOtherNavigatorTabs",
   "closeNavigatorTabsToRight",
-  "closeAllNavigatorTabs",
   "switchNavigatorTab",
   "switchNavigatorTabAdjacent",
   "openOrFocusNavigatorTab",

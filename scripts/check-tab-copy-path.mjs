@@ -36,11 +36,16 @@ assert.ok(!/navigator-tab-context-menu[\s\S]*contextMenu\.copyPath/.test(shell))
 
 assert.ok(browse.includes("closeOtherNavigatorTabs"));
 assert.ok(browse.includes("closeNavigatorTabsToRight"));
-assert.ok(browse.includes("closeAllNavigatorTabs"));
 assert.ok(browse.includes("newNavigatorTab"));
 assert.ok(model.includes("openStateAfterCloseOtherGroups"));
 assert.ok(model.includes("openStateAfterCloseGroupsToRight"));
-assert.ok(model.includes("openStateAfterCloseAllGroups"));
+// "关闭全部标签" 已作为特性移除：菜单项、handler、6 语 chrome.closeAllTabs 均已不在。
+// 因此这里钉住「该入口不得复现」，而不再强制保留 orphan API —— browse.closeAllNavigatorTabs
+// 与 model.openStateAfterCloseAllGroups 目前无任何 UI 引用（死代码），其存在性不入门禁，
+// 以免基线反过来阻塞死代码清理（决策记录见 docs/external-behavior-baseline-coverage.md）。
+// reducer 本身仍由 scripts/open-state-checks.ts 以行为单元执行覆盖（非 grep）。
+assert.ok(!shell.includes("chrome.closeAllTabs"));
+assert.ok(!shell.includes("onCloseAllTabsFromContext"));
 
 assert.equal(en.chrome.duplicateTab, "Duplicate tab");
 assert.equal(zh.chrome.duplicateTab, "复制标签");

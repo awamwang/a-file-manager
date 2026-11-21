@@ -86,3 +86,13 @@ Rule reminders: no e2e; `#[ignore]` ≠ coverage; FE↔BE command-name parity is
   imports and executes the real `src/state/shellIcons.ts` cache/queue (entry cap, byte budget,
   FIL-68 pinning, soft-vs-hard pin priority, FIL-50 pending dedup); both `check-shell-icon-*.mjs`
   gates spawn it, so coverage is no longer mirror-simulation only.
+
+## Decision records (why a gap or a pin stays as it is)
+
+| # | Subject | Decision | Where recorded |
+| --- | --- | --- | --- |
+| R1 | paste `transferEntries` self/conflict branch | Not tested as a FE unit: needs a mock-`invoke` harness, which ADR 0025 forbids; backend copy/move/conflict already executed by cargo | ADR 0025 「定论（不强做）」 |
+| R2 | undo restore loopback | Deferred: restore calls the Windows Recycle Bin COM `DoIt`, so a temp-exec cargo test cannot run offline (heavy, machine-state dependent) | ADR 0025 「定论（不强做）」 |
+| R3 | knowledge vault lock/unlock state machine | Command surface + IPC name parity pinned (`check-backend-command-surface.mjs`, `check-ipc-parity.mjs`); state machine left as grep because it is `invoke`-coupled | ADR 0025 「定论（不强做）」 |
+| R4 | reorder helper `createListPointerReorder` (W4) | Optional vue-stub FE unit, low priority: pure but pulls `import { ref } from "vue"`, never executed today | ADR 0025 + this ledger |
+| R5 | "Close all tabs" (tab context menu) | **Removed as a feature**: menu entry, `onCloseAllTabsFromContext` handler and the 6-locale `chrome.closeAllTabs` keys are gone. Gates therefore assert the entry **must not reappear**, and deliberately no longer require `navigatorBrowse.closeAllNavigatorTabs` / `model.openStateAfterCloseAllGroups`, which are currently unreferenced dead API. `openStateAfterCloseAllGroups` keeps real behavior coverage via `scripts/open-state-checks.ts`, so dropping the grep pin loses no executed coverage and unblocks deleting the dead function. | this ledger (2026-11-22) + `check-tab-copy-path.mjs` comment |
