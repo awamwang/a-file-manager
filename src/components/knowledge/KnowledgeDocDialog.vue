@@ -334,7 +334,7 @@ function onDocClick(event: MouseEvent): void {
   overflow: hidden;
   border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   border-radius: var(--fluent-radius-md);
-  box-shadow: var(--fluent-shadow-flyout, 0 12px 32px rgba(0, 0, 0, 0.22));
+  box-shadow: var(--fluent-shadow-flyout);
 }
 
 .knowledge-header {

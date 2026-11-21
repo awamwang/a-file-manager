@@ -3165,7 +3165,7 @@ onUnmounted(() => {
   padding: var(--fluent-space-sm);
   border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   border-radius: var(--fluent-radius-md);
-  box-shadow: var(--fluent-shadow-flyout, 0 8px 24px rgba(0, 0, 0, 0.18));
+  box-shadow: var(--fluent-shadow-flyout);
 }
 
 .places-heading {
@@ -3433,7 +3433,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
-  box-shadow: var(--fluent-shadow-flyout, 0 8px 24px rgba(0, 0, 0, 0.18));
+  box-shadow: var(--fluent-shadow-flyout);
 }
 
 .crumb-menu-status {
@@ -3768,7 +3768,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  box-shadow: var(--fluent-shadow-flyout, 0 8px 24px rgba(0, 0, 0, 0.18));
+  box-shadow: var(--fluent-shadow-flyout);
 }
 
 .tab-context-menu.tab-context-sub {
@@ -4026,7 +4026,7 @@ onUnmounted(() => {
   padding: var(--fluent-space-lg);
   border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   border-radius: var(--fluent-radius-md);
-  box-shadow: var(--fluent-shadow-flyout, 0 12px 32px rgba(0, 0, 0, 0.22));
+  box-shadow: var(--fluent-shadow-flyout);
 }
 
 .close-confirm-title {
