@@ -70,15 +70,14 @@ onMounted(() => {
     </p>
 
     <div class="ai-layout">
-      <aside class="ai-nav fluent-surface" data-tour-id="tour-ai-nav" role="tablist" :aria-label="t('ai.title')">
+      <nav class="ai-nav fluent-surface" data-tour-id="tour-ai-nav" :aria-label="t('ai.title')">
         <button
           v-for="section in AI_MENU_SECTIONS"
           :key="section.id"
           type="button"
           class="ai-nav-item"
           :class="{ 'ai-nav-item--active': activeSection === section.id }"
-          role="tab"
-          :aria-selected="activeSection === section.id"
+          :aria-current="activeSection === section.id ? 'true' : undefined"
           :data-ai-nav="section.id"
           @click="selectSection(section.id)"
         >
@@ -87,12 +86,11 @@ onMounted(() => {
           </span>
           <span class="ai-nav-label">{{ t(section.titleKey) }}</span>
         </button>
-      </aside>
+      </nav>
 
       <article
         v-if="activeDef"
         class="fluent-surface ai-panel"
-        role="tabpanel"
         :data-ai-section="activeDef.id"
       >
         <header class="ai-panel-head" data-tour-id="tour-ai-panel">
