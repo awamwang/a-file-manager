@@ -1234,7 +1234,7 @@ onUnmounted(() => {
   padding: var(--fluent-space-xs);
   border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   border-radius: var(--fluent-radius-md);
-  box-shadow: var(--fluent-shadow-flyout, 0 8px 24px rgb(0 0 0 / 18%));
+  box-shadow: var(--fluent-shadow-flyout);
   background: var(--fluent-color-fill-control);
 }
 

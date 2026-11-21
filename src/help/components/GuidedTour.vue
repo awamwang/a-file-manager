@@ -268,7 +268,7 @@ onUnmounted(() => {
   border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   border-radius: var(--fluent-radius-md);
   background: var(--fluent-color-fill-control);
-  box-shadow: var(--fluent-shadow-flyout, 0 12px 32px rgba(0, 0, 0, 0.24));
+  box-shadow: var(--fluent-shadow-flyout);
   color: var(--fluent-color-text-primary);
   pointer-events: auto;
 }
