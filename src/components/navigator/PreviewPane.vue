@@ -264,7 +264,7 @@ watch(
 </script>
 
 <template>
-  <aside
+  <div
     v-if="enabled"
     class="preview fluent-surface"
     :style="{ width: `${previewPaneWidth}px` }"
@@ -445,7 +445,7 @@ watch(
       <p v-else class="fluent-banner">{{ t("preview.unsupported") }}</p>
       <p v-if="payload.truncated" class="preview-note">{{ t("preview.truncated") }}</p>
     </template>
-  </aside>
+  </div>
 </template>
 
 <style scoped>

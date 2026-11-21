@@ -2150,7 +2150,7 @@ onUnmounted(() => {
       </div>
     </header>
 
-    <div class="body" role="region" :aria-label="t('chrome.workArea')">
+    <div class="body">
       <nav
         class="sidenav fluent-layer-alt"
         data-focus-region="sidenav"
