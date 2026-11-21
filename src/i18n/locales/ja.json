@@ -1194,6 +1194,8 @@
       "indexUnconfigured": "接続済みですがナレッジベース未設定 — 下のデータルートを設定するか、サービス自身の settings.yaml を使ってください。",
       "dataRootPlaceholder": "例: C:\\Users\\you\\Knowledge\\data",
       "sourceIdPlaceholder": "例: logseq-main",
+      "gatewaySection": "ゲートウェイ",
+      "knowledgeSection": "Knowledge",
       "save": "設定を保存",
       "saved": "バックエンド設定を保存しました"
     },

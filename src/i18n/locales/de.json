@@ -1194,6 +1194,8 @@
       "indexUnconfigured": "Verbunden, aber keine Wissensbasis konfiguriert — setzen Sie unten den Datenstamm oder nutzen Sie die settings.yaml des Dienstes.",
       "dataRootPlaceholder": "z. B. C:\\Users\\you\\Knowledge\\data",
       "sourceIdPlaceholder": "z. B. logseq-main",
+      "gatewaySection": "Gateway",
+      "knowledgeSection": "Knowledge",
       "save": "Konfiguration speichern",
       "saved": "Backend-Einstellungen gespeichert"
     },

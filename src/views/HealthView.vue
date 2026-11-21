@@ -355,8 +355,9 @@ dd {
   list-style: none;
   margin: 0 0 var(--fluent-space-md);
   padding: 0;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  /* 与 path-card-grid 同口径：宽屏 auto-fill，窄窗仍单列。 */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
   gap: var(--fluent-space-sm);
 }
 

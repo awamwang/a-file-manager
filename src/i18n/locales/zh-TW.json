@@ -655,6 +655,8 @@
       "indexUnconfigured": "已連線，但未配置知識庫——請在下方設定資料根，或用知識服務自身的 settings.yaml。",
       "dataRootPlaceholder": "例如 C:\\Users\\你\\Knowledge\\data",
       "sourceIdPlaceholder": "例如 logseq-main",
+      "gatewaySection": "閘道",
+      "knowledgeSection": "Knowledge",
       "save": "儲存配置",
       "saved": "後端服務設定已儲存"
     },

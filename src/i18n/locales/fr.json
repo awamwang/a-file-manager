@@ -1194,6 +1194,8 @@
       "indexUnconfigured": "Connecté, mais aucune base de connaissances configurée — définissez la racine de données ci-dessous ou via le settings.yaml du service.",
       "dataRootPlaceholder": "ex. C:\\Users\\vous\\Knowledge\\data",
       "sourceIdPlaceholder": "ex. logseq-main",
+      "gatewaySection": "Passerelle",
+      "knowledgeSection": "Knowledge",
       "save": "Enregistrer la configuration",
       "saved": "Paramètres des services backend enregistrés"
     },

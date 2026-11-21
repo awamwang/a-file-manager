@@ -133,71 +133,81 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="fluent-surface card">
-    <h2 class="section-title">{{ t("settings.extensions.title") }}</h2>
-    <p class="fluent-page-meta">{{ t("settings.extensions.meta") }}</p>
+  <section class="ext-config">
+    <header class="ext-config__header">
+      <h2 class="section-title">{{ t("settings.extensions.title") }}</h2>
+      <p class="fluent-page-meta">{{ t("settings.extensions.meta") }}</p>
+    </header>
 
-    <div class="field">
-      <label class="field-label">{{ t("settings.fields.power.awamGatewayUrl.title") }}</label>
-      <p class="field-desc">{{ t("settings.fields.power.awamGatewayUrl.description") }}</p>
-      <input
-        v-model="gatewayUrl"
-        class="fluent-field"
-        type="text"
-        :readonly="gatewayManaged"
-        spellcheck="false"
-      />
-      <p v-if="gatewayManaged" class="field-hint">{{ t("settings.extensions.managedReadonly") }}</p>
-    </div>
+    <div class="ext-config__grid">
+      <section class="fluent-surface section-card">
+        <h3 class="section-card__title">{{ t("settings.extensions.gatewaySection") }}</h3>
+        <div class="field">
+          <label class="field-label">{{ t("settings.fields.power.awamGatewayUrl.title") }}</label>
+          <p class="field-desc">{{ t("settings.fields.power.awamGatewayUrl.description") }}</p>
+          <input
+            v-model="gatewayUrl"
+            class="fluent-field"
+            type="text"
+            :readonly="gatewayManaged"
+            spellcheck="false"
+          />
+          <p v-if="gatewayManaged" class="field-hint">{{ t("settings.extensions.managedReadonly") }}</p>
+        </div>
+      </section>
 
-    <div class="field">
-      <label class="field-label">{{ t("settings.fields.power.awamKnowledgeServiceUrl.title") }}</label>
-      <p class="field-desc">{{ t("settings.fields.power.awamKnowledgeServiceUrl.description") }}</p>
-      <input
-        v-model="knowledgeUrl"
-        class="fluent-field"
-        type="text"
-        :readonly="knowledgeManaged"
-        spellcheck="false"
-      />
-      <p v-if="knowledgeManaged" class="field-hint">{{ t("settings.extensions.managedReadonly") }}</p>
-      <p v-if="knowledgeStatusText" class="field-status">{{ knowledgeStatusText }}</p>
-      <p v-if="knowledgeIndexRoot" class="field-hint">{{ knowledgeIndexRoot }}</p>
-    </div>
+      <section class="fluent-surface section-card">
+        <h3 class="section-card__title">{{ t("settings.extensions.knowledgeSection") }}</h3>
+        <div class="field">
+          <label class="field-label">{{ t("settings.fields.power.awamKnowledgeServiceUrl.title") }}</label>
+          <p class="field-desc">{{ t("settings.fields.power.awamKnowledgeServiceUrl.description") }}</p>
+          <input
+            v-model="knowledgeUrl"
+            class="fluent-field"
+            type="text"
+            :readonly="knowledgeManaged"
+            spellcheck="false"
+          />
+          <p v-if="knowledgeManaged" class="field-hint">{{ t("settings.extensions.managedReadonly") }}</p>
+          <p v-if="knowledgeStatusText" class="field-status">{{ knowledgeStatusText }}</p>
+          <p v-if="knowledgeIndexRoot" class="field-hint">{{ knowledgeIndexRoot }}</p>
+        </div>
 
-    <div class="field">
-      <label class="field-label">{{ t("settings.fields.power.awamKnowledgeServiceToken.title") }}</label>
-      <p class="field-desc">{{ t("settings.fields.power.awamKnowledgeServiceToken.description") }}</p>
-      <input
-        v-model="knowledgeToken"
-        class="fluent-field"
-        type="text"
-        spellcheck="false"
-      />
-    </div>
+        <div class="field">
+          <label class="field-label">{{ t("settings.fields.power.awamKnowledgeServiceToken.title") }}</label>
+          <p class="field-desc">{{ t("settings.fields.power.awamKnowledgeServiceToken.description") }}</p>
+          <input
+            v-model="knowledgeToken"
+            class="fluent-field"
+            type="text"
+            spellcheck="false"
+          />
+        </div>
 
-    <div class="field">
-      <label class="field-label">{{ t("settings.fields.power.awamKnowledgeDataRoot.title") }}</label>
-      <p class="field-desc">{{ t("settings.fields.power.awamKnowledgeDataRoot.description") }}</p>
-      <input
-        v-model="knowledgeDataRoot"
-        class="fluent-field"
-        type="text"
-        spellcheck="false"
-        :placeholder="t('settings.extensions.dataRootPlaceholder')"
-      />
-    </div>
+        <div class="field">
+          <label class="field-label">{{ t("settings.fields.power.awamKnowledgeDataRoot.title") }}</label>
+          <p class="field-desc">{{ t("settings.fields.power.awamKnowledgeDataRoot.description") }}</p>
+          <input
+            v-model="knowledgeDataRoot"
+            class="fluent-field"
+            type="text"
+            spellcheck="false"
+            :placeholder="t('settings.extensions.dataRootPlaceholder')"
+          />
+        </div>
 
-    <div class="field">
-      <label class="field-label">{{ t("settings.fields.power.awamKnowledgeSourceId.title") }}</label>
-      <p class="field-desc">{{ t("settings.fields.power.awamKnowledgeSourceId.description") }}</p>
-      <input
-        v-model="knowledgeSourceId"
-        class="fluent-field"
-        type="text"
-        spellcheck="false"
-        :placeholder="t('settings.extensions.sourceIdPlaceholder')"
-      />
+        <div class="field">
+          <label class="field-label">{{ t("settings.fields.power.awamKnowledgeSourceId.title") }}</label>
+          <p class="field-desc">{{ t("settings.fields.power.awamKnowledgeSourceId.description") }}</p>
+          <input
+            v-model="knowledgeSourceId"
+            class="fluent-field"
+            type="text"
+            spellcheck="false"
+            :placeholder="t('settings.extensions.sourceIdPlaceholder')"
+          />
+        </div>
+      </section>
     </div>
 
     <button class="fluent-control fluent-control--accent" type="button" :disabled="saving" @click="save">
@@ -207,24 +217,53 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.card {
+.ext-config {
   display: flex;
   flex-direction: column;
   gap: var(--fluent-space-md);
-  padding: var(--fluent-space-lg);
 }
+
+.ext-config__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-2xs, 0.25rem);
+}
+
 .section-title {
   margin: 0;
   font-size: var(--fluent-font-size-subtitle);
 }
+
+.ext-config__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+  gap: var(--fluent-space-md);
+}
+
+.section-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-md);
+  padding: var(--fluent-space-lg);
+  min-width: 0;
+}
+
+.section-card__title {
+  margin: 0;
+  font-size: var(--fluent-font-size-body);
+  font-weight: var(--fluent-font-weight-semibold);
+}
+
 .field {
   display: flex;
   flex-direction: column;
   gap: var(--fluent-space-2xs, 0.25rem);
 }
+
 .field-label {
   font-weight: var(--fluent-font-weight-semibold);
 }
+
 .field-desc,
 .field-hint,
 .field-status {
@@ -232,18 +271,28 @@ onMounted(() => {
   font-size: var(--fluent-font-size-caption);
   color: var(--fluent-color-text-secondary);
 }
+
 .field-status {
   color: var(--fluent-color-status-success, var(--fluent-color-text-secondary));
 }
+
 input.fluent-field {
   width: 100%;
   max-width: 40rem;
 }
+
 input[readonly] {
   opacity: 0.7;
   cursor: not-allowed;
 }
+
 button {
   align-self: flex-start;
+}
+
+@media (max-width: 720px) {
+  .ext-config__grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -1250,7 +1250,7 @@ onMounted(() => {
 
 <style scoped>
 .panel {
-  max-width: 64rem;
+  max-width: min(100%, 88rem);
 }
 
 .settings-layout {
@@ -1310,6 +1310,8 @@ onMounted(() => {
   flex-direction: column;
   gap: var(--fluent-space-lg);
   padding-block: var(--fluent-space-md);
+  /* 表单型分区保留可读行长，避免壳层 88rem 后说明文字被拉成超长行。 */
+  max-width: 52rem;
 }
 
 .fields-note {
