@@ -772,6 +772,7 @@ onUnmounted(() => {
           <h2
             v-else
             class="inline-title"
+            data-tour-id="tour-workgroups-rename"
             :title="t('workGroups.renameHint')"
             @dblclick="active.isDefault ? undefined : startInlineRename"
           >

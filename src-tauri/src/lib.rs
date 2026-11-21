@@ -7,6 +7,7 @@ mod autostart;
 mod clipboard;
 mod deps_probe;
 mod discovery;
+mod examples;
 mod extension_host;
 mod favorites;
 mod visit_stats;
@@ -222,6 +223,15 @@ pub fn run() {
                 tauri::async_runtime::spawn_blocking(move || {
                     discovery::sync_blacklist_from_settings(&handle);
                 });
+            }
+
+            // One-time first-run presets — example Work Group + two Projects.
+            // Ordinary user data (renamable, deletable); marker prevents re-seeding.
+            // Primary instance only; failure is non-fatal (retried next launch).
+            if primary_instance {
+                if let Err(err) = examples::seed_examples_for_app(app.handle()) {
+                    eprintln!("example presets seed failed: {err}");
+                }
             }
 
             // 加载 awam-file 网关地址设置，供 Providers 探测使用。

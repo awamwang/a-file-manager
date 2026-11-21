@@ -1800,6 +1800,10 @@
         "group": {
           "title": "Changer de groupe",
           "body": "Un clic active le groupe et affiche ses dossiers à droite. Cliquez sur le groupe surligné."
+        },
+        "rename": {
+          "title": "Faites-le vôtre",
+          "body": "Le « Groupe de travail exemple 1 » préinstallé est prêt à l'emploi. Double-cliquez sur le nom ici pour le renommer — il restera ensuite comme un groupe de travail normal."
         }
       },
       "projects": {
@@ -1814,6 +1818,10 @@
         "group": {
           "title": "Ouvrir un projet",
           "body": "Cliquez sur un projet pour charger ses dossiers et ses tâches. Cliquez sur le projet surligné."
+        },
+        "rename": {
+          "title": "Faites-le vôtre",
+          "body": "Les « Mon projet 1 » et « Mon projet 2 » préinstallés sont prêts à l'emploi. Double-cliquez sur le nom pour le renommer — ils resteront ensuite comme des projets normaux."
         }
       },
       "providers": {

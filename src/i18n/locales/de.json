@@ -1800,6 +1800,10 @@
         "group": {
           "title": "Gruppe wechseln",
           "body": "Ein Klick aktiviert die Gruppe und zeigt rechts ihre Ordner. Klicken Sie jetzt auf die markierte Gruppe."
+        },
+        "rename": {
+          "title": "Zu Ihrer eigenen machen",
+          "body": "Die vorgegebene „Beispiel-Arbeitsgruppe 1“ ist sofort nutzbar. Doppelklicken Sie hier auf den Namen, um ihn zu ändern — sie bleibt dann als normale Arbeitsgruppe erhalten."
         }
       },
       "projects": {
@@ -1814,6 +1818,10 @@
         "group": {
           "title": "Projekt öffnen",
           "body": "Ein Klick lädt die Arbeitsordner und Aufgaben des Projekts. Klicken Sie jetzt auf das markierte Projekt."
+        },
+        "rename": {
+          "title": "Zu Ihrem eigenen machen",
+          "body": "Die vorgegebenen „Mein Projekt 1“ und „Mein Projekt 2“ sind sofort nutzbar. Doppelklicken Sie auf den Namen, um ihn zu ändern — sie bleiben dann als normale Projekte erhalten."
         }
       },
       "providers": {

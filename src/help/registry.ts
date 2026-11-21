@@ -195,6 +195,11 @@ const ALL_TOURS: readonly TourDefinition[] = [
         bodyKey: "tour.workGroups.group.body",
         requireClick: true,
       },
+      {
+        anchor: "tour-workgroups-rename",
+        titleKey: "tour.workGroups.rename.title",
+        bodyKey: "tour.workGroups.rename.body",
+      },
     ],
   },
   {
@@ -216,6 +221,11 @@ const ALL_TOURS: readonly TourDefinition[] = [
         titleKey: "tour.projects.group.title",
         bodyKey: "tour.projects.group.body",
         requireClick: true,
+      },
+      {
+        anchor: "tour-projects-rename",
+        titleKey: "tour.projects.rename.title",
+        bodyKey: "tour.projects.rename.body",
       },
     ],
   },

@@ -1800,6 +1800,10 @@
         "group": {
           "title": "Switch groups",
           "body": "Click a group to make it active. Its folders appear in the details on the right. Click the highlighted group now."
+        },
+        "rename": {
+          "title": "Make it yours",
+          "body": "The preset \"Example Work Group 1\" is ready to use. Double-click its name to rename it to something of your own — it becomes a real Work Group you keep."
         }
       },
       "projects": {
@@ -1814,6 +1818,10 @@
         "group": {
           "title": "Open a project",
           "body": "Click a project here to load its work directories and tasks. Click the highlighted project now."
+        },
+        "rename": {
+          "title": "Make it yours",
+          "body": "The preset \"My Project 1\" and \"My Project 2\" are ready to use. Double-click the name to rename one to your own — it stays as a normal project you keep."
         }
       },
       "providers": {

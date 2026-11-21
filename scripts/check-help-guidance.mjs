@@ -174,7 +174,7 @@ check("五语齐全：注册表 key 在 en/zh-CN/ja/de/fr 全部存在", () => {
       [...registry.matchAll(/\b(?:titleKey|hintKey|bodyKey):\s*"([^"]+)"/g)].map((m) => m[1]),
     ),
   ];
-  assert(keys.length === 51, `注册表 key 期望 51，实得 ${keys.length}`);
+  assert(keys.length === 55, `注册表 key 期望 55，实得 ${keys.length}`);
   const catalogs = {};
   for (const id of LOCALES) {
     catalogs[id] = flatten(JSON.parse(read(`src/i18n/locales/${id}.json`)));
@@ -186,7 +186,7 @@ check("五语齐全：注册表 key 在 en/zh-CN/ja/de/fr 全部存在", () => {
   }
   const counts = LOCALES.map((id) => Object.keys(catalogs[id]).length);
   assert(new Set(counts).size === 1, `五语 key 总数不一致: ${counts.join("/")}`);
-  return `51 key × 5 语齐全；各语 ${counts[0]} keys`;
+  return `55 key × 5 语齐全；各语 ${counts[0]} keys`;
 });
 
 /* ------------------------------------------------------------------ 6 ---- */
