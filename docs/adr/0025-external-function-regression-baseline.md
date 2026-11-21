@@ -2,7 +2,7 @@
 
 为「对外功能不因其他改动而失效」确立统一基线机制。结论：原子行为级基线 = **静态命令/契约门禁（`scripts/check-*.mjs`）** + **可执行行为测试（后端 cargo `#[test]` + 前端纯逻辑 `*-checks.ts`）**，全部接进 `npm test`；**不引入跑应用的 e2e**。收录判据从「前端是否 `invoke`」改为「**是否处在以用户可见结果收尾的链路上**」。
 
-**Status**: accepted（首批落地见「实现」段 W1/W2/W3；其余编号待圈做）
+**Status**: accepted（W1/W2/W3 + H1/H2/H3 + H5/H6/H7 + H8 + M2 已落地；H4/网络类按「不强转强制测」定论；剩余见「实现」段）
 
 ## 决策
 
@@ -33,8 +33,13 @@
   - W2 多选→加入工作组：抽 `workGroupPaths.ts` 纯 reducer + `work-group-paths-checks.ts` 行为单元 + `check-work-group-paths.mjs`。
   - W3 WG rename/delete：`work_groups/sync.rs` 补 2 个 `#[test]`（trim/空/未知 id、DEFAULT 不可删、删 active→迁移默认、删非 active→不变）。
   - 新增 2 个 `test:*` 入 `npm test` 链（128→130）。
-- **待落地（后续按编号圈做）**：H4/H5/H6 下载·安装链、H1/H2/H3 前端纯逻辑对话框、H7 knowledge 命令面、H8 三个未入聚合链的门禁接线（`test:perf-probe` / `test:delete-keep-selection` / `test:provider-torrent-open`）、可选 W4 reorder 纯助手 FE-UNIT。
-- **台账**：全量「原子行为×层×缺口」清单为 `afm-atomic-behavior-inventory.md`（暂存协作工作区；是否迁入仓内 `docs/` 待定）。
+- **后续已落地**：
+  - H8（`1580752`）：5 个「定义却未入聚合链」的门禁接线（`perf-probe`/`new-file-rename`/`properties-attrs`/`provider-torrent-open`/`delete-keep-selection`），`test:*` 孤儿归零。
+  - H1/H2/H3（`aa25d4e`）：删除确认 / prompt 对话框 / provider 错误分类三个前端纯逻辑 `*-checks.ts` 行为单元，由已入链的对应 `.mjs` spawn。
+  - H7 + 三后端域命令面（`2228b96`）：`check-backend-command-surface.mjs` 钉 knowledge/managed/extension 24 命令注册 + FE 命令字面量 parity + managed 安装链 cargo 测试存在、网络 roundtrip 仍 `#[ignore]`。
+  - M2（`bedfc97`）：`check-name-conflict.mjs` → `name-conflict-checks.ts` 复制粘贴同名冲突「replace/skip/记住」行为。
+- **定论（不强做）**：H4 provider 下载 / H6 ext_host `install_pack_from_feed` 的**真实网络下载**——其校验/allow-list/原子落盘逻辑已由注入 `fetch` 的离线 cargo 覆盖（provision.rs），网络 roundtrip 保持 `#[ignore]`；按本 ADR「不做 e2e、不强制网络测试」不纳入 `npm test`。paste `transferEntries` 分支、knowledge vault 状态机因 invoke/reactivity 融合亦按第 3 条维持 grep。
+- **台账**：仓内版本化覆盖率台账 [`docs/external-behavior-baseline-coverage.md`](./external-behavior-baseline-coverage.md)，新增/变更对外行为时同步更新；操作规则见 `AGENTS.md` §Testing new / changed features。
 
 ## 与其他 ADR 的关系
 

@@ -15,6 +15,7 @@ boundaries. Read it before changing code.
 | Use or coin a domain term (Pack, Provider, Navigator, Work Group, flavor, seam, gate) | [GLOSSARY.md](./GLOSSARY.md) and [GLOSSARY-MAP.md](./GLOSSARY-MAP.md) — match the context row before naming |
 | Change something a prior decision locked in (search, packs, MCP distribution, knowledge service, voice) | `docs/adr/` — find the relevant numbered ADR; do not silently contradict it |
 | Locate which file owns a feature | [docs/a-file-manager-feature-map.md](./docs/a-file-manager-feature-map.md) |
+| Add or change a user-visible feature / Tauri command | §Testing new / changed features below + [ADR 0025](./docs/adr/0025-external-function-regression-baseline.md) — every external behavior must carry a baseline test |
 | Touch list/render performance or shell icon loading | [docs/dev-performance-conventions.md](./docs/dev-performance-conventions.md), [docs/shell-icon-thumbnail-loading.md](./docs/shell-icon-thumbnail-loading.md) |
 | Change AI skills / MCP distribution | [docs/ai-skills-mcp-distribution-design.md](./docs/ai-skills-mcp-distribution-design.md) |
 
@@ -34,6 +35,46 @@ change, not everything, while iterating:
 A change is verified when the checks that cover it pass — backend tests when you touched
 `src-tauri/`, `npm run build` for any frontend/template change, and the matching
 `check-*.mjs` for the feature you edited.
+
+## Testing new / changed features
+
+The point of this repo's gate suite is **regression baseline**: a user-visible feature must not
+silently break because of an unrelated edit. So **every new or changed user-visible behavior or
+Tauri command ships with a matching baseline test, in the same change.** The full rationale is
+[ADR 0025](./docs/adr/0025-external-function-regression-baseline.md); this is the operational
+version. Classify the behavior into one of three layers (a behavior can need more than one):
+
+1. **Backend behavior** (file/IO/state that produces the user-visible result) → add a cargo
+   `#[test]` under `src-tauri/src/**` that really executes it in a temp dir or pure compute. It
+   runs through `npm run test:rust`. Example: `rename_work_group_in_list` / `delete_work_group_in_list`.
+2. **Frontend logic** that is pure, **or made pure by a behavior-preserving extraction** → add
+   `scripts/<name>-checks.ts` and `spawn` it from a `scripts/check-<name>.mjs`. If the orchestration
+   lives in a `.vue`, extract the pure part to a standalone module first. Example: `folderPathsForWorkGroup`
+   → `src/components/navigator/workGroupPaths.ts`.
+3. **Surface / wiring** (command registration, class names, i18n keys) → a static grep gate in
+   `scripts/check-<name>.mjs`. For any Tauri command the gate **must** assert FE↔BE **name parity**:
+   `invoke("X")` and `#[tauri::command] pub fn X` share the exact name (rename = silent break).
+
+Inclusion is by **chain, not by call-site**: if a command/facet sits on a path that ends in a
+user-visible result, it needs coverage even when nothing calls it from the frontend (e.g. the
+managed-dependency feed drives download/install → in scope). An `#[ignore]`d test does **not**
+count as coverage.
+
+Hard rules (see ADR 0025):
+- **No e2e.** Do not add Playwright / app-driving / browser tests. This is a native windowed app;
+  behavior is covered by cargo (real execution) + FE pure units (headless logic).
+- **No mandatory network/flaky test in `npm test`.** Cover the deterministic part offline — inject
+  the fetch/IO seam, use temp dirs (see `managed_dependency/provision.rs`). Keep a real-network test
+  `#[ignore]`d; the `&&` chain halts on the first failure.
+- **Don't fake a FE behavior test** for reactivity/`invoke`-fused code that can't run headless — keep
+  pos+neg grep assertions and let the backend cargo contract hold the behavior.
+
+After writing the test, **wire it in** (an orphan gate never runs): add the `test:<name>` key in
+`package.json` **and** insert `npm run test:<name>` into the aggregated `test` chain (H8 once found
+5 gates that were defined but absent from the chain). Then run your gate green in isolation, and
+add/refresh its row in the coverage ledger
+[docs/external-behavior-baseline-coverage.md](./docs/external-behavior-baseline-coverage.md).
+Removing, weakening, or `#[ignore]`-ing an existing gate is an **Ask-first** boundary (§Boundaries).
 
 ## Where to edit
 
