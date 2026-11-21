@@ -624,8 +624,8 @@ function paintSettingsFromCache(): boolean {
 
 async function refreshEffectiveDefaults() {
   effectiveDefaults.value = await loadSettingsEffectiveDefaults({
-    newFolderLocaleDefault: String(t("navigator.newFolderDefault")),
-    newFileLocaleDefault: String(t("navigator.newFileDefault")),
+    newFolderLocaleDefault: String(t("contextMenu.newFolderDefault")),
+    newFileLocaleDefault: String(t("contextMenu.newFileDefault")),
   });
 }
 
@@ -1276,7 +1276,7 @@ onMounted(() => {
   min-height: var(--fluent-control-height-comfortable);
   padding: var(--fluent-space-sm);
   border: 0;
-  border-radius: var(--fluent-radius-md);
+  border-radius: var(--fluent-radius-sm);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -1329,8 +1329,6 @@ onMounted(() => {
   font-size: var(--fluent-font-size-caption);
   font-weight: var(--fluent-font-weight-semibold);
   color: var(--fluent-color-text-secondary);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
 }
 
 .health-slot,
@@ -1356,7 +1354,7 @@ onMounted(() => {
 .open-tool-order {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--fluent-space-xs);
   margin: 0 var(--fluent-space-lg);
   padding: var(--fluent-space-xs);
   border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
@@ -1564,12 +1562,12 @@ onMounted(() => {
 
 .shortcut-badge {
   margin-left: var(--fluent-space-sm);
-  padding: 1px 6px;
+  padding: 2px var(--fluent-space-sm);
   border-radius: var(--fluent-radius-sm);
   background: var(--fluent-color-fill-selected);
   color: var(--fluent-color-text-secondary);
   font-size: var(--fluent-font-size-caption);
-  font-weight: normal;
+  font-weight: var(--fluent-font-weight-regular);
   white-space: nowrap;
 }
 
@@ -1643,7 +1641,7 @@ onMounted(() => {
 }
 
 .shortcut-action {
-  padding: 2px 8px;
+  padding: 2px var(--fluent-space-sm);
   font-size: var(--fluent-font-size-caption);
 }
 

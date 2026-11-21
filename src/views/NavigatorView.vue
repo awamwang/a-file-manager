@@ -185,6 +185,7 @@ import {
   primarySearchLoading,
   scheduleFolderSearch,
   secondarySearch,
+  clearNavigatorFilter,
 } from "../state/navigatorFilter";
 import { toastError, toastInfo, toastSuccess } from "../state/toast";
 import {
@@ -610,7 +611,10 @@ function cancelInlineRename() {
  * 短暂失焦（如拖选文字后在框外松开、行被 focus）不退出改名；拉回焦点。
  * 正式退出：Enter 提交 / Esc 取消 / 框外 pointerdown 提交。
  */
-function onRenameBlur() {
+function onRenameBlur(event: FocusEvent) {
+  // Let Tab / programmatic focus move away; only reclaim when focus would be
+  // lost to a non-focusable target (drag-release outside the field).
+  if (event.relatedTarget) return;
   queueMicrotask(() => {
     if (!renamingPath.value) return;
     const input = renameInputEl.value;
@@ -2437,15 +2441,32 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
     <p v-else-if="folderSearchActive && primarySearchLoading" class="fluent-banner">
       {{ t("navigator.filterSearching") }}
     </p>
-    <p
+    <div
       v-else-if="folderSearchActive && !primarySearchLoading && !visibleEntries.length"
-      class="fluent-banner fluent-banner--info"
+      class="fluent-banner fluent-banner--info banner-actionable"
     >
-      {{ t("navigator.filterEmpty") }}
-    </p>
-    <p v-else-if="listing && listing.entries.length === 0 && !listLoading" class="fluent-banner">
-      {{ t("navigator.empty") }}
-    </p>
+      <span>{{ t("navigator.filterEmpty") }}</span>
+      <button
+        type="button"
+        class="fluent-control"
+        @click="clearNavigatorFilter()"
+      >
+        {{ t("navigator.filterClear") }}
+      </button>
+    </div>
+    <div
+      v-else-if="listing && listing.entries.length === 0 && !listLoading"
+      class="fluent-banner banner-actionable"
+    >
+      <span>{{ t("navigator.empty") }}</span>
+      <button
+        type="button"
+        class="fluent-control"
+        @click="shortcutNewFolder()"
+      >
+        {{ t("contextMenu.newFolder") }}
+      </button>
+    </div>
     <p
       v-if="folderSearchActive && primarySearch?.truncated"
       class="fluent-banner fluent-banner--info"
@@ -3287,6 +3308,13 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   height: var(--nav-icon-size, 16px);
   object-fit: contain;
   flex-shrink: 0;
+}
+
+.banner-actionable {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fluent-space-md);
 }
 
 .row--placeholder {

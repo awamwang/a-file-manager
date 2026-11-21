@@ -1027,8 +1027,11 @@ watch(isNavigatorRoute, (onNavigator) => {
 
 watch(workGroupSoftNotice, (notice) => {
   if (!notice) return;
+  const p = notice.openedMemberPaths;
   toastInfo(
-    t("workGroups.softSync", { paths: notice.openedMemberPaths.join(", ") }),
+    t("workGroups.softSync", {
+      paths: p.length > 1 ? `${p[0]} (+${p.length - 1})` : (p[0] ?? ""),
+    }),
   );
   dismissWorkGroupSoftNotice();
 });
@@ -1043,6 +1046,13 @@ async function applyDualPaneWindowMinWidth(enabled: boolean): Promise<void> {
   try {
     const win = getCurrentWindow();
     const minW = windowMinWidthForDualPane(enabled);
+    // Windows/Tauri v2 side effect: setMinSize on a *maximized* window silently
+    // un-maximizes it and restores to the saved normal rect — the window visibly
+    // jumps position whenever dual pane is toggled. A maximized window is
+    // already full-width, so an OS min-width has no effect right now; skip it
+    // entirely and let the isMaximized watcher re-apply once the window is
+    // restored to a resizable state.
+    if (await win.isMaximized()) return;
     await win.setMinSize(new LogicalSize(minW, DEFAULT_WINDOW_MIN_HEIGHT_PX));
     if (!enabled) return;
     const factor = await win.scaleFactor();
@@ -1066,6 +1076,12 @@ watch(
   },
   { immediate: true },
 );
+
+// Re-assert the dual-pane min-width when a previously-maximized window is
+// restored to a resizable size (the toggle above is a no-op while maximized).
+watch(isMaximized, (maximized) => {
+  if (!maximized) void applyDualPaneWindowMinWidth(dualPaneEnabled.value);
+});
 
 const freeDiskText = ref("");
 
@@ -1179,7 +1195,10 @@ async function submitAddress() {
  * 短暂失焦（窗口切换/焦点被抢走）不退出地址编辑；拉回焦点。
  * 正式退出：Enter 提交 / Esc 取消 / 框外 pointerdown 还原。
  */
-function onAddressBlur() {
+function onAddressBlur(event: FocusEvent) {
+  // Allow Tab / programmatic focus to leave while editing; only reclaim when
+  // focus would drop to a non-focusable target (outside pointer-down commits separately).
+  if (event.relatedTarget) return;
   queueMicrotask(() => {
     if (!addressEditing.value) return;
     const input = document.getElementById("address-input");
@@ -1554,6 +1573,12 @@ function updateTabDragPreview(event: PointerEvent) {
 
 function dropEdgeFor(from: number, to: number): "before" | "after" {
   return from < to ? "after" : "before";
+}
+
+/** Explorer/browser muscle: middle-click a tab closes it (button 1 fires auxclick, not click). */
+function onTabAuxClick(event: MouseEvent, groupIndex: number): void {
+  if (event.button !== 1) return;
+  onCloseNavigatorTab(event, groupIndex);
 }
 
 function onTabPointerDown(event: PointerEvent, groupIndex: number) {
@@ -2202,6 +2227,7 @@ onUnmounted(() => {
             :title="tab.path"
             @click="onTabClick($event, tab.groupIndex)"
             @dblclick.stop="onToggleTabPin(tab.id)"
+            @auxclick="onTabAuxClick($event, tab.groupIndex)"
             @contextmenu="onTabContextMenu($event, tab.groupIndex)"
             @pointerdown="onTabPointerDown($event, tab.groupIndex)"
             @dragover="onTabFileDragOver($event, tab.groupIndex)"
@@ -2632,7 +2658,7 @@ onUnmounted(() => {
             @blur="onAddressBlur"
             @keydown.escape.prevent="exitAddressEditing"
           />
-          <button type="submit" class="fluent-control address-go" :title="t('chrome.go')">
+          <button type="submit" class="fluent-control address-go" :disabled="!addressEditing" :title="t('chrome.go')">
             {{ t("chrome.go") }}
           </button>
 

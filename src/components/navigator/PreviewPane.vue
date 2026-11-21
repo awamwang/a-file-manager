@@ -512,8 +512,6 @@ watch(
   font-size: var(--fluent-font-size-caption);
   font-weight: var(--fluent-font-weight-semibold);
   color: var(--fluent-color-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .preview-close {

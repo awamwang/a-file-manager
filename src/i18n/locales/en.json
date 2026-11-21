@@ -285,11 +285,11 @@
       "workGroupsUnavailable": "Work Groups unavailable",
       "toolsUnavailable": "Tools unavailable",
       "openToolRuntime": "Open Tool Runtime",
-      "bookmarksUnavailable": "Browser bookmarks unavailable (awam-file gateway required)",
+      "bookmarksUnavailable": "Browser bookmarks unavailable (file gateway required)",
       "bookmarksStale": "Bookmark snapshot is stale (read-only)",
       "refreshBookmarks": "Refresh bookmarks",
       "extensionsUnavailable": "Extensions unavailable",
-      "knowledgeUnavailable": "Knowledge source unavailable (awam-knowledge service down or unauthorized)"
+      "knowledgeUnavailable": "Knowledge source unavailable (service offline or unauthorized)"
     },
     "vault": {
       "copied": "Secret copied (plaintext is in the clipboard)",
@@ -315,7 +315,7 @@
     "sections": {
       "providers": {
         "title": "AI Providers",
-        "body": "Mainstream presets plus Compatible (Base URL / API Key). Stored in APPDATA AI config — separate from file-system Providers. No billing panel."
+        "body": "Mainstream presets plus a compatible option (Base URL / API Key). Stored in the app's settings — separate from file-system Providers. No billing panel."
       },
       "mcp": {
         "title": "Public MCP",
@@ -323,7 +323,7 @@
       },
       "skills": {
         "title": "Public Skills",
-        "body": "AFM-owned skill library under APPDATA. Import requires a root SKILL.md. Junction deploy is a later slice."
+        "body": "Built-in skill library inside the app. Import requires a top-level SKILL.md."
       },
       "agents": {
         "title": "Agent Targets",
@@ -335,7 +335,7 @@
       }
     },
     "agents": {
-      "summary": "{total} targets · {discovered} discovered · {enabled} enabled",
+      "summary": "{total} targets · {discovered} found on this PC · {enabled} enabled",
       "discover": "Refresh discovery",
       "addCustom": "Add custom target",
       "enable": "Enable (global)",
@@ -362,7 +362,7 @@
       "fieldProjectMcp": "Project-relative MCP config path",
       "fieldMcpPrompt": "MCP usage prompt (placeholder)",
       "fieldMcpPromptHint": "Stored only — not injected into agents yet",
-      "mcpPromptNote": "Placeholder field (ADR 0006). Saved to APPDATA AI config; not used for injection.",
+      "mcpPromptNote": "Optional note. Saved to the app's settings; not sent to the model.",
       "noticeDiscovered": "Agent discovery refreshed",
       "noticeSaved": "Agent Target saved",
       "noticeCustomAdded": "Custom Agent Target added",
@@ -435,7 +435,7 @@
       "empty": "No MCP entries yet.",
       "fieldName": "Display name",
       "fieldId": "Id",
-      "fieldJson": "Server JSON object",
+      "fieldJson": "Server command (advanced — JSON)",
       "save": "Save to catalog",
       "deploy": "Merge deploy",
       "deployGlobal": "Deploy globally",
@@ -500,21 +500,21 @@
     },
     "harness": {
       "title": "Initialize Harness / Superpower",
-      "hint": "Explicit AI action (ADR 0008). Writes AGENTS.md and skills/ on an existing Project Workspace. Never part of Core create.",
+      "hint": "Explicit AI action. Writes AGENTS.md and skills/ in an existing project workspace. Not part of the basic create.",
       "fieldWorkspace": "Project Workspace path",
       "fieldWorkspaceHint": "Absolute path to a Workspace that already has project.json",
-      "includeSdd": "Also initialize SDD tree",
+      "includeSdd": "Also create spec/plan folders",
       "includeSddHint": "Optional; default off. Creates docs/superpowers/{specs,plans}/ and .superpowers/sdd/progress.md",
-      "reinforceContext": "Append harness note to CONTEXT.md",
+      "reinforceContext": "Add a project note to CONTEXT.md",
       "init": "Initialize Harness",
       "noticeDone": "Harness init · wrote {written} · skipped {skipped}",
       "errorWorkspace": "Workspace path must be an existing Project directory with project.json"
     },
     "providers": {
-      "hint": "Configure model Providers for the AI Add-on. Keys stay in APPDATA; nothing is billed here.",
+      "hint": "Configure model Providers for the AI Add-on. Keys are stored locally; nothing is billed here.",
       "summary": "{total} providers · {enabled} enabled · {compatible} Compatible",
       "refresh": "Refresh",
-      "addCompatible": "Add Compatible",
+      "addCompatible": "Add custom service",
       "enable": "Enable",
       "disable": "Disable",
       "editTitle": "Edit provider",
@@ -623,7 +623,7 @@
     "search": "Search",
     "searching": "Searching…",
     "noHits": "No results ({engine} · {total} total).",
-    "syntaxHint": "Tip: ! ? ( ) are query operators. Wrap a name in quotes or avoid them in plain-name searches.",
+    "syntaxHint": "Tip: ! ?  are query operators. Wrap a name in quotes or avoid them in plain-name searches.",
     "shown": "{shown} shown · {total} total · {engine}",
     "folder": "Folder",
     "file": "File",
@@ -649,9 +649,9 @@
     "sectionExtensions": "Extensions",
     "extensions": {
       "title": "Managed backend services",
-      "meta": "Connection settings for the AFM-managed backend services (awam-file gateway, awam-knowledge). When the corresponding pack is enabled in managed mode, the address is read-only (derived by AFM); in config mode you may edit it. The knowledge token is the shared secret AFM uses to authenticate and to seed the spawned service.",
+      "meta": "Connection settings for the AFM-managed backend services (file gateway, knowledge). When the corresponding pack is enabled in managed mode, the address is read-only (derived by AFM); in config mode you may edit it. The knowledge token is the shared secret AFM uses to authenticate and to seed the spawned service.",
       "managedReadonly": "Managed by an enabled pack — address is fixed and read-only.",
-      "indexUnconfigured": "Connected, but no knowledge base is configured — set the data root below or via the knowledge service's settings.yaml.",
+      "indexUnconfigured": "Connected, but no knowledge base is configured — set the storage folder below or in the knowledge service settings.",
       "dataRootPlaceholder": "e.g. C:\\Users\\you\\Knowledge\\data",
       "sourceIdPlaceholder": "e.g. logseq-main",
       "gatewaySection": "Gateway",
@@ -861,27 +861,27 @@
         },
         "providerPreloadKnowledge": {
           "title": "Preload knowledge provider",
-          "description": "Warm awam://knowledge during provider preload (disable if the knowledge root is huge)"
+          "description": "Preload the knowledge source when starting up (turn off if the library is very large)"
         },
         "awamGatewayUrl": {
-          "title": "awam-file gateway URL",
+          "title": "file gateway URL",
           "description": "HTTP base URL for the resource gateway (default http://127.0.0.1:18787). Changes apply to Providers discovery immediately."
         },
         "awamKnowledgeServiceUrl": {
-          "title": "awam-knowledge service URL",
+          "title": "Knowledge service URL",
           "description": "Address of the knowledge service (default http://127.0.0.1:18790), used by the Knowledge source in the search panel."
         },
         "awamKnowledgeServiceToken": {
-          "title": "awam-knowledge service token",
-          "description": "Bearer token for the knowledge service (KM_SERVICE_TOKEN); empty sends unauthenticated calls."
+          "title": "Knowledge service password",
+          "description": "Password for the knowledge service; leave empty for unauthenticated access."
         },
         "awamKnowledgeDataRoot": {
           "title": "Knowledge data root",
-          "description": "Absolute path to the sanitized knowledge working-copy root (KM_DATA_ROOT). AFM injects it into the managed awam-knowledge service. Empty = use the service's own settings.yaml. Takes effect after the service restarts."
+          "description": "Folder where knowledge content is stored. Leave empty to use the service's own settings. Takes effect after the service restarts."
         },
         "awamKnowledgeSourceId": {
-          "title": "Knowledge source id",
-          "description": "Source folder under the data root to index (KM_SOURCE_ID); index root = <data root>/<source id>. Empty = service default."
+          "title": "Knowledge source",
+          "description": "The folder to index inside your knowledge library. Leave empty to use the service default."
         },
         "voiceSearchAutoStart": {
           "title": "Voice search",
@@ -889,7 +889,7 @@
         },
         "sttBaseUrl": {
           "title": "Speech-to-text base URL",
-          "description": "OpenAI-compatible endpoint base, e.g. https://api.openai.com/v1 — the app POSTs {baseUrl}/audio/transcriptions"
+          "description": "OpenAI-compatible endpoint base, e.g. https://api.openai.com/v1"
         },
         "sttModel": {
           "title": "Speech-to-text model",
@@ -1006,7 +1006,7 @@
           "title": "WebView2 Runtime"
         },
         "awam_gateway": {
-          "title": "awam-file gateway"
+          "title": "file gateway"
         },
         "rclone": {
           "title": "rclone CLI"
@@ -1059,10 +1059,10 @@
     "interfaceOnly": "Preview only",
     "statusOk": "ok",
     "statusDown": "down",
-    "sourceGateway": "awam-file",
+    "sourceGateway": "file",
     "sourceBuiltin": "built-in",
-    "gatewayOnline": "awam-file gateway online — {count} backends via {url}",
-    "gatewayOffline": "awam-file gateway offline — showing built-in providers (rclone). Browser bookmarks need the gateway. Start it, or change the URL below (default http://127.0.0.1:18787).",
+    "gatewayOnline": "file gateway online — {count} backends via {url}",
+    "gatewayOffline": "file gateway offline — showing built-in providers (rclone). Browser bookmarks need the gateway. Start it, or change the URL below (default http://127.0.0.1:18787).",
     "gatewayUrlLabel": "Gateway URL",
     "gatewayEditHint": "Edit in Extensions → Service Config",
     "gatewayUrlPlaceholder": "http://127.0.0.1:18787",
@@ -1266,13 +1266,13 @@
       "store": "Store",
       "providers": "Providers",
       "config": "Service Config",
-      "toolRuntimeHint": "Tool Runtime is provided by the awam.tool-runtime Feature Pack. Open it below or install the pack from Store.",
+      "toolRuntimeHint": "Tool Runtime is provided by a feature pack. Open it below, or install the pack from Store.",
       "toolRuntimeOpen": "Open Tool Runtime"
     },
     "cap": {
-      "fileGateway": { "name": "File Gateway", "desc": "awam-file backend — cloud, virtual and network file sources" },
-      "knowledge": { "name": "Knowledge", "desc": "awam-knowledge service — content search and knowledge base indexing" },
-      "toolRuntime": { "name": "Tool Runtime", "desc": "awam.tool-runtime — external tool invocation and capability bridge" }
+      "fileGateway": { "name": "File Gateway", "desc": "Cloud, virtual and network file folders" },
+      "knowledge": { "name": "Knowledge", "desc": "Content search and knowledge-base indexing" },
+      "toolRuntime": { "name": "Tool Runtime", "desc": "Run external tools and their capabilities" }
     },
     "capMode": {
       "managed": "Managed",
@@ -1596,19 +1596,19 @@
   },
   "toolRuntime": {
     "title": "Tool Runtime",
-    "meta": "List and call capabilities through the local tool-manager gateway",
+    "meta": "List and run tools available from the local tools service",
     "statusReachable": "Gateway connected{version}",
     "statusUnreachable": "Gateway unreachable: {detail}",
     "gatewayUrlLabel": "Gateway URL",
-    "gatewayUrlPlaceholder": "http://127.0.0.1:8767",
+    "gatewayUrlPlaceholder": "http://127.0.0.1:18778",
     "gatewayUrlSave": "Save and reconnect",
     "gatewayUrlSaving": "Saving…",
     "gatewayUrlSaved": "Gateway URL saved",
     "gatewayUrlManagedHint": "Managed by the feed — this gateway address is fixed and cannot be edited.",
-    "attachStart": "Attach / start",
+    "attachStart": "Connect / start",
     "attaching": "Attaching…",
-    "attached": "Attached to existing gateway",
-    "spawned": "Started sidecar (pid {pid})",
+    "attached": "Connected to the running tools service",
+    "spawned": "Tools service started (pid {pid})",
     "tools": "Tools",
     "filterPlaceholder": "Filter tools…",
     "noTools": "No tools",
@@ -1623,7 +1623,7 @@
     "resultHeading": "Execution result",
     "destructiveTitle": "Confirm destructive action",
     "destructiveMessage": "This capability is marked destructive. Confirm to execute it.",
-    "jsonFallback": "Arguments (JSON)",
+    "jsonFallback": "Advanced: arguments as JSON",
     "jsonInvalid": "Invalid JSON",
     "refreshCapabilities": "Refresh capabilities",
     "disabled": "Tool Runtime pack is not enabled",

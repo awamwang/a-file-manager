@@ -222,8 +222,6 @@ onMounted(maybeAutoTour);
   margin: 0;
   font-size: var(--fluent-font-size-caption);
   font-weight: var(--fluent-font-weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   color: var(--fluent-color-text-secondary);
 }
 

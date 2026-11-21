@@ -240,11 +240,11 @@
       "workGroupsUnavailable": "ワークグループソースは利用できません",
       "toolsUnavailable": "ツールソースは利用できません",
       "openToolRuntime": "ツールランタイムを開く",
-      "bookmarksUnavailable": "ブラウザブックマークは利用できません（awam-file ゲートウェイが必要）",
+      "bookmarksUnavailable": "ブラウザブックマークは利用できません（file ゲートウェイが必要）",
       "bookmarksStale": "ブックマークのスナップショットは期限切れです（読み取り専用）",
       "refreshBookmarks": "ブックマークを更新",
       "extensionsUnavailable": "拡張機能ソースは利用できません",
-      "knowledgeUnavailable": "ナレッジソースは利用できません（awam-knowledge サービスが停止または認証失敗）"
+      "knowledgeUnavailable": "ナレッジソースは利用できません（knowledge サービスが停止または認証失敗）"
     },
     "vault": {
       "copied": "シークレットをコピーしました（平文はクリップボードにあります）",
@@ -310,7 +310,7 @@
       "fieldProjectMcp": "プロジェクト相対 MCP 設定パス",
       "fieldMcpPrompt": "MCP 使用プロンプト（プレースホルダー）",
       "fieldMcpPromptHint": "保存のみ — まだ注入しません",
-      "mcpPromptNote": "プレースホルダー（ADR 0006）。APPDATA AI 設定に保存；注入には使いません。",
+      "mcpPromptNote": "プレースホルダー。APPDATA AI 設定に保存；注入には使いません。",
       "noticeDiscovered": "Agent 検出を更新しました",
       "noticeSaved": "Agent Target を保存しました",
       "noticeCustomAdded": "カスタム Agent Target を追加しました",
@@ -424,7 +424,7 @@
     },
     "harness": {
       "title": "Initialize Harness / Superpower",
-      "hint": "Explicit AI action (ADR 0008). Writes AGENTS.md and skills/ on an existing Project Workspace. Never part of Core create.",
+      "hint": "Explicit AI action . Writes AGENTS.md and skills/ on an existing Project Workspace. Never part of Core create.",
       "fieldWorkspace": "Project Workspace path",
       "fieldWorkspaceHint": "Absolute path to a Workspace that already has project.json",
       "includeSdd": "Also initialize SDD tree",
@@ -552,7 +552,7 @@
     "search": "検索",
     "searching": "検索中…",
     "noHits": "結果なし（{engine} · 合計 {total}）。",
-    "syntaxHint": "ヒント: ! ? ( ) は検索演算子です。通常の名前検索では避けるか引用符で囲んでください。",
+    "syntaxHint": "ヒント: ! ?  は検索演算子です。通常の名前検索では避けるか引用符で囲んでください。",
     "shown": "{shown} 件表示 · 合計 {total} · {engine}",
     "folder": "フォルダー",
     "file": "ファイル",
@@ -639,13 +639,13 @@
       "store": "ストア",
       "providers": "プロバイダー",
       "config": "サービス設定",
-      "toolRuntimeHint": "ツールランタイムは awam.tool-runtime Feature Pack が提供します。以下から開くか、ストアからパックをインストールしてください。",
+      "toolRuntimeHint": "ツールランタイムは Tool Runtime Feature Pack が提供します。以下から開くか、ストアからパックをインストールしてください。",
       "toolRuntimeOpen": "ツールランタイムを開く"
     },
     "cap": {
-      "fileGateway": { "name": "ファイルゲートウェイ", "desc": "awam-file バックエンド — クラウド・仮想・ネットワークファイルソース" },
-      "knowledge": { "name": "ナレッジ", "desc": "awam-knowledge サービス — コンテンツ検索とナレッジベースインデックス" },
-      "toolRuntime": { "name": "ツールランタイム", "desc": "awam.tool-runtime — 外部ツール呼び出しとケイパビリティブリッジ" }
+      "fileGateway": { "name": "ファイルゲートウェイ", "desc": "file バックエンド — クラウド・仮想・ネットワークファイルソース" },
+      "knowledge": { "name": "ナレッジ", "desc": "knowledge サービス — コンテンツ検索とナレッジベースインデックス" },
+      "toolRuntime": { "name": "ツールランタイム", "desc": "Tool Runtime — 外部ツール呼び出しとケイパビリティブリッジ" }
     },
     "capMode": {
       "managed": "マネージド",
@@ -703,7 +703,7 @@
           "title": "WebView2 Runtime"
         },
         "awam_gateway": {
-          "title": "awam-file gateway"
+          "title": "file gateway"
         },
         "rclone": {
           "title": "rclone CLI"
@@ -893,8 +893,8 @@
     "emptyListing": "この場所には項目がありません。",
     "file": "ファイル",
     "folder": "フォルダー",
-    "gatewayOffline": "awam-file ゲートウェイオフライン — 内蔵プロバイダ（rclone）を表示。ブラウザブックマークにはゲートウェイが必要です。起動するか、下の URL を変更（既定 http://127.0.0.1:18787）。",
-    "gatewayOnline": "awam-file ゲートウェイオンライン — {url} 経由で {count} バックエンド",
+    "gatewayOffline": "file ゲートウェイオフライン — 内蔵プロバイダ（rclone）を表示。ブラウザブックマークにはゲートウェイが必要です。起動するか、下の URL を変更（既定 http://127.0.0.1:18787）。",
+    "gatewayOnline": "file ゲートウェイオンライン — {url} 経由で {count} バックエンド",
     "gatewayUrlLabel": "ゲートウェイ URL",
     "gatewayEditHint": "拡張機能 → サービス設定 で編集",
     "gatewayUrlPlaceholder": "http://127.0.0.1:18787",
@@ -907,7 +907,7 @@
     "listing": "一覧取得中…",
     "meta": "クラウドや仮想フォルダーをローカルと並べて閲覧",
     "sourceBuiltin": "内蔵",
-    "sourceGateway": "awam-file",
+    "sourceGateway": "file",
     "statusDown": "停止",
     "statusOk": "正常",
     "title": "プロバイダー",
@@ -1135,27 +1135,27 @@
         },
         "providerPreloadKnowledge": {
           "title": "Knowledge プロバイダーを事前読込",
-          "description": "provider preload 時に awam://knowledge を暖める（巨大なルートならオフ推奨）"
+          "description": "provider preload 時に knowledge を暖める（巨大なルートならオフ推奨）"
         },
         "awamGatewayUrl": {
-          "title": "awam-file ゲートウェイ URL",
+          "title": "file ゲートウェイ URL",
           "description": "リソースゲートウェイの HTTP ベース URL（既定 http://127.0.0.1:18787）。変更は Providers 探索に即反映。"
         },
         "awamKnowledgeServiceUrl": {
-          "title": "awam-knowledge サービス URL",
+          "title": "knowledge サービス URL",
           "description": "ナレッジ サービスのアドレス（既定 http://127.0.0.1:18790）。検索パレットのナレッジソースで使用します。"
         },
         "awamKnowledgeServiceToken": {
-          "title": "awam-knowledge サービストークン",
-          "description": "ナレッジサービスの Bearer トークン（KM_SERVICE_TOKEN）。空の場合は認証なしで呼び出します。"
+          "title": "knowledge サービストークン",
+          "description": "ナレッジサービスの Bearer トークン（service password）。空の場合は認証なしで呼び出します。"
         },
         "awamKnowledgeDataRoot": {
           "title": "ナレッジデータルート",
-          "description": "匿名化されたナレッジ作業コピーのルート絶対パス（KM_DATA_ROOT）。AFM が管理された awam-knowledge サービスに注入します。空 = サービス自身の settings.yaml を使用。サービス再起動後に反映。"
+          "description": "匿名化されたナレッジ作業コピーのルート絶対パス（storage folder）。AFM が管理された knowledge サービスに注入します。空 = サービス自身の settings を使用。サービス再起動後に反映。"
         },
         "awamKnowledgeSourceId": {
           "title": "ナレッジソース ID",
-          "description": "データルート配下でインデックス対象のソース（KM_SOURCE_ID）。インデックスルート = <データルート>/<ソース ID>。空 = サービス既定。"
+          "description": "ナレッジライブラリ内でインデックス対象のフォルダです。空欄の場合はサービスの既定値を使用します。"
         },
         "voiceSearchAutoStart": {
           "title": "音声検索",
@@ -1163,7 +1163,7 @@
         },
         "sttBaseUrl": {
           "title": "音声→テキストのベース URL",
-          "description": "OpenAI 互換エンドポイントのベース（例: https://api.openai.com/v1）。{baseUrl}/audio/transcriptions に POST します"
+          "description": "OpenAI 互換エンドポイントのベース（例: https://api.openai.com/v1）。{baseUrl}/transcription に POST します"
         },
         "sttModel": {
           "title": "音声→テキストモデル",
@@ -1188,9 +1188,9 @@
     "sectionExtensions": "拡張機能",
     "extensions": {
       "title": "管理されたバックエンドサービス",
-      "meta": "AFM 管理バックエンド（awam-file ゲートウェイ、awam-knowledge）の接続設定。対応パックを管理モードで有効化するとアドレスは読み取り専用（AFM が導出）。config モードでは編集可。knowledge トークンは AFM の認証と起動サービスへの注入に使う共有秘密です。",
+      "meta": "AFM 管理バックエンド（file ゲートウェイ、knowledge）の接続設定。対応パックを管理モードで有効化するとアドレスは読み取り専用（AFM が導出）。config モードでは編集可。knowledge トークンは AFM の認証と起動サービスへの注入に使う共有秘密です。",
       "managedReadonly": "有効化された管理パックが制御 — アドレスは固定で読み取り専用。",
-      "indexUnconfigured": "接続済みですがナレッジベース未設定 — 下のデータルートを設定するか、サービス自身の settings.yaml を使ってください。",
+      "indexUnconfigured": "接続済みですがナレッジベース未設定 — 下のデータルートを設定するか、サービス自身の settings を使ってください。",
       "dataRootPlaceholder": "例: C:\\Users\\you\\Knowledge\\data",
       "sourceIdPlaceholder": "例: logseq-main",
       "gatewaySection": "ゲートウェイ",
@@ -1600,7 +1600,7 @@
     "statusReachable": "ゲートウェイ接続済み{version}",
     "statusUnreachable": "ゲートウェイ未接続：{detail}",
     "gatewayUrlLabel": "ゲートウェイ URL",
-    "gatewayUrlPlaceholder": "http://127.0.0.1:8767",
+    "gatewayUrlPlaceholder": "http://127.0.0.1:18778",
     "gatewayUrlSave": "保存して再接続",
     "gatewayUrlSaving": "保存中…",
     "gatewayUrlSaved": "ゲートウェイ URL を保存しました",
@@ -1608,7 +1608,7 @@
     "attachStart": "接続 / 起動",
     "attaching": "接続中…",
     "attached": "既存ゲートウェイに接続しました",
-    "spawned": "sidecar を起動しました（pid {pid}）",
+    "spawned": "service を起動しました（pid {pid}）",
     "tools": "ツール",
     "filterPlaceholder": "ツールを絞り込む…",
     "noTools": "ツールがありません",

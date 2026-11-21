@@ -285,11 +285,11 @@
       "workGroupsUnavailable": "工作组源暂不可用",
       "toolsUnavailable": "工具源暂不可用",
       "openToolRuntime": "打开工具运行时",
-      "bookmarksUnavailable": "浏览器书签暂不可用（需 awam-file 网关）",
+      "bookmarksUnavailable": "浏览器书签暂不可用（需 file 网关）",
       "bookmarksStale": "书签快照已过期（只读）",
       "refreshBookmarks": "刷新书签",
       "extensionsUnavailable": "扩展源暂不可用",
-      "knowledgeUnavailable": "知识内容源暂不可用（awam-knowledge 服务未运行或鉴权失败）"
+      "knowledgeUnavailable": "知识内容源暂不可用（服务未运行或鉴权失败）"
     },
     "vault": {
       "copied": "已复制密钥（明文已进入剪贴板）",
@@ -315,7 +315,7 @@
     "sections": {
       "providers": {
         "title": "AI Providers",
-        "body": "主流完整预设 + Compatible（Base URL / API Key）。存于 APPDATA AI 配置，与文件系统 Providers 分开。无计费面板。"
+        "body": "主流完整预设 + Compatible（Base URL / API Key）。存于应用设置，与文件系统 Providers 分开。无计费面板。"
       },
       "mcp": {
         "title": "公共 MCP",
@@ -323,7 +323,7 @@
       },
       "skills": {
         "title": "公共 Skills",
-        "body": "AFM 自持 Skill 库（APPDATA）。入库要求根目录有 SKILL.md。Junction 部署为后续切片。"
+        "body": "应用内置的 Skill 库。入库要求根目录有 SKILL.md。"
       },
       "agents": {
         "title": "Agent Target",
@@ -362,7 +362,7 @@
       "fieldProjectMcp": "项目相对 MCP 配置路径",
       "fieldMcpPrompt": "MCP 使用提示词（占位）",
       "fieldMcpPromptHint": "仅存储 — 尚未注入到 Agent",
-      "mcpPromptNote": "占位字段（ADR 0006）。写入 APPDATA AI 配置；不参与实际注入。",
+      "mcpPromptNote": "可选备注。保存在应用设置中；不会发送给模型。",
       "noticeDiscovered": "已刷新 Agent 发现",
       "noticeSaved": "Agent Target 已保存",
       "noticeCustomAdded": "已添加自定义 Agent Target",
@@ -435,7 +435,7 @@
       "empty": "尚无 MCP 条目。",
       "fieldName": "显示名称",
       "fieldId": "Id",
-      "fieldJson": "Server JSON 对象",
+      "fieldJson": "服务器命令（高级 — JSON）",
       "save": "保存到目录",
       "deploy": "合并部署",
       "deployGlobal": "全局部署",
@@ -500,21 +500,21 @@
     },
     "harness": {
       "title": "初始化 Harness / Superpower",
-      "hint": "显式 AI 动作（ADR 0008）。在已有 Project Workspace 写入 AGENTS.md 与 skills/。不属于 Core 创建。",
+      "hint": "显式 AI 动作。在已有项目工作区写入 AGENTS.md 与 skills/。不属于基础创建流程。",
       "fieldWorkspace": "Project Workspace 路径",
       "fieldWorkspaceHint": "已有 project.json 的 Workspace 绝对路径",
-      "includeSdd": "同时初始化 SDD 树",
+      "includeSdd": "同时创建 spec/plan 目录",
       "includeSddHint": "可选；默认关闭。创建 docs/superpowers/{specs,plans}/ 与 .superpowers/sdd/progress.md",
-      "reinforceContext": "在 CONTEXT.md 追加 harness 说明",
+      "reinforceContext": "在 CONTEXT.md 追加项目备注",
       "init": "初始化 Harness",
       "noticeDone": "Harness 完成 · 写入 {written} · 跳过 {skipped}",
       "errorWorkspace": "Workspace 路径须为含 project.json 的已有 Project 目录"
     },
     "providers": {
-      "hint": "为 AI Add-on 配置模型 Providers。密钥仅存 APPDATA；此处不计费。",
+      "hint": "为 AI 扩展配置模型服务。密钥仅保存在本机；此处不计费。",
       "summary": "{total} 个 Provider · {enabled} 已启用 · {compatible} 个 Compatible",
       "refresh": "刷新",
-      "addCompatible": "添加 Compatible",
+      "addCompatible": "添加自定义服务",
       "enable": "启用",
       "disable": "禁用",
       "editTitle": "编辑 Provider",
@@ -623,7 +623,7 @@
     "search": "搜索",
     "searching": "搜索中…",
     "noHits": "无结果（{engine} · 共 {total}）。",
-    "syntaxHint": "提示：! ? ( ) 等字符会被引擎当作运算符，普通文件名搜索请避开或用引号包裹。",
+    "syntaxHint": "提示：! ?  等字符会被引擎当作运算符，普通文件名搜索请避开或用引号包裹。",
     "shown": "显示 {shown} · 共 {total} · {engine}",
     "folder": "文件夹",
     "file": "文件",
@@ -649,9 +649,9 @@
     "sectionExtensions": "扩展能力",
     "extensions": {
       "title": "托管后端服务",
-      "meta": "AFM 托管后端服务的连接配置（awam-file 网关、awam-knowledge）。对应 pack 以托管模式启用时地址只读（由 AFM 派生）；config 模式可编辑。知识令牌是 AFM 鉴权并注入被拉起服务的共享密钥。",
+      "meta": "本地服务的连接配置（文件网关、知识库）。对应功能包以托管方式启用时地址自动设定、只读；以外部方式启用时可编辑。知识口令是用于鉴权并注入到所启动服务的共享密钥。",
       "managedReadonly": "由已启用的托管 pack 管理——地址固定且只读。",
-      "indexUnconfigured": "已连接，但未配置知识库——请在下方设置数据根，或用知识服务自身的 settings.yaml。",
+      "indexUnconfigured": "已连接，但未配置知识库——请在下方设置存储目录，或到知识服务设置中配置。",
       "dataRootPlaceholder": "例如 C:\\Users\\你\\Knowledge\\data",
       "sourceIdPlaceholder": "例如 logseq-main",
       "gatewaySection": "网关",
@@ -861,27 +861,27 @@
         },
         "providerPreloadKnowledge": {
           "title": "预加载知识库 Provider",
-          "description": "在 provider preload 时预热 awam://knowledge（知识库根很大时可关闭）"
+          "description": "启动时预热知识库（知识库很大时可关闭）"
         },
         "awamGatewayUrl": {
-          "title": "awam-file 网关地址",
+          "title": "file 网关地址",
           "description": "资源网关 HTTP 地址，默认 http://127.0.0.1:18787。改后立即用于 Providers 发现。"
         },
         "awamKnowledgeServiceUrl": {
-          "title": "awam-knowledge 服务地址",
+          "title": "知识库服务地址",
           "description": "知识服务的地址，默认为 http://127.0.0.1:18790，供搜索面板的知识内容源使用。"
         },
         "awamKnowledgeServiceToken": {
-          "title": "awam-knowledge 服务令牌",
-          "description": "知识服务的 Bearer token（KM_SERVICE_TOKEN）；留空则不带鉴权调用。"
+          "title": "知识库服务口令",
+          "description": "知识库服务的口令；留空则不带鉴权调用。"
         },
         "awamKnowledgeDataRoot": {
           "title": "知识库数据根",
-          "description": "脱敏知识工作副本根目录的绝对路径（KM_DATA_ROOT）。AFM 会注入到托管的 awam-knowledge 服务。留空=用服务自身的 settings.yaml。服务重启后生效。"
+          "description": "存放知识内容的目录。留空=使用服务自身的设置。服务重启后生效。"
         },
         "awamKnowledgeSourceId": {
           "title": "知识库源 id",
-          "description": "数据根下要索引的源目录（KM_SOURCE_ID）；索引根 = <数据根>/<源 id>。留空=服务默认。"
+          "description": "知识库中要索引的目录。留空=使用服务默认。"
         },
         "voiceSearchAutoStart": {
           "title": "语音搜索",
@@ -889,7 +889,7 @@
         },
         "sttBaseUrl": {
           "title": "语音转文字服务地址",
-          "description": "OpenAI 兼容接口基地址，如 https://api.openai.com/v1 —— 应用会 POST {baseUrl}/audio/transcriptions"
+          "description": "OpenAI 兼容接口基地址，如 https://api.openai.com/v1"
         },
         "sttModel": {
           "title": "语音转文字模型",
@@ -1006,7 +1006,7 @@
           "title": "WebView2 运行时"
         },
         "awam_gateway": {
-          "title": "awam-file 网关"
+          "title": "file 网关"
         },
         "rclone": {
           "title": "rclone 命令行"
@@ -1059,10 +1059,10 @@
     "interfaceOnly": "仅可预览",
     "statusOk": "正常",
     "statusDown": "不可用",
-    "sourceGateway": "awam-file",
+    "sourceGateway": "file",
     "sourceBuiltin": "内置",
-    "gatewayOnline": "awam-file 网关在线 — 经 {url} 发现 {count} 个后端",
-    "gatewayOffline": "awam-file 网关离线 — 显示内置提供方（rclone）。浏览器书签需网关在线。请启动网关，或在下方修改网关地址（默认 http://127.0.0.1:18787）。",
+    "gatewayOnline": "file 网关在线 — 经 {url} 发现 {count} 个后端",
+    "gatewayOffline": "file 网关离线 — 显示内置提供方（rclone）。浏览器书签需网关在线。请启动网关，或在下方修改网关地址（默认 http://127.0.0.1:18787）。",
     "gatewayUrlLabel": "网关地址",
     "gatewayEditHint": "在 扩展 → 服务配置 中编辑",
     "gatewayUrlPlaceholder": "http://127.0.0.1:18787",
@@ -1266,13 +1266,13 @@
       "store": "商店",
       "providers": "提供程序",
       "config": "服务配置",
-      "toolRuntimeHint": "工具运行时由 awam.tool-runtime Feature Pack 提供。可在下方打开，或从商店安装该 Pack。",
+      "toolRuntimeHint": "工具运行时由一个功能包提供。可在下方打开，或从商店安装该功能包。",
       "toolRuntimeOpen": "打开工具运行时"
     },
     "cap": {
-      "fileGateway": { "name": "文件网关", "desc": "awam-file 后端 — 云端、虚拟和网络文件源" },
-      "knowledge": { "name": "知识库", "desc": "awam-knowledge 服务 — 内容搜索与知识库索引" },
-      "toolRuntime": { "name": "工具运行时", "desc": "awam.tool-runtime — 外部工具调用与能力桥接" }
+      "fileGateway": { "name": "文件网关", "desc": "云端、虚拟和网络文件目录" },
+      "knowledge": { "name": "知识库", "desc": "内容搜索与知识库索引" },
+      "toolRuntime": { "name": "工具运行时", "desc": "运行外部工具及其能力" }
     },
     "capMode": {
       "managed": "托管",
@@ -1596,19 +1596,19 @@
   },
   "toolRuntime": {
     "title": "工具运行时",
-    "meta": "经本机工具管理网关列出能力并调用",
+    "meta": "列出并运行本机工具服务提供的工具",
     "statusReachable": "网关已连接{version}",
     "statusUnreachable": "网关未连接：{detail}",
     "gatewayUrlLabel": "网关地址",
-    "gatewayUrlPlaceholder": "http://127.0.0.1:8767",
+    "gatewayUrlPlaceholder": "http://127.0.0.1:18778",
     "gatewayUrlSave": "保存并重连",
     "gatewayUrlSaving": "保存中…",
     "gatewayUrlSaved": "网关地址已保存",
     "gatewayUrlManagedHint": "由 feed 托管——该网关地址已固定，不可修改。",
-    "attachStart": "附着/启动",
+    "attachStart": "连接/启动",
     "attaching": "正在附着…",
-    "attached": "已附着现有网关",
-    "spawned": "已启动 sidecar（pid {pid}）",
+    "attached": "已连接到正在运行的工具服务",
+    "spawned": "工具服务已启动（pid {pid}）",
     "tools": "工具",
     "filterPlaceholder": "筛选工具…",
     "noTools": "没有工具",
@@ -1623,7 +1623,7 @@
     "resultHeading": "执行结果",
     "destructiveTitle": "破坏性操作确认",
     "destructiveMessage": "此能力被标记为破坏性，确认后才会真正执行。",
-    "jsonFallback": "参数（JSON）",
+    "jsonFallback": "高级：以 JSON 编辑参数",
     "jsonInvalid": "JSON 无效",
     "refreshCapabilities": "刷新能力",
     "disabled": "工具运行时 Pack 未启用",

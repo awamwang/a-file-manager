@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { onMounted, onUnmounted } from "vue";
+import { onMounted, onUnmounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   nameConflictName,
@@ -21,6 +21,15 @@ function onKeydown(event: KeyboardEvent) {
     event.stopPropagation();
   }
 }
+
+// Give the destructive 4-way dialog a keyboard default: focus the accent
+// Replace button on open (mirrors ConfirmDialogHost / PromptDialogHost autofocus).
+watch(nameConflictOpen, (open) => {
+  if (!open) return;
+  requestAnimationFrame(() =>
+    document.getElementById("afm-conflict-replace")?.focus({ preventScroll: true }),
+  );
+});
 
 onMounted(() => {
   window.addEventListener("keydown", onKeydown, true);
@@ -75,6 +84,7 @@ onUnmounted(() => {
           {{ t("dialog.conflictSkip") }}
         </button>
         <button
+          id="afm-conflict-replace"
           type="button"
           class="fluent-control fluent-control--accent"
           @click="resolveNameConflict('replace')"
@@ -90,7 +100,8 @@ onUnmounted(() => {
 .conflict-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 86;
+  /* 与 ConfirmDialog 同级，盖在 toast/命令面板之上，避免重名模态被遮罩吞掉 Replace/Skip 点击。 */
+  z-index: 1100;
   display: flex;
   align-items: center;
   justify-content: center;

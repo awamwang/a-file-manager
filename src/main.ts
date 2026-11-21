@@ -25,6 +25,18 @@ import "./styles/path-cards.css";
 document.addEventListener(
   "contextmenu",
   (event) => {
+    // Allow the native Cut/Copy/Paste/Select-All menu inside editable fields
+    // (address bar, search, inline rename, filter); AFM custom menus still
+    // call preventDefault themselves where they open their own UI.
+    const el = event.target as HTMLElement | null;
+    if (
+      el &&
+      (el.tagName === "INPUT" ||
+        el.tagName === "TEXTAREA" ||
+        el.isContentEditable)
+    ) {
+      return;
+    }
     event.preventDefault();
   },
   true,

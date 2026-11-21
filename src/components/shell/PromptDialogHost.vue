@@ -120,7 +120,8 @@ watch(promptDialogOpen, async (open) => {
 .prompt-dialog-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 86;
+  /* 与 ConfirmDialog 同级，必须盖在 toast(90) 与命令面板(1000) 之上，避免模态被遮罩吞掉按钮点击。 */
+  z-index: 1100;
   display: flex;
   align-items: center;
   justify-content: center;

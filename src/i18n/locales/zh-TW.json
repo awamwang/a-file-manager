@@ -285,11 +285,11 @@
       "workGroupsUnavailable": "工作組源暫不可用",
       "toolsUnavailable": "工具源暫不可用",
       "openToolRuntime": "開啟工具執行時",
-      "bookmarksUnavailable": "瀏覽器書籤暫不可用（需 awam-file 閘道器）",
+      "bookmarksUnavailable": "瀏覽器書籤暫不可用（需 file 閘道器）",
       "bookmarksStale": "書籤快照已過期（只讀）",
       "refreshBookmarks": "重新整理書籤",
       "extensionsUnavailable": "擴充套件源暫不可用",
-      "knowledgeUnavailable": "知識內容源暫不可用（awam-knowledge 服務未執行或鑑權失敗）"
+      "knowledgeUnavailable": "知識內容源暫不可用（knowledge 服務未執行或鑑權失敗）"
     },
     "vault": {
       "copied": "已複製金鑰（明文已進入剪貼簿）",
@@ -362,7 +362,7 @@
       "fieldProjectMcp": "專案相對 MCP 配置路徑",
       "fieldMcpPrompt": "MCP 使用提示詞（佔位）",
       "fieldMcpPromptHint": "僅儲存 — 尚未注入到 Agent",
-      "mcpPromptNote": "佔位欄位（ADR 0006）。寫入 APPDATA AI 配置；不參與實際注入。",
+      "mcpPromptNote": "佔位欄位。寫入 APPDATA AI 配置；不參與實際注入。",
       "noticeDiscovered": "已重新整理 Agent 發現",
       "noticeSaved": "Agent Target 已儲存",
       "noticeCustomAdded": "已新增自定義 Agent Target",
@@ -500,7 +500,7 @@
     },
     "harness": {
       "title": "初始化 Harness / Superpower",
-      "hint": "顯式 AI 動作（ADR 0008）。在已有 Project Workspace 寫入 AGENTS.md 與 skills/。不屬於 Core 建立。",
+      "hint": "顯式 AI 動作。在已有 Project Workspace 寫入 AGENTS.md 與 skills/。不屬於 Core 建立。",
       "fieldWorkspace": "Project Workspace 路徑",
       "fieldWorkspaceHint": "已有 project.json 的 Workspace 絕對路徑",
       "includeSdd": "同時初始化 SDD 樹",
@@ -623,7 +623,7 @@
     "search": "搜尋",
     "searching": "搜尋中…",
     "noHits": "無結果（{engine} · 共 {total}）。",
-    "syntaxHint": "提示：! ? ( ) 等字元會被引擎當作運算子，普通檔名搜尋請避開或用引號包裹。",
+    "syntaxHint": "提示：! ?  等字元會被引擎當作運算子，普通檔名搜尋請避開或用引號包裹。",
     "shown": "顯示 {shown} · 共 {total} · {engine}",
     "folder": "資料夾",
     "file": "檔案",
@@ -649,9 +649,9 @@
     "sectionExtensions": "擴充套件能力",
     "extensions": {
       "title": "託管後端服務",
-      "meta": "AFM 託管後端服務的連線配置（awam-file 閘道器、awam-knowledge）。對應 pack 以託管模式啟用時地址只讀（由 AFM 派生）；config 模式可編輯。知識令牌是 AFM 鑑權並注入被拉起服務的共享金鑰。",
+      "meta": "AFM 託管後端服務的連線配置（file 閘道器、knowledge）。對應 pack 以託管模式啟用時地址只讀（由 AFM 派生）；config 模式可編輯。知識令牌是 AFM 鑑權並注入被拉起服務的共享金鑰。",
       "managedReadonly": "由已啟用的託管 pack 管理——地址固定且只讀。",
-      "indexUnconfigured": "已連線，但未配置知識庫——請在下方設定資料根，或用知識服務自身的 settings.yaml。",
+      "indexUnconfigured": "已連線，但未配置知識庫——請在下方設定資料根，或用知識服務自身的 settings。",
       "dataRootPlaceholder": "例如 C:\\Users\\你\\Knowledge\\data",
       "sourceIdPlaceholder": "例如 logseq-main",
       "gatewaySection": "閘道",
@@ -861,27 +861,27 @@
         },
         "providerPreloadKnowledge": {
           "title": "預載入知識庫 Provider",
-          "description": "在 provider preload 時預熱 awam://knowledge（知識庫根很大時可關閉）"
+          "description": "在 provider preload 時預熱 knowledge（知識庫根很大時可關閉）"
         },
         "awamGatewayUrl": {
-          "title": "awam-file 閘道器地址",
+          "title": "file 閘道器地址",
           "description": "資源閘道器 HTTP 地址，預設 http://127.0.0.1:18787。改後立即用於 Providers 發現。"
         },
         "awamKnowledgeServiceUrl": {
-          "title": "awam-knowledge 服務地址",
+          "title": "knowledge 服務地址",
           "description": "知識服務的地址，預設為 http://127.0.0.1:18790，供搜尋面板的知識內容源使用。"
         },
         "awamKnowledgeServiceToken": {
-          "title": "awam-knowledge 服務令牌",
-          "description": "知識服務的 Bearer token（KM_SERVICE_TOKEN）；留空則不帶鑑權呼叫。"
+          "title": "knowledge 服務令牌",
+          "description": "知識服務的 Bearer token（service password）；留空則不帶鑑權呼叫。"
         },
         "awamKnowledgeDataRoot": {
           "title": "知識庫資料根",
-          "description": "脫敏知識工作副本根目錄的絕對路徑（KM_DATA_ROOT）。AFM 會注入到託管的 awam-knowledge 服務。留空=用服務自身的 settings.yaml。服務重啟後生效。"
+          "description": "脫敏知識工作副本根目錄的絕對路徑（storage folder）。AFM 會注入到託管的 knowledge 服務。留空=用服務自身的 settings。服務重啟後生效。"
         },
         "awamKnowledgeSourceId": {
           "title": "知識庫源 id",
-          "description": "資料根下要索引的源目錄（KM_SOURCE_ID）；索引根 = <資料根>/<源 id>。留空=服務預設。"
+          "description": "知識庫中要索引的目錄。留空=使用服務預設。"
         },
         "voiceSearchAutoStart": {
           "title": "語音搜尋",
@@ -889,7 +889,7 @@
         },
         "sttBaseUrl": {
           "title": "語音轉文字服務地址",
-          "description": "OpenAI 相容介面基地址，如 https://api.openai.com/v1 —— 應用會 POST {baseUrl}/audio/transcriptions"
+          "description": "OpenAI 相容介面基地址，如 https://api.openai.com/v1 —— 應用會 POST {baseUrl}/transcription"
         },
         "sttModel": {
           "title": "語音轉文字模型",
@@ -1019,7 +1019,7 @@
           "title": "WebView2 執行時"
         },
         "awam_gateway": {
-          "title": "awam-file 閘道器"
+          "title": "file 閘道器"
         },
         "rclone": {
           "title": "rclone 命令列"
@@ -1072,10 +1072,10 @@
     "interfaceOnly": "僅可預覽",
     "statusOk": "正常",
     "statusDown": "不可用",
-    "sourceGateway": "awam-file",
+    "sourceGateway": "file",
     "sourceBuiltin": "內建",
-    "gatewayOnline": "awam-file 閘道器線上 — 經 {url} 發現 {count} 個後端",
-    "gatewayOffline": "awam-file 閘道器離線 — 顯示內建提供方（rclone）。瀏覽器書籤需閘道器線上。請啟動閘道器，或在下方修改閘道器地址（預設 http://127.0.0.1:18787）。",
+    "gatewayOnline": "file 閘道器線上 — 經 {url} 發現 {count} 個後端",
+    "gatewayOffline": "file 閘道器離線 — 顯示內建提供方（rclone）。瀏覽器書籤需閘道器線上。請啟動閘道器，或在下方修改閘道器地址（預設 http://127.0.0.1:18787）。",
     "gatewayUrlLabel": "閘道器地址",
     "gatewayEditHint": "在 擴充套件 → 服務配置 中編輯",
     "gatewayUrlPlaceholder": "http://127.0.0.1:18787",
@@ -1279,21 +1279,21 @@
       "store": "商店",
       "providers": "提供程式",
       "config": "服務配置",
-      "toolRuntimeHint": "工具執行時由 awam.tool-runtime Feature Pack 提供。可在下方開啟，或從商店安裝該 Pack。",
+      "toolRuntimeHint": "工具執行時由 Tool Runtime Feature Pack 提供。可在下方開啟，或從商店安裝該 Pack。",
       "toolRuntimeOpen": "開啟工具執行時"
     },
     "cap": {
       "fileGateway": {
         "name": "檔案閘道器",
-        "desc": "awam-file 後端 — 雲端、虛擬和網路檔案源"
+        "desc": "file 後端 — 雲端、虛擬和網路檔案源"
       },
       "knowledge": {
         "name": "知識庫",
-        "desc": "awam-knowledge 服務 — 內容搜尋與知識庫索引"
+        "desc": "knowledge 服務 — 內容搜尋與知識庫索引"
       },
       "toolRuntime": {
         "name": "工具執行時",
-        "desc": "awam.tool-runtime — 外部工具呼叫與能力橋接"
+        "desc": "Tool Runtime — 外部工具呼叫與能力橋接"
       }
     },
     "capMode": {
@@ -1622,7 +1622,7 @@
     "statusReachable": "閘道器已連線{version}",
     "statusUnreachable": "閘道器未連線：{detail}",
     "gatewayUrlLabel": "閘道器地址",
-    "gatewayUrlPlaceholder": "http://127.0.0.1:8767",
+    "gatewayUrlPlaceholder": "http://127.0.0.1:18778",
     "gatewayUrlSave": "儲存並重連",
     "gatewayUrlSaving": "儲存中…",
     "gatewayUrlSaved": "閘道器地址已儲存",
@@ -1630,7 +1630,7 @@
     "attachStart": "附著/啟動",
     "attaching": "正在附著…",
     "attached": "已附著現有閘道器",
-    "spawned": "已啟動 sidecar（pid {pid}）",
+    "spawned": "已啟動 service（pid {pid}）",
     "tools": "工具",
     "filterPlaceholder": "篩選工具…",
     "noTools": "沒有工具",

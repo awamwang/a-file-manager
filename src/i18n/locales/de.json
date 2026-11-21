@@ -240,11 +240,11 @@
       "workGroupsUnavailable": "Arbeitsgruppenquelle nicht verfügbar",
       "toolsUnavailable": "Werkzeugquelle nicht verfügbar",
       "openToolRuntime": "Tool-Laufzeit öffnen",
-      "bookmarksUnavailable": "Browser-Lesezeichen nicht verfügbar (awam-file-Gateway erforderlich)",
+      "bookmarksUnavailable": "Browser-Lesezeichen nicht verfügbar (file-Gateway erforderlich)",
       "bookmarksStale": "Lesezeichen-Snapshot veraltet (nur lesen)",
       "refreshBookmarks": "Lesezeichen aktualisieren",
       "extensionsUnavailable": "Erweiterungsquelle nicht verfügbar",
-      "knowledgeUnavailable": "Wissensquelle nicht verfügbar (awam-knowledge-Dienst aus oder nicht autorisiert)"
+      "knowledgeUnavailable": "Wissensquelle nicht verfügbar (knowledge-Dienst aus oder nicht autorisiert)"
     },
     "vault": {
       "copied": "Secret kopiert (Klartext liegt in der Zwischenablage)",
@@ -310,7 +310,7 @@
       "fieldProjectMcp": "Projektrelativer MCP-Konfigurationspfad",
       "fieldMcpPrompt": "MCP-Nutzungshinweis (Platzhalter)",
       "fieldMcpPromptHint": "Nur gespeichert — noch nicht injiziert",
-      "mcpPromptNote": "Platzhalterfeld (ADR 0006). In APPDATA-AI-Konfiguration gespeichert; nicht zur Injektion genutzt.",
+      "mcpPromptNote": "Platzhalterfeld . In APPDATA-AI-Konfiguration gespeichert; nicht zur Injektion genutzt.",
       "noticeDiscovered": "Agent-Erkennung aktualisiert",
       "noticeSaved": "Agent Target gespeichert",
       "noticeCustomAdded": "Benutzerdefiniertes Agent Target hinzugefügt",
@@ -424,7 +424,7 @@
     },
     "harness": {
       "title": "Initialize Harness / Superpower",
-      "hint": "Explicit AI action (ADR 0008). Writes AGENTS.md and skills/ on an existing Project Workspace. Never part of Core create.",
+      "hint": "Explicit AI action . Writes AGENTS.md and skills/ on an existing Project Workspace. Never part of Core create.",
       "fieldWorkspace": "Project Workspace path",
       "fieldWorkspaceHint": "Absolute path to a Workspace that already has project.json",
       "includeSdd": "Also initialize SDD tree",
@@ -552,7 +552,7 @@
     "search": "Suchen",
     "searching": "Suche…",
     "noHits": "Keine Treffer ({engine} · {total} gesamt).",
-    "syntaxHint": "Hinweis: ! ? ( ) gelten als Abfrageoperatoren — bei Namenssuchen meiden oder in Anführungszeichen setzen.",
+    "syntaxHint": "Hinweis: ! ?  gelten als Abfrageoperatoren — bei Namenssuchen meiden oder in Anführungszeichen setzen.",
     "shown": "{shown} angezeigt · {total} gesamt · {engine}",
     "folder": "Ordner",
     "file": "Datei",
@@ -639,13 +639,13 @@
       "store": "Store",
       "providers": "Anbieter",
       "config": "Dienstkonfiguration",
-      "toolRuntimeHint": "Die Tool-Laufzeit wird vom awam.tool-runtime Feature Pack bereitgestellt. Unten öffnen oder das Pack im Store installieren.",
+      "toolRuntimeHint": "Die Tool-Laufzeit wird vom Tool Runtime Feature Pack bereitgestellt. Unten öffnen oder das Pack im Store installieren.",
       "toolRuntimeOpen": "Tool-Laufzeit öffnen"
     },
     "cap": {
-      "fileGateway": { "name": "Datei-Gateway", "desc": "awam-file-Backend — Cloud-, virtuelle und Netzwerk-Dateiquellen" },
-      "knowledge": { "name": "Wissen", "desc": "awam-knowledge-Dienst — Inhaltssuche und Wissensbasis-Indexierung" },
-      "toolRuntime": { "name": "Tool-Laufzeit", "desc": "awam.tool-runtime — Externer Toolaufruf und Capability-Bridge" }
+      "fileGateway": { "name": "Datei-Gateway", "desc": "file-Backend — Cloud-, virtuelle und Netzwerk-Dateiquellen" },
+      "knowledge": { "name": "Wissen", "desc": "knowledge-Dienst — Inhaltssuche und Wissensbasis-Indexierung" },
+      "toolRuntime": { "name": "Tool-Laufzeit", "desc": "Tool Runtime — Externer Toolaufruf und Capability-Bridge" }
     },
     "capMode": {
       "managed": "Verwaltet",
@@ -703,7 +703,7 @@
           "title": "WebView2 Runtime"
         },
         "awam_gateway": {
-          "title": "awam-file gateway"
+          "title": "file gateway"
         },
         "rclone": {
           "title": "rclone CLI"
@@ -893,8 +893,8 @@
     "emptyListing": "An diesem Ort gibt es keine Einträge.",
     "file": "Datei",
     "folder": "Ordner",
-    "gatewayOffline": "awam-file-Gateway offline — eingebaute Provider (rclone). Browser-Lesezeichen brauchen das Gateway. Starten oder URL unten ändern (Standard http://127.0.0.1:18787).",
-    "gatewayOnline": "awam-file-Gateway online — {count} Backends über {url}",
+    "gatewayOffline": "file-Gateway offline — eingebaute Provider (rclone). Browser-Lesezeichen brauchen das Gateway. Starten oder URL unten ändern (Standard http://127.0.0.1:18787).",
+    "gatewayOnline": "file-Gateway online — {count} Backends über {url}",
     "gatewayUrlLabel": "Gateway-URL",
     "gatewayEditHint": "In Erweiterungen → Dienstkonfiguration bearbeiten",
     "gatewayUrlPlaceholder": "http://127.0.0.1:18787",
@@ -907,7 +907,7 @@
     "listing": "Liste wird geladen…",
     "meta": "Cloud- und virtuelle Ordner neben lokalen Laufwerken",
     "sourceBuiltin": "eingebaut",
-    "sourceGateway": "awam-file",
+    "sourceGateway": "file",
     "statusDown": "offline",
     "statusOk": "ok",
     "title": "Anbieter",
@@ -1135,27 +1135,27 @@
         },
         "providerPreloadKnowledge": {
           "title": "Knowledge-Provider vorladen",
-          "description": "awam://knowledge beim Provider-Preload warmhalten (bei großem Root abschalten)"
+          "description": "knowledge beim Provider-Preload warmhalten (bei großem Root abschalten)"
         },
         "awamGatewayUrl": {
-          "title": "awam-file-Gateway-URL",
+          "title": "file-Gateway-URL",
           "description": "HTTP-Basis-URL des Ressourcen-Gateways (Standard http://127.0.0.1:18787). Änderungen gelten sofort für Providers."
         },
         "awamKnowledgeServiceUrl": {
-          "title": "awam-knowledge-Dienst-URL",
+          "title": "knowledge-Dienst-URL",
           "description": "Adresse des Wissensdienstes (Standard http://127.0.0.1:18790), verwendet von der Quelle „Wissen“ in der Suchpalette."
         },
         "awamKnowledgeServiceToken": {
-          "title": "awam-knowledge-Dienst-Token",
-          "description": "Bearer-Token des Wissensdienstes (KM_SERVICE_TOKEN); leer = Aufrufe ohne Authentifizierung."
+          "title": "knowledge-Dienst-Token",
+          "description": "Bearer-Token des Wissensdienstes (service password); leer = Aufrufe ohne Authentifizierung."
         },
         "awamKnowledgeDataRoot": {
           "title": "Wissens-Datenstamm",
-          "description": "Absoluter Pfad zum anonymisierten Arbeitskopie-Stamm (KM_DATA_ROOT). AFM injiziert ihn in den verwalteten awam-knowledge-Dienst. Leer = eigene settings.yaml des Dienstes. Wirkt nach Dienstneustart."
+          "description": "Absoluter Pfad zum anonymisierten Arbeitskopie-Stamm (storage folder). AFM injiziert ihn in den verwalteten knowledge-Dienst. Leer = eigene settings des Dienstes. Wirkt nach Dienstneustart."
         },
         "awamKnowledgeSourceId": {
           "title": "Wissens-Quell-ID",
-          "description": "Unter dem Datenstamm zu indexierende Quelle (KM_SOURCE_ID); Indexstamm = <Datenstamm>/<Quell-ID>. Leer = Dienststandard."
+          "description": "Der innerhalb deiner Wissensbibliothek zu indexierende Ordner. Leer gelassen wird die Standardangabe des Diensts verwendet."
         },
         "voiceSearchAutoStart": {
           "title": "Sprachsuche",
@@ -1163,7 +1163,7 @@
         },
         "sttBaseUrl": {
           "title": "Sprache-zu-Text-Basis-URL",
-          "description": "OpenAI-kompatible Endpunkt-Basis, z. B. https://api.openai.com/v1 — die App sendet POST {baseUrl}/audio/transcriptions"
+          "description": "OpenAI-kompatible Endpunkt-Basis, z. B. https://api.openai.com/v1 — die App sendet POST {baseUrl}/transcription"
         },
         "sttModel": {
           "title": "Sprache-zu-Text-Modell",
@@ -1188,9 +1188,9 @@
     "sectionExtensions": "Erweiterungen",
     "extensions": {
       "title": "Verwaltte Backend-Dienste",
-      "meta": "Verbindungseinstellungen der AFM-verwalteten Backends (awam-file-Gateway, awam-knowledge). Ist das zugehörige Paket im verwalteten Modus aktiviert, ist die Adresse schreibgeschützt (von AFM abgeleitet); im Konfigurationsmodus editierbar. Das Knowledge-Token ist das gemeinsame Geheimnis, mit dem AFM sich authentifiziert und den gestarteten Dienst versieht.",
+      "meta": "Verbindungseinstellungen der AFM-verwalteten Backends (file-Gateway, knowledge). Ist das zugehörige Paket im verwalteten Modus aktiviert, ist die Adresse schreibgeschützt (von AFM abgeleitet); im Konfigurationsmodus editierbar. Das Knowledge-Token ist das gemeinsame Geheimnis, mit dem AFM sich authentifiziert und den gestarteten Dienst versieht.",
       "managedReadonly": "Wird von einem aktivierten verwalteten Paket gesteuert — Adresse fest und schreibgeschützt.",
-      "indexUnconfigured": "Verbunden, aber keine Wissensbasis konfiguriert — setzen Sie unten den Datenstamm oder nutzen Sie die settings.yaml des Dienstes.",
+      "indexUnconfigured": "Verbunden, aber keine Wissensbasis konfiguriert — setzen Sie unten den Datenstamm oder nutzen Sie die settings des Dienstes.",
       "dataRootPlaceholder": "z. B. C:\\Users\\you\\Knowledge\\data",
       "sourceIdPlaceholder": "z. B. logseq-main",
       "gatewaySection": "Gateway",
@@ -1600,7 +1600,7 @@
     "statusReachable": "Gateway verbunden{version}",
     "statusUnreachable": "Gateway nicht erreichbar: {detail}",
     "gatewayUrlLabel": "Gateway-URL",
-    "gatewayUrlPlaceholder": "http://127.0.0.1:8767",
+    "gatewayUrlPlaceholder": "http://127.0.0.1:18778",
     "gatewayUrlSave": "Speichern und neu verbinden",
     "gatewayUrlSaving": "Wird gespeichert…",
     "gatewayUrlSaved": "Gateway-URL gespeichert",

@@ -354,6 +354,30 @@ function onOpen(path: string) {
       <p v-if="!drivesList.length" class="guide-empty">{{ t("guide.emptyDrives") }}</p>
     </section>
 
+    <section class="guide-section" :aria-label="t('shellPlaces.network')">
+      <h2 class="guide-section-title">{{ t("shellPlaces.network") }}</h2>
+      <div class="guide-grid">
+        <button
+          v-for="item in networkRows"
+          :key="item.path"
+          type="button"
+          class="guide-card fluent-surface guide-card--network"
+          :title="item.path"
+          @dblclick="onOpen(item.path)"
+          @keydown.enter.prevent="onOpen(item.path)"
+        >
+          <span class="guide-card-icon" aria-hidden="true">
+            <FluentIcon name="globe" size="md" />
+          </span>
+          <span class="guide-card-label">{{ item.name }}</span>
+          <span class="guide-card-path">{{ item.path }}</span>
+        </button>
+      </div>
+      <p v-if="!networkRows.length" class="guide-empty">
+        {{ t("shellPlaces.networkEmpty") }}
+      </p>
+    </section>
+
     <section class="guide-section" :aria-label="t('recycleBin.section')">
       <h2 class="guide-section-title">{{ t("recycleBin.section") }}</h2>
       <div class="guide-grid">
@@ -456,30 +480,6 @@ function onOpen(path: string) {
           <span class="guide-card-path">{{ lib.path }}</span>
         </button>
       </div>
-    </section>
-
-    <section class="guide-section" :aria-label="t('shellPlaces.network')">
-      <h2 class="guide-section-title">{{ t("shellPlaces.network") }}</h2>
-      <div class="guide-grid">
-        <button
-          v-for="item in networkRows"
-          :key="item.path"
-          type="button"
-          class="guide-card fluent-surface guide-card--network"
-          :title="item.path"
-          @dblclick="onOpen(item.path)"
-          @keydown.enter.prevent="onOpen(item.path)"
-        >
-          <span class="guide-card-icon" aria-hidden="true">
-            <FluentIcon name="globe" size="md" />
-          </span>
-          <span class="guide-card-label">{{ item.name }}</span>
-          <span class="guide-card-path">{{ item.path }}</span>
-        </button>
-      </div>
-      <p v-if="!networkRows.length" class="guide-empty">
-        {{ t("shellPlaces.networkEmpty") }}
-      </p>
     </section>
   </div>
 </template>

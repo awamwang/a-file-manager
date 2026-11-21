@@ -513,7 +513,7 @@ button {
 /* Neutral, non-alarming marker: green status stays, this says "existence-only". */
 .fluent-chip--note {
   color: var(--fluent-color-text-secondary);
-  background: var(--fluent-color-fill-quaternary, rgba(128, 128, 128, 0.14));
+  background: var(--fluent-color-fill-subtle);
   border: 1px solid var(--fluent-color-stroke-divider);
 }
 
@@ -530,7 +530,7 @@ button {
 .deps-skeleton__title,
 .deps-skeleton__line {
   border-radius: 4px;
-  background: var(--fluent-color-fill-tertiary, rgba(128, 128, 128, 0.16));
+  background: var(--fluent-color-fill-subtle);
 }
 
 .health-skeleton__banner {

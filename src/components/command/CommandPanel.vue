@@ -798,8 +798,6 @@ function onPanelKeydown(event: KeyboardEvent) {
   font-size: var(--fluent-font-size-caption);
   font-weight: var(--fluent-font-weight-semibold);
   color: var(--fluent-color-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
 }
 
 .cmd-group-icon {
@@ -997,8 +995,6 @@ function onPanelKeydown(event: KeyboardEvent) {
   font-size: var(--fluent-font-size-caption);
   font-weight: var(--fluent-font-weight-semibold);
   color: var(--fluent-color-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
 }
 
 .cmd-all-meta {

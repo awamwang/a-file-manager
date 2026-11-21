@@ -240,11 +240,11 @@
       "workGroupsUnavailable": "Source Groupes de travail indisponible",
       "toolsUnavailable": "Source Outils indisponible",
       "openToolRuntime": "Ouvrir le runtime d’outils",
-      "bookmarksUnavailable": "Favoris du navigateur indisponibles (passerelle awam-file requise)",
+      "bookmarksUnavailable": "Favoris du navigateur indisponibles (passerelle file requise)",
       "bookmarksStale": "Instantané des favoris obsolète (lecture seule)",
       "refreshBookmarks": "Actualiser les favoris",
       "extensionsUnavailable": "Source Extensions indisponible",
-      "knowledgeUnavailable": "Source Connaissances indisponible (service awam-knowledge arrêté ou non autorisé)"
+      "knowledgeUnavailable": "Source Connaissances indisponible (service knowledge arrêté ou non autorisé)"
     },
     "vault": {
       "copied": "Secret copié (le texte en clair est dans le presse-papiers)",
@@ -310,7 +310,7 @@
       "fieldProjectMcp": "Chemin de config MCP relatif au projet",
       "fieldMcpPrompt": "Invite d’usage MCP (espace réservé)",
       "fieldMcpPromptHint": "Stocké seulement — pas encore injecté",
-      "mcpPromptNote": "Champ réservé (ADR 0006). Enregistré dans la config IA APPDATA ; non utilisé pour l’injection.",
+      "mcpPromptNote": "Champ réservé . Enregistré dans la config IA APPDATA ; non utilisé pour l’injection.",
       "noticeDiscovered": "Détection des agents actualisée",
       "noticeSaved": "Cible Agent enregistrée",
       "noticeCustomAdded": "Cible Agent personnalisée ajoutée",
@@ -424,7 +424,7 @@
     },
     "harness": {
       "title": "Initialize Harness / Superpower",
-      "hint": "Explicit AI action (ADR 0008). Writes AGENTS.md and skills/ on an existing Project Workspace. Never part of Core create.",
+      "hint": "Explicit AI action . Writes AGENTS.md and skills/ on an existing Project Workspace. Never part of Core create.",
       "fieldWorkspace": "Project Workspace path",
       "fieldWorkspaceHint": "Absolute path to a Workspace that already has project.json",
       "includeSdd": "Also initialize SDD tree",
@@ -552,7 +552,7 @@
     "search": "Rechercher",
     "searching": "Recherche…",
     "noHits": "Aucun résultat ({engine} · {total} au total).",
-    "syntaxHint": "Astuce : ! ? ( ) sont des opérateurs de requête — évitez-les ou mettez le nom entre guillemets.",
+    "syntaxHint": "Astuce : ! ?  sont des opérateurs de requête — évitez-les ou mettez le nom entre guillemets.",
     "shown": "{shown} affichés · {total} au total · {engine}",
     "folder": "Dossier",
     "file": "Fichier",
@@ -639,13 +639,13 @@
       "store": "Boutique",
       "providers": "Fournisseurs",
       "config": "Config. services",
-      "toolRuntimeHint": "L'exécuteur d'outils est fourni par le Feature Pack awam.tool-runtime. Ouvrez-le ci-dessous ou installez le pack depuis la boutique.",
+      "toolRuntimeHint": "L'exécuteur d'outils est fourni par le Feature Pack Tool Runtime. Ouvrez-le ci-dessous ou installez le pack depuis la boutique.",
       "toolRuntimeOpen": "Ouvrir l'exécuteur d'outils"
     },
     "cap": {
-      "fileGateway": { "name": "Passerelle de fichiers", "desc": "Backend awam-file — sources de fichiers cloud, virtuelles et réseau" },
-      "knowledge": { "name": "Connaissances", "desc": "Service awam-knowledge — recherche de contenu et indexation de base de connaissances" },
-      "toolRuntime": { "name": "Exécuteur d'outils", "desc": "awam.tool-runtime — invocation d'outils externes et pont de capacités" }
+      "fileGateway": { "name": "Passerelle de fichiers", "desc": "Backend file — sources de fichiers cloud, virtuelles et réseau" },
+      "knowledge": { "name": "Connaissances", "desc": "Service knowledge — recherche de contenu et indexation de base de connaissances" },
+      "toolRuntime": { "name": "Exécuteur d'outils", "desc": "Tool Runtime — invocation d'outils externes et pont de capacités" }
     },
     "capMode": {
       "managed": "Géré",
@@ -703,7 +703,7 @@
           "title": "WebView2 Runtime"
         },
         "awam_gateway": {
-          "title": "awam-file gateway"
+          "title": "file gateway"
         },
         "rclone": {
           "title": "rclone CLI"
@@ -893,8 +893,8 @@
     "emptyListing": "Cet emplacement ne contient aucun élément.",
     "file": "Fichier",
     "folder": "Dossier",
-    "gatewayOffline": "Passerelle awam-file hors ligne — fournisseurs intégrés (rclone). Les favoris navigateur nécessitent la passerelle. Démarrez-la, ou changez l’URL ci-dessous (défaut http://127.0.0.1:18787).",
-    "gatewayOnline": "Passerelle awam-file en ligne — {count} backends via {url}",
+    "gatewayOffline": "Passerelle file hors ligne — fournisseurs intégrés (rclone). Les favoris navigateur nécessitent la passerelle. Démarrez-la, ou changez l’URL ci-dessous (défaut http://127.0.0.1:18787).",
+    "gatewayOnline": "Passerelle file en ligne — {count} backends via {url}",
     "gatewayUrlLabel": "URL de la passerelle",
     "gatewayEditHint": "Modifier dans Extensions → Config. services",
     "gatewayUrlPlaceholder": "http://127.0.0.1:18787",
@@ -907,7 +907,7 @@
     "listing": "Listage…",
     "meta": "Parcourir cloud et dossiers virtuels à côté du disque local",
     "sourceBuiltin": "intégré",
-    "sourceGateway": "awam-file",
+    "sourceGateway": "file",
     "statusDown": "indisponible",
     "statusOk": "ok",
     "title": "Fournisseurs",
@@ -1135,27 +1135,27 @@
         },
         "providerPreloadKnowledge": {
           "title": "Précharger le provider knowledge",
-          "description": "Réchauffer awam://knowledge pendant le preload (désactiver si la racine est très large)"
+          "description": "Réchauffer knowledge pendant le preload (désactiver si la racine est très large)"
         },
         "awamGatewayUrl": {
-          "title": "URL de la passerelle awam-file",
+          "title": "URL de la passerelle file",
           "description": "URL HTTP de base de la passerelle (défaut http://127.0.0.1:18787). Les changements s’appliquent aussitôt à Providers."
         },
         "awamKnowledgeServiceUrl": {
-          "title": "URL du service awam-knowledge",
+          "title": "URL du service knowledge",
           "description": "Adresse du service de connaissances (par défaut http://127.0.0.1:18790), utilisée par la source « Connaissances » de la palette."
         },
         "awamKnowledgeServiceToken": {
-          "title": "Jeton du service awam-knowledge",
-          "description": "Jeton Bearer du service connaissances (KM_SERVICE_TOKEN) ; vide = appels sans authentification."
+          "title": "Jeton du service knowledge",
+          "description": "Jeton Bearer du service connaissances (service password) ; vide = appels sans authentification."
         },
         "awamKnowledgeDataRoot": {
           "title": "Racine de données connaissances",
-          "description": "Chemin absolu de la racine de la copie de travail anonymisée (KM_DATA_ROOT). AFM l'injecte dans le service awam-knowledge géré. Vide = utiliser le settings.yaml du service. Effectif après redémarrage du service."
+          "description": "Chemin absolu de la racine de la copie de travail anonymisée (storage folder). AFM l'injecte dans le service knowledge géré. Vide = utiliser le settings du service. Effectif après redémarrage du service."
         },
         "awamKnowledgeSourceId": {
           "title": "ID de source connaissances",
-          "description": "Source à indexer sous la racine de données (KM_SOURCE_ID) ; racine d'index = <racine>/<id source>. Vide = valeur par défaut du service."
+          "description": "Dossier à indexer dans votre bibliothèque de connaissances. Laissez vide pour utiliser la valeur par défaut du service."
         },
         "voiceSearchAutoStart": {
           "title": "Recherche vocale",
@@ -1163,7 +1163,7 @@
         },
         "sttBaseUrl": {
           "title": "URL de base voix vers texte",
-          "description": "Base d'endpoint compatible OpenAI, p. ex. https://api.openai.com/v1 — l'application envoie POST {baseUrl}/audio/transcriptions"
+          "description": "Base d'endpoint compatible OpenAI, p. ex. https://api.openai.com/v1 — l'application envoie POST {baseUrl}/transcription"
         },
         "sttModel": {
           "title": "Modèle voix vers texte",
@@ -1188,9 +1188,9 @@
     "sectionExtensions": "Extensions",
     "extensions": {
       "title": "Services backend gérés",
-      "meta": "Paramètres de connexion des backends gérés par AFM (passerelle awam-file, awam-knowledge). Quand le pack correspondant est activé en mode géré, l'adresse est en lecture seule (dérivée par AFM) ; en mode config, elle est modifiable. Le jeton knowledge est le secret partagé qu'AFM utilise pour s'authentifier et alimenter le service lancé.",
+      "meta": "Paramètres de connexion des backends gérés par AFM (passerelle file, knowledge). Quand le pack correspondant est activé en mode géré, l'adresse est en lecture seule (dérivée par AFM) ; en mode config, elle est modifiable. Le jeton knowledge est le secret partagé qu'AFM utilise pour s'authentifier et alimenter le service lancé.",
       "managedReadonly": "Géré par un pack activé — adresse fixe et en lecture seule.",
-      "indexUnconfigured": "Connecté, mais aucune base de connaissances configurée — définissez la racine de données ci-dessous ou via le settings.yaml du service.",
+      "indexUnconfigured": "Connecté, mais aucune base de connaissances configurée — définissez la racine de données ci-dessous ou via le settings du service.",
       "dataRootPlaceholder": "ex. C:\\Users\\vous\\Knowledge\\data",
       "sourceIdPlaceholder": "ex. logseq-main",
       "gatewaySection": "Passerelle",
@@ -1600,7 +1600,7 @@
     "statusReachable": "Passerelle connectée{version}",
     "statusUnreachable": "Passerelle injoignable : {detail}",
     "gatewayUrlLabel": "URL de la passerelle",
-    "gatewayUrlPlaceholder": "http://127.0.0.1:8767",
+    "gatewayUrlPlaceholder": "http://127.0.0.1:18778",
     "gatewayUrlSave": "Enregistrer et reconnecter",
     "gatewayUrlSaving": "Enregistrement…",
     "gatewayUrlSaved": "URL de la passerelle enregistrée",

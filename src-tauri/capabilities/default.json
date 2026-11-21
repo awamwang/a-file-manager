@@ -16,6 +16,8 @@
     "core:window:allow-unminimize",
     "core:window:allow-is-minimized",
     "core:window:allow-start-dragging",
+    "core:window:allow-set-min-size",
+    "core:window:allow-set-size",
     "core:tray:default",
     "opener:default",
     "dialog:default",
