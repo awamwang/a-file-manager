@@ -325,6 +325,10 @@ mod windows_impl {
     thread_local! {
         /// 单元测试记录目录分支命中次数，验证分支时无需真的启动 Explorer。
         pub(crate) static EXPLORER_OPEN_CALLS: std::cell::Cell<usize> = std::cell::Cell::new(0);
+        /// 记录最近一次 explorer 分支收到的原始路径，用来断言真实路径被完整
+        /// 转发（不再被 `let _ = path` 丢弃），是 W1 在资源管理器中打开的对外契约。
+        pub(crate) static EXPLORER_LAST_PATH: std::cell::RefCell<String> =
+            std::cell::RefCell::new(String::new());
     }
 
     pub fn open_folder_in_explorer(path: &str) -> OpenWithResult {
@@ -332,8 +336,8 @@ mod windows_impl {
         // cargo test 都会用 std::env::temp_dir() 弹出 %TEMP% 资源管理器窗口。
         #[cfg(test)]
         {
-            let _ = path;
             EXPLORER_OPEN_CALLS.with(|calls| calls.set(calls.get() + 1));
+            EXPLORER_LAST_PATH.with(|last| *last.borrow_mut() = path.to_string());
             return OpenWithResult {
                 success: true,
                 error: None,
@@ -470,6 +474,27 @@ mod windows_impl {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn open_folder_in_explorer_test_stub_records_the_request_path() {
+        use super::windows_impl::{EXPLORER_LAST_PATH, EXPLORER_OPEN_CALLS};
+        let probe = std::env::temp_dir().join("afm-explorer-reveal-probe");
+        let probe_str = probe.to_string_lossy().into_owned();
+        let before = EXPLORER_OPEN_CALLS.with(|calls| calls.get());
+        let result = windows_impl::open_folder_in_explorer(&probe_str);
+        assert!(result.success);
+        assert_eq!(
+            EXPLORER_OPEN_CALLS.with(|calls| calls.get()),
+            before + 1,
+            "the explorer branch must be taken",
+        );
+        let last = EXPLORER_LAST_PATH.with(|p| p.borrow().clone());
+        assert_eq!(
+            last, probe_str,
+            "the requested path must reach explorer verbatim, not be dropped",
+        );
+    }
 
     #[test]
     fn empty_path_fails() {

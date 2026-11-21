@@ -56,7 +56,8 @@ import {
   loadNewFileTemplates,
   newFileTemplates,
 } from "../../state/newFileTemplates";
-import { selectedEntries, selectedPaths } from "../../state/navigatorSelection";
+import { selectedPaths } from "../../state/navigatorSelection";
+import { folderPathsForWorkGroup as reduceFolderPathsForWorkGroup } from "./workGroupPaths";
 import { nextSelectionAfterRemoval } from "../../state/navigatorSelection";
 import { scrollSelectionIntoView } from "../../state/revealInNavigator";
 import {
@@ -434,16 +435,9 @@ function pathsForClipboard(entry: NavigatorEntry): string[] {
   return [entry.path];
 }
 
-/** Selected folders for “Add to Work Group” (files in a multi-select are skipped). */
+/** Selected folders for “Add to Work Group” (files in a multi-select are skipped). Pure reducer in ./workGroupPaths.ts. */
 function folderPathsForWorkGroup(entry: NavigatorEntry): string[] {
-  if (entry.kind !== "dir") return [];
-  if (selectedPaths.value.includes(entry.path) && selectedPaths.value.length > 1) {
-    const dirs = selectedEntries(listing.value?.entries)
-      .filter((row) => row.kind === "dir")
-      .map((row) => row.path);
-    return dirs.length ? dirs : [entry.path];
-  }
-  return [entry.path];
+  return reduceFolderPathsForWorkGroup(entry, selectedPaths.value, listing.value?.entries);
 }
 
 const SKILL_ERROR_KEYS: Record<string, string> = {

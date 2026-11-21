@@ -617,6 +617,80 @@ mod tests {
     }
 
     #[test]
+    fn rename_work_group_updates_name_and_rejects_invalid() {
+        let default = create_default_work_group(None);
+        let a = WorkGroup {
+            id: "wg-a".into(),
+            name: "A".into(),
+            is_default: false,
+            member_paths: Vec::new(),
+            open_state: None,
+        };
+        let list = vec![default.clone(), a.clone()];
+
+        // Happy path: the target name is trimmed; every other group is untouched.
+        let next = rename_work_group_in_list(&list, "wg-a", "  Focus  ").unwrap();
+        assert_eq!(
+            next.iter().find(|g| g.id == "wg-a").unwrap().name,
+            "Focus",
+            "rename must persist a trimmed name",
+        );
+        assert_eq!(
+            next.iter().find(|g| g.id == default.id).unwrap().name,
+            default.name,
+            "rename must not touch other groups",
+        );
+
+        // Empty / whitespace-only names must be rejected.
+        assert!(rename_work_group_in_list(&list, "wg-a", "").is_err());
+        assert!(rename_work_group_in_list(&list, "wg-a", "   ").is_err());
+        // Unknown ids must be rejected.
+        assert!(rename_work_group_in_list(&list, "wg-missing", "X").is_err());
+    }
+
+    #[test]
+    fn delete_work_group_blocks_default_and_migrates_active() {
+        let default = create_default_work_group(None);
+        let a = WorkGroup {
+            id: "wg-a".into(),
+            name: "A".into(),
+            is_default: false,
+            member_paths: Vec::new(),
+            open_state: None,
+        };
+        let b = WorkGroup {
+            id: "wg-b".into(),
+            name: "B".into(),
+            is_default: false,
+            member_paths: Vec::new(),
+            open_state: None,
+        };
+        let document = UserWorkGroups {
+            work_groups: vec![default.clone(), a.clone(), b.clone()],
+            active_work_group_id: "wg-a".into(),
+            pinned_tab: None,
+        };
+
+        // The Default group can never be deleted (guard must not regress).
+        let err = delete_work_group_in_list(&document, DEFAULT_WORK_GROUP_ID).unwrap_err();
+        assert_eq!(err, "DEFAULT_WORK_GROUP_FORBIDDEN");
+
+        // Deleting the ACTIVE group removes it and migrates active to the Default group.
+        let next = delete_work_group_in_list(&document, "wg-a").unwrap();
+        assert!(!next.work_groups.iter().any(|g| g.id == "wg-a"));
+        assert_eq!(next.work_groups.len(), 2);
+        assert_eq!(next.active_work_group_id, DEFAULT_WORK_GROUP_ID);
+
+        // Deleting a NON-active group leaves the active selection unchanged.
+        let next2 = delete_work_group_in_list(&document, "wg-b").unwrap();
+        assert!(!next2.work_groups.iter().any(|g| g.id == "wg-b"));
+        assert_eq!(next2.active_work_group_id, "wg-a");
+
+        // Unknown ids must be rejected.
+        assert!(delete_work_group_in_list(&document, "wg-missing").is_err());
+    }
+
+    #[test]
     fn create_work_group_does_not_bind_projects() {
         let (list, created) =
             create_work_group_in_list(&[create_default_work_group(None)], Some("Focus".into()));
