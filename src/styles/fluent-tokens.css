@@ -375,8 +375,7 @@ html[data-theme="light"] {
 }
 
 .fluent-list-row {
-  min-height: var(--fluent-list-row-height-standard);
-  padding-inline: var(--fluent-space-md);
+  min-height: var(--fluent-list-row-height-standard);  padding-inline: var(--fluent-space-md);
   display: flex;
   align-items: center;
   gap: var(--fluent-space-sm);
