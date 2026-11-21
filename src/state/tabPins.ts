@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   clampOpenStateIndices,
   createDirectoryTab,
+  ensurePinnedAtStripStart,
   normalizePathKey,
   toNativeFsPath,
   type WorkGroupOpenState,
@@ -86,20 +87,15 @@ export function forgetPinnedTabs(ids: string[]): void {
   if (!pinnedTabIds.value.length) writePinnedSnapshots([]);
 }
 
-function clampStripIndex(index: number, length: number): number {
-  if (!Number.isFinite(index) || length <= 0) return 0;
-  return Math.max(0, Math.min(Math.trunc(index), length));
-}
+/** FIL-79：持久化 stripIndex 恒为 0（字段保留以兼容旧 wire）。 */
+const PIN_STRIP_INDEX = 0;
 
-function snapshotFromTab(
-  tab: WorkGroupOpenStateTab,
-  stripIndex: number,
-): PinnedTabSnapshot {
+function snapshotFromTab(tab: WorkGroupOpenStateTab): PinnedTabSnapshot {
   return {
     path: toNativeFsPath(tab.path),
     type: tab.type || "directory",
     name: tab.name || tab.path,
-    stripIndex: Math.max(0, Math.trunc(stripIndex) || 0),
+    stripIndex: PIN_STRIP_INDEX,
   };
 }
 
@@ -112,10 +108,8 @@ function normalizeWirePinnedTab(raw: unknown): PinnedTabSnapshot | null {
     path,
     type: typeof row.type === "string" && row.type ? row.type : "directory",
     name: typeof row.name === "string" && row.name ? row.name : path,
-    stripIndex:
-      typeof row.stripIndex === "number" && Number.isFinite(row.stripIndex)
-        ? Math.max(0, Math.trunc(row.stripIndex))
-        : 0,
+    // FIL-79：读入时归一为 0，忽略历史绝对下标。
+    stripIndex: PIN_STRIP_INDEX,
   };
 }
 
@@ -125,7 +119,7 @@ function wireFromSnapshot(snap: PinnedTabSnapshot | null): PinnedTabWire {
     path: toNativeFsPath(snap.path),
     type: snap.type || "directory",
     name: snap.name || snap.path,
-    stripIndex: Math.max(0, Math.trunc(snap.stripIndex) || 0),
+    stripIndex: PIN_STRIP_INDEX,
   };
 }
 
@@ -208,7 +202,12 @@ export function readPinnedSnapshots(): PinnedTabSnapshot[] {
 export function writePinnedSnapshots(snapshots: readonly PinnedTabSnapshot[]): void {
   const single = snapshots[0];
   persistedPin = single?.path
-    ? { ...single, path: toNativeFsPath(single.path) }
+    ? {
+        path: toNativeFsPath(single.path),
+        type: single.type || "directory",
+        name: single.name || single.path,
+        stripIndex: PIN_STRIP_INDEX,
+      }
     : null;
   const wire = wireFromSnapshot(persistedPin);
   if (!wire) {
@@ -230,11 +229,11 @@ export function commitPinnedPersistence(state: WorkGroupOpenState): void {
     writePinnedSnapshots([]);
     return;
   }
-  for (let groupIndex = 0; groupIndex < state.tabGroups.length; groupIndex += 1) {
-    const group = state.tabGroups[groupIndex];
+  for (const group of state.tabGroups) {
     const tab = group?.find((item) => item.id === id) ?? group?.[0];
     if (group?.some((item) => item.id === id) && tab) {
-      writePinnedSnapshots([snapshotFromTab(tab, groupIndex)]);
+      // FIL-79：持久化 stripIndex 恒为 0，不再记录绝对下标。
+      writePinnedSnapshots([snapshotFromTab(tab)]);
       return;
     }
   }
@@ -243,7 +242,8 @@ export function commitPinnedPersistence(state: WorkGroupOpenState): void {
 
 /**
  * 冷启动：把持久化固定标签合并进 Open State，并恢复 pinnedTabIds。
- * 已存在同路径标签则复用；否则按上次 strip 位置插入。不抢占非固定的当前标签焦点。
+ * 已存在同路径标签则复用；否则新建。FIL-79：始终钉在 strip index 0。
+ * 不抢占非固定的当前标签焦点。
  */
 export function hydratePersistedPins(state: WorkGroupOpenState): {
   state: WorkGroupOpenState;
@@ -257,8 +257,8 @@ export function hydratePersistedPins(state: WorkGroupOpenState): {
   const key = normalizePathKey(snap.path);
   let pinnedId: string | null = null;
   let nextGroups = state.tabGroups.map((group) => group.map((tab) => ({ ...tab })));
-  let currentTabGroupIndex = state.currentTabGroupIndex;
-  let currentTabIndex = state.currentTabIndex;
+  const currentTabGroupIndex = state.currentTabGroupIndex;
+  const currentTabIndex = state.currentTabIndex;
 
   for (const group of nextGroups) {
     const hit = group.find((tab) => normalizePathKey(tab.path) === key);
@@ -272,25 +272,22 @@ export function hydratePersistedPins(state: WorkGroupOpenState): {
     const tab = createDirectoryTab(snap.path);
     if (snap.type) tab.type = snap.type;
     if (snap.name) tab.name = snap.name;
-    const insertAt = clampStripIndex(snap.stripIndex, nextGroups.length);
-    nextGroups = [
-      ...nextGroups.slice(0, insertAt),
-      [tab],
-      ...nextGroups.slice(insertAt),
-    ];
-    if (insertAt <= currentTabGroupIndex && state.tabGroups.length > 0) {
-      currentTabGroupIndex += 1;
-    }
+    // 先追加，再由 ensurePinnedAtStripStart 钉到最左并校正焦点。
+    nextGroups = [...nextGroups, [tab]];
     pinnedId = tab.id;
   }
 
   pinnedTabIds.value = pinnedId ? [pinnedId] : [];
-  return {
-    state: clampOpenStateIndices({
+  const nextState = ensurePinnedAtStripStart(
+    clampOpenStateIndices({
       tabGroups: nextGroups,
       currentTabGroupIndex,
       currentTabIndex,
     }),
+    pinnedId ? new Set([pinnedId]) : new Set(),
+  );
+  return {
+    state: nextState,
     pinnedIds: pinnedId ? [pinnedId] : [],
   };
 }

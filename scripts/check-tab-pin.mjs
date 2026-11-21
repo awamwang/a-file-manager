@@ -91,6 +91,24 @@ if (
   console.error("tabPins must persist pin snapshots across restart (FIL-68)");
   process.exit(1);
 }
+// FIL-79：pin 始终最左；persist stripIndex 恒为 0；拖拽后钉回。
+if (
+  !model.includes("ensurePinnedAtStripStart") ||
+  !pins.includes("ensurePinnedAtStripStart") ||
+  !pins.includes("PIN_STRIP_INDEX") ||
+  !browse.includes("ensurePinnedAtStripStart(reordered") ||
+  !browse.includes("toggleNavigatorTabPin")
+) {
+  console.error("pin must stay at strip index 0 (merge/hydrate/reorder/toggle)");
+  process.exit(1);
+}
+if (
+  !shell.includes("toggleNavigatorTabPin") ||
+  !shell.includes("onToggleTabPin")
+) {
+  console.error("AppShell must toggle pin via toggleNavigatorTabPin");
+  process.exit(1);
+}
 if (
   !browse.includes("hydratePersistedPins(") ||
   !session.includes("commitPinnedPersistence(liveOpenState.value)")

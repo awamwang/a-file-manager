@@ -4,9 +4,11 @@ import {
   clampOpenStateIndices,
   collapsePinnedIds,
   createEmptyOpenState,
+  ensurePinnedAtStripStart,
   ensureUniqueTabIds,
   mergePinnedIntoOpenState,
   normalizeRestoredOpenState,
+  openStateAfterReorderGroups,
   openStateWithoutPinned,
   safeOpenStateIndex,
   type WorkGroupOpenState,
@@ -53,6 +55,10 @@ function state(groups: WorkGroupOpenStateTab[][], current = 0): WorkGroupOpenSta
     currentTabGroupIndex: current,
     currentTabIndex: 0,
   };
+}
+
+function stripIds(s: WorkGroupOpenState): (string | undefined)[] {
+  return s.tabGroups.map((group) => group[0]?.id);
 }
 
 // AIA-260: pin toggle is exclusive — pinning B replaces A.
@@ -129,31 +135,59 @@ const restored = state(
   1,
 );
 
-// Multi-pin input collapses to the active pin (p2) before merge/strip.
+// FIL-79：多 pin 输入折叠为活动 pin（p2），合并后始终在 index 0。
 const multiPinned = new Set(["p1", "p2"]);
 const merged = mergePinnedIntoOpenState(restored, live, multiPinned);
-assert.deepEqual(
-  merged.tabGroups.map((group) => group[0]?.id),
-  ["t1", "t2", "p2", "t3"],
-);
-assert.equal(merged.currentTabGroupIndex, 2);
+assert.deepEqual(stripIds(merged), ["p2", "t1", "t2", "t3"]);
+assert.equal(merged.currentTabGroupIndex, 0);
 assert.equal(
   merged.tabGroups.filter((group) => group[0]?.id === "p1" || group[0]?.id === "p2").length,
   1,
 );
 
 const saved = openStateWithoutPinned(live, multiPinned);
-assert.deepEqual(
-  saved.tabGroups.map((group) => group[0]?.id),
-  ["p1", "u1", "u2"],
-);
+assert.deepEqual(stripIds(saved), ["p1", "u1", "u2"]);
 
 const singlePinned = new Set(["p1"]);
 const mergedSingle = mergePinnedIntoOpenState(restored, live, singlePinned);
-assert.deepEqual(
-  mergedSingle.tabGroups.map((group) => group[0]?.id),
-  ["p1", "t1", "t2", "t3"],
+assert.deepEqual(stripIds(mergedSingle), ["p1", "t1", "t2", "t3"]);
+
+// FIL-79：目标 WG strip 更短时，pin 仍在最左，不会贴尾。
+const shortRestored = state([[tab("only", "D:\\Temp\\afm-fixture\\only")]], 0);
+const shortMerged = mergePinnedIntoOpenState(
+  shortRestored,
+  state(
+    [
+      [tab("a", "C:\\a")],
+      [tab("b", "C:\\b")],
+      [tab("pin", "C:\\pin")],
+      [tab("c", "C:\\c")],
+    ],
+    1,
+  ),
+  new Set(["pin"]),
 );
+assert.deepEqual(stripIds(shortMerged), ["pin", "only"]);
+assert.equal(shortMerged.currentTabGroupIndex, 1);
+
+// FIL-79：目标 WG strip 更长时，pin 仍在最左，不插进中间。
+const longRestored = state(
+  [
+    [tab("t1", "D:\\1")],
+    [tab("t2", "D:\\2")],
+    [tab("t3", "D:\\3")],
+    [tab("t4", "D:\\4")],
+    [tab("t5", "D:\\5")],
+  ],
+  3,
+);
+const longMerged = mergePinnedIntoOpenState(
+  longRestored,
+  state([[tab("pin", "C:\\pin")], [tab("x", "C:\\x")]], 0),
+  new Set(["pin"]),
+);
+assert.deepEqual(stripIds(longMerged), ["pin", "t1", "t2", "t3", "t4", "t5"]);
+assert.equal(longMerged.currentTabGroupIndex, 0);
 
 const untouched = mergePinnedIntoOpenState(restored, live, new Set());
 assert.equal(untouched.tabGroups.length, 3);
@@ -165,6 +199,7 @@ const duplicated = mergePinnedIntoOpenState(
   singlePinned,
 );
 assert.equal(duplicated.tabGroups.filter((group) => group[0]?.id === "p1").length, 1);
+assert.equal(stripIds(duplicated)[0], "p1");
 
 assert.deepEqual(openStateWithoutPinned(createEmptyOpenState(), singlePinned).tabGroups, []);
 
@@ -179,10 +214,7 @@ const activePinned = openStateWithoutPinned(
 );
 assert.equal(activePinned.currentTabGroupIndex, 0);
 assert.ok(activePinned.currentTabGroupIndex >= 0);
-assert.deepEqual(
-  activePinned.tabGroups.map((group) => group[0]?.id),
-  ["u1"],
-);
+assert.deepEqual(stripIds(activePinned), ["u1"]);
 
 const earlierPinned = openStateWithoutPinned(
   state(
@@ -196,10 +228,7 @@ const earlierPinned = openStateWithoutPinned(
   new Set(["p1"]),
 );
 assert.equal(earlierPinned.currentTabGroupIndex, 1);
-assert.deepEqual(
-  earlierPinned.tabGroups.map((group) => group[0]?.id),
-  ["u1", "u2"],
-);
+assert.deepEqual(stripIds(earlierPinned), ["u1", "u2"]);
 
 const onlyPinned = openStateWithoutPinned(
   state([[tab("p1", "C:\\Temp\\afm-fixture\\pin-a")]], 0),
@@ -217,10 +246,8 @@ const switchWithActivePin = mergePinnedIntoOpenState(
   new Set(["p1"]),
 );
 assert.ok(switchWithActivePin.currentTabGroupIndex >= 0);
-assert.deepEqual(
-  switchWithActivePin.tabGroups.map((group) => group[0]?.id),
-  ["p1", "t1"],
-);
+assert.deepEqual(stripIds(switchWithActivePin), ["p1", "t1"]);
+assert.equal(switchWithActivePin.currentTabGroupIndex, 0);
 
 assert.equal(
   workGroupDisplayName({ name: "Default", isDefault: true }, "默认工作组"),
@@ -260,7 +287,45 @@ assert.equal(typeof ipcPayload.currentTabGroupIndex, "number");
 assert.ok(ipcPayload.currentTabGroupIndex >= 0);
 assert.notEqual(ipcPayload.currentTabGroupIndex, null);
 
-// FIL-68：固定标签按路径持久化，冷启动可恢复并带入空工作组 strip。
+// FIL-79：ensurePinnedAtStripStart 把非最左 pin 钉回 0。
+const drifted = state(
+  [
+    [tab("a", "C:\\a")],
+    [tab("b", "C:\\b")],
+    [tab("pin", "C:\\pin")],
+  ],
+  1,
+);
+const snapped = ensurePinnedAtStripStart(drifted, new Set(["pin"]));
+assert.deepEqual(stripIds(snapped), ["pin", "a", "b"]);
+assert.equal(snapped.currentTabGroupIndex, 2);
+
+const alreadyLeft = ensurePinnedAtStripStart(
+  state([[tab("pin", "C:\\pin")], [tab("a", "C:\\a")]], 1),
+  new Set(["pin"]),
+);
+assert.deepEqual(stripIds(alreadyLeft), ["pin", "a"]);
+assert.equal(alreadyLeft.currentTabGroupIndex, 1);
+
+// FIL-79：拖拽后强制钉回最左（模拟 reorderNavigatorTabs）。
+const afterDrag = openStateAfterReorderGroups(
+  state(
+    [
+      [tab("pin", "C:\\pin")],
+      [tab("a", "C:\\a")],
+      [tab("b", "C:\\b")],
+    ],
+    0,
+  ),
+  0,
+  2,
+);
+assert.deepEqual(stripIds(afterDrag), ["a", "b", "pin"]);
+const afterSnap = ensurePinnedAtStripStart(afterDrag, new Set(["pin"]));
+assert.deepEqual(stripIds(afterSnap), ["pin", "a", "b"]);
+assert.equal(afterSnap.currentTabGroupIndex, 0);
+
+// FIL-68 / FIL-79：固定标签按路径持久化；stripIndex 恒为 0。
 memoryStore.clear();
 pinnedTabIds.value = [];
 writePinnedSnapshots([]);
@@ -280,31 +345,67 @@ assert.deepEqual(readPinnedSnapshots(), [
     path: "C:\\Temp\\afm-fixture\\pinned",
     type: "directory",
     name: "pin",
-    stripIndex: 1,
+    stripIndex: 0,
   },
 ]);
 
+// 即使快照曾带非 0 下标，冷启动仍插到最左。
+writePinnedSnapshots([
+  {
+    path: "C:\\Temp\\afm-fixture\\pinned",
+    type: "directory",
+    name: "pin",
+    stripIndex: 99,
+  },
+]);
+assert.equal(readPinnedSnapshots()[0]?.stripIndex, 0);
+
 pinnedTabIds.value = [];
-const coldRestored = state(
-  [[tab("wg", "D:\\Temp\\afm-fixture\\wg-only")]],
-  0,
-);
+const coldRestored = state([[tab("wg", "D:\\Temp\\afm-fixture\\wg-only")]], 0);
 const hydrated = hydratePersistedPins(coldRestored);
 assert.deepEqual(
   hydrated.state.tabGroups.map((group) => group[0]?.path),
-  ["D:\\Temp\\afm-fixture\\wg-only", "C:\\Temp\\afm-fixture\\pinned"],
+  ["C:\\Temp\\afm-fixture\\pinned", "D:\\Temp\\afm-fixture\\wg-only"],
 );
-assert.equal(hydrated.state.currentTabGroupIndex, 0);
+assert.equal(hydrated.state.currentTabGroupIndex, 1);
 assert.equal(hydrated.pinnedIds.length, 1);
 assert.equal(isTabPinned(hydrated.pinnedIds[0]!), true);
+assert.equal(stripIds(hydrated.state)[0], hydrated.pinnedIds[0]);
+
+// 冷启动：活跃 WG 已有同路径普通标签 → 复用并挪到最左。
+pinnedTabIds.value = [];
+writePinnedSnapshots([
+  {
+    path: "D:\\Temp\\afm-fixture\\wg-only",
+    type: "directory",
+    name: "wg",
+    stripIndex: 5,
+  },
+]);
+const reuseHydrated = hydratePersistedPins(
+  state(
+    [
+      [tab("other", "D:\\Temp\\afm-fixture\\other")],
+      [tab("wg", "D:\\Temp\\afm-fixture\\wg-only")],
+      [tab("tail", "D:\\Temp\\afm-fixture\\tail")],
+    ],
+    2,
+  ),
+);
+assert.deepEqual(stripIds(reuseHydrated.state), ["wg", "other", "tail"]);
+assert.equal(reuseHydrated.pinnedIds[0], "wg");
+// 不抢占原焦点：原 current 在 tail，挪 pin 后仍指向 tail。
+assert.equal(reuseHydrated.state.currentTabGroupIndex, 2);
+assert.equal(reuseHydrated.state.tabGroups[2]?.[0]?.id, "tail");
 
 const emptyHydrated = hydratePersistedPins(createEmptyOpenState());
 assert.equal(emptyHydrated.state.tabGroups.length, 1);
 assert.equal(
   emptyHydrated.state.tabGroups[0]?.[0]?.path,
-  "C:\\Temp\\afm-fixture\\pinned",
+  "D:\\Temp\\afm-fixture\\wg-only",
 );
 assert.equal(isTabPinned(emptyHydrated.pinnedIds[0]!), true);
+assert.equal(emptyHydrated.state.currentTabGroupIndex, 0);
 
 togglePinnedTab(emptyHydrated.pinnedIds[0]!);
 assert.deepEqual(readPinnedSnapshots(), []);

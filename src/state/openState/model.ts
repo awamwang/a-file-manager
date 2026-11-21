@@ -461,8 +461,25 @@ export function openStateWithoutPinned(
 }
 
 /**
- * Keep the (single) pinned group at its previous strip index and fill the
- * other slots, in order, with the restored Work Group Open State.
+ * FIL-79：固定标签始终占 strip 最左（index 0）。把唯一 pin 组挪到槽位 0，
+ * 其余组相对顺序不变；焦点下标随 reorder 语义调整。
+ */
+export function ensurePinnedAtStripStart(
+  state: WorkGroupOpenState,
+  pinnedIds: ReadonlySet<string>,
+): WorkGroupOpenState {
+  const single = collapsePinnedIds(pinnedIds, activeTabId(state));
+  if (single.size === 0) return clampOpenStateIndices(state);
+  const pinIndex = state.tabGroups.findIndex((group) =>
+    groupIsPinned(group, single),
+  );
+  if (pinIndex <= 0) return clampOpenStateIndices(state);
+  return openStateAfterReorderGroups(state, pinIndex, 0);
+}
+
+/**
+ * FIL-79：把 live 中的唯一 pin 固定在 strip index 0，其余槽按目标工作组
+ * 非 pin 标签顺序填入（不再沿用上一 WG 的绝对下标）。
  */
 export function mergePinnedIntoOpenState(
   restored: WorkGroupOpenState,
@@ -472,39 +489,24 @@ export function mergePinnedIntoOpenState(
   const single = collapsePinnedIds(pinnedIds, activeTabId(live));
   if (single.size === 0) return clampOpenStateIndices(restored);
   const base = openStateWithoutPinned(restored, single);
-  const pins = live.tabGroups
-    .map((group, index) => ({ group, index }))
-    .filter(({ group }) => groupIsPinned(group, single));
-  const tabGroups: WorkGroupOpenStateTab[][] = [];
-  const restoredIndexAt: number[] = [];
-  let restoredCursor = 0;
-  const lastPinIndex = pins.reduce((max, pin) => Math.max(max, pin.index), -1);
-  for (let index = 0; restoredCursor < base.tabGroups.length || index <= lastPinIndex; index += 1) {
-    const pin = pins.find((item) => item.index === index);
-    if (pin) {
-      tabGroups.push(pin.group.map((tab) => ({ ...tab })));
-      continue;
-    }
-    if (restoredCursor < base.tabGroups.length) {
-      restoredIndexAt[restoredCursor] = tabGroups.length;
-      tabGroups.push(base.tabGroups[restoredCursor].map((tab) => ({ ...tab })));
-      restoredCursor += 1;
-    }
-  }
+  const pinGroup = live.tabGroups.find((group) => groupIsPinned(group, single));
+  if (!pinGroup) return clampOpenStateIndices(restored);
+  const tabGroups: WorkGroupOpenStateTab[][] = [
+    pinGroup.map((tab) => ({ ...tab })),
+    ...base.tabGroups.map((group) => group.map((tab) => ({ ...tab }))),
+  ];
   const liveActive = live.tabGroups[live.currentTabGroupIndex];
   const activeIsPinned = liveActive ? groupIsPinned(liveActive, single) : false;
-  let currentTabGroupIndex = restoredIndexAt[base.currentTabGroupIndex] ?? 0;
+  let currentTabGroupIndex =
+    base.tabGroups.length > 0 ? base.currentTabGroupIndex + 1 : 0;
   let currentTabIndex = base.currentTabIndex;
   if (activeIsPinned && liveActive) {
     const activeId = liveActive[live.currentTabIndex]?.id ?? liveActive[0]?.id;
-    const found = tabGroups.findIndex((group) => group.some((tab) => tab.id === activeId));
-    if (found >= 0) {
-      currentTabGroupIndex = found;
-      currentTabIndex = Math.max(
-        liveActive.findIndex((tab) => tab.id === activeId),
-        0,
-      );
-    }
+    currentTabGroupIndex = 0;
+    currentTabIndex = Math.max(
+      liveActive.findIndex((tab) => tab.id === activeId),
+      0,
+    );
   }
   return clampOpenStateIndices({
     tabGroups,

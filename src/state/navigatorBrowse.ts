@@ -12,6 +12,7 @@ import {
   flushOpenStatePersist,
   hydrateWorkGroups,
   liveOpenState,
+  ensurePinnedAtStripStart,
   mergePinnedIntoOpenState,
   normalizeRestoredOpenState,
   openStateAfterCloseAllGroups,
@@ -53,8 +54,10 @@ import {
   commitPinnedPersistence,
   forgetPinnedTabs,
   hydratePersistedPins,
+  isTabPinned,
   pinnedIdSet,
   seedPersistedPinFromDoc,
+  togglePinnedTab,
 } from "./tabPins.ts";
 import { clearSelection } from "./navigatorSelection.ts";
 import { normalizePathKey, toNativeFsPath } from "./pathKey.ts";
@@ -618,7 +621,7 @@ export async function navigateTo(
 }
 
 export async function openPathsAsNavigatorTabs(paths: string[]): Promise<void> {
-  // FIL-68：固定标签不随 strip 整体替换丢失 —— 按 merge 语义保留在原 strip 位置。
+  // FIL-68 / FIL-79：固定标签不随 strip 整体替换丢失 —— merge 后钉在最左。
   const preferredPin = activeStripTab(liveOpenState.value)?.id ?? null;
   const next = mergePinnedIntoOpenState(
     openStateFromPaths(paths),
@@ -759,16 +762,33 @@ export async function reorderNavigatorTabs(
     return;
   }
   const before = liveOpenState.value.tabGroups.length;
-  const next = openStateAfterReorderGroups(
+  const reordered = openStateAfterReorderGroups(
     liveOpenState.value,
     fromIndex,
     toIndex,
   );
   // Reorder must never change group count (guards against insert/duplication bugs).
-  if (next.tabGroups.length !== before) return;
+  if (reordered.tabGroups.length !== before) return;
+  // FIL-79：拖拽后强制把 pin 钉回最左，避免绝对下标漂移。
+  const next = ensurePinnedAtStripStart(reordered, pinnedIdSet());
   liveOpenState.value = next;
   // Reorder does not change active listing; debounce disk write (AIA-225).
   scheduleOpenStatePersist(false);
+}
+
+/**
+ * 双击切换固定：固定后挪到 strip 最左并持久化；取消固定则清全局快照。
+ * 纯会话状态更新，不阻塞 UI。
+ */
+export function toggleNavigatorTabPin(tabId: string): void {
+  togglePinnedTab(tabId);
+  if (isTabPinned(tabId)) {
+    applyLiveOpenState(
+      ensurePinnedAtStripStart(liveOpenState.value, pinnedIdSet(tabId)),
+      { persist: true, immediatePersist: false },
+    );
+  }
+  commitPinnedPersistence(liveOpenState.value);
 }
 
 /** Cycle page groups (Sigma Ctrl+Tab / Ctrl+Shift+Tab → switchToAdjacentTabGroup). */
@@ -855,7 +875,7 @@ export async function restoreWorkGroupOpenState(
   activeWorkGroupId.value = workGroupId;
   // Strip restores synchronously; directory listing must not block WG switch UI.
   applyLiveOpenState(merged);
-  // FIL-68：切换/新建工作组后同步固定标签快照（路径与 strip 位置）。
+  // FIL-68 / FIL-79：切换/新建工作组后同步固定标签快照（路径；stripIndex 恒为 0）。
   commitPinnedPersistence(liveOpenState.value);
   clearSelection();
   const active = activeStripTab(liveOpenState.value);

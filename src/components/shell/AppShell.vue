@@ -84,6 +84,7 @@ import {
   stripTabs,
   switchNavigatorTab,
   switchNavigatorTabAdjacent,
+  toggleNavigatorTabPin,
 } from "../../state/navigatorBrowse";
 import {
   normalizeRestoredOpenState,
@@ -179,9 +180,7 @@ import {
   sidenavWidth,
 } from "../../state/sidenavWidth";
 import {
-  commitPinnedPersistence,
   isTabPinned,
-  togglePinnedTab,
 } from "../../state/tabPins";
 import { workGroupDisplayName } from "../../state/workGroup";
 import { scheduleAfterPaint, scheduleIdle } from "../../state/scheduleIdle";
@@ -1670,9 +1669,8 @@ async function onTabClick(event: MouseEvent, groupIndex: number) {
 }
 
 function onToggleTabPin(tabId: string) {
-  togglePinnedTab(tabId);
-  // FIL-68：固定身份按路径写入 work-groups.json（pinnedTab），重启后可恢复并带入新工作组。
-  commitPinnedPersistence(liveOpenState.value);
+  // FIL-68 / FIL-79：固定后钉到最左并持久化路径（stripIndex 恒为 0）。
+  toggleNavigatorTabPin(tabId);
 }
 
 const tabContextGroupIndex = ref<number | null>(null);
