@@ -25,6 +25,7 @@ import HelpLink from "../help/components/HelpLink.vue";
 import HintBubble from "../help/components/HintBubble.vue";
 import { openConfirmDialog } from "../state/confirmDialog";
 import { toastError, toastInfo, toastSuccess } from "../state/toast";
+import { EXAMPLE_WORK_GROUP_ID } from "../config/examples.ts";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -697,7 +698,7 @@ onUnmounted(() => {
             }"
             role="button"
             tabindex="0"
-            data-tour-id="tour-workgroups-group"
+            :data-tour-id="group.id === EXAMPLE_WORK_GROUP_ID ? 'tour-workgroups-group' : undefined"
             :data-list-item-id="group.id"
             :title="t('workGroups.dragReorderHint')"
             @pointerdown="onListPointerDown($event, group.id)"
@@ -772,7 +773,7 @@ onUnmounted(() => {
           <h2
             v-else
             class="inline-title"
-            data-tour-id="tour-workgroups-rename"
+            :data-tour-id="active.isDefault ? undefined : 'tour-workgroups-rename'"
             :title="t('workGroups.renameHint')"
             @dblclick="active.isDefault ? undefined : startInlineRename"
           >

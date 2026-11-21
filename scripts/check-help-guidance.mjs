@@ -77,9 +77,20 @@ check("锚点全覆盖：registry 的每个 anchor 都有 data-tour-id", () => {
   const domAnchors = new Set();
   for (const file of vueFiles) {
     const source = readFileSync(file, "utf8");
-    for (const match of source.matchAll(/data-tour-id="([^"]+)"/g)) {
+    for (const match of source.matchAll(/:?data-tour-id="([^"]+)"/g)) {
+      const value = match[1];
       // Ignore the runtime query template, e.g. data-tour-id="${CSS.escape(anchor)}".
-      if (!match[1].includes("${")) domAnchors.add(match[1]);
+      if (value.includes("${")) continue;
+      // Static attribute: data-tour-id="tour-x".
+      if (!value.includes("'") && !value.includes("?")) {
+        domAnchors.add(value);
+        continue;
+      }
+      // Dynamic binding only mounts a subset at runtime, e.g.
+      // :data-tour-id="cond ? 'tour-x' : undefined" — collect its literals.
+      for (const literal of value.matchAll(/'([^']+)'/g)) {
+        if (literal[1].startsWith("tour-")) domAnchors.add(literal[1]);
+      }
     }
   }
   const missing = registryAnchors.filter((id) => !domAnchors.has(id));

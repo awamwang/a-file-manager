@@ -51,7 +51,21 @@ assert.ok(registry.includes('anchor: "tour-workgroups-rename"'));
 assert.ok(registry.includes('titleKey: "tour.workGroups.rename.title"'));
 assert.ok(registry.includes('anchor: "tour-projects-rename"'));
 assert.ok(registry.includes('titleKey: "tour.projects.rename.title"'));
-assert.ok(wgView.includes('data-tour-id="tour-workgroups-rename"'));
+
+// The Work Groups tour must demo rename on the EXAMPLE group, never the default
+// one: the default title is not renameable, so highlighting it would make the
+// step contradict itself.
+const examplesConfig = read("src/config/examples.ts");
+assert.ok(examplesConfig.includes('EXAMPLE_WORK_GROUP_ID = "work-group-example-1"'));
+assert.ok(wgView.includes('import { EXAMPLE_WORK_GROUP_ID } from "../config/examples.ts"'));
+assert.ok(
+  wgView.includes("group.id === EXAMPLE_WORK_GROUP_ID ? 'tour-workgroups-group' : undefined"),
+);
+assert.ok(wgView.includes("active.isDefault ? undefined : 'tour-workgroups-rename'"));
+// No static anchor may remain on the default group or its (non-renameable) title.
+assert.ok(!wgView.includes('data-tour-id="tour-workgroups-group"'));
+assert.ok(!wgView.includes('data-tour-id="tour-workgroups-rename"'));
+
 assert.ok(projectsView.includes('data-tour-id="tour-projects-rename"'));
 
 console.log("check-example-presets: ok");
