@@ -153,15 +153,14 @@ watch(() => route.path, syncFromRoute);
     </header>
 
     <div class="ext-layout">
-      <aside class="ext-nav fluent-surface" role="tablist" :aria-label="t('extensions.title')">
+      <nav class="ext-nav fluent-surface" :aria-label="t('extensions.title')">
         <button
           v-for="section in allSections"
           :key="section.id"
           type="button"
           class="ext-nav-item"
           :class="{ 'ext-nav-item--active': activeSection === section.id }"
-          role="tab"
-          :aria-selected="activeSection === section.id"
+          :aria-current="activeSection === section.id ? 'true' : undefined"
           @click="selectSection(section.id)"
         >
           <span class="fluent-icon-wash">
@@ -169,11 +168,10 @@ watch(() => route.path, syncFromRoute);
           </span>
           <span class="ext-nav-label">{{ t(section.labelKey) }}</span>
         </button>
-      </aside>
+      </nav>
 
       <article
         class="fluent-surface ext-panel"
-        role="tabpanel"
         :data-ext-section="activeSection"
       >
         <header class="ext-panel-head">

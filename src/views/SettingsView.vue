@@ -781,7 +781,7 @@ onMounted(() => {
     </header>
 
     <div class="settings-layout">
-      <aside class="tier-nav fluent-surface" role="tablist" :aria-label="t('settings.title')">
+      <nav class="tier-nav fluent-surface" :aria-label="t('settings.title')">
         <button
           v-for="section in sections"
           :key="section.id"
@@ -792,8 +792,7 @@ onMounted(() => {
             'tier-item--warning':
               section.id === 'experimental' && activeSection === 'experimental',
           }"
-          role="tab"
-          :aria-selected="activeSection === section.id"
+          :aria-current="activeSection === section.id ? 'true' : undefined"
           @click="selectSection(section.id)"
         >
           <span class="fluent-icon-wash">
@@ -801,7 +800,7 @@ onMounted(() => {
           </span>
           <span class="tier-label">{{ section.label }}</span>
         </button>
-      </aside>
+      </nav>
 
       <div v-if="activeSection === 'health'" class="health-slot">
         <HealthView />

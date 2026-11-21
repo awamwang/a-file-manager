@@ -2278,7 +2278,7 @@ onUnmounted(() => {
 
         <form
           class="navigator-chrome"
-          role="toolbar"
+          role="search"
           :aria-label="t('chrome.toolbar')"
           @submit.prevent="submitAddress"
         >
