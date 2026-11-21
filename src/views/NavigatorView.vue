@@ -3247,10 +3247,18 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   border-bottom: 0;
 }
 
-.row:hover,
+.row:hover {
+  background: var(--fluent-color-fill-selected);
+}
+
 .row:focus-visible {
   background: var(--fluent-color-fill-selected);
-  outline: none;
+  /* Distinct from a merely-selected row (.row--selected has no ring) so keyboard
+     focus is perceivable; same ring language as .row--drop above. Editing the
+     scoped rule directly — a global token rule here would be out-weighted by the
+     scoped [data-v-*] selector. */
+  outline: 2px solid var(--fluent-color-stroke-focus);
+  outline-offset: -2px;
 }
 
 .row--selected {
