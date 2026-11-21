@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -39,12 +39,20 @@ const { t, te } = useI18n();
 const health = ref<HealthPayload | null>(null);
 const deps = ref<DependencyReport | null>(null);
 const error = ref<string | null>(null);
-const loading = ref(true);
+/** 身份卡 / 依赖卡各自加载，页面壳始终可交互。 */
+const healthLoading = ref(true);
+const depsLoading = ref(true);
+/** 离开页面或新一轮刷新时递增，作废进行中的结果写回。 */
+const loadEpoch = ref(0);
+
+const loading = computed(() => healthLoading.value || depsLoading.value);
 
 // 托管依赖动作（B 决策：不暴露 mode 切换；仅来源标签 + 启停按钮 + 双失败态隐身）。
 const starting = ref<Record<string, boolean>>({});
 const stopping = ref<Record<string, boolean>>({});
 const actionErrors = ref<Record<string, string>>({});
+
+const SKELETON_CARD_COUNT = 6;
 
 function showSourceLabel(item: DependencyItem): boolean {
   return item.mode === "config" || item.mode === "managed";
@@ -159,31 +167,54 @@ const summaryText = computed(() => {
 });
 
 async function loadHealth() {
-  loading.value = true;
+  const epoch = ++loadEpoch.value;
+  healthLoading.value = true;
+  depsLoading.value = true;
   error.value = null;
-  try {
-    const [h, d] = await Promise.all([
-      invoke<HealthPayload>("health_get"),
-      invoke<DependencyReport>("deps_probe_get"),
-    ]);
-    health.value = h;
-    deps.value = d;
-  } catch (err) {
-    health.value = null;
-    deps.value = null;
-    error.value = err instanceof Error ? err.message : String(err);
-  } finally {
-    loading.value = false;
-  }
+
+  const healthTask = invoke<HealthPayload>("health_get")
+    .then((h) => {
+      if (epoch !== loadEpoch.value) return;
+      health.value = h;
+    })
+    .catch((err) => {
+      if (epoch !== loadEpoch.value) return;
+      health.value = null;
+      error.value = err instanceof Error ? err.message : String(err);
+    })
+    .finally(() => {
+      if (epoch === loadEpoch.value) healthLoading.value = false;
+    });
+
+  const depsTask = invoke<DependencyReport>("deps_probe_get")
+    .then((d) => {
+      if (epoch !== loadEpoch.value) return;
+      deps.value = d;
+    })
+    .catch((err) => {
+      if (epoch !== loadEpoch.value) return;
+      deps.value = null;
+      error.value = err instanceof Error ? err.message : String(err);
+    })
+    .finally(() => {
+      if (epoch === loadEpoch.value) depsLoading.value = false;
+    });
+
+  await Promise.all([healthTask, depsTask]);
 }
 
 onMounted(() => {
   void loadHealth();
 });
+
+onUnmounted(() => {
+  // 作废进行中的检查，避免写回已卸载视图。
+  loadEpoch.value += 1;
+});
 </script>
 
 <template>
-  <section class="fluent-page panel">
+  <section class="fluent-page panel" :aria-busy="loading ? 'true' : undefined">
     <header class="fluent-page-header fluent-page-header--row">
       <div class="fluent-page-header__text">
         <h1 class="fluent-page-title">{{ t("health.title") }}</h1>
@@ -199,13 +230,26 @@ onMounted(() => {
       </button>
     </header>
 
-    <p v-if="loading" class="fluent-hint">{{ t("health.loading") }}</p>
-    <p v-else-if="error" class="fluent-banner fluent-banner--error">
+    <p v-if="loading" class="fluent-hint" data-health-loading>
+      {{ t("health.loading") }}
+    </p>
+    <p v-if="error" class="fluent-banner fluent-banner--error">
       {{ t("health.failed", { error }) }}
     </p>
-    <template v-else>
+
+    <div
+      v-if="healthLoading && !health"
+      class="health-skeleton fluent-surface"
+      data-health-skeleton
+      aria-hidden="true"
+    >
+      <div class="health-skeleton__banner" />
+      <div class="health-skeleton__row" />
+      <div class="health-skeleton__row" />
+      <div class="health-skeleton__row" />
+    </div>
+    <template v-else-if="health">
       <p
-        v-if="health"
         class="fluent-banner"
         :class="health.ok ? 'fluent-banner--success' : 'fluent-banner--error'"
       >
@@ -215,7 +259,7 @@ onMounted(() => {
         >{{ health.ok ? "ok" : "down" }}</span>
         {{ health.name }} · v{{ health.version }}
       </p>
-      <dl v-if="health" class="fluent-surface grid">
+      <dl class="fluent-surface grid">
         <dt>{{ t("health.fieldOk") }}</dt>
         <dd :class="health.ok ? 'fluent-status-text--ok' : 'fluent-status-text--down'">
           {{ health.ok }}
@@ -229,85 +273,102 @@ onMounted(() => {
         <dt>{{ t("health.fieldAiAddon") }}</dt>
         <dd>{{ health.aiAddon ? t("health.aiAddonOn") : t("health.aiAddonOff") }}</dd>
       </dl>
-
-      <h2 class="deps-heading">{{ t("health.deps.title") }}</h2>
-      <p class="fluent-page-meta">{{ t("health.deps.meta") }}</p>
-      <p
-        v-if="deps"
-        class="fluent-banner"
-        :class="
-          !deps.requiredOk
-            ? 'fluent-banner--error'
-            : deps.missingOptional > 0
-              ? 'fluent-banner--warning'
-              : 'fluent-banner--success'
-        "
-      >
-        {{ summaryText }}
-      </p>
-
-      <ul v-if="deps" class="deps-list" data-health-deps>
-        <li
-          v-for="item in deps.items"
-          :key="item.id"
-          class="deps-card fluent-surface"
-          :class="`deps-card--${item.status}`"
-          :data-dep-id="item.id"
-          :data-dep-status="item.status"
-        >
-          <div class="deps-card__head">
-            <span
-              class="fluent-chip fluent-chip--status"
-              :class="{
-                'fluent-chip--ok': item.status === 'ok',
-                'fluent-chip--down': item.status === 'missing',
-                'fluent-chip--warn': item.status === 'warn' || item.status === 'unbridged',
-              }"
-            >{{ statusLabel(item.status) }}</span>
-            <span
-              v-if="showUnverifiedNote(item)"
-              class="fluent-chip fluent-chip--note"
-            >{{ t("health.deps.quicklookUnverified") }}</span>
-            <span
-              v-if="showSourceLabel(item)"
-              class="fluent-chip fluent-chip--note"
-            >{{ sourceLabel(item) }}</span>
-            <span class="deps-kind">{{ kindLabel(item.kind) }}</span>
-            <strong class="deps-title">{{ depTitle(item) }}</strong>
-          </div>
-          <p class="deps-detail">{{ depText(item, 'detail') }}</p>
-          <p class="deps-fix">
-            <span class="deps-fix-label">{{ t("health.deps.fixLabel") }}</span>
-            {{ depText(item, 'fix') }}
-          </p>
-          <p v-if="failureText(item)" class="deps-managed-failure">
-            {{ failureText(item) }}
-          </p>
-          <p v-if="actionErrors[item.id]" class="deps-managed-error">
-            {{ actionErrors[item.id] }}
-          </p>
-          <div
-            v-if="canStart(item) || canStop(item)"
-            class="deps-managed-actions"
-          >
-            <button
-              v-if="canStart(item)"
-              class="fluent-control"
-              type="button"
-              :disabled="starting[item.id] === true"
-              @click="startManaged(item)"
-            >{{ starting[item.id] ? t("managedDep.action.starting") : t("managedDep.action.start") }}</button>
-            <button
-              v-if="canStop(item)"
-              class="fluent-control"
-              type="button"
-              :disabled="stopping[item.id] === true"
-              @click="stopManaged(item)"
-            >{{ stopping[item.id] ? t("managedDep.action.stopping") : t("managedDep.action.stop") }}</button>
-          </div>
-        </li>
-      </ul>
     </template>
+
+    <h2 class="deps-heading">{{ t("health.deps.title") }}</h2>
+    <p class="fluent-page-meta">{{ t("health.deps.meta") }}</p>
+    <p
+      v-if="deps"
+      class="fluent-banner"
+      :class="
+        !deps.requiredOk
+          ? 'fluent-banner--error'
+          : deps.missingOptional > 0
+            ? 'fluent-banner--warning'
+            : 'fluent-banner--success'
+      "
+    >
+      {{ summaryText }}
+    </p>
+
+    <ul
+      v-if="depsLoading && !deps"
+      class="deps-list deps-list--skeleton"
+      data-health-deps-skeleton
+      aria-hidden="true"
+    >
+      <li
+        v-for="n in SKELETON_CARD_COUNT"
+        :key="n"
+        class="deps-card deps-card--skeleton fluent-surface"
+      >
+        <div class="deps-skeleton__chip" />
+        <div class="deps-skeleton__title" />
+        <div class="deps-skeleton__line" />
+        <div class="deps-skeleton__line deps-skeleton__line--short" />
+      </li>
+    </ul>
+    <ul v-else-if="deps" class="deps-list" data-health-deps>
+      <li
+        v-for="item in deps.items"
+        :key="item.id"
+        class="deps-card fluent-surface"
+        :class="`deps-card--${item.status}`"
+        :data-dep-id="item.id"
+        :data-dep-status="item.status"
+      >
+        <div class="deps-card__head">
+          <span
+            class="fluent-chip fluent-chip--status"
+            :class="{
+              'fluent-chip--ok': item.status === 'ok',
+              'fluent-chip--down': item.status === 'missing',
+              'fluent-chip--warn': item.status === 'warn' || item.status === 'unbridged',
+            }"
+          >{{ statusLabel(item.status) }}</span>
+          <span
+            v-if="showUnverifiedNote(item)"
+            class="fluent-chip fluent-chip--note"
+          >{{ t("health.deps.quicklookUnverified") }}</span>
+          <span
+            v-if="showSourceLabel(item)"
+            class="fluent-chip fluent-chip--note"
+          >{{ sourceLabel(item) }}</span>
+          <span class="deps-kind">{{ kindLabel(item.kind) }}</span>
+          <strong class="deps-title">{{ depTitle(item) }}</strong>
+        </div>
+        <p class="deps-detail">{{ depText(item, 'detail') }}</p>
+        <p class="deps-fix">
+          <span class="deps-fix-label">{{ t("health.deps.fixLabel") }}</span>
+          {{ depText(item, 'fix') }}
+        </p>
+        <p v-if="failureText(item)" class="deps-managed-failure">
+          {{ failureText(item) }}
+        </p>
+        <p v-if="actionErrors[item.id]" class="deps-managed-error">
+          {{ actionErrors[item.id] }}
+        </p>
+        <div
+          v-if="canStart(item) || canStop(item)"
+          class="deps-managed-actions"
+        >
+          <button
+            v-if="canStart(item)"
+            class="fluent-control"
+            type="button"
+            :disabled="starting[item.id] === true"
+            @click="startManaged(item)"
+          >{{ starting[item.id] ? t("managedDep.action.starting") : t("managedDep.action.start") }}</button>
+          <button
+            v-if="canStop(item)"
+            class="fluent-control"
+            type="button"
+            :disabled="stopping[item.id] === true"
+            @click="stopManaged(item)"
+          >{{ stopping[item.id] ? t("managedDep.action.stopping") : t("managedDep.action.stop") }}</button>
+        </div>
+      </li>
+    </ul>
   </section>
 </template>
 
@@ -454,5 +515,56 @@ button {
   color: var(--fluent-color-text-secondary);
   background: var(--fluent-color-fill-quaternary, rgba(128, 128, 128, 0.14));
   border: 1px solid var(--fluent-color-stroke-divider);
+}
+
+.health-skeleton {
+  display: grid;
+  gap: var(--fluent-space-sm);
+  padding: var(--fluent-space-md) var(--fluent-space-lg);
+  margin-bottom: var(--fluent-space-sm);
+}
+
+.health-skeleton__banner,
+.health-skeleton__row,
+.deps-skeleton__chip,
+.deps-skeleton__title,
+.deps-skeleton__line {
+  border-radius: 4px;
+  background: var(--fluent-color-fill-tertiary, rgba(128, 128, 128, 0.16));
+}
+
+.health-skeleton__banner {
+  height: 1.75rem;
+  width: min(100%, 16rem);
+}
+
+.health-skeleton__row {
+  height: 1rem;
+  width: 70%;
+}
+
+.deps-card--skeleton {
+  border-left-color: var(--fluent-color-stroke-divider);
+  display: grid;
+  gap: var(--fluent-space-xs);
+}
+
+.deps-skeleton__chip {
+  height: 1.25rem;
+  width: 3.5rem;
+}
+
+.deps-skeleton__title {
+  height: 1.1rem;
+  width: 55%;
+}
+
+.deps-skeleton__line {
+  height: 0.85rem;
+  width: 90%;
+}
+
+.deps-skeleton__line--short {
+  width: 60%;
 }
 </style>

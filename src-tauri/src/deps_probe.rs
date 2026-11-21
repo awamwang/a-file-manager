@@ -443,7 +443,7 @@ fn ide_status() -> DependencyItem {
     }
 }
 
-/// 汇总探测结果。
+/// 汇总探测结果。网关 HTTP / 路径扫描等可并行，缩短墙钟时间。
 pub fn probe_dependencies() -> DependencyReport {
     let mut items = Vec::new();
 
@@ -483,30 +483,65 @@ pub fn probe_dependencies() -> DependencyReport {
         ));
     }
 
-    items.push(gateway_status());
-    items.push(rclone_status());
     // Capability-driven dependency list: macOS has system Quick Look and no
     // PowerToys Peek. Generate only checks that can exist on this host so the
     // health summary cannot be polluted by permanently-missing Windows items.
     let caps = crate::platform::current().capabilities();
-    if caps.quick_look_preview && crate::platform::preview_provider().is_some() {
-        items.push(item(
-            "quicklook",
-            "optional",
-            "ok",
-            "Quick Look",
-            "Quick Look 由 macOS 系统提供。",
-            "无需处理；空格即可预览选中文件。",
-        ));
-    } else if caps.quick_look_preview {
-        items.push(quicklook_status());
+    let quicklook_system = caps.quick_look_preview && crate::platform::preview_provider().is_some();
+    let quicklook_probe = caps.quick_look_preview && !quicklook_system;
+    // 慢路径并行：网关可达性（最多 ~2s）、rclone/终端/IDE/书签扫描、预览桥探测互不依赖。
+    let (gateway, rclone, quicklook, peek, bookmarks, terminals, ides) =
+        std::thread::scope(|s| {
+            let gateway = s.spawn(|| gateway_status());
+            let rclone = s.spawn(|| rclone_status());
+            let quicklook = s.spawn(|| {
+                if quicklook_system {
+                    Some(item(
+                        "quicklook",
+                        "optional",
+                        "ok",
+                        "Quick Look",
+                        "Quick Look 由 macOS 系统提供。",
+                        "无需处理；空格即可预览选中文件。",
+                    ))
+                } else if quicklook_probe {
+                    Some(quicklook_status())
+                } else {
+                    None
+                }
+            });
+            let peek = s.spawn(|| {
+                if caps.peek_preview {
+                    Some(peek_status())
+                } else {
+                    None
+                }
+            });
+            let bookmarks = s.spawn(|| browser_bookmarks_status());
+            let terminals = s.spawn(|| terminal_status());
+            let ides = s.spawn(|| ide_status());
+            (
+                gateway.join().expect("gateway probe"),
+                rclone.join().expect("rclone probe"),
+                quicklook.join().expect("quicklook probe"),
+                peek.join().expect("peek probe"),
+                bookmarks.join().expect("bookmarks probe"),
+                terminals.join().expect("terminals probe"),
+                ides.join().expect("ides probe"),
+            )
+        });
+
+    items.push(gateway);
+    items.push(rclone);
+    if let Some(ql) = quicklook {
+        items.push(ql);
     }
-    if caps.peek_preview {
-        items.push(peek_status());
+    if let Some(pk) = peek {
+        items.push(pk);
     }
-    items.push(browser_bookmarks_status());
-    items.push(terminal_status());
-    items.push(ide_status());
+    items.push(bookmarks);
+    items.push(terminals);
+    items.push(ides);
 
     if cfg!(feature = "ai-addon") {
         items.push(item(
@@ -546,16 +581,27 @@ pub fn probe_dependencies() -> DependencyReport {
     }
 }
 
+/// 依赖探测含网关 HTTP / 磁盘扫描；必须 `spawn_blocking`，不得冻住 async runtime。
 #[tauri::command]
-pub fn deps_probe_get(app: tauri::AppHandle) -> DependencyReport {
-    use tauri::Manager;
-    let mut report = probe_dependencies();
-    // 一次性投影（Q9a/D 决策）：注册表有记录 → 注册表权威覆写；无记录/读失败 → 纯探测结果。
-    if let Ok(dir) = app.path().app_config_dir() {
-        crate::managed_dependency::projection::enrich_with_registry(&mut report.items, &dir);
-        recompute_counts(&mut report);
-    }
-    report
+pub async fn deps_probe_get(app: tauri::AppHandle) -> DependencyReport {
+    tauri::async_runtime::spawn_blocking(move || {
+        use tauri::Manager;
+        let mut report = probe_dependencies();
+        // 一次性投影（Q9a/D 决策）：注册表有记录 → 注册表权威覆写；无记录/读失败 → 纯探测结果。
+        if let Ok(dir) = app.path().app_config_dir() {
+            crate::managed_dependency::projection::enrich_with_registry(&mut report.items, &dir);
+            recompute_counts(&mut report);
+        }
+        report
+    })
+    .await
+    .unwrap_or_else(|_| DependencyReport {
+        generated_at_ms: now_ms(),
+        items: Vec::new(),
+        required_ok: false,
+        missing_required: 1,
+        missing_optional: 0,
+    })
 }
 
 /// 投影可能覆写 status，计数须以投影后结果重算。
