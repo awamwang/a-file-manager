@@ -24,7 +24,6 @@ assert.ok(projects.includes("openWorkspaceFolder"));
 
 const keys = [
   "openWorkspaceFolder",
-  "openWorkspaceFolderHint",
   "noticeOpenedWorkspace",
   "openWorkspaceFailed",
 ];
