@@ -10,8 +10,6 @@ import { useRoute, useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
 import {
   applyProjectSilentSwitch,
-  closeAllNavigatorTabs,
-  liveOpenState,
   openPathsAsNavigatorTabs,
   snapshotLeavingOpenState,
   type SilentSwitchResult,
@@ -718,8 +716,6 @@ const boundMemberPaths = computed(() => {
   return workGroups.value.find((group) => group.id === id)?.memberPaths ?? [];
 });
 
-const hasOpenTabs = computed(() => liveOpenState.value.tabGroups.length > 0);
-
 /** 把绑定工作组的成员同步为项目成员（members/ junction），已存在的跳过。 */
 async function syncMembersFromWorkGroup() {
   if (!selected.value?.workGroupId) {
@@ -773,13 +769,6 @@ async function syncMembersFromWorkGroup() {
     await patchSelectedDetails(slug);
     syncingMembers.value = false;
   }
-}
-
-/** 关闭运行时：把当前实时 Open State（标签条）整体关闭，并同步落盘。 */
-async function closeRuntimeOpenState() {
-  if (!hasOpenTabs.value) return;
-  await closeAllNavigatorTabs();
-  toastInfo(t("projects.runtimeClosed"));
 }
 
 async function copyProject(project: UserProject) {
@@ -1390,14 +1379,6 @@ onUnmounted(() => {
                 @click="syncMembersFromWorkGroup"
               >
                 {{ t("projects.syncMembersFromWorkGroup") }}
-              </button>
-              <button
-                class="fluent-control"
-                type="button"
-                :disabled="!hasOpenTabs"
-                @click="closeRuntimeOpenState"
-              >
-                {{ t("projects.closeRuntimeOpenState") }}
               </button>
             </div>
 

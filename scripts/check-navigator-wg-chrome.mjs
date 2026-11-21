@@ -79,7 +79,7 @@ if (
   process.exit(1);
 }
 
-if (!en.workGroups?.openMembersIntoOpenState || !en.workGroups?.tabsToMembersConfig) {
+if (!en.workGroups?.tabsToMembersConfig) {
   console.error("en.workGroups tab-to-members keys missing");
   process.exit(1);
 }

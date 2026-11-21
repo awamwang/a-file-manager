@@ -29,7 +29,6 @@ const EXPECTED_KEYS = [
   "contextMenu.openWithExplorer",
   "contextMenu.reveal",
   "projects.noticeOpenedInSystemExplorer",
-  "projects.openWorkspaceInSystemExplorerHint",
   "providers.openInExplorer",
   "settings.fields.core.fileDoubleClickAction.options.reveal",
   "taskCenter.revealHint",
