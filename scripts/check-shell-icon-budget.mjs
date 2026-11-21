@@ -5,6 +5,7 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -200,3 +201,12 @@ const MAX_BYTES = 48 * 1024 * 1024;
 
 assert.ok(simulate());
 console.log("Shell icon budget / LRU checks OK (AIA-279).");
+
+// Execute the REAL shellIcons cache module (not the mirror above).
+const unit = spawnSync(
+  process.execPath,
+  ["--experimental-strip-types", join(root, "scripts/shell-icons-state-checks.ts")],
+  { encoding: "utf8" },
+);
+assert.equal(unit.status, 0, `real shellIcons behavior unit failed:\n${unit.stdout}\n${unit.stderr}`);
+process.stdout.write(unit.stdout);

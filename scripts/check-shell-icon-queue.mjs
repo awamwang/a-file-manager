@@ -5,6 +5,7 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -363,3 +364,12 @@ function simulate() {
 
 assert.ok(simulate());
 console.log("Shell icon queue behavior checks OK (AIA-278 / FIL-33).");
+
+// Execute the REAL shellIcons cache module (not the mirror above).
+const unit = spawnSync(
+  process.execPath,
+  ["--experimental-strip-types", join(root, "scripts/shell-icons-state-checks.ts")],
+  { encoding: "utf8" },
+);
+assert.equal(unit.status, 0, `real shellIcons behavior unit failed:\n${unit.stdout}\n${unit.stderr}`);
+process.stdout.write(unit.stdout);
