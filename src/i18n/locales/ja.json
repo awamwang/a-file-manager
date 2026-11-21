@@ -1161,6 +1161,12 @@
           "title": "音声検索",
           "description": "検索パレットを開いたときに自動で録音を開始し、認識テキストを検索語に追記します"
         },
+        "voicePreset": {
+          "title": "プロバイダー",
+          "manual": "手動",
+          "openai": "OpenAI",
+          "description": "OpenAI を選ぶと、下のエンドポイントとモデルが自動入力されます。"
+        },
         "sttBaseUrl": {
           "title": "音声→テキストのベース URL",
           "description": "OpenAI 互換エンドポイントのベース（例: https://api.openai.com/v1）。{baseUrl}/transcription に POST します"

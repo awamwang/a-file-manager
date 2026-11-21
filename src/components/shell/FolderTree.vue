@@ -106,34 +106,32 @@ onMounted(() => {
 
 <template>
   <div class="folder-tree" role="tree" :aria-label="t('guide.rootLabel')">
-    <div class="tree-branch tree-branch--root" data-tree-root="this-pc">
-      <div class="tree-row">
-        <button
-          type="button"
-          class="tree-twist"
-          :aria-expanded="thisPcExpanded"
-          :aria-label="thisPcExpanded ? t('chrome.collapseFolder') : t('chrome.expandFolder')"
-          @click="toggleThisPc"
-        >
+    <div class="tree-branch tree-branch--root" role="presentation" data-tree-root="this-pc">
+      <div
+        class="tree-row"
+        role="treeitem"
+        :aria-expanded="thisPcExpanded"
+        aria-level="1"
+        :aria-selected="guideSelected"
+        tabindex="0"
+        :aria-current="guideSelected ? 'page' : undefined"
+        @click="openGuide"
+        @keydown.enter.prevent="openGuide"
+        @keydown.space.prevent="openGuide"
+      >
+        <span class="tree-twist" aria-hidden="true" @click.stop="toggleThisPc">
           <FluentIcon
             name="chevronDown"
             size="sm"
             :class="{ 'tree-twist-icon--closed': !thisPcExpanded }"
           />
-        </button>
-        <button
-          type="button"
-          class="tree-label"
-          :class="{ 'tree-label--selected': guideSelected }"
-          :title="t('guide.rootTitle')"
-          :aria-current="guideSelected ? 'page' : undefined"
-          @click="openGuide"
-        >
+        </span>
+        <span class="tree-label" :class="{ 'tree-label--selected': guideSelected }" :title="t('guide.rootTitle')">
           <FluentIcon name="folder" size="sm" class="tree-label-icon" />
           <span>{{ t("guide.rootLabel") }}</span>
-        </button>
+        </span>
       </div>
-      <div v-if="thisPcExpanded" class="tree-children">
+      <div v-if="thisPcExpanded" class="tree-children" role="group">
         <FolderTreeBranch
           v-for="drive in drivesList"
           :key="drive.path"
@@ -145,32 +143,31 @@ onMounted(() => {
       </div>
     </div>
 
-    <div class="tree-branch tree-branch--root" data-tree-root="network">
-      <div class="tree-row">
-        <button
-          type="button"
-          class="tree-twist"
-          :aria-expanded="networkExpanded"
-          :aria-label="networkExpanded ? t('chrome.collapseFolder') : t('chrome.expandFolder')"
-          @click="toggleNetwork"
-        >
+    <div class="tree-branch tree-branch--root" role="presentation" data-tree-root="network">
+      <div
+        class="tree-row"
+        role="treeitem"
+        :aria-expanded="networkExpanded"
+        aria-level="1"
+        tabindex="0"
+        :title="t('shellPlaces.network')"
+        @click="toggleNetwork"
+        @keydown.enter.prevent="toggleNetwork"
+        @keydown.space.prevent="toggleNetwork"
+      >
+        <span class="tree-twist" aria-hidden="true" @click.stop="toggleNetwork">
           <FluentIcon
             name="chevronDown"
             size="sm"
             :class="{ 'tree-twist-icon--closed': !networkExpanded }"
           />
-        </button>
-        <button
-          type="button"
-          class="tree-label"
-          :title="t('shellPlaces.network')"
-          @click="toggleNetwork"
-        >
+        </span>
+        <span class="tree-label" :title="t('shellPlaces.network')">
           <FluentIcon name="globe" size="sm" class="tree-label-icon" />
           <span>{{ t("shellPlaces.network") }}</span>
-        </button>
+        </span>
       </div>
-      <div v-if="networkExpanded" class="tree-children">
+      <div v-if="networkExpanded" class="tree-children" role="group">
         <FolderTreeBranch
           v-for="share in networkChildren"
           :key="share.path"

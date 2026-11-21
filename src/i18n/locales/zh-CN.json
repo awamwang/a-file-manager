@@ -887,6 +887,12 @@
           "title": "语音搜索",
           "description": "打开搜索面板时自动开始录音；识别文本追加进搜索词"
         },
+        "voicePreset": {
+          "title": "服务类型",
+          "manual": "手动",
+          "openai": "OpenAI",
+          "description": "选择 OpenAI 可自动填写下方的接口地址和模型。"
+        },
         "sttBaseUrl": {
           "title": "语音转文字服务地址",
           "description": "OpenAI 兼容接口基地址，如 https://api.openai.com/v1"

@@ -179,6 +179,7 @@ onUnmounted(() => {
 <template>
   <div
     class="tree-branch"
+    role="presentation"
     :class="{
       'tree-branch--entry': highlightMode === 'entry',
       'tree-branch--nested': depth > 0,
@@ -192,21 +193,28 @@ onUnmounted(() => {
       class="tree-row"
       :class="{ 'tree-row--drop': dropOver }"
       :style="{ paddingLeft: `${depth * 12}px` }"
+      role="treeitem"
+      :aria-expanded="expanded"
+      :aria-level="depth + 1"
+      :aria-selected="highlight === 'selected'"
+      :aria-current="highlight === 'current' ? 'page' : undefined"
+      tabindex="0"
+      :title="path"
+      @click="open"
+      @keydown.enter.prevent="open"
+      @keydown.space.prevent="open"
       @dragover="onTreeDragOver"
       @dragleave="onTreeDragLeave"
       @drop="onTreeDrop"
     >
-      <button
-        type="button"
+      <span
         class="tree-twist"
-        :aria-expanded="expanded"
-        :aria-label="expanded ? t('chrome.collapseFolder') : t('chrome.expandFolder')"
-        @click="toggle"
+        aria-hidden="true"
+        @click.stop="toggle"
       >
         <FluentIcon name="chevronDown" size="sm" :class="{ 'tree-twist-icon--closed': !expanded }" />
-      </button>
-      <button
-        type="button"
+      </span>
+      <span
         class="tree-label"
         :class="{
           'tree-label--selected': highlight === 'selected',
@@ -214,15 +222,12 @@ onUnmounted(() => {
           'tree-label--nested': depth > 0,
           'tree-label--drop': dropOver,
         }"
-        :title="path"
-        :aria-current="highlight === 'selected' || highlight === 'current' ? 'page' : undefined"
-        @click="open"
       >
         <FluentIcon name="folder" size="sm" class="tree-label-icon" />
         <span>{{ label }}</span>
-      </button>
+      </span>
     </div>
-    <div v-if="expanded" class="tree-children" :style="{ marginLeft: `${12 + depth * 12}px` }">
+    <div v-if="expanded" class="tree-children" role="group" :style="{ marginLeft: `${12 + depth * 12}px` }">
       <p v-if="loading" class="tree-note">{{ t("common.loading") }}</p>
       <p v-else-if="children && !children.length" class="tree-note">{{ t("common.empty") }}</p>
       <FolderTreeBranch

@@ -825,7 +825,7 @@ onMounted(() => {
         <p class="open-tools-meta">{{ t("settings.openTools.meta") }}</p>
         <p v-if="ideAppsLoading" class="fluent-hint">{{ t("settings.loading") }}</p>
 
-        <h3 class="open-tools-subtitle">{{ t("settings.openTools.orderTitle") }}</h3>
+        <h2 class="open-tools-subtitle">{{ t("settings.openTools.orderTitle") }}        </h2>
         <p class="open-tools-meta">{{ t("settings.openTools.orderMeta") }}</p>
         <div
           class="open-tool-order"
@@ -858,7 +858,7 @@ onMounted(() => {
           </div>
         </div>
 
-        <h3 class="open-tools-subtitle">{{ t("settings.openTools.builtinTitle") }}</h3>
+        <h2 class="open-tools-subtitle">{{ t("settings.openTools.builtinTitle") }}        </h2>
         <div v-for="app in builtinApps" :key="app.id" class="open-tool-row">
           <div class="open-tool-text">
             <span class="title">{{ app.name }}</span>
@@ -897,7 +897,7 @@ onMounted(() => {
           {{ t("settings.openTools.rediscover") }}
         </button>
 
-        <h3 class="open-tools-subtitle">{{ t("settings.openTools.customTitle") }}</h3>
+        <h2 class="open-tools-subtitle">{{ t("settings.openTools.customTitle") }}        </h2>
         <p class="open-tools-meta">{{ t("settings.openTools.customMeta") }}</p>
         <p v-if="!customTools.length" class="open-tools-empty">
           {{ t("settings.openTools.customEmpty") }}

@@ -167,18 +167,25 @@ onMounted(() => {
       </button>
     </div>
 
-    <ul class="list" role="listbox" :aria-label="t('ai.sections.providers.title')">
+    <ul class="list" role="list" :aria-label="t('ai.sections.providers.title')">
       <li
         v-for="row in providers"
         :key="row.id"
         class="row"
         :class="{ 'row--active': selectedId === row.id }"
-        role="option"
-        :aria-selected="selectedId === row.id"
+        role="listitem"
+        :aria-current="selectedId === row.id ? 'true' : undefined"
         @click="select(row)"
       >
         <div class="row-main">
-          <strong>{{ row.displayName }}</strong>
+          <strong
+            class="provider-name"
+            role="button"
+            tabindex="0"
+            @click.stop="select(row)"
+            @keydown.enter.prevent="select(row)"
+            @keydown.space.prevent="select(row)"
+          >{{ row.displayName }}</strong>
           <span class="meta">{{ row.id }} · {{ row.kind }}</span>
         </div>
         <button type="button" class="fluent-control" @click.stop="toggleEnabled(row)">

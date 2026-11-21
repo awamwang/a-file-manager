@@ -2495,11 +2495,12 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         'list--drop': dragOverPath === currentPath,
       }"
       :style="primaryListStyle"
-      role="list"
+      role="listbox"
+      :aria-multiselectable="true"
       tabindex="-1"
       data-focus-default
       :aria-busy="listLoading ? 'true' : undefined"
-      :aria-label="listLoading ? t('navigator.loading') : undefined"
+      :aria-label="currentPath || t('navigator.loading')"
       @keydown="onListKeyDown"
       @wheel="onListWheel"
       @scroll="onPrimaryListScroll"
@@ -2612,7 +2613,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
             'row--drop': dragOverPath === item.entry.path,
           }"
           :style="isDetailsView ? detailsGridStyle : undefined"
-          role="listitem"
+          role="option"
           tabindex="-1"
           draggable="true"
           :data-entry-path="item.entry.path"
@@ -2729,9 +2730,10 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           'list--drop': dragOverPath === secondaryPath,
         }"
         :style="secondaryListStyle"
-        role="list"
+        role="listbox"
+        :aria-multiselectable="true"
         :aria-busy="secondaryLoading ? 'true' : undefined"
-        :aria-label="secondaryLoading ? t('navigator.loading') : undefined"
+        :aria-label="secondaryPath || t('navigator.loading')"
         @wheel="onListWheel"
         @scroll="onSecondaryListScroll"
         @contextmenu="onSecondaryListContextMenu"
@@ -2784,7 +2786,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
             'row--drop': dragOverPath === entry.path,
           }"
           :style="isDetailsView ? detailsGridStyle : undefined"
-          role="listitem"
+          role="option"
           tabindex="-1"
           draggable="true"
           :data-entry-path="entry.path"
@@ -3167,7 +3169,11 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
 .col-sort:focus-visible {
   color: var(--fluent-color-text-primary);
   background: var(--fluent-color-fill-selected);
-  outline: none;
+}
+
+.col-sort:focus-visible {
+  outline: 2px solid var(--fluent-color-stroke-focus);
+  outline-offset: -2px;
 }
 
 .col-resizer {
