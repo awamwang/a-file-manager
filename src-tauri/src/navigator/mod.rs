@@ -122,6 +122,25 @@ pub async fn navigator_user_folders() -> Result<places::UserFolders, String> {
         .map_err(|err| format!("navigator_user_folders worker failed: {err}"))?
 }
 
+/// ADR 0026: mapped + best-effort LAN-discovered network shares for the This PC
+/// → Network tree node and Guide cards. Runs on the blocking pool — `net view`
+/// / `mount` discovery touches the network, never the UI thread.
+#[tauri::command]
+pub async fn navigator_network_shares() -> Result<Vec<places::NetworkPlace>, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let t0 = std::time::Instant::now();
+        let places = places::network_shares();
+        crate::perf_log::afm_perf_line(format!(
+            "AFM_PERF navigator_network_shares n={} {:.1}ms",
+            places.len(),
+            t0.elapsed().as_secs_f64() * 1000.0
+        ));
+        Ok(places)
+    })
+    .await
+    .map_err(|err| format!("navigator_network_shares worker failed: {err}"))?
+}
+
 #[tauri::command]
 pub async fn navigator_shell_places() -> Result<places::ShellPlaces, String> {
     tauri::async_runtime::spawn_blocking(|| {

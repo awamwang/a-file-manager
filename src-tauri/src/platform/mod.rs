@@ -329,6 +329,11 @@ pub trait Platform: Send + Sync {
     fn capabilities(&self) -> PlatformCapabilities;
     /// Mounted volumes for the Navigator's "This PC" sidebar.
     fn volumes(&self) -> Result<Vec<Volume>, String>;
+    /// ADR 0026: live computers from the OS "Network" folder (WS-Discovery on
+    /// Windows). Default empty so non-Windows adapters opt out explicitly.
+    fn network_computers(&self) -> Vec<String> {
+        Vec::new()
+    }
     /// Free / total space of the volume containing `path`.
     fn volume_space(&self, path: &str) -> Result<VolumeSpace, String>;
     /// Hidden-file semantics (Win32 attribute vs POSIX dot-files).
@@ -477,6 +482,12 @@ pub fn home_dir() -> Option<PathBuf> {
 /// Single entry point for volume enumeration (both OS adapters).
 pub fn volumes() -> Result<Vec<Volume>, String> {
     current().volumes()
+}
+
+/// Single entry point for live-computer enumeration (ADR 0026). Empty on hosts
+/// whose adapter does not implement it.
+pub fn network_computers() -> Vec<String> {
+    current().network_computers()
 }
 
 /// Single entry point for free-space queries (both OS adapters).

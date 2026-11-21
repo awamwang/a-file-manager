@@ -7,7 +7,9 @@
 
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::sync::mpsc;
+use std::time::Duration;
 
 /// `CREATE_NO_WINDOW` — hide the console for helper/CLI child processes.
 #[cfg(windows)]
@@ -23,6 +25,44 @@ pub fn command(program: impl AsRef<OsStr>) -> Command {
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
     cmd
+}
+
+/// Run a console tool and capture stdout, but give up after `timeout` (killing
+/// the whole process tree). ADR 0026: `net view \\server` hangs indefinitely on
+/// an unreachable host, so share enumeration must never block forever. Returns
+/// `None` on spawn failure or timeout.
+pub fn output_capped(
+    program: impl AsRef<OsStr>,
+    args: &[&str],
+    timeout: Duration,
+) -> Option<Vec<u8>> {
+    let mut child = command(program)
+        .args(args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
+    let stdout = child.stdout.take()?;
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        use std::io::Read;
+        let mut buf = Vec::new();
+        let mut stdout = stdout;
+        let _ = stdout.read_to_end(&mut buf);
+        let _ = tx.send(buf);
+    });
+    match rx.recv_timeout(timeout) {
+        Ok(buf) => {
+            let _ = child.wait();
+            Some(buf)
+        }
+        Err(_) => {
+            crate::platform::kill_process_tree(child.id());
+            let _ = child.kill();
+            let _ = child.wait();
+            None
+        }
+    }
 }
 
 /// Terminate a process together with its descendants (rclone → ssh). The

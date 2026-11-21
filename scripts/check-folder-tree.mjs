@@ -30,6 +30,9 @@ if (!shell.includes("SIDE_NAV_ITEMS")) {
 }
 
 // AIA-236: Explorer-like This PC + drive roots; no discrete entry sections.
+// ADR 0026 amends this: a top-level Network root is allowed (a sibling of
+// This PC, like Windows Explorer) — but folders / recycle / OneDrive /
+// Libraries must NOT come back as tree sections; they stay on the Guide.
 for (const needle of [
   "guide.rootLabel",
   "GUIDE_PATH",
@@ -37,6 +40,8 @@ for (const needle of [
   "drivesList",
   "loadDrives",
   'data-tree-root="this-pc"',
+  'data-tree-root="network"',
+  "loadNetworkShares",
   "thisPcExpanded",
   "isOsHierarchyPath",
 ]) {
@@ -53,7 +58,8 @@ for (const banned of [
   "toggleFolderTreeSection",
   "loadFolderTreeSectionCollapse",
   "folderTreeSections",
-  "shellPlaces",
+  "shellPlaces.onedrive",
+  "shellPlaces.libraries",
   "userFolderItems",
   "RECYCLE_PATH",
   'highlight-mode="entry"',

@@ -72,8 +72,14 @@ export type UserFolderItem = {
 export const drivesList = ref<DriveInfo[]>([]);
 export const userFolders = ref<UserFolders | null>(null);
 export const shellPlaces = ref<ShellPlaces | null>(null);
+/** Mapped + LAN-discovered network shares (lazy, ADR 0026). Empty until loaded. */
+export const networkShares = ref<NetworkPlace[]>([]);
+/** Shared load state so the startup pre-warm and the tree/Guide stay in sync. */
+export const networkSharesLoading = ref(false);
+export const networkSharesLoaded = ref(false);
 
 let drivesHydrate: Promise<DriveInfo[]> | null = null;
+let networkSharesHydrate: Promise<NetworkPlace[]> | null = null;
 
 export function guideTabName(translate: (key: string) => string): string {
   return translate("guide.tabName");
@@ -103,6 +109,31 @@ export async function loadShellPlaces(): Promise<ShellPlaces> {
   const places = await invoke<ShellPlaces>("navigator_shell_places");
   shellPlaces.value = places;
   return places;
+}
+
+/**
+ * ADR 0026: lazy network-share discovery (`navigator_network_shares`). Shares
+ * the result with the Guide network cards and the This PC → Network tree node,
+ * so a cold start fires the (potentially slow) `net view` / `mount` probe once.
+ */
+export function loadNetworkShares(): Promise<NetworkPlace[]> {
+  if (networkSharesHydrate) return networkSharesHydrate;
+  networkSharesLoading.value = true;
+  const run = (async () => {
+    const list = await invoke<NetworkPlace[]>("navigator_network_shares");
+    networkShares.value = list;
+    return list;
+  })().finally(() => {
+    networkSharesLoading.value = false;
+    networkSharesLoaded.value = true;
+  });
+  // Cache the resolved promise; reset the single-flight guard on failure so a
+  // later expand can retry the (slow) WS-Discovery enumeration.
+  networkSharesHydrate = run.catch((err) => {
+    networkSharesHydrate = null;
+    throw err;
+  });
+  return networkSharesHydrate;
 }
 
 export async function loadNavigatorPlaces(): Promise<void> {

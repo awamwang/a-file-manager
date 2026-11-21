@@ -232,6 +232,13 @@ impl Platform for WindowsPlatform {
         Ok(drives)
     }
 
+    /// ADR 0026: live computers from the Shell Network folder (WS-Discovery),
+    /// the same source Explorer's 网络 pane reads. Delegates to the module-level
+    /// `network_computers` COM helper.
+    fn network_computers(&self) -> Vec<String> {
+        network_computers()
+    }
+
     /// Moved verbatim from `navigator::disk_space` (7.16).
     fn volume_space(&self, path: &str) -> Result<VolumeSpace, String> {
         use std::os::windows::ffi::OsStrExt;
@@ -809,9 +816,105 @@ fn volume_root(path: &str) -> Option<String> {
     None
 }
 
+/// Enumerate live computers from the Shell **Network** folder
+/// (`FOLDERID_NetworkFolder`, populated by WS-Discovery / Function Discovery —
+/// the same source Windows Explorer's 网络 pane reads). This replaces the legacy
+/// SMB1 `net view` browser, which is disabled by default on Win10/11 and hangs
+/// (ADR 0026). Returns bare server names (no `\\` prefix); empty on any failure.
+pub(crate) fn network_computers() -> Vec<String> {
+    use windows::core::PWSTR;
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::System::Com::{CoTaskMemFree, IBindCtx};
+    use windows::Win32::UI::Shell::{
+        SHBindToObject, SHCONTF_FOLDERS, SHCONTF_NONFOLDERS, SHCreateShellItem,
+        SHGetKnownFolderIDList, SIGDN_DESKTOPABSOLUTEPARSING, FOLDERID_NetworkFolder, IEnumIDList,
+        IShellFolder, KF_FLAG_DEFAULT,
+    };
+    use windows::Win32::UI::Shell::Common::ITEMIDLIST;
+
+    ensure_com_sta();
+    let mut servers: Vec<String> = Vec::new();
+    unsafe {
+        let Ok(root_pidl) =
+            SHGetKnownFolderIDList(&FOLDERID_NetworkFolder, KF_FLAG_DEFAULT.0 as u32, None)
+        else {
+            return servers;
+        };
+        let folder: IShellFolder = match SHBindToObject(
+            None::<&IShellFolder>,
+            root_pidl as *const ITEMIDLIST,
+            None::<&IBindCtx>,
+        ) {
+            Ok(folder) => folder,
+            Err(_) => {
+                CoTaskMemFree(Some(root_pidl as *const _));
+                return servers;
+            }
+        };
+
+        let mut enumerator: Option<IEnumIDList> = None;
+        let flags = (SHCONTF_FOLDERS.0 | SHCONTF_NONFOLDERS.0) as u32;
+        if folder.EnumObjects(HWND::default(), flags, &mut enumerator).is_err() {
+            CoTaskMemFree(Some(root_pidl as *const _));
+            return servers;
+        }
+        let Some(enumerator) = enumerator else {
+            CoTaskMemFree(Some(root_pidl as *const _));
+            return servers;
+        };
+
+        loop {
+            let mut child: *mut ITEMIDLIST = std::ptr::null_mut();
+            let mut fetched: u32 = 0;
+            if enumerator
+                .Next(std::slice::from_mut(&mut child), Some(&mut fetched))
+                .is_err()
+                || fetched == 0
+                || child.is_null()
+            {
+                break;
+            }
+            if let Ok(item) =
+                SHCreateShellItem(None, Some(&folder), child as *const ITEMIDLIST)
+            {
+                if let Ok(PWSTR(buf)) = item.GetDisplayName(SIGDN_DESKTOPABSOLUTEPARSING) {
+                    if !buf.is_null() {
+                        let text = PWSTR(buf).to_string().unwrap_or_default();
+                        CoTaskMemFree(Some(buf as *const _));
+                        if let Some(rest) = text.strip_prefix(r"\\") {
+                            if let Some(server) = rest.split('\\').next() {
+                                let server = server.trim();
+                                if !server.is_empty() {
+                                    servers.push(server.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            CoTaskMemFree(Some(child as *const _));
+        }
+        CoTaskMemFree(Some(root_pidl as *const _));
+    }
+    servers.sort();
+    servers.dedup();
+    servers
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// ADR 0026 host probe (run manually): `cargo test -- --ignored --nocapture
+    /// probe_network_computers`. Enumerates the Shell Network folder
+    /// (`::{Network}` / WS-Discovery, the same source Explorer's 网络 pane uses)
+    /// to confirm it returns the live computers instead of hanging like the
+    /// legacy SMB1 `net view` browser.
+    #[test]
+    #[ignore]
+    fn probe_network_computers() {
+        println!("network_computers = {:?}", network_computers());
+    }
 
     #[test]
     fn windows_adapter_honours_the_shared_provider_contract() {

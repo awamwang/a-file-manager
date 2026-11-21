@@ -10,9 +10,13 @@ import {
   drivesList,
   isGuidePath,
   loadDrives,
+  loadNetworkShares,
+  networkShares,
+  networkSharesLoaded,
+  networkSharesLoading,
 } from "../../state/guide";
 import { isOsHierarchyPath } from "../../state/folderTree";
-import { scheduleAfterPaint } from "../../state/scheduleIdle";
+import { scheduleAfterPaint, scheduleIdle } from "../../state/scheduleIdle";
 
 const { t } = useI18n();
 
@@ -20,7 +24,18 @@ const { t } = useI18n();
 const thisPcExpanded = ref(true);
 const thisPcUserCollapsed = ref(false);
 
+/** ADR 0026: Network root — sibling of This PC, like Windows Explorer. */
+const networkExpanded = ref(false);
+
 const guideSelected = computed(() => isGuidePath(currentPath.value));
+const networkChildren = computed(() => networkShares.value);
+// Shared with the startup pre-warm so the node reflects a background load.
+const networkLoading = computed(() => networkSharesLoading.value);
+const networkLoaded = computed(() => networkSharesLoaded.value);
+
+function isUncPath(path: string | null | undefined): boolean {
+  return !!path && path.trim().startsWith("\\\\");
+}
 
 function driveLabel(letter: string, label: string): string {
   if (label && label !== letter) {
@@ -43,12 +58,31 @@ function toggleThisPc() {
   thisPcExpanded.value = true;
 }
 
+/** Single-flight: reuses the in-flight pre-warm or triggers one on demand. */
+function ensureNetworkLoaded() {
+  void loadNetworkShares().catch(() => undefined);
+}
+
+function toggleNetwork() {
+  if (networkExpanded.value) {
+    networkExpanded.value = false;
+    return;
+  }
+  networkExpanded.value = true;
+  ensureNetworkLoaded();
+}
+
 watch(
   () => currentPath.value,
   (path, prev) => {
     if (path !== prev) thisPcUserCollapsed.value = false;
     if (isOsHierarchyPath(path) && !thisPcUserCollapsed.value) {
       thisPcExpanded.value = true;
+    }
+    // Reveal the Network root when navigation lands on a UNC share (ADR 0026).
+    if (isUncPath(path)) {
+      networkExpanded.value = true;
+      ensureNetworkLoaded();
     }
   },
   { immediate: true },
@@ -60,6 +94,12 @@ onMounted(() => {
     void loadDrives().catch(() => {
       drivesList.value = [];
     });
+  });
+  // ADR 0026: pre-warm WS-Discovery in the background once the app is idle, so
+  // the slow (cold ~30s) Network enumeration is already done by the time the
+  // user expands 网络. Single-flight, so expand / Guide reuse it, never re-run.
+  scheduleIdle(() => {
+    ensureNetworkLoaded();
   });
 });
 </script>
@@ -102,6 +142,48 @@ onMounted(() => {
           :depth="0"
         />
         <p v-if="!drivesList.length" class="folder-tree-empty">{{ t("guide.emptyDrives") }}</p>
+      </div>
+    </div>
+
+    <div class="tree-branch tree-branch--root" data-tree-root="network">
+      <div class="tree-row">
+        <button
+          type="button"
+          class="tree-twist"
+          :aria-expanded="networkExpanded"
+          :aria-label="networkExpanded ? t('chrome.collapseFolder') : t('chrome.expandFolder')"
+          @click="toggleNetwork"
+        >
+          <FluentIcon
+            name="chevronDown"
+            size="sm"
+            :class="{ 'tree-twist-icon--closed': !networkExpanded }"
+          />
+        </button>
+        <button
+          type="button"
+          class="tree-label"
+          :title="t('shellPlaces.network')"
+          @click="toggleNetwork"
+        >
+          <FluentIcon name="globe" size="sm" class="tree-label-icon" />
+          <span>{{ t("shellPlaces.network") }}</span>
+        </button>
+      </div>
+      <div v-if="networkExpanded" class="tree-children">
+        <FolderTreeBranch
+          v-for="share in networkChildren"
+          :key="share.path"
+          :path="share.path"
+          :label="share.name"
+          :depth="0"
+        />
+        <p v-if="networkLoading && !networkChildren.length" class="folder-tree-empty">
+          {{ t("common.loading") }}
+        </p>
+        <p v-else-if="networkLoaded && !networkChildren.length" class="folder-tree-empty">
+          {{ t("shellPlaces.networkEmpty") }}
+        </p>
       </div>
     </div>
   </div>

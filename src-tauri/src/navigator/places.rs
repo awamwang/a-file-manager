@@ -2,6 +2,7 @@
 //! Home / known user folders + logical drives for Navigator root / guide (AIA-148).
 
 use serde::Serialize;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 /// Logical drive kind (guide / This PC visuals). 7.16: the neutral enum now
@@ -42,6 +43,10 @@ pub struct LibraryPlace {
     pub path: String,
 }
 
+/// A browsable network location. `path` is always a share-level UNC on
+/// Windows (`\\server\share`) or a local mount point on macOS (`/Volumes/...`),
+/// so the frontend can hand it straight to `navigator_list` (ADR 0026). `name`
+/// is the short label (share / mount basename) shown in the tree + Guide card.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct NetworkPlace {
@@ -134,6 +139,11 @@ pub fn user_folders() -> Result<UserFolders, String> {
 }
 
 /// Libraries / OneDrive / mapped network shares for Guide + Places.
+///
+/// Kept intentionally FAST: `network` only reflects already-connected
+/// `net use` shares so the awaited Guide first paint never blocks on LAN
+/// discovery. Slower network-neighborhood discovery lives behind
+/// [`network_shares`] on its own lazy command (ADR 0026).
 pub fn shell_places() -> Result<ShellPlaces, String> {
     let folders = user_folders()?;
     let home_path = PathBuf::from(&folders.home);
@@ -154,16 +164,16 @@ pub fn shell_places() -> Result<ShellPlaces, String> {
     Ok(ShellPlaces {
         onedrive: folders.onedrive.or_else(|| resolve_onedrive(&home_path)),
         libraries,
-        network: list_network_places(),
+        network: mapped_network_places(),
     })
 }
 
-fn list_network_places() -> Vec<NetworkPlace> {
+/// Mapped / connected shares from `net use` (fast). Always returns UNC paths so
+/// the tree + Guide can navigate them directly with `navigator_list`.
+fn mapped_network_places() -> Vec<NetworkPlace> {
     #[cfg(not(windows))]
     {
-        // No `net use` on macOS. Mounted shares live under /Volumes and belong
-        // to the P1 `sysinfo::Disks` volume work, not to network-place enumeration.
-        return Vec::new();
+        Vec::new()
     }
 
     #[cfg(windows)]
@@ -174,37 +184,205 @@ fn list_network_places() -> Vec<NetworkPlace> {
         let output = crate::win_process::command("cmd")
             .args(["/C", "net use"])
             .output();
-        let Ok(output) = output else {
+        match output {
+            Ok(output) if output.status.success() => {
+                parse_net_use(&String::from_utf8_lossy(&output.stdout))
+            }
+            _ => Vec::new(),
+        }
+    }
+}
+
+/// Full network view for the This PC → Network tree node and the Guide network
+/// cards: connected shares plus best-effort LAN discovery, de-duplicated by
+/// path. Runs on the blocking pool behind its own command so it never gates the
+/// fast Guide path (ADR 0026).
+pub fn network_shares() -> Vec<NetworkPlace> {
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut places: Vec<NetworkPlace> = Vec::new();
+    for place in mapped_network_places()
+        .into_iter()
+        .chain(discovered_network_places())
+    {
+        if place.path.trim().is_empty() {
+            continue;
+        }
+        if seen.insert(place.path.to_lowercase()) {
+            places.push(place);
+        }
+    }
+    places.sort_by(|a, b| {
+        a.name
+            .to_lowercase()
+            .cmp(&b.name.to_lowercase())
+            .then_with(|| a.path.to_lowercase().cmp(&b.path.to_lowercase()))
+    });
+    places
+}
+
+/// Network-neighborhood discovery behind the mapped list. Bounded + best-effort:
+/// a flat LAN answers in seconds; a dead network degrades to "no shares found"
+/// without ever blocking the UI, because callers run this off the main thread.
+fn discovered_network_places() -> Vec<NetworkPlace> {
+    #[cfg(windows)]
+    {
+        // ADR 0026: enumerate live computers from the Shell Network folder
+        // (WS-Discovery), NOT the legacy SMB1 `net view` browser — the latter is
+        // disabled by default on Win10/11 and hangs. Each computer becomes a
+        // bare `\\server` node; its shares are listed lazily via
+        // [`list_server_shares`] when the node expands.
+        crate::platform::network_computers()
+            .into_iter()
+            .map(|server| NetworkPlace {
+                name: server.clone(),
+                path: format!(r"\\{server}"),
+            })
+            .collect()
+    }
+
+    #[cfg(not(windows))]
+    {
+        // macOS / Linux: enumerate already-mounted network volumes from `mount`.
+        // Bonjour (dns-sd) enumeration of *unmounted* servers is intentionally
+        // left out — it is a different transport, can hang, and cannot be
+        // navigated until mounted, so it would not yield a browsable path here.
+        let output = std::process::Command::new("mount").arg("-p").output();
+        match output {
+            Ok(output) if output.status.success() => {
+                parse_mount_network(&String::from_utf8_lossy(&output.stdout))
+            }
+            _ => Vec::new(),
+        }
+    }
+}
+
+/// Shares exported by a single server (`net view \\server`), bounded by a hard
+/// timeout so an unreachable host cannot hang the listing. ADR 0026: this backs
+/// the two-level Network tree — expanding a `\\server` node lists its shares.
+pub fn list_server_shares(server: &str) -> Vec<NetworkPlace> {
+    #[cfg(not(windows))]
+    {
+        let _ = server;
+        Vec::new()
+    }
+
+    #[cfg(windows)]
+    {
+        let server_root = format!(r"\\{server}");
+        let Some(output) = crate::win_process::output_capped(
+            "cmd",
+            &["/C", "net view", server_root.as_str()],
+            std::time::Duration::from_secs(8),
+        ) else {
             return Vec::new();
         };
-        if !output.status.success() {
-            return Vec::new();
-        }
-        let text = String::from_utf8_lossy(&output.stdout);
-        let mut places = Vec::new();
-        for line in text.lines() {
-            // Typical: OK  Z:  \\server\share  Microsoft Windows Network
-            let trimmed = line.trim();
-            if !trimmed.contains("\\\\") {
-                continue;
-            }
-            let parts: Vec<&str> = trimmed.split_whitespace().collect();
-            let unc = parts.iter().find(|part| part.starts_with(r"\\"));
-            let Some(unc) = unc else { continue };
-            let letter = parts
-                .iter()
-                .find(|part| part.len() == 2 && part.ends_with(':'))
-                .copied();
-            let name = letter.unwrap_or(*unc).to_string();
-            let path = if let Some(letter) = letter {
-                format!("{letter}\\")
-            } else {
-                (*unc).to_string()
-            };
-            places.push(NetworkPlace { name, path });
-        }
-        places
+        parse_net_view_shares(&String::from_utf8_lossy(&output))
+            .into_iter()
+            .map(|share| NetworkPlace {
+                name: share.clone(),
+                path: format!(r"\\{server}\{share}"),
+            })
+            .collect()
     }
+}
+
+/// Pure CLI / mount output parsers. Each OS uses a subset of them in its
+/// `cfg` branch, but all are exercised by `#[cfg(test)]` on every host, so the
+/// ones an OS build does not call are marked `allow(dead_code)` (keeps the
+/// repo's `cargo check` warning-free on both Windows and macOS).
+///
+/// `net use` table → `NetworkPlace`. Lines look like:
+/// `OK    Z:    \\server\share    Microsoft Windows Network`. Only rows that
+/// carry a `\\…` UNC column are network locations; the UNC itself is the label
+/// source so a drive letter and its bare connection both normalise to `\\…`.
+#[allow(dead_code)]
+pub(crate) fn parse_net_use(text: &str) -> Vec<NetworkPlace> {
+    let mut places = Vec::new();
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if !trimmed.contains("\\\\") {
+            continue;
+        }
+        let unc = match trimmed.split_whitespace().find(|part| part.starts_with(r"\\")) {
+            Some(unc) => unc,
+            None => continue,
+        };
+        places.push(NetworkPlace {
+            name: share_label(unc),
+            path: unc.to_string(),
+        });
+    }
+    places
+}
+
+/// `net view \\server` share table → share names. Disk shares only; lines look
+/// like `PUBLIC   Disk`. The header row ("Share name …") and Print/IPC entries
+/// are filtered out.
+#[allow(dead_code)]
+pub(crate) fn parse_net_view_shares(text: &str) -> Vec<String> {
+    let mut shares = Vec::new();
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with(r"\\") {
+            continue;
+        }
+        let mut parts = trimmed.split_whitespace();
+        let name = match parts.next() {
+            Some(name) => name,
+            None => continue,
+        };
+        let kind = parts.next().unwrap_or("");
+        // Keep Disk shares; drop the "Share name" header and admin/IPC/Print.
+        if name.eq_ignore_ascii_case("Share") || !kind.eq_ignore_ascii_case("Disk") {
+            continue;
+        }
+        shares.push(name.to_string());
+    }
+    shares
+}
+
+/// BSD `mount -p` (tab-separated: device, mountpoint, fstype, options) →
+/// network volume entries. The mount point is what we can actually browse, so
+/// it becomes `path`; the mount basename becomes the label.
+#[allow(dead_code)]
+pub(crate) fn parse_mount_network(text: &str) -> Vec<NetworkPlace> {
+    const NETWORK_FSTYPES: [&str; 5] = ["smbfs", "afpfs", "nfs", "cifs", "webdav"];
+    let mut places = Vec::new();
+    for line in text.lines() {
+        let fields: Vec<&str> = line.split('\t').collect();
+        if fields.len() < 3 {
+            continue;
+        }
+        let fstype = fields[2].to_ascii_lowercase();
+        if !NETWORK_FSTYPES.contains(&fstype.as_str()) {
+            continue;
+        }
+        let mount = fields[1].trim();
+        if mount.is_empty() {
+            continue;
+        }
+        places.push(NetworkPlace {
+            name: Path::new(mount)
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| mount.to_string()),
+            path: mount.to_string(),
+        });
+    }
+    places
+}
+
+/// `\\server\share` → `share`; falls back to the full UNC when parsing leaves
+/// nothing usable (e.g. a bare `\\server` row).
+#[allow(dead_code)]
+fn share_label(unc: &str) -> String {
+    unc.trim_end_matches('\\')
+        .rsplit(['\\', '/'])
+        .next()
+        .filter(|s| !s.is_empty() && *s != unc.trim_start_matches('\\'))
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| unc.to_string())
 }
 
 /// Enumerate mounted volumes. 7.16: the OS-specific enumeration (Win32
@@ -263,5 +441,56 @@ mod tests {
             assert!(Path::new(&lib.path).is_dir());
             assert!(["documents", "music", "pictures", "videos"].contains(&lib.id.as_str()));
         }
+    }
+
+    #[test]
+    fn parse_net_use_keeps_unc_and_share_label() {
+        let text = concat!(
+            "New connections will be remembered.\r\n",
+            "Status   Local   Remote            Network\r\n",
+            "---      -----   ------            -------\r\n",
+            "OK       Z:      \\\\FILE01\\Public   Microsoft Windows Network\r\n",
+            "OK               \\\\NAS\\Media       Microsoft Windows Network\r\n",
+            "The command completed successfully.\r\n",
+        );
+        let places = parse_net_use(text);
+        assert_eq!(places.len(), 2);
+        assert_eq!(places[0].path, r"\\FILE01\Public");
+        assert_eq!(places[0].name, "Public");
+        assert_eq!(places[1].path, r"\\NAS\Media");
+        assert_eq!(places[1].name, "Media");
+    }
+
+    #[test]
+    fn parse_net_use_ignores_local_only_output() {
+        assert!(parse_net_use("Local status     Network status\r\nNo entries.\r\n").is_empty());
+    }
+
+    #[test]
+    fn parse_net_view_shares_keeps_disk_only() {
+        let text = concat!(
+            "Share name  Type   Used as  Disk\r\n",
+            "----------       ----   -------  ----\r\n",
+            "Public           Disk\r\n",
+            "ADMIN$           Disk\r\n",
+            "print$           Print\r\n",
+            "IPC$             IPC\r\n",
+            "The command completed successfully.\r\n",
+        );
+        assert_eq!(parse_net_view_shares(text), vec!["Public", "ADMIN$"]);
+    }
+
+    #[test]
+    fn parse_mount_network_filters_to_network_fstypes() {
+        let text = concat!(
+            "//user@NAS.local/Media\t/Volumes/Media\tsmbfs\tlocal,nodev\n",
+            "/dev/disk3s1s1\t/\tapfs\tlocal,Snapshot,encrypted\n",
+            "server:/export\t/Volumes/nfs\tnfs\tlocal\n",
+        );
+        let places = parse_mount_network(text);
+        assert_eq!(places.len(), 2);
+        assert_eq!(places[0].path, "/Volumes/Media");
+        assert_eq!(places[0].name, "Media");
+        assert_eq!(places[1].name, "nfs");
     }
 }

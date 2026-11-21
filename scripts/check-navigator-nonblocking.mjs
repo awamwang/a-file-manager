@@ -29,6 +29,7 @@ for (const name of [
   "navigator_list_drives",
   "navigator_user_folders",
   "navigator_shell_places",
+  "navigator_network_shares",
   "navigator_disk_space",
 ]) {
   const re = new RegExp(

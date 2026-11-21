@@ -44,6 +44,23 @@ fn is_false(value: &bool) -> bool {
     !*value
 }
 
+/// ADR 0026: the server name when `path` is a bare `\\server` (or `\\server\`)
+/// root, else `None`. Share paths like `\\server\share` return `None` so they
+/// keep the normal directory listing.
+fn bare_server_unc(path: &str) -> Option<String> {
+    let rest = path.trim().strip_prefix(r"\\")?;
+    let server = rest.split('\\').next()?;
+    if server.is_empty() {
+        return None;
+    }
+    let after = &rest[server.len()..];
+    if after.chars().all(|c| c == '\\') {
+        Some(server.to_string())
+    } else {
+        None
+    }
+}
+
 /// 7.16: hidden-file semantics are an OS adapter concern, not a navigator
 /// concern. Win32 reads `FILE_ATTRIBUTE_HIDDEN`; POSIX checks dot-files.
 pub(crate) fn entry_is_hidden(metadata: &fs::Metadata, name: &str) -> bool {
@@ -52,6 +69,33 @@ pub(crate) fn entry_is_hidden(metadata: &fs::Metadata, name: &str) -> bool {
 
 pub fn list_directory(path: &str, show_hidden: bool) -> Result<NavigatorListing, String> {
     assert_os_path(path)?;
+
+    // ADR 0026: a bare server root `\\server` is not a readable directory (the
+    // redirector does not enumerate shares through ReadDirectory). Surface its
+    // shares instead, so the two-level Network tree and the address bar both
+    // behave like Explorer. `\\server\share` falls through to a normal listing.
+    if let Some(server) = bare_server_unc(path) {
+        let shares = super::places::list_server_shares(&server);
+        let dir_count = shares.len() as u64;
+        let entries = shares
+            .into_iter()
+            .map(|share| NavigatorEntry {
+                name: share.name,
+                path: Some(share.path),
+                kind: "dir".to_string(),
+                is_link: false,
+                link_target: None,
+                size: 0,
+                modified_ms: None,
+            })
+            .collect();
+        return Ok(NavigatorListing {
+            path: format!(r"\\{server}"),
+            entries,
+            dir_count,
+            file_count: 0,
+        });
+    }
 
     let requested = PathBuf::from(path.trim());
     // C4: if the path itself is a Workspace member junction (or any dir reparse),
@@ -188,6 +232,16 @@ mod tests {
     use super::*;
     use std::fs::File;
     use std::io::Write;
+
+    #[test]
+    fn bare_server_unc_matches_only_server_roots() {
+        assert_eq!(bare_server_unc(r"\\DESKTOP-01").as_deref(), Some("DESKTOP-01"));
+        assert_eq!(bare_server_unc(r"\\DESKTOP-01\").as_deref(), Some("DESKTOP-01"));
+        assert_eq!(bare_server_unc(r"\\DESKTOP-01\Public").as_deref(), None);
+        assert_eq!(bare_server_unc(r"C:\Temp"), None);
+        assert_eq!(bare_server_unc(r"\\").as_deref(), None);
+        assert_eq!(bare_server_unc("").as_deref(), None);
+    }
 
     /// Manual perf probe: `AFM_PERF_DIR=<large-dir> cargo test --lib navigator::list::tests::bench_list_large_directory -- --nocapture`
     #[test]

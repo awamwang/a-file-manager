@@ -10,12 +10,15 @@ import {
   drivesList,
   fetchDriveSpaces,
   loadNavigatorPlaces,
+  loadNetworkShares,
+  networkShares,
   shellPlaces,
   userFolderItems,
   userFolders,
   type DiskSpaceInfo,
   type DriveInfo,
   type DriveKind,
+  type NetworkPlace,
   type UserFolderId,
 } from "../../state/guide";
 import { formatBytes } from "../../state/formatBytes";
@@ -37,6 +40,22 @@ const { t } = useI18n();
 const folderRows = computed(() => userFolderItems(userFolders.value));
 const providerBackends = ref<ProviderBackendInfo[]>([]);
 const driveSpace = ref<Record<string, DiskSpaceInfo>>({});
+
+/**
+ * ADR 0026: connected shares (`shellPlaces.network`, paints immediately) merged
+ * with lazily discovered LAN shares, de-duplicated by path.
+ */
+const networkRows = computed<NetworkPlace[]>(() => {
+  const seen = new Set<string>();
+  const rows: NetworkPlace[] = [];
+  for (const place of [...(shellPlaces.value?.network ?? []), ...networkShares.value]) {
+    const key = place.path.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    rows.push(place);
+  }
+  return rows;
+});
 
 type GuideTone =
   | "home"
@@ -199,6 +218,11 @@ onMounted(() => {
     .catch(() => {
       providerBackends.value = [];
     });
+  // ADR 0026: LAN discovery can be slow — start it after first paint so the
+  // connected-share cards above never wait on `net view` / `mount`.
+  scheduleAfterPaint(() => {
+    void loadNetworkShares().catch(() => undefined);
+  });
 });
 
 watch(drivesList, () => {
@@ -438,7 +462,7 @@ function onOpen(path: string) {
       <h2 class="guide-section-title">{{ t("shellPlaces.network") }}</h2>
       <div class="guide-grid">
         <button
-          v-for="item in shellPlaces?.network ?? []"
+          v-for="item in networkRows"
           :key="item.path"
           type="button"
           class="guide-card fluent-surface guide-card--network"
@@ -453,7 +477,7 @@ function onOpen(path: string) {
           <span class="guide-card-path">{{ item.path }}</span>
         </button>
       </div>
-      <p v-if="!(shellPlaces?.network?.length)" class="guide-empty">
+      <p v-if="!networkRows.length" class="guide-empty">
         {{ t("shellPlaces.networkEmpty") }}
       </p>
     </section>
@@ -500,8 +524,6 @@ function onOpen(path: string) {
   margin: 0 0 var(--fluent-space-sm);
   font-size: 0.8125rem;
   font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
   color: var(--fluent-color-text-secondary);
 }
 
@@ -568,7 +590,7 @@ function onOpen(path: string) {
 .guide-capacity {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--fluent-space-xs);
   width: 100%;
   margin-top: 2px;
   --guide-capacity-fill: var(--fluent-color-fill-accent);
