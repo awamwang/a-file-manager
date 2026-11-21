@@ -38,3 +38,38 @@ button {
   font: inherit;
   cursor: pointer;
 }
+
+/* Respect the OS "reduce motion" preference (WCAG 2.3.3). Collapse entrance and
+   spatial motion to near-instant, but keep ongoing-task indicators animating so
+   progress stays perceivable — a blanket freeze would hide in-flight state. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Essential "in progress" feedback must keep moving under reduced motion. */
+  .task-pill-spinner,
+  .task-row-spinner,
+  .task-progress-fill--indeterminate,
+  .breadcrumbs--loading::after,
+  .cmd-voice-btn--recording {
+    animation-iteration-count: infinite !important;
+  }
+  .task-pill-spinner,
+  .task-row-spinner {
+    animation-duration: 0.9s !important;
+  }
+  .task-progress-fill--indeterminate,
+  .breadcrumbs--loading::after {
+    animation-duration: 1.1s !important;
+  }
+  .cmd-voice-btn--recording {
+    animation-duration: 1.6s !important;
+  }
+}
