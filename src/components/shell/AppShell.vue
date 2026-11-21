@@ -2243,16 +2243,16 @@ onUnmounted(() => {
             </span>
             <FluentIcon name="folder" size="sm" class="tab-icon" aria-hidden="true" />
             <span class="tab-label">{{ tab.name || tabLabel(tab.path) }}</span>
-            <button
-              type="button"
+            <span
               class="tab-close"
-              :aria-label="t('chrome.closeTab')"
+              role="presentation"
+              aria-hidden="true"
               :title="t('chrome.closeTab')"
               @click="onCloseNavigatorTab($event, tab.groupIndex)"
               @pointerdown.stop
             >
               <FluentIcon name="close" size="sm" aria-hidden="true" />
-            </button>
+            </span>
           </div>
           <button
             v-if="!stripTabs.length"
@@ -2265,15 +2265,15 @@ onUnmounted(() => {
             <FluentIcon name="folderOpen" size="sm" />
             <span>{{ t("nav.navigator") }}</span>
           </button>
-          <button
-            type="button"
+          <span
             class="tab tab--add"
+            role="presentation"
+            aria-hidden="true"
             v-action-tip="{ label: t('chrome.newTab'), actionId: 'navigator.newTab' }"
-            :aria-label="t('chrome.newTab')"
             @click="onNewNavigatorTab"
           >
-            <FluentIcon name="add" size="sm" />
-          </button>
+            <FluentIcon name="add" size="sm" aria-hidden="true" />
+          </span>
         </div>
 
         <form

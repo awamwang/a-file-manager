@@ -1161,6 +1161,12 @@
           "title": "Recherche vocale",
           "description": "Démarrer automatiquement la capture à l'ouverture de la palette ; le texte reconnu est ajouté à la requête"
         },
+        "voicePreset": {
+          "title": "Fournisseur",
+          "manual": "Manuel",
+          "openai": "OpenAI",
+          "description": "Choisissez OpenAI pour renseigner automatiquement l’URL de base et le modèle ci-dessous."
+        },
         "sttBaseUrl": {
           "title": "URL de base voix vers texte",
           "description": "Base d'endpoint compatible OpenAI, p. ex. https://api.openai.com/v1 — l'application envoie POST {baseUrl}/transcription"

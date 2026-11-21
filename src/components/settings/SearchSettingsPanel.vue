@@ -119,6 +119,7 @@ const voiceAutoStart = ref(false);
 const voiceBaseUrlDraft = ref("");
 const voiceModelDraft = ref("");
 const voiceApiKeyDraft = ref("");
+const voicePreset = ref("");
 const voiceSaving = ref(false);
 
 async function loadVoiceDrafts() {
@@ -305,6 +306,23 @@ const voiceSelfTestNeedsPermissionHint = computed(
             t("settings.fields.power.voiceSearchAutoStart.description")
           }}</span>
         </span>
+      </label>
+
+      <label class="search-settings-field">
+        <span class="search-settings-field-label">{{
+          t("settings.fields.power.voicePreset.title")
+        }}</span>
+        <select
+          v-model="voicePreset"
+          class="fluent-control"
+          @change="voicePreset === 'openai' && (voiceBaseUrlDraft = 'https://api.openai.com/v1', voiceModelDraft = 'whisper-1')"
+        >
+          <option value="">{{ t("settings.fields.power.voicePreset.manual") }}</option>
+          <option value="openai">{{ t("settings.fields.power.voicePreset.openai") }}</option>
+        </select>
+        <span class="search-settings-desc">{{
+          t("settings.fields.power.voicePreset.description")
+        }}</span>
       </label>
 
       <label class="search-settings-field">

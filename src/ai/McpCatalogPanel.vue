@@ -96,6 +96,38 @@ watch(selected, (entry) => {
   }
 });
 
+function deriveSlugFromJson(json: string): { command: string; id: string } | null {
+  try {
+    const o = JSON.parse(json) as Record<string, unknown>;
+    const command = typeof o.command === "string" ? o.command : "";
+    if (!command) return null;
+    const args = Array.isArray(o.args)
+      ? o.args.filter((a): a is string => typeof a === "string")
+      : [];
+    const meaningful = args.find((a) => /^[a-z@][\w@.-]+$/i.test(a)) ?? command;
+    const id = meaningful
+      .toLowerCase()
+      .replace(/^@/, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    return { command, id };
+  } catch {
+    return null;
+  }
+}
+
+// Auto-derive id/displayName from the pasted server JSON for new entries, so the
+// free-text id field is usually left untouched (AIA — MCP first-time-user lens).
+watch(draftJson, (json) => {
+  if (selectedId.value) return;
+  if (draftId.value) return;
+  const d = deriveSlugFromJson(json);
+  if (d?.id) {
+    draftId.value = d.id;
+    if (!draftName.value) draftName.value = d.command;
+  }
+});
+
 async function refresh() {
   loading.value = true;
   error.value = null;

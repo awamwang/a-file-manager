@@ -1161,6 +1161,12 @@
           "title": "Sprachsuche",
           "description": "Beim Öffnen der Suchpalette automatisch Aufnahme starten; erkannter Text wird an die Suchanfrage angehängt"
         },
+        "voicePreset": {
+          "title": "Anbieter",
+          "manual": "Manuell",
+          "openai": "OpenAI",
+          "description": "Wählen Sie OpenAI, um Basis-URL und Modell unten automatisch auszufüllen."
+        },
         "sttBaseUrl": {
           "title": "Sprache-zu-Text-Basis-URL",
           "description": "OpenAI-kompatible Endpunkt-Basis, z. B. https://api.openai.com/v1 — die App sendet POST {baseUrl}/transcription"

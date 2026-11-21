@@ -887,6 +887,12 @@
           "title": "Voice search",
           "description": "Start capturing automatically when the Search Palette opens; recognized speech is appended to the query"
         },
+        "voicePreset": {
+          "title": "Provider",
+          "manual": "Manual",
+          "openai": "OpenAI",
+          "description": "Pick OpenAI to auto-fill the base URL and model below."
+        },
         "sttBaseUrl": {
           "title": "Speech-to-text base URL",
           "description": "OpenAI-compatible endpoint base, e.g. https://api.openai.com/v1"

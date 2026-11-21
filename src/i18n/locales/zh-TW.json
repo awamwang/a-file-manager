@@ -887,6 +887,12 @@
           "title": "語音搜尋",
           "description": "開啟搜尋面板時自動開始錄音；識別文字追加進搜尋詞"
         },
+        "voicePreset": {
+          "title": "服務類型",
+          "manual": "手動",
+          "openai": "OpenAI",
+          "description": "選擇 OpenAI 可自動填入下方的介面網址與模型。"
+        },
         "sttBaseUrl": {
           "title": "語音轉文字服務地址",
           "description": "OpenAI 相容介面基地址，如 https://api.openai.com/v1 —— 應用會 POST {baseUrl}/transcription"

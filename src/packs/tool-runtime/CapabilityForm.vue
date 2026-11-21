@@ -40,6 +40,32 @@ watch(
   { immediate: true, deep: true },
 );
 
+// Prefill fields from the schema's declared defaults (booleans default false)
+// so capability forms don't open with required/defaulted fields left blank.
+watch(
+  () => props.schema,
+  (schema) => {
+    if (!schema?.properties) return;
+    const next: Record<string, unknown> = { ...props.modelValue };
+    let changed = false;
+    for (const [key, s] of Object.entries(schema.properties)) {
+      if (next[key] !== undefined) continue;
+      const def = (s as { default?: unknown } | undefined)?.default;
+      if (def !== undefined) {
+        next[key] = def;
+        changed = true;
+        continue;
+      }
+      if (s && primaryType(s) === "boolean") {
+        next[key] = false;
+        changed = true;
+      }
+    }
+    if (changed) emit("update:modelValue", next);
+  },
+  { immediate: true },
+);
+
 function isSimpleField(schema: JsonSchema | undefined): boolean {
   if (!schema) return false;
   if (Array.isArray(schema.enum) && schema.enum.length > 0) return true;

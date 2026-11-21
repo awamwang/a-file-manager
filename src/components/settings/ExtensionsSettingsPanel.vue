@@ -147,6 +147,7 @@ onMounted(() => {
           <p class="field-desc">{{ t("settings.fields.power.awamGatewayUrl.description") }}</p>
           <input
             v-model="gatewayUrl"
+            :aria-label="t('settings.fields.power.awamGatewayUrl.title')"
             class="fluent-field"
             type="text"
             :readonly="gatewayManaged"
@@ -163,6 +164,7 @@ onMounted(() => {
           <p class="field-desc">{{ t("settings.fields.power.awamKnowledgeServiceUrl.description") }}</p>
           <input
             v-model="knowledgeUrl"
+            :aria-label="t('settings.fields.power.awamKnowledgeServiceUrl.title')"
             class="fluent-field"
             type="text"
             :readonly="knowledgeManaged"
@@ -178,6 +180,7 @@ onMounted(() => {
           <p class="field-desc">{{ t("settings.fields.power.awamKnowledgeServiceToken.description") }}</p>
           <input
             v-model="knowledgeToken"
+            :aria-label="t('settings.fields.power.awamKnowledgeServiceToken.title')"
             class="fluent-field"
             type="text"
             spellcheck="false"
@@ -189,6 +192,7 @@ onMounted(() => {
           <p class="field-desc">{{ t("settings.fields.power.awamKnowledgeDataRoot.description") }}</p>
           <input
             v-model="knowledgeDataRoot"
+            :aria-label="t('settings.fields.power.awamKnowledgeDataRoot.title')"
             class="fluent-field"
             type="text"
             spellcheck="false"
@@ -201,6 +205,7 @@ onMounted(() => {
           <p class="field-desc">{{ t("settings.fields.power.awamKnowledgeSourceId.description") }}</p>
           <input
             v-model="knowledgeSourceId"
+            :aria-label="t('settings.fields.power.awamKnowledgeSourceId.title')"
             class="fluent-field"
             type="text"
             spellcheck="false"

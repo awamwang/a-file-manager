@@ -382,6 +382,12 @@ html[data-theme="light"] {
   gap: var(--fluent-space-sm);
 }
 
+.fluent-list-row:focus,
+.fluent-list-row:focus-visible {
+  outline: 2px solid var(--fluent-color-stroke-focus);
+  outline-offset: -2px;
+}
+
 html[data-list-density="compact"] .fluent-list-row--density {
   min-height: var(--fluent-list-row-height-compact);
 }

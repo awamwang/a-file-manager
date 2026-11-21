@@ -696,14 +696,12 @@ onUnmounted(() => {
                 listDragOverId === group.id && listDropEdge === 'after',
               'group--landed': listLandedId === group.id,
             }"
-            role="button"
-            tabindex="0"
+            role="presentation"
             :data-tour-id="group.id === EXAMPLE_WORK_GROUP_ID ? 'tour-workgroups-group' : undefined"
             :data-list-item-id="group.id"
             :title="t('workGroups.dragReorderHint')"
             @pointerdown="onListPointerDown($event, group.id)"
             @click="onGroupActivate(group.id)"
-            @keydown.enter.prevent="onGroupActivate(group.id)"
           >
             <div class="group-top">
               <span class="group-head">
@@ -720,7 +718,15 @@ onUnmounted(() => {
                   @keydown.escape.prevent="cancelListRename"
                   @blur="onListRenameBlur"
                 />
-                <strong v-else>{{ workGroupDisplayName(group, t("workGroups.defaultName")) }}</strong>
+                <strong
+                  v-else
+                  class="group-title"
+                  role="button"
+                  tabindex="0"
+                  @click.stop="onGroupActivate(group.id)"
+                  @keydown.enter.prevent="onGroupActivate(group.id)"
+                  @keydown.space.prevent="onGroupActivate(group.id)"
+                >{{ workGroupDisplayName(group, t("workGroups.defaultName")) }}</strong>
               </span>
               <div
                 class="list-more-menu"
@@ -1232,8 +1238,16 @@ onUnmounted(() => {
   visibility: hidden;
 }
 
+/* Reorder shows only the before/after gap line (same affordance as tab
+   reorder); the filled "target" block made it read as swapping two rows. */
 .group--drop-target {
-  background: color-mix(in srgb, var(--fluent-color-fill-selected) 70%, transparent);
+  background: transparent;
+}
+
+.group--drop-before,
+.group--drop-after {
+  position: relative;
+  z-index: 2;
 }
 
 .group--drop-before::before,
@@ -1248,15 +1262,15 @@ onUnmounted(() => {
   box-shadow: 0 0 0 1px
     color-mix(in srgb, var(--fluent-color-fill-accent) 35%, transparent);
   pointer-events: none;
-  z-index: 1;
+  z-index: 3;
 }
 
 .group--drop-before::before {
-  top: -5px;
+  top: -1px;
 }
 
 .group--drop-after::after {
-  bottom: -5px;
+  bottom: -1px;
 }
 
 .group--landed {
