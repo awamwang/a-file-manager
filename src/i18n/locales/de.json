@@ -833,8 +833,8 @@
     "errorWorkGroupMutation": "Unerwartete Arbeitsgruppen-Änderung beim Öffnen aller",
     "list": "Liste",
     "listSummary": "{members} Mitglieder · {open} offen",
-    "meta": "Arbeit über Ordner hinweg—Board, Notizen, optional WG-Sitzung",
-    "usageHint": "Für das Gesamtprojekt: gemeinsamer Fortschritt und Wissensbasis. Beim Codieren eine WG binden, damit verknüpfte Arbeitsbereiche zusammen bleiben.",
+    "meta": "Die weiterentwickelte Form einer Arbeitsgruppe: erstellt ein Arbeitsverzeichnis und eine KI-Entwicklungsgrundlage",
+    "usageHint": "Ein Projekt baut auf einer Arbeitsgruppe auf und erstellt ein eigenes Arbeitsverzeichnis sowie eine KI-Entwicklungsgrundlage (CONTEXT, Aufgaben, Ergebnisse).",
     "newNamePlaceholder": "Name des neuen Projekts",
     "noDescription": "Keine Beschreibung",
     "noFolderLinks": "Noch keine Projektmitglieder",
@@ -1282,8 +1282,8 @@
     "errorSavePrompt": "Unerwartete Speicherabfrage beim stillen Wechsel",
     "hardMembers": "Mitglieder",
     "membersCount": "{count} Mitglieder",
-    "meta": "Verwandte Ordner in eine still umschaltbare Tab-Leiste bündeln",
-    "usageHint": "Tabs für verwandte Ordner oder gleichartige Arbeit gesammelt öffnen—eine Arbeitsgruppe, eine Sitzungsleiste.",
+    "meta": "Ordner zu einer Sache an einem Ort bündeln",
+    "usageHint": "Eine Arbeitsgruppe bündelt die Ordner zu einer Sache; beim Wechsel öffnet sich die ganze Gruppe.",
     "newNamePlaceholder": "Name der neuen Arbeitsgruppe",
     "noHardMembers": "Noch keine Mitglieder",
     "noOpenTabs": "Keine offenen Registerkarten",
@@ -1758,11 +1758,11 @@
         },
         "workGroups": {
           "title": "Arbeitsgruppen",
-          "hint": "Eine Arbeitsgruppe bündelt die Ordner zu einer Aufgabe."
+          "hint": "Eine Arbeitsgruppe bündelt die Ordner zu einer Sache."
         },
         "projects": {
           "title": "Projekte",
-          "hint": "Ein Projekt enthält Ordner, Links und Aufgaben zu einer laufenden Arbeit an einem Ort."
+          "hint": "Ein Projekt ist die weiterentwickelte Form einer Arbeitsgruppe: Es erstellt ein Arbeitsverzeichnis und eine Grundlage für die KI-Entwicklung."
         },
         "providers": {
           "title": "Providers (Verbindungen)",
@@ -1770,7 +1770,7 @@
         },
         "ai": {
           "title": "KI-Funktionen",
-          "hint": "KI-Funktionen sind optional und nur in der Hauptversion (Mainline) vorhanden. Ohne sie lässt sich die App vollständig nutzen."
+          "hint": "KI-Funktionen bieten Agent-Verwaltung sowie MCP / Skills-Werkzeugverwaltung für die KI-Entwicklung (nur in der Hauptversion)."
         }
       }
     },
@@ -1789,10 +1789,6 @@
         "search": {
           "title": "Schnell etwas finden",
           "body": "Diese Schaltfläche öffnet die einheitliche Suche. Wenige Buchstaben genügen."
-        },
-        "tags": {
-          "title": "Häufige Orte griffbereit",
-          "body": "Das Sterne-Menü sammelt kürzlich besuchte und favorisierte Orte – ähnlich wie Labels."
         }
       },
       "navigator": {

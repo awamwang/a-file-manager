@@ -833,8 +833,8 @@
     "errorWorkGroupMutation": "Mutation inattendue de Groupe de travail lors de tout ouvrir",
     "list": "Liste",
     "listSummary": "{members} membres · {open} en cours",
-    "meta": "Suivre le travail entre dossiers—tableau, notes, session WG optionnelle",
-    "usageHint": "Pour le projet entier : progrès partagé et base de connaissances. En codant, liez un WG pour co-éditer les espaces liés.",
+    "meta": "La forme évoluée d’un groupe de travail : crée un répertoire de travail et une base pour le développement IA",
+    "usageHint": "Un projet s’appuie sur un groupe de travail et crée son propre répertoire ainsi qu’une base de développement IA (CONTEXT, tâches, résultats).",
     "newNamePlaceholder": "Nom du nouveau projet",
     "noDescription": "Aucune description",
     "noFolderLinks": "Aucun membre de projet",
@@ -1282,8 +1282,8 @@
     "errorSavePrompt": "Invite d’enregistrement inattendue lors d’une bascule silencieuse",
     "hardMembers": "Membres",
     "membersCount": "{count} membres",
-    "meta": "Regrouper des dossiers liés sur une barre d’onglets à bascule silencieuse",
-    "usageHint": "Ouvrez en lot des onglets de dossiers liés ou du même type de travail—un groupe, une barre de session.",
+    "meta": "Rassembler les dossiers liés à une même chose",
+    "usageHint": "Un groupe de travail rassemble les dossiers liés à une même chose ; basculer ouvre tout le groupe.",
     "newNamePlaceholder": "Nom du nouveau groupe de travail",
     "noHardMembers": "Aucun membre pour l’instant",
     "noOpenTabs": "Aucun onglet ouvert",
@@ -1758,11 +1758,11 @@
         },
         "workGroups": {
           "title": "Groupes de travail",
-          "hint": "Un groupe de travail rassemble les dossiers d'une même tâche."
+          "hint": "Un groupe de travail rassemble les dossiers liés à une même chose."
         },
         "projects": {
           "title": "Projets",
-          "hint": "Un projet réunit les dossiers, liens et tâches d'un travail en cours au même endroit."
+          "hint": "Un projet est la forme évoluée d’un groupe de travail : il crée un répertoire de travail et une base pour le développement IA."
         },
         "providers": {
           "title": "Providers (services connectés)",
@@ -1770,7 +1770,7 @@
         },
         "ai": {
           "title": "Fonctions IA",
-          "hint": "Les fonctions IA sont optionnelles et ne sont disponibles que dans la version principale (Mainline). L'application reste entièrement utilisable sans elles."
+          "hint": "Les fonctions IA fournissent la gestion des Agents et des outils MCP / Skills pour le développement IA (version principale uniquement)."
         }
       }
     },
@@ -1789,10 +1789,6 @@
         "search": {
           "title": "Trouver vite",
           "body": "Ce bouton ouvre la recherche unifiée. Quelques lettres suffisent pour trouver des fichiers et dossiers."
-        },
-        "tags": {
-          "title": "Gardez vos lieux à portée",
-          "body": "Le menu étoile rassemble les lieux récents et favoris, comme des étiquettes pour vos dossiers fréquents."
         }
       },
       "navigator": {

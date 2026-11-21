@@ -34,7 +34,7 @@ export function categoryKey(category: HelpCategory): string {
   return `help.category.${category}`;
 }
 
-/** First-run main line: browse files → search → collect/favourite places. */
+/** First-run main line: browse files → search. Favorites has no separate tour. */
 export const QUICK_START_TOUR_ID = "quickstart";
 
 const QUICK_START_STEPS: readonly TourStep[] = [
@@ -47,11 +47,6 @@ const QUICK_START_STEPS: readonly TourStep[] = [
     anchor: "tour-global-search",
     titleKey: "tour.quickStart.search.title",
     bodyKey: "tour.quickStart.search.body",
-  },
-  {
-    anchor: "tour-quick-tags",
-    titleKey: "tour.quickStart.tags.title",
-    bodyKey: "tour.quickStart.tags.body",
   },
 ];
 
