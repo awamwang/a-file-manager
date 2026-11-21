@@ -1377,7 +1377,7 @@ onMounted(() => {
 }
 
 .open-tool-order-row:hover {
-  background: var(--fluent-color-bg-subtle, rgba(128, 128, 128, 0.08));
+  background: var(--fluent-color-fill-subtle-secondary);
 }
 
 .open-tool-order-row--dragging {

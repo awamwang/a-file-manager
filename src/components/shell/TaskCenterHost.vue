@@ -445,7 +445,7 @@ watch(hovered, (value) => {
   border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   background: var(--fluent-color-fill-control);
   color: var(--fluent-color-text-primary);
-  box-shadow: var(--fluent-shadow-flyout, 0 8px 24px rgba(0, 0, 0, 0.18));
+  box-shadow: var(--fluent-shadow-flyout);
   font-size: var(--fluent-font-size-body);
   line-height: 1.4;
   cursor: pointer;
@@ -475,7 +475,7 @@ watch(hovered, (value) => {
   height: 0.85rem;
   border-radius: 50%;
   border: 2px solid var(--fluent-color-stroke-divider);
-  border-top-color: var(--fluent-color-accent-default, #0067c0);
+  border-top-color: var(--fluent-color-fill-accent);
   animation: task-spin 0.9s linear infinite;
 }
 
@@ -494,7 +494,7 @@ watch(hovered, (value) => {
   border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   background: var(--fluent-color-fill-control);
   color: var(--fluent-color-text-primary);
-  box-shadow: var(--fluent-shadow-flyout, 0 8px 24px rgba(0, 0, 0, 0.18));
+  box-shadow: var(--fluent-shadow-flyout);
   overflow: hidden;
 }
 
@@ -682,7 +682,7 @@ watch(hovered, (value) => {
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: var(--fluent-color-accent-default, #0067c0);
+  background: var(--fluent-color-fill-accent);
   transition: width 120ms ease-out;
 }
 
