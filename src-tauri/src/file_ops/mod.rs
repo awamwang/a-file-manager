@@ -528,7 +528,7 @@ fn move_paths_inner(
     Ok(out)
 }
 
-pub fn rename_path(path: &str, new_name: &str) -> Result<String, String> {
+pub fn rename_path(path: &str, new_name: &str, replace: bool) -> Result<String, String> {
     let src = ensure_existing(path)?;
     let name = validate_file_name(new_name)?;
     let parent = src
@@ -541,7 +541,18 @@ pub fn rename_path(path: &str, new_name: &str) -> Result<String, String> {
     // not enough because `dest != src` is true for a case-only change; compare the
     // resolved path case-insensitively on Windows / case-sensitively elsewhere.
     if dest.exists() && !is_same_entry(&dest, &src) {
-        return Err(format!("A file named '{name}' already exists"));
+        // NM-002: Explorer lets the user Resolve a rename collision with
+        // Replace / Skip; the caller re-invokes with `replace = true` after the
+        // user picks Replace. Only an existing *file* can be replaced by a
+        // rename — overwriting a directory this way is not an Explorer rename
+        // affordance, so it stays refused.
+        if !replace {
+            return Err(format!("A file named '{name}' already exists"));
+        }
+        if dest.is_dir() {
+            return Err(format!("A folder named '{name}' already exists"));
+        }
+        fs::remove_file(&dest).map_err(|err| format!("Failed to replace: {err}"))?;
     }
     fs::rename(&src, &dest).map_err(|err| format!("Failed to rename: {err}"))?;
     Ok(display_path(&dest))
@@ -749,8 +760,8 @@ pub async fn file_ops_move(
 }
 
 #[tauri::command]
-pub fn file_ops_rename(path: String, new_name: String) -> FileOpsResult {
-    match rename_path(&path, &new_name) {
+pub fn file_ops_rename(path: String, new_name: String, replace: Option<bool>) -> FileOpsResult {
+    match rename_path(&path, &new_name, replace.unwrap_or(false)) {
         Ok(p) => ok_paths(vec![p]),
         Err(error) => err_msg(error),
     }
@@ -889,7 +900,7 @@ mod tests {
         assert_eq!(copied.len(), 1);
         assert!(Path::new(&copied[0]).is_file());
 
-        let renamed = rename_path(&copied[0], "renamed.txt").unwrap();
+        let renamed = rename_path(&copied[0], "renamed.txt", false).unwrap();
         assert!(Path::new(&renamed).is_file());
         assert!(!Path::new(&copied[0]).exists());
 
@@ -1400,6 +1411,30 @@ mod tests {
 
     // NM-004: on a case-insensitive FS, a case-only rename must SUCCEED (not
     // "already exists"); renaming to a genuinely different existing file must fail.
+    #[test]
+    fn rename_replace_overwrites_existing_file_only_when_allowed() {
+        let dir = temp_workspace("rename-replace");
+        fs::write(dir.join("a.txt"), b"A").unwrap();
+        fs::write(dir.join("b.txt"), b"B").unwrap();
+        // NM-002 default: a real collision is refused without `replace`.
+        let err = rename_path(&display_path(&dir.join("a.txt")), "b.txt", false).unwrap_err();
+        assert!(err.contains("already exists"));
+        assert_eq!(fs::read(dir.join("b.txt")).unwrap(), b"B");
+        // Replace (user chose Replace in the dialog): a.txt overwrites b.txt.
+        let dest = rename_path(&display_path(&dir.join("a.txt")), "b.txt", true).unwrap();
+        assert_eq!(dest, display_path(&dir.join("b.txt")));
+        assert_eq!(fs::read(dir.join("b.txt")).unwrap(), b"A");
+        assert!(!dir.join("a.txt").exists());
+        // Replace never clobbers a directory.
+        let sub = dir.join("sub");
+        fs::create_dir(&sub).unwrap();
+        fs::write(dir.join("c.txt"), b"C").unwrap();
+        let err = rename_path(&display_path(&dir.join("c.txt")), "sub", true).unwrap_err();
+        assert!(err.contains("already exists"));
+        assert!(sub.is_dir());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
     #[cfg(windows)]
     #[test]
     fn rename_case_only_succeeds_but_real_collision_fails() {
@@ -1407,7 +1442,7 @@ mod tests {
         fs::write(dir.join("a.txt"), b"x").unwrap();
 
         // a.txt → A.txt : same entry, case-only → allowed, file still present, one file.
-        let renamed = rename_path(&display_path(&dir.join("a.txt")), "A.txt").unwrap();
+        let renamed = rename_path(&display_path(&dir.join("a.txt")), "A.txt", false).unwrap();
         assert!(Path::new(&renamed).is_file());
         assert_eq!(fs::read(dir.join("A.txt")).unwrap(), b"x");
         assert_eq!(
@@ -1418,7 +1453,7 @@ mod tests {
 
         // now rename A.txt → b.txt where a DIFFERENT b.txt already exists → must fail.
         fs::write(dir.join("b.txt"), b"other").unwrap();
-        let err = rename_path(&display_path(&dir.join("A.txt")), "B.txt").unwrap_err();
+        let err = rename_path(&display_path(&dir.join("A.txt")), "B.txt", false).unwrap_err();
         assert!(
             err.contains("already exists"),
             "different existing entry (even case-only different base) must block: {err}"
