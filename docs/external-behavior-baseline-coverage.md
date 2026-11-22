@@ -20,7 +20,12 @@ Rule reminders: no e2e; `#[ignore]` ≠ coverage; FE↔BE command-name parity is
 | --- | --- | --- | --- |
 | copy / cut / paste (data move) | STATIC · CARGO | `check-file-ops.mjs`; `file_ops/mod.rs` `copy_paths` / move roundtrips (`safe_io.rs`) | Real temp execution in cargo |
 | paste self / conflict decision branch | STATIC | `check-file-ops.mjs`, `check-list-select.mjs` | `transferEntries` is invoke/taskCenter-fused → grep only (intentional; see gaps) |
-| name conflict replace/skip/remember | STATIC · FE | `check-name-conflict.mjs` → `name-conflict-checks.ts` | localStorage shim; short-circuit on remembered default |
+| name conflict replace/skip + apply-to-all | STATIC · FE | `check-name-conflict.mjs` → `name-conflict-checks.ts` | CF-003/TR-014 (2026-11-22): "Apply to all" is **per-batch**, not persisted; gate asserts absence of `localStorage`/`afm.nameConflictDefault` + `resetNameConflictBatch()` in `transferEntries` |
+| file↔folder type conflict warning | STATIC · FE · CARGO | `check-file-ops.mjs` (parity `file_ops_name_conflict_info`); `name-conflict-checks.ts` (mismatch flag); `mod.rs` `name_conflict_info_detects_type_mismatch` | TR-013/CF-006 (2026-11-22): folder-into-folder merge is **not** a mismatch |
+| dir-into-dir merge + inner conflict recursion | CARGO | `mod.rs` `copy_dir_into_existing_dir_merges_no_inner_collision`, `..._handles_inner_collisions`, `move_dir_into_existing_dir_empties_source`, `move_merge_with_skip_preserves_source_when_not_empty` | CF-007/CF-008 (2026-11-22): merge / replace / skip / keep-both inner branches; move removes emptied source only |
+| case-insensitive collision + case-only rename | CARGO | `mod.rs` `unique_dest_treats_case_only_difference_as_collision`, `rename_case_only_succeeds_but_real_collision_fails` | CF-005 (keep-both) + NM-004 (case rename) — Windows-only FS contract |
+| reserved-name reject + trailing dot/space strip | CARGO | `mod.rs` `validate_name_blocks_windows_reserved`, `validate_name_strips_trailing_dot_and_space` | NM-003 / NM-007 (2026-11-22) |
+| UNC/removable Delete → permanent fallback | STATIC | `check-file-ops.mjs` (`pathsWithoutRecycle` + `confirmPermanentDelete` on both `shortcutDelete` and `runDelete`) | DEL-003/DEL-008 — FE split verified 2026-11-22; invoke-fused, grep-only (see gaps) |
 | delete → recycle bin | STATIC · FE · CARGO | `check-recycle-bin.mjs` → `recycle-bin-checks.ts`; `mod.rs` trash | |
 | delete confirm dialog (default-on) | STATIC · FE | `check-delete-confirm.mjs` → `confirm-before-delete-checks.ts` | `parseConfirmBeforeDelete` |
 | rename / prompt dialog | STATIC · FE | `check-prompt-dialog.mjs` → `prompt-dialog-checks.ts` | promise lifecycle, busy-cancel guard |
