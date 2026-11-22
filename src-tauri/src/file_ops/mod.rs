@@ -205,13 +205,11 @@ fn is_descendant_or_same(ancestor: &Path, maybe_child: &Path) -> bool {
     c.starts_with(&a)
 }
 
-/// Local drives can use the Recycle Bin; UNC / remote targets cannot (Windows).
+/// Whether `path` can be moved to the Recycle Bin. Delegates to the platform
+/// layer, which keys off the *filesystem* (only NTFS on Windows), not merely
+/// off UNC — see docs/file-ops-scenario-baseline.md DEL-003.
 pub fn path_can_use_recycle_bin(path: &str) -> bool {
-    let trimmed = path.trim();
-    if trimmed.starts_with("\\\\") || trimmed.starts_with("//") {
-        return false;
-    }
-    true
+    crate::platform::volume_supports_recycle_bin(path)
 }
 
 pub fn delete_to_recycle(path: &Path, path_text: &str) -> Result<(), String> {
