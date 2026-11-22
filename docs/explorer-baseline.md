@@ -134,6 +134,40 @@
 | 属性 / 预览 | 补 Alt+Enter 属性、Alt+P 预览。现有侧栏和 Space 预览桥留着 |
 | 标签 | 不另做第二套。给现有标签组加 pin；默认工作组承担临时浏览。见下节 |
 
+## 已拍板（2026-11-22）— 文件操作场景细化
+
+来自 [`file-ops-scenario-baseline.md`](./file-ops-scenario-baseline.md) 操作×场景矩阵，把上面 2026-11-06 几条粗拍板细化到可守卫的格。
+
+**对 2026-11-06 既有条目的修订：**
+
+- **同名冲突**（上面那条）→ 细化：「应用到全部」勾选**仅本次粘贴操作内生效**，下次粘贴重新问，与会话/应用生命周期无关。
+- **删除**（上面那条）→ 再次明确：UNC / U 盘 / 不可回收卷上的 Delete **降级为弹确认后永久删除**（与 Explorer 一致）。当前代码 `file_ops/mod.rs:192 delete_to_recycle` 是直接拒绝，**需改代码 fallback**，混合选择按各项能否回收分流。
+
+**新增细化（case-id 对应基线矩阵）：**
+
+| 项 | 决定 |
+| --- | --- |
+| 撤销跨重启 (UN-007) | 不支持，in-memory only（对齐 Explorer） |
+| Redo (UN-010) | 不做文件操作 redo（对齐 Explorer；DC 有但 AFM 不跟） |
+| 传输中取消 (LC-005) | **回滚**：清除目标端已完成的部分；源端安全由 safe_io staging 保证 |
+| 单项失败错误处理 (LC-007) | 弹窗 **retry / skip / abort**，对齐 Windows Explorer |
+| 大小写冲突 (CF-005) | 视为同名冲突；`unique_dest_path` 存在性比较按 FS 规则（不敏感） |
+| 同名不同类型 (TR-013, CF-006) | 专门弹窗「这会替换文件夹」警告类型不同，提供 replace / skip / keep-both |
+| 目录入目录 (CF-007, CF-008) | **合并**内容；内层冲突按 replace/skip/keep-both 递归处理 |
+| 符号链接 / junction 复制 (TR-203) | **跟随链接复制内容**（对齐 Explorer）；右键另设「复制为链接」入口 |
+| 保留名 (NM-003) | 拒绝 CON / PRN / AUX / NUL / COM1-9 / LPT1-9，不区分大小写、含 `CON.txt` 这种带点后缀 |
+| 仅大小写改名 (NM-004) | 允许（与 Windows API 一致） |
+| 尾点 / 尾空格 (NM-007) | strip 后继续，静默接受（与 Windows API 行为一致） |
+| OneDrive 占位符 (LC-010) | 复制时**从云端水合**（对齐 Explorer）；后续可加「不下载复制」高级选项 |
+| Cut 路径外部消失 (CLIP-008) | 跳过该项继续其他，最后 toast「N 项已跳过」；不弹三选 |
+| 还原原父目录不存在 (DEL-007) | **自动重建父目录链**（对齐 Explorer） |
+| Undo 被外部污染 (UN-008) | 检测后拒绝 undo，toast「项目已被外部修改，无法撤销」 |
+| Undo cancel 的回滚 (UN-009) | cancel + rollback 是传输本身的收尾，**不入 undo 栈** |
+| 长路径 >260 (LC-009) | 启用 `\\?\` 路径处理（Tauri manifest `longPathAware=true` + 代码层前缀拼接） |
+| Esc 行为边界 (SEL-010) | 三层：rename inline → 取消 rename；有选中 → 清空选中；无选中 → 不消费 |
+
+每项的「现状 / 分歧 / 守卫层」详见 [`file-ops-scenario-baseline.md`](./file-ops-scenario-baseline.md) Part 3。
+
 ## 标签（已定）
 
 不新增一套「普通标签」。导航页现有那一排继续是标签组。
