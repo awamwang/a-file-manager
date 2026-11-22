@@ -72,6 +72,7 @@ import {
   isClipboardCutPath,
   pasteClipboard,
   pathsWithoutRecycle,
+  nameExists,
   refreshClipboardFromSystem,
   renameEntry,
   setClipboard,
@@ -658,6 +659,13 @@ async function commitInlineRename() {
       return;
     }
     if (next === entry.name) return;
+    const sepIdx = Math.max(entry.path.lastIndexOf("/"), entry.path.lastIndexOf("\\"));
+    const parentDir = sepIdx > 0 ? entry.path.slice(0, sepIdx) : entry.path;
+    if (await nameExists(parentDir, next)) {
+      onNotice(t("dialog.conflictMessage", { name: next }), "error");
+      await refreshListing();
+      return;
+    }
     const result = await renameEntry(entry.path, next);
     if (!result.ok) {
       onNotice(result.error ?? t("contextMenu.opFailed"), "error");
