@@ -109,8 +109,7 @@
     "conflictReplace": "Replace",
     "conflictSkip": "Skip",
     "conflictKeep": "Keep both",
-    "conflictDefaultReplace": "Replace next time",
-    "conflictDefaultSkip": "Skip next time"
+    "conflictApplyToAll": "Apply to all conflicts"
   },
   "chrome": {
     "titleBar": "Title bar",

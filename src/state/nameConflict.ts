@@ -1,89 +1,78 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-/** Ask before replacing an existing name. Remember replace/skip for later pastes. */
+/** Ask before replacing an existing name. Apply-to-all is per-paste-batch only.
+ *
+ * CF-003 / TR-014 (`docs/file-ops-scenario-baseline.md` §已拍板 2026-11-22):
+ * a checked "Apply to all" box remembers the user's choice **inside the
+ * current paste operation only**. The next paste re-prompts. We deliberately
+ * do NOT write to localStorage or persist across sessions — Explorer's "Do this
+ * for all" is per-dialog, not per-app, and silently inheriting a stale default
+ * is the kind of surprise that wipes data on a multi-conflict paste weeks
+ * later. */
 
 import { ref } from "vue";
 
 export type NameConflictChoice = "replace" | "skip" | "keep";
-export type NameConflictDefault = "ask" | "replace" | "skip";
-
 export type NameConflictResult = {
   choice: NameConflictChoice | "cancel";
 };
 
-const STORAGE_KEY = "afm.nameConflictDefault";
-
 export const nameConflictOpen = ref(false);
 export const nameConflictName = ref("");
-export const nameConflictRememberReplace = ref(false);
-export const nameConflictRememberSkip = ref(false);
+export const nameConflictApplyToAll = ref(false);
+
+// Per-batch state. Cleared by `resetNameConflictBatch()` at the start of each
+// `transferEntries` call; never persisted anywhere.
+let rememberedChoice: NameConflictChoice | null = null;
 
 let pendingResolve: ((result: NameConflictResult) => void) | null = null;
-
-export function readNameConflictDefault(): NameConflictDefault {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw === "replace" || raw === "skip") return raw;
-  } catch {
-    /* private mode */
-  }
-  return "ask";
-}
-
-export function writeNameConflictDefault(value: NameConflictDefault): void {
-  try {
-    if (value === "ask") localStorage.removeItem(STORAGE_KEY);
-    else localStorage.setItem(STORAGE_KEY, value);
-  } catch {
-    /* ignore quota / private mode */
-  }
-}
 
 function settle(result: NameConflictResult): void {
   const resolve = pendingResolve;
   pendingResolve = null;
   nameConflictOpen.value = false;
   nameConflictName.value = "";
-  nameConflictRememberReplace.value = false;
-  nameConflictRememberSkip.value = false;
+  nameConflictApplyToAll.value = false;
   resolve?.(result);
+}
+
+/** Call at the top of every paste batch. The remembered "Apply to all" choice
+ *  does not survive past this reset. */
+export function resetNameConflictBatch(): void {
+  rememberedChoice = null;
+}
+
+/** Exposed for tests; production code does not need it. */
+export function currentRememberedChoice(): NameConflictChoice | null {
+  return rememberedChoice;
 }
 
 export function openNameConflictDialog(name: string): Promise<NameConflictResult> {
   if (pendingResolve) settle({ choice: "cancel" });
   nameConflictName.value = name;
-  nameConflictRememberReplace.value = false;
-  nameConflictRememberSkip.value = false;
+  nameConflictApplyToAll.value = false;
   nameConflictOpen.value = true;
   return new Promise((resolve) => {
     pendingResolve = resolve;
   });
 }
 
-export function setNameConflictRemember(which: "replace" | "skip", on: boolean): void {
-  if (which === "replace") {
-    nameConflictRememberReplace.value = on;
-    if (on) nameConflictRememberSkip.value = false;
-  } else {
-    nameConflictRememberSkip.value = on;
-    if (on) nameConflictRememberReplace.value = false;
-  }
+export function setNameConflictApplyToAll(on: boolean): void {
+  nameConflictApplyToAll.value = on;
 }
 
 export function resolveNameConflict(choice: NameConflictChoice | "cancel"): void {
   if (!nameConflictOpen.value) return;
-  if (choice !== "cancel") {
-    if (nameConflictRememberReplace.value) writeNameConflictDefault("replace");
-    else if (nameConflictRememberSkip.value) writeNameConflictDefault("skip");
+  if (choice !== "cancel" && nameConflictApplyToAll.value) {
+    rememberedChoice = choice;
   }
   settle({ choice });
 }
 
-/** Use the remembered default, otherwise ask. Cancel aborts the whole transfer. */
+/** Within the same batch, honor the remembered choice; otherwise ask. */
 export async function resolveNameConflictChoice(
   name: string,
 ): Promise<NameConflictChoice | "cancel"> {
-  const remembered = readNameConflictDefault();
-  if (remembered === "replace" || remembered === "skip") return remembered;
+  if (rememberedChoice) return rememberedChoice;
   const result = await openNameConflictDialog(name);
   return result.choice;
 }

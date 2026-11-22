@@ -3,12 +3,11 @@
 import { onMounted, onUnmounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
+  nameConflictApplyToAll,
   nameConflictName,
   nameConflictOpen,
-  nameConflictRememberReplace,
-  nameConflictRememberSkip,
   resolveNameConflict,
-  setNameConflictRemember,
+  setNameConflictApplyToAll,
 } from "../../state/nameConflict";
 
 const { t } = useI18n();
@@ -57,21 +56,12 @@ onUnmounted(() => {
       <p class="conflict-message">{{ t("dialog.conflictMessage", { name: nameConflictName }) }}</p>
       <label class="conflict-remember">
         <input
-          :checked="nameConflictRememberReplace"
+          :checked="nameConflictApplyToAll"
           type="checkbox"
           class="fluent-field-check"
-          @change="setNameConflictRemember('replace', ($event.target as HTMLInputElement).checked)"
+          @change="setNameConflictApplyToAll(($event.target as HTMLInputElement).checked)"
         />
-        {{ t("dialog.conflictDefaultReplace") }}
-      </label>
-      <label class="conflict-remember">
-        <input
-          :checked="nameConflictRememberSkip"
-          type="checkbox"
-          class="fluent-field-check"
-          @change="setNameConflictRemember('skip', ($event.target as HTMLInputElement).checked)"
-        />
-        {{ t("dialog.conflictDefaultSkip") }}
+        {{ t("dialog.conflictApplyToAll") }}
       </label>
       <div class="conflict-actions">
         <button type="button" class="fluent-control" @click="resolveNameConflict('cancel')">

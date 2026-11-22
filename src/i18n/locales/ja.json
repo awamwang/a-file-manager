@@ -522,8 +522,7 @@
     "conflictReplace": "置き換える",
     "conflictSkip": "スキップ",
     "conflictKeep": "両方残す",
-    "conflictDefaultReplace": "次回から置き換える",
-    "conflictDefaultSkip": "次回からスキップ"
+    "conflictApplyToAll": "すべての競合に適用"
   },
   "discovery": {
     "title": "検索",

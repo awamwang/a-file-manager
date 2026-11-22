@@ -522,8 +522,7 @@
     "conflictReplace": "Ersetzen",
     "conflictSkip": "Überspringen",
     "conflictKeep": "Beide behalten",
-    "conflictDefaultReplace": "Nächstes Mal ersetzen",
-    "conflictDefaultSkip": "Nächstes Mal überspringen"
+    "conflictApplyToAll": "Auf alle Konflikte anwenden"
   },
   "discovery": {
     "title": "Suche",

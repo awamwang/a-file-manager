@@ -87,8 +87,7 @@ const conflictHost = readFileSync(
   join(root, "src/components/shell/NameConflictDialogHost.vue"),
   "utf8",
 );
-assert.ok(conflictHost.includes("conflictDefaultReplace"));
-assert.ok(conflictHost.includes("conflictDefaultSkip"));
+assert.ok(conflictHost.includes("conflictApplyToAll"));
 assert.equal(en.dialog.conflictReplace, "Replace");
 assert.equal(en.dialog.conflictKeep, "Keep both");
 assert.ok(menu.includes("setClipboard"));
