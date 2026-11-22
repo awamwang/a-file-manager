@@ -75,4 +75,14 @@ assert.ok(!menu.includes("runRename"));
 assert.ok(!menu.includes("window.prompt(t(\"contextMenu.renamePrompt\")"));
 assert.ok(!menu.includes("renameEntry"));
 
-console.log("Navigator inline rename checks OK (AIA-171/AIA-172/AIA-173).");
+// NM-002: a rename collision reuses the paste name-conflict dialog (Replace / Skip)
+// instead of a bare "already exists" notice; Replace delegates to backend replace=true,
+// and the batch memory is cleared first so a rename is never auto-answered.
+assert.ok(
+  view.includes('import { resetNameConflictBatch, resolveNameConflictChoice } from "../state/nameConflict";'),
+);
+assert.ok(view.includes("resetNameConflictBatch();"));
+assert.ok(view.includes("await resolveNameConflictChoice(next, false)"));
+assert.ok(view.includes("await renameEntry(entry.path, next, true)"));
+
+console.log("Navigator inline rename checks OK (AIA-171/AIA-172/AIA-173, NM-002).");

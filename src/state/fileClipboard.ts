@@ -161,8 +161,9 @@ export async function transferEntries(
 export async function renameEntry(
   path: string,
   newName: string,
+  replace = false,
 ): Promise<FileOpsResult> {
-  return invoke<FileOpsResult>("file_ops_rename", { path, newName });
+  return invoke<FileOpsResult>("file_ops_rename", { path, newName, replace });
 }
 
 /** Whether `name` already exists directly under `destDir` (case-insensitive on Windows). */
