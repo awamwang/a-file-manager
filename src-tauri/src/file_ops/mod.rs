@@ -537,11 +537,34 @@ pub fn rename_path(path: &str, new_name: &str) -> Result<String, String> {
         .parent()
         .ok_or_else(|| "Cannot rename a root path".to_string())?;
     let dest = parent.join(&name);
-    if dest.exists() && dest != src {
+    // NM-004: on a case-insensitive FS, `a.txt → A.txt` (or any case-only change)
+    // points at the *same* entry — that is a legal case rename, not a collision.
+    // Only a genuinely different existing entry is rejected. Byte equality alone is
+    // not enough because `dest != src` is true for a case-only change; compare the
+    // resolved path case-insensitively on Windows / case-sensitively elsewhere.
+    if dest.exists() && !is_same_entry(&dest, &src) {
         return Err(format!("A file named '{name}' already exists"));
     }
     fs::rename(&src, &dest).map_err(|err| format!("Failed to rename: {err}"))?;
     Ok(display_path(&dest))
+}
+
+/// True when `a` and `b` refer to the same directory entry. On Windows
+/// (NTFS/exFAT/FAT) the file system is case-insensitive, so an exact
+/// case-insensitive path comparison is the right notion of "same entry". On
+/// case-sensitive platforms an exact byte comparison is used. Both are the
+/// minimal check needed to let a case-only rename through without allowing a
+/// real overwrite of a different file.
+fn is_same_entry(a: &Path, b: &Path) -> bool {
+    #[cfg(windows)]
+    {
+        a.as_os_str().to_string_lossy().to_lowercase()
+            == b.as_os_str().to_string_lossy().to_lowercase()
+    }
+    #[cfg(not(windows))]
+    {
+        a == b
+    }
 }
 
 pub fn create_directory(parent: &str, name: &str) -> Result<String, String> {
@@ -1373,6 +1396,35 @@ mod tests {
         let info = name_conflict_info(&display_path(&parent), "nope", &display_path(&src_file)).unwrap();
         assert!(!info.exists, "no target");
         assert!(!info.type_mismatch, "no target → no mismatch");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // NM-004: on a case-insensitive FS, a case-only rename must SUCCEED (not
+    // "already exists"); renaming to a genuinely different existing file must fail.
+    #[cfg(windows)]
+    #[test]
+    fn rename_case_only_succeeds_but_real_collision_fails() {
+        let dir = temp_workspace("case-rename");
+        fs::write(dir.join("a.txt"), b"x").unwrap();
+
+        // a.txt → A.txt : same entry, case-only → allowed, file still present, one file.
+        let renamed = rename_path(&display_path(&dir.join("a.txt")), "A.txt").unwrap();
+        assert!(Path::new(&renamed).is_file());
+        assert_eq!(fs::read(dir.join("A.txt")).unwrap(), b"x");
+        assert_eq!(
+            fs::read_dir(&dir).unwrap().count(),
+            1,
+            "case rename must not duplicate"
+        );
+
+        // now rename A.txt → b.txt where a DIFFERENT b.txt already exists → must fail.
+        fs::write(dir.join("b.txt"), b"other").unwrap();
+        let err = rename_path(&display_path(&dir.join("A.txt")), "B.txt").unwrap_err();
+        assert!(
+            err.contains("already exists"),
+            "different existing entry (even case-only different base) must block: {err}"
+        );
 
         let _ = fs::remove_dir_all(&dir);
     }
