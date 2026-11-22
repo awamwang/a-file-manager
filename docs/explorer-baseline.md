@@ -168,6 +168,13 @@
 
 每项的「现状 / 分歧 / 守卫层」详见 [`file-ops-scenario-baseline.md`](./file-ops-scenario-baseline.md) Part 3。
 
+## 已拍板（2026-11-23）— 产品独有功能（工作组 / 项目）
+
+- **项目实体目录**：项目定位为「公共文档数据 + 工作区（成员链接）+ skill / MCP 配置」的载体，**必须以磁盘目录形式存在**，不能退化为单个配置文件。
+- **工作组 → 项目操作（改名 + 语义）**：不叫「升级 / 提升」。统一为 **「从工作组创建项目」**；**创建后原工作组保留**（不删除、不替换源工作组）；执行前给**预览确认**（目标目录路径 + 将生成的 `CONTEXT.md` / `tasks.json` / skill·MCP 配置 + 成员如何变为工作区链接）。凡表达「工作组变成 / 提升为项目」的同义文案一律同步：`glossary-core-concepts.md`、`help/content/projects.md`、`help/content/work-groups.md`、i18n `concepts.projects`×6、后端 `promote_work_group`（改名 + 改为保留源 WG）。
+- **项目内 task 文件**：去掉 task 的 UI 展示；项目初始化仅生成 **`tasks.json`（空）**，条目字段采用 **Backlog.md 语义**（`status: todo|in_progress|done|blocked`、`priority: low|medium|high`、`labels[]`、`assignee`、`dependencies[]`、`acceptance[]`、`notes`），便于 AI Agent 读写与后续接入 Backlog.md CLI / MCP。**注意**：与 VS Code 可执行 `tasks.json` 语义不同，模板首行注明区分。
+- **工作组 Open State（标签不丢）**：**维持现状** —— 切换工作组全部静默保存、不丢，接受临时标签堆积，不加「未整理标记 / 一键清临时」。
+
 ## 标签（已定）
 
 不新增一套「普通标签」。导航页现有那一排继续是标签组。
