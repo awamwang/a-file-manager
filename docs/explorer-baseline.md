@@ -141,7 +141,7 @@
 **对 2026-11-06 既有条目的修订：**
 
 - **同名冲突**（上面那条）→ 细化：「应用到全部」勾选**仅本次粘贴操作内生效**，下次粘贴重新问，与会话/应用生命周期无关。
-- **删除**（上面那条）→ 再次明确：UNC / U 盘 / 不可回收卷上的 Delete **降级为弹确认后永久删除**（与 Explorer 一致）。当前代码 `file_ops/mod.rs:192 delete_to_recycle` 是直接拒绝，**需改代码 fallback**，混合选择按各项能否回收分流。
+- **删除**（上面那条）→ 再次明确：UNC / U 盘 / 不可回收卷上的 Delete **降级为弹确认后永久删除**（与 Explorer 一致）。FE 两个 Delete 入口（`NavigatorView.vue::shortcutDelete` 与 `NavigatorContextMenu.vue::runDelete`）**已实现**该流程：`pathsWithoutRecycle` 分流 → `confirmPermanentDelete` 确认 → `deleteEntries(false/true)` 各自处理；混合选择部分失败时回滚已删项。后端 `mod.rs:192 delete_to_recycle` 的拒绝分支保留作 defense-in-depth 兜底，正常路径不触发，不需要改代码。
 
 **新增细化（case-id 对应基线矩阵）：**
 

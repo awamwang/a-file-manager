@@ -195,12 +195,12 @@ Shift+Delete → confirmed permanent; volume root never deleted. UNC cannot recy
 | --- | --- | --- | --- | --- | --- | --- |
 | DEL-001 | local file | Delete | → Recycle Bin; selectable set updates | — | `✅ code+test` | CARGO `delete_to_recycle_local_file`; `check-recycle-bin.mjs` |
 | DEL-002 | local file | Delete, confirm-before-delete **on** (default) | confirmation dialog first | DC: opt-in | `✅ code+test` | `check-delete-confirm.mjs`→`confirm-before-delete-checks.ts` |
-| DEL-003 | removable/USB or UNC | Delete | cannot recycle → **permanent delete with confirm** (not silent, not refused) | Explorer: permanent w/ confirm | `🔵 decided` — **align Explorer**: `delete_paths` detects non-recyclable volume, FE shows confirm "永久删除？", then calls `delete_permanent_paths` | **decided 2026-11-22; code change needed** |
+| DEL-003 | removable/USB or UNC | Delete | cannot recycle → **permanent delete with confirm** (not silent, not refused) | Explorer: permanent w/ confirm | `✅ code+test (FE-side)` — FE `NavigatorView.vue::shortcutDelete` + `NavigatorContextMenu.vue::runDelete` 调 `pathsWithoutRecycle` → `confirmPermanentDelete` → 分流 `deleteEntries(recyclable, false)` / `deleteEntries(blocked, true)`；后端 `mod.rs:192` 拒绝分支是 FE 流程被绕过时的兜底防御，正常路径不触发 | **verified 2026-11-22 (PR-1 review)** |
 | DEL-004 | any | Shift+Delete | permanent, after confirm | — | `✅ code` (`delete_permanent_paths`) | needs a Shift+Delete-level gate |
 | DEL-005 | volume root | Delete / Shift+Delete | refused | all refuse | `✅ code` (`refuse_volume_root`) | CARGO `..._refuses_root` |
 | DEL-006 | folder in Recycle Bin | restore | returns to **original path** (or best match) | — | `🟡 code` (`file_ops_restore`) | undo-restore loopback has no temp-exec test (ledger gap R2) |
 | DEL-007 | original path gone at restore | restore | recreated / best-match, not error-only | Explorer recreates path | `🔵 decided` — 自动重建原父目录链（对齐 Explorer） | **decided 2026-11-22** |
-| DEL-008 | multi select with mixed recyclable + UNC | Delete | per-item split: recycle where possible, permanent(confirm) for the rest | — | `🔵 decided` — follows DEL-003; one confirm dialog for the non-recyclable subset | **decided 2026-11-22** |
+| DEL-008 | multi select with mixed recyclable + UNC | Delete | per-item split: recycle where possible, permanent(confirm) for the rest | — | `✅ code (FE-side)` — 同 DEL-003；FE 流程在 `blocked.length` 分支里同时处理 `recyclable` 和 `doomed`，部分失败时 `removePathsFromListings(done)` 回滚已删项 | **verified 2026-11-22** |
 
 ### Group 6 · Conflict & keep-both (CF)
 
@@ -286,7 +286,7 @@ Verified in `explorer-baseline.md §选择` as 对齐: single, Ctrl, Shift, Ctrl
 | Redo (UN-010) | 不做文件操作 redo，对齐 Explorer |
 | 传输中取消 (LC-005) | **回滚**：清除目标端已完成的部分结果；源端始终安全（staging 保证） |
 | 单项失败错误处理 (LC-007) | **弹窗**：retry / skip / abort，对齐 Windows Explorer |
-| UNC/不可回收卷 Delete (DEL-003, DEL-008) | 改代码对齐已拍板：弹确认后**永久删除**，与 Explorer 一致；混合选择按各项能否回收分流；`mod.rs:192` 的「直接拒绝」分支替换为 fallback |
+| UNC/不可回收卷 Delete (DEL-003, DEL-008) | **FE 已实现**：`NavigatorView.vue::shortcutDelete` 与 `NavigatorContextMenu.vue::runDelete` 调 `pathsWithoutRecycle` → `confirmPermanentDelete` → 分流 `deleteEntries(false/true)`，混合选择按各项能否回收各自处理，部分失败时回滚。后端 `mod.rs:192` 拒绝分支是 FE 流程被绕过时的兜底防御，正常路径不触发；保留作 defense-in-depth。PR-1 实施 review 中 verified。 |
 | 大小写冲突 (CF-005) | 视为同名冲突，进入 replace/skip/keep-both 询问；`unique_dest_path` 存在性比较按 FS 规则（Windows 不敏感） |
 | 同名不同类型 (TR-013, CF-006) | 专门弹窗「这会替换文件夹」警告类型不同，提供 replace / skip / keep-both |
 | 目录入目录 (CF-007, CF-008) | 合并内容；内层冲突按 CF-001~005 递归处理；safe_io 需支持递归 merge |
@@ -311,10 +311,11 @@ were not in that decision list and need a stance before they can be guarded. Gro
 radius.
 
 **High (correctness / data-safety):**
-- ~~**DEL-003 / DEL-008**~~ — **DECIDED 2026-11-22**: 改代码对齐已拍板。UNC / 不可回收卷上的
-  Delete 降级为「弹确认后永久删除」，与 Windows Explorer 一致；混合选择时按各项能否回收分流。
-  `delete_to_recycle` (`mod.rs:192`) 当前的「直接拒绝」分支要替换为该 fallback 路径（FE 侧需调用
-  `file_ops_can_recycle` 后弹对应确认）。
+- ~~**DEL-003 / DEL-008**~~ — **VERIFIED 2026-11-22 (PR-1 review)**: FE `shortcutDelete` 和
+  `runDelete` 已实现「pathsWithoutRecycle → confirmPermanentDelete → 分流 deleteEntries(false/true)」，
+  与 2026-11-06 已拍板一致。矩阵初稿误把后端 `mod.rs:192` 拒绝分支当成与拍板矛盾 —— 实际那是 FE
+  流程被绕过时的 defense-in-depth 兜底，正常路径不会触发。无需改后端代码；后续 PR 应加 FE-UNIT
+  或更紧的 grep 把 `pathsWithoutRecycle` 在两个入口里的调用钉住（详见 §Part 5）。
 - ~~**LC-005**~~ — **DECIDED 2026-11-22**: cancel mid-transfer → **rollback** (remove partial
   destination results). Source safety already guaranteed by safe_io staging.
 - ~~**UN-007 / UN-010**~~ — **DECIDED 2026-11-22**: undo is in-memory only (no cross-restart), no
@@ -366,7 +367,7 @@ of *scenario* truth.
 | case-only collision keep-both | CF-005 | FE + CARGO | new |
 | dir-into-dir merge + inner conflict | CF-007, CF-008 | CARGO | new |
 | rename reserved-name / case-only / trailing-dot | NM-003, NM-004, NM-007 | CARGO `validate_file_name` / rename | new |
-| UNC/removable Delete → permanent fallback w/ confirm | DEL-003, DEL-008 | FE + CARGO | **decided — code change required** (`mod.rs:192` 当前分支需替换为 fallback) |
+| UNC/removable Delete → permanent fallback w/ confirm | DEL-003, DEL-008 | FE 已实现（grep + 调用链）；可选 FE-UNIT | **verified 2026-11-22** — `check-file-ops.mjs` 已 grep `confirmPermanentDelete`；本次扩展加 `pathsWithoutRecycle` 在两个入口里的调用钉住 |
 | restore to original path when parent gone | DEL-007 | CARGO (heavy, see ledger R2) | **decided — 自动重建父目录链；CARGO 可走 temp 路径，不再依赖 R2 的机器态** |
 | undo reverse-order multi-op | UN-006 | FE `file-undo-checks.ts` | new |
 | paste-target resolution (folder/file/none) | CLIP-101, CLIP-102, CLIP-104 | FE (pure resolver extraction) | new |

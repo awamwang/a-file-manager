@@ -96,6 +96,7 @@ assert.ok(menu.includes("pasteClipboard"));
 assert.ok(menu.includes("deleteEntries"));
 assert.ok(menu.includes("deletePermanentConfirm"));
 assert.ok(menu.includes("confirmPermanentDelete"));
+assert.ok(menu.includes("pathsWithoutRecycle"));
 assert.ok(menu.includes("confirmDeleteIfNeeded"));
 assert.ok(!menu.includes("window.confirm"));
 assert.ok(!menu.includes("window.prompt"));
@@ -125,6 +126,10 @@ assert.ok(clip.includes("isClipboardCutPath"));
 assert.ok(clip.includes('clipboardMode.value !== "cut"'));
 assert.ok(navigatorView.includes("isClipboardCutPath"));
 assert.ok(navigatorView.includes("'row--cut': isClipboardCutPath(entry.path)"));
+// DEL-003 / DEL-008: shortcut Delete 走「不可回收 → 永久删除」分流，与右键菜单一致。
+// 后端 mod.rs:192 拒绝分支是 FE 流程被绕过时的 defense-in-depth 兜底，不是主路径。
+assert.ok(navigatorView.includes("pathsWithoutRecycle"));
+assert.ok(navigatorView.includes("confirmPermanentDelete"));
 assert.match(
   navigatorView,
   /\.row--cut\s+\.kind[\s\S]*?opacity:\s*0\.5/s,
