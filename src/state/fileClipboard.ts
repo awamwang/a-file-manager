@@ -156,6 +156,15 @@ export async function renameEntry(
   return invoke<FileOpsResult>("file_ops_rename", { path, newName });
 }
 
+/** Whether `name` already exists directly under `destDir` (case-insensitive on Windows). */
+export async function nameExists(destDir: string, name: string): Promise<boolean> {
+  try {
+    return await invoke<boolean>("file_ops_name_exists", { destDir, name });
+  } catch {
+    return false;
+  }
+}
+
 export async function createFolder(
   parent: string,
   name: string,
