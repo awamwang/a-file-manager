@@ -129,7 +129,24 @@ fn ensure_dir(path: &str) -> Result<PathBuf, String> {
     Ok(pb)
 }
 
-fn validate_file_name(name: &str) -> Result<&str, String> {
+/// Windows 资源管理器 / Win32 保留名（不区分大小写、含点后缀，如 `CON.txt`、`nul.dat`）。
+/// 仅 `COM1-9` / `LPT1-9` 命中；`COM0` / `LPT0` 不在传统保留列表，与 Explorer 行为一致。
+fn is_windows_reserved_name(name: &str) -> bool {
+    let stem = name.split('.').next().unwrap_or(name).to_ascii_uppercase();
+    if matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL") {
+        return true;
+    }
+    if stem.len() == 4 {
+        let (head, tail) = stem.split_at(3);
+        let last = tail.as_bytes()[0];
+        if (head == "COM" || head == "LPT") && (b'1'..=b'9').contains(&last) {
+            return true;
+        }
+    }
+    false
+}
+
+fn validate_file_name(name: &str) -> Result<String, String> {
     let trimmed = name.trim();
     if trimmed.is_empty() {
         return Err("Name must not be empty".to_string());
@@ -140,7 +157,16 @@ fn validate_file_name(name: &str) -> Result<&str, String> {
     if trimmed == "." || trimmed == ".." {
         return Err("Name is not allowed".to_string());
     }
-    Ok(trimmed)
+    if is_windows_reserved_name(trimmed) {
+        return Err("Name is reserved by Windows".to_string());
+    }
+    // NTFS / Win32 默认会去掉文件名尾部的点和空格。提前对齐，避免「CreateFile 成功
+    // 但路径不可访问」的鬼影。"a..." → "a"，"a.b.  " → "a.b"。
+    let normalized = trimmed.trim_end_matches(['.', ' ']).to_string();
+    if normalized.is_empty() || normalized == "." || normalized == ".." {
+        return Err("Name is not allowed".to_string());
+    }
+    Ok(normalized)
 }
 
 /// Prefer a free destination name: `name`, then `name - Copy`, `name - Copy (2)`, …
@@ -416,7 +442,7 @@ pub fn rename_path(path: &str, new_name: &str) -> Result<String, String> {
     let parent = src
         .parent()
         .ok_or_else(|| "Cannot rename a root path".to_string())?;
-    let dest = parent.join(name);
+    let dest = parent.join(&name);
     if dest.exists() && dest != src {
         return Err(format!("A file named '{name}' already exists"));
     }
@@ -427,7 +453,7 @@ pub fn rename_path(path: &str, new_name: &str) -> Result<String, String> {
 pub fn create_directory(parent: &str, name: &str) -> Result<String, String> {
     let parent_pb = ensure_dir(parent)?;
     let folder_name = validate_file_name(name)?;
-    let dest = parent_pb.join(folder_name);
+    let dest = parent_pb.join(&folder_name);
     if dest.exists() {
         return Err(format!("A file named '{folder_name}' already exists"));
     }
@@ -438,7 +464,7 @@ pub fn create_directory(parent: &str, name: &str) -> Result<String, String> {
 pub fn create_empty_file(parent: &str, name: &str) -> Result<String, String> {
     let parent_pb = ensure_dir(parent)?;
     let file_name = validate_file_name(name)?;
-    let dest = parent_pb.join(file_name);
+    let dest = parent_pb.join(&file_name);
     if dest.exists() {
         return Err(format!("A file named '{file_name}' already exists"));
     }
@@ -944,5 +970,42 @@ mod tests {
         assert!(validate_file_name("a/b").is_err());
         assert!(validate_file_name("..").is_err());
         assert_eq!(validate_file_name("  ok  ").unwrap(), "ok");
+    }
+
+    // NM-003: Windows 资源管理器 / Win32 保留名一律拒绝，含点后缀、不区分大小写。
+    #[test]
+    fn validate_name_blocks_windows_reserved() {
+        for blocked in [
+            "CON", "con", "CoN", "PRN", "AUX", "NUL", "nul",
+            "COM1", "com1", "COM9", "LPT1", "lpt3", "LPT9",
+            "CON.txt", "nul.dat", "COM1.log", "LPT9.bin",
+        ] {
+            assert!(
+                validate_file_name(blocked).is_err(),
+                "reserved name must be rejected: {blocked}"
+            );
+        }
+        // 仅前缀相似、不是保留名的应允许。
+        for allowed in ["CONSOLE", "console.txt", "NULP", "nullop", "COMPUTER1", "LPT.txt", "COM0", "LPT0"] {
+            assert!(
+                validate_file_name(allowed).is_ok(),
+                "near-miss must be allowed: {allowed}"
+            );
+        }
+    }
+
+    // NM-007: 尾点 / 尾空格静默 strip，与 Win32 CreateFile 行为一致。
+    #[test]
+    fn validate_name_strips_trailing_dot_and_space() {
+        assert_eq!(validate_file_name("a.txt.").unwrap(), "a.txt");
+        assert_eq!(validate_file_name("a.txt  ").unwrap(), "a.txt");
+        assert_eq!(validate_file_name("a. ").unwrap(), "a");
+        assert_eq!(validate_file_name("report...").unwrap(), "report");
+        // 中间点不动；前导点（隐藏 / dot-file 风格）保留。
+        assert_eq!(validate_file_name(".hidden").unwrap(), ".hidden");
+        assert_eq!(validate_file_name("a.b.c").unwrap(), "a.b.c");
+        // 全是点 / 空格的输入应早返回错误，不能 strip 到空字符串。
+        assert!(validate_file_name("...  ").is_err());
+        assert!(validate_file_name("   ").is_err());
     }
 }
