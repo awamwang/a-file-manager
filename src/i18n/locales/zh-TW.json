@@ -1128,6 +1128,7 @@
     "saveMembersFromTabs": "開啟標籤 → 成員配置",
     "errorSavePrompt": "靜默切換時出現意外的儲存提示",
     "promoteToProject": "從工作組建立專案",
+    "promotePreviewMessage": "將在你的專案根目錄下建立一個名為「{name}」的專案資料夾，產生 CONTEXT.md、tasks.json 與 skill / MCP 設定；來源工作組將保留。",
     "promoteDone": "已建立繫結「{name}」的專案（工作組保留）",
     "removeMember": "移除成員",
     "memberRemoved": "已從工作組移除成員",

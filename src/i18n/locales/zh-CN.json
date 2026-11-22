@@ -1115,6 +1115,7 @@
     "saveMembersFromTabs": "打开标签 → 成员配置",
     "errorSavePrompt": "静默切换时出现意外的保存提示",
     "promoteToProject": "从工作组创建项目",
+    "promotePreviewMessage": "将在你的项目根目录下创建一个名为「{name}」的项目文件夹，生成 CONTEXT.md、tasks.json 与 skill / MCP 配置；源工作组将保留。",
     "promoteDone": "已创建绑定「{name}」的项目（工作组保留）",
     "removeMember": "移除成员",
     "memberRemoved": "已从工作组移除成员",

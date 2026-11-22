@@ -609,9 +609,17 @@ const promoting = ref(false);
 /** 升级为项目：直达新项目详情；不改资源管理器当前工作组，也不触碰 OpenState。 */
 async function promoteToProject() {
   if (!active.value || active.value.isDefault || promoting.value) return;
+  const groupName = active.value.name;
+  // D4: preview + confirm before creating an on-disk project directory. The
+  // source Work Group is kept (guaranteed by ops.rs promote_work_group_to_project).
+  const { confirmed } = await openConfirmDialog({
+    title: t("workGroups.promoteToProject"),
+    message: t("workGroups.promotePreviewMessage", { name: groupName }),
+    confirmLabel: t("workGroups.promoteToProject"),
+  });
+  if (!confirmed) return;
   error.value = null;
   promoting.value = true;
-  const groupName = active.value.name;
   try {
     const result = await invoke<PromoteWorkspaceResult>(
       "projects_workspace_promote_from_work_group",

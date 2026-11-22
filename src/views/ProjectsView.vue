@@ -423,9 +423,16 @@ type PromoteWorkspaceResult = {
 async function createProjectFromWorkGroup() {
   const groupId = createFromWorkGroupId.value.trim();
   if (!groupId || creatingFromWorkGroup.value) return;
+  const groupName = workGroups.value.find((group) => group.id === groupId)?.name ?? groupId;
+  // D4: preview + confirm before creating an on-disk project directory; source WG kept.
+  const { confirmed } = await openConfirmDialog({
+    title: t("workGroups.promoteToProject"),
+    message: t("workGroups.promotePreviewMessage", { name: groupName }),
+    confirmLabel: t("workGroups.promoteToProject"),
+  });
+  if (!confirmed) return;
   error.value = null;
   creatingFromWorkGroup.value = true;
-  const groupName = workGroups.value.find((group) => group.id === groupId)?.name ?? groupId;
   try {
     const result = await invoke<PromoteWorkspaceResult>(
       "projects_workspace_promote_from_work_group",

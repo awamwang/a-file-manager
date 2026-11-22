@@ -1281,6 +1281,7 @@
     "softSync": "一緒に開きました: {paths}",
     "title": "ワークグループ",
     "promoteToProject": "ワークグループからプロジェクトを作成",
+    "promotePreviewMessage": "プロジェクトのルート配下に「{name}」というプロジェクトフォルダを作成し、CONTEXT.md、tasks.json、skill / MCP 設定を生成します。元のワークグループは保持されます。",
     "promoteDone": "「{name}」に紐づくプロジェクトを作成しました（ワークグループは残ります）",
     "removeMember": "メンバーを削除",
     "memberRemoved": "ワークグループからメンバーを削除しました",

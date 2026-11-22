@@ -1281,6 +1281,7 @@
     "softSync": "Zusätzlich geöffnet: {paths}",
     "title": "Arbeitsgruppen",
     "promoteToProject": "Projekt aus Arbeitsgruppe erstellen",
+    "promotePreviewMessage": "Dadurch wird unter deinem Projektstamm ein neuer Projektordner „{name}“ erstellt, mit CONTEXT.md, tasks.json und der Skill-/MCP-Konfiguration. Die Quelcharbeitsgruppe bleibt erhalten.",
     "promoteDone": "Projekt an \"{name}\" gebunden erstellt (Arbeitsgruppe bleibt)",
     "removeMember": "Mitglied entfernen",
     "memberRemoved": "Mitglied aus Arbeitsgruppe entfernt",

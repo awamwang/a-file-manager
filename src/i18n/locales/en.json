@@ -1115,6 +1115,7 @@
     "saveMembersFromTabs": "Open tabs → member config",
     "errorSavePrompt": "Unexpected save prompt on silent switch",
     "promoteToProject": "Create project from Work Group",
+    "promotePreviewMessage": "This creates a new project folder named \"{name}\" under your projects root, generating CONTEXT.md, tasks.json and the skill / MCP config. The source Work Group is kept.",
     "promoteDone": "Created Project bound to \"{name}\" (Work Group kept)",
     "removeMember": "Remove member",
     "memberRemoved": "Member removed from Work Group",

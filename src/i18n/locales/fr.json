@@ -1281,6 +1281,7 @@
     "softSync": "Ouvert en même temps : {paths}",
     "title": "Groupes de travail",
     "promoteToProject": "Créer un projet depuis le groupe de travail",
+    "promotePreviewMessage": "Cela crée un nouveau dossier de projet « {name} » à la racine de vos projets, avec CONTEXT.md, tasks.json et la configuration skill / MCP. Le groupe de travail d’origine est conservé.",
     "promoteDone": "Projet lié à « {name} » créé (groupe de travail conservé)",
     "removeMember": "Retirer le membre",
     "memberRemoved": "Membre retiré du groupe de travail",

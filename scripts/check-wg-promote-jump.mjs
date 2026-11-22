@@ -20,6 +20,17 @@ assert.match(
 );
 assert.ok(wg.includes("promoting"), "promote button busy flag");
 
+// D4 (2026-11-23): promote shows a preview + confirm dialog before creating an
+// on-disk project directory, in both the Work Groups page and the Projects page.
+assert.ok(
+  wg.includes("openConfirmDialog") && wg.includes("promotePreviewMessage"),
+  "WG promote must confirm with a preview before creating",
+);
+assert.ok(
+  projects.includes("openConfirmDialog") && projects.includes("promotePreviewMessage"),
+  "Projects create-from-WG must confirm with a preview before creating",
+);
+
 const promoteFn = wg.match(
   /async function promoteToProject\(\) \{[\s\S]*?\n\}/,
 )?.[0];
