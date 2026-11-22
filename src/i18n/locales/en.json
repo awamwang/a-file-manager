@@ -1,7 +1,7 @@
 {
   "concepts": {
     "workGroups": "Gathers the folders related to one thing",
-    "projects": "The upgraded form of a Work Group: creates a working directory and an AI-development foundation",
+    "projects": "Created from a Work Group (the source Work Group is kept): creates a working directory and an AI-development foundation",
     "ai": "Provides Agent management and MCP / Skills tool management for AI development (Mainline build only)"
   },
   "platform": {

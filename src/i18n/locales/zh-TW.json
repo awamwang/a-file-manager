@@ -1,7 +1,7 @@
 {
   "concepts": {
     "workGroups": "把同一件事相關的資料夾聚在一起",
-    "projects": "工作組的升級形式，建立工作目錄並建立面向 AI 開發的基礎結構",
+    "projects": "從工作組建立，原工作組保留；會建立工作目錄並建立面向 AI 開發的基礎結構",
     "ai": "提供 AI 開發相關的 Agent 管理以及 MCP / Skills 等工具管理（僅主線版提供）"
   },
   "platform": {

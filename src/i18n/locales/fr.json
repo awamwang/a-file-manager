@@ -1,7 +1,7 @@
 {
   "concepts": {
     "workGroups": "Rassemble les dossiers liés à une même chose",
-    "projects": "La forme évoluée d’un groupe de travail : crée un répertoire de travail et une base pour le développement IA",
+    "projects": "Créé à partir d’un groupe de travail (le groupe d’origine est conservé) : crée un répertoire de travail et une base pour le développement IA",
     "ai": "Fournit la gestion des Agents et des outils MCP / Skills pour le développement IA (version principale uniquement)"
   },
   "platform": {

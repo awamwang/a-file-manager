@@ -176,7 +176,7 @@ are `🔵 decided` and must be pinned by a FE matrix or cargo-backed drop test b
 | id | precondition | action | expected (Windows) | divergence | AFM state | guard |
 | --- | --- | --- | --- | --- | --- | --- |
 | NM-001 | single file | F2 rename | inline edit, **stem selected, extension not** | — | `🟡 code` | `check-navigator-inline-rename.mjs` |
-| NM-002 | rename to existing name | F2 → commit | error "already exists" (rename does **not** auto keep-both) | Explorer: error | `✅ code` (`mod.rs:420`) | CARGO analog via roundtrip; needs direct row |
+| NM-002 | rename to existing name | F2 → commit | **Replace / Don't replace(Skip)** conflict dialog (reuse the paste name-conflict UI); rename does **not** auto keep-both | macOS Finder: 仅 OK/Cancel 报错；**AFM 对齐 Explorer** | `🔵 decided 2026-11-23` — 当前后端 `rename_path` 撞名返回 "already exists" error；决定改为返回可识别冲突信号，FE 调用 name-conflict 对话框后以 Replace/Skip 重试 | CARGO `rename_path` 冲突信号 + FE name-conflict 复用；待加 |
 | NM-003 | rename to reserved name (CON, NUL) | F2 | rejected (invalid name) | all reject on NTFS | `🔵 decided` — `validate_file_name` 需补拒绝 CON/PRN/AUX/NUL/COM1-9/LPT1-9（不区分大小写、含点后缀如 `CON.txt`） | **decided 2026-11-22; code change needed** |
 | NM-004 | rename changing **only case** (a.txt→A.txt) same dir | F2 | must succeed as case change, not "already exists" | case-insensitive FS subtlety | `🔵 decided` — 允许；`rename_path` 的 `dest != src` 在大小写不敏感 FS 上自然通过，需 CARGO 钉住避免被改成大小写敏感比较 | **decided 2026-11-22** |
 | NM-005 | multi-select, F2 rename | batch rename | numbering `stem (n).ext` | Explorer 11: numbered names; DC: template rename | `🟡 code` (batch numbering exists) | `check-navigator-inline-rename.mjs` |
@@ -195,7 +195,7 @@ Shift+Delete → confirmed permanent; volume root never deleted. UNC cannot recy
 | --- | --- | --- | --- | --- | --- | --- |
 | DEL-001 | local file | Delete | → Recycle Bin; selectable set updates | — | `✅ code+test` | CARGO `delete_to_recycle_local_file`; `check-recycle-bin.mjs` |
 | DEL-002 | local file | Delete, confirm-before-delete **on** (default) | confirmation dialog first | DC: opt-in | `✅ code+test` | `check-delete-confirm.mjs`→`confirm-before-delete-checks.ts` |
-| DEL-003 | removable/USB or UNC | Delete | cannot recycle → **permanent delete with confirm** (not silent, not refused) | Explorer: permanent w/ confirm | `✅ code+test (FE-side)` — FE `NavigatorView.vue::shortcutDelete` + `NavigatorContextMenu.vue::runDelete` 调 `pathsWithoutRecycle` → `confirmPermanentDelete` → 分流 `deleteEntries(recyclable, false)` / `deleteEntries(blocked, true)`；后端 `mod.rs:192` 拒绝分支是 FE 流程被绕过时的兜底防御，正常路径不触发 | **verified 2026-11-22 (PR-1 review)** |
+| DEL-003 | removable **FAT32/exFAT** volume or UNC (判断依据 = 卷文件系统类型，**非可移动性**；NTFS 可移动盘仍可回收) | Delete | cannot recycle → **permanent delete with confirm** (not silent, not refused) | Explorer: permanent w/ confirm | `🔴 bug → 🔵 decided 2026-11-23` — FE 分流链（`pathsWithoutRecycle`→`confirmPermanentDelete`→`deleteEntries`）已存在，但判定源 `path_can_use_recycle_bin` (`mod.rs:209`) **只挡 UNC(`\\`/`//`)**，本地 FAT32/exFAT（无 `$RECYCLE.BIN`）被误判为可回收 → `trash::delete` 经 Shell 在该卷**静默永久删除、无确认**。决定：判定改为「仅 NTFS → 可回收，其余(含 FAT32/exFAT/UNC) → 不可回收并弹确认」 | 改 `file_ops_can_recycle` 判定 + 新增 CARGO（按 FS 类型，需 temp/卷夹具） |
 | DEL-004 | any | Shift+Delete | permanent, after confirm | — | `✅ code` (`delete_permanent_paths`) | needs a Shift+Delete-level gate |
 | DEL-005 | volume root | Delete / Shift+Delete | refused | all refuse | `✅ code` (`refuse_volume_root`) | CARGO `..._refuses_root` |
 | DEL-006 | folder in Recycle Bin | restore | returns to **original path** (or best match) | — | `🟡 code` (`file_ops_restore`) | undo-restore loopback has no temp-exec test (ledger gap R2) |
@@ -302,6 +302,8 @@ Verified in `explorer-baseline.md §选择` as 对齐: single, Ctrl, Shift, Ctrl
 | Undo cancel 的回滚 (UN-009) | cancel + rollback 是传输本身的收尾，**不入 undo 栈**；Ctrl+Z 撤销上一个完整操作 |
 | 长路径 >260 (LC-009) | 启用 `\\?\` 路径处理（Tauri manifest `longPathAware=true` + 代码层前缀拼接） |
 | Esc 行为边界 (SEL-010) | 三层：rename inline → 取消 rename；有选中 → 清空选中；无选中 → 不消费 |
+| 回收卷判定依据 (DEL-003) | **按卷文件系统类型判定**：仅 NTFS 可进回收站；FAT32/exFAT/UNC 弹确认后永久删除。现状 `path_can_use_recycle_bin`(`mod.rs:209`) 只挡 UNC，FAT32/exFAT 被误判可回收→静默永久删除（**BUG，改后端判定，FE 链路自动生效**）。2026-11-23 拍板 |
+| 重命名撞名 (NM-002) | 复用 name-conflict 对话框（**Replace / Skip**），对齐 Explorer；后端 `rename_path` 需返回可识别冲突信号而非笼统 error。2026-11-23 拍板 |
 
 ### 仍需拍板
 
@@ -375,6 +377,8 @@ of *scenario* truth.
 | descendant dedup in one transfer | SEL-007, SEL-011, TR-006 | FE reducer | new |
 | shift range in sorted view order | SEL-004 | FE | new |
 | drag same/cross/force modifiers | TR-101..TR-105 | FE (grep now) → decide if unitable | open — invoke-fused |
+| recycle-bin availability by **filesystem type** | DEL-003 | 改 `path_can_use_recycle_bin`/`file_ops_can_recycle`（仅 NTFS→可回收）+ CARGO | **decided 2026-11-23 — BUG fix, code change required** |
+| rename-to-existing → **Replace/Skip dialog** | NM-002 | CARGO(后端返回冲突信号) + FE(复用 name-conflict 对话框) | **decided 2026-11-23 — code change required** |
 | apply-to-all per-operation scope | CF-003, TR-014 | FE (dialog state) | new |
 | clipboard stale-cut-path drop | CLIP-008 | FE 验证 + 后端 `transferEntries` 跳过分支 | new |
 | undo contamination refusal | UN-008 | FE `file-undo-checks.ts` | new |

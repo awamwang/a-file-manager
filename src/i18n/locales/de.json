@@ -1,7 +1,7 @@
 {
   "concepts": {
     "workGroups": "Ordner zu einer Sache an einem Ort bündeln",
-    "projects": "Die weiterentwickelte Form einer Arbeitsgruppe: erstellt ein Arbeitsverzeichnis und eine KI-Entwicklungsgrundlage",
+    "projects": "Aus einer Arbeitsgruppe erstellt (die Quelcharbeitsgruppe bleibt erhalten): erstellt ein Arbeitsverzeichnis und eine KI-Entwicklungsgrundlage",
     "ai": "Bietet Agent-Verwaltung sowie MCP / Skills-Werkzeugverwaltung für die KI-Entwicklung (nur in der Hauptversion)"
   },
   "platform": {
