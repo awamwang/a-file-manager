@@ -15,6 +15,7 @@ const {
   resolveNameConflictChoice,
   nameConflictApplyToAll,
   nameConflictOpen,
+  nameConflictTypeMismatch,
 } = await import("../src/state/nameConflict.ts");
 
 // Fresh batch starts empty — no remembered choice leaks in.
@@ -60,6 +61,18 @@ setNameConflictApplyToAll(true);
 resolveNameConflict("keep");
 assert.equal(currentRememberedChoice(), "keep", "keep-both is rememberable");
 
+// TR-013 / CF-006: a file↔folder mismatch is surfaced to the dialog and cleared on settle.
+resetNameConflictBatch();
+assert.equal(nameConflictTypeMismatch.value, false, "mismatch flag starts clear");
+void openNameConflictDialog("notes.txt", true);
+assert.equal(nameConflictTypeMismatch.value, true, "typeMismatch=true drives the stronger warning");
+resolveNameConflict("skip");
+assert.equal(nameConflictTypeMismatch.value, false, "mismatch flag cleared on settle");
+// Non-mismatch (folder-into-folder merge) leaves the flag false.
+void openNameConflictDialog("folderA", false);
+assert.equal(nameConflictTypeMismatch.value, false, "merge pastes keep the mismatch warning off");
+resolveNameConflict("replace");
+
 console.log(
-  "name-conflict-checks OK (fresh batch empty, unchecked no-remember, checked remembers, cancel-safe, batch reset, keep rememberable).",
+  "name-conflict-checks OK (fresh batch empty, unchecked no-remember, checked remembers + short-circuits, cancel-safe, batch reset, keep rememberable, TR-013 type-mismatch flag).",
 );

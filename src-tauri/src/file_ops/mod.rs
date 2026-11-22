@@ -613,7 +613,46 @@ pub fn delete_permanent_paths(paths: &[String]) -> Result<Vec<String>, String> {
 pub fn file_ops_name_exists(dest_dir: String, name: String) -> Result<bool, String> {
     let dest = ensure_dir(&dest_dir)?;
     let file_name = validate_file_name(&name)?;
-    Ok(dest.join(file_name).exists())
+    Ok(dest.join(&file_name).exists())
+}
+
+/// TR-013 / CF-006: does the paste target already hold `name`, and is its type
+/// (file vs directory) different from the source's? The FE uses `typeMismatch`
+/// to show the "this replaces the folder / file" warning. A folder-into-folder
+/// merge (CF-007/CF-008) is `typeMismatch = false` and not surfaced as a warning.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct NameConflictInfo {
+    pub exists: bool,
+    pub type_mismatch: bool,
+}
+
+fn name_conflict_info(dest_dir: &str, name: &str, source: &str) -> Result<NameConflictInfo, String> {
+    let dest = ensure_dir(dest_dir)?;
+    let file_name = validate_file_name(name)?;
+    let candidate = dest.join(&file_name);
+    // Broken links still "exist" for conflict purposes (metadata via symlink path).
+    let exists = candidate.exists() || fs::symlink_metadata(&candidate).is_ok();
+    let type_mismatch = if exists {
+        let src_is_dir = fs::metadata(source).map(|m| m.is_dir()).unwrap_or(false);
+        let dst_is_dir = candidate.metadata().map(|m| m.is_dir()).unwrap_or(false);
+        src_is_dir != dst_is_dir
+    } else {
+        false
+    };
+    Ok(NameConflictInfo {
+        exists,
+        type_mismatch,
+    })
+}
+
+#[tauri::command]
+pub fn file_ops_name_conflict_info(
+    dest_dir: String,
+    name: String,
+    source: String,
+) -> Result<NameConflictInfo, String> {
+    name_conflict_info(&dest_dir, &name, &source)
 }
 
 /// 大目录复制不得占用 Tauri 同步命令线程。
@@ -1304,6 +1343,37 @@ mod tests {
         .unwrap();
         assert!(src.is_dir(), "source folder must remain when nothing was moved");
         assert_eq!(fs::read(dst_same.join("x.txt")).unwrap(), b"old", "dest not overwritten");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // TR-013 / CF-006: type-conflict detection for the paste dialog.
+    #[test]
+    fn name_conflict_info_detects_type_mismatch() {
+        let dir = temp_workspace("type-conflict");
+        let parent = dir.join("parent");
+        fs::create_dir_all(&parent).unwrap();
+        // existing folder named "item"
+        fs::create_dir_all(parent.join("item")).unwrap();
+
+        // file source vs existing folder → mismatch
+        let src_file = dir.join("item"); // same base name "item", this is a file
+        fs::write(&src_file, b"f").unwrap();
+        let info = name_conflict_info(&display_path(&parent), "item", &display_path(&src_file)).unwrap();
+        assert!(info.exists, "target exists");
+        assert!(info.type_mismatch, "file-vs-folder is a type mismatch");
+
+        // folder source vs existing folder → no mismatch (it's a merge)
+        let src_dir = dir.join("folder-item");
+        fs::create_dir_all(&src_dir).unwrap();
+        let info = name_conflict_info(&display_path(&parent), "item", &display_path(&src_dir)).unwrap();
+        assert!(info.exists);
+        assert!(!info.type_mismatch, "folder-into-folder is merge, not a mismatch");
+
+        // name not present at all → no conflict, no mismatch
+        let info = name_conflict_info(&display_path(&parent), "nope", &display_path(&src_file)).unwrap();
+        assert!(!info.exists, "no target");
+        assert!(!info.type_mismatch, "no target → no mismatch");
+
         let _ = fs::remove_dir_all(&dir);
     }
 }

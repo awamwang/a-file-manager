@@ -19,6 +19,9 @@ export type NameConflictResult = {
 export const nameConflictOpen = ref(false);
 export const nameConflictName = ref("");
 export const nameConflictApplyToAll = ref(false);
+// TR-013 / CF-006: the destination exists but is a different type (file↔folder).
+// When true the dialog renders a stronger "replaces the folder/file" warning.
+export const nameConflictTypeMismatch = ref(false);
 
 // Per-batch state. Cleared by `resetNameConflictBatch()` at the start of each
 // `transferEntries` call; never persisted anywhere.
@@ -32,6 +35,7 @@ function settle(result: NameConflictResult): void {
   nameConflictOpen.value = false;
   nameConflictName.value = "";
   nameConflictApplyToAll.value = false;
+  nameConflictTypeMismatch.value = false;
   resolve?.(result);
 }
 
@@ -46,9 +50,10 @@ export function currentRememberedChoice(): NameConflictChoice | null {
   return rememberedChoice;
 }
 
-export function openNameConflictDialog(name: string): Promise<NameConflictResult> {
+export function openNameConflictDialog(name: string, typeMismatch = false): Promise<NameConflictResult> {
   if (pendingResolve) settle({ choice: "cancel" });
   nameConflictName.value = name;
+  nameConflictTypeMismatch.value = typeMismatch;
   nameConflictApplyToAll.value = false;
   nameConflictOpen.value = true;
   return new Promise((resolve) => {
@@ -71,8 +76,9 @@ export function resolveNameConflict(choice: NameConflictChoice | "cancel"): void
 /** Within the same batch, honor the remembered choice; otherwise ask. */
 export async function resolveNameConflictChoice(
   name: string,
+  typeMismatch = false,
 ): Promise<NameConflictChoice | "cancel"> {
   if (rememberedChoice) return rememberedChoice;
-  const result = await openNameConflictDialog(name);
+  const result = await openNameConflictDialog(name, typeMismatch);
   return result.choice;
 }

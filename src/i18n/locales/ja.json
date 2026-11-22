@@ -522,7 +522,8 @@
     "conflictReplace": "置き換える",
     "conflictSkip": "スキップ",
     "conflictKeep": "両方残す",
-    "conflictApplyToAll": "すべての競合に適用"
+    "conflictApplyToAll": "すべての競合に適用",
+    "conflictTypeWarning": "一方はフォルダー、もう一方はファイルです。置き換えると既存の項目は完全に削除されます。"
   },
   "discovery": {
     "title": "検索",

@@ -109,7 +109,8 @@
     "conflictReplace": "Replace",
     "conflictSkip": "Skip",
     "conflictKeep": "Keep both",
-    "conflictApplyToAll": "Apply to all conflicts"
+    "conflictApplyToAll": "Apply to all conflicts",
+    "conflictTypeWarning": "One of these is a folder and the other is a file. Replacing permanently removes the existing item."
   },
   "chrome": {
     "titleBar": "Title bar",

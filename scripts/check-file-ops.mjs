@@ -27,6 +27,11 @@ assert.ok(lib.includes("file_ops_delete_permanent"));
 assert.ok(rust.includes("delete_permanent_paths"));
 assert.ok(lib.includes("file_ops::file_ops_create_file"));
 assert.ok(rust.includes("create_empty_file"));
+// TR-013 / CF-006: type-conflict command registered + FE↔BE name parity.
+assert.ok(lib.includes("file_ops::file_ops_name_conflict_info"));
+assert.ok(rust.includes("pub fn file_ops_name_conflict_info"));
+assert.ok(clip.includes("\"file_ops_name_conflict_info\""));
+assert.ok(rust.includes("pub struct NameConflictInfo"));
 assert.ok(rust.includes("delete_to_recycle"));
 assert.ok(rust.includes("path_can_use_recycle_bin"));
 assert.ok(rust.includes("trash::delete"));

@@ -109,7 +109,8 @@
     "conflictReplace": "替換",
     "conflictSkip": "跳過",
     "conflictKeep": "保留兩者",
-    "conflictApplyToAll": "套用到所有衝突"
+    "conflictApplyToAll": "套用到所有衝突",
+    "conflictTypeWarning": "其中一個是資料夾，另一個是檔案。取代將永久移除現有項目。"
   },
   "chrome": {
     "titleBar": "標題欄",

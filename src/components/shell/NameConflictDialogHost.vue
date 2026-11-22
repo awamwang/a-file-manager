@@ -6,6 +6,7 @@ import {
   nameConflictApplyToAll,
   nameConflictName,
   nameConflictOpen,
+  nameConflictTypeMismatch,
   resolveNameConflict,
   setNameConflictApplyToAll,
 } from "../../state/nameConflict";
@@ -54,6 +55,9 @@ onUnmounted(() => {
     >
       <h2 class="conflict-title">{{ t("dialog.conflictTitle") }}</h2>
       <p class="conflict-message">{{ t("dialog.conflictMessage", { name: nameConflictName }) }}</p>
+      <p v-if="nameConflictTypeMismatch" class="conflict-warning">
+        {{ t("dialog.conflictTypeWarning") }}
+      </p>
       <label class="conflict-remember">
         <input
           :checked="nameConflictApplyToAll"
@@ -122,6 +126,12 @@ onUnmounted(() => {
   line-height: 1.45;
   -webkit-user-select: text;
   user-select: text;
+}
+
+.conflict-warning {
+  margin: 0 0 var(--fluent-space-xs);
+  color: var(--fluent-color-text-primary);
+  line-height: 1.45;
 }
 
 .conflict-remember {

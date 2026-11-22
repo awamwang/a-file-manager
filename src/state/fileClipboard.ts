@@ -126,9 +126,15 @@ export async function transferEntries(
     const selfPaste = samePath(source, destFile);
     let conflict = "keep";
     if (!selfPaste || mode === "copy") {
-      const exists = selfPaste || (await invoke<boolean>("file_ops_name_exists", { destDir, name }));
+      const info = await invoke<{ exists: boolean; typeMismatch: boolean }>(
+        "file_ops_name_conflict_info",
+        { destDir, name, source },
+      );
+      const exists = selfPaste || info.exists;
       if (exists) {
-        const choice = await resolveNameConflictChoice(name);
+        // TR-013 / CF-006: a file↔folder name clash gets a stronger warning in
+        // the dialog; folder-into-folder merge is not a mismatch.
+        const choice = await resolveNameConflictChoice(name, !selfPaste && info.typeMismatch);
         if (choice === "cancel") {
           finish(false, "Cancelled", transferred.length);
           return { ok: false, paths: transferred, error: "Cancelled" };
