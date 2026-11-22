@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Workspace delete / rename / Promote WG→Project / Copy (AIA-212 / C6 · ADR 0007 · AIA-273).
 
-use super::board::{read_board, read_context, write_board, write_context, BoardTask, WorkspaceBoard};
+use super::context::{read_context, write_context};
 use super::index::{
     normalize_path_string, set_active_project as set_index_active, validate_slug,
     workspace_path_for_slug, ProjectsIndex,
 };
 use super::members::{add_member_junction, list_member_junctions, WorkspaceMember};
-use super::helpers::{next_id, now_millis, validate_bindable_work_group};
+use super::helpers::{now_millis, validate_bindable_work_group};
 use super::workspace::{
     create_workspace_at, list_workspaces, load_workspace, write_project_meta, CreateWorkspaceResult,
-    WorkspaceListItem, ERR_PROJECT_DISPLAY_NAME_EMPTY, ERR_PROJECT_WORKSPACE_NOT_FOUND,
+    WorkspaceListItem, WORKSPACE_TASKS_FILE, ERR_PROJECT_DISPLAY_NAME_EMPTY,
+    ERR_PROJECT_WORKSPACE_NOT_FOUND,
 };
 use crate::work_groups::sync::{copy_work_group_in_list, unique_copy_name};
 use crate::work_groups::types::{UserWorkGroups, WorkGroup};
@@ -211,28 +212,7 @@ pub fn promote_work_group_to_workspace(
     })
 }
 
-fn remap_board_task_ids(board: &WorkspaceBoard) -> WorkspaceBoard {
-    WorkspaceBoard {
-        schema_version: board.schema_version,
-        columns: board.columns.clone(),
-        tasks: board
-            .tasks
-            .iter()
-            .map(|task| BoardTask {
-                id: next_id("task"),
-                title: task.title.clone(),
-                body: task.body.clone(),
-                status_id: task.status_id.clone(),
-                sort_key: task.sort_key,
-                created_at: task.created_at,
-                updated_at: now_millis(),
-                completed_at: task.completed_at,
-            })
-            .collect(),
-    }
-}
-
-/// Copy a Workspace (CONTEXT / board / members). When bound to a WG, also copy that WG
+/// Copy a Workspace (CONTEXT / tasks.json / members). When bound to a WG, also copy that WG
 /// with a fresh openState (no shared tab ids) and bind the new Project to the copy.
 pub fn copy_workspace(
     projects_root: &Path,
@@ -289,8 +269,11 @@ pub fn copy_workspace(
     let context = read_context(&source_dir).unwrap_or_default();
     write_context(dest_dir, &context)?;
 
-    let board = read_board(&source_dir).unwrap_or_else(|_| WorkspaceBoard::empty());
-    write_board(dest_dir, &remap_board_task_ids(&board))?;
+    let source_tasks = source_dir.join(WORKSPACE_TASKS_FILE);
+    if source_tasks.is_file() {
+        fs::copy(&source_tasks, dest_dir.join(WORKSPACE_TASKS_FILE))
+            .map_err(|err| format!("Failed to copy tasks.json: {err}"))?;
+    }
 
     let mut members = Vec::new();
     let source_members = list_member_junctions(&source_dir).unwrap_or_default();
@@ -472,7 +455,8 @@ mod tests {
 
     #[test]
     fn copy_workspace_copies_bound_wg_with_fresh_open_state() {
-        use crate::projects::board::{write_board, write_context, BoardTask, WorkspaceBoard};
+        use crate::projects::context::write_context;
+        use crate::projects::workspace::WORKSPACE_TASKS_FILE;
         use crate::work_groups::types::WorkGroupOpenStateTab;
 
         let root = temp_root("copy-bound");
@@ -508,26 +492,15 @@ mod tests {
         .unwrap();
         let ws_dir = Path::new(&ws.path);
         write_context(ws_dir, "# hello").unwrap();
-        let board = WorkspaceBoard {
-            schema_version: 1,
-            columns: vec![
-                "backlog".into(),
-                "doing".into(),
-                "review".into(),
-                "done".into(),
-            ],
-            tasks: vec![BoardTask {
-                id: "task-keep".into(),
-                title: "Ship".into(),
-                body: "".into(),
-                status_id: "backlog".into(),
-                sort_key: 1,
-                created_at: 1,
-                updated_at: 1,
-                completed_at: None,
-            }],
-        };
-        write_board(ws_dir, &board).unwrap();
+        let tasks_json = serde_json::json!({
+            "version": 1,
+            "tasks": [{ "id": "task-keep", "title": "Ship", "status": "todo" }]
+        });
+        fs::write(
+            ws_dir.join(WORKSPACE_TASKS_FILE),
+            serde_json::to_string_pretty(&tasks_json).unwrap(),
+        )
+        .unwrap();
         add_member_junction(ws_dir, &m1.to_string_lossy(), Some("m1")).unwrap();
 
         let (result, wgs_next) = copy_workspace(&root, &wgs, "alpha").unwrap();
@@ -556,11 +529,14 @@ mod tests {
             fs::read_to_string(dest.join("CONTEXT.md")).unwrap().trim(),
             "# hello"
         );
-        let copied_board: WorkspaceBoard =
-            serde_json::from_str(&fs::read_to_string(dest.join("board.json")).unwrap()).unwrap();
-        assert_eq!(copied_board.tasks.len(), 1);
-        assert_eq!(copied_board.tasks[0].title, "Ship");
-        assert_ne!(copied_board.tasks[0].id, "task-keep");
+        assert!(!dest.join("board.json").exists());
+        let copied_tasks: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(dest.join(WORKSPACE_TASKS_FILE)).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(copied_tasks["tasks"].as_array().unwrap().len(), 1);
+        assert_eq!(copied_tasks["tasks"][0]["title"], "Ship");
+        assert_eq!(copied_tasks["tasks"][0]["id"], "task-keep");
         let _ = fs::remove_dir_all(&root);
     }
 

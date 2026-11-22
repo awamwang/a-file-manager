@@ -21,7 +21,6 @@ assert.ok(sync.includes("copy_work_group_remaps_open_state_tab_ids"));
 const lifecycle = read("src-tauri/src/projects/lifecycle.rs");
 assert.ok(lifecycle.includes("copy_workspace"));
 assert.ok(lifecycle.includes("copy_workspace_copies_bound_wg_with_fresh_open_state"));
-assert.ok(lifecycle.includes("remap_board_task_ids"));
 
 const wgMod = read("src-tauri/src/work_groups/mod.rs");
 assert.ok(wgMod.includes("work_groups_copy"));

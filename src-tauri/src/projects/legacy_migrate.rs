@@ -4,7 +4,7 @@
 //! Preserves already-on-disk dogfood data after C7 removed `projects.json` UI authority.
 //! Does **not** read live Sigma AppData. Idempotent: skips when `projects.json` is absent.
 
-use super::board::{write_board, write_context, BoardTask, WorkspaceBoard};
+use super::context::write_context;
 use super::index::{
     ensure_projects_root_dir, load_from_path as load_index, normalize_path_string,
     resolve_projects_root, save_to_path as save_index, set_active_project,
@@ -13,10 +13,8 @@ use super::members::add_member_junction;
 use super::migrate::migrate_value;
 use super::helpers::validate_bindable_work_group;
 use super::store::projects_file_path;
-use super::types::{ProjectTask, UserProject, UserProjects};
-use super::workspace::{
-    create_workspace_at, CreateWorkspaceResult, WORKSPACE_BOARD_SCHEMA_VERSION,
-};
+use super::types::{UserProject, UserProjects};
+use super::workspace::{create_workspace_at, CreateWorkspaceResult};
 use crate::work_groups::store as wg_store;
 use crate::work_groups::types::UserWorkGroups;
 use serde::{Deserialize, Serialize};
@@ -66,35 +64,6 @@ fn resolve_bound_wg(
         Ok(()) => Some(id.to_string()),
         Err(_) => None,
     }
-}
-
-fn board_from_legacy_tasks(tasks: &[ProjectTask]) -> WorkspaceBoard {
-    let mut board = WorkspaceBoard {
-        schema_version: WORKSPACE_BOARD_SCHEMA_VERSION,
-        columns: super::types::TASK_STATUSES
-            .iter()
-            .map(|s| (*s).to_string())
-            .collect(),
-        tasks: Vec::new(),
-    };
-    for task in tasks {
-        let status = if super::types::TASK_STATUSES.contains(&task.status_id.as_str()) {
-            task.status_id.clone()
-        } else {
-            "backlog".to_string()
-        };
-        board.tasks.push(BoardTask {
-            id: task.id.clone(),
-            title: task.title.clone(),
-            body: task.body.clone(),
-            status_id: status,
-            sort_key: task.sort_key,
-            created_at: task.created_at,
-            updated_at: task.updated_at,
-            completed_at: task.completed_at,
-        });
-    }
-    board
 }
 
 fn seed_members(
@@ -151,8 +120,9 @@ fn migrate_one_project(
     meta.updated_at = project.updated_at;
     super::workspace::write_project_meta(ws_dir, &meta)?;
 
+    // D5: legacy `projects.json` tasks are NOT migrated — create_workspace_at already wrote an
+    // empty `tasks.json` skeleton; the old board.json task board is retired.
     write_context(ws_dir, &project.context_notes)?;
-    write_board(ws_dir, &board_from_legacy_tasks(&project.tasks))?;
     let (members_ok, members_skipped) = seed_members(ws_dir, project);
 
     Ok((
@@ -407,7 +377,8 @@ mod tests {
         let openmontage = root.join("openmontage");
         assert!(openmontage.join("project.json").is_file());
         assert!(openmontage.join("CONTEXT.md").is_file());
-        assert!(openmontage.join("board.json").is_file());
+        assert!(openmontage.join("tasks.json").is_file());
+        assert!(!openmontage.join("board.json").exists());
         assert!(openmontage.join("members").join("OpenMontage").exists());
 
         let video = root.join("视频制作");
@@ -416,9 +387,12 @@ mod tests {
         assert!(meta_text.contains("work-group-video"));
         let context = fs::read_to_string(video.join("CONTEXT.md")).unwrap();
         assert!(context.contains("合集说明"));
-        let board_text = fs::read_to_string(video.join("board.json")).unwrap();
-        assert!(board_text.contains("开发日记"));
-        assert!(board_text.contains("doing"));
+        assert!(video.join("tasks.json").is_file());
+        assert!(!video.join("board.json").exists());
+        let tasks_text = fs::read_to_string(video.join("tasks.json")).unwrap();
+        let tasks_val: serde_json::Value = serde_json::from_str(&tasks_text).unwrap();
+        assert_eq!(tasks_val["tasks"].as_array().unwrap().len(), 0);
+        assert!(!tasks_text.contains("开发日记"));
         assert!(video.join("members").join("Videos").exists());
 
         let index: ProjectsIndex = serde_json::from_str(

@@ -22,7 +22,6 @@ import { createListPointerReorder } from "../state/listPointerReorder";
 import FluentIcon from "../components/icons/FluentIcon.vue";
 import HelpLink from "../help/components/HelpLink.vue";
 import HintBubble from "../help/components/HintBubble.vue";
-import type { FluentGlyphId } from "../components/icons/glyphs";
 import { AI_ADDON_ENABLED } from "../config/flavor";
 import { aiProjectOpenEditor } from "../ai";
 import {
@@ -35,13 +34,6 @@ import ProjectAiPanel from "../ai/ProjectAiPanel.vue";
 const { t } = useI18n();
 const aiAddonEnabled = AI_ADDON_ENABLED;
 
-const STATUS_ICONS: Record<string, FluentGlyphId> = {
-  backlog: "board",
-  doing: "flash",
-  review: "eye",
-  done: "check",
-};
-
 /** Member junction surfaced as a path card (openPath = real target). */
 type WorkspaceLink = {
   id: string;
@@ -51,17 +43,6 @@ type WorkspaceLink = {
   addedAt: number;
 };
 
-type ProjectTask = {
-  id: string;
-  title: string;
-  body: string;
-  statusId: string;
-  sortKey: number;
-  createdAt: number;
-  updatedAt: number;
-  completedAt: number | null;
-};
-
 /** View-model for one disk Workspace (id === slug). */
 type UserProject = {
   id: string;
@@ -69,7 +50,6 @@ type UserProject = {
   description: string;
   workGroupId?: string | null;
   workspaceLinks: WorkspaceLink[];
-  tasks: ProjectTask[];
   context: string;
   createdAt: number;
   updatedAt: number;
@@ -111,12 +91,6 @@ type WorkspaceMember = {
   openPath: string;
 };
 
-type WorkspaceBoard = {
-  schemaVersion: number;
-  columns: string[];
-  tasks: ProjectTask[];
-};
-
 type ActivateWorkspaceResult = {
   workspace: { path: string; project: WorkspaceListResult["workspaces"][0]["project"] };
   index: { activeProject?: { slug: string } | null };
@@ -148,26 +122,11 @@ function reportWorkGroupSwitch(code: string): void {
   toastError(msg);
 }
 
-const STATUS_LABEL_KEYS = {
-  backlog: "projects.statusBacklog",
-  doing: "projects.statusDoing",
-  review: "projects.statusReview",
-  done: "projects.statusDone",
-} as const;
-
-const STATUSES = computed(() =>
-  (Object.keys(STATUS_LABEL_KEYS) as Array<keyof typeof STATUS_LABEL_KEYS>).map((id) => ({
-    id,
-    label: t(STATUS_LABEL_KEYS[id]),
-  })),
-);
-
 const router = useRouter();
 const route = useRoute();
 const document = ref<UserProjects | null>(null);
 const workGroups = ref<WorkGroupOption[]>([]);
 const selectedId = ref<string | null>(null);
-const viewMode = ref<"list" | "board">("board");
 const error = ref<string | null>(null);
 const loading = ref(false);
 /** Project "open with" launchers — shared with the file Navigator registry. */
@@ -180,7 +139,6 @@ const creatingFromWorkGroup = ref(false);
 const syncingMembers = ref(false);
 const sidePanelOpen = ref(true);
 const linkPath = ref("");
-const taskTitle = ref("");
 const contextDraft = ref("");
 
 const selected = computed(
@@ -197,20 +155,9 @@ const boundWorkGroupName = computed(() => {
   return workGroups.value.find((group) => group.id === id)?.name ?? id;
 });
 
-const openTaskCount = computed(
-  () => selected.value?.tasks.filter((t) => t.statusId !== "done").length ?? 0,
-);
-
-function tasksForStatus(statusId: string): ProjectTask[] {
-  return (selected.value?.tasks ?? [])
-    .filter((t) => t.statusId === statusId)
-    .slice()
-    .sort((a, b) => a.sortKey - b.sortKey);
-}
-
 function mapListItem(
   item: WorkspaceListResult["workspaces"][0],
-  extras?: Partial<Pick<UserProject, "workspaceLinks" | "tasks" | "context">>,
+  extras?: Partial<Pick<UserProject, "workspaceLinks" | "context">>,
 ): UserProject {
   const p = item.project;
   return {
@@ -219,7 +166,6 @@ function mapListItem(
     description: p.description,
     workGroupId: p.boundWorkGroupId ?? null,
     workspaceLinks: extras?.workspaceLinks ?? [],
-    tasks: extras?.tasks ?? [],
     context: extras?.context ?? "",
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
@@ -239,17 +185,14 @@ function membersToLinks(members: WorkspaceMember[]): WorkspaceLink[] {
 
 async function loadProjectDetails(slug: string): Promise<{
   workspaceLinks: WorkspaceLink[];
-  tasks: ProjectTask[];
   context: string;
 }> {
-  const [members, board, context] = await Promise.all([
+  const [members, context] = await Promise.all([
     invoke<WorkspaceMember[]>("projects_workspace_member_list", { slug }),
-    invoke<WorkspaceBoard>("projects_workspace_board_get", { slug }),
     invoke<string>("projects_workspace_context_get", { slug }),
   ]);
   return {
     workspaceLinks: membersToLinks(members),
-    tasks: board.tasks ?? [],
     context,
   };
 }
@@ -345,7 +288,6 @@ async function reorderProjects(fromId: string, toId: string) {
         old
           ? {
               workspaceLinks: old.workspaceLinks,
-              tasks: old.tasks,
               context: old.context,
             }
           : undefined,
@@ -379,14 +321,8 @@ const {
     return {
       label: project.name,
       meta: project.workGroupId
-        ? t("projects.listSummaryBound", {
-            members: project.workspaceLinks.length,
-            open: project.tasks.filter((task) => task.statusId !== "done").length,
-          })
-        : t("projects.listSummary", {
-            members: project.workspaceLinks.length,
-            open: project.tasks.filter((task) => task.statusId !== "done").length,
-          }),
+        ? t("projects.listSummaryBound", { members: project.workspaceLinks.length })
+        : t("projects.listSummary", { members: project.workspaceLinks.length }),
     };
   },
 });
@@ -908,57 +844,6 @@ async function saveContext() {
   }
 }
 
-async function addTask() {
-  if (!selected.value || !taskTitle.value.trim()) return;
-  error.value = null;
-  try {
-    const [board] = await invoke<[WorkspaceBoard, ProjectTask]>(
-      "projects_workspace_board_add_task",
-      {
-        slug: selected.value.id,
-        title: taskTitle.value.trim(),
-        statusId: "backlog",
-      },
-    );
-    selected.value.tasks = board.tasks;
-    taskTitle.value = "";
-  } catch (err) {
-    error.value = mapProjectError(err);
-  }
-}
-
-async function moveTask(task: ProjectTask, statusId: string) {
-  if (!selected.value) return;
-  const peers = tasksForStatus(statusId);
-  const sortKey = peers.length ? peers[peers.length - 1].sortKey + 1 : 0;
-  error.value = null;
-  try {
-    const board = await invoke<WorkspaceBoard>("projects_workspace_board_move_task", {
-      slug: selected.value.id,
-      taskId: task.id,
-      statusId,
-      sortKey,
-    });
-    selected.value.tasks = board.tasks;
-  } catch (err) {
-    error.value = mapProjectError(err);
-  }
-}
-
-async function deleteTask(taskId: string) {
-  if (!selected.value) return;
-  error.value = null;
-  try {
-    const board = await invoke<WorkspaceBoard>("projects_workspace_board_delete_task", {
-      slug: selected.value.id,
-      taskId,
-    });
-    selected.value.tasks = board.tasks;
-  } catch (err) {
-    error.value = mapProjectError(err);
-  }
-}
-
 async function openAllLinks() {
   if (!selected.value) return;
   error.value = null;
@@ -1193,14 +1078,8 @@ onUnmounted(() => {
             </div>
             <span class="fluent-page-meta">{{
               project.workGroupId
-                ? t("projects.listSummaryBound", {
-                    members: project.workspaceLinks.length,
-                    open: project.tasks.filter((task) => task.statusId !== "done").length,
-                  })
-                : t("projects.listSummary", {
-                    members: project.workspaceLinks.length,
-                    open: project.tasks.filter((task) => task.statusId !== "done").length,
-                  })
+                ? t("projects.listSummaryBound", { members: project.workspaceLinks.length })
+                : t("projects.listSummary", { members: project.workspaceLinks.length })
             }}</span>
           </div>
         </div>
@@ -1357,10 +1236,7 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
-        <p class="fluent-page-meta">
-          {{ selected.description || t("projects.noDescription") }} ·
-          {{ t("projects.openTasks", { count: openTaskCount }) }}
-        </p>
+        <p class="fluent-page-meta">{{ selected.description || t("projects.noDescription") }}</p>
         <div class="detail-split" :class="{ 'detail-split--collapsed': !sidePanelOpen }">
           <div class="detail-main">
             <h3>{{ t("projects.sessionBinding") }}</h3>
@@ -1472,101 +1348,6 @@ onUnmounted(() => {
               <button class="fluent-control" type="button" @click="saveContext">
                 {{ t("projects.saveContext") }}
               </button>
-            </div>
-
-            <div class="side-panel-section">
-              <div class="section-title-row">
-                <h4>{{ t("projects.outcomes") }}</h4>
-                <div class="toggle" role="group" :aria-label="t('projects.viewMode')">
-                  <button
-                    type="button"
-                    class="fluent-control"
-                    :class="{ 'fluent-control--accent': viewMode === 'list' }"
-                    @click="viewMode = 'list'"
-                  >
-                    {{ t("projects.list") }}
-                  </button>
-                  <button
-                    type="button"
-                    class="fluent-control"
-                    :class="{ 'fluent-control--accent': viewMode === 'board' }"
-                    @click="viewMode = 'board'"
-                  >
-                    {{ t("projects.board") }}
-                  </button>
-                </div>
-              </div>
-              <form class="row" @submit.prevent="addTask">
-                <input
-                  v-model="taskTitle"
-                  class="fluent-control"
-                  :placeholder="t('projects.addOutcomePlaceholder')"
-                />
-                <button class="fluent-control fluent-control--accent" type="submit">
-                  {{ t("projects.addTask") }}
-                </button>
-              </form>
-
-              <div v-if="viewMode === 'list'" class="task-list">
-                <article
-                  v-for="task in selected.tasks.slice().sort((a, b) => a.sortKey - b.sortKey)"
-                  :key="task.id"
-                  class="task-row"
-                >
-                  <strong>{{ task.title }}</strong>
-                  <select
-                    :aria-label="t('chrome.status')"
-                    class="fluent-control"
-                    :value="task.statusId"
-                    @change="moveTask(task, ($event.target as HTMLSelectElement).value)"
-                  >
-                    <option v-for="status in STATUSES" :key="status.id" :value="status.id">
-                      {{ status.label }}
-                    </option>
-                  </select>
-                  <button type="button" class="linkish danger" @click="deleteTask(task.id)">
-                    {{ t("common.delete") }}
-                  </button>
-                </article>
-                <p v-if="!selected.tasks.length" class="fluent-page-meta">{{ t("projects.noOutcomes") }}</p>
-              </div>
-
-              <div v-else class="board">
-                <section
-                  v-for="status in STATUSES"
-                  :key="status.id"
-                  class="column"
-                  :class="`column--${status.id}`"
-                >
-                  <h4 class="column-title">
-                    <FluentIcon :name="STATUS_ICONS[status.id] ?? 'board'" size="sm" />
-                    {{ status.label }}
-                  </h4>
-                  <article
-                    v-for="task in tasksForStatus(status.id)"
-                    :key="task.id"
-                    class="fluent-surface card"
-                  >
-                    <strong>{{ task.title }}</strong>
-                    <div class="card-actions">
-                      <select
-                        :aria-label="t('chrome.status')"
-                        class="fluent-control"
-                        :value="task.statusId"
-                        @change="moveTask(task, ($event.target as HTMLSelectElement).value)"
-                      >
-                        <option v-for="s in STATUSES" :key="s.id" :value="s.id">{{ s.label }}</option>
-                      </select>
-                      <button type="button" class="linkish danger" @click="deleteTask(task.id)">
-                        {{ t("common.delete") }}
-                      </button>
-                    </div>
-                  </article>
-                  <p v-if="!tasksForStatus(status.id).length" class="fluent-page-meta empty">
-                    {{ t("common.empty") }}
-                  </p>
-                </section>
-              </div>
             </div>
           </div>
         </div>
@@ -1966,10 +1747,7 @@ onUnmounted(() => {
 }
 
 .create,
-.row,
-.actions,
-.toggle,
-.card-actions {
+.row {
   display: flex;
   gap: var(--fluent-space-sm);
   flex-wrap: wrap;
@@ -2032,15 +1810,6 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: var(--fluent-space-sm);
-}
-
-.side-panel .board {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--fluent-space-sm);
-}
-
-.side-panel .column {
-  min-height: 8rem;
 }
 
 .detail-header-actions {
@@ -2173,78 +1942,6 @@ onUnmounted(() => {
   font: inherit;
 }
 
-.task-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--fluent-space-sm);
-}
-
-.task-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--fluent-space-sm);
-  align-items: center;
-  padding: var(--fluent-space-sm) 0;
-  border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-}
-
-.board {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--fluent-space-md);
-}
-
-.column {
-  display: flex;
-  flex-direction: column;
-  gap: var(--fluent-space-sm);
-  min-height: 12rem;
-  padding: var(--fluent-space-sm);
-  border-radius: var(--fluent-radius-md);
-  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  background: var(--fluent-color-fill-layer-alt);
-}
-
-.column--backlog {
-  background: color-mix(in srgb, var(--fluent-color-fill-layer-alt) 85%, var(--fluent-color-fill-subtle));
-}
-
-.column--doing {
-  background: color-mix(in srgb, var(--fluent-color-status-info-bg) 45%, var(--fluent-color-fill-layer-alt));
-  border-color: color-mix(in srgb, var(--fluent-color-status-info) 35%, var(--fluent-color-stroke-divider));
-}
-
-.column--review {
-  background: color-mix(in srgb, var(--fluent-color-status-warning-bg) 40%, var(--fluent-color-fill-layer-alt));
-  border-color: color-mix(in srgb, var(--fluent-color-status-warning) 30%, var(--fluent-color-stroke-divider));
-}
-
-.column--done {
-  background: color-mix(in srgb, var(--fluent-color-status-success-bg) 40%, var(--fluent-color-fill-layer-alt));
-  border-color: color-mix(in srgb, var(--fluent-color-status-success) 30%, var(--fluent-color-stroke-divider));
-}
-
-.column-title {
-  display: flex;
-  align-items: center;
-  gap: var(--fluent-space-sm);
-  margin: 0;
-  color: var(--fluent-color-text-secondary);
-  font-size: var(--fluent-font-size-caption);
-  font-weight: var(--fluent-font-weight-semibold);
-}
-
-.card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--fluent-space-sm);
-  padding: var(--fluent-space-md);
-}
-
-.empty {
-  opacity: 0.7;
-}
-
 @media (max-width: 960px) {
   .layout {
     grid-template-columns: 1fr;
@@ -2276,10 +1973,6 @@ onUnmounted(() => {
     padding-block-start: var(--fluent-space-md);
     border-inline-start: 0;
     border-block-start: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  }
-
-  .board {
-    grid-template-columns: 1fr 1fr;
   }
 }
 </style>

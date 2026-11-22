@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Core Project Workspace disk ops (C2 create · C3 list/bind).
-//! Light create writes only: `project.json`, `CONTEXT.md`, `members/`, `board.json`.
+//! Light create writes only: `project.json`, `CONTEXT.md`, `members/`, `tasks.json`.
 //! Does **not** write `AGENTS.md` / `skills/` (AI Harness init — A6).
 
-use super::board::WorkspaceBoard;
 use super::index::{
     ensure_projects_root_dir, is_windows_invalid_folder_char, is_windows_reserved_folder_name,
     normalize_path_string, set_active_project as set_index_active, validate_slug,
@@ -19,10 +18,11 @@ use std::path::Path;
 pub const WORKSPACE_PROJECT_FILE: &str = "project.json";
 pub const WORKSPACE_CONTEXT_FILE: &str = "CONTEXT.md";
 pub const WORKSPACE_MEMBERS_DIR: &str = "members";
-pub const WORKSPACE_BOARD_FILE: &str = "board.json";
+/// Backlog.md-style task list (NOT VS Code build `tasks.json` semantics). D5: replaces `board.json`.
+pub const WORKSPACE_TASKS_FILE: &str = "tasks.json";
 
 pub const WORKSPACE_PROJECT_SCHEMA_VERSION: u32 = 1;
-pub const WORKSPACE_BOARD_SCHEMA_VERSION: u32 = 1;
+pub const WORKSPACE_TASKS_SCHEMA_VERSION: u32 = 1;
 
 pub const ERR_PROJECT_WORKSPACE_EXISTS: &str = "PROJECT_WORKSPACE_EXISTS";
 pub const ERR_PROJECT_DISPLAY_NAME_EMPTY: &str = "PROJECT_DISPLAY_NAME_EMPTY";
@@ -227,12 +227,14 @@ fn write_light_workspace_files(
     fs::create_dir_all(&members_dir)
         .map_err(|err| format!("Failed to create members/: {err}"))?;
 
-    let board = WorkspaceBoard::empty();
-    let board_path = workspace_dir.join(WORKSPACE_BOARD_FILE);
-    let board_text = serde_json::to_string_pretty(&board)
-        .map_err(|err| format!("Failed to serialize board.json: {err}"))?;
-    fs::write(&board_path, format!("{board_text}\n"))
-        .map_err(|err| format!("Failed to write board.json: {err}"))?;
+    // Backlog.md-style task file: an empty, valid skeleton. No UI reads it — it is a plain
+    // data file for AI / manual editing (D5, replaces the retired `board.json`).
+    let tasks_value = serde_json::json!({ "version": WORKSPACE_TASKS_SCHEMA_VERSION, "tasks": [] });
+    let tasks_path = workspace_dir.join(WORKSPACE_TASKS_FILE);
+    let tasks_text = serde_json::to_string_pretty(&tasks_value)
+        .map_err(|err| format!("Failed to serialize tasks.json: {err}"))?;
+    fs::write(&tasks_path, format!("{tasks_text}\n"))
+        .map_err(|err| format!("Failed to write tasks.json: {err}"))?;
 
     // Guardrail: Core create must not emit AI Harness files.
     debug_assert!(!workspace_dir.join("AGENTS.md").exists());
@@ -465,9 +467,9 @@ mod tests {
             entries,
             vec![
                 "CONTEXT.md".to_string(),
-                "board.json".to_string(),
                 "members".to_string(),
                 "project.json".to_string(),
+                "tasks.json".to_string(),
             ]
         );
         assert!(!dir.join("AGENTS.md").exists());
@@ -483,10 +485,12 @@ mod tests {
 
         assert!(dir.join("members").is_dir());
 
-        let board: crate::projects::board::WorkspaceBoard =
-            serde_json::from_str(&fs::read_to_string(dir.join("board.json")).unwrap()).unwrap();
-        assert_eq!(board.columns, vec!["backlog", "doing", "review", "done"]);
-        assert!(board.tasks.is_empty());
+        assert!(!dir.join("board.json").exists());
+
+        let tasks_raw = fs::read_to_string(dir.join(WORKSPACE_TASKS_FILE)).unwrap();
+        let tasks: serde_json::Value = serde_json::from_str(&tasks_raw).unwrap();
+        assert_eq!(tasks["version"].as_u64().unwrap(), WORKSPACE_TASKS_SCHEMA_VERSION as u64);
+        assert_eq!(tasks["tasks"].as_array().unwrap().len(), 0);
 
         let _ = fs::remove_dir_all(&root);
     }

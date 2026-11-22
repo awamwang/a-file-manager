@@ -6,11 +6,11 @@
 //! C2 (AIA-208): Core Workspace light create under Projects Root (ADR 0008).
 //! C3 (AIA-209): list / activate / bind WG on disk Workspaces.
 //! C4 (AIA-210): `members/` junctions; open real target paths.
-//! C5 (AIA-211): CONTEXT.md + board.json four-column board.
+//! C5 (AIA-211): `CONTEXT.md` read/write; `tasks.json` (Backlog.md) replaces the old board.json (D5).
 //! C6 (AIA-212): delete / rename / Promote WG鈫扺orkspace.
 //! AIA-202: one-shot migrate leftover APPDATA `projects.json` 鈫?Workspace layout.
 
-pub(crate) mod board;
+pub(crate) mod context;
 pub(crate) mod helpers;
 pub(crate) mod index;
 pub(crate) mod legacy_migrate;
@@ -26,7 +26,6 @@ pub(crate) mod workspace;
 
 use crate::work_groups::store as wg_store;
 use crate::work_groups::types::WorkGroupOpenState;
-use board::{BoardTask, BoardTaskPatch, WorkspaceBoard};
 use helpers::validate_bindable_work_group;
 use index::{
     load_from_path as load_index_from_path, reorder_workspace_slugs,
@@ -89,7 +88,7 @@ pub fn projects_root_ensure(app: AppHandle) -> Result<ProjectsIndex, String> {
     load_index(&app)
 }
 
-/// Core light create: write `project.json` + `CONTEXT.md` + `members/` + `board.json` under Projects Root.
+/// Core light create: write `project.json` + `CONTEXT.md` + `members/` + `tasks.json` under Projects Root.
 /// Does not write `AGENTS.md` / `skills/` (ADR 0008). Does not activate (C3) or touch legacy projects.json.
 #[tauri::command]
 pub fn projects_workspace_create(
@@ -262,7 +261,7 @@ pub fn projects_resolve_open_path(path: String) -> Result<String, String> {
 pub fn projects_workspace_context_get(app: AppHandle, slug: String) -> Result<String, String> {
     let index = load_index(&app)?;
     let root = std::path::PathBuf::from(&index.projects_root);
-    board::read_context_for_slug(&root, &slug)
+    context::read_context_for_slug(&root, &slug)
 }
 
 /// Write Workspace `CONTEXT.md` (full replace).
@@ -274,73 +273,7 @@ pub fn projects_workspace_context_set(
 ) -> Result<(), String> {
     let index = load_index(&app)?;
     let root = std::path::PathBuf::from(&index.projects_root);
-    board::write_context_for_slug(&root, &slug, &content)
-}
-
-/// Read Workspace `board.json` (four columns: backlog/doing/review/done).
-#[tauri::command]
-pub fn projects_workspace_board_get(
-    app: AppHandle,
-    slug: String,
-) -> Result<WorkspaceBoard, String> {
-    let index = load_index(&app)?;
-    let root = std::path::PathBuf::from(&index.projects_root);
-    board::read_board_for_slug(&root, &slug)
-}
-
-#[tauri::command]
-pub fn projects_workspace_board_add_task(
-    app: AppHandle,
-    slug: String,
-    title: String,
-    status_id: Option<String>,
-) -> Result<(WorkspaceBoard, BoardTask), String> {
-    let index = load_index(&app)?;
-    let root = std::path::PathBuf::from(&index.projects_root);
-    let item = workspace::load_workspace(&root, &slug)?;
-    let dir = std::path::Path::new(&item.path);
-    let board = board::read_board(dir)?;
-    let (next, task) = board::add_task(&board, &title, status_id.as_deref())?;
-    board::write_board(dir, &next)?;
-    Ok((next, task))
-}
-
-#[tauri::command]
-pub fn projects_workspace_board_update_task(
-    app: AppHandle,
-    slug: String,
-    task_id: String,
-    patch: BoardTaskPatch,
-) -> Result<WorkspaceBoard, String> {
-    let index = load_index(&app)?;
-    let root = std::path::PathBuf::from(&index.projects_root);
-    board::mutate_board_for_slug(&root, &slug, |b| board::update_task(b, &task_id, patch))
-}
-
-#[tauri::command]
-pub fn projects_workspace_board_move_task(
-    app: AppHandle,
-    slug: String,
-    task_id: String,
-    status_id: String,
-    sort_key: i64,
-) -> Result<WorkspaceBoard, String> {
-    let index = load_index(&app)?;
-    let root = std::path::PathBuf::from(&index.projects_root);
-    board::mutate_board_for_slug(&root, &slug, |b| {
-        board::move_task(b, &task_id, &status_id, sort_key)
-    })
-}
-
-#[tauri::command]
-pub fn projects_workspace_board_delete_task(
-    app: AppHandle,
-    slug: String,
-    task_id: String,
-) -> Result<WorkspaceBoard, String> {
-    let index = load_index(&app)?;
-    let root = std::path::PathBuf::from(&index.projects_root);
-    board::mutate_board_for_slug(&root, &slug, |b| board::delete_task(b, &task_id))
+    context::write_context_for_slug(&root, &slug, &content)
 }
 
 /// Delete entire Workspace directory (junction targets preserved). Clears thin-index active if needed.
@@ -408,7 +341,7 @@ pub async fn projects_workspace_promote_from_work_group(
     .map_err(|err| format!("promote worker failed: {err}"))?
 }
 
-/// Copy a Workspace (CONTEXT / board / members). Bound WG is copied with fresh openState tab ids.
+/// Copy a Workspace (CONTEXT / tasks.json / members). Bound WG is copied with fresh openState tab ids.
 #[tauri::command]
 pub fn projects_workspace_copy(
     app: AppHandle,

@@ -4,8 +4,12 @@
 use super::helpers::{basename_label, next_id, now_millis, validate_bindable_work_group};
 use super::types::{
     OpenAllLinksResult, ProjectTask, TaskPatch, UserProject, UserProjects, WorkspaceLink,
-    ERR_DEFAULT_WORK_GROUP_FORBIDDEN, ERR_PROJECT_UNBOUND, ERR_UNKNOWN_WORK_GROUP, TASK_STATUSES,
+    ERR_DEFAULT_WORK_GROUP_FORBIDDEN, ERR_PROJECT_UNBOUND, ERR_UNKNOWN_WORK_GROUP,
 };
+
+/// Legacy `projects.json` status set. D5 retired the disk `board.json` columns; this list is kept
+/// only for the test-only legacy op model (`#[cfg(test)] mod ops`), not the production Workspace.
+const TASK_STATUSES: [&str; 4] = ["backlog", "doing", "review", "done"];
 use crate::work_groups::sync::{
     save_members_from_open_state_to_hard, silent_switch_work_group,
 };
@@ -460,7 +464,7 @@ mod tests {
     }
 
     #[test]
-    fn board_move_updates_status_and_sort() {
+    fn task_move_updates_status_and_sort() {
         let (mut doc, project) = create_project(&empty_document(), Some("P".into()), None, None);
         let (doc2, task) = add_task(&doc, &project.id, "Ship".into(), None).unwrap();
         doc = doc2;

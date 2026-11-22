@@ -47,3 +47,5 @@
 
 ## 风险
 - 删除既有 AIA-211 board 功能属不可逆；旧项目 `board.json` 数据将不再被读取（按决策作废）。建议 PR 描述里显著标注，避免用户以为丢 bug。
+
+状态：已实施（2026-11-23，D5）。后端 `projects_workspace_board_*` 命令与 `WorkspaceBoard/BoardTask/BoardTaskPatch` 已删除；`board.rs` 仅保留 CONTEXT.md 读写并更名为 `context.rs`；`create_workspace_at` 改写空 `tasks.json`（`{ "version": 1, "tasks": [] }`），不再写 `board.json`，旧 board 数据不迁移；前端 `ProjectsView.vue` 任务看板/列表 UI 完全移除；i18n 六语删除仅服务任务 UI 的 key；`check-fluent-p4-depth.mjs` / `check-wg-project-copy.mjs` 的 board 探针已同步更新。
