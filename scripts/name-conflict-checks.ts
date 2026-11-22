@@ -1,62 +1,65 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Behavioral unit for the name-conflict "replace / skip / remember" gate. Pinned by scripts/check-name-conflict.mjs.
-// nameConflict.ts imports only vue + a localStorage access that is called at runtime, so a tiny
-// in-memory shim makes the whole remember/short-circuit contract testable without a browser.
+// Behavioral unit for the name-conflict "replace / skip / keep" gate and the
+// per-batch "Apply to all" contract (CF-003 / TR-014). Pinned by scripts/check-name-conflict.mjs.
+// nameConflict.ts only depends on `vue`'s reactivity `ref`, which resolves
+// headless here, so no localStorage shim is needed (and must NOT exist —
+// apply-to-all is never persisted).
 import assert from "node:assert/strict";
 
-// localStorage shim MUST exist before the storage-touching functions run (import itself is safe).
-const store = new Map<string, string>();
-(globalThis as unknown as { localStorage: unknown }).localStorage = {
-  getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
-  setItem: (k: string, v: string) => void store.set(k, String(v)),
-  removeItem: (k: string) => void store.delete(k),
-  clear: () => store.clear(),
-};
-
 const {
-  readNameConflictDefault,
-  writeNameConflictDefault,
-  setNameConflictRemember,
+  resetNameConflictBatch,
+  currentRememberedChoice,
+  setNameConflictApplyToAll,
   openNameConflictDialog,
   resolveNameConflict,
   resolveNameConflictChoice,
-  nameConflictRememberReplace,
-  nameConflictRememberSkip,
+  nameConflictApplyToAll,
+  nameConflictOpen,
 } = await import("../src/state/nameConflict.ts");
 
-// Unset / unknown persisted value falls back to "ask" (never silently replaces or skips).
-assert.equal(readNameConflictDefault(), "ask", "unset defaults to ask");
-store.set("afm.nameConflictDefault", "garbage");
-assert.equal(readNameConflictDefault(), "ask", "unknown value falls back to ask");
-store.clear();
+// Fresh batch starts empty — no remembered choice leaks in.
+resetNameConflictBatch();
+assert.equal(currentRememberedChoice(), null, "fresh batch has no remembered choice");
 
-// Round-trip the remembered default through storage.
-writeNameConflictDefault("replace");
-assert.equal(readNameConflictDefault(), "replace");
-writeNameConflictDefault("skip");
-assert.equal(readNameConflictDefault(), "skip");
-writeNameConflictDefault("ask"); // "ask" means forget
-assert.equal(store.has("afm.nameConflictDefault"), false, "ask clears the stored key");
-
-// Remembering replace and skip are mutually exclusive (last one wins, the other clears).
-setNameConflictRemember("replace", true);
-assert.equal(nameConflictRememberReplace.value, true);
-assert.equal(nameConflictRememberSkip.value, false);
-setNameConflictRemember("skip", true);
-assert.equal(nameConflictRememberSkip.value, true);
-assert.equal(nameConflictRememberReplace.value, false, "choosing skip un-checks replace");
-
-// Confirming with "remember replace" persists it as the default for later pastes.
+// Without "Apply to all", resolving only returns the choice — it does NOT
+// remember it for subsequent conflicts in the same batch.
 void openNameConflictDialog("a.txt");
-setNameConflictRemember("replace", true);
+setNameConflictApplyToAll(false);
 resolveNameConflict("replace");
-assert.equal(readNameConflictDefault(), "replace", "remembered replace persisted through resolve");
+assert.equal(currentRememberedChoice(), null, "un-checked apply-to-all does not remember");
 
-// A remembered default short-circuits the dialog entirely (no prompt shown to the user).
-assert.equal(await resolveNameConflictChoice("b.txt"), "replace", "short-circuits to remembered replace");
-writeNameConflictDefault("skip");
-assert.equal(await resolveNameConflictChoice("c.txt"), "skip", "short-circuits to remembered skip");
+// With "Apply to all", the choice short-circuits later conflicts in the batch.
+void openNameConflictDialog("b.txt");
+setNameConflictApplyToAll(true);
+resolveNameConflict("skip");
+assert.equal(currentRememberedChoice(), "skip", "checked apply-to-all remembers the choice");
+
+// The remembered choice is returned without opening a dialog (resolve returns
+// synchronously from the remembered branch; no pending dialog exists).
+assert.equal(nameConflictApplyToAll.value, false, "apply-to-all flag cleared on settle");
+
+// A remembered choice short-circuits resolveNameConflictChoice — no second
+// prompt is shown for the next conflicting file in the same paste.
+assert.equal(await resolveNameConflictChoice("b2.txt"), "skip", "remembered skip short-circuits");
+assert.equal(nameConflictOpen.value, false, "short-circuit does not reopen the dialog");
+
+// Cancelling never remembers, even with the checkbox ticked.
+void openNameConflictDialog("c.txt");
+setNameConflictApplyToAll(true);
+resolveNameConflict("cancel");
+assert.equal(currentRememberedChoice(), "skip", "cancel does not overwrite the remembered choice");
+
+// Batch boundary: resetNameConflictBatch (what transferEntries calls per paste)
+// forgets everything — the next paste asks again.
+resetNameConflictBatch();
+assert.equal(currentRememberedChoice(), null, "reset clears the remembered choice — next paste re-asks");
+
+// Keep-both is a valid remembered choice too (not just replace/skip).
+void openNameConflictDialog("d.txt");
+setNameConflictApplyToAll(true);
+resolveNameConflict("keep");
+assert.equal(currentRememberedChoice(), "keep", "keep-both is rememberable");
 
 console.log(
-  "name-conflict-checks OK (ask fallback, storage round-trip, mutually-exclusive remember, confirm persists, remembered default short-circuits).",
+  "name-conflict-checks OK (fresh batch empty, unchecked no-remember, checked remembers, cancel-safe, batch reset, keep rememberable).",
 );

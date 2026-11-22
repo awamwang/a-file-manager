@@ -109,8 +109,7 @@
     "conflictReplace": "替換",
     "conflictSkip": "跳過",
     "conflictKeep": "保留兩者",
-    "conflictDefaultReplace": "下次預設替換",
-    "conflictDefaultSkip": "下次預設跳過"
+    "conflictApplyToAll": "套用到所有衝突"
   },
   "chrome": {
     "titleBar": "標題欄",

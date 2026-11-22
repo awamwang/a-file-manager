@@ -3,7 +3,7 @@
 
 import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { resolveNameConflictChoice } from "./nameConflict.ts";
+import { resetNameConflictBatch, resolveNameConflictChoice } from "./nameConflict.ts";
 import { normalizePathKey } from "./pathKey.ts";
 import { beginLongTask, finishLongTask, type LongTaskKind } from "./taskCenter.ts";
 
@@ -94,6 +94,9 @@ export async function transferEntries(
   destDir: string,
   mode: "copy" | "move" | "link",
 ): Promise<FileOpsResult> {
+  // CF-003 / TR-014: a checked "Apply to all" choice lives only for this batch.
+  // Reset at the top so the previous paste's remembered choice never leaks here.
+  resetNameConflictBatch();
   const command =
     mode === "copy"
       ? "file_ops_copy"
