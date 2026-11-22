@@ -692,6 +692,30 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
     }
 
+    // CF-005: 在大小写不敏感 FS（NTFS/exFAT/FAT、macOS 默认 APFS）上，`Foo.txt` 与
+    // `foo.txt` 视为同一名字。`unique_dest_path` 通过 `Path::exists()` 走 OS 校验，
+    // 自动按 FS 规则处理；本测试钉住该行为，防止后续被改成大小写敏感的纯字符串比较。
+    #[cfg(windows)]
+    #[test]
+    fn unique_dest_treats_case_only_difference_as_collision() {
+        let dir = temp_workspace("unique-case");
+        fs::write(dir.join("Foo.txt"), b"original").unwrap();
+        // 粘贴 foo.txt（小写）时，目标目录里 Foo.txt 已占用同名 → 必须返回 `foo - Copy.txt`，
+        // 不是 `foo.txt`（FS 会拒绝）。
+        let first = unique_dest_path(&dir, "foo.txt");
+        assert_eq!(
+            first.file_name().unwrap(),
+            "foo - Copy.txt",
+            "case-only difference must collide on case-insensitive FS"
+        );
+        // 已存在 `foo - Copy.txt` 时再次粘贴 FOO.TXT（不同大小写）应继续往后排。
+        // stem=FOO / ext=.TXT，第一次 `FOO - Copy.TXT` 与 `foo - Copy.txt` 在 NTFS 上同名 → n=2。
+        fs::write(&first, b"copy").unwrap();
+        let second = unique_dest_path(&dir, "FOO.TXT");
+        assert_eq!(second.file_name().unwrap(), "FOO - Copy (2).TXT");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn copy_rename_mkdir_roundtrip() {
         let dir = temp_workspace("round");
