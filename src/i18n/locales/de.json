@@ -522,7 +522,8 @@
     "conflictReplace": "Ersetzen",
     "conflictSkip": "Überspringen",
     "conflictKeep": "Beide behalten",
-    "conflictApplyToAll": "Auf alle Konflikte anwenden"
+    "conflictApplyToAll": "Auf alle Konflikte anwenden",
+    "conflictTypeWarning": "Eines ist ein Ordner, das andere eine Datei. Ersetzen entfernt das vorhandene Element endgültig."
   },
   "discovery": {
     "title": "Suche",

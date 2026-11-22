@@ -324,6 +324,7 @@ pub fn run() {
                     ide_launch::ide_list_apps,
                     ide_launch::ide_open_path,
                     file_ops::file_ops_name_exists,
+                    file_ops::file_ops_name_conflict_info,
                     file_ops::file_ops_copy,
                     file_ops::file_ops_move,
                     file_ops::file_ops_rename,

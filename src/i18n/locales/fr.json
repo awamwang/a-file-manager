@@ -522,7 +522,8 @@
     "conflictReplace": "Remplacer",
     "conflictSkip": "Ignorer",
     "conflictKeep": "Conserver les deux",
-    "conflictApplyToAll": "Appliquer à tous les conflits"
+    "conflictApplyToAll": "Appliquer à tous les conflits",
+    "conflictTypeWarning": "L'un est un dossier et l'autre un fichier. Remplacer supprime définitivement l'élément existant."
   },
   "discovery": {
     "title": "Recherche",
