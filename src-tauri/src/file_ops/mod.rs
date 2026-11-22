@@ -244,6 +244,10 @@ struct DestPlan {
     path: PathBuf,
     /// True when an existing same-name entry must be swapped out only after staging verifies.
     replace: bool,
+    /// True when the destination is an existing directory and the source is also a
+    /// directory: contents are **merged** rather than the whole tree replaced
+    /// (CF-007 / CF-008). Inner collisions then recurse through the same conflict logic.
+    merge: bool,
 }
 
 /// `Ok(None)` means the existing name was skipped.
@@ -262,11 +266,13 @@ fn place_dest(
             NameConflict::KeepBoth => Ok(Some(DestPlan {
                 path: unique_dest_path(parent, file_name),
                 replace: false,
+                merge: false,
             })),
             NameConflict::Skip => Ok(None),
             NameConflict::Replace => Ok(Some(DestPlan {
                 path: exact,
                 replace: false,
+                merge: false,
             })),
         };
     }
@@ -274,19 +280,91 @@ fn place_dest(
         return Ok(Some(DestPlan {
             path: exact,
             replace: false,
+            merge: false,
+        }));
+    }
+    // 同名目录入已存在的同名目录 → 合并（CF-007 / CF-008），与 Windows Explorer 一致。
+    // 顶层不再询问「保留两者 / 跳过 / 替换」，合并内部的同名文件才按 conflict 递归处理。
+    if source.is_dir() && exact.is_dir() {
+        return Ok(Some(DestPlan {
+            path: exact,
+            replace: false,
+            merge: true,
         }));
     }
     match conflict {
         NameConflict::KeepBoth => Ok(Some(DestPlan {
             path: unique_dest_path(parent, file_name),
             replace: false,
+            merge: false,
         })),
         NameConflict::Skip => Ok(None),
         NameConflict::Replace => Ok(Some(DestPlan {
             path: exact,
             replace: true,
+            merge: false,
         })),
     }
+}
+
+/// Merge the contents of `src` (a directory) into an **existing** `dest_dir`
+/// (also a directory). Each child of `src`:
+/// - both dirs → recurse (CF-007 dir-into-dir merge)
+/// - otherwise → `place_dest` decides replace/skip/keep-both per inner item, then
+///   leaf copy/move via `safe_io` (CF-008 inner-collision recursion).
+/// For a move, leaf children are moved (source leaf removed by `safe_move_entry`);
+/// a fully-emptied source subtree is removed; a source dir that still holds skipped
+/// items is left in place. Returns every newly created/moved destination path so
+/// undo and post-op selection can act on exactly what changed.
+fn merge_directory_into(
+    src: &Path,
+    dest_dir: &Path,
+    conflict: NameConflict,
+    is_move: bool,
+    emitter: Option<&progress::ProgressEmitter>,
+) -> Result<Vec<String>, String> {
+    let mut out = Vec::new();
+    let read = fs::read_dir(src).map_err(|err| format!("Failed to read folder for merge: {err}"))?;
+    for entry in read {
+        let child = entry.map_err(|err| format!("Failed to read folder entry: {err}"))?.path();
+        let name = child
+            .file_name()
+            .ok_or_else(|| "Invalid entry name during merge".to_string())?
+            .to_string_lossy()
+            .into_owned();
+        let child_dest = dest_dir.join(&name);
+        if child.is_dir() && child_dest.is_dir() {
+            let merged = merge_directory_into(&child, &child_dest, conflict, is_move, emitter)?;
+            out.extend(merged);
+            // After merging a subtree on a move, drop the (now empty) source subdir.
+            // Non-empty (some inner items skipped) → leave it.
+            if is_move && fs::read_dir(&child).map(|mut r| r.next().is_none()).unwrap_or(false) {
+                let _ = fs::remove_dir(&child);
+            }
+            continue;
+        }
+        let Some(plan) = place_dest(dest_dir, &name, &child, conflict)? else {
+            continue; // inner item skipped
+        };
+        let on_bytes = |count: u64| {
+            if let Some(emitter) = emitter {
+                emitter.on_bytes(count);
+            }
+        };
+        if is_move {
+            if emitter.is_some() {
+                safe_io::safe_move_entry_with_progress(&child, &plan.path, plan.replace, Some(&on_bytes))?;
+            } else {
+                safe_io::safe_move_entry(&child, &plan.path, plan.replace)?;
+            }
+        } else if emitter.is_some() {
+            safe_io::safe_copy_entry_with_progress(&child, &plan.path, plan.replace, Some(&on_bytes))?;
+        } else {
+            safe_io::safe_copy_entry(&child, &plan.path, plan.replace)?;
+        }
+        out.push(display_path(&plan.path));
+    }
+    Ok(out)
 }
 
 pub fn copy_paths(
@@ -331,6 +409,12 @@ fn copy_paths_inner(
         let Some(plan) = place_dest(&dest, &name, &src, conflict)? else {
             continue;
         };
+        // CF-007 / CF-008: pasting a folder onto an existing same-name folder merges.
+        if plan.merge {
+            let merged = merge_directory_into(&src, &plan.path, conflict, false, emitter)?;
+            out.extend(merged);
+            continue;
+        }
         match emitter {
             Some(emitter) => safe_io::safe_copy_entry_with_progress(
                 &src,
@@ -422,6 +506,16 @@ fn move_paths_inner(
         let Some(plan) = place_dest(&dest, &name, &src, conflict)? else {
             continue;
         };
+        // CF-007 / CF-008: moving a folder onto an existing same-name folder merges
+        // its contents; the source folder is removed once it is fully emptied.
+        if plan.merge {
+            let merged = merge_directory_into(&src, &plan.path, conflict, true, emitter)?;
+            out.extend(merged);
+            if fs::read_dir(&src).map(|mut r| r.next().is_none()).unwrap_or(false) {
+                let _ = fs::remove_dir(&src);
+            }
+            continue;
+        }
         match emitter {
             Some(emitter) => safe_io::safe_move_entry_with_progress(
                 &src,
@@ -1031,5 +1125,185 @@ mod tests {
         // 全是点 / 空格的输入应早返回错误，不能 strip 到空字符串。
         assert!(validate_file_name("...  ").is_err());
         assert!(validate_file_name("   ").is_err());
+    }
+
+    // CF-007: 把 src 目录合并进已存在的同名目录，无内层冲突时内容并入，目标目录名不变。
+    #[test]
+    fn copy_dir_into_existing_dir_merges_no_inner_collision() {
+        let dir = temp_workspace("merge-plain");
+        let src = dir.join("src");
+        let dest_root = dir.join("dest");
+        let dest_same = dest_root.join("src"); // already exists, same name
+        fs::create_dir_all(src.join("inner")).unwrap();
+        fs::write(src.join("a.txt"), b"new-a").unwrap();
+        fs::write(src.join("inner").join("b.txt"), b"new-b").unwrap();
+        fs::create_dir_all(&dest_same).unwrap();
+        fs::write(dest_same.join("keep.txt"), b"existing").unwrap();
+
+        let merged = copy_paths(
+            &[display_path(&src)],
+            &display_path(&dest_root),
+            NameConflict::KeepBoth,
+        )
+        .unwrap();
+        // merge 返回目标里新建/并入的顶层项：a.txt + inner 目录（inner 内的 b.txt 由
+        // safe_copy_entry 整体递归复制，返回的是 inner 目录本身，不是它的孙子项）。
+        assert!(merged.iter().any(|p| p.ends_with("a.txt")), "a.txt merged");
+        assert!(
+            merged.iter().any(|p| p.ends_with("inner")),
+            "inner dir merged (got {merged:?})"
+        );
+        assert!(
+            dest_same.join("inner").join("b.txt").is_file(),
+            "inner/b.txt materialized on disk"
+        );
+        // 目标目录名没变成 `src - Copy`
+        assert!(dest_same.is_dir(), "target dir reused for merge");
+        assert!(!dest_root.join("src - Copy").exists(), "no - Copy dir created");
+        // 原有文件保留、新文件并入
+        assert_eq!(fs::read(dest_same.join("keep.txt")).unwrap(), b"existing");
+        assert_eq!(fs::read(dest_same.join("a.txt")).unwrap(), b"new-a");
+        // 源不变
+        assert!(src.join("a.txt").is_file());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // CF-008: 目录合并时内层同名文件冲突，按 conflict 递归处理（replace / skip / keep-both）。
+    // 场景：把 src 目录（含 x.txt）粘贴到 parent，parent/src 已存在（含旧 x.txt）。
+    #[test]
+    fn copy_dir_into_existing_dir_handles_inner_collisions() {
+        let base = temp_workspace("merge-inner");
+        fs::create_dir_all(&base).unwrap();
+
+        // ── Replace 分支 ──
+        let a = base.join("r");
+        let src = a.join("src");
+        let parent = a.join("parent");
+        let existing_same = parent.join("src"); // dest/src 已存在（同名目录 → merge）
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&existing_same).unwrap();
+        fs::write(src.join("x.txt"), b"new").unwrap();
+        fs::write(existing_same.join("x.txt"), b"old").unwrap();
+        copy_paths(
+            &[display_path(&src)],
+            &display_path(&parent),
+            NameConflict::Replace,
+        )
+        .unwrap();
+        assert_eq!(fs::read(existing_same.join("x.txt")).unwrap(), b"new");
+        assert!(
+            !existing_same.join("x - Copy.txt").exists(),
+            "no - Copy generated for replace"
+        );
+        assert!(src.join("x.txt").is_file(), "copy: source untouched");
+
+        // ── Skip 分支：目标同名保留原内容，非冲突新项仍并入 ──
+        let b = base.join("s");
+        let src = b.join("src");
+        let parent = b.join("parent");
+        let existing_same = parent.join("src");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&existing_same).unwrap();
+        fs::write(src.join("collide.txt"), b"new").unwrap();
+        fs::write(existing_same.join("collide.txt"), b"old").unwrap();
+        fs::write(src.join("brand-new.txt"), b"n").unwrap();
+        copy_paths(
+            &[display_path(&src)],
+            &display_path(&parent),
+            NameConflict::Skip,
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read(existing_same.join("collide.txt")).unwrap(),
+            b"old",
+            "skip keeps existing target content"
+        );
+        assert!(
+            !existing_same.join("collide - Copy.txt").exists(),
+            "skip never makes - Copy"
+        );
+        assert!(
+            existing_same.join("brand-new.txt").is_file(),
+            "non-conflicting items still merge"
+        );
+
+        // ── KeepBoth 分支：内层同名走 unique_dest_path ──
+        let c = base.join("k");
+        let src = c.join("src");
+        let parent = c.join("parent");
+        let existing_same = parent.join("src");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&existing_same).unwrap();
+        fs::write(src.join("x.txt"), b"new").unwrap();
+        fs::write(existing_same.join("x.txt"), b"old").unwrap();
+        copy_paths(
+            &[display_path(&src)],
+            &display_path(&parent),
+            NameConflict::KeepBoth,
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read(existing_same.join("x.txt")).unwrap(),
+            b"old",
+            "original file intact under keep-both"
+        );
+        assert!(
+            existing_same.join("x - Copy.txt").is_file(),
+            "inner collision under KeepBoth produces - Copy"
+        );
+        assert_eq!(fs::read(existing_same.join("x - Copy.txt")).unwrap(), b"new");
+
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    // CF-007 + move 语义：把目录移动合并进同名目录，源目录搬空后消失。
+    #[test]
+    fn move_dir_into_existing_dir_empties_source() {
+        let dir = temp_workspace("merge-move");
+        let src = dir.join("a");
+        let dst_root = dir.join("b");
+        let dst_same = dst_root.join("a");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&dst_same).unwrap();
+        fs::write(src.join("1.txt"), b"x").unwrap();
+        fs::write(dst_same.join("2.txt"), b"y").unwrap();
+
+        move_paths(
+            &[display_path(&src)],
+            &display_path(&dst_root),
+            NameConflict::KeepBoth,
+        )
+        .unwrap();
+        assert!(
+            !src.exists(),
+            "source folder gone after merge-move (fully emptied)"
+        );
+        assert!(dst_same.join("1.txt").is_file(), "1.txt moved into b/a/");
+        assert!(dst_same.join("2.txt").is_file(), "existing 2.txt preserved");
+        assert!(!dst_root.join("a - Copy").exists(), "no - Copy dir on merge");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // CF-008 边界：目录移动时内层一项被 skip → 源目录非空，必须保留（不能 remove_dir）。
+    #[test]
+    fn move_merge_with_skip_preserves_source_when_not_empty() {
+        let dir = temp_workspace("merge-move-skip");
+        let src = dir.join("a");
+        let dst_root = dir.join("b");
+        let dst_same = dst_root.join("a");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&dst_same).unwrap();
+        fs::write(src.join("x.txt"), b"new").unwrap();
+        fs::write(dst_same.join("x.txt"), b"old").unwrap();
+
+        move_paths(
+            &[display_path(&src)],
+            &display_path(&dst_root),
+            NameConflict::Skip,
+        )
+        .unwrap();
+        assert!(src.is_dir(), "source folder must remain when nothing was moved");
+        assert_eq!(fs::read(dst_same.join("x.txt")).unwrap(), b"old", "dest not overwritten");
+        let _ = fs::remove_dir_all(&dir);
     }
 }
