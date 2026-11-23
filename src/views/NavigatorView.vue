@@ -101,10 +101,12 @@ import {
   selectOnly,
   selectRange,
   selectionAnchor,
+  selectedEntries,
   selectedPaths,
   setSelection,
   toggleInSelection,
 } from "../state/navigatorSelection";
+import { resolvePasteTarget } from "../state/pasteTarget";
 import {
   arrowDirectionFromKey,
   moveSelectionByArrow,
@@ -1944,7 +1946,16 @@ async function shortcutPaste() {
     if (!hasClipboard.value) return;
     const sources = [...clipboardPaths.value];
     const wasCut = clipboardMode.value === "cut";
-    const result = await pasteClipboard(currentPath.value);
+    // CLIP-101/102/104: a single selected folder → paste into it; a single selected file →
+    // its parent; mixed / no single container → the current dir.
+    const pasteTarget = resolvePasteTarget(
+      selectedEntries(visibleEntries.value).map((entry) => ({
+        path: entry.path,
+        isDirectory: entry.kind === "dir",
+      })),
+      currentPath.value,
+    );
+    const result = await pasteClipboard(pasteTarget);
     if (!result.ok) {
       onNotice(result.error ?? t("contextMenu.opFailed"));
       return;
