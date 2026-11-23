@@ -563,6 +563,12 @@ jobs:
   build-pack-feed:
     needs: prepare
     if: needs.prepare.outputs.want_feature_pack == 'true'
+    # 上游 awam-tool-manager/requirements.lock 把 Windows-only 的 pywin32==312 全 pin 进锁且无
+    # platform marker，macOS 上 uv 解析失败 → macos-aarch64 这个 slice 装不上依赖而失败。
+    # 先让 Windows slice 成功产出线上 feed：continue-on-error 让单平台 slice 失败不阻断 merge，
+    # merge 只聚合已成功上传的 slice（当前=Windows）。上游 lock 补 marker 后 mac 实例自动转成功、
+    # 无需改本 CI 即纳入 mac 产物。安全网：若连 Windows 都没产，merge 会因空 slice 报错、finalize 保留 draft。
+    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
@@ -575,11 +581,6 @@ jobs:
             platform: macos-aarch64
             name_suffix: ""
             python_rel: ".venv-feed/bin/python"
-          - os: macos-15-intel          # Intel (x86_64) — 仅当 enable_mac_intel 且有自建 Intel runner 时启用
-            platform: macos-x86_64
-            name_suffix: "-x64"
-            python_rel: ".venv-feed/bin/python"
-            if: ${{ inputs.enable_mac_intel == true }}
     runs-on: ${{ matrix.os }}
     env:
       TAG: ${{ needs.prepare.outputs.tag }}
@@ -682,11 +683,108 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  # macOS Intel(x86_64) feed slice 作为独立可选 job：GitHub 托管 runner 不含 Intel macOS，
+  # 本仓库当前也没有 macos-15-intel 自建 runner。若把它塞进 build-pack-feed 矩阵，该 job 会
+  # 永久 queued（不是 failed）并拖死 merge-pack-feed，导致 feed 的 manifest.json 永不产出。
+  # 改为 job 级 if：缺 runner / 未勾选时整个 job skipped（绝不排队），merge 的 needs 兼容 skipped，
+  # 正常产出 Windows + Apple Silicon 两平台 feed。未来接入 Intel 自建 runner 后 dispatch 勾
+  # enable_mac_intel=true 即恢复该平台产物。steps 与 build-pack-feed 同构，靠本 job 单行 matrix
+  # 把 platform/name_suffix/python_rel 解析为 Intel 值；pack zip 平台无关，仍只由主 job 打一次。
+  build-pack-feed-intel:
+    needs: prepare
+    if: needs.prepare.outputs.want_feature_pack == 'true' && inputs.enable_mac_intel == true
+    # 同 build-pack-feed：Intel slice 也可能因上游 pywin32 锁失败，启用时容错不阻断。
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15-intel
+            platform: macos-x86_64
+            name_suffix: "-x64"
+            python_rel: ".venv-feed/bin/python"
+    runs-on: ${{ matrix.os }}
+    env:
+      TAG: ${{ needs.prepare.outputs.tag }}
+      GH_FEED_BASE: https://github.com/${{ github.repository }}/releases/download/${{ needs.prepare.outputs.tag }}
+    steps:
+      - name: Checkout (含 submodule 源码)
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend build deps (from lockfiles)
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv venv .venv-feed --python 3.12
+          PY="$PWD/${{ matrix.python_rel }}"
+          uv pip install --python "$PY" -r upstream/awam-tool-manager/requirements.lock
+          uv pip install --python "$PY" -r upstream/awam-file/requirements.txt
+          uv pip install --python "$PY" PyInstaller typer rich
+          echo "PY_ABS=$PY" >> "$GITHUB_ENV"
+
+      - name: Build managed backend artifacts + feed slice (${{ matrix.platform }})
+        shell: bash
+        run: |
+          set -euo pipefail
+          FEED="${RUNNER_TEMP}/afm-feed-${{ matrix.platform }}"
+          mkdir -p "$FEED"
+          VER_TOOL="$(node -p "require('./packs/tool-runtime/pack.json').version")"
+          VER_FILE="$(node -p "require('./packs/file-gateway/pack.json').version")"
+          SUFFIX="${{ matrix.name_suffix }}"
+          PLATFORM="${{ matrix.platform }}"
+          VER_KM="$(node -p "require('./packs/knowledge/pack.json').version")"
+          "$PY_ABS" scripts/build_pack_feed.py build \
+            --pack-id awam.tool-runtime --name "awam-tool-manager${SUFFIX}" \
+            --src upstream/awam-tool-manager --entry src/server.py \
+            --version "$VER_TOOL" --out "$FEED" --url-layout flat \
+            --base-feed-url "$GH_FEED_BASE" --base-probe-url http://127.0.0.1:18778 \
+            --platform "$PLATFORM" --python "$PY_ABS"
+          "$PY_ABS" scripts/build_pack_feed.py build \
+            --pack-id awam.file-gateway --name "awam-resource-gateway${SUFFIX}" \
+            --src upstream/awam-file --entry src/awam_resource_gateway/__main__.py \
+            --paths src --collect awam_resource_gateway \
+            --add-data "src/awam_resource_gateway/filesystems.html;awam_resource_gateway" \
+            --version "$VER_FILE" --out "$FEED" --url-layout flat \
+            --base-feed-url "$GH_FEED_BASE" --base-probe-url http://127.0.0.1:18787 \
+            --platform "$PLATFORM" --python "$PY_ABS"
+          "$PY_ABS" scripts/build_pack_feed.py build \
+            --pack-id awam.knowledge --name "awam-knowledge${SUFFIX}" \
+            --src upstream/awam-knowledge --entry src/awam_knowledge/__main__.py \
+            --paths src --collect awam_knowledge \
+            --version "$VER_KM" --out "$FEED" --url-layout flat \
+            --base-feed-url "$GH_FEED_BASE" --base-probe-url http://127.0.0.1:18790 \
+            --platform "$PLATFORM" --python "$PY_ABS"
+          echo "=== slice manifest ($PLATFORM) ==="; cat "$FEED/manifest.json"
+
+      - name: Upload feed slice as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: afm-feed-${{ matrix.platform }}
+          path: ${{ runner.temp }}/afm-feed-${{ matrix.platform }}
+          if-no-files-found: error
+          retention-days: 1
+
   # 三平台 slice → 唯一 manifest：多 job 并发上传同名 manifest.json 会互相覆盖，
   # 所以 Release 上传与 OSS 镜像都集中在本 job（聚合后只上传一次）。
   merge-pack-feed:
-    needs: [prepare, build-pack-feed]
-    if: needs.prepare.outputs.want_feature_pack == 'true'
+    needs: [prepare, build-pack-feed, build-pack-feed-intel]
+    # always()：上游 awam-tool-manager/requirements.lock 的 Windows-only pywin32 会让 macos-aarch64
+    # slice 失败（build-pack-feed 的 mac 实例 conclusion=failure）。默认 needs 规则下这会跳过本 job，
+    # 连已成功上传的 Windows slice 都无法聚合出 manifest。改为 always() 让 merge 照常跑：build_pack_feed.py
+    # merge-feed 只收集“实际存在的 afm-feed-* slice”，mac 失败未上传其 artifact 时被自动忽略，于是用
+    # Windows slice 产出含 Windows 产物+pack 的 manifest.json。上游 lock 补 marker 后 mac 自动纳入。
+    if: always() && needs.prepare.result == 'success' && needs.prepare.outputs.want_feature_pack == 'true'
     runs-on: ubuntu-latest
     env:
       TAG: ${{ needs.prepare.outputs.tag }}
@@ -769,7 +867,7 @@ jobs:
           echo "注：启用回落时，把 AFM feed 的 fallbackManifestUrl 与 OSS 主机 allowHost 配到该镜像地址。"
 
   finalize:
-    needs: [prepare, build-app, build-app-macos, build-feature-packs, build-pack-feed, merge-pack-feed]
+    needs: [prepare, build-app, build-app-macos, build-feature-packs, build-pack-feed, build-pack-feed-intel, merge-pack-feed]
     if: always() && needs.prepare.result == 'success'
     runs-on: ubuntu-latest
     steps:

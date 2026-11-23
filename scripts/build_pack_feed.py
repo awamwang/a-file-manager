@@ -178,7 +178,10 @@ def pyinstaller_onefile(src: Path, entry: str, name: str, work: Path, python: st
     # 声明数据目录 data/（含 tools/*.json 等）打进冻结产物，供 frozen 下从 _MEIPASS/data 读取。
     data_dir = src / "data"
     if data_dir.exists() and not add_data:
-        cmd += ["--add-data", f"{data_dir}{sep}data"]
+        # 必须传绝对路径：PyInstaller 的 --add-data 相对路径按 --specpath（临时目录）解析，
+        # 而 src 常是相对的 upstream/<repo>，相对写法会让 PyInstaller 去 <temp>/upstream/<repo>/data
+        # 找不到 data 目录而崩（CI 首次真跑即此因，见 build 失败 "Unable to find ...data"）。
+        cmd += ["--add-data", f"{data_dir.resolve()}{sep}data"]
     cmd.append(str(entry_path))
     print("[build] running:", " ".join(cmd), flush=True)
     subprocess.run(cmd, check=True)
