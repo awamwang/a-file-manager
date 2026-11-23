@@ -1,7 +1,11 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from "vue";
-import { activeActionTip, hideActionTip } from "../../shortcuts/actionTip.ts";
+import {
+  activeActionTip,
+  hideActionTip,
+  markActionTipInteraction,
+} from "../../shortcuts/actionTip.ts";
 import { shortcutOverridesVersion } from "../../shortcuts/config.ts";
 import { effectiveChordLabelsForId } from "../../shortcuts/registry.ts";
 
@@ -23,16 +27,26 @@ function dismiss() {
   hideActionTip();
 }
 
+/**
+ * Only genuine key/pointer input unlocks focus-driven tips. A WebView can fire
+ * `focus` on its first control when the macOS window is revealed, and startup
+ * scroll restoration is not user input either — so neither may mark here.
+ */
+function onUserInput() {
+  markActionTipInteraction();
+  dismiss();
+}
+
 onMounted(() => {
-  window.addEventListener("pointerdown", dismiss, true);
-  window.addEventListener("keydown", dismiss, true);
+  window.addEventListener("pointerdown", onUserInput, true);
+  window.addEventListener("keydown", onUserInput, true);
   window.addEventListener("wheel", dismiss, true);
   window.addEventListener("scroll", dismiss, true);
 });
 
 onUnmounted(() => {
-  window.removeEventListener("pointerdown", dismiss, true);
-  window.removeEventListener("keydown", dismiss, true);
+  window.removeEventListener("pointerdown", onUserInput, true);
+  window.removeEventListener("keydown", onUserInput, true);
   window.removeEventListener("wheel", dismiss, true);
   window.removeEventListener("scroll", dismiss, true);
 });

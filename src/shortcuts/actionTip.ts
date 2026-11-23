@@ -25,6 +25,35 @@ export type ActionTipState = {
 
 export const activeActionTip = ref<ActionTipState | null>(null);
 
+/**
+ * On macOS the reveal path (`afm_reveal_main_window` → `set_focus()`) can hand
+ * DOM focus to the first focusable control — the Command Panel button — with
+ * no user input at all. Because `v-action-tip` treats focus as a show trigger,
+ * that popped the floating hint on the very first frame. Keep the policy as a
+ * pure factory so the cold-start case can be baseline-tested headlessly.
+ */
+export type ActionTipTrigger = "hover" | "focus";
+
+export function createActionTipInteractionGate() {
+  let interacted = false;
+  return {
+    markInteraction(): void {
+      interacted = true;
+    },
+    allows(trigger: ActionTipTrigger): boolean {
+      // Hover is already a direct pointer signal; only focus needs the guard.
+      return trigger === "hover" || interacted;
+    },
+  };
+}
+
+const interactionGate = createActionTipInteractionGate();
+
+/** Called by ActionTipHost on real user input (pointerdown / keydown). */
+export function markActionTipInteraction(): void {
+  interactionGate.markInteraction();
+}
+
 const bindings = new WeakMap<HTMLElement, ActionTipBinding>();
 const cleanups = new WeakMap<HTMLElement, () => void>();
 
@@ -62,14 +91,17 @@ function attach(el: HTMLElement): void {
   if (cleanups.has(el)) return;
   const enter = () => showActionTip(el);
   const leave = () => hideActionTip(el);
+  const focus = () => {
+    if (interactionGate.allows("focus")) showActionTip(el);
+  };
   el.addEventListener("mouseenter", enter);
   el.addEventListener("mouseleave", leave);
-  el.addEventListener("focus", enter);
+  el.addEventListener("focus", focus);
   el.addEventListener("blur", leave);
   cleanups.set(el, () => {
     el.removeEventListener("mouseenter", enter);
     el.removeEventListener("mouseleave", leave);
-    el.removeEventListener("focus", enter);
+    el.removeEventListener("focus", focus);
     el.removeEventListener("blur", leave);
   });
 }

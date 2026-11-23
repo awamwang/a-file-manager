@@ -68,6 +68,12 @@ Rule reminders: no e2e; `#[ignore]` ≠ coverage; FE↔BE command-name parity is
 | --- | --- | --- | --- |
 | L2 hint bound to its own page; switching routes hides the source hint (incl. keep-alive Navigator → WorkGroups) | STATIC · FE | `check-hint-route-scope.mjs` → `hint-route-scope-checks.ts` (`src/help/hintRouteScope.ts`); `check-help-guidance.mjs` | 5x5 route matrix + Navigator→WorkGroups transition; `/help` never carries a page hint; seen-once, opt-in tour, `hintEnabled`/`tourEnabled` unchanged |
 
+## Shortcut hint / chrome focus
+
+| Behavior | Layers | Gate / test | Notes |
+| --- | --- | --- | --- |
+| floating shortcut hint never pops from cold-start focus (macOS reveal hands DOM focus to the first control), but still shows on hover and on Tab focus after real input | STATIC · FE | `check-action-tip.mjs` → `action-tip-checks.ts` (`src/shortcuts/actionTip.ts` `createActionTipInteractionGate`) | gate is per-mount and idempotent; only `pointerdown`/`keydown` mark interaction — `scroll`/`wheel` merely dismiss so startup scroll restoration cannot unlock it; hover stays immediate |
+
 ## Backend command surfaces
 
 | Domain | Layers | Gate | Notes |
