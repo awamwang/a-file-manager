@@ -83,11 +83,11 @@
 | --- | --- | --- | --- |
 | 新建文件夹 | Ctrl+Shift+N，或空白处菜单 | 同样快捷键和菜单 | 对齐 |
 | 新建文件 | 「新建」列出已注册类型（文本文档等） | 右键「新建」子菜单读 ShellNew；也可自定义名 / Ctrl+Alt+N | 对齐 |
-| 复制 / 剪切 / 粘贴 | 系统剪贴板。可以在资源管理器和别的程序之间贴 | 应用内剪贴板（`fileClipboard`）。Ctrl+C/X/V 只在本应用内生效 | 不一致 |
-| 同名冲突 | 替换 / 跳过 / 保留两者 | 自动改成 `名称 - Copy`、`名称 - Copy (2)`，不询问 | 不一致 |
+| 复制 / 剪切 / 粘贴 | 系统剪贴板。可以在资源管理器和别的程序之间贴 | 系统剪贴板 `CF_HDROP`（`file_ops/clipboard.rs` `encode/decode_hdrop` + `Preferred DropEffect` 记 copy/cut；`fileClipboard.ts`），可与资源管理器互相粘贴 | 对齐 |
+| 同名冲突 | 替换 / 跳过 / 保留两者 | 粘贴撞名询问 **替换 / 跳过 / 保留两者**（`name-conflict` 对话框，`resolveNameConflictChoice`；选「保留两者」产出 `名称 - Copy`/`(2)`；「应用到全部」仅本次粘贴批次内生效） | 对齐 |
 | 拖放到文件夹 | 同盘移动，跨盘复制；Ctrl 复制，Shift 移动，Alt 快捷方式 | 拖到应用内文件夹一律 `file_ops_move`。拖出窗口交给系统时按复制（OLE） | 不一致 |
 | 重命名 | F2。文件不选中扩展名。多选会加 (1)(2) | F2，内联改名，文件只选中主名；多选按 `stem (n).ext` 序号 | 对齐 |
-| 删除 | Delete 进回收站。U 盘和部分网络位置可能直接永久删除。Shift+Delete 永久删除 | Delete 和 Ctrl+D 都进回收站。不能进回收站的路径（UNC）直接失败，不提供永久删除 | 不一致 |
+| 删除 | Delete 进回收站。U 盘和部分网络位置可能直接永久删除。Shift+Delete 永久删除 | Delete / Ctrl+D 按**卷文件系统类型**判定：仅 NTFS 进回收站；UNC / FAT32 / exFAT → 弹确认后永久删除（FE `pathsWithoutRecycle`→`confirmPermanentDelete`，后端 `filesystem_supports_recycle_bin`）；Shift+Delete 确认后永久删除 | 对齐 |
 | 撤销 | Ctrl+Z | Ctrl+Z 撤销复制/移动/重命名/新建/回收站删除 | 对齐 |
 | 复制路径 | 上下文菜单「复制文件地址」 | 右键工具条和 Ctrl+Shift+C | 对齐 |
 | 属性 | Alt+Enter。常规 / 安全等，可改只读、隐藏 | Alt+Enter 侧栏；可勾选应用只读 / 隐藏 | 对齐（无安全页） |
