@@ -388,9 +388,15 @@ async function runNewFolder() {
       emit("notice", result.error ?? t("contextMenu.opFailed"));
       return;
     }
-    if (result.paths[0]) recordCreateUndo(result.paths[0]);
+    const createdPath = result.paths[0];
+    if (createdPath) recordCreateUndo(createdPath);
     emit("notice", t("contextMenu.folderCreated"));
     await refreshListing();
+    // Explorer 式反馈：选中新建项并滚动到可见。
+    if (createdPath) {
+      selectOnly(createdPath);
+      scrollSelectionIntoView(createdPath);
+    }
   } catch (err) {
     emit("notice", err instanceof Error ? err.message : String(err));
   }
@@ -420,9 +426,15 @@ async function runNewFile(defaultName?: string) {
       emit("notice", result.error ?? t("contextMenu.opFailed"));
       return;
     }
-    if (result.paths[0]) recordCreateUndo(result.paths[0]);
+    const createdPath = result.paths[0];
+    if (createdPath) recordCreateUndo(createdPath);
     emit("notice", t("contextMenu.fileCreated"));
     await refreshListing();
+    // Explorer 式反馈：选中新建项并滚动到可见。
+    if (createdPath) {
+      selectOnly(createdPath);
+      scrollSelectionIntoView(createdPath);
+    }
   } catch (err) {
     emit("notice", err instanceof Error ? err.message : String(err));
   }
