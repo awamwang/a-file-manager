@@ -695,7 +695,7 @@ jobs:
           python-version: "3.12"
 
       - name: Download per-platform feed slices
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: afm-feed-*
           path: ${{ runner.temp }}/feed-slices
