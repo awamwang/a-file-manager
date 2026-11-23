@@ -779,7 +779,12 @@ jobs:
   # 所以 Release 上传与 OSS 镜像都集中在本 job（聚合后只上传一次）。
   merge-pack-feed:
     needs: [prepare, build-pack-feed, build-pack-feed-intel]
-    if: needs.prepare.outputs.want_feature_pack == 'true'
+    # always()：上游 awam-tool-manager/requirements.lock 的 Windows-only pywin32 会让 macos-aarch64
+    # slice 失败（build-pack-feed 的 mac 实例 conclusion=failure）。默认 needs 规则下这会跳过本 job，
+    # 连已成功上传的 Windows slice 都无法聚合出 manifest。改为 always() 让 merge 照常跑：build_pack_feed.py
+    # merge-feed 只收集“实际存在的 afm-feed-* slice”，mac 失败未上传其 artifact 时被自动忽略，于是用
+    # Windows slice 产出含 Windows 产物+pack 的 manifest.json。上游 lock 补 marker 后 mac 自动纳入。
+    if: always() && needs.prepare.result == 'success' && needs.prepare.outputs.want_feature_pack == 'true'
     runs-on: ubuntu-latest
     env:
       TAG: ${{ needs.prepare.outputs.tag }}
