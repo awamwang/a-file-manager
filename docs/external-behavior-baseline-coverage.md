@@ -36,6 +36,7 @@ Rule reminders: no e2e; `#[ignore]` ≠ coverage; FE↔BE command-name parity is
 | paste-target resolution (folder/file/mixed/none) | STATIC · FE | `check-paste-target.mjs` → `paste-target-checks.ts` (`src/state/pasteTarget.ts`); `NavigatorView.shortcutPaste` wires `resolvePasteTarget` over the selection | CLIP-101/102/104 (2026-11-23): single folder→into it, single file→its parent, mixed/none→current dir |
 | select new items after paste (keyboard + context menu) | STATIC | `check-paste-post-state.mjs`; `revealItemsInNavigator(result.paths)` in `shortcutPaste` and `NavigatorContextMenu.runPaste` | CLIP-003/004, LC-001/002 (2026-11-23): Explorer-style reveal-and-select the transfer result |
 | post-op scroll & sort preserved (same-dir refresh) | STATIC | `check-paste-post-state.mjs`; list `scrollTop` reset is keyed to `watch(currentPath)` (navigation) only, sort lives in module-level `sortColumn`/`sortDirection` refs that survive `refreshListing` | LC-011 (2026-11-23): same-directory copy/move/paste/delete keeps scroll + current sort |
+| shift range in current view order | STATIC | `check-selection-view-order.mjs`; `selectRange(orderedPaths.value, …)` where `orderedPaths = visibleEntries.map` (sorted+filtered) | SEL-004 (2026-11-23): ordering arithmetic itself executed by `list-select-checks.ts` |
 
 ## Work groups / projects (external chain)
 
