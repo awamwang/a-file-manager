@@ -104,7 +104,7 @@ import {
 import { installBrowserNavGestureGuards } from "../../state/browserNavGestures";
 import { requestFolderContextMenu } from "../../state/folderContextMenu";
 import { favoritesDoc, loadFavorites } from "../../state/favorites";
-import { quickAccessList, loadVisitStats } from "../../state/visitStats";
+import { quickAccessList, loadVisitStats, deleteVisit, clearVisits } from "../../state/visitStats";
 import {
   GUIDE_PATH,
   drivesList,
@@ -526,6 +526,16 @@ async function openPlacesPath(path: string) {
   closePlacesMenu();
   await ensureNavigatorRoute();
   await openOrFocusNavigatorTab(path);
+}
+
+/** Hover close button on a Quick Access row: forget just this path (menu stays open). */
+function onRemoveQuickAccess(path: string) {
+  void deleteVisit(path);
+}
+
+/** "Clear recent visits": drop the whole history (menu stays open). */
+function onClearQuickAccess() {
+  void clearVisits();
 }
 
 async function onSilentSwitchWorkGroup(targetId: string) {
@@ -2444,25 +2454,44 @@ onUnmounted(() => {
               role="menu"
               :aria-label="t('chrome.placesMenu')"
             >
-              <p class="places-heading">{{ t("quickAccess.label") }}</p>
-              <button
-                v-for="item in quickAccessList"
-                :key="'qa-' + item.path"
-                type="button"
-                class="fluent-list-row places-item"
-                :class="{ 'places-item--file-drop': placesFileDropOver === item.path }"
-                role="menuitem"
-                data-drop-target="places-item"
-                :data-entry-path="item.path"
-                :title="`${item.path} · ${t('quickAccess.openCount', { count: item.openCount })}`"
-                @click="openPlacesPath(item.path)"
-                @dragover="onPlacesItemDragOver($event, item.path, item.isDir)"
-                @dragleave="onPlacesItemDragLeave($event, item.path)"
-                @drop="onPlacesItemDrop($event, item.path, item.isDir, quickAccessLabel(item.path))"
-              >
-                <FluentIcon :name="item.isDir ? 'folder' : 'document'" size="sm" />
-                <span>{{ quickAccessLabel(item.path) }}</span>
-              </button>
+              <div class="places-heading places-heading--row">
+                <span>{{ t("quickAccess.label") }}</span>
+                <button
+                  v-if="quickAccessList.length"
+                  type="button"
+                  class="places-clear"
+                  @click.stop="onClearQuickAccess"
+                >
+                  {{ t("quickAccess.clearAll") }}
+                </button>
+              </div>
+              <div v-for="item in quickAccessList" :key="'qa-' + item.path" class="places-row">
+                <button
+                  type="button"
+                  class="fluent-list-row places-item places-open"
+                  :class="{ 'places-item--file-drop': placesFileDropOver === item.path }"
+                  role="menuitem"
+                  data-drop-target="places-item"
+                  :data-entry-path="item.path"
+                  :title="`${item.path} · ${t('quickAccess.openCount', { count: item.openCount })}`"
+                  @click="openPlacesPath(item.path)"
+                  @dragover="onPlacesItemDragOver($event, item.path, item.isDir)"
+                  @dragleave="onPlacesItemDragLeave($event, item.path)"
+                  @drop="onPlacesItemDrop($event, item.path, item.isDir, quickAccessLabel(item.path))"
+                >
+                  <FluentIcon :name="item.isDir ? 'folder' : 'document'" size="sm" />
+                  <span>{{ quickAccessLabel(item.path) }}</span>
+                </button>
+                <button
+                  type="button"
+                  class="places-remove"
+                  :title="t('quickAccess.remove')"
+                  :aria-label="t('quickAccess.remove')"
+                  @click.stop="onRemoveQuickAccess(item.path)"
+                >
+                  <FluentIcon name="close" size="sm" />
+                </button>
+              </div>
               <p v-if="!quickAccessList.length" class="places-empty">{{ t("quickAccess.empty") }}</p>
 
               <p class="places-heading places-heading--fav">{{ t("favorites.label") }}</p>
@@ -3229,6 +3258,70 @@ onUnmounted(() => {
   outline: 2px solid var(--fluent-color-stroke-accent-soft, var(--fluent-color-fill-accent));
   outline-offset: -2px;
   background: var(--fluent-color-fill-selected);
+}
+
+/* Quick Access row: open button + hover close glyph to forget one entry. The remove
+   column is always reserved so revealing it on hover never shifts the label. */
+.places-row {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+}
+
+.places-open {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+}
+
+.places-remove {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  border: 0;
+  border-radius: var(--fluent-radius-sm);
+  background: transparent;
+  color: var(--fluent-color-text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.places-row:hover .places-remove,
+.places-row:focus-within .places-remove {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.places-remove:hover {
+  background: var(--fluent-color-fill-control-hover);
+  color: var(--fluent-color-status-danger);
+}
+
+.places-heading--row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fluent-space-sm);
+}
+
+.places-clear {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fluent-color-text-secondary);
+  font: inherit;
+  font-size: var(--fluent-font-size-caption);
+  font-weight: var(--fluent-font-weight-regular);
+  padding: 0 2px;
+  cursor: pointer;
+}
+
+.places-clear:hover {
+  color: var(--fluent-color-text-primary);
+  text-decoration: underline;
 }
 
 .places-sep {

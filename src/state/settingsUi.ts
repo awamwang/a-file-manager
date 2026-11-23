@@ -67,6 +67,7 @@ const KEY_GROUP: Record<string, SettingsUiGroupId> = {
 
   "core.showHidden": "files",
   "core.newTabBehavior": "files",
+  "core.trackRecentVisits": "files",
   "core.fileDoubleClickAction": "files",
   "core.newFolderDefaultName": "files",
   "core.newFileDefaultName": "files",

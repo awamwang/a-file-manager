@@ -1115,6 +1115,10 @@
             "guide": "ガイドページ",
             "duplicate": "現在のタブを複製"
           }
+        },
+        "trackRecentVisits": {
+          "title": "最近のアクセスを記録",
+          "description": "開いたフォルダーを記録し、最近のアクセスリストを作成します"
         }
       },
       "experimental": {
@@ -1491,7 +1495,9 @@
   "quickAccess": {
     "label": "最近のアクセス",
     "empty": "最近開いたフォルダーがここに表示されます",
-    "openCount": "{count} 回開きました"
+    "openCount": "{count} 回開きました",
+    "clearAll": "消去",
+    "remove": "最近のアクセスから削除"
   },
   "detailsPane": {
     "title": "詳細",

@@ -835,6 +835,10 @@
             "duplicate": "複製當前標籤"
           }
         },
+        "trackRecentVisits": {
+          "title": "記錄近期訪問",
+          "description": "記錄您開啟過的資料夾，用於產生近期訪問清單"
+        },
         "openTool": {
           "vscode": {
             "enabled": {
@@ -1513,7 +1517,9 @@
   "quickAccess": {
     "label": "近期訪問",
     "empty": "最近訪問過的資料夾會出現在這裡",
-    "openCount": "已開啟 {count} 次"
+    "openCount": "已開啟 {count} 次",
+    "clearAll": "清空",
+    "remove": "從近期訪問移除"
   },
   "detailsPane": {
     "title": "詳細資訊",

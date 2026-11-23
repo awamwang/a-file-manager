@@ -520,6 +520,8 @@ pub fn run() {
                     favorites::favorites_os_hook_set_enabled,
                     visit_stats::visit_stats_get,
                     visit_stats::visit_stats_record,
+                    visit_stats::visit_stats_remove,
+                    visit_stats::visit_stats_clear,
                     visit_stats::visit_stats_quick_access,
                     open_with::open_path_default,
                     open_with::open_recycle_bin_system,

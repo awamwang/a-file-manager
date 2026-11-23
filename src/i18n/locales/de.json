@@ -1115,6 +1115,10 @@
             "guide": "Leitseite",
             "duplicate": "Aktuelle Registerkarte duplizieren"
           }
+        },
+        "trackRecentVisits": {
+          "title": "Zuletzt besuchte Ordner aufzeichnen",
+          "description": "Öffnete Ordner aufzeichnen, um die Liste 'Zuletzt besucht' zu erstellen"
         }
       },
       "experimental": {
@@ -1491,7 +1495,9 @@
   "quickAccess": {
     "label": "Zuletzt besucht",
     "empty": "Kürzlich besuchte Ordner erscheinen hier",
-    "openCount": "{count}-mal geöffnet"
+    "openCount": "{count}-mal geöffnet",
+    "clearAll": "Leeren",
+    "remove": "Aus 'Zuletzt besucht' entfernen"
   },
   "detailsPane": {
     "title": "Details",

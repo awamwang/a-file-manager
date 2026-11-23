@@ -21,6 +21,7 @@ export const SCHEMA_SETTING_KEYS = [
   "core.navigatorViewMode",
   "core.navigatorGroupByType",
   "core.newTabBehavior",
+  "core.trackRecentVisits",
   "core.openTool.vscode.enabled",
   "core.openTool.vscode.path",
   "core.openTool.cursor.enabled",

@@ -1115,6 +1115,10 @@
             "guide": "Page guide",
             "duplicate": "Dupliquer l'onglet actif"
           }
+        },
+        "trackRecentVisits": {
+          "title": "Enregistrer les visites récentes",
+          "description": "Enregistrer les dossiers ouverts pour créer la liste des visites récentes"
         }
       },
       "experimental": {
@@ -1491,7 +1495,9 @@
   "quickAccess": {
     "label": "Visites récentes",
     "empty": "Les dossiers visités récemment apparaissent ici",
-    "openCount": "Ouvert {count} fois"
+    "openCount": "Ouvert {count} fois",
+    "clearAll": "Effacer",
+    "remove": "Retirer des visites récentes"
   },
   "detailsPane": {
     "title": "Détails",

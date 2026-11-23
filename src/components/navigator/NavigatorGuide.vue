@@ -5,7 +5,7 @@ import { useI18n } from "vue-i18n";
 import FluentIcon from "../icons/FluentIcon.vue";
 import type { FluentGlyphId } from "../icons/glyphs";
 import { favoritesDoc, loadFavorites } from "../../state/favorites";
-import { quickAccessList, loadVisitStats } from "../../state/visitStats";
+import { quickAccessList, loadVisitStats, deleteVisit, clearVisits } from "../../state/visitStats";
 import {
   drivesList,
   fetchDriveSpaces,
@@ -233,6 +233,16 @@ watch(drivesList, () => {
 function onOpen(path: string) {
   void props.openPath(path);
 }
+
+/** Hover close glyph on a Recent card: forget just this path. */
+function onRemoveRecent(path: string) {
+  void deleteVisit(path);
+}
+
+/** "Clear recent visits": drop the whole history. */
+function onClearRecent() {
+  void clearVisits();
+}
 </script>
 
 <template>
@@ -266,23 +276,42 @@ function onOpen(path: string) {
     </section>
 
     <section class="guide-section" :aria-label="t('guide.sections.recent')">
-      <h2 class="guide-section-title">{{ t("guide.sections.recent") }}</h2>
-      <div class="guide-grid">
+      <div class="guide-section-head">
+        <h2 class="guide-section-title">{{ t("guide.sections.recent") }}</h2>
         <button
-          v-for="item in quickAccessList"
-          :key="item.path"
+          v-if="quickAccessList.length"
           type="button"
-          class="guide-card fluent-surface guide-card--recent"
-          :title="item.path"
-          @dblclick="onOpen(item.path)"
-          @keydown.enter.prevent="onOpen(item.path)"
+          class="guide-clear"
+          @click="onClearRecent"
         >
-          <span class="guide-card-icon" aria-hidden="true">
-            <FluentIcon name="folderOpen" size="md" />
-          </span>
-          <span class="guide-card-label">{{ favoriteLabel(item.path) }}</span>
-          <span class="guide-card-path">{{ item.path }}</span>
+          {{ t("quickAccess.clearAll") }}
         </button>
+      </div>
+      <div class="guide-grid">
+        <div v-for="item in quickAccessList" :key="item.path" class="guide-cell">
+          <button
+            type="button"
+            class="guide-card fluent-surface guide-card--recent"
+            :title="item.path"
+            @dblclick="onOpen(item.path)"
+            @keydown.enter.prevent="onOpen(item.path)"
+          >
+            <span class="guide-card-icon" aria-hidden="true">
+              <FluentIcon name="folderOpen" size="md" />
+            </span>
+            <span class="guide-card-label">{{ favoriteLabel(item.path) }}</span>
+            <span class="guide-card-path">{{ item.path }}</span>
+          </button>
+          <button
+            type="button"
+            class="guide-card-remove"
+            :title="t('quickAccess.remove')"
+            :aria-label="t('quickAccess.remove')"
+            @click.stop="onRemoveRecent(item.path)"
+          >
+            <FluentIcon name="close" size="sm" />
+          </button>
+        </div>
       </div>
       <p v-if="!quickAccessList.length" class="guide-empty">{{ t("quickAccess.empty") }}</p>
     </section>
@@ -525,6 +554,77 @@ function onOpen(path: string) {
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--fluent-color-text-secondary);
+}
+
+/* Recent section: title row gets a "clear" affordance; each card hosts a
+   hover close glyph in its top-right corner to forget just that path. */
+.guide-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fluent-space-sm);
+  margin-bottom: var(--fluent-space-sm);
+}
+
+.guide-section-head .guide-section-title {
+  margin: 0;
+}
+
+.guide-clear {
+  border: 0;
+  background: transparent;
+  color: var(--fluent-color-text-secondary);
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 2px 4px;
+  border-radius: var(--fluent-radius-sm);
+  cursor: pointer;
+}
+
+.guide-clear:hover {
+  color: var(--fluent-color-text-primary);
+  background: var(--fluent-color-fill-subtle-secondary);
+}
+
+.guide-cell {
+  position: relative;
+  display: flex;
+}
+
+/* The wrapper is the grid item; make the card fill it so Recent cards keep the
+   same width/height as the other guide sections (path length must not shrink them). */
+.guide-cell > .guide-card {
+  flex: 1;
+  min-width: 0;
+}
+
+.guide-card-remove {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border: 0;
+  border-radius: var(--fluent-radius-sm);
+  background: var(--fluent-color-fill-layer, var(--fluent-color-fill-subtle));
+  color: var(--fluent-color-text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.guide-cell:hover .guide-card-remove,
+.guide-cell:focus-within .guide-card-remove {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.guide-card-remove:hover {
+  color: var(--fluent-color-status-danger);
+  background: var(--fluent-color-fill-control-hover);
 }
 
 .guide-grid {

@@ -244,6 +244,15 @@ pub(crate) fn raw_setting_definitions() -> Vec<SettingDefinition> {
             Some(vec!["guide".to_string(), "duplicate".to_string()]),
             json!("guide"),
         ),
+        def(
+            "core.trackRecentVisits",
+            SettingsTier::Core,
+            "Record recent visits",
+            "Track folders you open to build the Recent visits list",
+            SettingValueKind::Boolean,
+            None,
+            json!(true),
+        ),
         // Open tools (IDE/Agent) — edited in dedicated Settings section; filtered from Core list.
         def(
             "core.openTool.vscode.enabled",

@@ -3,6 +3,7 @@
 
 import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { getCachedSettingsValues } from "./settingsHydrate.ts";
 
 export type VisitItem = {
   path: string;
@@ -32,7 +33,19 @@ export const RECENCY_WEIGHT = 10;
 /** Skip duplicate records for the same path within this window (ms). */
 export const VISIT_DEBOUNCE_MS = 400;
 
+/** Settings toggle that turns visit recording off (default: ON). */
+export const RECENT_TRACKING_SETTING_KEY = "core.trackRecentVisits";
+
 export const visitStatsDoc = ref<VisitStatsDocument>({ visits: [] });
+
+/**
+ * Read the cached settings document to decide whether visits should be recorded.
+ * Defaults to enabled until the setting is explicitly set to `false` (so a cold
+ * start before settings hydrate still tracks, matching the on-by-default toggle).
+ */
+export function recentTrackingEnabled(): boolean {
+  return getCachedSettingsValues()?.[RECENT_TRACKING_SETTING_KEY] !== false;
+}
 
 let lastRecordKey = "";
 let lastRecordAt = 0;
@@ -84,6 +97,7 @@ export async function recordPathVisit(
   path: string,
   isDir = true,
 ): Promise<VisitRecordResult | null> {
+  if (!recentTrackingEnabled()) return null;
   const trimmed = path.trim();
   if (!trimmed || !isDir) return null;
   const key = normalizeKey(trimmed);
@@ -104,6 +118,31 @@ export async function recordPathVisit(
   } catch {
     return null;
   }
+}
+
+/** Remove a single recent-visit entry (hover close glyph in every Quick Access surface). */
+export async function deleteVisit(path: string): Promise<void> {
+  const trimmed = path.trim();
+  if (!trimmed) return;
+  try {
+    visitStatsDoc.value = await invoke<VisitStatsDocument>("visit_stats_remove", {
+      path: trimmed,
+    });
+  } catch {
+    /* keep the in-memory list untouched on IPC failure */
+  }
+}
+
+/** Forget all recorded visits (the "clear recent visits" affordance). */
+export async function clearVisits(): Promise<void> {
+  try {
+    visitStatsDoc.value = await invoke<VisitStatsDocument>("visit_stats_clear");
+  } catch {
+    return;
+  }
+  // A cleared history must not stay debounced against a future re-record.
+  lastRecordKey = "";
+  lastRecordAt = 0;
 }
 
 /** Test helper — reset debounce + in-memory doc. */

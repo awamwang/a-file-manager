@@ -157,6 +157,25 @@ pub fn record_visit(
     Ok(1)
 }
 
+/// Drop the entry whose identity matches `path` (case-insensitive, normalized).
+/// Returns how many rows were removed (0 or 1 — paths are unique keys).
+pub fn remove_visit(document: &mut VisitStatsDocument, path: &str) -> usize {
+    let normalized = normalize_path(path);
+    if normalized.is_empty() {
+        return 0;
+    }
+    let before = document.visits.len();
+    document.visits.retain(|item| {
+        !normalize_path(&item.path).eq_ignore_ascii_case(&normalized)
+    });
+    before - document.visits.len()
+}
+
+/// Forget every recorded visit (used by "clear recent visits").
+pub fn clear_visits(document: &mut VisitStatsDocument) {
+    document.visits.clear();
+}
+
 #[tauri::command]
 pub fn visit_stats_get(app: AppHandle) -> Result<VisitStatsDocument, String> {
     let dir = config_dir(&app)?;
@@ -178,6 +197,26 @@ pub fn visit_stats_record(
         open_count: count,
         document,
     })
+}
+
+/// Remove a single recent-visit entry by path (the hover ✕ affordance).
+#[tauri::command]
+pub fn visit_stats_remove(app: AppHandle, path: String) -> Result<VisitStatsDocument, String> {
+    let dir = config_dir(&app)?;
+    let mut document = load_from_path(&dir)?;
+    remove_visit(&mut document, &path);
+    save_to_path(&dir, &document)?;
+    Ok(document)
+}
+
+/// Clear all recent visits (the "clear recent visits" affordance).
+#[tauri::command]
+pub fn visit_stats_clear(app: AppHandle) -> Result<VisitStatsDocument, String> {
+    let dir = config_dir(&app)?;
+    let mut document = load_from_path(&dir)?;
+    clear_visits(&mut document);
+    save_to_path(&dir, &document)?;
+    Ok(document)
 }
 
 #[tauri::command]
@@ -287,5 +326,35 @@ mod tests {
         assert_eq!(loaded.visits.len(), 1);
         assert_eq!(loaded.visits[0].open_count, 1);
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn remove_drops_matching_entry_case_insensitively() {
+        let mut doc = VisitStatsDocument::default();
+        record_visit(&mut doc, r"C:\Work", true, 1000).unwrap();
+        record_visit(&mut doc, r"C:\Other", true, 2000).unwrap();
+        // The hover ✕ passes the path as stored (or a differently-cased spelling).
+        let removed = remove_visit(&mut doc, r"c:\work");
+        assert_eq!(removed, 1);
+        assert_eq!(doc.visits.len(), 1);
+        assert_eq!(doc.visits[0].path, r"C:\Other");
+    }
+
+    #[test]
+    fn remove_missing_path_is_noop() {
+        let mut doc = VisitStatsDocument::default();
+        record_visit(&mut doc, r"C:\Work", true, 1000).unwrap();
+        assert_eq!(remove_visit(&mut doc, r"C:\Nope"), 0);
+        assert_eq!(doc.visits.len(), 1);
+        assert_eq!(remove_visit(&mut doc, "   "), 0);
+    }
+
+    #[test]
+    fn clear_empties_all_visits() {
+        let mut doc = VisitStatsDocument::default();
+        record_visit(&mut doc, r"C:\A", true, 1000).unwrap();
+        record_visit(&mut doc, r"C:\B", true, 2000).unwrap();
+        clear_visits(&mut doc);
+        assert!(doc.visits.is_empty());
     }
 }

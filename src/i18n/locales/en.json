@@ -835,6 +835,10 @@
             "duplicate": "Duplicate current tab"
           }
         },
+        "trackRecentVisits": {
+          "title": "Record recent visits",
+          "description": "Track folders you open to build the Recent visits list"
+        },
         "openTool": {
           "vscode": {
             "enabled": {
@@ -1491,7 +1495,9 @@
   "quickAccess": {
     "label": "Recent visits",
     "empty": "Folders you visited recently appear here",
-    "openCount": "Opened {count} times"
+    "openCount": "Opened {count} times",
+    "clearAll": "Clear",
+    "remove": "Remove from recent visits"
   },
   "detailsPane": {
     "title": "Details",

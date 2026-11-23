@@ -835,6 +835,10 @@
             "duplicate": "复制当前标签"
           }
         },
+        "trackRecentVisits": {
+          "title": "记录近期访问",
+          "description": "记录你打开过的文件夹，用于生成近期访问列表"
+        },
         "openTool": {
           "vscode": {
             "enabled": {
@@ -1491,7 +1495,9 @@
   "quickAccess": {
     "label": "近期访问",
     "empty": "最近访问过的文件夹会出现在这里",
-    "openCount": "已打开 {count} 次"
+    "openCount": "已打开 {count} 次",
+    "clearAll": "清空",
+    "remove": "从近期访问移除"
   },
   "detailsPane": {
     "title": "详细信息",
