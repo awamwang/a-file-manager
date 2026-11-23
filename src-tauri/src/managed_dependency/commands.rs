@@ -12,10 +12,17 @@ use super::store;
 use crate::extension_host::types::SidecarContribution;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use tauri::{AppHandle, Manager};
+use std::time::{Duration, Instant};
+use tauri::{AppHandle, Emitter, Manager};
 
 /// 端口被占时，从默认端口起最多顺延尝试的跨度（ADR 0022 端口回退）。
 const MANAGED_PORT_SPAN: u16 = 32;
+/// 自启服务的预热窗口：spawn 后在此窗口内投影为「启动中」，超时仍未就绪才回落「不可用」。
+const HEALTH_STARTUP_WINDOW: Duration = Duration::from_secs(30);
+/// 预热窗口内的探活轮询间隔。
+const HEALTH_POLL_INTERVAL: Duration = Duration::from_millis(1500);
+/// 托管服务健康收敛事件（payload 为受影响记录 id）。前端 HealthView 监听后重拉依赖报告。
+pub const MANAGED_HEALTH_EVENT: &str = "managed-dependency:health-changed";
 /// awam-file 网关 pack id（managed 客户端同步用）。
 const FILE_GATEWAY_PACK_ID: &str = "awam.file-gateway";
 /// awam-knowledge pack id（managed 客户端同步用）。
@@ -62,7 +69,8 @@ where
     )?;
     if outcome.spawned {
         record.spawned_pid = Some(outcome.pid);
-        record.health = HealthState::Unhealthy;
+        // 刚拉起、进程仍在预热（解释器加载/绑端口）——置过渡态 Starting，由命令层后台轮询探活收敛。
+        record.health = HealthState::Starting;
     } else {
         record.health = HealthState::Healthy;
     }
@@ -106,6 +114,29 @@ fn expand_contrib_env(contrib: &mut SidecarContribution, app: &AppHandle) {
     let env: &mut BTreeMap<String, String> = &mut contrib.env;
     for value in env.values_mut() {
         *value = resolve_env_value(value, |key| crate::settings::read_string_setting(app, key));
+    }
+}
+
+/// managed spawn 前把 Pack 声明的 `config[].env` 注入子进程环境：值取自 settings（生效 key，
+/// 与 schema overlay / 服务配置页同源）。仅当 `sidecars.env` 未显式声明同名变量时注入，
+/// 故 provider 既可在 `config[]` 一处声明即生效，也可在 `sidecars.env` 写占位精确控制（后者优先）。
+fn apply_pack_config_env(
+    record: &ManagedDependencyRecord,
+    contrib: &mut SidecarContribution,
+    app: &AppHandle,
+) {
+    for cfg in crate::extension_host::pack_config_contributions(&record.pack_id) {
+        let Some(env_name) = cfg.env.as_deref().map(str::trim).filter(|s| !s.is_empty()) else {
+            continue;
+        };
+        if contrib.env.contains_key(env_name) {
+            continue;
+        }
+        let key = crate::settings::overlay::effective_setting_key(&record.pack_id, &cfg);
+        let value = crate::settings::read_string_setting(app, &key);
+        if !value.is_empty() {
+            contrib.env.insert(env_name.to_string(), value);
+        }
     }
 }
 
@@ -259,6 +290,38 @@ pub(crate) fn sync_managed_client_url(record: &ManagedDependencyRecord) {
     }
 }
 
+/// 把收敛结果落库（仅当记录仍为 Starting，避免与手动 stop/再次 ensure 竞态）并广播事件。
+fn finalize_health(app: &AppHandle, app_data: &Path, id: &str, next: HealthState) {
+    if let Ok(Some(mut record)) = registry::load_record(app_data, id) {
+        if record.health != HealthState::Starting {
+            return;
+        }
+        record.health = next;
+        let _ = registry::save_record(app_data, &record);
+    }
+    let _ = app.emit(MANAGED_HEALTH_EVENT, id.to_string());
+}
+
+/// 自启服务后起一个有限时长的后台轮询：探活成功即写回 Healthy、超时写回 Unhealthy，两种收敛都
+/// emit [`MANAGED_HEALTH_EVENT`] 通知前端刷新。`health_check` 同步阻塞，故在 spawn_blocking 线程
+/// 内循环 + sleep。仅覆写仍处 Starting 的记录（[`finalize_health`] 内守卫）。
+fn spawn_health_convergence(app: AppHandle, app_data: PathBuf, id: String, base_url: String) {
+    tauri::async_runtime::spawn_blocking(move || {
+        let deadline = Instant::now() + HEALTH_STARTUP_WINDOW;
+        loop {
+            if crate::tool_runtime::health_check(&base_url).is_ok() {
+                finalize_health(&app, &app_data, &id, HealthState::Healthy);
+                return;
+            }
+            if Instant::now() >= deadline {
+                finalize_health(&app, &app_data, &id, HealthState::Unhealthy);
+                return;
+            }
+            std::thread::sleep(HEALTH_POLL_INTERVAL);
+        }
+    });
+}
+
 fn app_config_dir(app: &AppHandle) -> Result<PathBuf, String> {
     app.path()
         .app_config_dir()
@@ -345,6 +408,7 @@ pub async fn managed_dependency_ensure(
             return Ok(record);
         };
         expand_contrib_env(&mut contrib, &app);
+        apply_pack_config_env(&record, &mut contrib, &app);
         apply_managed_port(&mut record, &mut contrib);
         ensure_record_with(
             &mut record,
@@ -355,6 +419,14 @@ pub async fn managed_dependency_ensure(
         )?;
         registry::save_record(&dir, &record)?;
         sync_managed_client_url(&record);
+        if record.health == HealthState::Starting {
+            spawn_health_convergence(
+                app.clone(),
+                dir.clone(),
+                record.id.clone(),
+                record.base_url.clone(),
+            );
+        }
         Ok(record)
     })
     .await
@@ -409,6 +481,7 @@ pub async fn managed_dependency_upgrade(
         let mut contrib = contrib;
         contrib.command = path.to_string_lossy().into_owned();
         expand_contrib_env(&mut contrib, &app);
+        apply_pack_config_env(&record, &mut contrib, &app);
         apply_managed_port(&mut record, &mut contrib);
         ensure_record_with(
             &mut record,
@@ -419,6 +492,14 @@ pub async fn managed_dependency_upgrade(
         )?;
         registry::save_record(&dir, &record)?;
         sync_managed_client_url(&record);
+        if record.health == HealthState::Starting {
+            spawn_health_convergence(
+                app.clone(),
+                dir.clone(),
+                record.id.clone(),
+                record.base_url.clone(),
+            );
+        }
         Ok(record)
     })
     .await
@@ -557,6 +638,7 @@ pub fn reconcile_managed_on_startup(app_data: &Path, app: &AppHandle) {
                 return registry::save_record(app_data, &record);
             };
             expand_contrib_env(&mut contrib, app);
+            apply_pack_config_env(&record, &mut contrib, app);
             apply_managed_port(&mut record, &mut contrib);
             ensure_record_with(
                 &mut record,
@@ -567,6 +649,14 @@ pub fn reconcile_managed_on_startup(app_data: &Path, app: &AppHandle) {
             )?;
             registry::save_record(app_data, &record)?;
             sync_managed_client_url(&record);
+            if record.health == HealthState::Starting {
+                spawn_health_convergence(
+                    app.clone(),
+                    app_data.to_path_buf(),
+                    record.id.clone(),
+                    record.base_url.clone(),
+                );
+            }
             Ok(())
         })();
         if let Err(err) = outcome {
@@ -653,7 +743,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(rec.spawned_pid, Some(42));
-        assert_eq!(rec.health, HealthState::Unhealthy);
+        assert_eq!(rec.health, HealthState::Starting);
     }
 
     #[test]

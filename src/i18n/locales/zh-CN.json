@@ -1033,7 +1033,8 @@
         "ok": "正常",
         "missing": "缺失",
         "warn": "注意",
-        "unbridged": "已装未桥接"
+        "unbridged": "已装未桥接",
+        "starting": "启动中…"
       },
       "kind": {
         "required": "必装",
@@ -1045,6 +1046,12 @@
         },
         "awam_gateway": {
           "title": "file 网关"
+        },
+        "knowledge_service": {
+          "title": "知识库服务"
+        },
+        "tool_gateway": {
+          "title": "工具网关"
         },
         "rclone": {
           "title": "rclone 命令行"

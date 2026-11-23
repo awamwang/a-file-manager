@@ -29,9 +29,11 @@ pub enum DependencyMode {
 pub enum HealthState {
     /// 尚未探测。
     Unknown,
+    /// 已 spawn、但尚未首次探活通过——预热窗口内的过渡态（投影为「启动中」，非「不可用」）。
+    Starting,
     /// 可达（config-mode 附着、或 managed-mode 自启后探活通过）。
     Healthy,
-    /// 不可达。
+    /// 不可达（预热窗口超时仍未就绪，或探活确认失败）。
     Unhealthy,
 }
 

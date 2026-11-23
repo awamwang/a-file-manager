@@ -720,7 +720,8 @@
         "ok": "OK",
         "missing": "不足",
         "warn": "注意",
-        "unbridged": "インストール済み・未ブリッジ"
+        "unbridged": "インストール済み・未ブリッジ",
+        "starting": "起動中…"
       },
       "kind": {
         "required": "必須",
@@ -732,6 +733,12 @@
         },
         "awam_gateway": {
           "title": "file gateway"
+        },
+        "knowledge_service": {
+          "title": "ナレッジサービス"
+        },
+        "tool_gateway": {
+          "title": "ツールゲートウェイ"
         },
         "rclone": {
           "title": "rclone CLI"

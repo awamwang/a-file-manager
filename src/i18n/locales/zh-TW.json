@@ -1046,7 +1046,8 @@
         "ok": "正常",
         "missing": "缺失",
         "warn": "注意",
-        "unbridged": "已裝未橋接"
+        "unbridged": "已裝未橋接",
+        "starting": "啟動中…"
       },
       "kind": {
         "required": "必裝",
@@ -1058,6 +1059,12 @@
         },
         "awam_gateway": {
           "title": "file 閘道器"
+        },
+        "knowledge_service": {
+          "title": "知識庫服務"
+        },
+        "tool_gateway": {
+          "title": "工具閘道"
         },
         "rclone": {
           "title": "rclone 命令列"

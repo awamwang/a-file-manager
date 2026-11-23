@@ -3,6 +3,10 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+
+/** 后端托管服务健康收敛事件名（与 managed_dependency::commands::MANAGED_HEALTH_EVENT 一致）。 */
+const MANAGED_HEALTH_EVENT = "managed-dependency:health-changed";
 
 type HealthPayload = {
   ok: boolean;
@@ -203,13 +207,23 @@ async function loadHealth() {
   await Promise.all([healthTask, depsTask]);
 }
 
+let unlistenManagedHealth: UnlistenFn | null = null;
+
 onMounted(() => {
   void loadHealth();
+  // 托管服务后台探活收敛（启动中→就绪 / 超时）后即时刷新，无需用户手点刷新。
+  void listen(MANAGED_HEALTH_EVENT, () => {
+    void loadHealth();
+  }).then((fn) => {
+    unlistenManagedHealth = fn;
+  });
 });
 
 onUnmounted(() => {
   // 作废进行中的检查，避免写回已卸载视图。
   loadEpoch.value += 1;
+  unlistenManagedHealth?.();
+  unlistenManagedHealth = null;
 });
 </script>
 
@@ -323,7 +337,8 @@ onUnmounted(() => {
             :class="{
               'fluent-chip--ok': item.status === 'ok',
               'fluent-chip--down': item.status === 'missing',
-              'fluent-chip--warn': item.status === 'warn' || item.status === 'unbridged',
+              'fluent-chip--warn':
+                item.status === 'warn' || item.status === 'unbridged' || item.status === 'starting',
             }"
           >{{ statusLabel(item.status) }}</span>
           <span
@@ -440,6 +455,11 @@ dd {
 }
 
 .deps-card--unbridged {
+  border-left-color: var(--fluent-color-status-warning);
+}
+
+/* 预热过渡态：中性偏警示的黄，避免被读成「不可用」的红。 */
+.deps-card--starting {
   border-left-color: var(--fluent-color-status-warning);
 }
 

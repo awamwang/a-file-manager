@@ -720,7 +720,8 @@
         "ok": "ok",
         "missing": "fehlt",
         "warn": "Hinweis",
-        "unbridged": "installiert, nicht angebunden"
+        "unbridged": "installiert, nicht angebunden",
+        "starting": "wird gestartet…"
       },
       "kind": {
         "required": "erforderlich",
@@ -732,6 +733,12 @@
         },
         "awam_gateway": {
           "title": "file gateway"
+        },
+        "knowledge_service": {
+          "title": "Wissensdienst"
+        },
+        "tool_gateway": {
+          "title": "Tool-Gateway"
         },
         "rclone": {
           "title": "rclone CLI"

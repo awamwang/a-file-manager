@@ -1033,7 +1033,8 @@
         "ok": "ok",
         "missing": "missing",
         "warn": "warning",
-        "unbridged": "installed, not bridged"
+        "unbridged": "installed, not bridged",
+        "starting": "starting…"
       },
       "kind": {
         "required": "required",
@@ -1045,6 +1046,12 @@
         },
         "awam_gateway": {
           "title": "file gateway"
+        },
+        "knowledge_service": {
+          "title": "Knowledge service"
+        },
+        "tool_gateway": {
+          "title": "Tool gateway"
         },
         "rclone": {
           "title": "rclone CLI"

@@ -13,10 +13,49 @@ use std::path::Path;
 fn dep_item_id_for_pack(pack_id: &str) -> Option<&'static str> {
     match pack_id {
         "awam.file-gateway" => Some("awam_gateway"),
-        // 后续 pack 化时补充，例如：
-        // "awam.tool-runtime" => Some("tool_gateway"),
-        // "awam.knowledge" => Some("knowledge_service"),
+        "awam.knowledge" => Some("knowledge_service"),
+        "awam.tool-runtime" => Some("tool_gateway"),
         _ => None,
+    }
+}
+
+/// 健康态 → deps_probe status 字符串（注入卡片初始态用）。Unknown 视作「启动中」（尚未探活）。
+fn status_from_health(health: HealthState) -> &'static str {
+    match health {
+        HealthState::Healthy => "ok",
+        HealthState::Starting => "starting",
+        HealthState::Unhealthy => "missing",
+        HealthState::Unknown => "starting",
+    }
+}
+
+/// 为「已启用但不在静态探测列表」的托管服务注入一张健康页卡片：kind=optional，初始 status 取
+/// 注册表健康态（含 Starting 过渡态），mode/actionable/unavailableReason 随后由投影覆写。
+/// title/detail/fix 为后端兜底文案（前端 i18n 覆盖 title）。
+fn injected_item(item_id: &str, record: &registry::ManagedDependencyRecord) -> DependencyItem {
+    let (title, detail, fix) = match item_id {
+        "knowledge_service" => (
+            "Knowledge service",
+            "本地知识库内容检索服务（awam-knowledge）。",
+            "可在下方启动/停止；或到「扩展 → 服务配置」检查地址与口令。",
+        ),
+        "tool_gateway" => (
+            "Tool gateway",
+            "本机工具管理网关（awam-tool-manager）。",
+            "可在下方启动/停止；或到「扩展 → 服务配置」检查地址。",
+        ),
+        _ => (item_id, "", ""),
+    };
+    DependencyItem {
+        id: item_id.to_string(),
+        kind: "optional".to_string(),
+        status: status_from_health(record.health).to_string(),
+        title: title.to_string(),
+        detail: detail.to_string(),
+        fix: fix.to_string(),
+        mode: None,
+        actionable: false,
+        unavailable_reason: None,
     }
 }
 
@@ -39,8 +78,9 @@ fn unavailable_reason(record: &registry::ManagedDependencyRecord) -> Option<&'st
     })
 }
 
-/// 就地投影：对映射到注册表记录的条目覆写 mode / actionable / status / unavailableReason。
-pub fn enrich_with_registry(items: &mut [DependencyItem], app_data: &Path) {
+/// 就地投影：对映射到注册表记录的条目覆写 mode / actionable / status / unavailableReason；
+/// 已启用但不在静态列表中的托管服务则注入新卡片（故需 `&mut Vec`）。
+pub fn enrich_with_registry(items: &mut Vec<DependencyItem>, app_data: &Path) {
     let records = match registry::list_records(app_data) {
         Ok(records) => records,
         Err(err) => {
@@ -53,14 +93,21 @@ pub fn enrich_with_registry(items: &mut [DependencyItem], app_data: &Path) {
         let Some(item_id) = dep_item_id_for_pack(&record.pack_id) else {
             continue;
         };
+        if !items.iter().any(|item| item.id == item_id) {
+            // 已启用（有托管记录）但不在静态探测列表 → 注入卡片，使其同样享受 managed 权威状态
+            // 与 Starting 过渡态。未启用的 pack 无记录，故不会注入、不会误报。
+            items.push(injected_item(item_id, &record));
+        }
         let Some(item) = items.iter_mut().find(|item| item.id == item_id) else {
             continue;
         };
         item.mode = Some(mode_str(record.mode).to_string());
         item.actionable = true;
         // 注册表为权威：health 已知时覆写探活结论；Unknown（尚未探测）保留 probe 结果。
+        // Starting（预热过渡态）投影为「启动中」，不落入「不可用」。
         match record.health {
             HealthState::Healthy => item.status = "ok".to_string(),
+            HealthState::Starting => item.status = "starting".to_string(),
             HealthState::Unhealthy => item.status = "missing".to_string(),
             HealthState::Unknown => {}
         }
@@ -197,6 +244,49 @@ mod tests {
         enrich_with_registry(&mut items, &dir);
         assert_eq!(items[0].status, "ok");
         assert_eq!(items[0].unavailable_reason, None);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn starting_record_projects_starting_status_not_missing() {
+        let dir = temp_root("starting");
+        register_for_enabled_pack(&dir, &enabled_pack("awam.file-gateway"), "awam.file-gateway",
+            DependencyMode::Managed, "http://127.0.0.1:18787".to_string(), CredentialSource::None,
+            "0.1.0".to_string()).unwrap();
+        let mut rec = registry::load_record(&dir, "awam.file-gateway").unwrap().unwrap();
+        rec.health = HealthState::Starting;
+        rec.spawned_pid = Some(9);
+        registry::save_record(&dir, &rec).unwrap();
+        // 探活原本 missing，注册表 Starting 权威覆写为 starting，且不归因为不可用。
+        let mut items = sample_items("missing");
+        enrich_with_registry(&mut items, &dir);
+        assert_eq!(items[0].status, "starting");
+        assert_eq!(items[0].unavailable_reason, None);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn managed_record_without_probe_item_injects_card_with_transition_state() {
+        let dir = temp_root("inject");
+        register_for_enabled_pack(&dir, &enabled_pack("awam.knowledge"), "awam.knowledge",
+            DependencyMode::Managed, "http://127.0.0.1:18790".to_string(), CredentialSource::None,
+            "0.1.0".to_string()).unwrap();
+        let mut rec = registry::load_record(&dir, "awam.knowledge").unwrap().unwrap();
+        rec.health = HealthState::Starting;
+        rec.spawned_pid = Some(11);
+        registry::save_record(&dir, &rec).unwrap();
+        // 静态探测列表里没有 knowledge_service 条目。
+        let mut items = sample_items("ok");
+        assert!(items.iter().all(|i| i.id != "knowledge_service"));
+        enrich_with_registry(&mut items, &dir);
+        let injected = items
+            .iter()
+            .find(|i| i.id == "knowledge_service")
+            .expect("managed record without a probe item should inject a card");
+        assert_eq!(injected.status, "starting");
+        assert_eq!(injected.mode.as_deref(), Some("managed"));
+        assert!(injected.actionable);
+        assert_eq!(injected.unavailable_reason, None);
         let _ = fs::remove_dir_all(&dir);
     }
 
