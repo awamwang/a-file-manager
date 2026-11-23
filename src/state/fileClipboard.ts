@@ -24,6 +24,9 @@ export type FileOpsResult = {
    *  `disk-full` for a retryable single-item failure, else null/undefined for
    *  successes and hard refusals. */
   errorClass?: string | null;
+  /** LC-005: true when the user cancelled a tracked copy/move. Partial work was
+   *  rolled back (plain copy delete / plain move back); distinct from a failure. */
+  cancelled?: boolean;
 };
 
 export const clipboardPaths = ref<string[]>([]);

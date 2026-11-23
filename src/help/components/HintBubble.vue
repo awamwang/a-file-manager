@@ -5,11 +5,13 @@
  * opt-in button that starts the walkthrough only when the user clicks it.
  * The hint never starts a tour by itself and never checks progress to do so.
  */
-import { computed, onMounted, ref } from "vue";
+import { computed, onActivated, onDeactivated, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { useRoute } from "vue-router";
 import { getHelpEntry, tourRegistry } from "../registry.ts";
 import { isSeen, markSeen } from "../progress.ts";
 import { startTour } from "../tourState.ts";
+import { isHintPageActive } from "../hintRouteScope.ts";
 
 const props = defineProps<{
   entryId: string;
@@ -18,6 +20,7 @@ const props = defineProps<{
 }>();
 
 const { t } = useI18n();
+const route = useRoute();
 const visible = ref(false);
 
 const entry = computed(() => getHelpEntry(props.entryId));
@@ -32,9 +35,40 @@ const canTryTour = computed<boolean>(
   () => tourAllowed.value && Boolean(tourRegistry[resolvedTourId.value]?.steps.length),
 );
 
-onMounted(() => {
+/**
+ * A hint belongs to the functional page it describes, not to the shell.
+ * Teleported to `body`, the bubble would otherwise outlive the view that owns
+ * it (NavigatorView is keep-alive cached, so this instance is never unmounted).
+ */
+const pageActive = computed<boolean>(() => isHintPageActive(entry.value, route.path));
+
+/**
+ * Visibility is derived afresh on mount, on every route change and on
+ * keep-alive reactivation — never latched on first mount. Still unseen-only:
+ * dismiss marks the entry seen, so this stays false afterwards.
+ */
+function refreshVisibility(): void {
   if (!hintAllowed.value) return;
-  if (hintKey.value && !isSeen(props.entryId)) visible.value = true;
+  visible.value = pageActive.value && Boolean(hintKey.value) && !isSeen(props.entryId);
+}
+
+onMounted(() => {
+  refreshVisibility();
+});
+
+/** Watchers stay live on deactivated keep-alive views, so leaving the page hides at once. */
+watch(pageActive, () => {
+  refreshVisibility();
+});
+
+/** KeepAlive deactivation: the exact moment the source page stops being shown. */
+onDeactivated(() => {
+  visible.value = false;
+});
+
+/** An unseen hint returns when its cached page is activated again. */
+onActivated(() => {
+  refreshVisibility();
 });
 
 function dismiss(): void {
