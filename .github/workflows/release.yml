@@ -22,6 +22,11 @@ on:
         required: false
         default: true
         type: boolean
+      enable_mac_intel:
+        description: "是否构建 macOS Intel(x86_64) 托管产物 slice（需已接入 macos-15-intel 自建 runner；GitHub 托管 runner 不含 Intel macOS，缺 runner 时该 slice 会永久排队，故默认关闭并跳过）"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -570,10 +575,11 @@ jobs:
             platform: macos-aarch64
             name_suffix: ""
             python_rel: ".venv-feed/bin/python"
-          - os: macos-15-intel          # Intel (x86_64)
+          - os: macos-15-intel          # Intel (x86_64) — 仅当 enable_mac_intel 且有自建 Intel runner 时启用
             platform: macos-x86_64
             name_suffix: "-x64"
             python_rel: ".venv-feed/bin/python"
+            if: ${{ inputs.enable_mac_intel == true }}
     runs-on: ${{ matrix.os }}
     env:
       TAG: ${{ needs.prepare.outputs.tag }}
