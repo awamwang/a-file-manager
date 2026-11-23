@@ -65,10 +65,15 @@ So the tree reads the **same source Explorer does** — the Shell Network folder
    absence of shares is the only signal and the empty-state copy still tells the
    user to type `\\server\share`.
 
-5. **macOS / Linux opt out cleanly.** `Platform::network_computers` has a
-   default empty impl; only the Windows adapter overrides it (Shell folder).
-   macOS discovery stays mounted network volumes from `mount -p`
-   (`parse_mount_network`); `list_server_shares` is a no-op there.
+5. **macOS / Linux opt out of discovery cleanly but still list mounted shares.**
+   `Platform::network_computers` has a default empty impl; only the Windows
+   adapter overrides it (Shell folder). macOS/Linux list already-mounted network
+   volumes with a bare `mount` (`parse_mount_network`); `list_server_shares` and
+   the `\\server` two-level tree stay Windows-only. **2026-11-23 fix:** the
+   original `mount -p` is rejected by macOS (`illegal option -- p`), making the
+   Network node permanently empty there. The parser now accepts both the BSD
+   `mount -p` tab form and the portable `dev on /path (fstype, opts…)` form that
+   macOS prints, preserving mountpoints with spaces.
 
 ## Implementation
 
@@ -97,16 +102,19 @@ So the tree reads the **same source Explorer does** — the Shell Network folder
   Explorer's 网络 pane shows, where bare `net view` had hung.
 - **BE-CARGO** (ADR 0025): pure parsers + `bare_server_unc` have `#[test]`
   fixtures (UNC label, Disk-only share filter, network-fstype filter, server-root
-  match). The live-network probe is `#[ignore]`d (network-dependent, not in the
-  mandatory chain).
+  match). `parse_mount_network_accepts_macos_bare_mount_output` covers the macOS
+  `dev on /path (fstype, …)` form including a mountpoint with spaces. The
+  live-network probe is `#[ignore]`d (network-dependent, not in the mandatory
+  chain).
 - **STATIC-GATE**: `check-shell-places.mjs` / `check-folder-tree.mjs` assert the
   tree owns `data-tree-root="network"` + `loadNetworkShares` while excluding
   OneDrive / Libraries; `check-navigator-nonblocking.mjs` now lists
   `navigator_network_shares` among the `spawn_blocking` commands.
 - **Not verified here**: end-to-end GUI rendering, and the share listing against
   a live `\\server` (covered by the `net view \\DESKTOP-QJA9OJG` host run that
-  returned `Code` / `Stock`, not by an automated test). macOS paths were not
-  executed at all.
+  returned `Code` / `Stock`, not by an automated test). On macOS the parser and
+  the bare-`mount` command are executed by cargo tests; live SMB/AFP volume
+  mounting and GUI rendering remain a manual smoke item (SM-28).
 
 ## Considered alternatives
 
