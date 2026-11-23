@@ -104,8 +104,8 @@ Clipboard is the **system** clipboard (`CF_HDROP`), verified: `src/state/fileCli
 | --- | --- | --- | --- | --- | --- | --- |
 | CLIP-001 | one file selected | Ctrl+C | entry enters clipboard as *copy*; icon ghost unchanged; interoperable with Explorer paste | Files/DC equivalent | `🟡 code` | `check-file-ops.mjs` |
 | CLIP-002 | one file selected | Ctrl+X | entry ghosted; clipboard holds *cut* (`fileClipboard.ts:27` cut-path set) | — | `🟡 code` | `check-file-ops.mjs` |
-| CLIP-003 | copied file, current dir empty | Ctrl+V | copy lands; **new item selected** | — | `❓ open` (post-state) | see LC-001 |
-| CLIP-004 | cut file, paste into other dir | Ctrl+V | move lands, source gone; **new item selected** | — | `❓ open` | see LC-002 |
+| CLIP-003 | copied file, current dir empty | Ctrl+V | copy lands; **new item selected** | — | `🔵 decided 2026-11-23` — 粘贴成功后选中新写入项（对齐 Explorer） | see LC-001 |
+| CLIP-004 | cut file, paste into other dir | Ctrl+V | move lands, source gone; **new item selected** | — | `🔵 decided 2026-11-23` — 粘贴成功后选中新写入项（对齐 Explorer） | see LC-002 |
 | CLIP-005 | paste with **nothing** copied/cut | Ctrl+V | no-op, silent | — | `🟡 code` (`canPaste` guard) | `check-file-ops.mjs` |
 | CLIP-006 | copy in AFM | paste into **Explorer** | Explorer shows the item, paste works | requires system clipboard — now true | `🔵 decided`→`🟡 code` | `check-file-ops.mjs` |
 | CLIP-007 | copy in Explorer | paste into AFM | AFM reads `CF_HDROP` and pastes | — | `🟡 code` (`syncFromShell`) | `check-file-ops.mjs` |
@@ -115,10 +115,10 @@ Clipboard is the **system** clipboard (`CF_HDROP`), verified: `src/state/fileCli
 
 | id | selection at paste time | expected target | divergence | AFM state |
 | --- | --- | --- | --- | --- |
-| CLIP-101 | a folder is selected | paste **into that folder** | Explorer: same; Nautilus: same | `❓ open` (verify) |
-| CLIP-102 | a file is selected | paste into the file's **parent** dir | Explorer: parent | `❓ open` (verify) |
+| CLIP-101 | a folder is selected | paste **into that folder** | Explorer: same; Nautilus: same | `🔵 decided 2026-11-23` — 目标=粘入该文件夹 |
+| CLIP-102 | a file is selected | paste into the file's **parent** dir | Explorer: parent | `🔵 decided 2026-11-23` — 目标=该文件的父目录 |
 | CLIP-103 | nothing selected | paste into current dir | — | `🟡 code` |
-| CLIP-104 | marquee over mixed files+folders | paste into current dir (selection is not a single container) | Explorer: current dir | `❓ open` |
+| CLIP-104 | marquee over mixed files+folders | paste into current dir (selection is not a single container) | Explorer: current dir | `🔵 decided 2026-11-23` — 框选混合(非单一容器)→目标=当前目录 |
 
 ### Group 3 · Data transfer & drag (TR)
 
@@ -144,7 +144,7 @@ same-parent cut as no-op (`mod.rs:392`); `total_transfer_bytes` walks with `foll
 | TR-012 | file onto existing same-name in dest | copy → conflict | **ask**: Replace / Skip / Keep both (`name-conflict-checks.ts`) | Files: same three; DC: overwrite prompt | `✅ code+test` | `check-name-conflict.mjs`→`name-conflict-checks.ts`; CARGO `replace_overwrites_and_skip_leaves_existing` |
 | TR-013 | file onto existing **dir** same name | copy → conflict | conflict type must be file-vs-dir, offer replace (removes dir) / skip / keep-both | Explorer: warns "this replaces the folder" | `🔵 decided` — 专门弹窗，警告类型不同；提供 replace / skip / keep-both | **decided 2026-11-22** |
 | TR-014 | many conflicts in one paste | choose Replace on first | "Apply to this only / All" — Explorer offers *Do this for all* | Files: apply-to-all checkbox | `🔵 decided` — apply-to-all 仅本次操作内生效，下次粘贴重新问 | **decided 2026-11-22** |
-| TR-015 | copy **onto volume root** as dest | move to `D:\` root | allowed as destination (only *destructive on* root is refused) | — | `❓ open` (verify root-as-dest) | gaps |
+| TR-015 | copy **onto volume root** as dest | move to `D:\` root | allowed as destination (only *destructive on* root is refused) | — | `🔵 decided 2026-11-23` — 卷根**作为目标目录允许**；仅对卷根本身做破坏性操作（删除/移动根）才拒，同 `refuse_volume_root`，与 TR-016 一致 | gaps |
 | TR-016 | move volume **root** itself | move `D:\` | refused (`refuse_volume_root`, `mod.rs:379`) | all refuse | `✅ code` | CARGO `permanent_delete_removes_file_and_refuses_root` (analog) |
 | TR-017 | copy `awam://…` | any transfer | refused (provider path is not a disk path) | — | `✅ code+test` | CARGO `rejects_awam_paths` (`mod.rs:936`) |
 
@@ -160,7 +160,7 @@ are `🔵 decided` and must be pinned by a FE matrix or cargo-backed drop test b
 | TR-104 | cross volume | drag + **Shift** | force **move** | — | `🔵 decided` |
 | TR-105 | any | drag + **Alt** | create **shortcut** | Explorer: yes; DC: `.lnk` | `🔵 decided` (explorer-baseline lists shortcut as 缺失) |
 | TR-106 | drag file out to Explorer | OLE drop | Explorer copies (default cross-process) | — | `🟡 code` (`file_ops` OLE copy) |
-| TR-107 | drag folder onto itself via mouse | drop on own subtree | refused, like TR-006 | — | `❓ open` |
+| TR-107 | drag folder onto itself via mouse | drop on own subtree | refused, like TR-006 | — | `🔵 decided 2026-11-23` — 拒绝，复用 TR-006 的 `is_descendant_or_same` |
 
 **Reparse points** (D2) — copy/move semantics are a common bug source:
 
@@ -230,7 +230,7 @@ Ctrl+Z undoes copy / move / rename / new / recycle-delete.
 | UN-003 | just renamed | Ctrl+Z | original name restored | — | `✅ code` | `check-file-undo.mjs` |
 | UN-004 | just recycle-deleted | Ctrl+Z | **restore from Recycle Bin** to original path | — | `🟡 code` | loopback not temp-exec tested (ledger R2) |
 | UN-005 | just created folder/file | Ctrl+Z | delete the created item | — | `✅ code` | `check-file-undo.mjs` |
-| UN-006 | undo several ops in sequence | Ctrl+Z ×n | reverse order, each correctly undone | — | `❓ open` (stack ordering test) | gaps |
+| UN-006 | undo several ops in sequence | Ctrl+Z ×n | reverse order, each correctly undone | — | `🔵 decided 2026-11-23` — 逆序逐项撤销（标准栈语义） | gaps |
 | UN-007 | undo after the app was **closed/reopened** | Ctrl+Z | no undo across restart | — | `🔵 decided` — in-memory only, matches Explorer | **decided 2026-11-22** |
 | UN-008 | an external program modified the target between op and undo | Ctrl+Z | refuse / warn, do not clobber foreign change | — | `🔵 decided` — 检测后拒绝 undo，toast「项目已被外部修改，无法撤销」；不弹模态 | **decided 2026-11-22** |
 | UN-009 | undo a **partial/cancelled** transfer | Ctrl+Z | remove the partial results, source (if not lost) intact | ties to TR-011/LC | `🔵 decided` — cancel 触发的回滚是传输本身的收尾，**不入 undo 栈**；Ctrl+Z 撤销上一个完整操作 | **decided 2026-11-22** |
@@ -243,17 +243,17 @@ read this pass.
 
 | id | precondition | action | expected (Windows) | divergence | AFM state | guard |
 | --- | --- | --- | --- | --- | --- | --- |
-| LC-001 | copy into empty dir done | auto | **new item selected** | Explorer selects new | `❓ open` | gaps |
-| LC-002 | move done | auto | new (moved) item selected | — | `❓ open` | gaps |
-| LC-003 | recycle-delete done | auto | selection moves to **neighbor** (Explorer) / keep-set (DC) | divergence | `🟡 code` (`delete-keep-selection` wired H8 — decide if neighbor) | `check-delete-keep-selection` |
+| LC-001 | copy into empty dir done | auto | **new item selected** | Explorer selects new | `🔵 decided 2026-11-23` — 选中新项（对齐 Explorer；FE 验证待做） | gaps |
+| LC-002 | move done | auto | new (moved) item selected | — | `🔵 decided 2026-11-23` — 选中新项（对齐 Explorer；FE 验证待做） | gaps |
+| LC-003 | recycle-delete done | auto | selection moves to **neighbor** (Explorer) / keep-set (DC) | **有意差异**：与 Explorer 的「选邻居」不同，AFM 保持选区 | `🔵 decided 2026-11-23` — 保持现有 `delete-keep-selection` 的「保持选区」行为，**不**改为邻居 | `check-delete-keep-selection` |
 | LC-004 | large copy running | — | non-blocking UI, byte progress + speed + remaining | — | `🟡 code` (`ProgressEmitter`) | `check-file-ops.mjs` |
 | LC-005 | large copy running | cancel | **rollback**: remove partial destination results; source intact (guaranteed by safe_io staging regardless) | Explorer keeps partial; DC keeps; **AFM chooses rollback** | `🔵 decided` — rollback on cancel | **decided 2026-11-22** |
-| LC-006 | file **in use** by another process | copy out | copy succeeds (read) | move-in fails: "in use" | `❓ open` (error class) | gaps |
+| LC-006 | file **in use** by another process | copy out | copy succeeds (read) | move-in fails: "in use" | `🔵 decided 2026-11-23` — copy 出**成功**；move-in / replace 失败报 **"in use"** 错误类 | gaps |
 | LC-007 | **access denied** on one item of multi | transfer | **dialog per failed item: retry / skip / abort**, aligns with Windows Explorer | DC similar; some managers abort whole | `🔵 decided` — per-item dialog (retry/skip/abort) | **decided 2026-11-22** |
-| LC-008 | **disk full** on dest volume | transfer | error at the failing item, source intact, partial cleanup state known | — | `❓ open` | gaps |
+| LC-008 | **disk full** on dest volume | transfer | error at the failing item, source intact, partial cleanup state known | — | `🔵 decided 2026-11-23` — 复用 LC-007 已定的**逐项 retry/skip/abort**，不单独发明；源保持安全（LC-005 回滚语义） | gaps |
 | LC-009 | **name too long** / path >260 | transfer | error for that item (\\?\ long-path support stance) | DC handles long paths | `🔵 decided` — 启用 `\\?\` 路径处理（Tauri manifest 加 `longPathAware=true` + 路径拼接以 `\\?\` 前缀），支持长路径 | **decided 2026-11-22; code change needed** |
 | LC-010 | **OneDrive placeholder** copied | copy | hydrates-on-copy vs copy-dehydrated stance; Explorer hydrates | real divergence | `🔵 decided` — 复制时从云端水合（与 Explorer 一致）；后续可加「不下载复制」高级选项 | **decided 2026-11-22** |
-| LC-011 | operation done | auto | scroll position & current sort preserved | — | `❓ open` | gaps |
+| LC-011 | operation done | auto | scroll position & current sort preserved | — | `🔵 decided 2026-11-23` — 保持滚动位置与当前排序，不跳回顶部 | gaps |
 
 ### Group 1 · Selection & focus (SEL)
 
@@ -265,14 +265,14 @@ Verified in `explorer-baseline.md §选择` as 对齐: single, Ctrl, Shift, Ctrl
 | SEL-001 | list | single click | select that item, clear others | — | `🟡 code` | `check-list-select.mjs` |
 | SEL-002 | items | Ctrl+click unselected | add to selection | — | `🟡 code` | `check-list-select.mjs` |
 | SEL-003 | items | Ctrl+click selected | remove from selection | — | `🟡 code` | `check-list-select.mjs` |
-| SEL-004 | anchor set | Shift+click | range from anchor to target **in current sort/view order** | DC same | `❓ open` (sorted-order range) | gaps |
+| SEL-004 | anchor set | Shift+click | range from anchor to target **in current sort/view order** | DC same | `🔵 decided 2026-11-23` — 按**当前排序/视图顺序**计算（已共识，FE 验证待做） | gaps |
 | SEL-005 | items | Ctrl+A | select all **visible** (post-filter) | — | `🟡 code` | `check-list-select.mjs` |
 | SEL-006 | empty space | marquee drag | rubber-band selects intersecting items | all support | `🟡 code` | `check-list-select.mjs` |
-| SEL-007 | marquee over folder A and A/child both visible | marquee | selection may contain parent+child; transfer must not double-process | bug source | `❓ open` (see TR dedup, CF) | gaps |
+| SEL-007 | marquee over folder A and A/child both visible | marquee | selection may contain parent+child; transfer must not double-process | bug source | `🔵 decided 2026-11-23` — 一次传输对 parent+child **去重**（后代只处理一次；FE reducer / 后端 dedup） | gaps |
 | SEL-008 | items | arrow Up/Down, Home/End | move selection single-step / jump | — | `🟡 code` | arrows wired (explorer-baseline) |
 | SEL-009 | items | type-ahead (first letters) | jump to matching item | DC quick search differs | `✅ code` | spec `2026-11-18-type-ahead-navigation-design.md` |
 | SEL-010 | any selection | Esc | clear selection | Explorer clears / or cancels rename | `🔵 decided` — 三层优先级：rename inline 中 → 取消 rename；有选中 → 清空选中；无选中 → 不消费（交给全局） | **decided 2026-11-22** |
-| SEL-011 | select a run, then paste parent+child in one op | transfer | each path processed **once** (dedup descendants) | — | `❓ open` | gaps |
+| SEL-011 | select a run, then paste parent+child in one op | transfer | each path processed **once** (dedup descendants) | — | `🔵 decided 2026-11-23` — parent+child **去重**，后代只处理一次 | gaps |
 
 ---
 
@@ -304,6 +304,25 @@ Verified in `explorer-baseline.md §选择` as 对齐: single, Ctrl, Shift, Ctrl
 | Esc 行为边界 (SEL-010) | 三层：rename inline → 取消 rename；有选中 → 清空选中；无选中 → 不消费 |
 | 回收卷判定依据 (DEL-003) | **按卷文件系统类型判定**：仅 NTFS 可进回收站；FAT32/exFAT/UNC 弹确认后永久删除。现状 `path_can_use_recycle_bin`(`mod.rs:209`) 只挡 UNC，FAT32/exFAT 被误判可回收→静默永久删除（**BUG，改后端判定，FE 链路自动生效**）。2026-11-23 拍板 |
 | 重命名撞名 (NM-002) | 复用 name-conflict 对话框（**Replace / Skip**），对齐 Explorer；后端 `rename_path` 需返回可识别冲突信号而非笼统 error。2026-11-23 拍板 |
+
+### 已拍板（2026-11-23）
+
+| 差异 | 决定 |
+| --- | --- |
+| 粘贴后选中 (CLIP-003, CLIP-004) | 复制/剪切粘贴成功后 → **选中新写入项**（对齐 Explorer） |
+| 粘贴目标=选中文件夹 (CLIP-101) | 选中一个文件夹时粘贴 → 目标=**粘入该文件夹** |
+| 粘贴目标=文件父目录 (CLIP-102) | 选中一个文件时粘贴 → 目标=**该文件的父目录** |
+| 粘贴目标=框选混合 (CLIP-104) | 框选混合(非单一容器)时粘贴 → 目标=**当前目录** |
+| 卷根作为目标 (TR-015) | 卷根**作为目标目录允许**；仅对卷根本身做破坏性操作（删除/移动根）才拒，同 `refuse_volume_root`，与 TR-016 一致 |
+| 鼠标拖入自身子树 (TR-107) | 拒绝，复用 TR-006 的 `is_descendant_or_same` |
+| 多步 undo 顺序 (UN-006) | **逆序逐项撤销**（标准栈语义） |
+| 复制/移动后选中 (LC-001, LC-002) | 完成后**选中新项**（对齐 Explorer；FE 验证待做） |
+| 删除后选中 (LC-003) | 保持现有 `delete-keep-selection` 的「保持选区」行为，**不**改为邻居；与 Explorer「选邻居」为**有意差异** |
+| 使用中文件错误类 (LC-006) | copy 出**成功**；move-in / replace 失败报 **"in use"** 错误类 |
+| 目标盘写满 (LC-008) | 复用 LC-007 已定的**逐项 retry/skip/abort**，不单独发明；源保持安全（LC-005 回滚语义） |
+| 操作后滚动/排序 (LC-011) | **保持滚动位置与当前排序**，不跳回顶部 |
+| Shift 范围顺序 (SEL-004) | 按**当前排序/视图顺序**计算（已共识，FE 验证待做） |
+| parent+child 去重 (SEL-007, SEL-011) | 一次传输对 parent+child **去重**（后代只处理一次；FE reducer / 后端 dedup） |
 
 ### 仍需拍板
 
@@ -341,9 +360,9 @@ radius.
 - ~~**UN-009**~~ — **DECIDED 2026-11-22**: cancel + rollback 不入 undo 栈。
 - ~~**LC-009**~~ — **DECIDED 2026-11-22**: 启用 `\\?\` 长路径处理（manifest `longPathAware=true`）。
 - ~~**SEL-010**~~ — **DECIDED 2026-11-22**: Esc 三层优先级 rename > 清选 > 不消费。
-- **LC-001 / LC-002** — select new item after copy/move (Explorer does this; AFM behavior unverified). 共识已定（对齐 Explorer），仅缺 FE 验证。
-- **LC-003** — after delete: keep current selection-set vs move-to-neighbor. AFM currently has a `delete-keep-selection` gate — decide whether "neighbor" is the target. **仍待拍**（与 LC-001/002 同族，需一并定下「操作完成后焦点 / 选中」整体策略）。
-- **SEL-004 / SEL-011** — sorted-order shift range, parent+child dedup. 共识已定（按视觉顺序 + 去重），仅缺 FE 验证。
+- ~~**LC-001 / LC-002**~~ — **DECIDED 2026-11-23**: 复制/移动完成后选中新项（对齐 Explorer），仅缺 FE 验证。
+- ~~**LC-003**~~ — **DECIDED 2026-11-23**: 删除后保持现有 `delete-keep-selection`「保持选区」行为，**不**改为邻居；与 Explorer「选邻居」为有意差异。
+- ~~**SEL-004 / SEL-007 / SEL-011**~~ — **DECIDED 2026-11-23**: shift 范围按当前排序/视图顺序计算；一次传输对 parent+child 去重（后代只处理一次），仅缺 FE 验证。
 
 Each open decision becomes, once resolved, either a `explorer-baseline.md` decision-table row (if it
 changes a *stance*) or a new/updated case-id here (if it just narrows *expected*), and then a ledger
@@ -371,11 +390,12 @@ of *scenario* truth.
 | rename reserved-name / case-only / trailing-dot | NM-003, NM-004, NM-007 | CARGO `validate_file_name` / rename | new |
 | UNC/removable Delete → permanent fallback w/ confirm | DEL-003, DEL-008 | FE 已实现（grep + 调用链）；可选 FE-UNIT | **verified 2026-11-22** — `check-file-ops.mjs` 已 grep `confirmPermanentDelete`；本次扩展加 `pathsWithoutRecycle` 在两个入口里的调用钉住 |
 | restore to original path when parent gone | DEL-007 | CARGO (heavy, see ledger R2) | **decided — 自动重建父目录链；CARGO 可走 temp 路径，不再依赖 R2 的机器态** |
-| undo reverse-order multi-op | UN-006 | FE `file-undo-checks.ts` | new |
-| paste-target resolution (folder/file/none) | CLIP-101, CLIP-102, CLIP-104 | FE (pure resolver extraction) | new |
-| select new / neighbor post-state | LC-001, LC-002, LC-003 | FE (needs extraction; today grep) | open — LC-003 仍待拍 |
-| descendant dedup in one transfer | SEL-007, SEL-011, TR-006 | FE reducer | new |
-| shift range in sorted view order | SEL-004 | FE | new |
+| undo reverse-order multi-op | UN-006 | FE | decided 2026-11-23 — 实现待做 |
+| paste-target resolution (folder/file/none) | CLIP-101, CLIP-102, CLIP-104 | FE (pure resolver extraction) | decided 2026-11-23 — 实现待做 |
+| select new post-state (copy / move / paste) | LC-001, LC-002, CLIP-003, CLIP-004 | FE | decided 2026-11-23 — 实现待做 |
+| delete post-state = keep selection (not neighbor) | LC-003 | FE (`delete-keep-selection`) | decided 2026-11-23 — 保持选区，有意差异，实现待做 |
+| descendant dedup in one transfer | SEL-007, SEL-011, TR-006 | FE reducer | decided 2026-11-23 — 实现待做 |
+| shift range in sorted view order | SEL-004 | FE | decided 2026-11-23 — 实现待做 |
 | drag same/cross/force modifiers | TR-101..TR-105 | FE (grep now) → decide if unitable | open — invoke-fused |
 | recycle-bin availability by **filesystem type** | DEL-003 | 改 `path_can_use_recycle_bin`/`file_ops_can_recycle`（仅 NTFS→可回收）+ CARGO | **decided 2026-11-23 — BUG fix, code change required** |
 | rename-to-existing → **Replace/Skip dialog** | NM-002 | CARGO(后端返回冲突信号) + FE(复用 name-conflict 对话框) | **decided 2026-11-23 — code change required** |
@@ -383,6 +403,7 @@ of *scenario* truth.
 | clipboard stale-cut-path drop | CLIP-008 | FE 验证 + 后端 `transferEntries` 跳过分支 | new |
 | undo contamination refusal | UN-008 | FE `file-undo-checks.ts` | new |
 | cancel rollback excluded from undo stack | UN-009 (ties to LC-005) | FE reducer | new |
+| in-use / disk-full errors reuse per-item retry/skip/abort | LC-006, LC-008 (→ LC-007) | FE + CARGO (error class) | decided 2026-11-23 — 实现待做 |
 | long-path support via `\\?\` | LC-009 | CARGO + manifest 断言 | **decided — code change required** |
 | Esc semantics (rename > clear > no-op) | SEL-010 | FE (key handler) | new |
 
