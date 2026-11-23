@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-/** 公共 MCP 目录：横向主从布局；添加到指定单个项目。 */
+/** 公共 MCP 目录：导入区按来源分段；多 Agent 一次扫描合并；添加到指定单个项目。 */
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
@@ -14,13 +14,19 @@ import {
   aiMcpDeploy,
   aiMcpUndeploy,
 } from "./client";
+import {
+  mergeMcpCandidates,
+  toMcpCandidate,
+  type DuplicateReason,
+  type HarvestMcpCandidateView,
+} from "./harvestDedupe";
 import { openConfirmDialog } from "../state/confirmDialog";
 import { toastSuccess } from "../state/toast";
 import { listProjectOptions, type ProjectOption } from "./projectOptions";
 import type {
   AgentTarget,
   AiConfigDocument,
-  HarvestMcpCandidate,
+  HarvestMcpScanReport,
   McpCatalogEntry,
 } from "./types";
 
@@ -36,12 +42,20 @@ const draftName = ref("");
 const draftId = ref("");
 const draftJson = ref('{\n  "command": "npx",\n  "args": ["-y", "example"]\n}');
 const agents = ref<AgentTarget[]>([]);
-const harvestAgentId = ref("");
-const harvestCandidates = ref<HarvestMcpCandidate[]>([]);
+const harvestAgentIds = ref<string[]>([]);
+const harvestCandidates = ref<HarvestMcpCandidateView[]>([]);
 const harvestSelected = ref<Record<string, boolean>>({});
+const harvestRename = ref<Record<string, string>>({});
+const harvestScanning = ref(false);
+const sourceOptions = [
+  { source: "agent", labelKey: "ai.mcp.fromAgent" },
+  { source: "file", labelKey: "ai.mcp.fromFile" },
+] as const;
+type HarvestSource = (typeof sourceOptions)[number]["source"];
+const harvestSource = ref<HarvestSource>("agent");
 
-/** 只有已安装（磁盘上探测到全局路径）的 Agent 才能作为导入来源。 */
-const installedAgents = computed(() => agents.value.filter((a) => a.discovered));
+/** Agent Target 是源头：只有中央 enabled 的 Agent 才能作为导入来源。 */
+const enabledAgents = computed(() => agents.value.filter((a) => a.enabled));
 const showTools = ref(false);
 const projects = ref<ProjectOption[]>([]);
 const targetProjectPath = ref("");
@@ -54,7 +68,8 @@ const ERROR_KEYS: Record<string, string> = {
   AI_MCP_TARGET_INVALID: "ai.mcp.errorTargetInvalid",
   AI_MCP_IMPORT_INVALID: "ai.mcp.errorImportInvalid",
   AI_HARVEST_AGENT_UNKNOWN: "ai.harvest.errorAgentUnknown",
-  AI_HARVEST_PATH_INVALID: "ai.harvest.errorPath",
+  AI_HARVEST_AGENT_NOT_ENABLED: "ai.harvest.errorAgentNotEnabled",
+  AI_HARVEST_PATH: "ai.harvest.errorPath",
 };
 
 function mapError(err: unknown): string {
@@ -84,6 +99,13 @@ const filteredEntries = computed(() => {
       e.serverJson.toLowerCase().includes(q),
   );
 });
+
+function duplicateLabel(reason: DuplicateReason): string {
+  if (reason === "existing-id") return t("ai.harvest.reasonExistingId");
+  if (reason === "existing-server") return t("ai.harvest.reasonExistingServer");
+  if (reason === "name-conflict") return t("ai.harvest.reasonNameConflict");
+  return "";
+}
 
 watch(selected, (entry) => {
   if (!entry) return;
@@ -144,13 +166,9 @@ async function refresh() {
       const active = projectList.options.find((p) => p.slug === projectList.activeSlug);
       targetProjectPath.value = active?.path ?? projectList.options[0]?.path ?? "";
     }
-    if (installedAgents.value.length) {
-      if (!installedAgents.value.some((a) => a.id === harvestAgentId.value)) {
-        harvestAgentId.value = installedAgents.value[0]?.id ?? "";
-      }
-    } else {
-      harvestAgentId.value = "";
-    }
+    const validIds = enabledAgents.value.map((a) => a.id);
+    const stillValid = harvestAgentIds.value.filter((id) => validIds.includes(id));
+    harvestAgentIds.value = stillValid.length ? stillValid : validIds;
     if (!selectedId.value && document.value.mcpCatalog?.length) {
       selectedId.value = document.value.mcpCatalog[0]?.id ?? null;
     }
@@ -289,28 +307,50 @@ function startNew() {
   draftJson.value = '{\n  "command": "npx",\n  "args": ["-y", "example"]\n}';
 }
 
+function toggleHarvestAgent(id: string) {
+  const set = new Set(harvestAgentIds.value);
+  if (set.has(id)) set.delete(id);
+  else set.add(id);
+  harvestAgentIds.value = [...set];
+}
+
 async function scanHarvest() {
-  if (!harvestAgentId.value) return;
+  if (!harvestAgentIds.value.length) return;
   error.value = null;
+  harvestScanning.value = true;
   try {
-    const report = await aiHarvestMcpScan(harvestAgentId.value);
-    harvestCandidates.value = report.candidates;
-    const selectedMap: Record<string, boolean> = {};
-    for (const c of report.candidates) {
-      selectedMap[c.id] = !c.alreadyInCatalog;
+    const results = await Promise.allSettled(
+      harvestAgentIds.value.map((id) => aiHarvestMcpScan(id)),
+    );
+    const reports: HarvestMcpScanReport[] = [];
+    let failed = 0;
+    for (const result of results) {
+      if (result.status === "fulfilled") reports.push(result.value);
+      else failed += 1;
     }
-    harvestSelected.value = selectedMap;
+    harvestCandidates.value = mergeMcpCandidates(reports, document.value?.mcpCatalog ?? []);
+    const picked: Record<string, boolean> = {};
+    harvestRename.value = {};
+    harvestCandidates.value.forEach((c, index) => {
+      picked[String(index)] = c.duplicateReason === "none";
+    });
+    harvestSelected.value = picked;
+    if (failed) error.value = t("ai.harvest.partialFailure", { count: failed });
   } catch (err) {
     error.value = mapError(err);
+  } finally {
+    harvestScanning.value = false;
   }
 }
 
 async function importHarvest() {
-  const picks = harvestCandidates.value.filter((c) => harvestSelected.value[c.id]);
+  const picks = harvestCandidates.value.filter((_c, index) => harvestSelected.value[String(index)]);
   if (!picks.length) return;
   error.value = null;
   try {
-    const [next, report] = await aiHarvestMcpImport(picks);
+    const [next, report] = await aiHarvestMcpImport(
+      picks.map((c, index) => toMcpCandidate(c, harvestRename.value[String(index)])),
+    );
     document.value = next;
     toastSuccess(
       t("ai.harvest.noticeMcpImported", {
@@ -350,56 +390,114 @@ onMounted(() => {
     </div>
 
     <div v-if="showTools" class="fluent-surface mcp-tools">
-      <div class="mcp-tools-grid">
-        <div class="mcp-tool-col">
-          <h3 class="mcp-subhead">{{ t("ai.harvest.mcpTitle") }}</h3>
-          <div class="mcp-row">
-            <select v-model="harvestAgentId" class="fluent-control mcp-grow">
-              <option v-for="agent in installedAgents" :key="agent.id" :value="agent.id">
-                {{ agent.displayName }}
-              </option>
-            </select>
-            <button
-              type="button"
-              class="fluent-control"
-              :disabled="!harvestAgentId"
-              @click="scanHarvest"
-            >
-              {{ t("ai.harvest.scan") }}
-            </button>
-            <button
-              type="button"
-              class="fluent-control fluent-control--accent"
-              :disabled="!harvestPickCount"
-              @click="importHarvest"
-            >
-              {{ t("ai.harvest.importSelected", { count: harvestPickCount }) }}
-            </button>
-          </div>
-          <div v-if="harvestCandidates.length" class="mcp-harvest-scroll">
-            <label v-for="c in harvestCandidates" :key="c.id" class="mcp-check">
-              <input
-                v-model="harvestSelected[c.id]"
-                type="checkbox"
-                :disabled="c.alreadyInCatalog"
-              />
-              <span>{{ c.displayName }}</span>
+      <h3 class="mcp-subhead">{{ t("ai.mcp.toolsTitle") }}</h3>
+      <div class="harvest-segment" role="tablist">
+        <button
+          v-for="opt in sourceOptions"
+          :key="opt.source"
+          type="button"
+          class="fluent-control harvest-segment-item"
+          :class="{ 'harvest-segment-item--active': harvestSource === opt.source }"
+          :aria-selected="harvestSource === opt.source"
+          role="tab"
+          @click="harvestSource = opt.source"
+        >
+          {{ t(opt.labelKey) }}
+        </button>
+      </div>
+
+      <div v-if="harvestSource === 'agent'" class="harvest-block">
+        <div class="harvest-agent-head">
+          <span class="harvest-label">{{ t("ai.harvest.agentsLabel") }}</span>
+          <span class="mcp-meta">{{ t("ai.harvest.multiSelectHint") }}</span>
+        </div>
+        <p v-if="!enabledAgents.length" class="mcp-meta">
+          {{ t("ai.harvest.noSources") }}
+        </p>
+        <div v-else class="harvest-agents">
+          <label v-for="agent in enabledAgents" :key="agent.id" class="harvest-agent-chip">
+            <input
+              type="checkbox"
+              :checked="harvestAgentIds.includes(agent.id)"
+              @change="toggleHarvestAgent(agent.id)"
+            />
+            <span>{{ agent.displayName }}</span>
+          </label>
+        </div>
+        <div class="mcp-row harvest-scan-row">
+          <button
+            type="button"
+            class="fluent-control"
+            :disabled="!harvestAgentIds.length || harvestScanning"
+            @click="scanHarvest"
+          >
+            {{ harvestScanning ? t("common.loading") : t("ai.harvest.scan") }}
+          </button>
+          <button
+            type="button"
+            class="fluent-control"
+            @click="harvestAgentIds = enabledAgents.map((a) => a.id)"
+          >
+            {{ t("ai.harvest.allAgents") }}
+          </button>
+          <button type="button" class="fluent-control" @click="harvestAgentIds = []">
+            {{ t("ai.harvest.clearAgents") }}
+          </button>
+        </div>
+
+        <p v-if="!harvestCandidates.length" class="mcp-meta harvest-empty">
+          {{ t("ai.harvest.scanEmpty") }}
+        </p>
+        <div v-else class="harvest-candidates">
+          <div v-for="(c, index) in harvestCandidates" :key="`${c.id}-${index}`" class="harvest-candidate">
+            <label class="harvest-candidate-main">
+              <input v-model="harvestSelected[String(index)]" type="checkbox" />
+              <strong>{{ c.id }}</strong>
+              <span class="mcp-meta">{{ t("ai.harvest.fromCount", { count: c.sources.length }) }}</span>
             </label>
+            <span v-if="c.duplicateReason !== 'none'" class="harvest-reason">
+              {{ duplicateLabel(c.duplicateReason) }}
+            </span>
+            <input
+              v-if="c.duplicateReason !== 'none'"
+              v-model="harvestRename[String(index)]"
+              class="fluent-control harvest-rename"
+              type="text"
+              :placeholder="t('ai.harvest.renamePlaceholder')"
+            />
           </div>
         </div>
-        <div class="mcp-tool-col">
-          <h3 class="mcp-subhead">{{ t("ai.mcp.import") }}</h3>
-          <div class="mcp-row">
-            <input
-              v-model="importPath"
-              class="fluent-control mcp-grow"
-              type="text"
-              :placeholder="t('ai.mcp.importPathHint')"
-            />
-            <button type="button" class="fluent-control" @click="importMcpJson">
-              {{ t("ai.mcp.import") }}
-            </button>
-          </div>
+        <div class="harvest-footer">
+          <button type="button" class="fluent-control" @click="showTools = false">
+            {{ t("common.cancel") }}
+          </button>
+          <button
+            type="button"
+            class="fluent-control fluent-control--accent"
+            :disabled="!harvestPickCount"
+            @click="importHarvest"
+          >
+            {{ t("ai.harvest.importSelected", { count: harvestPickCount }) }}
+          </button>
+        </div>
+      </div>
+
+      <div v-else class="harvest-block">
+        <div class="harvest-file-row">
+          <input
+            v-model="importPath"
+            class="fluent-control"
+            type="text"
+            :placeholder="t('ai.mcp.importPathHint')"
+          />
+          <button
+            type="button"
+            class="fluent-control fluent-control--accent"
+            :disabled="!importPath.trim()"
+            @click="importMcpJson"
+          >
+            {{ t("ai.mcp.importFile") }}
+          </button>
         </div>
       </div>
     </div>
@@ -503,22 +601,98 @@ onMounted(() => {
 }
 .mcp-tools {
   padding: var(--fluent-space-md);
-}
-.mcp-tools-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--fluent-space-md);
-}
-@media (max-width: 900px) {
-  .mcp-tools-grid {
-    grid-template-columns: 1fr;
-  }
-}
-.mcp-tool-col {
   display: flex;
   flex-direction: column;
   gap: var(--fluent-space-sm);
-  min-width: 0;
+}
+.harvest-segment {
+  display: inline-flex;
+  gap: var(--fluent-space-xs);
+  align-self: flex-start;
+}
+.harvest-segment-item--active {
+  background: var(--fluent-color-fill-selected);
+  color: var(--fluent-color-stroke-accent-soft);
+  font-weight: var(--fluent-font-weight-semibold);
+}
+.harvest-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-sm);
+  padding-top: var(--fluent-space-xs);
+}
+.harvest-agent-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fluent-space-sm);
+  align-items: baseline;
+}
+.harvest-label {
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+}
+.harvest-agents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fluent-space-sm);
+}
+.harvest-agent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--fluent-radius-md);
+  background: var(--fluent-color-fill-subtle);
+  font-size: var(--fluent-font-size-caption);
+  cursor: pointer;
+}
+.harvest-scan-row {
+  align-items: center;
+}
+.harvest-candidates {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 11rem;
+  overflow: auto;
+}
+.harvest-candidate {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fluent-space-sm);
+  align-items: center;
+  padding: 4px 6px;
+  border-radius: var(--fluent-radius-md);
+  background: var(--fluent-color-fill-subtle);
+}
+.harvest-candidate-main {
+  display: flex;
+  flex: 1;
+  min-width: 10rem;
+  gap: var(--fluent-space-sm);
+  align-items: center;
+  cursor: pointer;
+}
+.harvest-reason {
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+}
+.harvest-rename {
+  min-width: 10rem;
+}
+.harvest-file-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fluent-space-sm);
+}
+.harvest-file-row input {
+  flex: 1;
+  min-width: 12rem;
+}
+.harvest-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--fluent-space-sm);
 }
 .mcp-row {
   display: flex;
@@ -528,19 +702,6 @@ onMounted(() => {
 .mcp-grow {
   flex: 1;
   min-width: 8rem;
-}
-.mcp-harvest-scroll {
-  max-height: 8rem;
-  overflow: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.mcp-check {
-  display: flex;
-  gap: var(--fluent-space-sm);
-  align-items: center;
-  font-size: var(--fluent-font-size-caption);
 }
 .mcp-split {
   display: grid;

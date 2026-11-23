@@ -56,6 +56,7 @@ Rule reminders: no e2e; `#[ignore]` ≠ coverage; FE↔BE command-name parity is
 | --- | --- | --- | --- |
 | knowledge_service / managed_dependency / extension_host | STATIC | `check-backend-command-surface.mjs` | 24 commands registered + FE command-literal parity + managed install-chain tests intact |
 | AI Add-on | STATIC · CARGO | `check-ai-addon-shell.mjs` | pre-existing strong gate (not rebuilt) |
+| AI harvest (multi-agent MCP / Skills import + dedupe) | STATIC · FE | `check-harvest-dedupe.mjs` → `harvest-dedupe-checks.ts` (`harvestDedupe.ts`) | multi-agent scan merged into one candidate set; content-fingerprint detects renamed servers; duplicate reasons surfaced; FE↔BE command-name parity pinned |
 | providers / discovery | STATIC · CARGO | `check-provider-*.mjs`, `check-discovery-*.mjs` | |
 
 ## Download / install chain
