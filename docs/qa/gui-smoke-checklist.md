@@ -16,6 +16,22 @@ FE `*-checks.ts` + grep 接线 gate 钉住（见
 - 全部通过 = 本轮 GUI 行为验收 OK；任一不符 → 记 case id 与现象，回到对应矩阵行
   [`file-ops-scenario-baseline.md`](../file-ops-scenario-baseline.md) Part 3 复核。
 
+## 平台前置对照（Mac 怎么造同样的条件）
+
+本清单的 Expected 以 **Windows Explorer** 为primary baseline，部分前置条件写的是 Windows
+介质 / 路径。Mac 上按下列映射替换前置，其余操作与预期不变；标 **N/A** 的项在 Mac 上无
+等价条件，记录为「不适用」即可，不算失败。
+
+| Windows 前置 | macOS 等价 | 适用项 |
+| --- | --- | --- |
+| exFAT / FAT32 U 盘（`E:\…`，无 `$RECYCLE.BIN`） | exFAT / FAT32 卷（Disk Utility 格式化，挂到 `/Volumes/…`）；`platform::volume_supports_recycle_bin` 在非 Windows 且非 UNC 路径返回 `true`，本地路径走 `trash` → `~/.Trash` | SM-01（预期改为「移入废纸篓」，不是永久删除；Win32 的 `$RECYCLE.BIN` 判定不适用） |
+| NTFS 可移动盘 | APFS / HFS+ 本地卷，删除进 `~/.Trash`，可在 Finder 废纸篓还原 | SM-02 |
+| UNC 共享 `\\server\share\…` | 已挂载的 SMB/AFP 共享（`/Volumes/<share>`）；非 Windows 且非 `\\`/`//` 前缀路径走 trash provider | SM-03（Mac 上挂载网络卷的删除行为由 Finder/trash 决定，需实测记录） |
+| NTFS + FAT32 混选 | APFS 本地文件 + exFAT 卷文件混选 | SM-04 |
+| Win32 保留名 `CON` / 尾点 `a.` / 非法字符 `a:b` | 这些在 APFS 是**合法**名称：预期改为「改名成功且名称原样保留」（见 NM-003/006/007） | SM-05…SM-08 的前置若用到此类名称需按此替换 |
+| 进程占用文件 / 满盘触发 LC-007 | 仍适用：Mac 的 errno 16/26→in-use、1/13→access-denied、28/69→disk-full；用 `lsof` 查占用、小容量 APFS 卷或 `diskutil` 造满盘 | SM-25…SM-27 |
+| 网络节点发现（Shell Network / WS-Discovery） | 仅已挂载共享可见（bare `mount`）；未挂载服务器发现 Mac 不适用 | SM-28 |
+
 ---
 
 ## D1 — 回收站判定按文件系统（case DEL-003 / DEL-008）
@@ -217,6 +233,19 @@ FE `*-checks.ts` + grep 接线 gate 钉住（见
 
 ---
 
+## Mac 专属项 — 网络共享节点（ADR 0026）
+
+### SM-28 macOS「网络」节点列出已挂载共享
+- 前置：在 Finder 挂载一个 SMB/AFP 共享（如 `⌘K` 连接服务器），确认 `mount` 输出含
+  `smbfs` 或 `afpfs` 行。无共享时可跳过。
+- 操作：打开 Navigator 侧栏「网络」根节点（首次展开会预热枚举）。
+- 预期：已挂载共享以 `/Volumes/<share>` 路径出现；挂载点含空格（如 `My Shared Files`）时
+  名称完整、可双击进入；本地 APFS 卷不出现在该节点。未挂载服务器的自动发现（Windows
+  WS-Discovery 等价）在 Mac 上是**有意不适用**。
+- [ ] 通过
+
+---
+
 ## 登记汇总
 
 | # | 项 | 结果（通过/失败/阻塞） | 备注 / 现象 |
@@ -248,3 +277,4 @@ FE `*-checks.ts` + grep 接线 gate 钉住（见
 | SM-25 | 传输单项失败 Retry/Skip/Abort |  |  |
 | SM-26 | Abort 回滚、源完好 |  |  |
 | SM-27 | 中止批次不入 undo 栈 |  |  |
+| SM-28 | macOS 网络节点列出已挂载共享 |  |  |

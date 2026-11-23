@@ -1073,6 +1073,31 @@ spctl -a -vvv 'A File Manager.app'
 
 ---
 
+## 7.24 · `6c73fa2..2f17ab4` 新提交的增量 macOS 适配（2026-11-23）
+
+拉取 master 后逐项审查本批新提交，发现 6 处 Mac 适配点，本轮处理 5 处 + 1 处核查后无需改动。
+这些是**新增提交引入的增量缺口**，不属于前面各节的存量移植清单。
+
+| # | 来源提交 | 缺口 | 处理 |
+|---|---|---|---|
+| 1 | `e005e23`/`106dbc2` LC-007 逐项错误弹窗 | `classify_transfer_error` 只认 Windows 系统码且未知码提前 `return None`，Mac 的 EBUSY/ENOSPC/EPERM 落空 → 弹窗不弹 | `class_from_os_code` 按平台分表（Windows 5/13/32/33/36/39/112；POSIX 1/13/16/26/28/69），未知码继续走英文回退；新增 `classify_transfer_error_maps_posix_errnos` |
+| 2 | `ba928fe` 网络节点（ADR 0026） | 非 Windows 分支用 `mount -p`，本机实测 `illegal option -- p`；parser 期望 tab 四列，Mac 输出 `dev on /path (fstype, …)` → 节点恒空 | 改 bare `mount`；`parse_mount_line` 兼容两种格式（含带空格挂载点）；新增 `parse_mount_network_accepts_macos_bare_mount_output`；SM-28 |
+| 3 | `85d52f1` NM-003/NM-007 文件名校验 | Win32 保留名 / 尾点空格 strip / 非法字符集无平台门控，误伤 Mac 合法名（`CON`、`a.`、`a:b`） | `validate_file_name` 按平台分支：Windows 保持原规则，POSIX 仅拒绝 `/`、`.`/`..`、空名；两个 Windows 测试加 `#[cfg(windows)]`，新增 `validate_name_keeps_posix_legal_names` |
+| 4 | `fc1d0d4` NM-004 大小写改名 | `is_same_entry` 非 Windows 用字节比较 + `platform/macos.rs` 静态 `case_insensitive_paths=false` → APFS 上 `a.txt→A.txt` 误报冲突 | Unix 分支改 **(dev, inode)** 身份比较（对大小写敏感/不敏感 APFS 均正确）；静态能力位保留 `false` 并加注说明；新增 `rename_case_only_uses_inode_identity_on_unix` |
+| 5 | `4e902d9` Alt+0…9 工作组切换 | `chord.ts` 用 `event.key` 匹配，macOS ⌥+数字产生字形（⌥0=`` ` ``、⌥1=`¡`）→ 快捷键失效，而 locale 已写 `⌥+1–9` | 新增 `digitKeyFromEventCode`，单数字 chord 用 `event.code`（`Digit0…9`/`Numpad0…9`）匹配；`chordFromEvent` 同步；`shortcut-checks.ts` 补 3 类断言 |
+| 6 | `5a574a7` Alt+单击复制标签 | 审查 `AppShell.vue::onTabClick`：`altKey` 在 macOS WKWebView 正常触发，右键菜单文案 `chrome.duplicateTab` 不含 Windows 修饰键 → **核查后无需改动** | 不改代码；在 GUI 冒烟清单平台前置对照表记录 |
+
+**仍然未覆盖 / 有意退化**（本轮未改，避免扩大范围）：
+- RustDesk 远程文件剪贴板（ADR 0027）：`#[cfg(windows)]`，Mac `clipboard_provider()` 返回 None，优雅退化不 panic。
+- undo 删除恢复（UN-004）：`supports_list_restore()=cfg!(windows)`，能力位已声明 false，Mac 引导用 Finder 废纸篓。
+- QuickLook 命名管道探测：Windows-only；Mac 走原生 `preview_provider()`。
+- 外置卷 `.Trashes` 探测：Mac 对所有本地非 UNC 路径返回可回收并交给 `trash`，exFAT 卷的实际行为需 GUI 实测（SM-01 已标注预期差异）。
+- 未挂载服务器的 Bonjour / WS-Discovery 发现：Mac 不适用，仅列已挂载共享。
+
+**验证**：`cargo test --lib`（相关模块全绿）；`node scripts/shortcut-checks.ts` 通过；`npm run build` / `npm test` 全链结果见本次会话记录。基线文档同步见 `file-ops-scenario-baseline.md`、`external-behavior-baseline-coverage.md`、`qa/gui-smoke-checklist.md`、`qa/smoke-test-mapping.md` 与 ADR 0026。
+
+---
+
 ## 附录 A · 关键证据索引（便于复核）
 
 | 主题 | 文件 |

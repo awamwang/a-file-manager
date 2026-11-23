@@ -42,46 +42,75 @@ pub const ERROR_CLASS_IN_USE: &str = "in-use";
 pub const ERROR_CLASS_ACCESS_DENIED: &str = "access-denied";
 pub const ERROR_CLASS_DISK_FULL: &str = "disk-full";
 
-/// Map a human-readable IO failure message to a per-item error class. Rust's
-/// `std::io::Error` Display always appends the raw Windows system error code as
-/// `(os error N)` regardless of locale, so the code is the locale-stable signal;
-/// English message fragments are a portable fallback. Returns `None` for
-/// anything that is not a recognized retryable per-item condition, so callers
-/// keep the existing whole-batch abort behavior for real refusals.
+/// Map a per-item IO failure to the Retry / Skip / Abort class the frontend
+/// understands. Rust appends the raw OS error code as `(os error N)` regardless
+/// of locale, so the code is the locale-stable signal; the code table is
+/// platform-specific (Windows system codes vs POSIX errno). English fragments
+/// are a portable fallback for wrapped messages and are consulted even when an
+/// embedded code is unrecognized — an unknown code must never short-circuit the
+/// fallback (that silently disabled the per-item dialog on macOS, where EBUSY /
+/// ENOSPC / EPERM are not Windows codes). `None` means a hard refusal, for which
+/// the caller keeps the whole-batch abort behavior.
 fn classify_transfer_error(message: &str) -> Option<String> {
     let lower = message.to_ascii_lowercase();
-    // Locale-independent: extract the `(os error N)` Windows system code if present.
     if let Some(idx) = lower.rfind("(os error ") {
         let after = &lower[idx + "(os error ".len()..];
         let digits: String = after.chars().take_while(|c| c.is_ascii_digit()).collect();
         if let Ok(code) = digits.parse::<i64>() {
-            let class = match code {
-                5 | 13 => ERROR_CLASS_ACCESS_DENIED, // ERROR_ACCESS_DENIED / ERROR_WRITE_FAULT
-                32 | 33 | 36 => ERROR_CLASS_IN_USE,   // sharing / lock / sharing-buffer violation
-                39 | 112 => ERROR_CLASS_DISK_FULL,    // too-many-sectors / disk full
-                _ => return None,
-            };
-            return Some(class.to_string());
+            if let Some(class) = class_from_os_code(code) {
+                return Some(class.to_string());
+            }
+            // Unknown code: fall through to the portable English fragments.
         }
     }
-    // Portable fallback: stable English fragments (non-Windows or wrapped messages).
+    // Portable fallback: stable English fragments (wrapped messages, or a host
+    // whose code table has not been extended yet).
     if lower.contains("being used by another process")
         || lower.contains("used by another process")
         || lower.contains("the process cannot access the file")
+        || lower.contains("resource busy")
+        || lower.contains("text file busy")
     {
         return Some(ERROR_CLASS_IN_USE.to_string());
     }
-    if lower.contains("access is denied") || lower.contains("permission denied") {
+    if lower.contains("access is denied")
+        || lower.contains("permission denied")
+        || lower.contains("operation not permitted")
+    {
         return Some(ERROR_CLASS_ACCESS_DENIED.to_string());
     }
     if (lower.contains("not enough") && lower.contains("space"))
         || lower.contains("no space left")
+        || lower.contains("disk quota exceeded")
         || lower.contains("disk is full")
         || lower.contains("disk full")
     {
         return Some(ERROR_CLASS_DISK_FULL.to_string());
     }
     None
+}
+
+/// Locale-stable OS code → error class. Windows uses system error codes;
+/// macOS / Linux use POSIX errno (both embedded verbatim by `io::Error`).
+fn class_from_os_code(code: i64) -> Option<&'static str> {
+    #[cfg(windows)]
+    {
+        match code {
+            5 | 13 => Some(ERROR_CLASS_ACCESS_DENIED), // ERROR_ACCESS_DENIED / ERROR_INVALID_ACCESS
+            32 | 33 | 36 => Some(ERROR_CLASS_IN_USE),   // sharing / lock / sharing-buffer violation
+            39 | 112 => Some(ERROR_CLASS_DISK_FULL),    // too-many-sectors / disk full
+            _ => None,
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        match code {
+            1 | 13 => Some(ERROR_CLASS_ACCESS_DENIED), // EPERM / EACCES
+            16 | 26 => Some(ERROR_CLASS_IN_USE),       // EBUSY / ETXTBSY
+            28 | 69 => Some(ERROR_CLASS_DISK_FULL),    // ENOSPC / EDQUOT
+            _ => None,
+        }
+    }
 }
 
 fn ok_paths(paths: Vec<String>) -> FileOpsResult {
@@ -207,6 +236,7 @@ fn ensure_dir(path: &str) -> Result<PathBuf, String> {
 
 /// Windows 资源管理器 / Win32 保留名（不区分大小写、含点后缀，如 `CON.txt`、`nul.dat`）。
 /// 仅 `COM1-9` / `LPT1-9` 命中；`COM0` / `LPT0` 不在传统保留列表，与 Explorer 行为一致。
+#[cfg(windows)]
 fn is_windows_reserved_name(name: &str) -> bool {
     let stem = name.split('.').next().unwrap_or(name).to_ascii_uppercase();
     if matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL") {
@@ -223,26 +253,44 @@ fn is_windows_reserved_name(name: &str) -> bool {
 }
 
 fn validate_file_name(name: &str) -> Result<String, String> {
-    let trimmed = name.trim();
-    if trimmed.is_empty() {
+    if name.is_empty() {
         return Err("Name must not be empty".to_string());
     }
-    if trimmed.contains(['/', '\\', ':', '*', '?', '"', '<', '>', '|']) {
-        return Err("Name contains invalid characters".to_string());
-    }
-    if trimmed == "." || trimmed == ".." {
+    if name == "." || name == ".." {
         return Err("Name is not allowed".to_string());
     }
-    if is_windows_reserved_name(trimmed) {
-        return Err("Name is reserved by Windows".to_string());
+    // POSIX only forbids '/' (and NUL, unreachable in a String). Backslash,
+    // ':', '*', '?', '"', '<', '>', '|' and leading/trailing dots/spaces are
+    // all legal in APFS/HFS+, so the Win32 normalization below is gated by
+    // platform — otherwise names like `CON`, `a.` or `report:2026` are rejected
+    // on macOS even though the filesystem accepts them.
+    #[cfg(windows)]
+    {
+        let trimmed = name.trim();
+        if trimmed.is_empty() {
+            return Err("Name must not be empty".to_string());
+        }
+        if trimmed.contains(['/', '\\', ':', '*', '?', '"', '<', '>', '|']) {
+            return Err("Name contains invalid characters".to_string());
+        }
+        if is_windows_reserved_name(trimmed) {
+            return Err("Name is reserved by Windows".to_string());
+        }
+        // NTFS / Win32 默认会去掉文件名尾部的点和空格。提前对齐，避免「CreateFile 成功
+        // 但路径不可访问」的鬼影。"a..." → "a"，"a.b.  " → "a.b"。
+        let normalized = trimmed.trim_end_matches(['.', ' ']).to_string();
+        if normalized.is_empty() || normalized == "." || normalized == ".." {
+            return Err("Name is not allowed".to_string());
+        }
+        Ok(normalized)
     }
-    // NTFS / Win32 默认会去掉文件名尾部的点和空格。提前对齐，避免「CreateFile 成功
-    // 但路径不可访问」的鬼影。"a..." → "a"，"a.b.  " → "a.b"。
-    let normalized = trimmed.trim_end_matches(['.', ' ']).to_string();
-    if normalized.is_empty() || normalized == "." || normalized == ".." {
-        return Err("Name is not allowed".to_string());
+    #[cfg(not(windows))]
+    {
+        if name.contains('/') {
+            return Err("Name contains invalid characters".to_string());
+        }
+        Ok(name.to_string())
     }
-    Ok(normalized)
 }
 
 /// Prefer a free destination name: `name`, then `name - Copy`, `name - Copy (2)`, …
@@ -742,18 +790,29 @@ pub fn rename_path(path: &str, new_name: &str, replace: bool) -> Result<String, 
 }
 
 /// True when `a` and `b` refer to the same directory entry. On Windows
-/// (NTFS/exFAT/FAT) the file system is case-insensitive, so an exact
-/// case-insensitive path comparison is the right notion of "same entry". On
-/// case-sensitive platforms an exact byte comparison is used. Both are the
-/// minimal check needed to let a case-only rename through without allowing a
-/// real overwrite of a different file.
+/// (NTFS/exFAT/FAT) the file system is case-insensitive, so a case-insensitive
+/// path comparison is the right notion of "same entry". On Unix, APFS/HFS+ can
+/// be formatted either case-sensitive or case-insensitive, so a static answer
+/// is wrong — compare (device, inode) identity instead. A case-only rename on
+/// a case-insensitive volume resolves to the same inode (allowed); a genuinely
+/// different file has a different inode (collision, must be refused).
 fn is_same_entry(a: &Path, b: &Path) -> bool {
     #[cfg(windows)]
     {
         a.as_os_str().to_string_lossy().to_lowercase()
             == b.as_os_str().to_string_lossy().to_lowercase()
     }
-    #[cfg(not(windows))]
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        match (fs::metadata(a), fs::metadata(b)) {
+            (Ok(ma), Ok(mb)) => ma.dev() == mb.dev() && ma.ino() == mb.ino(),
+            // Callers only invoke this when `dest.exists()`, so a metadata
+            // failure is exceptional; fall back to a byte comparison.
+            _ => a == b,
+        }
+    }
+    #[cfg(not(any(windows, unix)))]
     {
         a == b
     }
@@ -1390,10 +1449,12 @@ mod tests {
     fn validate_name_blocks_separators() {
         assert!(validate_file_name("a/b").is_err());
         assert!(validate_file_name("..").is_err());
-        assert_eq!(validate_file_name("  ok  ").unwrap(), "ok");
+        assert!(validate_file_name("").is_err());
     }
 
     // NM-003: Windows 资源管理器 / Win32 保留名一律拒绝，含点后缀、不区分大小写。
+    // Win32-only rule: these names are perfectly legal on APFS/HFS+.
+    #[cfg(windows)]
     #[test]
     fn validate_name_blocks_windows_reserved() {
         for blocked in [
@@ -1416,6 +1477,8 @@ mod tests {
     }
 
     // NM-007: 尾点 / 尾空格静默 strip，与 Win32 CreateFile 行为一致。
+    // Win32-only rule: macOS keeps trailing dots/spaces verbatim.
+    #[cfg(windows)]
     #[test]
     fn validate_name_strips_trailing_dot_and_space() {
         assert_eq!(validate_file_name("a.txt.").unwrap(), "a.txt");
@@ -1428,6 +1491,27 @@ mod tests {
         // 全是点 / 空格的输入应早返回错误，不能 strip 到空字符串。
         assert!(validate_file_name("...  ").is_err());
         assert!(validate_file_name("   ").is_err());
+    }
+
+    // macOS / APFS: Win32-only restrictions must NOT reject names that POSIX
+    // allows. Only '/' and "." / ".." stay invalid cross-platform.
+    #[cfg(not(windows))]
+    #[test]
+    fn validate_name_keeps_posix_legal_names() {
+        for allowed in [
+            "CON", "con", "nul.dat", "COM1.log", "LPT9.bin",
+            "a.", "a.txt  ", "report...", "a:b", "a*b", "a?b", "a|b",
+            "a\"b", "a<b", "a>b", "a\\b", "  ",
+        ] {
+            assert_eq!(
+                validate_file_name(allowed).unwrap(),
+                allowed,
+                "POSIX-legal name must survive verbatim: {allowed}"
+            );
+        }
+        assert!(validate_file_name("a/b").is_err());
+        assert!(validate_file_name("..").is_err());
+        assert!(validate_file_name("").is_err());
     }
 
     // CF-007: 把 src 目录合并进已存在的同名目录，无内层冲突时内容并入，目标目录名不变。
@@ -1709,8 +1793,40 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
     }
 
+    // NM-004 on Unix: APFS may be case-insensitive or case-sensitive. The
+    // (dev, inode) comparison must allow a case-only rename on an insensitive
+    // volume while still refusing a genuinely different existing file.
+    #[cfg(unix)]
+    #[test]
+    fn rename_case_only_uses_inode_identity_on_unix() {
+        let dir = temp_workspace("case-rename-unix");
+        let lower = dir.join("a.txt");
+        fs::write(&lower, b"x").unwrap();
+        // is_same_entry identifies the same file through a differently-cased
+        // spelling only when this volume is case-insensitive.
+        let upper = dir.join("A.txt");
+        let same = is_same_entry(&upper, &lower);
+        let other = dir.join("b.txt");
+        fs::write(&other, b"other").unwrap();
+        assert!(!is_same_entry(&other, &lower), "different inodes are never the same entry");
+
+        let renamed = rename_path(&display_path(&lower), "A.txt", false).unwrap();
+        assert!(Path::new(&renamed).is_file());
+        assert_eq!(fs::read(dir.join("A.txt")).unwrap(), b"x");
+        // A real collision is still refused regardless of volume sensitivity.
+        fs::write(dir.join("C.txt"), b"third").unwrap();
+        let err = rename_path(&display_path(&dir.join("C.txt")), "A.txt", false).unwrap_err();
+        assert!(err.contains("already exists"), "real collision must block: {err}");
+        // Document the probe result without branching assertions: the invariant
+        // is "same inode ⇒ case-only rename allowed", which both hold here.
+        assert!(same || !upper.exists());
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
     // LC-006 / LC-007 / LC-008 — per-item error class, locale-stable via the raw
-    // Windows system code Rust appends to io::Error Display.
+    // OS code Rust appends to io::Error Display. Code tables are platform-specific.
+    #[cfg(windows)]
     #[test]
     fn classify_transfer_error_maps_windows_codes() {
         // in-use: sharing / lock violation, even with a Chinese OS message body.
@@ -1739,6 +1855,42 @@ mod tests {
         );
     }
 
+    #[cfg(not(windows))]
+    #[test]
+    fn classify_transfer_error_maps_posix_errnos() {
+        // macOS / Linux errno: same classes, different numeric codes.
+        assert_eq!(
+            classify_transfer_error("Failed to move file: resource busy (os error 16)"),
+            Some(ERROR_CLASS_IN_USE.to_string())
+        );
+        assert_eq!(
+            classify_transfer_error("Failed to replace: text file busy (os error 26)"),
+            Some(ERROR_CLASS_IN_USE.to_string())
+        );
+        assert_eq!(
+            classify_transfer_error("Failed to write: permission denied (os error 13)"),
+            Some(ERROR_CLASS_ACCESS_DENIED.to_string())
+        );
+        assert_eq!(
+            classify_transfer_error("Failed to write: operation not permitted (os error 1)"),
+            Some(ERROR_CLASS_ACCESS_DENIED.to_string())
+        );
+        assert_eq!(
+            classify_transfer_error("Failed to write: no space left on device (os error 28)"),
+            Some(ERROR_CLASS_DISK_FULL.to_string())
+        );
+        assert_eq!(
+            classify_transfer_error("Failed to write: disk quota exceeded (os error 69)"),
+            Some(ERROR_CLASS_DISK_FULL.to_string())
+        );
+        // An unrecognized code must NOT short-circuit the English fallback.
+        // (This was the macOS regression: EBUSY/ENOSPC hit `_ => return None`.)
+        assert_eq!(
+            classify_transfer_error("There is not enough disk space to complete. (os error 999)"),
+            Some(ERROR_CLASS_DISK_FULL.to_string())
+        );
+    }
+
     #[test]
     fn classify_transfer_error_leaves_hard_refusals_uncategorized() {
         // Folder-into-itself / volume-root / validation are NOT per-item retryable:
@@ -1762,7 +1914,7 @@ mod tests {
     fn err_msg_populates_per_item_error_class() {
         // End-to-end wiring: an in-use move failure surfaced through err_msg carries
         // the class the FE dialog keys on, while a refusal carries none.
-        let r = err_msg("Failed to move: sharing violation (os error 32)");
+        let r = err_msg("Failed to move file: resource busy");
         assert!(!r.ok);
         assert_eq!(r.error_class.as_deref(), Some(ERROR_CLASS_IN_USE));
 

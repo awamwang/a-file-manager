@@ -45,6 +45,28 @@ export function normalizeEventKey(key: string): string {
   return key.toLowerCase();
 }
 
+/**
+ * Physical digit for a keyboard event, or `null` when the code is not a digit.
+ *
+ * On macOS, Option+digit produces a glyph (`⌥0` → `` ` ``, `⌥1` → `¡`), so
+ * `event.key` is no longer `"0"`…`"9"` and matching by key silently breaks the
+ * Alt+0…9 work-group chords. `event.code` names the physical key and stays
+ * stable across layouts and Option. Used only for single-digit chords so no
+ * other binding changes behavior.
+ */
+export function digitKeyFromEventCode(code: string): string | null {
+  const match = /^(?:Digit|Numpad)([0-9])$/.exec(code);
+  return match ? match[1] : null;
+}
+
+function eventKeyForChord(event: KeyboardEvent, chord: ShortcutChord): string {
+  if (/^[0-9]$/.test(chord.key)) {
+    const fromCode = digitKeyFromEventCode(event.code ?? "");
+    if (fromCode !== null) return fromCode;
+  }
+  return normalizeEventKey(event.key);
+}
+
 export function eventMatchesChord(event: KeyboardEvent, chord: ShortcutChord): boolean {
   if (event.isComposing) return false;
   const primary = effectiveCtrlMeta(chord);
@@ -52,7 +74,7 @@ export function eventMatchesChord(event: KeyboardEvent, chord: ShortcutChord): b
   if (Boolean(chord.shift) !== event.shiftKey) return false;
   if (Boolean(chord.alt) !== event.altKey) return false;
   if (primary.meta !== event.metaKey) return false;
-  return normalizeEventKey(event.key) === chord.key;
+  return eventKeyForChord(event, chord) === chord.key;
 }
 
 function displayMainKey(key: string): string {
@@ -139,7 +161,9 @@ export function isReservedBareKey(chord: ShortcutChord): boolean {
 /** Build a chord from a live keydown (Settings recorder). Null = IME / modifier-only. */
 export function chordFromEvent(event: KeyboardEvent): ShortcutChord | null {
   if (event.isComposing) return null;
-  const key = normalizeEventKey(event.key);
+  // Option+digit on macOS emits a glyph in `event.key`; record the physical
+  // digit so the Alt+0…9 group chords can be rebound like any other chord.
+  const key = digitKeyFromEventCode(event.code ?? "") ?? normalizeEventKey(event.key);
   if (!key || isModifierKey(key)) return null;
   return {
     ...(event.ctrlKey ? { ctrl: true } : {}),

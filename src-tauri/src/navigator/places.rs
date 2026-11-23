@@ -243,10 +243,14 @@ fn discovered_network_places() -> Vec<NetworkPlace> {
     #[cfg(not(windows))]
     {
         // macOS / Linux: enumerate already-mounted network volumes from `mount`.
+        // No `-p`: BSD `mount -p` exists on FreeBSD but macOS rejects it with
+        // "illegal option -- p", which made the Network node permanently empty.
+        // Plain `mount` works everywhere and its output is parsed by
+        // `parse_mount_network` (both `dev on /path (fstype, …)` and tab forms).
         // Bonjour (dns-sd) enumeration of *unmounted* servers is intentionally
         // left out — it is a different transport, can hang, and cannot be
         // navigated until mounted, so it would not yield a browsable path here.
-        let output = std::process::Command::new("mount").arg("-p").output();
+        let output = std::process::Command::new("mount").output();
         match output {
             Ok(output) if output.status.success() => {
                 parse_mount_network(&String::from_utf8_lossy(&output.stdout))
@@ -341,23 +345,39 @@ pub(crate) fn parse_net_view_shares(text: &str) -> Vec<String> {
     shares
 }
 
-/// BSD `mount -p` (tab-separated: device, mountpoint, fstype, options) →
-/// network volume entries. The mount point is what we can actually browse, so
-/// it becomes `path`; the mount basename becomes the label.
+/// Parse one `mount` line into `(mountpoint, fstype)`.
+/// Accepts both the BSD `mount -p` tab form (`dev \t mountpoint \t fstype \t opts`)
+/// and the portable `dev on /mount/point (fstype, opts…)` form that macOS / Linux
+/// print with a bare `mount`. The mountpoint may contain spaces, so the `on`
+/// form is split at the trailing ` (` that opens the fstype parenthesis rather
+/// than on whitespace.
+fn parse_mount_line(line: &str) -> Option<(&str, &str)> {
+    let fields: Vec<&str> = line.split('\t').collect();
+    if fields.len() >= 3 {
+        return Some((fields[1].trim(), fields[2].trim()));
+    }
+    let (_, rest) = line.split_once(" on ")?;
+    let open = rest.rfind(" (")?;
+    let mount = rest[..open].trim();
+    let inside = rest[open + 2..].trim_end_matches(')');
+    let fstype = inside.split(',').next()?.trim();
+    Some((mount, fstype))
+}
+
+/// `mount` output → network volume entries. The mount point is what we can
+/// actually browse, so it becomes `path`; the mount basename becomes the label.
 #[allow(dead_code)]
 pub(crate) fn parse_mount_network(text: &str) -> Vec<NetworkPlace> {
     const NETWORK_FSTYPES: [&str; 5] = ["smbfs", "afpfs", "nfs", "cifs", "webdav"];
     let mut places = Vec::new();
     for line in text.lines() {
-        let fields: Vec<&str> = line.split('\t').collect();
-        if fields.len() < 3 {
+        let Some((mount, fstype_raw)) = parse_mount_line(line) else {
             continue;
-        }
-        let fstype = fields[2].to_ascii_lowercase();
+        };
+        let fstype = fstype_raw.to_ascii_lowercase();
         if !NETWORK_FSTYPES.contains(&fstype.as_str()) {
             continue;
         }
-        let mount = fields[1].trim();
         if mount.is_empty() {
             continue;
         }
@@ -492,5 +512,24 @@ mod tests {
         assert_eq!(places[0].path, "/Volumes/Media");
         assert_eq!(places[0].name, "Media");
         assert_eq!(places[1].name, "nfs");
+    }
+
+    #[test]
+    fn parse_mount_network_accepts_macos_bare_mount_output() {
+        // macOS `mount` (no -p) prints `dev on /mount/point (fstype, options)`.
+        // Mount points with spaces are legal and must stay intact.
+        let text = concat!(
+            "/dev/disk3s5 on / (apfs, local, journaled)\n",
+            "//user@NAS.local/Media on /Volumes/Media (smbfs, nodev, nosuid, mounted by user)\n",
+            "server:/export on /Volumes/My Shared Files (nfs, nodev, nosuid, mounted by user)\n",
+            "//guest@host/Public on /Volumes/Public (smbfs, nodev, nosuid)\n",
+        );
+        let places = parse_mount_network(text);
+        assert_eq!(places.len(), 3);
+        assert_eq!(places[0].path, "/Volumes/Media");
+        assert_eq!(places[0].name, "Media");
+        assert_eq!(places[1].path, "/Volumes/My Shared Files");
+        assert_eq!(places[1].name, "My Shared Files");
+        assert_eq!(places[2].name, "Public");
     }
 }

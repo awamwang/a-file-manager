@@ -197,6 +197,12 @@ impl Platform for MacosPlatform {
     }
 
     fn case_insensitive_paths(&self) -> bool {
+        // APFS/HFS+ can be formatted either case-sensitive or case-insensitive,
+        // so there is no truthful static answer. Keep the conservative `false`
+        // at the contract/capability level (do not fold path keys by default);
+        // per-path decisions that need real sensitivity — e.g. NM-004
+        // case-only rename — use (device, inode) identity in
+        // `file_ops::is_same_entry` instead.
         false
     }
 

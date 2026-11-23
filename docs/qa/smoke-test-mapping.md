@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 # GUI 冒烟项 ↔ 自动测试覆盖映射表
 
-把 `gui-smoke-checklist.md` 的 27 条交互项，映射到**已自动覆盖其行为逻辑**的测试（cargo 真执行 temp / FE 纯逻辑 `*-checks.ts` / grep 接线 gate），并标出仍需**真实窗口观感 / 真实介质**人工点验的部分。
+把 `gui-smoke-checklist.md` 的 28 条交互项，映射到**已自动覆盖其行为逻辑**的测试（cargo 真执行 temp / FE 纯逻辑 `*-checks.ts` / grep 接线 gate），并标出仍需**真实窗口观感 / 真实介质**人工点验的部分。
 
 图例：✅ = 本轮已在宿主实跑通过（逻辑/文件层已由机器保证）；🖐 = 只剩「真实窗口看起来对不对 / 需插盘·锁文件·满盘」人工抽验。
 
@@ -39,11 +39,12 @@
 | SM-22 | 删除后保持选区(有意差异) | ✅ 现有 `check-delete-keep-selection.mjs` | 🖐 观感 |
 | SM-23 | 多次 Ctrl+Z 逆序逐项撤销 | ✅ FE `file-undo-checks.ts`(多步逆序) + `check-file-undo.mjs` | 🖐 观感 |
 | SM-24 | 重启后无 undo(不持久化) | ✅ gate 断言 undo 内存态、无持久化 | 🖐 真重启验证 |
-| SM-25 | 传输单项失败 Retry/Skip/Abort | ✅ FE `transfer-error-checks.ts` + `check-transfer-error.mjs`；cargo `copy_paths_succeeds_while_source_handle_is_open`(in-use) | 🖐 真锁定文件弹框 |
-| SM-26 | Abort 回滚、源完好 | ✅ cargo safe_io staging/源安全、`permanent_delete_*` | 🖐 真满盘触发 |
+| SM-25 | 传输单项失败 Retry/Skip/Abort | ✅ FE `transfer-error-checks.ts` + `check-transfer-error.mjs`；cargo `copy_paths_succeeds_while_source_handle_is_open`(in-use, Windows)、`classify_transfer_error_maps_windows_codes` / `..._maps_posix_errnos`(跨平台) | 🖐 真锁定文件弹框 |
+| SM-26 | Abort 回滚、源完好 | ✅ cargo safe_io staging/源安全、`permanent_delete_*` | 🖐 真满盘触发（Mac: errno 28/69） |
 | SM-27 | 中止批次不入 undo 栈 | ✅ `check-file-undo.mjs`(cancel 不入栈) | 🖐 观感 |
+| SM-28 | macOS 网络节点列出已挂载共享 | ✅ cargo `parse_mount_network_accepts_macos_bare_mount_output`（含带空格挂载点）；STATIC `check-shell-places.mjs` / `check-folder-tree.mjs` | 🖐 真 SMB/AFP 挂载 + 窗口展开（Win 的 WS-Discovery 发现 Mac 不适用） |
 
 ## 结论
-- **27 项中，其「行为逻辑」全部有自动测试钉住**（✅ 列）；纯文件层事实（SM-06/07/11/12/15/16/17 等）本轮已**实跑 cargo/checks 通过**。
+- **28 项中，其「行为逻辑」全部有自动测试钉住**（✅ 列）；纯文件层事实（SM-06/07/11/12/15/16/17 等）本轮已**实跑 cargo/checks 通过**。
 - 仍需人工 GUI 的只剩两类：**① 真实窗口观感**（弹框出现、选中高亮、滚动不跳、看板消失）；**② 真实介质/条件**（exFAT·NTFS·UNC 卷、被进程锁定的文件、接近写满的盘、重启）。这些是 ADR 0025「不做 e2e」刻意留给人工的层。
 - 非交互宿主下 `clipboard::windows_roundtrip_write` 会因无桌面剪贴板而红，与本轮无关。

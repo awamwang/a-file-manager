@@ -238,6 +238,7 @@ assert.equal(display.find((r) => r.id === "dup.panel")?.blockedBy, "commandPanel
 function keyEvent(partial: Partial<KeyboardEvent>): KeyboardEvent {
   return {
     key: "P",
+    code: "KeyP",
     ctrlKey: false,
     shiftKey: false,
     altKey: false,
@@ -246,6 +247,50 @@ function keyEvent(partial: Partial<KeyboardEvent>): KeyboardEvent {
     ...partial,
   } as KeyboardEvent;
 }
+
+// macOS Option+digit emits a glyph in `key` (⌥0 → `, ⌥1 → ¡) while `code`
+// still names the physical DigitN key. The Alt+0…9 work-group chords must
+// match by code; all non-digit chords keep matching by key.
+assert.equal(
+  eventMatchesChord(
+    keyEvent({ key: "`", code: "Digit0", altKey: true }),
+    { alt: true, key: "0" },
+  ),
+  true,
+);
+assert.equal(
+  eventMatchesChord(
+    keyEvent({ key: "¡", code: "Digit1", altKey: true }),
+    { alt: true, key: "1" },
+  ),
+  true,
+);
+assert.equal(
+  eventMatchesChord(
+    keyEvent({ key: "¡", code: "Digit1", altKey: true }),
+    { alt: true, key: "2" },
+  ),
+  false,
+);
+assert.equal(
+  eventMatchesChord(keyEvent({ key: "0", code: "Digit0", altKey: true }), {
+    alt: true,
+    key: "0",
+  }),
+  true,
+);
+// A non-digit chord must not be captured by the code branch.
+assert.equal(
+  eventMatchesChord(keyEvent({ key: "n", code: "Digit1", altKey: true }), {
+    alt: true,
+    key: "n",
+  }),
+  true,
+);
+assert.equal(
+  chordFromEvent(keyEvent({ key: "¡", code: "Digit1", altKey: true }))?.key,
+  "1",
+);
 
 assert.equal(
   isToggleCommandPanelShortcut(
