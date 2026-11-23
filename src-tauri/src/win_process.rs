@@ -30,7 +30,9 @@ pub fn command(program: impl AsRef<OsStr>) -> Command {
 /// Run a console tool and capture stdout, but give up after `timeout` (killing
 /// the whole process tree). ADR 0026: `net view \\server` hangs indefinitely on
 /// an unreachable host, so share enumeration must never block forever. Returns
-/// `None` on spawn failure or timeout.
+/// `None` on spawn failure or timeout. Only the Windows `net view` branch calls
+/// it; macOS share enumeration is a no-op.
+#[allow(dead_code)]
 pub fn output_capped(
     program: impl AsRef<OsStr>,
     args: &[&str],

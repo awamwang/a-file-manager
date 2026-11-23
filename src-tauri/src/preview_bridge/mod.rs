@@ -333,6 +333,10 @@ fn try_quicklook_toggle(paths: &[String]) -> Result<(), String> {
 /// QuickLook 可用性档位（命名管道存在性，枚举 `\\.\pipe\` 判定，绝不连接管道：
 /// 连接本身就会让 QuickLook 的 ReadLine 收到 null 而崩溃其管道服务端）。
 /// 健康探测与 `auto` 回退共用此单一判定，杜绝「在运行却报缺失」。
+/// Only `NotRunning` is produced on macOS (native preview provider); the other
+/// variants belong to the Windows named-pipe probe but stay in the shared enum
+/// so the single health-probe contract holds on both platforms.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum QuickLookStatus {
     /// 管道存在 ⇒ 常驻 QuickLook 正在运行（可能瞬时繁忙，仍属「可用」）。
@@ -363,7 +367,10 @@ fn quicklook_process_running() -> bool {
     })
 }
 
+// macOS has no QuickLook named pipe to probe; the stub exists only to keep the
+// two cfg branches symmetric and is not called by the macOS `quicklook_available`.
 #[cfg(not(windows))]
+#[allow(dead_code)]
 fn quicklook_process_running() -> bool {
     false
 }

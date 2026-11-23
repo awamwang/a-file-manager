@@ -78,6 +78,10 @@ pub struct LaunchTarget {
 
 /// `launch_terminal` 的失败细分。`Cancelled` 表示用户在 UAC 授权弹窗点了
 /// “否”——调用方应立即停止尝试其它终端，而不是给下一个终端再弹一次 UAC。
+// `Cancelled` is only constructed by the Windows adapter's UAC flow; the macOS
+// adapter has no UAC and never produces it. Keep the variant for the shared
+// contract without warning on non-Windows builds.
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TerminalLaunchError {
     /// 用户取消了 UAC 授权（elevated 启动）。
@@ -331,6 +335,9 @@ pub trait Platform: Send + Sync {
     fn volumes(&self) -> Result<Vec<Volume>, String>;
     /// ADR 0026: live computers from the OS "Network" folder (WS-Discovery on
     /// Windows). Default empty so non-Windows adapters opt out explicitly.
+    /// Only the Windows navigation branch calls this; macOS discovers mounted
+    /// volumes from `mount` instead.
+    #[allow(dead_code)]
     fn network_computers(&self) -> Vec<String> {
         Vec::new()
     }
@@ -485,7 +492,9 @@ pub fn volumes() -> Result<Vec<Volume>, String> {
 }
 
 /// Single entry point for live-computer enumeration (ADR 0026). Empty on hosts
-/// whose adapter does not implement it.
+/// whose adapter does not implement it. Unused on macOS, where the Network
+/// node is populated from mounted volumes instead.
+#[allow(dead_code)]
 pub fn network_computers() -> Vec<String> {
     current().network_computers()
 }
