@@ -77,6 +77,7 @@ import {
   renameEntry,
   setClipboard,
 } from "../state/fileClipboard";
+import { resetNameConflictBatch, resolveNameConflictChoice } from "../state/nameConflict";
 import {
   recordCopyUndo,
   recordCreateUndo,
@@ -100,10 +101,12 @@ import {
   selectOnly,
   selectRange,
   selectionAnchor,
+  selectedEntries,
   selectedPaths,
   setSelection,
   toggleInSelection,
 } from "../state/navigatorSelection";
+import { resolvePasteTarget } from "../state/pasteTarget";
 import {
   arrowDirectionFromKey,
   moveSelectionByArrow,
@@ -662,8 +665,29 @@ async function commitInlineRename() {
     const sepIdx = Math.max(entry.path.lastIndexOf("/"), entry.path.lastIndexOf("\\"));
     const parentDir = sepIdx > 0 ? entry.path.slice(0, sepIdx) : entry.path;
     if (await nameExists(parentDir, next)) {
-      onNotice(t("dialog.conflictMessage", { name: next }), "error");
+      // NM-002: a rename collision asks Replace / Skip (reuse the paste
+      // name-conflict dialog) instead of failing outright. Reset first so a
+      // remembered "apply-to-all" from a prior paste never auto-answers a
+      // rename (renames are single, not batched). Replace overwrites the
+      // existing file via the backend replace flag; Skip / Cancel / Keep leave
+      // the name untouched (Keep has no auto-number meaning on a rename).
+      resetNameConflictBatch();
+      const choice = await resolveNameConflictChoice(next, false);
+      if (choice !== "replace") {
+        await refreshListing();
+        return;
+      }
+      const replaced = await renameEntry(entry.path, next, true);
+      if (!replaced.ok) {
+        onNotice(replaced.error ?? t("contextMenu.opFailed"), "error");
+        await refreshListing();
+        return;
+      }
+      const replacedPath = replaced.paths[0];
+      if (replacedPath) recordRenameUndo(entry.path, replacedPath);
+      onNotice(t("contextMenu.renamed"));
       await refreshListing();
+      if (replacedPath) selectOnly(replacedPath);
       return;
     }
     const result = await renameEntry(entry.path, next);
@@ -1922,7 +1946,16 @@ async function shortcutPaste() {
     if (!hasClipboard.value) return;
     const sources = [...clipboardPaths.value];
     const wasCut = clipboardMode.value === "cut";
-    const result = await pasteClipboard(currentPath.value);
+    // CLIP-101/102/104: a single selected folder → paste into it; a single selected file →
+    // its parent; mixed / no single container → the current dir.
+    const pasteTarget = resolvePasteTarget(
+      selectedEntries(visibleEntries.value).map((entry) => ({
+        path: entry.path,
+        isDirectory: entry.kind === "dir",
+      })),
+      currentPath.value,
+    );
+    const result = await pasteClipboard(pasteTarget);
     if (!result.ok) {
       onNotice(result.error ?? t("contextMenu.opFailed"));
       return;

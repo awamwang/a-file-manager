@@ -13,7 +13,7 @@ const checks = [
   ["src/views/WorkGroupsView.vue", ["group-head", "viewAll", "'home'"]],
   [
     "src/views/ProjectsView.vue",
-    ["column--doing", "column--done", "column-title", "STATUS_ICONS", 'name="board"'],
+    ["group-head", "fluent-surface", 'name="board"'],
   ],
 ];
 

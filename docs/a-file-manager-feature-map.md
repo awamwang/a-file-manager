@@ -15,7 +15,7 @@
 |---|---|
 | `/navigator` | 目录浏览、Open State 标签、双栏、文件操作 |
 | `/work-groups` | Hard members ↔ Open State |
-| `/projects` | 看板 / 链接 / 绑定 WG |
+| `/projects` | 工作区链接 / 绑定 WG / `tasks.json`（D5 已移除任务看板 / 列表 UI，board 数据不迁移） |
 | `/discovery` | 全局搜索 |
 | `/providers` | 虚拟 FS 后端 |
 | `/extensions` | 扩展宿主 |

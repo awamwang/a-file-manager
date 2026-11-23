@@ -495,6 +495,26 @@ pub fn volume_space(path: &str) -> Result<VolumeSpace, String> {
     current().volume_space(path)
 }
 
+/// DEL-003: whether `path` can land in a real Recycle Bin. UNC / network shares
+/// never can; on Windows only NTFS volumes do (FAT32/exFAT removable media would
+/// otherwise be silently erased by `trash::delete`); other hosts route every
+/// local path through their trash provider. Business code calls this neutral
+/// entry, never a `#[cfg]` branch.
+pub fn volume_supports_recycle_bin(path: &str) -> bool {
+    let trimmed = path.trim();
+    if trimmed.starts_with("\\\\") || trimmed.starts_with("//") {
+        return false;
+    }
+    #[cfg(windows)]
+    {
+        windows::volume_supports_recycle_bin(trimmed)
+    }
+    #[cfg(not(windows))]
+    {
+        true
+    }
+}
+
 /// Single entry point for hidden-file semantics (both OS adapters).
 pub fn is_hidden(name: &str, metadata: &std::fs::Metadata) -> bool {
     current().is_hidden(name, metadata)

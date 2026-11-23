@@ -799,6 +799,52 @@ fn volume_label_for_root(path: &str) -> String {
     String::from_utf16_lossy(&name[..end]).trim().to_string()
 }
 
+/// DEL-003: only NTFS exposes a per-drive Recycle Bin on Windows. FAT32 / exFAT
+/// volumes (common on USB) have none, so `trash::delete` there erases the file
+/// outright with no confirmation. Kept pure over the file-system name so it is
+/// cargo-testable without mounting a real FAT volume; an unknown name defers to
+/// `trash::delete`'s own best effort.
+pub(crate) fn filesystem_supports_recycle_bin(file_system_name: Option<&str>) -> bool {
+    match file_system_name {
+        Some(fs) => fs.eq_ignore_ascii_case("NTFS"),
+        None => true,
+    }
+}
+
+/// Read the volume file-system name for `path` and fold it into the
+/// recyclability decision. `path` is expected to be a non-UNC local path (the
+/// platform entry filters UNC before calling here).
+pub(crate) fn volume_supports_recycle_bin(path: &str) -> bool {
+    use std::os::windows::ffi::OsStrExt;
+    use windows::core::PCWSTR;
+    use windows::Win32::Storage::FileSystem::GetVolumeInformationW;
+
+    let Some(root) = volume_root(path) else {
+        return filesystem_supports_recycle_bin(None);
+    };
+    let wide: Vec<u16> = std::ffi::OsStr::new(&root)
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    let mut fs_name = [0u16; 32];
+    let ok = unsafe {
+        GetVolumeInformationW(
+            PCWSTR(wide.as_ptr()),
+            None,
+            None,
+            None,
+            None,
+            Some(&mut fs_name),
+        )
+    };
+    if ok.is_err() {
+        return filesystem_supports_recycle_bin(None);
+    }
+    let end = fs_name.iter().position(|&c| c == 0).unwrap_or(fs_name.len());
+    let fs = String::from_utf16_lossy(&fs_name[..end]);
+    filesystem_supports_recycle_bin(if fs.is_empty() { None } else { Some(&fs) })
+}
+
 fn volume_root(path: &str) -> Option<String> {
     let trimmed = path.trim().replace('/', "\\");
     if trimmed.starts_with("\\\\") {
@@ -944,5 +990,26 @@ mod tests {
             Some(r"\\server\share\")
         );
         assert_eq!(volume_root("afm://guide"), None);
+    }
+
+    #[test]
+    fn only_ntfs_recycles() {
+        assert!(filesystem_supports_recycle_bin(Some("NTFS")));
+        assert!(filesystem_supports_recycle_bin(Some("ntfs")));
+    }
+
+    #[test]
+    fn fat_and_exfat_do_not_recycle() {
+        for fs in ["FAT", "FAT32", "FAT16", "exFAT", "EXFAT", "ReFS"] {
+            assert!(
+                !filesystem_supports_recycle_bin(Some(fs)),
+                "{fs} must not report a recycle bin"
+            );
+        }
+    }
+
+    #[test]
+    fn unknown_filesystem_defers_to_trash() {
+        assert!(filesystem_supports_recycle_bin(None));
     }
 }

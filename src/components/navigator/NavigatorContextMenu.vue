@@ -59,7 +59,7 @@ import {
 import { selectedPaths } from "../../state/navigatorSelection";
 import { folderPathsForWorkGroup as reduceFolderPathsForWorkGroup } from "./workGroupPaths";
 import { nextSelectionAfterRemoval } from "../../state/navigatorSelection";
-import { scrollSelectionIntoView } from "../../state/revealInNavigator";
+import { revealItemsInNavigator, scrollSelectionIntoView } from "../../state/revealInNavigator";
 import {
   isFavoritePath,
   toggleFavorite,
@@ -361,6 +361,8 @@ async function runPaste() {
       emit("notice", t("contextMenu.pasted", { count: result.paths.length }));
       await refreshListing();
     }
+    // LC-001 / LC-002 / CLIP-003 / CLIP-004: select the freshly written items.
+    await revealItemsInNavigator(result.paths);
   } catch (err) {
     emit("notice", err instanceof Error ? err.message : String(err));
   }

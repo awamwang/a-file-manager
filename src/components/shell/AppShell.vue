@@ -13,6 +13,7 @@ import ToastHost from "./ToastHost.vue";
 import TaskCenterHost from "./TaskCenterHost.vue";
 import ConfirmDialogHost from "./ConfirmDialogHost.vue";
 import NameConflictDialogHost from "./NameConflictDialogHost.vue";
+import TransferErrorDialogHost from "./TransferErrorDialogHost.vue";
 import PromptDialogHost from "./PromptDialogHost.vue";
 import KnowledgeDocDialog from "../knowledge/KnowledgeDocDialog.vue";
 import FluentIcon from "../icons/FluentIcon.vue";
@@ -2966,6 +2967,7 @@ onUnmounted(() => {
 
     <ConfirmDialogHost />
     <NameConflictDialogHost />
+    <TransferErrorDialogHost />
     <PromptDialogHost />
     <KnowledgeDocDialog />
     <ToastHost />

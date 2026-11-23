@@ -6,8 +6,6 @@ use serde::{Deserialize, Serialize};
 /// v2: Project may bind a non-default Work Group (`workGroupId`) for session authority.
 pub const SCHEMA_VERSION: u32 = 2;
 
-pub const TASK_STATUSES: [&str; 4] = ["backlog", "doing", "review", "done"];
-
 /// Stable IPC error codes (UI maps via i18n).
 pub const ERR_DEFAULT_WORK_GROUP_FORBIDDEN: &str = "PROJECT_DEFAULT_WORK_GROUP_FORBIDDEN";
 pub const ERR_UNKNOWN_WORK_GROUP: &str = "PROJECT_UNKNOWN_WORK_GROUP";
