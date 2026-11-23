@@ -164,7 +164,6 @@
     "test:settings-ui-regroup": "node scripts/check-settings-ui-regroup.mjs",
     "test:voice-input": "node scripts/check-voice-input.mjs",
     "test:help-guidance": "node scripts/check-help-guidance.mjs",
-    "test:hint-route-scope": "node scripts/check-hint-route-scope.mjs",
     "test:example-presets": "node scripts/check-example-presets.mjs",
     "test:provider-download": "node scripts/check-provider-download.mjs",
     "test:provider-error-hint": "node scripts/check-provider-error-hint.mjs",
