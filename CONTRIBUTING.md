@@ -101,5 +101,5 @@ platform, build flavor (Core / AI), and reproduction steps.
 
 ## Releasing (maintainers)
 
-Releases are cut from a single `v*` Git tag; see the **Release** section of the
-[README](./README.md) for the multi-pack (Core / AI / Feature Pack) workflow.
+Releases are cut from a single `v*` Git tag; see the **发版（维护者）** section of the
+[development guide](./docs/development.md) for the multi-pack (Core / AI / Feature Pack) workflow.

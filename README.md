@@ -1,111 +1,63 @@
 # A File Manager
 
-Windows-first file manager — **Tauri 2** + **Vue 3** + TypeScript.
+Windows 优先的现代桌面文件管理器，基于 **Tauri 2 + Vue 3**，采用 Fluent 原生界面。它把双栏浏览、标签页、全局搜索，以及「工作组 / 项目」这类工作现场管理整合到一起 —— 让常用的一批位置可以一键切换、随时回到你正在处理的上下文。
 
-Greenfield product checkout. Bootstrap archive (read-only): sibling folder `a-file-manager-sigma`.
+## 界面预览
 
-## Download
+**资源管理器** —— 侧栏树 + 多标签 + 双栏浏览 + 文件预览：
 
-Windows NSIS installers (`.exe`) are attached to each GitHub Release created from a `v*` tag.
+![资源管理器](docs/screenshots/explorer.png)
 
-| Get | Link |
+| 工作组 | 项目 |
 |---|---|
-| **Latest** (recommended) | [releases/latest](https://github.com/awamwang/a-file-manager/releases/latest) |
-| **All versions** | [Releases](https://github.com/awamwang/a-file-manager/releases) |
+| ![工作组](docs/screenshots/work-groups.png) | ![项目](docs/screenshots/projects.png) |
 
-On a release page, download the `*-setup.exe` asset, then install and run **A File Manager**. Older tags stay available on the Releases list after newer ones ship.
-
-NSIS 安装包内嵌 **WebView2 bootstrapper**：目标机没有 WebView2 Runtime 时会在安装过程中静默安装。
-
-## Requirements
-
-| 阶段 | 依赖 | 声明位置 |
-|------|------|----------|
-| 构建 | Node.js ≥ 20、npm | `package.json` → `engines` / `.nvmrc` |
-| 构建 | Rust stable | `rust-toolchain.toml` |
-| 构建 | Windows + MSVC（CI 用 `windows-latest`） | GitHub Actions |
-| 运行（必装） | Windows 10/11 + WebView2 Runtime | 安装包自动处理；设置 → 健康 可体检 |
-| 运行（可选） | rclone、awam-file 网关、QuickLook / PowerToys Peek、IDE… | 设置 → 健康：缺什么、怎么补 |
-
-本地知识库目录请设环境变量 `AFM_KNOWLEDGE_ROOT` 或 `AWAM_KNOWLEDGE_ROOT`（不再默认绑定本机盘符）。MCP 需自行导入，不会写入开发机绝对路径。
-
-### 依赖项目
-
-| 项目 | 作用 |
-|------|------|
-| [awam-tool-manager](https://github.com/awamwang/awam-tool-manager) | 本机工具名单的统一入口（MCP）：查找文件/应用/游戏/快捷动作/包，或调用其他 MCP 后端的子工具 |
-| [awam-file](https://github.com/awamwang/awam-file) | 文件网关（运行可选依赖；设置 → 健康 可体检） |
-
-## Run
-
-```bash
-npm install
-npm run tauri:dev
-```
-
-Web-only check:
-
-```bash
-npm run build
-npm run test:deps-surface
-npm run test:rust
-```
-
-## Dev conventions
-
-性能与非阻塞 UI：[docs/dev-performance-conventions.md](./docs/dev-performance-conventions.md)（基线见 [docs/perf-baseline.md](./docs/perf-baseline.md)、[PERF.md](./PERF.md)）。
-
-## Release
-
-发版由 **Git tag** 指定**一个** semver，并在**同一个** GitHub Release 下挂多个包（主线版 Mainline / 精简版 Lite / Feature Pack），不是三个不同版本号。同一版本号下，**主线版（默认含 AI Add-on）是首推下载**，精简版为可选次级（见 [ADR 0024](./docs/adr/0024-mainline-lite-positioning.md)）。
-
-推送 `v*` 后，[`.github/workflows/release.yml`](.github/workflows/release.yml) 会：
-
-1. 按 tag 同步版本到 `package.json` / `src-tauri/tauri.conf.json` / `src-tauri/Cargo.toml`
-2. 用 GitHub `generate-notes`（失败则回退 `git log`）写发版说明，并创建 **draft** Release
-3. Matrix 构建 **主线版（ai）** 与 **精简版（core）** Windows NSIS；再打包 `packs/*/pack.json` 为 Feature Pack zip
-4. 上传规范命名资产后 undraft（可在 workflow_dispatch 里关闭 publish）
-
-| Asset | 含义 |
+| AI 技能与 MCP | 扩展 |
 |---|---|
-| `A.File.Manager_${ver}_x64-setup.exe` | **主线版 Mainline**（默认 features / `ai-addon`，= 普通正式版，**首推**） |
-| `A.File.Manager_${ver}_x64-lite-setup.exe` | **精简版 Lite**（`VITE_AFM_AI_ADDON=0` + Cargo `--no-default-features`，可选次级） |
-| `A.File.Manager_${ver}_${arch}[-lite].dmg` / `.app.zip` | **macOS**（Apple Silicon / Intel；主线版无后缀 / 精简版带 `-lite`） |
-| `A.File.Manager_${ver}_feature-pack-*.zip` | Feature Pack（与版本无关，本机 zip 安装） |
+| ![AI](docs/screenshots/ai.png) | ![扩展](docs/screenshots/extensions.png) |
 
-版本号含 `-`（如 `v0.3.0-rc.1`）会标为 prerelease。Agent 流程见 [`.cursor/skills/afm-multi-pack-release/SKILL.md`](.cursor/skills/afm-multi-pack-release/SKILL.md)。
+## 主要功能
 
-```bash
-# 先看计划（不改仓库）
-npm run prepare-release -- 0.3.0 --dry-run
-npm run build:release-artifacts -- --dry-run --version 0.3.0
+- **浏览与操作**：列表 / 图标视图、双栏对照、多标签页、面包屑与侧栏（驱动器、常用位置、收藏夹）；复制 / 剪切 / 粘贴、拖放、重命名、删除到回收站并可还原，支持撤销（Ctrl+Z）。
+- **工作组（Work Groups）**：把一组常用文件夹存成一个「现场」，切换工作组即恢复对应的标签页；适合按客户 / 任务来回切换。
+- **项目（Projects）**：从工作组创建，在磁盘上落地为真实目录，包含公共文档、工作区成员链接与 AI 技能 / MCP 配置，便于围绕一个项目持续工作。
+- **全局搜索（Discovery）**：跨多个位置查找文件与应用。
+- **虚拟来源与扩展**：接入 rclone、awam-file 网关等虚拟文件系统；通过 Feature Pack 注入可选的工具运行时。
+- **可选 AI 能力**：AI 技能与 MCP 作为可选附加组件（另有精简版不含该部分）。
+- **外观与本地化**：Fluent 设计语言、深 / 浅色主题；内置中（简/繁）、英、日、德、法多语言。
 
-# 同步版本、提交、打 annotated tag（不推送）
-npm run prepare-release -- 0.3.0 --commit
+> Windows 为第一优先平台；macOS 版也在持续构建（见下载）。
 
-# 推送提交与 tag → 触发多包 Release
-git push origin HEAD && git push origin v0.3.0
+## 下载与安装
 
-# 一步推送
-npm run prepare-release -- 0.3.0 --commit --push
+每个 GitHub Release（由 `v*` 标签发布）都提供安装包：
 
-# 仅本地打 Feature Pack zip
-npm run package:feature-packs -- 0.3.0
-```
-
-也可在 **Actions → Release → Run workflow** 手动跑；可填 `version` / `packs`（`all` 或 `core,ai,feature-pack`）/ `publish`。
-
-## License
-
-[GPL-3.0-or-later](./LICENSE). Personal / private use is fine. Redistribution or commercial use must follow the GPL (including providing corresponding source).
-
-## Identity
-
-| | |
+| 想要的版本 | 下载 |
 |---|---|
-| Display | A File Manager |
-| npm | `a-file-manager` |
-| Tauri identifier | `com.a-file-manager.app` |
-| Rust crate / lib | `a-file-manager` / `a_file_manager_lib` |
+| **最新版（推荐）** | [releases/latest](https://github.com/awamwang/a-file-manager/releases/latest) |
+| **全部版本** | [Releases](https://github.com/awamwang/a-file-manager/releases) |
 
-S0: empty Rust core + `health_get` only. No Sigma UI kit.
+在 Release 页面下载 `*-setup.exe` 安装即可运行 **A File Manager**。同一版本通常提供两类：
+
+- **主线版 Mainline**（默认含 AI 技能，普通正式版，建议首选）；
+- **精简版 Lite**（不含 AI 附加组件，`-lite` 后缀，可选次级）。
+
+macOS 用户下载对应的 `.dmg`（Apple Silicon / Intel）。
+
+若你的电脑还没有 WebView2 运行环境，安装过程会自动为你补齐，无需手动处理。
+
+## 运行环境
+
+- **系统**：Windows 10 / 11（macOS 版见 Releases）。
+- **WebView2 Runtime**：运行必需，安装程序会自动处理；也可在「设置 → 健康」里体检。
+- **可选依赖**：rclone、awam-file 网关、QuickLook / PowerToys Peek、本机 IDE 等按需安装；缺什么、怎么补，「设置 → 健康」会逐项提示。
+
+## 许可证
+
+[GPL-3.0-or-later](./LICENSE)。个人 / 私有使用没有任何限制；再分发或商用须遵循 GPL（包括提供对应源代码）。
+
+## 开发 / 本地运行 / 参与贡献
+
+- 本地运行、构建、测试门禁与发版流程：[docs/development.md](./docs/development.md)
+- 贡献指南与 PR 规范：[CONTRIBUTING.md](./CONTRIBUTING.md)
+- 架构与功能地图：[docs/a-file-manager-feature-map.md](./docs/a-file-manager-feature-map.md)
