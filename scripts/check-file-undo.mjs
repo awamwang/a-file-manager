@@ -74,6 +74,36 @@ assert.ok(
   "FIL-61 must not poll directories as the primary refresh",
 );
 
+// UN-007 (已拍板 2026-11-22): the undo stack is in-memory only and must never
+// survive an app restart. If someone wires it to localStorage / sessionStorage /
+// the settings store, Ctrl+Z would offer stale cross-session undos Explorer does
+// not have — this gate must go red. The stack is a module-scoped Vue `ref`; the
+// record/stack modules must contain no persistence calls.
+const stackMod = readFileSync(join(root, "src/state/fileUndo/stack.ts"), "utf8");
+for (const text of [fileUndo, stackMod]) {
+  assert.ok(!text.includes("localStorage"), "undo stack must not read/write localStorage");
+  assert.ok(!text.includes("sessionStorage"), "undo stack must not use sessionStorage");
+}
+
+// UN-009 (已拍板 2026-11-22): a cancel/rollback triggered by a transfer is the
+// transfer's own teardown and must NOT enter the undo stack — Ctrl+Z after an
+// aborted batch undoes the *previous complete* operation. Both transfer entry
+// points record undo only after the `!result.ok` early return, never on a failed
+// /cancelled result. Pin that ordering in the drag path and the paste path.
+const dropSurface = readFileSync(join(root, "src/state/dnd/surface.ts"), "utf8");
+assert.ok(
+  /if \(!result\.ok\)\s*\{[\s\S]{0,160}?return[\s\S]{0,200}?recordCopyUndo/.test(dropSurface),
+  "drop path must return on failure before recordCopyUndo (cancel not recorded) — UN-009",
+);
+const pasteBlock =
+  /const result = await pasteClipboard[\s\S]*?if \(!result\.ok\)\s*\{[\s\S]*?return[\s\S]*?recordMoveUndo\(sources, result\.paths\)[\s\S]*?recordCopyUndo\(result\.paths\)/.test(
+    view,
+  );
+assert.ok(
+  pasteBlock,
+  "paste path must early-return on failure before recordMoveUndo/recordCopyUndo — UN-009",
+);
+
 const result = spawnSync(
   process.execPath,
   ["--experimental-strip-types", join(root, "scripts/file-undo-checks.ts")],

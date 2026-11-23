@@ -230,10 +230,10 @@ Ctrl+Z undoes copy / move / rename / new / recycle-delete.
 | UN-003 | just renamed | Ctrl+Z | original name restored | — | `✅ code` | `check-file-undo.mjs` |
 | UN-004 | just recycle-deleted | Ctrl+Z | **restore from Recycle Bin** to original path | — | `🟡 code` | loopback not temp-exec tested (ledger R2) |
 | UN-005 | just created folder/file | Ctrl+Z | delete the created item | — | `✅ code` | `check-file-undo.mjs` |
-| UN-006 | undo several ops in sequence | Ctrl+Z ×n | reverse order, each correctly undone | — | `🔵 decided 2026-11-23` — 逆序逐项撤销（标准栈语义） | gaps |
-| UN-007 | undo after the app was **closed/reopened** | Ctrl+Z | no undo across restart | — | `🔵 decided` — in-memory only, matches Explorer | **decided 2026-11-22** |
+| UN-006 | undo several ops in sequence | Ctrl+Z ×n | reverse order, each correctly undone | — | `✅ code+test` — stack is strict LIFO; FE unit drains copy/create/rename/move/delete last→first | `check-file-undo.mjs`→`file-undo-checks.ts` |
+| UN-007 | undo after the app was **closed/reopened** | Ctrl+Z | no undo across restart | — | `✅ code+test` — in-memory only, matches Explorer; grep pins no `localStorage`/`sessionStorage` in `fileUndo/*` | `check-file-undo.mjs` |
 | UN-008 | an external program modified the target between op and undo | Ctrl+Z | refuse / warn, do not clobber foreign change | — | `🔵 decided` — 检测后拒绝 undo，toast「项目已被外部修改，无法撤销」；不弹模态 | **decided 2026-11-22** |
-| UN-009 | undo a **partial/cancelled** transfer | Ctrl+Z | remove the partial results, source (if not lost) intact | ties to TR-011/LC | `🔵 decided` — cancel 触发的回滚是传输本身的收尾，**不入 undo 栈**；Ctrl+Z 撤销上一个完整操作 | **decided 2026-11-22** |
+| UN-009 | undo a **partial/cancelled** transfer | Ctrl+Z | remove the partial results, source (if not lost) intact | ties to TR-011/LC | `✅ code+test` — cancel rollback is the transfer's teardown, never pushed; Ctrl+Z undoes the previous complete op | `check-file-undo.mjs` |
 | UN-010 | redo (Ctrl+Y) after undo | Ctrl+Y | no file-ops redo | DC has redo; AFM will not | `🔵 decided` — **no redo**, matches Explorer | **decided 2026-11-22** |
 
 ### Group 8 · Lifecycle & post-state (LC)
@@ -390,7 +390,7 @@ of *scenario* truth.
 | rename reserved-name / case-only / trailing-dot | NM-003, NM-004, NM-007 | CARGO `validate_file_name` / rename | new |
 | UNC/removable Delete → permanent fallback w/ confirm | DEL-003, DEL-008 | FE 已实现（grep + 调用链）；可选 FE-UNIT | **verified 2026-11-22** — `check-file-ops.mjs` 已 grep `confirmPermanentDelete`；本次扩展加 `pathsWithoutRecycle` 在两个入口里的调用钉住 |
 | restore to original path when parent gone | DEL-007 | CARGO (heavy, see ledger R2) | **decided — 自动重建父目录链；CARGO 可走 temp 路径，不再依赖 R2 的机器态** |
-| undo reverse-order multi-op | UN-006 | FE | decided 2026-11-23 — 实现待做 |
+| undo reverse-order multi-op | UN-006 | FE | guarded 2026-11-23 — `check-file-undo.mjs`→`file-undo-checks.ts` LIFO drain |
 | paste-target resolution (folder/file/none) | CLIP-101, CLIP-102, CLIP-104 | FE (pure resolver extraction) | decided 2026-11-23 — 实现待做 |
 | select new post-state (copy / move / paste) | LC-001, LC-002, CLIP-003, CLIP-004 | FE | decided 2026-11-23 — 实现待做 |
 | delete post-state = keep selection (not neighbor) | LC-003 | FE (`delete-keep-selection`) | decided 2026-11-23 — 保持选区，有意差异，实现待做 |
@@ -402,7 +402,7 @@ of *scenario* truth.
 | apply-to-all per-operation scope | CF-003, TR-014 | FE (dialog state) | new |
 | clipboard stale-cut-path drop | CLIP-008 | FE 验证 + 后端 `transferEntries` 跳过分支 | new |
 | undo contamination refusal | UN-008 | FE `file-undo-checks.ts` | new |
-| cancel rollback excluded from undo stack | UN-009 (ties to LC-005) | FE reducer | new |
+| cancel rollback excluded from undo stack | UN-009 (ties to LC-005) | FE reducer | guarded 2026-11-23 — `check-file-undo.mjs` asserts paste/drop callers early-return on `!result.ok` before `record*Undo` |
 | in-use / disk-full errors reuse per-item retry/skip/abort | LC-006, LC-008 (→ LC-007) | FE + CARGO (error class) | decided 2026-11-23 — 实现待做 |
 | long-path support via `\\?\` | LC-009 | CARGO + manifest 断言 | **decided — code change required** |
 | Esc semantics (rename > clear > no-op) | SEL-010 | FE (key handler) | new |
