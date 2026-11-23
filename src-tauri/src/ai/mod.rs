@@ -252,11 +252,16 @@ pub fn ai_skills_undeploy(
 }
 
 /// Search a Project Workspace for folders containing `SKILL.md` (for add-to-library).
+/// 项目内发现受 Agent Target 配置驱动：workspace 根浅层 + 项目启用集各 Target 的
+/// `projectSkillsDir` 真实配置（ADR 0010 修订：Agent Target 是源头）。
 #[tauri::command]
 pub fn ai_skills_search_project(
+    app: AppHandle,
     workspace_path: String,
 ) -> Result<Vec<deploy::ProjectSkillCandidate>, String> {
-    deploy::search_project_skills(&workspace_path)
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    deploy::search_project_skills(&workspace_path, &doc)
 }
 
 #[tauri::command]
@@ -418,7 +423,8 @@ fn scan_project_deployments(
     let project_agents = doc
         .agent_targets
         .iter()
-        .filter(|agent| enabled.iter().any(|id| id == &agent.id));
+        // Agent Target 是源头：中央 enabled=false 的 Target 不算部署槽位（ADR 0010 修订）。
+        .filter(|agent| agent.enabled && enabled.iter().any(|id| id == &agent.id));
 
     let mut mcp_hits: BTreeMap<String, usize> = BTreeMap::new();
     let mut skill_hits: BTreeMap<String, usize> = BTreeMap::new();
@@ -618,6 +624,9 @@ mod tests {
         b.display_name = "B".into();
         b.project_mcp_path = "b/mcp.json".into();
         doc.agent_targets.push(b);
+        // Agent Target 是源头：两个 agent 都需中央启用才计为部署槽位。
+        doc = crate::ai::agents::set_enabled(&doc, "a", true).unwrap();
+        doc = crate::ai::agents::set_enabled(&doc, "b", true).unwrap();
 
         // Only agent A has the managed MCP entry on disk.
         fs::create_dir_all(ws.join("a")).unwrap();
@@ -636,6 +645,67 @@ mod tests {
         assert!(
             !both.mcp_ids.iter().any(|id| id == "demo"),
             "partial deploy must show as not-added so it can be re-checked"
+        );
+
+        let _ = fs::remove_dir_all(&ws);
+    }
+
+    /// Agent Target 是源头：中央禁用的 agent 不算部署槽位，即使项目启用集含它（ADR 0010 修订）。
+    #[test]
+    fn project_status_ignores_centrally_disabled_agents() {
+        use crate::ai::agents::AiConfigDocument;
+        use std::fs;
+
+        let ws = std::env::temp_dir().join(format!(
+            "afm-ai-project-status-disabled-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&ws);
+        fs::create_dir_all(&ws).unwrap();
+
+        let mut doc = AiConfigDocument::empty();
+        doc = crate::ai::agents::upsert_custom(
+            &doc,
+            Some("on".into()),
+            "On".into(),
+            String::new(),
+            String::new(),
+            String::new(),
+            "on/mcp.json".into(),
+            String::new(),
+        )
+        .unwrap();
+        let mut off = doc.agent_targets[0].clone();
+        off.id = "off".into();
+        off.display_name = "Off".into();
+        off.project_mcp_path = "off/mcp.json".into();
+        doc.agent_targets.push(off);
+        // 仅 on 中央启用；off 保持中央禁用。
+        doc = crate::ai::agents::set_enabled(&doc, "on", true).unwrap();
+
+        // 两个 agent 的项目文件都写入了托管键。
+        fs::create_dir_all(ws.join("on")).unwrap();
+        fs::write(
+            ws.join("on/mcp.json"),
+            r#"{"mcpServers":{"afm__demo":{}}}"#,
+        )
+        .unwrap();
+        fs::create_dir_all(ws.join("off")).unwrap();
+        fs::write(
+            ws.join("off/mcp.json"),
+            r#"{"mcpServers":{"afm__demo":{}}}"#,
+        )
+        .unwrap();
+
+        // 项目启用集同时含 on 与 off：中央禁用的 off 不计为槽位，demo 应视为已添加。
+        let scan = scan_project_deployments(&ws, &doc, &["on".to_string(), "off".to_string()]);
+        assert!(scan.mcp_ids.iter().any(|id| id == "demo"));
+
+        // 反例：项目启用集只剩中央禁用的 off → 任何条目都不算已添加。
+        let only_off = scan_project_deployments(&ws, &doc, &["off".to_string()]);
+        assert!(
+            !only_off.mcp_ids.iter().any(|id| id == "demo"),
+            "centrally disabled agent must not count as a deployment slot"
         );
 
         let _ = fs::remove_dir_all(&ws);

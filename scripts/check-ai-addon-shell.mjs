@@ -99,8 +99,10 @@ assert.ok(client.includes('"ai_harness_init"'), "typed client: harness");
 assert.ok(client.includes('"ai_providers_list"'), "typed client: providers list");
 assert.ok(client.includes('"ai_providers_upsert_compatible"'), "typed client: providers compatible");
 assert.ok(client.includes('"ai_project_open_editor"'), "typed client: open editor");
-// AIA-263: left nav + Fluent selected UI (not purple-on-white / outline-only)
-assert.ok(view.includes('role="tablist"'), "AI settings left nav tablist");
+// AIA-263: left nav + Fluent selected UI (not purple-on-white / outline-only).
+// 0f23a891 a11y: <aside role="tablist"> -> <nav aria-label>; role="tab"/aria-selected -> aria-current.
+assert.ok(view.includes('<nav class="ai-nav'), "AI settings left nav landmark");
+assert.ok(view.includes("aria-current"), "AI section nav active via aria-current");
 assert.ok(view.includes("ai-nav-item--active"), "section nav selected class");
 assert.ok(view.includes("fluent-color-fill-selected"), "Fluent selected fill on nav");
 assert.ok(view.includes("data-ai-nav"), "nav items expose section ids");
@@ -146,6 +148,30 @@ assert.ok(
 assert.ok(
   projectAiPanel.includes("正在筛选：命中项保持目录原序"),
   "Skills filter keeps catalog order while typing",
+);
+// Agent Target 是源头（ADR 0010 修订）：项目 chips / Harvest 源均按中央 enabled 过滤，
+// 项目 fan-out 与项目内发现受中央 enabled 与 projectSkillsDir 真实配置驱动。
+assert.ok(
+  projectAiPanel.includes("filter((a) => a.enabled)"),
+  "project chips driven by central enabled",
+);
+assert.ok(
+  mcpPanel.includes("filter((a) => a.enabled)"),
+  "mcp harvest source driven by central enabled",
+);
+assert.ok(
+  skillsPanel.includes("filter((a) => a.enabled)"),
+  "skills harvest source driven by central enabled",
+);
+assert.ok(projectAiRust.includes("t.enabled &&"), "project fan-out gated by central enabled");
+const harvestRs = read("src-tauri/src/ai/harvest.rs");
+assert.ok(
+  harvestRs.includes("AI_HARVEST_AGENT_NOT_ENABLED"),
+  "harvest rejects centrally disabled agent",
+);
+assert.ok(
+  deploy.includes("central: &AiConfigDocument"),
+  "project skill discovery is config-driven",
 );
 assert.ok(view.includes("HarnessInitPanel"));
 const harness = read("src-tauri/src/ai/harness.rs");

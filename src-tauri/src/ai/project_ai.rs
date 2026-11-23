@@ -134,6 +134,9 @@ pub fn set_enabled_agents(
 }
 
 /// 解析项目部署应使用的 Agent 列表。
+///
+/// Agent Target 是源头：中央 `enabled=false` 的 Target 一律不参与项目 fan-out，
+/// 即使 `.afm/ai-project.json` 仍存有该 id（存储保留，重新启用后自动恢复）。
 pub fn resolve_project_agents<'a>(
     central: &'a AiConfigDocument,
     workspace: &str,
@@ -142,7 +145,7 @@ pub fn resolve_project_agents<'a>(
     let agents: Vec<&AgentTarget> = central
         .agent_targets
         .iter()
-        .filter(|t| project.enabled_agent_ids.iter().any(|id| id == &t.id))
+        .filter(|t| t.enabled && project.enabled_agent_ids.iter().any(|id| id == &t.id))
         .collect();
     Ok(agents)
 }
@@ -159,7 +162,9 @@ pub fn resolve_global_agents(central: &AiConfigDocument) -> Vec<&AgentTarget> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ai::agents::{load_from_path, set_enabled, update_target, AgentTargetPatch};
+    use crate::ai::agents::{
+        load_from_path, set_enabled, update_target, upsert_custom, AgentTargetPatch,
+    };
 
     fn temp_ws(tag: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!(
@@ -196,6 +201,49 @@ mod tests {
         let project = load_or_init(ws.to_str().unwrap(), &doc).unwrap();
         assert!(project.enabled_agent_ids.iter().any(|id| id == "cursor"));
         assert!(ai_project_path(&ws).is_file());
+        let _ = fs::remove_dir_all(&cfg);
+        let _ = fs::remove_dir_all(&ws);
+    }
+
+    /// Agent Target 是源头：中央禁用的 Target 不参与项目 fan-out，重新启用后自动恢复（ADR 0010 修订）。
+    #[test]
+    fn resolve_project_agents_gated_by_central_enabled() {
+        let cfg = temp_ws("cfg-gate");
+        let ws = temp_ws("ws-gate");
+        let mut doc = load_from_path(&cfg).unwrap();
+        doc = upsert_custom(
+            &doc,
+            Some("gate-a".into()),
+            "Gate A".into(),
+            String::new(),
+            "skills".into(),
+            String::new(),
+            "mcp.json".into(),
+            String::new(),
+        )
+        .unwrap();
+        doc = set_enabled(&doc, "gate-a", true).unwrap();
+        set_enabled_agents(ws.to_str().unwrap(), &doc, vec!["gate-a".to_string()]).unwrap();
+
+        let agents = resolve_project_agents(&doc, ws.to_str().unwrap()).unwrap();
+        assert!(agents.iter().any(|t| t.id == "gate-a"));
+
+        // 中央关闭：项目启用集文件仍存有 gate-a（暂存），但 fan-out 必须排除它。
+        let disabled = set_enabled(&doc, "gate-a", false).unwrap();
+        assert!(fs::read_to_string(ai_project_path(&ws))
+            .unwrap()
+            .contains("gate-a"));
+        let agents = resolve_project_agents(&disabled, ws.to_str().unwrap()).unwrap();
+        assert!(
+            agents.iter().all(|t| t.id != "gate-a"),
+            "centrally disabled agent must be excluded from project fan-out"
+        );
+
+        // 重新启用：无需重勾，自动恢复参与 fan-out。
+        let re_enabled = set_enabled(&disabled, "gate-a", true).unwrap();
+        let agents = resolve_project_agents(&re_enabled, ws.to_str().unwrap()).unwrap();
+        assert!(agents.iter().any(|t| t.id == "gate-a"));
+
         let _ = fs::remove_dir_all(&cfg);
         let _ = fs::remove_dir_all(&ws);
     }

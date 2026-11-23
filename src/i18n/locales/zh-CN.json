@@ -342,8 +342,8 @@
       "disable": "禁用（全局）",
       "defaultInProjectsOn": "项目默认：开",
       "defaultInProjectsOff": "项目默认：关",
-      "defaultInProjectsHint": "「项目默认」控制新建项目的 Agent 启用集预填；「启用」控制全局部署扇出。",
-      "installHint": "「已安装」= 磁盘上存在全局 Skills 目录或 MCP 文件；只有已安装的 Agent 才会出现在 MCP/Skill 导入与项目配置中。",
+      "defaultInProjectsHint": "「项目默认」控制新建项目的 Agent 启用集预填；「启用」是全局部署、MCP/Skill 导入与项目配置的总开关。",
+      "installHint": "「已安装」= 磁盘上存在全局 Skills 目录或 MCP 文件；只有已启用的 Agent 才会出现在 MCP/Skill 导入与项目配置中。",
       "noInstalledHint": "未检测到已安装的 Agent。导入 MCP/Skill 或配置项目前，请先安装 Agent 或刷新发现。",
       "noneEnabledHint": "没有已启用的 Agent。请先在 AI 设置的 Agent Target 中启用，再导入 MCP/Skill 或配置项目。",
       "showAll": "显示全部（还有 {count} 个）",
@@ -499,7 +499,6 @@
       "noticeMcpImported": "MCP 收获：新增 {added} · 跳过 {skipped}",
       "noticeSkillsImported": "Skills 收获：新增 {added} · 跳过 {skipped}",
       "errorAgentUnknown": "未知 Agent Target",
-      "errorAgentNotEnabled": "该 Agent 未在 Agent Target 中启用",
       "errorPath": "Agent 全局路径缺失或无效",
       "errorAgentNotEnabled": "该 Agent Target 未在中央启用",
       "partialFailure": "有 {count} 个 Agent 扫描失败，已导入其余结果"

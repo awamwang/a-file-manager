@@ -20,11 +20,13 @@ const en = JSON.parse(readFileSync(join(root, "src/i18n/locales/en.json"), "utf8
 const zh = JSON.parse(readFileSync(join(root, "src/i18n/locales/zh-CN.json"), "utf8"));
 
 // AIA-130: global native WebView context menu suppressed (capture-phase preventDefault).
+// Window widened to {0,600}: the editable-field (INPUT/TEXTAREA/contentEditable)
+// exemption added between "contextmenu" and preventDefault pushed the gap past 200.
 assert.ok(
   mainTs.includes('addEventListener(') &&
     mainTs.includes('"contextmenu"') &&
     mainTs.includes("preventDefault") &&
-    /contextmenu[\s\S]{0,200}preventDefault[\s\S]{0,80},\s*true\s*,/.test(mainTs),
+    /contextmenu[\s\S]{0,600}preventDefault[\s\S]{0,80},\s*true\s*,/.test(mainTs),
   "main.ts must suppress native contextmenu globally (AIA-130)",
 );
 assert.ok(nav.includes("NavigatorContextMenu"));

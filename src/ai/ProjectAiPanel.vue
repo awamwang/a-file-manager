@@ -46,8 +46,8 @@ const deployments = ref<AiProjectDeployments>({ mcpIds: [], skillNames: [] });
 /** 防止同一行在 IPC 未返回时被重复切换。 */
 const pending = ref<Set<string>>(new Set());
 
-/** 只有已安装（磁盘上探测到全局路径）的 Agent 才能配置到项目的 MCP/Skill。 */
-const installedAgents = computed(() => agents.value.filter((a) => a.discovered));
+/** Agent Target 是源头：只有中央 enabled 的 Agent 才能配置到项目的 MCP/Skill（ADR 0010 修订）。 */
+const enabledAgents = computed(() => agents.value.filter((a) => a.enabled));
 
 const enabledSet = computed(() => new Set(projectAi.value?.enabledAgentIds ?? []));
 const deployedMcpSet = computed(() => new Set(deployments.value.mcpIds));
@@ -242,7 +242,7 @@ onMounted(() => {
         <p class="project-ai-hint">{{ t("ai.project.agentsHint") }}</p>
       </div>
       <div class="project-ai-agents">
-        <label v-for="agent in installedAgents" :key="agent.id" class="project-ai-chip">
+        <label v-for="agent in enabledAgents" :key="agent.id" class="project-ai-chip">
           <input
             type="checkbox"
             :checked="enabledSet.has(agent.id)"
@@ -251,8 +251,8 @@ onMounted(() => {
           />
           <span>{{ agent.displayName }}</span>
         </label>
-        <p v-if="!installedAgents.length" class="project-ai-hint">
-          {{ t("ai.agents.noInstalledHint") }}
+        <p v-if="!enabledAgents.length" class="project-ai-hint">
+          {{ t("ai.agents.noneEnabledHint") }}
         </p>
       </div>
     </section>

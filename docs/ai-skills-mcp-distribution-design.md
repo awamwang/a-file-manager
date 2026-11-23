@@ -20,6 +20,7 @@
 ### 1. Harvest（手动从 Agent 导入）
 
 - 入口：MCP 面板、Skills 面板各自「从 Agent 导入」
+- 源下拉只列中央 `enabled` 的 Agent Target（ADR 0010 修订：Agent Target 是源头）；后端对未启用 Agent 返回 `AI_HARVEST_AGENT_NOT_ENABLED`
 - 流程：选 Agent Target → 扫描其**全局** MCP 路径或 Skills 目录 → 多选 → 快照写入中央仓库
 - 冲突：同名 id / skill name **跳过不覆盖**
 - 不做：自动发现、定时同步、外部工具 API 对接、扫描项目相对路径
@@ -32,14 +33,16 @@
 
 ### 3. Agent 启用三层（ADR 0010）
 
-1. `enabled` — 是否参与**全局**部署
+1. `enabled` — **源头开关**：全局部署扇出、项目可勾选集合、Harvest 源、项目部署 fan-out、项目内发现目录全部要求 `enabled`（ADR 0010 修订）
 2. `defaultInProjects` — 新项目启用集默认是否勾选（首次对齐 `enabled`）
-3. 项目 Agent 启用集 — 存在 `.afm/ai-project.json`（ADR 0009），可覆盖，不回写中央
+3. 项目 Agent 启用集 — 存在 `.afm/ai-project.json`（ADR 0009），可覆盖，不回写中央；与中央 `enabled` 取交集后才参与项目部署；中央禁用期间存储暂存，重新启用自动恢复
 
 ### 4. 项目分发
 
-- 项目部署（MCP 与 Skills）**只**写入该项目启用集中的 Agent Target 的项目相对路径
+- 项目部署（MCP 与 Skills）**只**写入该项目启用集 ∩ 中央 `enabled` 的 Agent Target 的项目相对路径（ADR 0010 修订：中央禁用即从 fan-out 排除）
 - 全局部署仍只看 `enabled`
+- 项目 AI 区的 Agent chips 只显示中央 `enabled` 的 Target；Harvest 源下拉同理
+- 项目内发现（`search_project_skills`）只扫描 workspace 根浅层 + 项目启用集各 Target 的 `projectSkillsDir` 真实配置，不扫硬编码公共目录
 - 惰性初始化：首次打开项目 AI 区或首次项目部署时，若无 `.afm/ai-project.json` 则按 `defaultInProjects` 生成；Core 创建 Workspace **不**预写
 
 **双向入口（同一套部署命令）：**
