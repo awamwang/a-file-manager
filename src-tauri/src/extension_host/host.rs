@@ -3,9 +3,9 @@
 use super::pack_fs;
 use super::permissions::{parse_permissions, requires};
 use super::types::{
-    AggregatedContributions, ExtensionHostStatus, ExtensionPermission, ExtensionRuntimeState,
-    FeaturePackContributions, FeaturePackManifest, InstallablePack, InstalledPackRecord,
-    PackInstallResult, FEATURE_PACK_API_VERSION,
+    AggregatedContributions, ConfigContribution, ExtensionHostStatus, ExtensionPermission,
+    ExtensionRuntimeState, FeaturePackContributions, FeaturePackManifest, InstallablePack,
+    InstalledPackRecord, PackInstallResult, FEATURE_PACK_API_VERSION,
 };
 use std::collections::BTreeMap;
 use std::fs;
@@ -110,6 +110,8 @@ impl ExtensionHost {
         if let Err(err) = crate::managed_dependency::registry::prune_orphans(app_data_dir, &valid_pack_ids) {
             eprintln!("managed_dependency prune_orphans failed: {err}");
         }
+        // 加载完成后按当前启用 Pack 重算 config schema overlay（使 pack 声明的配置项可落盘）。
+        self.sync_config_overlay();
         Ok(())
     }
 
@@ -306,6 +308,8 @@ impl ExtensionHost {
                 eprintln!("managed_dependency sync for pack '{id}' failed: {err}");
             }
         }
+        // 启用/禁用改变 pack 集合，重算 config schema overlay。
+        self.sync_config_overlay();
         Ok(())
     }
 
@@ -334,6 +338,8 @@ impl ExtensionHost {
         if let Err(err) = crate::managed_dependency::registry::unregister_for_pack(&app_data, id) {
             eprintln!("managed_dependency unregister for pack '{id}' failed: {err}");
         }
+        // 卸载移除 pack，重算 config schema overlay。
+        self.sync_config_overlay();
         Ok(())
     }
 
@@ -370,6 +376,15 @@ impl ExtensionHost {
                 item.pack_name = Some(pack.name.clone());
                 aggregated.search.push(item);
             }
+            // 配置项：聚合时写入 packId 并把 settingKey 解析为生效 key（显式优先，否则
+            // `ext.<packId>.<id>`），与 schema overlay 共用同一真相源，前端直接据此读写。
+            for entry in &contrib.config {
+                let mut item = entry.clone();
+                item.pack_id = Some(id.clone());
+                item.pack_name = Some(pack.name.clone());
+                item.setting_key = Some(crate::settings::overlay::effective_setting_key(id, entry));
+                aggregated.config.push(item);
+            }
         }
         aggregated
             .side_nav
@@ -377,7 +392,44 @@ impl ExtensionHost {
         aggregated
             .search
             .sort_by(|a, b| a.id.cmp(&b.id).then(a.route.cmp(&b.route)));
+        aggregated
+            .config
+            .sort_by(|a, b| a.order.cmp(&b.order).then(a.id.cmp(&b.id)));
         Ok(aggregated)
+    }
+
+    /// 由当前已启用 Pack 的 `config[]` 声明重算 settings schema overlay，使 pack 配置项
+    /// 进入 `definition_map()`、从而通过 `sanitize_document` 落盘。尽力而为——失败仅记日志。
+    pub fn sync_config_overlay(&self) {
+        let entries = (|| -> Result<Vec<(String, Vec<ConfigContribution>)>, String> {
+            let packs = self.packs.lock().map_err(|err| err.to_string())?;
+            let contribs = self.pack_contributions.lock().map_err(|err| err.to_string())?;
+            let mut entries = Vec::new();
+            for (id, pack) in packs.iter() {
+                if pack.state != ExtensionRuntimeState::Enabled {
+                    continue;
+                }
+                if let Some(contrib) = contribs.get(id) {
+                    if !contrib.config.is_empty() {
+                        entries.push((id.clone(), contrib.config.clone()));
+                    }
+                }
+            }
+            Ok(entries)
+        })();
+        match entries {
+            Ok(entries) => crate::settings::overlay::sync_pack_configs(entries),
+            Err(err) => eprintln!("extension_host sync_config_overlay failed: {err}"),
+        }
+    }
+
+    /// 取指定 Pack 清单声明的 `config[]`（无论启用与否，供托管 spawn 注入 env 时解析）。
+    pub fn pack_config_contributions(&self, id: &str) -> Vec<ConfigContribution> {
+        self.pack_contributions
+            .lock()
+            .ok()
+            .and_then(|contribs| contribs.get(id).map(|contrib| contrib.config.clone()))
+            .unwrap_or_default()
     }
 
     fn require_app_data_dir(&self) -> Result<PathBuf, String> {
@@ -708,5 +760,52 @@ mod tests {
         let contribs = reloaded.list_contributions().unwrap();
         assert!(contribs.side_nav.iter().any(|item| item.id == "nav-tools"));
         assert_eq!(reloaded.list_packs().unwrap()[0].id, "demo.pack");
+    }
+
+    fn write_config_pack(dir: &std::path::Path) {
+        std::fs::create_dir_all(dir).unwrap();
+        std::fs::write(
+            dir.join("pack.json"),
+            r#"{
+                "id":"demo.pack",
+                "name":"Demo",
+                "version":"0.1.0",
+                "apiVersion":"feature-pack.1",
+                "permissions":[],
+                "contributions":{
+                    "config":[
+                        {
+                            "id":"api-key",
+                            "title":"API Key",
+                            "kind":"secret",
+                            "env":"DEMO_API_KEY",
+                            "order":5
+                        }
+                    ]
+                }
+            }"#,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn list_contributions_aggregates_config_with_effective_key() {
+        let tmp = tempfile::tempdir().unwrap();
+        let src = tmp.path().join("src-pack");
+        write_config_pack(&src);
+        let app = tmp.path().join("appdata");
+        let host = ExtensionHost::new();
+        host.load_from_disk(&app).unwrap();
+        assert!(host.install_pack(&src).success);
+        host.set_pack_enabled("demo.pack", true).unwrap();
+        let contribs = host.list_contributions().unwrap();
+        assert_eq!(contribs.config.len(), 1);
+        let item = &contribs.config[0];
+        assert_eq!(item.id, "api-key");
+        assert_eq!(item.pack_id.as_deref(), Some("demo.pack"));
+        assert_eq!(item.pack_name.as_deref(), Some("Demo"));
+        // 缺省 settingKey → 宿主解析为 ext.<packId>.<id> 命名空间生效 key。
+        assert_eq!(item.setting_key.as_deref(), Some("ext.demo.pack.api-key"));
+        assert_eq!(item.env.as_deref(), Some("DEMO_API_KEY"));
     }
 }

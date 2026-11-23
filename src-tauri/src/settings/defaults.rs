@@ -22,11 +22,21 @@ pub fn schema_manifest() -> SettingsSchemaManifest {
 
 /// Platform-aware definitions: the same policy feeds the schema sent to the
 /// UI and the sanitizer applied to the persisted document.
+/// Appends the dynamic overlay of currently-enabled Feature Pack `config[]`
+/// declarations (built-in keys win — the overlay never overrides or duplicates
+/// them) so pack-declared settings survive `sanitize_document` and persist.
 pub fn setting_definitions() -> Vec<SettingDefinition> {
     let caps = crate::platform::current().capabilities();
     let mut definitions = raw_setting_definitions();
     for definition in &mut definitions {
         platform_policy::apply(definition, &caps);
+    }
+    let existing: std::collections::BTreeSet<String> =
+        definitions.iter().map(|definition| definition.key.clone()).collect();
+    for definition in super::overlay::overlay_definitions() {
+        if !existing.contains(definition.key.as_str()) {
+            definitions.push(definition);
+        }
     }
     definitions
 }

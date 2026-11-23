@@ -18,6 +18,26 @@
       "runtime": "self",
       "portEnv": "AWAM_GATEWAY_PORT"
     }],
+    "config": [
+      {
+        "id": "gateway-url",
+        "title": "file 网关地址",
+        "titleKey": "settings.fields.power.awamGatewayUrl.title",
+        "descriptionKey": "settings.fields.power.awamGatewayUrl.description",
+        "kind": "string",
+        "settingKey": "power.awamGatewayUrl",
+        "managedReadonly": true,
+        "order": 0
+      },
+      {
+        "id": "prowlarr-api-key",
+        "title": "Prowlarr API Key",
+        "description": "网关访问 Prowlarr 索引器所用的 API Key；留空则 Prowlarr 后端不可用。保存后重启网关生效。",
+        "kind": "secret",
+        "env": "AWAM_PROWLARR_API_KEY",
+        "order": 10
+      }
+    ],
     "search": []
   }
 }

@@ -26,6 +26,45 @@
         "KM_SOURCE_ID": "${afm:settings:power.awamKnowledgeSourceId}"
       }
     }],
+    "config": [
+      {
+        "id": "service-url",
+        "title": "知识库服务地址",
+        "titleKey": "settings.fields.power.awamKnowledgeServiceUrl.title",
+        "descriptionKey": "settings.fields.power.awamKnowledgeServiceUrl.description",
+        "kind": "string",
+        "settingKey": "power.awamKnowledgeServiceUrl",
+        "managedReadonly": true,
+        "order": 0
+      },
+      {
+        "id": "service-token",
+        "title": "知识库服务口令",
+        "titleKey": "settings.fields.power.awamKnowledgeServiceToken.title",
+        "descriptionKey": "settings.fields.power.awamKnowledgeServiceToken.description",
+        "kind": "secret",
+        "settingKey": "power.awamKnowledgeServiceToken",
+        "order": 10
+      },
+      {
+        "id": "data-root",
+        "title": "知识库数据根",
+        "titleKey": "settings.fields.power.awamKnowledgeDataRoot.title",
+        "descriptionKey": "settings.fields.power.awamKnowledgeDataRoot.description",
+        "kind": "string",
+        "settingKey": "power.awamKnowledgeDataRoot",
+        "order": 20
+      },
+      {
+        "id": "source-id",
+        "title": "知识库源 id",
+        "titleKey": "settings.fields.power.awamKnowledgeSourceId.title",
+        "descriptionKey": "settings.fields.power.awamKnowledgeSourceId.description",
+        "kind": "string",
+        "settingKey": "power.awamKnowledgeSourceId",
+        "order": 30
+      }
+    ],
     "search": []
   }
 }

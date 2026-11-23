@@ -128,6 +128,76 @@ pub struct SidecarContribution {
     pub port_env: Option<String>,
 }
 
+/// Pack 声明的配置项值类型（服务配置页据此选择控件；映射到 settings schema 的 value_kind）。
+/// `Secret` 与 `String` 都落 settings 文档为字符串，仅 UI 用密码框 + 日志脱敏区分。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ConfigValueKind {
+    #[default]
+    String,
+    Secret,
+    Number,
+    Boolean,
+    Enum,
+}
+
+/// Pack 需要的配置项贡献（发现机制核心）：provider 在 `pack.json` 声明「需要用户填什么」，
+/// AFM 服务配置页据此自动渲染对应字段，用户填写后写进 settings，并在托管 spawn 时按 `env`
+/// 注入子进程、或作为 AFM 客户端凭据使用。值本身仍存 settings 文档（动态并入 schema overlay，
+/// 标 `hidden` 不进主设置页），故 sanitize 保留、迁移既有 `power.*` key 时不丢用户已存值。
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigContribution {
+    /// pack 内稳定 id，如 `prowlarr-api-key`。缺省 settingKey 时用于生成 `ext.<packId>.<id>`。
+    pub id: String,
+    /// 展示标题（provider 自带文案，与 `pack.name` 内联风格一致；不强制走 AFM i18n）。
+    #[serde(default)]
+    pub title: String,
+    /// 标题的 AFM i18n key（优先于 `title`）。迁移既有字段时指向 `settings.fields.<key>.title`
+    /// 以保持多语言；provider 自带文案的字段留空、回退 `title`。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title_key: Option<String>,
+    /// 展示说明。
+    #[serde(default)]
+    pub description: String,
+    /// 说明的 AFM i18n key（优先于 `description`）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description_key: Option<String>,
+    /// 值类型（默认 `string`）。
+    #[serde(default)]
+    pub kind: ConfigValueKind,
+    /// `kind=enum` 时的候选值。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enum_values: Option<Vec<String>>,
+    /// 是否必填（前端据此提示，空值标红；不阻断保存）。
+    #[serde(default)]
+    pub required: bool,
+    /// 托管（managed）模式下该字段只读/由宿主派生（如服务连接地址随 managed 端口回退变化）。
+    /// 仅影响服务配置页渲染：managed 启用对应 pack 时输入框只读，config 模式仍可编辑。
+    #[serde(default)]
+    pub managed_readonly: bool,
+    /// 字符串化默认值（缺省 settingKey 时 overlay 据此注册 settings schema 默认）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default: Option<String>,
+    /// 注入到托管 sidecar 进程的环境变量名。设了它，AFM 在 managed spawn 前把
+    /// `settings[settingKey]` 写入子进程环境的该变量（不覆盖 `sidecars.env` 显式占位）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub env: Option<String>,
+    /// 绑定到的 settings key。缺省时宿主生成 `ext.<packId>.<id>` 命名空间 key。
+    /// 迁移既有字段时显式绑定到 `power.*`，复用内置 schema、兼容用户已存值。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub setting_key: Option<String>,
+    /// 同 pack 内字段排序。
+    #[serde(default)]
+    pub order: i32,
+    /// 聚合时由宿主写入（清单内声明无效），供服务配置页按 pack 分组渲染。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pack_id: Option<String>,
+    /// 聚合时由宿主写入（清单内声明无效），分组卡片标题。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pack_name: Option<String>,
+}
+
 /// 扩展页动态分区贡献项（ADR-0023）：Pack 启用后注入 ExtensionsView 左侧导航。
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -167,6 +237,8 @@ pub struct FeaturePackContributions {
     pub commands: Vec<CommandContribution>,
     #[serde(default)]
     pub sidecars: Vec<SidecarContribution>,
+    #[serde(default)]
+    pub config: Vec<ConfigContribution>,
     #[serde(default)]
     pub search: Vec<SearchEntryContribution>,
     #[serde(default)]
@@ -216,6 +288,8 @@ pub struct AggregatedContributions {
     pub commands: Vec<CommandContribution>,
     #[serde(default)]
     pub sidecars: Vec<SidecarContribution>,
+    #[serde(default)]
+    pub config: Vec<ConfigContribution>,
     #[serde(default)]
     pub search: Vec<SearchEntryContribution>,
     #[serde(default)]

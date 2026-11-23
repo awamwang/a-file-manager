@@ -1,12 +1,15 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
 /**
- * 设置 → 扩展能力：统一三个受 AFM 托管/连接的后端服务配置，与其它设置分区不混。
- *  - awam-file 网关地址（power.awamGatewayUrl）
- *  - awam-knowledge 服务地址（power.awamKnowledgeServiceUrl）
- *  - awam-knowledge 服务令牌（power.awamKnowledgeServiceToken）
- * managed 启用对应 pack 时地址只读/派生（与 ToolRuntimeView 一致）；config-mode 可编辑。
- * 令牌始终可编辑（既是 AFM 客户端 Bearer，也是注入托管服务端的共享密钥）。
+ * 扩展 → 服务配置：发现驱动的后端服务配置页。
+ *
+ * 字段不再硬编码，而是来自各已启用 Feature Pack 的 `contributions.config[]` 声明
+ * （经 `extension_host_list_contributions` 聚合、`configExtras` 暴露）。每个 pack 一张卡片，
+ * 卡片内按其声明渲染控件：string/secret/number → 输入框（secret 用密码框 + 显示切换）、
+ * boolean → 开关、enum → 下拉。值统一存进 settings 文档（pack 声明的 settingKey 经后端 schema
+ * overlay 落盘），保存后对「值发生变化且处于托管模式」的 pack 自动 stop→ensure 重启，使新配置生效。
+ *
+ * `managedReadonly` 项在对应 pack 为 managed 时只读（地址由宿主派生），config 模式仍可编辑。
  */
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
@@ -16,77 +19,121 @@ import {
   rememberSettingsDocument,
   type SettingsDocument,
 } from "../../state/settingsHydrate";
+import {
+  configExtras,
+  hydrateFeaturePackContributions,
+  type FeaturePackConfigContribution,
+} from "../../state/featurePack/contributions";
 import { toastError, toastSuccess } from "../../state/toast";
 
-const { t } = useI18n();
-
-const GATEWAY_URL_KEY = "power.awamGatewayUrl";
-const KNOWLEDGE_URL_KEY = "power.awamKnowledgeServiceUrl";
-const KNOWLEDGE_TOKEN_KEY = "power.awamKnowledgeServiceToken";
-const KNOWLEDGE_DATA_ROOT_KEY = "power.awamKnowledgeDataRoot";
-const KNOWLEDGE_SOURCE_ID_KEY = "power.awamKnowledgeSourceId";
-const DEFAULT_GATEWAY_URL = "http://127.0.0.1:18787";
-const DEFAULT_KNOWLEDGE_URL = "http://127.0.0.1:18790";
-// 托管记录 id = pack id（register_for_enabled_pack 约定）。
-const FILE_PACK_ID = "awam.file-gateway";
-const KNOWLEDGE_PACK_ID = "awam.knowledge";
+const { t, te } = useI18n();
 
 type ManagedRecord = { packId: string; mode: string };
-type KnowledgeStatus = {
-  online: boolean;
-  baseUrl: string;
-  detail: string | null;
-  vaultConfigured: boolean;
-  indexConfigured: boolean;
-  indexRoot: string | null;
-};
+/** getConfigExtras 已过滤 settingKey 非空，渲染时收窄为必有生效 key 的行。 */
+type ConfigRow = FeaturePackConfigContribution & { settingKey: string };
 
-const gatewayUrl = ref(DEFAULT_GATEWAY_URL);
-const knowledgeUrl = ref(DEFAULT_KNOWLEDGE_URL);
-const knowledgeToken = ref("");
-const knowledgeDataRoot = ref("");
-const knowledgeSourceId = ref("");
+const values = ref<Record<string, unknown>>({});
+const original = ref<Record<string, unknown>>({});
+const managedModes = ref<Record<string, string>>({});
+const revealed = ref<Record<string, boolean>>({});
 const saving = ref(false);
 
-const managedModes = ref<Record<string, string>>({});
-const knowledgeStatus = ref<KnowledgeStatus | null>(null);
-
-const gatewayManaged = computed(() => managedModes.value[FILE_PACK_ID] === "managed");
-const knowledgeManaged = computed(() => managedModes.value[KNOWLEDGE_PACK_ID] === "managed");
-
-const knowledgeStatusText = computed(() => {
-  const s = knowledgeStatus.value;
-  if (!s) return "";
-  if (!s.online) return t("settings.search.knowledgeStatusOffline");
-  if (!s.indexConfigured) return t("settings.extensions.indexUnconfigured");
-  return s.vaultConfigured
-    ? t("settings.search.knowledgeStatusOnlineVault")
-    : t("settings.search.knowledgeStatusOnlineNoVault");
+const groups = computed((): Array<{ packId: string; packName: string; items: ConfigRow[] }> => {
+  const map = new Map<string, { packId: string; packName: string; items: ConfigRow[] }>();
+  for (const item of configExtras.value) {
+    if (!item.settingKey) continue;
+    const row = item as ConfigRow;
+    const packId = row.packId ?? "";
+    if (!map.has(packId)) {
+      map.set(packId, { packId, packName: row.packName ?? packId, items: [] });
+    }
+    map.get(packId)!.items.push(row);
+  }
+  return [...map.values()];
 });
 
-const knowledgeIndexRoot = computed(() => knowledgeStatus.value?.indexRoot ?? "");
+function fieldLabel(row: ConfigRow): string {
+  if (row.titleKey && te(row.titleKey)) return t(row.titleKey);
+  return row.title || row.id;
+}
 
-function normalizeUrl(raw: string, fallback: string): string {
-  const trimmed = raw.trim().replace(/\/+$/, "");
-  return trimmed || fallback;
+function fieldDescription(row: ConfigRow): string {
+  if (row.descriptionKey && te(row.descriptionKey)) return t(row.descriptionKey);
+  return row.description || "";
+}
+
+function isManaged(packId: string): boolean {
+  return managedModes.value[packId] === "managed";
+}
+
+function isReadonly(row: ConfigRow): boolean {
+  return row.managedReadonly && isManaged(row.packId ?? "");
+}
+
+function inputType(row: ConfigRow): string {
+  if (row.kind === "secret") return revealed.value[row.settingKey] ? "text" : "password";
+  if (row.kind === "number") return "number";
+  return "text";
+}
+
+function coerceForInput(row: ConfigRow, raw: unknown): unknown {
+  switch (row.kind) {
+    case "boolean":
+      return raw === true;
+    case "number":
+      if (typeof raw === "number") return raw;
+      if (raw != null && String(raw).trim() !== "") {
+        const n = Number(raw);
+        return Number.isFinite(n) ? n : 0;
+      }
+      return 0;
+    default:
+      return typeof raw === "string" ? raw : raw == null ? "" : String(raw);
+  }
+}
+
+function normalizeForSave(row: ConfigRow, val: unknown): unknown {
+  switch (row.kind) {
+    case "boolean":
+      return val === true;
+    case "number": {
+      const n = Number(val);
+      return Number.isFinite(n) ? n : 0;
+    }
+    default: {
+      let text = val == null ? "" : String(val).trim();
+      // 连接地址类（settingKey 以 Url 结尾）去掉尾斜杠，与迁移前一致。
+      if (/url$/i.test(row.settingKey)) text = text.replace(/\/+$/, "");
+      return text;
+    }
+  }
+}
+
+function toggleReveal(row: ConfigRow): void {
+  revealed.value[row.settingKey] = !revealed.value[row.settingKey];
 }
 
 async function load() {
   try {
-    const doc = await hydrateSettings();
-    const gw = doc.values[GATEWAY_URL_KEY];
-    if (typeof gw === "string" && gw.trim()) gatewayUrl.value = gw.trim().replace(/\/+$/, "");
-    const ku = doc.values[KNOWLEDGE_URL_KEY];
-    if (typeof ku === "string" && ku.trim()) knowledgeUrl.value = ku.trim().replace(/\/+$/, "");
-    const kt = doc.values[KNOWLEDGE_TOKEN_KEY];
-    if (typeof kt === "string") knowledgeToken.value = kt;
-    const dr = doc.values[KNOWLEDGE_DATA_ROOT_KEY];
-    if (typeof dr === "string") knowledgeDataRoot.value = dr;
-    const sid = doc.values[KNOWLEDGE_SOURCE_ID_KEY];
-    if (typeof sid === "string") knowledgeSourceId.value = sid;
+    // 服务配置页直接进入时，确保已拉到最新 Pack 贡献（含 config 声明）。
+    await hydrateFeaturePackContributions();
   } catch {
-    /* 读取失败保留默认草稿 */
+    /* 拉取失败保留上次贡献缓存 */
   }
+  let doc: SettingsDocument | null = null;
+  try {
+    doc = await hydrateSettings();
+  } catch {
+    doc = null;
+  }
+  const v: Record<string, unknown> = {};
+  for (const item of configExtras.value) {
+    if (!item.settingKey) continue;
+    const raw = doc?.values[item.settingKey];
+    v[item.settingKey] = coerceForInput(item as ConfigRow, raw);
+  }
+  values.value = v;
+  original.value = { ...v };
   try {
     const records = await invoke<ManagedRecord[]>("managed_dependency_list");
     const m: Record<string, string> = {};
@@ -95,30 +142,42 @@ async function load() {
   } catch {
     managedModes.value = {};
   }
-  await refreshKnowledgeStatus();
 }
 
-async function refreshKnowledgeStatus() {
+/** 重启受影响的托管服务：stop 仅作用于 AFM 自启 pid；附着/未拉起时 stop 会报错，忽略后 ensure 重新附着或拉起。 */
+async function restartManagedPack(packId: string): Promise<void> {
   try {
-    knowledgeStatus.value = await invoke<KnowledgeStatus>("knowledge_service_status");
+    await invoke("managed_dependency_stop", { id: packId });
   } catch {
-    knowledgeStatus.value = null;
+    /* 非自启实例，无需停 */
+  }
+  try {
+    await invoke("managed_dependency_ensure", { id: packId });
+  } catch (err) {
+    toastError(`${packId}: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
 async function save() {
   saving.value = true;
   try {
-    const patch: Record<string, string> = {
-      [GATEWAY_URL_KEY]: normalizeUrl(gatewayUrl.value, DEFAULT_GATEWAY_URL),
-      [KNOWLEDGE_URL_KEY]: normalizeUrl(knowledgeUrl.value, DEFAULT_KNOWLEDGE_URL),
-      [KNOWLEDGE_TOKEN_KEY]: knowledgeToken.value.trim(),
-      [KNOWLEDGE_DATA_ROOT_KEY]: knowledgeDataRoot.value.trim(),
-      [KNOWLEDGE_SOURCE_ID_KEY]: knowledgeSourceId.value.trim(),
-    };
+    const patch: Record<string, unknown> = {};
+    const affected = new Set<string>();
+    for (const item of configExtras.value) {
+      if (!item.settingKey) continue;
+      const row = item as ConfigRow;
+      const next = normalizeForSave(row, values.value[row.settingKey]);
+      patch[row.settingKey] = next;
+      const prev = original.value[row.settingKey];
+      const changed = String(next ?? "") !== String(prev ?? "");
+      if (changed && isManaged(row.packId ?? "")) affected.add(row.packId ?? "");
+    }
     const doc = await invoke<SettingsDocument>("settings_set", { patch });
     rememberSettingsDocument(doc);
-    await refreshKnowledgeStatus();
+    for (const packId of affected) {
+      await restartManagedPack(packId);
+    }
+    original.value = { ...values.value };
     toastSuccess(t("settings.extensions.saved"));
   } catch (err) {
     toastError(err instanceof Error ? err.message : String(err));
@@ -139,83 +198,75 @@ onMounted(() => {
       <p class="fluent-page-meta">{{ t("settings.extensions.meta") }}</p>
     </header>
 
-    <div class="ext-config__grid">
-      <section class="fluent-surface section-card">
-        <h3 class="section-card__title">{{ t("settings.extensions.gatewaySection") }}</h3>
-        <div class="field">
-          <label class="field-label">{{ t("settings.fields.power.awamGatewayUrl.title") }}</label>
-          <p class="field-desc">{{ t("settings.fields.power.awamGatewayUrl.description") }}</p>
-          <input
-            v-model="gatewayUrl"
-            :aria-label="t('settings.fields.power.awamGatewayUrl.title')"
-            class="fluent-field"
-            type="text"
-            :readonly="gatewayManaged"
-            spellcheck="false"
-          />
-          <p v-if="gatewayManaged" class="field-hint">{{ t("settings.extensions.managedReadonly") }}</p>
-        </div>
-      </section>
+    <div v-if="groups.length" class="ext-config__grid">
+      <section
+        v-for="group in groups"
+        :key="group.packId"
+        class="fluent-surface section-card"
+      >
+        <h3 class="section-card__title">{{ group.packName }}</h3>
 
-      <section class="fluent-surface section-card">
-        <h3 class="section-card__title">{{ t("settings.extensions.knowledgeSection") }}</h3>
-        <div class="field">
-          <label class="field-label">{{ t("settings.fields.power.awamKnowledgeServiceUrl.title") }}</label>
-          <p class="field-desc">{{ t("settings.fields.power.awamKnowledgeServiceUrl.description") }}</p>
-          <input
-            v-model="knowledgeUrl"
-            :aria-label="t('settings.fields.power.awamKnowledgeServiceUrl.title')"
-            class="fluent-field"
-            type="text"
-            :readonly="knowledgeManaged"
-            spellcheck="false"
-          />
-          <p v-if="knowledgeManaged" class="field-hint">{{ t("settings.extensions.managedReadonly") }}</p>
-          <p v-if="knowledgeStatusText" class="field-status">{{ knowledgeStatusText }}</p>
-          <p v-if="knowledgeIndexRoot" class="field-hint">{{ knowledgeIndexRoot }}</p>
-        </div>
+        <div v-for="row in group.items" :key="row.id" class="field">
+          <label class="field-label">{{ fieldLabel(row) }}</label>
+          <p v-if="fieldDescription(row)" class="field-desc">{{ fieldDescription(row) }}</p>
 
-        <div class="field">
-          <label class="field-label">{{ t("settings.fields.power.awamKnowledgeServiceToken.title") }}</label>
-          <p class="field-desc">{{ t("settings.fields.power.awamKnowledgeServiceToken.description") }}</p>
-          <input
-            v-model="knowledgeToken"
-            :aria-label="t('settings.fields.power.awamKnowledgeServiceToken.title')"
-            class="fluent-field"
-            type="text"
-            spellcheck="false"
-          />
-        </div>
+          <!-- 文本 / 密钥 / 数字 -->
+          <div
+            v-if="row.kind === 'string' || row.kind === 'secret' || row.kind === 'number'"
+            class="input-row"
+          >
+            <input
+              v-model="values[row.settingKey]"
+              class="fluent-field"
+              :type="inputType(row)"
+              :readonly="isReadonly(row)"
+              :aria-label="fieldLabel(row)"
+              spellcheck="false"
+            />
+            <button
+              v-if="row.kind === 'secret'"
+              class="reveal-btn"
+              type="button"
+              :aria-label="fieldLabel(row)"
+              @click="toggleReveal(row)"
+            >
+              {{ revealed[row.settingKey] ? "•" : "•••" }}
+            </button>
+          </div>
 
-        <div class="field">
-          <label class="field-label">{{ t("settings.fields.power.awamKnowledgeDataRoot.title") }}</label>
-          <p class="field-desc">{{ t("settings.fields.power.awamKnowledgeDataRoot.description") }}</p>
-          <input
-            v-model="knowledgeDataRoot"
-            :aria-label="t('settings.fields.power.awamKnowledgeDataRoot.title')"
-            class="fluent-field"
-            type="text"
-            spellcheck="false"
-            :placeholder="t('settings.extensions.dataRootPlaceholder')"
-          />
-        </div>
+          <!-- 布尔开关 -->
+          <label v-else-if="row.kind === 'boolean'" class="switch-row">
+            <input
+              v-model="values[row.settingKey]"
+              type="checkbox"
+              :disabled="isReadonly(row)"
+              :aria-label="fieldLabel(row)"
+            />
+          </label>
 
-        <div class="field">
-          <label class="field-label">{{ t("settings.fields.power.awamKnowledgeSourceId.title") }}</label>
-          <p class="field-desc">{{ t("settings.fields.power.awamKnowledgeSourceId.description") }}</p>
-          <input
-            v-model="knowledgeSourceId"
-            :aria-label="t('settings.fields.power.awamKnowledgeSourceId.title')"
+          <!-- 枚举下拉 -->
+          <select
+            v-else-if="row.kind === 'enum'"
+            v-model="values[row.settingKey]"
             class="fluent-field"
-            type="text"
-            spellcheck="false"
-            :placeholder="t('settings.extensions.sourceIdPlaceholder')"
-          />
+            :disabled="isReadonly(row)"
+            :aria-label="fieldLabel(row)"
+          >
+            <option v-for="opt in row.enumValues ?? []" :key="opt" :value="opt">{{ opt }}</option>
+          </select>
+
+          <p v-if="isReadonly(row)" class="field-hint">{{ t("settings.extensions.managedReadonly") }}</p>
         </div>
       </section>
     </div>
 
-    <button class="fluent-control fluent-control--accent" type="button" :disabled="saving" @click="save">
+    <button
+      v-if="groups.length"
+      class="fluent-control fluent-control--accent"
+      type="button"
+      :disabled="saving"
+      @click="save"
+    >
       {{ t("settings.extensions.save") }}
     </button>
   </section>
@@ -270,20 +321,32 @@ onMounted(() => {
 }
 
 .field-desc,
-.field-hint,
-.field-status {
+.field-hint {
   margin: 0;
   font-size: var(--fluent-font-size-caption);
   color: var(--fluent-color-text-secondary);
 }
 
-.field-status {
-  color: var(--fluent-color-status-success, var(--fluent-color-text-secondary));
+.input-row {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-2xs, 0.25rem);
 }
 
-input.fluent-field {
+input.fluent-field,
+select.fluent-field {
   width: 100%;
   max-width: 40rem;
+}
+
+.reveal-btn {
+  flex: 0 0 auto;
+  min-width: 2.5rem;
+}
+
+.switch-row {
+  display: flex;
+  align-items: center;
 }
 
 input[readonly] {

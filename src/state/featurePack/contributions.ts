@@ -56,11 +56,33 @@ export type FeaturePackExtensionsSectionContribution = {
   order: number;
 };
 
+/** Pack 声明的配置项（发现机制）：服务配置页据此自动渲染。`settingKey` 由宿主解析为生效 key。 */
+export type FeaturePackConfigContribution = {
+  id: string;
+  title: string;
+  titleKey?: string | null;
+  description: string;
+  descriptionKey?: string | null;
+  kind: "string" | "secret" | "number" | "boolean" | "enum";
+  enumValues?: string[] | null;
+  required: boolean;
+  managedReadonly: boolean;
+  default?: string | null;
+  env?: string | null;
+  settingKey?: string | null;
+  order: number;
+  /** 聚合时由宿主写入，供按 pack 分组渲染。 */
+  packId?: string | null;
+  /** 聚合时由宿主写入，分组卡片标题。 */
+  packName?: string | null;
+};
+
 export type AggregatedContributions = {
   sideNav: FeaturePackSideNavContribution[];
   routes: FeaturePackRouteContribution[];
   commands: FeaturePackCommandContribution[];
   sidecars: FeaturePackSidecarContribution[];
+  config: FeaturePackConfigContribution[];
   search: FeaturePackSearchEntryContribution[];
   extensionsSections: FeaturePackExtensionsSectionContribution[];
 };
@@ -70,6 +92,7 @@ const EMPTY_CONTRIBUTIONS: AggregatedContributions = {
   routes: [],
   commands: [],
   sidecars: [],
+  config: [],
   search: [],
   extensionsSections: [],
 };
@@ -100,6 +123,12 @@ export const searchExtras = ref<FeaturePackSearchEntry[]>([]);
  * 响应式：ExtensionsView 据此合并左侧导航，Pack 启用/禁用后无需 remount 即更新。
  */
 export const extensionsSectionExtras = ref<FeaturePackExtensionsSectionContribution[]>([]);
+
+/**
+ * 启用 Pack 声明的配置项（发现机制）；响应式供服务配置页渲染。
+ * 仅保留解析出生效 settingKey 的项（缺 id/settingKey 的脏声明过滤掉）。
+ */
+export const configExtras = ref<FeaturePackConfigContribution[]>([]);
 
 /** 搜索面板「扩展」源的 Pack 静态条目（副标题显示 Pack 名）。 */
 export type FeaturePackSearchEntry = {
@@ -149,6 +178,10 @@ function syncSearchExtras(): void {
 
 function syncExtensionsSectionExtras(): void {
   extensionsSectionExtras.value = getExtensionsSectionExtras();
+}
+
+function syncConfigExtras(): void {
+  configExtras.value = getConfigExtras();
 }
 
 /** 已通过 addRoute 挂上的 Pack 路由 name，Soft Reload 时卸载不再启用的项。 */
@@ -219,6 +252,7 @@ function normalizeContributions(
     routes: Array.isArray(raw?.routes) ? raw.routes : [],
     commands: Array.isArray(raw?.commands) ? raw.commands : [],
     sidecars: Array.isArray(raw?.sidecars) ? raw.sidecars : [],
+    config: Array.isArray(raw?.config) ? raw.config : [],
     search: Array.isArray(raw?.search) ? raw.search : [],
     extensionsSections: Array.isArray(raw?.extensionsSections) ? raw.extensionsSections : [],
   };
@@ -241,6 +275,19 @@ export function getExtensionsSectionExtras(): FeaturePackExtensionsSectionContri
   return cached.value.extensionsSections
     .filter((s) => s.id && s.labelKey && s.entry && builtinEntries[s.entry])
     .sort((a, b) => a.order - b.order);
+}
+
+/** 启用 Pack 声明的配置项（已过滤缺 id/settingKey 的脏声明），按 (packId, order, id) 稳定排序。 */
+export function getConfigExtras(): FeaturePackConfigContribution[] {
+  return cached.value.config
+    .filter((item) => item.id && item.settingKey)
+    .sort((a, b) => {
+      const pa = a.packId ?? "";
+      const pb = b.packId ?? "";
+      if (pa !== pb) return pa.localeCompare(pb);
+      if (a.order !== b.order) return a.order - b.order;
+      return a.id.localeCompare(b.id);
+    });
 }
 
 /** 仅当 `entry` 在 builtinEntries 有映射时生成可注册路由。 */
@@ -317,6 +364,7 @@ export async function hydrateFeaturePackContributions(): Promise<void> {
   syncToolRuntimeRouteContribution();
   syncSearchExtras();
   syncExtensionsSectionExtras();
+  syncConfigExtras();
   const { applyFeaturePackSideNav } = await import("../../shell/sideNav.ts");
   applyFeaturePackSideNav();
   const { registerFeaturePackRoutes } = await import("../../router/index.ts");

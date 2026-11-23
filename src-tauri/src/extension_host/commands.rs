@@ -76,3 +76,9 @@ pub async fn extension_host_uninstall_pack(id: String) -> Result<(), String> {
 pub fn extension_host_list_contributions() -> Result<AggregatedContributions, String> {
     host().list_contributions()
 }
+
+/// 供托管命令层取某 Pack 清单声明的 `config[]`（managed spawn 前据此注入子进程 env）。
+/// 非 Tauri 命令，仅 crate 内调用。
+pub fn pack_config_contributions(id: &str) -> Vec<super::types::ConfigContribution> {
+    host().pack_config_contributions(id)
+}
