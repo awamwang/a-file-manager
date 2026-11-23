@@ -234,6 +234,9 @@ foreach ($item in $bin.Items()) {{
   }}
   if (-not $verb) {{ continue }}
   $verb.DoIt()
+  $waited = 0
+  while (-not (Test-Path -LiteralPath $orig) -and $waited -lt 40) {{ Start-Sleep -Milliseconds 250; $waited++ }}
+  if (-not (Test-Path -LiteralPath $orig)) {{ continue }}
   [void]$restored.Add($orig)
   [void]$wantedSet.Remove($key)
 }}
