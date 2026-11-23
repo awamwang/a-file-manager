@@ -563,6 +563,12 @@ jobs:
   build-pack-feed:
     needs: prepare
     if: needs.prepare.outputs.want_feature_pack == 'true'
+    # 上游 awam-tool-manager/requirements.lock 把 Windows-only 的 pywin32==312 全 pin 进锁且无
+    # platform marker，macOS 上 uv 解析失败 → macos-aarch64 这个 slice 装不上依赖而失败。
+    # 先让 Windows slice 成功产出线上 feed：continue-on-error 让单平台 slice 失败不阻断 merge，
+    # merge 只聚合已成功上传的 slice（当前=Windows）。上游 lock 补 marker 后 mac 实例自动转成功、
+    # 无需改本 CI 即纳入 mac 产物。安全网：若连 Windows 都没产，merge 会因空 slice 报错、finalize 保留 draft。
+    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
@@ -687,6 +693,8 @@ jobs:
   build-pack-feed-intel:
     needs: prepare
     if: needs.prepare.outputs.want_feature_pack == 'true' && inputs.enable_mac_intel == true
+    # 同 build-pack-feed：Intel slice 也可能因上游 pywin32 锁失败，启用时容错不阻断。
+    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
