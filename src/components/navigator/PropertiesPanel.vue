@@ -362,7 +362,7 @@ watch(
   padding: 0;
   border-radius: 0;
   border-left: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-  box-shadow: var(--fluent-shadow-flyout, -8px 0 24px rgb(0 0 0 / 18%));
+  box-shadow: var(--fluent-shadow-flyout);
   overflow: auto;
   display: flex;
   flex-direction: column;

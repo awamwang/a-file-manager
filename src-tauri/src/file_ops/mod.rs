@@ -3,6 +3,7 @@
 //! Recycle Bin is the default delete. Permanent delete is a separate confirmed command.
 //! AIA-275: disk-safe move/copy via `safe_io` (staging + verify before source delete).
 
+pub(crate) mod cancel;
 pub(crate) mod clipboard;
 pub(crate) mod new_templates;
 pub(crate) mod progress;
@@ -29,6 +30,10 @@ pub struct FileOpsResult {
     /// meaningless. Populated centrally from the OS error in [`err_msg`].
     #[serde(default)]
     pub error_class: Option<String>,
+    /// True when the operation was cancelled by the user (LC-005). Work done so
+    /// far has been rolled back where safe; this is distinct from a failure.
+    #[serde(default)]
+    pub cancelled: bool,
 }
 
 /// Recognized per-item transfer error classes (aligned with Explorer's Retry /
@@ -85,6 +90,7 @@ fn ok_paths(paths: Vec<String>) -> FileOpsResult {
         paths,
         error: None,
         error_class: None,
+        cancelled: false,
     }
 }
 
@@ -96,6 +102,17 @@ fn err_msg(message: impl Into<String>) -> FileOpsResult {
         paths: Vec::new(),
         error: Some(message),
         error_class,
+        cancelled: false,
+    }
+}
+
+fn cancelled_result() -> FileOpsResult {
+    FileOpsResult {
+        ok: false,
+        paths: Vec::new(),
+        error: Some("Cancelled".to_string()),
+        error_class: None,
+        cancelled: true,
     }
 }
 
@@ -364,6 +381,15 @@ fn place_dest(
     }
 }
 
+/// Outcome of a merge pass: the destination paths created, plus whether it was
+/// interrupted by a cancel. A cancelled merge is a **safe stop** — the caller
+/// keeps the already-committed atomic entries and does not attempt to un-merge
+/// (LC-005 scoped-rollback decision 2026-11-22).
+struct MergeRun {
+    created: Vec<String>,
+    cancelled: bool,
+}
+
 /// Merge the contents of `src` (a directory) into an **existing** `dest_dir`
 /// (also a directory). Each child of `src`:
 /// - both dirs → recurse (CF-007 dir-into-dir merge)
@@ -371,18 +397,24 @@ fn place_dest(
 ///   leaf copy/move via `safe_io` (CF-008 inner-collision recursion).
 /// For a move, leaf children are moved (source leaf removed by `safe_move_entry`);
 /// a fully-emptied source subtree is removed; a source dir that still holds skipped
-/// items is left in place. Returns every newly created/moved destination path so
-/// undo and post-op selection can act on exactly what changed.
+/// items is left in place. Checks the cancel token between children; on cancel it
+/// stops (no rollback — see MergeRun). Returns every newly created/moved destination
+/// path (via MergeRun.created) so undo and post-op selection can act on exactly what
+/// changed.
 fn merge_directory_into(
     src: &Path,
     dest_dir: &Path,
     conflict: NameConflict,
     is_move: bool,
     emitter: Option<&progress::ProgressEmitter>,
-) -> Result<Vec<String>, String> {
-    let mut out = Vec::new();
+    cancel: Option<&cancel::CancelToken>,
+) -> Result<MergeRun, String> {
+    let mut created = Vec::new();
     let read = fs::read_dir(src).map_err(|err| format!("Failed to read folder for merge: {err}"))?;
     for entry in read {
+        if matches!(cancel, Some(token) if token.cancelled()) {
+            return Ok(MergeRun { created, cancelled: true });
+        }
         let child = entry.map_err(|err| format!("Failed to read folder entry: {err}"))?.path();
         let name = child
             .file_name()
@@ -391,8 +423,11 @@ fn merge_directory_into(
             .into_owned();
         let child_dest = dest_dir.join(&name);
         if child.is_dir() && child_dest.is_dir() {
-            let merged = merge_directory_into(&child, &child_dest, conflict, is_move, emitter)?;
-            out.extend(merged);
+            let sub = merge_directory_into(&child, &child_dest, conflict, is_move, emitter, cancel)?;
+            created.extend(sub.created);
+            if sub.cancelled {
+                return Ok(MergeRun { created, cancelled: true });
+            }
             // After merging a subtree on a move, drop the (now empty) source subdir.
             // Non-empty (some inner items skipped) → leave it.
             if is_move && fs::read_dir(&child).map(|mut r| r.next().is_none()).unwrap_or(false) {
@@ -419,9 +454,49 @@ fn merge_directory_into(
         } else {
             safe_io::safe_copy_entry(&child, &plan.path, plan.replace)?;
         }
-        out.push(display_path(&plan.path));
+        created.push(display_path(&plan.path));
     }
-    Ok(out)
+    Ok(MergeRun {
+        created,
+        cancelled: false,
+    })
+}
+
+/// Rollback action for a cancelled **non-merge** transfer (LC-005 scoped
+/// rollback). Merge subtrees are never un-merged — the caller safe-stops.
+enum RollbackOp {
+    /// A copy created this destination path → delete it.
+    DeleteCreated(PathBuf),
+    /// A move relocated `original_src` → `created_dest` → move it back.
+    MoveBack {
+        created_dest: PathBuf,
+        original_src: PathBuf,
+    },
+}
+
+fn run_rollback(ops: &[RollbackOp]) {
+    for op in ops.iter().rev() {
+        match op {
+            RollbackOp::DeleteCreated(path) => {
+                // Best-effort: the item was created by this very operation.
+                let _ = delete_permanent_one(path);
+            }
+            RollbackOp::MoveBack {
+                created_dest,
+                original_src,
+            } => {
+                // Move back where it came from. If this fails the item still exists
+                // at created_dest — safe_io never deletes a source before the copy
+                // is verified, so no data is lost either way.
+                let _ = safe_io::safe_move_entry(created_dest, original_src, false);
+            }
+        }
+    }
+}
+
+struct TransferRun {
+    created: Vec<String>,
+    cancelled: bool,
 }
 
 pub fn copy_paths(
@@ -429,17 +504,19 @@ pub fn copy_paths(
     dest_dir: &str,
     conflict: NameConflict,
 ) -> Result<Vec<String>, String> {
-    copy_paths_inner(sources, dest_dir, conflict, None)
+    copy_paths_inner(sources, dest_dir, conflict, None, None).map(|run| run.created)
 }
 
-/// 带 taskId 时按进度发射器复制（长任务右下角进度条数据源）。
-pub fn copy_paths_tracked(
+/// 可取消复制（LC-005）：传入已注册的 cancel token，条目边界检查取消并回滚已复制项。
+/// 同时按进度发射器上报字节进度（右下角任务列表条）。
+fn copy_paths_cancellable(
     sources: &[String],
     dest_dir: &str,
     conflict: NameConflict,
     emitter: &progress::ProgressEmitter,
-) -> Result<Vec<String>, String> {
-    copy_paths_inner(sources, dest_dir, conflict, Some(emitter))
+    cancel: &cancel::CancelToken,
+) -> Result<TransferRun, String> {
+    copy_paths_inner(sources, dest_dir, conflict, Some(emitter), Some(cancel))
 }
 
 fn copy_paths_inner(
@@ -447,10 +524,19 @@ fn copy_paths_inner(
     dest_dir: &str,
     conflict: NameConflict,
     emitter: Option<&progress::ProgressEmitter>,
-) -> Result<Vec<String>, String> {
+    cancel: Option<&cancel::CancelToken>,
+) -> Result<TransferRun, String> {
     let dest = ensure_dir(dest_dir)?;
-    let mut out = Vec::new();
+    let mut created = Vec::new();
+    let mut rollback: Vec<RollbackOp> = Vec::new();
     for source in sources {
+        if matches!(cancel, Some(token) if token.cancelled()) {
+            run_rollback(&rollback);
+            return Ok(TransferRun {
+                created: Vec::new(),
+                cancelled: true,
+            });
+        }
         let src = ensure_existing(source)?;
         if src.is_dir() && is_descendant_or_same(&src, &dest) {
             return Err(format!(
@@ -468,8 +554,16 @@ fn copy_paths_inner(
         };
         // CF-007 / CF-008: pasting a folder onto an existing same-name folder merges.
         if plan.merge {
-            let merged = merge_directory_into(&src, &plan.path, conflict, false, emitter)?;
-            out.extend(merged);
+            let merged = merge_directory_into(&src, &plan.path, conflict, false, emitter, cancel)?;
+            if merged.cancelled {
+                // Safe stop for the merge; roll back this call's non-merge items only.
+                run_rollback(&rollback);
+                return Ok(TransferRun {
+                    created: Vec::new(),
+                    cancelled: true,
+                });
+            }
+            created.extend(merged.created);
             continue;
         }
         match emitter {
@@ -481,9 +575,13 @@ fn copy_paths_inner(
             )?,
             None => safe_io::safe_copy_entry(&src, &plan.path, plan.replace)?,
         }
-        out.push(display_path(&plan.path));
+        created.push(display_path(&plan.path));
+        rollback.push(RollbackOp::DeleteCreated(plan.path.clone()));
     }
-    Ok(out)
+    Ok(TransferRun {
+        created,
+        cancelled: false,
+    })
 }
 
 /// 待复制/移动的总字节数（目录递归求和；失败按 0 计，前端显示为不确定进度）。
@@ -520,17 +618,19 @@ pub fn move_paths(
     dest_dir: &str,
     conflict: NameConflict,
 ) -> Result<Vec<String>, String> {
-    move_paths_inner(sources, dest_dir, conflict, None)
+    move_paths_inner(sources, dest_dir, conflict, None, None).map(|run| run.created)
 }
 
-/// 带 taskId 时上报进度的移动（跨卷 staging 复制阶段才有字节进度）。
-pub fn move_paths_tracked(
+/// 可取消移动（LC-005）：已移动的项在取消时移回原位；合并子树安全停止不回滚。
+/// 同时按进度发射器上报字节进度。
+fn move_paths_cancellable(
     sources: &[String],
     dest_dir: &str,
     conflict: NameConflict,
     emitter: &progress::ProgressEmitter,
-) -> Result<Vec<String>, String> {
-    move_paths_inner(sources, dest_dir, conflict, Some(emitter))
+    cancel: &cancel::CancelToken,
+) -> Result<TransferRun, String> {
+    move_paths_inner(sources, dest_dir, conflict, Some(emitter), Some(cancel))
 }
 
 fn move_paths_inner(
@@ -538,10 +638,19 @@ fn move_paths_inner(
     dest_dir: &str,
     conflict: NameConflict,
     emitter: Option<&progress::ProgressEmitter>,
-) -> Result<Vec<String>, String> {
+    cancel: Option<&cancel::CancelToken>,
+) -> Result<TransferRun, String> {
     let dest = ensure_dir(dest_dir)?;
-    let mut out = Vec::new();
+    let mut created = Vec::new();
+    let mut rollback: Vec<RollbackOp> = Vec::new();
     for source in sources {
+        if matches!(cancel, Some(token) if token.cancelled()) {
+            run_rollback(&rollback);
+            return Ok(TransferRun {
+                created: Vec::new(),
+                cancelled: true,
+            });
+        }
         let src = ensure_existing(source)?;
         safe_io::refuse_volume_root(&src)?;
         if src.is_dir() && is_descendant_or_same(&src, &dest) {
@@ -557,7 +666,7 @@ fn move_paths_inner(
             .into_owned();
         // Same-directory cut is a no-op rename target; skip.
         if src.parent().map(Path::as_os_str) == Some(dest.as_os_str()) {
-            out.push(display_path(&src));
+            created.push(display_path(&src));
             continue;
         }
         let Some(plan) = place_dest(&dest, &name, &src, conflict)? else {
@@ -566,8 +675,16 @@ fn move_paths_inner(
         // CF-007 / CF-008: moving a folder onto an existing same-name folder merges
         // its contents; the source folder is removed once it is fully emptied.
         if plan.merge {
-            let merged = merge_directory_into(&src, &plan.path, conflict, true, emitter)?;
-            out.extend(merged);
+            let merged = merge_directory_into(&src, &plan.path, conflict, true, emitter, cancel)?;
+            if merged.cancelled {
+                // Safe stop for the merge subtree; roll back this call's plain moves.
+                run_rollback(&rollback);
+                return Ok(TransferRun {
+                    created: Vec::new(),
+                    cancelled: true,
+                });
+            }
+            created.extend(merged.created);
             if fs::read_dir(&src).map(|mut r| r.next().is_none()).unwrap_or(false) {
                 let _ = fs::remove_dir(&src);
             }
@@ -582,9 +699,16 @@ fn move_paths_inner(
             )?,
             None => safe_io::safe_move_entry(&src, &plan.path, plan.replace)?,
         }
-        out.push(display_path(&plan.path));
+        created.push(display_path(&plan.path));
+        rollback.push(RollbackOp::MoveBack {
+            created_dest: plan.path.clone(),
+            original_src: src.clone(),
+        });
     }
-    Ok(out)
+    Ok(TransferRun {
+        created,
+        cancelled: false,
+    })
 }
 
 pub fn rename_path(path: &str, new_name: &str, replace: bool) -> Result<String, String> {
@@ -746,8 +870,41 @@ pub fn file_ops_name_conflict_info(
     name_conflict_info(&dest_dir, &name, &source)
 }
 
+/// UN-008: a cheap change-detection fingerprint for undo contamination checks.
+/// We use size + last-modified (ms) rather than a content hash — O(1) stat, no
+/// file read, good enough to catch "the user edited/overwrote the created file
+/// in another program after the operation, before Ctrl+Z".
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct EntryFingerprint {
+    pub size: u64,
+    pub modified_ms: u64,
+}
+
+fn fingerprint_one(path: &str) -> Option<EntryFingerprint> {
+    let meta = fs::metadata(path.trim()).ok()?;
+    let modified_ms = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    Some(EntryFingerprint {
+        size: meta.len(),
+        modified_ms,
+    })
+}
+
+/// Returns one fingerprint per input path; `None` where the path is gone or
+/// unreadable (treated as "contaminated" by the caller — never blindly delete).
+#[tauri::command]
+pub fn file_ops_fingerprints(paths: Vec<String>) -> Vec<Option<EntryFingerprint>> {
+    paths.iter().map(|p| fingerprint_one(p)).collect()
+}
+
 /// 大目录复制不得占用 Tauri 同步命令线程。
-/// 传 taskId 时按字节进度发射 `file-ops-progress` 事件（右下角任务列表条）。
+/// 传 taskId 时按字节进度发射 `file-ops-progress` 事件（右下角任务列表条），
+/// 并注册 cancel token：用户取消时在条目边界停止并回滚已复制项（LC-005）。
 #[tauri::command]
 pub async fn file_ops_copy(
     app: tauri::AppHandle,
@@ -763,27 +920,32 @@ pub async fn file_ops_copy(
     match tauri::async_runtime::spawn_blocking(move || match tracked_task_id {
         Some(task_id) => {
             let total = total_transfer_bytes(&sources);
+            let cancel = cancel::register(&task_id);
             let emitter = progress::ProgressEmitter::new(app, task_id, total);
             emitter.emit_start();
-            let result = copy_paths_tracked(&sources, &dest_dir, mode, &emitter);
-            match &result {
+            let outcome = copy_paths_cancellable(&sources, &dest_dir, mode, &emitter, &cancel);
+            match &outcome {
+                Ok(run) if run.cancelled => emitter.emit_done(true, Some("Cancelled".into())),
                 Ok(_) => emitter.emit_done(true, None),
                 Err(error) => emitter.emit_done(false, Some(error.clone())),
             }
-            result
+            outcome
         }
-        None => copy_paths(&sources, &dest_dir, mode),
+        None => copy_paths(&sources, &dest_dir, mode)
+            .map(|created| TransferRun { created, cancelled: false }),
     })
     .await
     {
-        Ok(Ok(paths)) => ok_paths(paths),
+        Ok(Ok(run)) if run.cancelled => cancelled_result(),
+        Ok(Ok(run)) => ok_paths(run.created),
         Ok(Err(error)) => err_msg(error),
         Err(error) => err_msg(format!("file_ops_copy worker failed: {error}")),
     }
 }
 
 /// 大目录移动不得占用 Tauri 同步命令线程。
-/// 传 taskId 时上报进度（同卷 rename 瞬时完成，跨卷复制阶段有字节进度）。
+/// 传 taskId 时上报进度（同卷 rename 瞬时完成，跨卷复制阶段有字节进度），
+/// 并注册 cancel token：取消时把已移动项移回原位（LC-005）。
 #[tauri::command]
 pub async fn file_ops_move(
     app: tauri::AppHandle,
@@ -799,23 +961,34 @@ pub async fn file_ops_move(
     match tauri::async_runtime::spawn_blocking(move || match tracked_task_id {
         Some(task_id) => {
             let total = total_transfer_bytes(&sources);
+            let cancel = cancel::register(&task_id);
             let emitter = progress::ProgressEmitter::new(app, task_id, total);
             emitter.emit_start();
-            let result = move_paths_tracked(&sources, &dest_dir, mode, &emitter);
-            match &result {
+            let outcome = move_paths_cancellable(&sources, &dest_dir, mode, &emitter, &cancel);
+            match &outcome {
+                Ok(run) if run.cancelled => emitter.emit_done(true, Some("Cancelled".into())),
                 Ok(_) => emitter.emit_done(true, None),
                 Err(error) => emitter.emit_done(false, Some(error.clone())),
             }
-            result
+            outcome
         }
-        None => move_paths(&sources, &dest_dir, mode),
+        None => move_paths(&sources, &dest_dir, mode)
+            .map(|created| TransferRun { created, cancelled: false }),
     })
     .await
     {
-        Ok(Ok(paths)) => ok_paths(paths),
+        Ok(Ok(run)) if run.cancelled => cancelled_result(),
+        Ok(Ok(run)) => ok_paths(run.created),
         Ok(Err(error)) => err_msg(error),
         Err(error) => err_msg(format!("file_ops_move worker failed: {error}")),
     }
+}
+
+/// LC-005: user pressed Cancel on a running copy/move long task. Returns true
+/// when a matching in-flight task accepted the cancel (false if already done).
+#[tauri::command]
+pub fn file_ops_cancel(task_id: String) -> bool {
+    cancel::request_cancel(task_id.trim())
 }
 
 #[tauri::command]
@@ -1468,8 +1641,8 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
     }
 
-    // NM-004: on a case-insensitive FS, a case-only rename must SUCCEED (not
-    // "already exists"); renaming to a genuinely different existing file must fail.
+    // NM-002: rename collision refused without replace; Replace overwrites a file,
+    // never a directory.
     #[test]
     fn rename_replace_overwrites_existing_file_only_when_allowed() {
         let dir = temp_workspace("rename-replace");
@@ -1494,6 +1667,21 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
     }
 
+    // UN-008: fingerprint reflects size+mtime and turns None for a missing path.
+    #[test]
+    fn fingerprint_captures_size_and_flags_missing() {
+        let dir = temp_workspace("fingerprint");
+        let file = dir.join("a.txt");
+        fs::write(&file, b"12345").unwrap();
+        let fp = fingerprint_one(&display_path(&file)).expect("present file fingerprints");
+        assert_eq!(fp.size, 5);
+        // A missing path yields None (the caller treats it as contaminated).
+        assert!(fingerprint_one(&display_path(&dir.join("nope.txt"))).is_none());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // NM-004: on a case-insensitive FS, a case-only rename must SUCCEED (not
+    // "already exists"); renaming to a genuinely different existing file must fail.
     #[cfg(windows)]
     #[test]
     fn rename_case_only_succeeds_but_real_collision_fails() {
@@ -1608,6 +1796,73 @@ mod tests {
         assert!(Path::new(&copied[0]).is_file());
         assert!(file.exists(), "source stays intact after copy");
         assert_eq!(fs::read(&file).unwrap(), b"payload");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // LC-005: a pre-cancelled token makes the copy loop bail at the first
+    // source boundary — no destination is created, result reports cancelled.
+    #[test]
+    fn cancelled_copy_short_circuits_before_work() {
+        let dir = temp_workspace("cancel-copy");
+        let src = dir.join("src");
+        let dst = dir.join("dst");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&dst).unwrap();
+        fs::write(src.join("a.txt"), b"x").unwrap();
+
+        let token = cancel::register("cancel-copy-token");
+        assert!(cancel::request_cancel("cancel-copy-token"));
+        let run = copy_paths_inner(
+            &[display_path(&src.join("a.txt"))],
+            &display_path(&dst),
+            NameConflict::KeepBoth,
+            None,
+            Some(&token),
+        )
+        .unwrap();
+        assert!(run.cancelled, "pre-cancelled token → cancelled");
+        assert!(run.created.is_empty());
+        assert!(!dst.join("a.txt").exists(), "nothing should have been copied");
+        assert!(src.join("a.txt").is_file(), "source untouched");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // LC-005 rollback primitive: a committed copy is undone by deleting the
+    // created destination (source stays).
+    #[test]
+    fn rollback_removes_created_copy() {
+        let dir = temp_workspace("rollback-copy");
+        let dst = dir.join("dst");
+        fs::create_dir_all(&dst).unwrap();
+        let created = dst.join("a.txt");
+        fs::write(&created, b"x").unwrap();
+
+        run_rollback(&[RollbackOp::DeleteCreated(created.clone())]);
+        assert!(!created.exists(), "created copy removed on rollback");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // LC-005 rollback primitive: a committed plain move is undone by moving the
+    // item back to where it came from.
+    #[test]
+    fn rollback_moves_back_a_plain_move() {
+        let dir = temp_workspace("rollback-move");
+        let src_root = dir.join("src");
+        let dst_root = dir.join("dst");
+        fs::create_dir_all(&src_root).unwrap();
+        fs::create_dir_all(&dst_root).unwrap();
+        // Simulate an already-moved file: it lives at dst, absent at src.
+        let dest_file = dst_root.join("doc.txt");
+        let orig_file = src_root.join("doc.txt");
+        fs::write(&dest_file, b"payload").unwrap();
+
+        run_rollback(&[RollbackOp::MoveBack {
+            created_dest: dest_file.clone(),
+            original_src: orig_file.clone(),
+        }]);
+        assert!(!dest_file.exists(), "rolled-back file leaves the destination");
+        assert!(orig_file.is_file(), "file restored to its original path");
+        assert_eq!(fs::read(&orig_file).unwrap(), b"payload");
         let _ = fs::remove_dir_all(&dir);
     }
 }

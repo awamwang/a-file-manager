@@ -32,6 +32,12 @@ assert.ok(lib.includes("file_ops::file_ops_name_conflict_info"));
 assert.ok(rust.includes("pub fn file_ops_name_conflict_info"));
 assert.ok(clip.includes("\"file_ops_name_conflict_info\""));
 assert.ok(rust.includes("pub struct NameConflictInfo"));
+// LC-005 cancel + UN-008 fingerprint commands registered (parity checked where FE calls them).
+assert.ok(lib.includes("file_ops::file_ops_cancel"));
+assert.ok(rust.includes("pub fn file_ops_cancel"));
+assert.ok(lib.includes("file_ops::file_ops_fingerprints"));
+assert.ok(rust.includes("pub fn file_ops_fingerprints"));
+assert.ok(rust.includes("pub struct EntryFingerprint"));
 assert.ok(rust.includes("delete_to_recycle"));
 assert.ok(rust.includes("path_can_use_recycle_bin"));
 assert.ok(rust.includes("trash::delete"));

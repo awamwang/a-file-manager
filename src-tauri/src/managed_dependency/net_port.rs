@@ -124,7 +124,8 @@ mod tests {
         let moved = relocate_if_occupied(&url, 64);
         assert_ne!(moved, url, "occupied port must relocate");
         let new_port = port_of(&moved).unwrap();
-        assert!(new_port > busy && new_port <= busy + 64);
+        // busy 可能落在 OS 临时端口段的高位（并行测试下更常见），u16 加法会溢出。
+        assert!(new_port > busy && new_port <= busy.saturating_add(64));
         assert!(
             is_bindable("127.0.0.1", new_port),
             "relocated port must be free"

@@ -789,6 +789,7 @@ onMounted(() => {
           class="tier-item"
           :class="{
             'tier-item--active': activeSection === section.id,
+            'fluent-accent-edge': activeSection === section.id,
             'tier-item--warning':
               section.id === 'experimental' && activeSection === 'experimental',
           }"
@@ -1290,7 +1291,8 @@ onMounted(() => {
 .tier-item--active {
   background: var(--fluent-color-fill-selected);
   font-weight: var(--fluent-font-weight-semibold);
-  box-shadow: inset 3px 0 0 var(--fluent-color-stroke-accent-soft);
+  /* Left accent edge comes from the shared .fluent-accent-edge primitive
+     (same declaration, applied via class on the active item). */
 }
 
 .tier-item--warning {
@@ -1376,7 +1378,7 @@ onMounted(() => {
 }
 
 .open-tool-order-row:hover {
-  background: var(--fluent-color-bg-subtle, rgba(128, 128, 128, 0.08));
+  background: var(--fluent-color-fill-subtle-secondary);
 }
 
 .open-tool-order-row--dragging {

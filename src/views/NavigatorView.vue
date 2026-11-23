@@ -2032,9 +2032,15 @@ async function shortcutNewFolder() {
       onNotice(result.error ?? t("contextMenu.opFailed"));
       return;
     }
-    if (result.paths[0]) recordCreateUndo(result.paths[0]);
+    const createdPath = result.paths[0];
+    if (createdPath) recordCreateUndo(createdPath);
     onNotice(t("contextMenu.folderCreated"));
     await refreshListing();
+    // Explorer 式反馈：选中新建项并滚动到可见。
+    if (createdPath) {
+      selectOnly(createdPath);
+      scrollSelectionIntoView(createdPath);
+    }
   } catch (err) {
     onNotice(err instanceof Error ? err.message : String(err));
   }
@@ -2058,9 +2064,15 @@ async function shortcutNewFile() {
       onNotice(result.error ?? t("contextMenu.opFailed"));
       return;
     }
-    if (result.paths[0]) recordCreateUndo(result.paths[0]);
+    const createdPath = result.paths[0];
+    if (createdPath) recordCreateUndo(createdPath);
     onNotice(t("contextMenu.fileCreated"));
     await refreshListing();
+    // Explorer 式反馈：选中新建项并滚动到可见。
+    if (createdPath) {
+      selectOnly(createdPath);
+      scrollSelectionIntoView(createdPath);
+    }
   } catch (err) {
     onNotice(err instanceof Error ? err.message : String(err));
   }
@@ -3300,6 +3312,10 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
 
 .row:focus-visible {
   background: var(--fluent-color-fill-selected);
+  /* Distinct from a merely-selected row (.row--selected has no ring) so keyboard
+     focus is perceivable; same ring language as .row--drop above. Editing the
+     scoped rule directly — a global token rule here would be out-weighted by the
+     scoped [data-v-*] selector. */
   outline: 2px solid var(--fluent-color-stroke-focus);
   outline-offset: -2px;
 }

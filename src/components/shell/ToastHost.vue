@@ -60,7 +60,7 @@ const { t } = useI18n();
   border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   background: var(--fluent-color-fill-control);
   color: var(--fluent-color-text-primary);
-  box-shadow: var(--fluent-shadow-flyout, 0 8px 24px rgba(0, 0, 0, 0.18));
+  box-shadow: var(--fluent-shadow-flyout);
   font-size: var(--fluent-font-size-body);
   line-height: 1.4;
 }

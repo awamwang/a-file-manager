@@ -10,6 +10,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 pub const ERR_HARVEST_AGENT_UNKNOWN: &str = "AI_HARVEST_AGENT_UNKNOWN";
+pub const ERR_HARVEST_AGENT_NOT_ENABLED: &str = "AI_HARVEST_AGENT_NOT_ENABLED";
 pub const ERR_HARVEST_PATH: &str = "AI_HARVEST_PATH_INVALID";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -63,12 +64,24 @@ fn require_agent<'a>(
         .ok_or_else(|| ERR_HARVEST_AGENT_UNKNOWN.to_string())
 }
 
+/// Agent Target 是源头：Harvest 源必须是中央 `enabled` 的 Agent（ADR 0010 修订）。
+fn require_enabled_agent<'a>(
+    document: &'a AiConfigDocument,
+    agent_id: &str,
+) -> Result<&'a super::agents::AgentTarget, String> {
+    let agent = require_agent(document, agent_id)?;
+    if !agent.enabled {
+        return Err(ERR_HARVEST_AGENT_NOT_ENABLED.to_string());
+    }
+    Ok(agent)
+}
+
 /// 扫描 Agent 全局 MCP JSON，列出可导入候选（不写盘）。
 pub fn scan_mcp_from_agent(
     document: &AiConfigDocument,
     agent_id: &str,
 ) -> Result<HarvestMcpScanReport, String> {
-    let agent = require_agent(document, agent_id)?;
+    let agent = require_enabled_agent(document, agent_id)?;
     let expanded = expand_agent_path(&agent.global_mcp_path);
     if expanded.is_empty() {
         return Err(ERR_HARVEST_PATH.to_string());
@@ -125,6 +138,10 @@ pub fn import_mcp_candidates(
     document: &AiConfigDocument,
     candidates: &[HarvestMcpCandidate],
 ) -> Result<(AiConfigDocument, McpImportReport), String> {
+    // Agent Target 是源头：候选的来源 Agent 必须仍是中央 enabled 的。
+    for c in candidates {
+        require_enabled_agent(document, &c.source_agent_id)?;
+    }
     let mut next = document.clone();
     let mut added = Vec::new();
     let mut skipped = Vec::new();
@@ -155,7 +172,7 @@ pub fn scan_skills_from_agent(
     document: &AiConfigDocument,
     agent_id: &str,
 ) -> Result<HarvestSkillScanReport, String> {
-    let agent = require_agent(document, agent_id)?;
+    let agent = require_enabled_agent(document, agent_id)?;
     let expanded = expand_agent_path(&agent.global_skills_dir);
     if expanded.is_empty() {
         return Err(ERR_HARVEST_PATH.to_string());
@@ -203,6 +220,10 @@ pub fn import_skill_candidates(
     document: &AiConfigDocument,
     candidates: &[HarvestSkillCandidate],
 ) -> Result<(SkillsLibraryStatus, Vec<LibrarySkill>, Vec<String>), String> {
+    // Agent Target 是源头：候选的来源 Agent 必须仍是中央 enabled 的。
+    for c in candidates {
+        require_enabled_agent(document, &c.source_agent_id)?;
+    }
     let mut imported = Vec::new();
     let mut skipped = Vec::new();
     let mut last_status = skills::library_status(config_dir, document)?;
@@ -222,4 +243,88 @@ pub fn import_skill_candidates(
     }
 
     Ok((last_status, imported, skipped))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ai::agents::{set_enabled, upsert_custom, AiConfigDocument};
+
+    fn temp_dir(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "afm-ai-harvest-{}-{}",
+            tag,
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// Agent Target 是源头：中央禁用的 Agent 不能作为 Harvest 源，启用后恢复（ADR 0010 修订）。
+    #[test]
+    fn harvest_scan_rejects_centrally_disabled_agent() {
+        let dir = temp_dir("gate");
+        let mcp_file = dir.join("mcp.json");
+        fs::write(&mcp_file, r#"{"mcpServers":{"demo":{}}}"#).unwrap();
+        let mut doc = AiConfigDocument::empty();
+        doc = upsert_custom(
+            &doc,
+            Some("gated".into()),
+            "Gated".into(),
+            String::new(),
+            String::new(),
+            mcp_file.to_string_lossy().into(),
+            String::new(),
+            String::new(),
+        )
+        .unwrap();
+        // 中央未启用：扫描必须被拒绝。
+        let err = scan_mcp_from_agent(&doc, "gated").unwrap_err();
+        assert!(err.contains(ERR_HARVEST_AGENT_NOT_ENABLED));
+        // 中央启用后：同一配置可正常扫描。
+        doc = set_enabled(&doc, "gated", true).unwrap();
+        let report = scan_mcp_from_agent(&doc, "gated").unwrap();
+        assert!(report.candidates.iter().any(|c| c.id == "demo"));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// 导入侧同样受源头闸门约束：候选的来源 Agent 被中央禁用时拒绝写入中央仓库。
+    #[test]
+    fn harvest_import_rejects_candidates_from_disabled_agent() {
+        let dir = temp_dir("imp");
+        let mut doc = AiConfigDocument::empty();
+        doc = upsert_custom(
+            &doc,
+            Some("off-agent".into()),
+            "Off Agent".into(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+        )
+        .unwrap();
+
+        let mcp_candidate = HarvestMcpCandidate {
+            id: "demo".into(),
+            display_name: "demo".into(),
+            server_json: "{}".into(),
+            already_in_catalog: false,
+            source_agent_id: "off-agent".into(),
+        };
+        let err = import_mcp_candidates(&doc, &[mcp_candidate]).unwrap_err();
+        assert!(err.contains(ERR_HARVEST_AGENT_NOT_ENABLED));
+
+        let skill_candidate = HarvestSkillCandidate {
+            name: "demo".into(),
+            path: dir.to_string_lossy().into(),
+            already_in_library: false,
+            source_agent_id: "off-agent".into(),
+        };
+        let err = import_skill_candidates(&dir, &doc, &[skill_candidate]).unwrap_err();
+        assert!(err.contains(ERR_HARVEST_AGENT_NOT_ENABLED));
+
+        let _ = fs::remove_dir_all(&dir);
+    }
 }

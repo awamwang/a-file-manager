@@ -1899,7 +1899,7 @@ onUnmounted(() => {
 
 .more-popover--portal {
   /* position/top/left/z-index set via Teleport fixed inline style */
-  box-shadow: var(--fluent-shadow-flyout, 0 8px 24px rgba(0, 0, 0, 0.18));
+  box-shadow: var(--fluent-shadow-flyout);
 }
 
 .more-item {

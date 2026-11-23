@@ -423,20 +423,30 @@ pub struct ProjectSkillCandidate {
     pub path: String,
 }
 
-pub fn search_project_skills(workspace: &str) -> Result<Vec<ProjectSkillCandidate>, String> {
+pub fn search_project_skills(
+    workspace: &str,
+    central: &AiConfigDocument,
+) -> Result<Vec<ProjectSkillCandidate>, String> {
     let root = PathBuf::from(workspace.trim());
     if !root.is_dir() {
         return Err(ERR_DEPLOY_PROJECT_REQUIRED.to_string());
     }
-    let mut out = Vec::new();
-    // Shallow + one-level common dirs (skills/, .cursor/skills, etc.)
+    // Agent Target 是源头：项目内发现 = workspace 根浅层 +
+    // 项目启用集（∩ 中央 enabled）各 Target 的 projectSkillsDir 真实配置，
+    // 不再扫描硬编码公共目录（ADR 0010 修订）。
+    let agents = resolve_project_agents(central, workspace)?;
     let mut roots = vec![root.clone()];
-    for child in ["skills", ".cursor/skills", ".agents/skills", ".claude/skills"] {
-        let p = join_agent_relative(&root, child);
-        if p.is_dir() {
-            roots.push(p);
+    for agent in agents {
+        let rel = agent.project_skills_dir.trim();
+        if rel.is_empty() {
+            continue;
+        }
+        let dir = join_agent_relative(&root, rel);
+        if dir.is_dir() && !roots.contains(&dir) {
+            roots.push(dir);
         }
     }
+    let mut out = Vec::new();
     for dir in roots {
         let Ok(entries) = fs::read_dir(&dir) else {
             continue;
@@ -533,13 +543,44 @@ mod tests {
     }
 
     #[test]
-    fn search_finds_project_skill_folders() {
+    fn search_is_driven_by_agent_target_project_skills_dir() {
         let dir = temp_dir("search");
-        let skill = dir.join("skills").join("local");
-        fs::create_dir_all(&skill).unwrap();
-        fs::write(skill.join("SKILL.md"), "# local\n").unwrap();
-        let found = search_project_skills(dir.to_str().unwrap()).unwrap();
-        assert!(found.iter().any(|c| c.name == "local"));
+        let mut doc = load_from_path(&dir).unwrap();
+        doc = crate::ai::agents::upsert_custom(
+            &doc,
+            Some("search-agent".into()),
+            "Search Agent".into(),
+            String::new(),
+            r".search-skills".into(),
+            String::new(),
+            String::new(),
+            String::new(),
+        )
+        .unwrap();
+        doc = set_enabled(&doc, "search-agent", true).unwrap();
+
+        let ws = dir.join("ws");
+        // 项目启用集含 search-agent：其 projectSkillsDir 下的 skill 应能被发现。
+        let cfg_skill = ws.join(".search-skills").join("cfg-skill");
+        fs::create_dir_all(&cfg_skill).unwrap();
+        fs::write(cfg_skill.join("SKILL.md"), "# cfg\n").unwrap();
+        // 未配置的公共目录不应被扫描：发现受 Agent Target 配置驱动，不再硬编码。
+        let legacy = ws.join(".claude").join("skills").join("legacy-skill");
+        fs::create_dir_all(&legacy).unwrap();
+        fs::write(legacy.join("SKILL.md"), "# legacy\n").unwrap();
+        crate::ai::project_ai::set_enabled_agents(
+            ws.to_str().unwrap(),
+            &doc,
+            vec!["search-agent".to_string()],
+        )
+        .unwrap();
+
+        let found = search_project_skills(ws.to_str().unwrap(), &doc).unwrap();
+        assert!(found.iter().any(|c| c.name == "cfg-skill"));
+        assert!(
+            !found.iter().any(|c| c.name == "legacy-skill"),
+            "unconfigured common dirs must not be scanned"
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 }

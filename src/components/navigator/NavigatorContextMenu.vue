@@ -390,9 +390,15 @@ async function runNewFolder() {
       emit("notice", result.error ?? t("contextMenu.opFailed"));
       return;
     }
-    if (result.paths[0]) recordCreateUndo(result.paths[0]);
+    const createdPath = result.paths[0];
+    if (createdPath) recordCreateUndo(createdPath);
     emit("notice", t("contextMenu.folderCreated"));
     await refreshListing();
+    // Explorer 式反馈：选中新建项并滚动到可见。
+    if (createdPath) {
+      selectOnly(createdPath);
+      scrollSelectionIntoView(createdPath);
+    }
   } catch (err) {
     emit("notice", err instanceof Error ? err.message : String(err));
   }
@@ -422,9 +428,15 @@ async function runNewFile(defaultName?: string) {
       emit("notice", result.error ?? t("contextMenu.opFailed"));
       return;
     }
-    if (result.paths[0]) recordCreateUndo(result.paths[0]);
+    const createdPath = result.paths[0];
+    if (createdPath) recordCreateUndo(createdPath);
     emit("notice", t("contextMenu.fileCreated"));
     await refreshListing();
+    // Explorer 式反馈：选中新建项并滚动到可见。
+    if (createdPath) {
+      selectOnly(createdPath);
+      scrollSelectionIntoView(createdPath);
+    }
   } catch (err) {
     emit("notice", err instanceof Error ? err.message : String(err));
   }
@@ -1236,7 +1248,7 @@ onUnmounted(() => {
   padding: var(--fluent-space-xs);
   border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
   border-radius: var(--fluent-radius-md);
-  box-shadow: var(--fluent-shadow-flyout, 0 8px 24px rgb(0 0 0 / 18%));
+  box-shadow: var(--fluent-shadow-flyout);
   background: var(--fluent-color-fill-control);
 }
 

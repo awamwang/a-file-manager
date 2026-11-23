@@ -19,6 +19,7 @@ Rule reminders: no e2e; `#[ignore]` ≠ coverage; FE↔BE command-name parity is
 | Behavior | Layers | Gate / test | Notes |
 | --- | --- | --- | --- |
 | copy / cut / paste (data move) | STATIC · CARGO | `check-file-ops.mjs`; `file_ops/mod.rs` `copy_paths` / move roundtrips (`safe_io.rs`) | Real temp execution in cargo |
+| new file / folder → new item selected | STATIC | `check-select-new-file-folder.mjs` | 4 surfaces (NavigatorView shortcuts + NavigatorContextMenu actions); same create-result path feeds undo + selection, then scrolls into view |
 | paste self / conflict decision branch | STATIC | `check-file-ops.mjs`, `check-list-select.mjs` | `transferEntries` is invoke/taskCenter-fused → grep only (intentional; see gaps) |
 | name conflict replace/skip + apply-to-all | STATIC · FE | `check-name-conflict.mjs` → `name-conflict-checks.ts` | CF-003/TR-014 (2026-11-22): "Apply to all" is **per-batch**, not persisted; gate asserts absence of `localStorage`/`afm.nameConflictDefault` + `resetNameConflictBatch()` in `transferEntries` |
 | file↔folder type conflict warning | STATIC · FE · CARGO | `check-file-ops.mjs` (parity `file_ops_name_conflict_info`); `name-conflict-checks.ts` (mismatch flag); `mod.rs` `name_conflict_info_detects_type_mismatch` | TR-013/CF-006 (2026-11-22): folder-into-folder merge is **not** a mismatch |
@@ -73,6 +74,8 @@ Rule reminders: no e2e; `#[ignore]` ≠ coverage; FE↔BE command-name parity is
 | --- | --- | --- | --- |
 | knowledge_service / managed_dependency / extension_host | STATIC | `check-backend-command-surface.mjs` | 24 commands registered + FE command-literal parity + managed install-chain tests intact |
 | AI Add-on | STATIC · CARGO | `check-ai-addon-shell.mjs` | pre-existing strong gate (not rebuilt) |
+| AI Agent Target 源头闸门（ADR 0010 修订 2026-11：中央 `enabled` 是源头） | STATIC · CARGO | `check-ai-addon-shell.mjs`（`filter((a) => a.enabled)` 三面板断言 + `t.enabled &&` + `AI_HARVEST_AGENT_NOT_ENABLED` + `central: &AiConfigDocument` needles）；`project_ai.rs` `resolve_project_agents_gated_by_central_enabled`；`mod.rs` `project_status_ignores_centrally_disabled_agents`；`harvest.rs` `harvest_scan_rejects_centrally_disabled_agent` / `harvest_import_rejects_candidates_from_disabled_agent`；`deploy.rs` `search_is_driven_by_agent_target_project_skills_dir` | 项目 chips / Harvest 源仅显示中央 enabled；fan-out 与已添加状态扫描排除中央禁用（存储暂存、重启用自动恢复）；项目内发现只扫项目启用集各 Target 的 `projectSkillsDir` 真实配置 |
+| AI harvest (multi-agent MCP / Skills import + dedupe) | STATIC · FE | `check-harvest-dedupe.mjs` → `harvest-dedupe-checks.ts` (`harvestDedupe.ts`) | multi-agent scan merged into one candidate set; content-fingerprint detects renamed servers; duplicate reasons surfaced; FE↔BE command-name parity pinned |
 | providers / discovery | STATIC · CARGO | `check-provider-*.mjs`, `check-discovery-*.mjs` | |
 
 ## Download / install chain
