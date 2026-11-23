@@ -37,6 +37,7 @@ Rule reminders: no e2e; `#[ignore]` ≠ coverage; FE↔BE command-name parity is
 | select new items after paste (keyboard + context menu) | STATIC | `check-paste-post-state.mjs`; `revealItemsInNavigator(result.paths)` in `shortcutPaste` and `NavigatorContextMenu.runPaste` | CLIP-003/004, LC-001/002 (2026-11-23): Explorer-style reveal-and-select the transfer result |
 | post-op scroll & sort preserved (same-dir refresh) | STATIC | `check-paste-post-state.mjs`; list `scrollTop` reset is keyed to `watch(currentPath)` (navigation) only, sort lives in module-level `sortColumn`/`sortDirection` refs that survive `refreshListing` | LC-011 (2026-11-23): same-directory copy/move/paste/delete keeps scroll + current sort |
 | shift range in current view order | STATIC | `check-selection-view-order.mjs`; `selectRange(orderedPaths.value, …)` where `orderedPaths = visibleEntries.map` (sorted+filtered) | SEL-004 (2026-11-23): ordering arithmetic itself executed by `list-select-checks.ts` |
+| parent+child source dedup in one transfer | STATIC · FE | `check-transfer-dedup.mjs` → `transfer-dedup-checks.ts` (`src/state/transferDedup.ts`); `transferEntries` runs `dedupeDescendantSources(sources)` | SEL-007/011 (2026-11-23): a folder and its descendant are processed once; folder-into-itself *target* stays a backend refusal (TR-006 CARGO) |
 
 ## Work groups / projects (external chain)
 

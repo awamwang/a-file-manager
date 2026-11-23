@@ -5,6 +5,7 @@ import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { resetNameConflictBatch, resolveNameConflictChoice } from "./nameConflict.ts";
 import { normalizePathKey } from "./pathKey.ts";
+import { dedupeDescendantSources } from "./transferDedup.ts";
 import { beginLongTask, finishLongTask, type LongTaskKind } from "./taskCenter.ts";
 
 export type ClipboardMode = "copy" | "cut";
@@ -97,6 +98,9 @@ export async function transferEntries(
   // CF-003 / TR-014: a checked "Apply to all" choice lives only for this batch.
   // Reset at the top so the previous paste's remembered choice never leaks here.
   resetNameConflictBatch();
+  // SEL-007 / SEL-011: drop a source already contained in another source so a folder and
+  // one of its descendants are processed once, not double-handled in this transfer.
+  sources = dedupeDescendantSources(sources);
   const command =
     mode === "copy"
       ? "file_ops_copy"
