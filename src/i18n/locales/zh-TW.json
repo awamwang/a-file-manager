@@ -110,7 +110,12 @@
     "conflictSkip": "跳過",
     "conflictKeep": "保留兩者",
     "conflictApplyToAll": "套用到所有衝突",
-    "conflictTypeWarning": "其中一個是資料夾，另一個是檔案。取代將永久移除現有項目。"
+    "conflictTypeWarning": "其中一個是資料夾，另一個是檔案。取代將永久移除現有項目。",
+    "transferErrorTitle": "無法完成檔案操作",
+    "transferErrorMessage": "無法複製或移動「{name}」。",
+    "transferErrorRetry": "重試",
+    "transferErrorSkip": "略過",
+    "transferErrorAbort": "中止"
   },
   "chrome": {
     "titleBar": "標題欄",

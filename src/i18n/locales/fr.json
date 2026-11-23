@@ -523,7 +523,12 @@
     "conflictSkip": "Ignorer",
     "conflictKeep": "Conserver les deux",
     "conflictApplyToAll": "Appliquer à tous les conflits",
-    "conflictTypeWarning": "L'un est un dossier et l'autre un fichier. Remplacer supprime définitivement l'élément existant."
+    "conflictTypeWarning": "L'un est un dossier et l'autre un fichier. Remplacer supprime définitivement l'élément existant.",
+    "transferErrorTitle": "Impossible de terminer l'opération sur les fichiers",
+    "transferErrorMessage": "« {name} » n'a pas pu être copié ou déplacé.",
+    "transferErrorRetry": "Réessayer",
+    "transferErrorSkip": "Ignorer",
+    "transferErrorAbort": "Abandonner"
   },
   "discovery": {
     "title": "Recherche",

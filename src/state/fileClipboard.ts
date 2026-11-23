@@ -4,6 +4,11 @@
 import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { resetNameConflictBatch, resolveNameConflictChoice } from "./nameConflict.ts";
+import {
+  isRetryableTransferErrorClass,
+  resolveTransferErrorChoice,
+  type TransferErrorClass,
+} from "./transferError.ts";
 import { normalizePathKey } from "./pathKey.ts";
 import { dedupeDescendantSources } from "./transferDedup.ts";
 import { beginLongTask, finishLongTask, type LongTaskKind } from "./taskCenter.ts";
@@ -14,6 +19,11 @@ export type FileOpsResult = {
   ok: boolean;
   paths: string[];
   error: string | null;
+  /** LC-006/LC-007/LC-008 per-item error class from the backend
+   *  (`file_ops/mod.rs::classify_transfer_error`): `in-use` / `access-denied` /
+   *  `disk-full` for a retryable single-item failure, else null/undefined for
+   *  successes and hard refusals. */
+  errorClass?: string | null;
 };
 
 export const clipboardPaths = ref<string[]>([]);
@@ -152,11 +162,45 @@ export async function transferEntries(
       conflict,
       taskId,
     });
-    if (!result.ok) {
-      finish(false, result.error, transferred.length);
-      return result;
+    // LC-006 / LC-007 / LC-008 (已拍板 2026-11-22): a per-item failure with a
+    // recognized error class opens the Explorer-style Retry / Skip / Abort dialog
+    // for THIS item. A hard refusal (no class — folder-into-itself, volume root,
+    // validation) keeps the existing whole-batch abort.
+    let outcome = result;
+    while (!outcome.ok && isRetryableTransferErrorClass(outcome.errorClass)) {
+      const errorClass = outcome.errorClass as TransferErrorClass;
+      const choice = await resolveTransferErrorChoice(errorClass, name);
+      if (choice === "retry") {
+        outcome = await invoke<FileOpsResult>(command, {
+          sources: [source],
+          destDir,
+          conflict,
+          taskId,
+        });
+        continue;
+      }
+      if (choice === "skip") {
+        // Skip this item, leave its source untouched, and continue the batch.
+        outcome = { ok: true, paths: [], error: null };
+        break;
+      }
+      // Abort the whole batch. LC-005 rollback semantics: the failed item's
+      // partial destination was already scrubbed by safe_io staging, and for a
+      // copy we drop the copies completed in this batch (source stays intact).
+      // An aborted/rolled-back transfer is the transfer's own teardown and is
+      // never pushed onto the undo stack (UN-009) — callers only record undo on a
+      // successful return, which this path does not produce.
+      if (mode === "copy" && transferred.length) {
+        await deleteEntries(transferred, true);
+      }
+      finish(false, outcome.error, transferred.length);
+      return { ok: false, paths: [], error: outcome.error ?? "Aborted" };
     }
-    transferred.push(...result.paths);
+    if (!outcome.ok) {
+      finish(false, outcome.error, transferred.length);
+      return outcome;
+    }
+    transferred.push(...outcome.paths);
   }
   finish(true, null, transferred.length);
   return { ok: true, paths: transferred, error: null };

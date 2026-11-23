@@ -523,7 +523,12 @@
     "conflictSkip": "Überspringen",
     "conflictKeep": "Beide behalten",
     "conflictApplyToAll": "Auf alle Konflikte anwenden",
-    "conflictTypeWarning": "Eines ist ein Ordner, das andere eine Datei. Ersetzen entfernt das vorhandene Element endgültig."
+    "conflictTypeWarning": "Eines ist ein Ordner, das andere eine Datei. Ersetzen entfernt das vorhandene Element endgültig.",
+    "transferErrorTitle": "Dateioperation konnte nicht abgeschlossen werden",
+    "transferErrorMessage": "\"{name}\" konnte nicht kopiert oder verschoben werden.",
+    "transferErrorRetry": "Wiederholen",
+    "transferErrorSkip": "Überspringen",
+    "transferErrorAbort": "Abbrechen"
   },
   "discovery": {
     "title": "Suche",

@@ -110,7 +110,12 @@
     "conflictSkip": "跳过",
     "conflictKeep": "保留两者",
     "conflictApplyToAll": "应用到所有冲突",
-    "conflictTypeWarning": "其中一个是文件夹，另一个是文件。替换将永久删除现有项目。"
+    "conflictTypeWarning": "其中一个是文件夹，另一个是文件。替换将永久删除现有项目。",
+    "transferErrorTitle": "无法完成文件操作",
+    "transferErrorMessage": "无法复制或移动「{name}」。",
+    "transferErrorRetry": "重试",
+    "transferErrorSkip": "跳过",
+    "transferErrorAbort": "中止"
   },
   "chrome": {
     "titleBar": "标题栏",

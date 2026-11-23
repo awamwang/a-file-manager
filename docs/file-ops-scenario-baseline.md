@@ -248,9 +248,9 @@ read this pass.
 | LC-003 | recycle-delete done | auto | selection moves to **neighbor** (Explorer) / keep-set (DC) | **有意差异**：与 Explorer 的「选邻居」不同，AFM 保持选区 | `🔵 decided 2026-11-23` — 保持现有 `delete-keep-selection` 的「保持选区」行为，**不**改为邻居 | `check-delete-keep-selection` |
 | LC-004 | large copy running | — | non-blocking UI, byte progress + speed + remaining | — | `🟡 code` (`ProgressEmitter`) | `check-file-ops.mjs` |
 | LC-005 | large copy running | cancel | **rollback**: remove partial destination results; source intact (guaranteed by safe_io staging regardless) | Explorer keeps partial; DC keeps; **AFM chooses rollback** | `🔵 decided` — rollback on cancel | **decided 2026-11-22** |
-| LC-006 | file **in use** by another process | copy out | copy succeeds (read) | move-in fails: "in use" | `🔵 decided 2026-11-23` — copy 出**成功**；move-in / replace 失败报 **"in use"** 错误类 | gaps |
-| LC-007 | **access denied** on one item of multi | transfer | **dialog per failed item: retry / skip / abort**, aligns with Windows Explorer | DC similar; some managers abort whole | `🔵 decided` — per-item dialog (retry/skip/abort) | **decided 2026-11-22** |
-| LC-008 | **disk full** on dest volume | transfer | error at the failing item, source intact, partial cleanup state known | — | `🔵 decided 2026-11-23` — 复用 LC-007 已定的**逐项 retry/skip/abort**，不单独发明；源保持安全（LC-005 回滚语义） | gaps |
+| LC-006 | file **in use** by another process | copy out | copy succeeds (read) | move-in fails: "in use" | `✅ code+test` — copy-out succeeds (read-only, `safe_io`); move-in / replace onto an in-use target surfaces the `in-use` class via `classify_transfer_error` | CARGO `copy_paths_succeeds_while_source_handle_is_open`; `classify_transfer_error_maps_windows_codes` |
+| LC-007 | **access denied** on one item of multi | transfer | **dialog per failed item: retry / skip / abort**, aligns with Windows Explorer | DC similar; some managers abort whole | `✅ code+test` — per-item dialog (Retry / Skip / Abort) | `check-transfer-error.mjs`→`transfer-error-checks.ts` |
+| LC-008 | **disk full** on dest volume | transfer | error at the failing item, source intact, partial cleanup state known | — | `✅ code+test` — reuses the LC-007 per-item dialog; `disk-full` class; failed item's partial dest scrubbed by `safe_io`, source preserved | `check-transfer-error.mjs`; CARGO `classify_transfer_error_maps_windows_codes` |
 | LC-009 | **name too long** / path >260 | transfer | error for that item (\\?\ long-path support stance) | DC handles long paths | `🔵 decided` — 启用 `\\?\` 路径处理（Tauri manifest 加 `longPathAware=true` + 路径拼接以 `\\?\` 前缀），支持长路径 | **decided 2026-11-22; code change needed** |
 | LC-010 | **OneDrive placeholder** copied | copy | hydrates-on-copy vs copy-dehydrated stance; Explorer hydrates | real divergence | `🔵 decided` — 复制时从云端水合（与 Explorer 一致）；后续可加「不下载复制」高级选项 | **decided 2026-11-22** |
 | LC-011 | operation done | auto | scroll position & current sort preserved | — | `🔵 decided 2026-11-23` — 保持滚动位置与当前排序，不跳回顶部 | gaps |
@@ -403,7 +403,7 @@ of *scenario* truth.
 | clipboard stale-cut-path drop | CLIP-008 | FE 验证 + 后端 `transferEntries` 跳过分支 | new |
 | undo contamination refusal | UN-008 | FE `file-undo-checks.ts` | new |
 | cancel rollback excluded from undo stack | UN-009 (ties to LC-005) | FE reducer | guarded 2026-11-23 — `check-file-undo.mjs` asserts paste/drop callers early-return on `!result.ok` before `record*Undo` |
-| in-use / disk-full errors reuse per-item retry/skip/abort | LC-006, LC-008 (→ LC-007) | FE + CARGO (error class) | decided 2026-11-23 — 实现待做 |
+| in-use / disk-full errors reuse per-item retry/skip/abort | LC-006, LC-008 (→ LC-007) | FE + CARGO (error class) | guarded 2026-11-23 — `check-transfer-error.mjs`→`transfer-error-checks.ts` + `mod.rs` `classify_transfer_error*` + `copy_paths_succeeds_while_source_handle_is_open` |
 | long-path support via `\\?\` | LC-009 | CARGO + manifest 断言 | **decided — code change required** |
 | Esc semantics (rename > clear > no-op) | SEL-010 | FE (key handler) | new |
 

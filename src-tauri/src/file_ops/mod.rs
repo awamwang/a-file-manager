@@ -22,6 +22,61 @@ pub struct FileOpsResult {
     pub ok: bool,
     pub paths: Vec<String>,
     pub error: Option<String>,
+    /// LC-006 / LC-007 / LC-008: a machine-readable class for a **per-item**
+    /// transfer failure so the frontend can offer Retry / Skip / Abort instead of
+    /// silently aborting the whole batch. `None` for successes and for hard
+    /// refusals (folder-into-itself, volume root, validation) where retry/skip is
+    /// meaningless. Populated centrally from the OS error in [`err_msg`].
+    #[serde(default)]
+    pub error_class: Option<String>,
+}
+
+/// Recognized per-item transfer error classes (aligned with Explorer's Retry /
+/// Skip / Abort dialog). Must stay in sync with `src/state/transferError.ts`.
+pub const ERROR_CLASS_IN_USE: &str = "in-use";
+pub const ERROR_CLASS_ACCESS_DENIED: &str = "access-denied";
+pub const ERROR_CLASS_DISK_FULL: &str = "disk-full";
+
+/// Map a human-readable IO failure message to a per-item error class. Rust's
+/// `std::io::Error` Display always appends the raw Windows system error code as
+/// `(os error N)` regardless of locale, so the code is the locale-stable signal;
+/// English message fragments are a portable fallback. Returns `None` for
+/// anything that is not a recognized retryable per-item condition, so callers
+/// keep the existing whole-batch abort behavior for real refusals.
+fn classify_transfer_error(message: &str) -> Option<String> {
+    let lower = message.to_ascii_lowercase();
+    // Locale-independent: extract the `(os error N)` Windows system code if present.
+    if let Some(idx) = lower.rfind("(os error ") {
+        let after = &lower[idx + "(os error ".len()..];
+        let digits: String = after.chars().take_while(|c| c.is_ascii_digit()).collect();
+        if let Ok(code) = digits.parse::<i64>() {
+            let class = match code {
+                5 | 13 => ERROR_CLASS_ACCESS_DENIED, // ERROR_ACCESS_DENIED / ERROR_WRITE_FAULT
+                32 | 33 | 36 => ERROR_CLASS_IN_USE,   // sharing / lock / sharing-buffer violation
+                39 | 112 => ERROR_CLASS_DISK_FULL,    // too-many-sectors / disk full
+                _ => return None,
+            };
+            return Some(class.to_string());
+        }
+    }
+    // Portable fallback: stable English fragments (non-Windows or wrapped messages).
+    if lower.contains("being used by another process")
+        || lower.contains("used by another process")
+        || lower.contains("the process cannot access the file")
+    {
+        return Some(ERROR_CLASS_IN_USE.to_string());
+    }
+    if lower.contains("access is denied") || lower.contains("permission denied") {
+        return Some(ERROR_CLASS_ACCESS_DENIED.to_string());
+    }
+    if (lower.contains("not enough") && lower.contains("space"))
+        || lower.contains("no space left")
+        || lower.contains("disk is full")
+        || lower.contains("disk full")
+    {
+        return Some(ERROR_CLASS_DISK_FULL.to_string());
+    }
+    None
 }
 
 fn ok_paths(paths: Vec<String>) -> FileOpsResult {
@@ -29,14 +84,18 @@ fn ok_paths(paths: Vec<String>) -> FileOpsResult {
         ok: true,
         paths,
         error: None,
+        error_class: None,
     }
 }
 
 fn err_msg(message: impl Into<String>) -> FileOpsResult {
+    let message = message.into();
+    let error_class = classify_transfer_error(&message);
     FileOpsResult {
         ok: false,
         paths: Vec::new(),
-        error: Some(message.into()),
+        error: Some(message),
+        error_class,
     }
 }
 
@@ -1459,6 +1518,96 @@ mod tests {
             "different existing entry (even case-only different base) must block: {err}"
         );
 
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // LC-006 / LC-007 / LC-008 — per-item error class, locale-stable via the raw
+    // Windows system code Rust appends to io::Error Display.
+    #[test]
+    fn classify_transfer_error_maps_windows_codes() {
+        // in-use: sharing / lock violation, even with a Chinese OS message body.
+        assert_eq!(
+            classify_transfer_error("Failed to move: 另一个程序正在使用此文件 (os error 32)"),
+            Some(ERROR_CLASS_IN_USE.to_string())
+        );
+        assert_eq!(
+            classify_transfer_error("Failed to park existing destination: (os error 33)"),
+            Some(ERROR_CLASS_IN_USE.to_string())
+        );
+        // access denied.
+        assert_eq!(
+            classify_transfer_error("Failed to create destination file: 拒绝访问。 (os error 5)"),
+            Some(ERROR_CLASS_ACCESS_DENIED.to_string())
+        );
+        // disk full.
+        assert_eq!(
+            classify_transfer_error("Failed to write destination file: 磁盘空间不足。 (os error 112)"),
+            Some(ERROR_CLASS_DISK_FULL.to_string())
+        );
+        // portable English fragments when no code is embedded.
+        assert_eq!(
+            classify_transfer_error("There is not enough disk space to complete."),
+            Some(ERROR_CLASS_DISK_FULL.to_string())
+        );
+    }
+
+    #[test]
+    fn classify_transfer_error_leaves_hard_refusals_uncategorized() {
+        // Folder-into-itself / volume-root / validation are NOT per-item retryable:
+        // the frontend must keep aborting the whole batch for these, not show a
+        // Retry / Skip / Abort dialog.
+        assert_eq!(
+            classify_transfer_error("Cannot copy a folder into itself: C:\\a"),
+            None
+        );
+        assert_eq!(
+            classify_transfer_error("Refusing destructive op on a volume root: C:\\"),
+            None
+        );
+        assert_eq!(
+            classify_transfer_error("Path does not exist: C:\\gone.txt"),
+            None
+        );
+    }
+
+    #[test]
+    fn err_msg_populates_per_item_error_class() {
+        // End-to-end wiring: an in-use move failure surfaced through err_msg carries
+        // the class the FE dialog keys on, while a refusal carries none.
+        let r = err_msg("Failed to move: sharing violation (os error 32)");
+        assert!(!r.ok);
+        assert_eq!(r.error_class.as_deref(), Some(ERROR_CLASS_IN_USE));
+
+        let refusal = err_msg("Cannot move a folder into itself: D:\\a");
+        assert_eq!(refusal.error_class, None);
+
+        // Successes never carry a class.
+        assert_eq!(ok_paths(vec!["x".to_string()]).error_class, None);
+    }
+
+    // LC-006: copying OUT of a file that another process still has open (a held read
+    // handle) must SUCCEED — a read-only copy is not blocked by the in-use lock — and
+    // leave the source intact. Rust opens files with FILE_SHARE_READ, so the concurrent
+    // handle models the "in use" scenario without needing an external locker.
+    #[cfg(windows)]
+    #[test]
+    fn copy_paths_succeeds_while_source_handle_is_open() {
+        let dir = temp_workspace("copy-inuse");
+        let src_dir = dir.join("src");
+        let dest = dir.join("dest");
+        fs::create_dir_all(&src_dir).unwrap();
+        fs::create_dir_all(&dest).unwrap();
+        let file = src_dir.join("note.txt");
+        fs::write(&file, b"payload").unwrap();
+
+        // Hold the source open while copying it out.
+        let _held = fs::File::open(&file).unwrap();
+        let copied = copy_paths(&[display_path(&file)], &display_path(&dest), NameConflict::KeepBoth)
+            .expect("copy-out of an in-use file must succeed");
+        assert_eq!(copied.len(), 1);
+        assert!(Path::new(&copied[0]).is_file());
+        assert!(file.exists(), "source stays intact after copy");
+        assert_eq!(fs::read(&file).unwrap(), b"payload");
         let _ = fs::remove_dir_all(&dir);
     }
 }

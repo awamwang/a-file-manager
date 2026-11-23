@@ -523,7 +523,12 @@
     "conflictSkip": "スキップ",
     "conflictKeep": "両方残す",
     "conflictApplyToAll": "すべての競合に適用",
-    "conflictTypeWarning": "一方はフォルダー、もう一方はファイルです。置き換えると既存の項目は完全に削除されます。"
+    "conflictTypeWarning": "一方はフォルダー、もう一方はファイルです。置き換えると既存の項目は完全に削除されます。",
+    "transferErrorTitle": "ファイル操作を完了できません",
+    "transferErrorMessage": "「{name}」をコピーまたは移動できませんでした。",
+    "transferErrorRetry": "再試行",
+    "transferErrorSkip": "スキップ",
+    "transferErrorAbort": "中止"
   },
   "discovery": {
     "title": "検索",

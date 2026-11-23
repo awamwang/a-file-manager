@@ -110,7 +110,12 @@
     "conflictSkip": "Skip",
     "conflictKeep": "Keep both",
     "conflictApplyToAll": "Apply to all conflicts",
-    "conflictTypeWarning": "One of these is a folder and the other is a file. Replacing permanently removes the existing item."
+    "conflictTypeWarning": "One of these is a folder and the other is a file. Replacing permanently removes the existing item.",
+    "transferErrorTitle": "Cannot complete the file operation",
+    "transferErrorMessage": "\"{name}\" could not be copied or moved.",
+    "transferErrorRetry": "Retry",
+    "transferErrorSkip": "Skip",
+    "transferErrorAbort": "Abort"
   },
   "chrome": {
     "titleBar": "Title bar",
