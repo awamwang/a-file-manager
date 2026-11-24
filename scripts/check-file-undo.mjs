@@ -48,6 +48,10 @@ assert.ok(
   "FIL-70: per-item PowerShell restore helper must be removed (UI freeze on many files)",
 );
 assert.ok(
+  recycle.includes("New-Item -ItemType Directory -Path $origDir -Force"),
+  "DEL-007: batch restore must recreate a vanished original parent chain (Explorer parity)",
+);
+assert.ok(
   fileUndo.includes("restoreRecyclePaths"),
   "FIL-70: undo-delete must use restoreRecyclePaths (task center + async restore)",
 );

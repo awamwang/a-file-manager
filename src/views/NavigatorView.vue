@@ -97,6 +97,7 @@ import {
 } from "../state/newItemNames";
 import {
   clearSelection,
+  escSemantics,
   isSelected,
   nextSelectionAfterRemoval,
   selectOnly,
@@ -1777,9 +1778,15 @@ function onTypeAheadKey(event: KeyboardEvent): boolean {
 function onListKeyDown(event: KeyboardEvent) {
   if (event.altKey || event.metaKey || event.ctrlKey) return;
   if (isEditableTarget(event.target)) return;
-  // Escape 清空键入缓冲（不拦截事件本身，仍交给弹窗/其它处理器）。
+  // SEL-010: Esc 三层 — rename inline（重命名输入框自行拦截，优先级最高）
+  // → 有选中清空选中（消费）→ 无选中不消费（交给全局）。键入缓冲始终重置。
   if (event.key === "Escape") {
     typeAheadState = resetTypeAhead();
+    if (escSemantics(false, selectedPaths.value.length) === "clear-selection") {
+      clearSelection();
+      event.preventDefault();
+      event.stopPropagation();
+    }
     return;
   }
   const direction = arrowDirectionFromKey(event.key);

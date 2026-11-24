@@ -201,7 +201,7 @@ Shift+Delete → confirmed permanent; volume root never deleted. UNC cannot recy
 | DEL-004 | any | Shift+Delete | permanent, after confirm | — | `✅ code+test` (`delete_permanent_paths` + FE 接线) | `check-file-ops.mjs`（registry `navigator.deletePermanent` Shift+Delete chord + `registerShortcutHandler` handler + `deletePermanentConfirm` 菜单确认；2026-11-24 补钉） |
 | DEL-005 | volume root | Delete / Shift+Delete | refused | all refuse | `✅ code` (`refuse_volume_root`) | CARGO `..._refuses_root` |
 | DEL-006 | folder in Recycle Bin | restore | returns to **original path** (or best match) | — | `🟡 code` (`file_ops_restore`) | undo-restore loopback has no temp-exec test (ledger gap R2) |
-| DEL-007 | original path gone at restore | restore | recreated / best-match, not error-only | Explorer recreates path | `🔵 decided` — 自动重建原父目录链（对齐 Explorer） | **decided 2026-11-22** |
+| DEL-007 | original path gone at restore | restore | recreated / best-match, not error-only | Explorer recreates path | `✅ code+test` — 批量还原脚本在 DoIt() 前重建消失的原父目录链（`New-Item -ItemType Directory -Force`） | `check-file-undo.mjs`（DEL-007 needle）+ cargo `restore_script_recreates_missing_parent_chain` |
 | DEL-008 | multi select with mixed recyclable + UNC | Delete | per-item split: recycle where possible, permanent(confirm) for the rest | — | `✅ code (FE-side)` — 同 DEL-003；FE 流程在 `blocked.length` 分支里同时处理 `recyclable` 和 `doomed`，部分失败时 `removePathsFromListings(done)` 回滚已删项 | **verified 2026-11-22** |
 
 ### Group 6 · Conflict & keep-both (CF)
@@ -273,7 +273,7 @@ Verified in `explorer-baseline.md §选择` as 对齐: single, Ctrl, Shift, Ctrl
 | SEL-007 | marquee over folder A and A/child both visible | marquee | selection may contain parent+child; transfer must not double-process | bug source | `✅ code+test` — `transferEntries` 跑 `dedupeDescendantSources`，后代只处理一次（folder-into-itself *target* 仍后端拒绝，见 TR-006） | `check-transfer-dedup.mjs`→`transfer-dedup-checks.ts` |
 | SEL-008 | items | arrow Up/Down, Home/End | move selection single-step / jump | — | `🟡 code` | arrows wired (explorer-baseline) |
 | SEL-009 | items | type-ahead (first letters) | jump to matching item | DC quick search differs | `✅ code` | spec `2026-11-18-type-ahead-navigation-design.md` |
-| SEL-010 | any selection | Esc | clear selection | Explorer clears / or cancels rename | `🔵 decided` — 三层优先级：rename inline 中 → 取消 rename；有选中 → 清空选中；无选中 → 不消费（交给全局） | **decided 2026-11-22** |
+| SEL-010 | any selection | Esc | clear selection | Explorer clears / or cancels rename | `✅ code+test` — 三层优先级：rename inline → `@keydown.escape.prevent.stop` 取消；有选中 → `escSemantics` 判定清空并消费；无选中 → 不消费（交给全局） | `check-esc-semantics.mjs`→`esc-semantics-checks.ts` |
 | SEL-011 | select a run, then paste parent+child in one op | transfer | each path processed **once** (dedup descendants) | — | `✅ code+test` — `transfer-dedup-checks.ts` 断言 parent+child 去重 | `check-transfer-dedup.mjs`→`transfer-dedup-checks.ts` |
 
 ---
@@ -391,7 +391,7 @@ of *scenario* truth.
 | dir-into-dir merge + inner conflict | CF-007, CF-008 | CARGO | done — CARGO `copy_dir_into_existing_dir_merges_no_inner_collision` / `..._handles_inner_collisions` / `move_dir_into_existing_dir_empties_source` → ledger 行已存在 |
 | rename reserved-name / case-only / trailing-dot | NM-003, NM-004, NM-007 | CARGO `validate_file_name` / rename | done — CARGO `validate_name_blocks_windows_reserved` / `validate_name_strips_trailing_dot_and_space` / `validate_name_keeps_posix_legal_names` / `rename_case_only_*` → ledger 行已存在 |
 | UNC/removable Delete → permanent fallback w/ confirm | DEL-003, DEL-008 | FE 已实现（grep + 调用链）；可选 FE-UNIT | **verified 2026-11-22** — `check-file-ops.mjs` 已 grep `confirmPermanentDelete`；本次扩展加 `pathsWithoutRecycle` 在两个入口里的调用钉住 |
-| restore to original path when parent gone | DEL-007 | CARGO (heavy, see ledger R2) | **decided — 自动重建父目录链；CARGO 可走 temp 路径，不再依赖 R2 的机器态** |
+| restore to original path when parent gone | DEL-007 | CARGO + 静态 needle | done 2026-11-24 — 还原脚本 verb 命中后 `New-Item -ItemType Directory -Path $origDir -Force` 重建父目录链；cargo `restore_script_recreates_missing_parent_chain`（脚本抽为 `restore_wanted_script` 可测函数）；真实回收站往返仍走 GUI 冒烟 |
 | undo reverse-order multi-op | UN-006 | FE | guarded 2026-11-23 — `check-file-undo.mjs`→`file-undo-checks.ts` LIFO drain |
 | paste-target resolution (folder/file/none) | CLIP-101, CLIP-102, CLIP-104 | FE (pure resolver extraction) | done — `check-paste-target.mjs`→`paste-target-checks.ts`（FE pure resolver）+ grep 断言 `NavigatorView.shortcutPaste` 接 `resolvePasteTarget` |
 | select new post-state (copy / move / paste) | LC-001, LC-002, CLIP-003, CLIP-004 | FE | done — `check-paste-post-state.mjs`（`revealItemsInNavigator` in `shortcutPaste` + `NavigatorContextMenu.runPaste`） |
@@ -407,7 +407,7 @@ of *scenario* truth.
 | cancel rollback excluded from undo stack | UN-009 (ties to LC-005) | FE reducer | guarded 2026-11-23 — `check-file-undo.mjs` asserts paste/drop callers early-return on `!result.ok` before `record*Undo` |
 | in-use / disk-full errors reuse per-item retry/skip/abort | LC-006, LC-008 (→ LC-007) | FE + CARGO (error class) | guarded 2026-11-23 — `check-transfer-error.mjs`→`transfer-error-checks.ts` + `mod.rs` `classify_transfer_error*` + `copy_paths_succeeds_while_source_handle_is_open` |
 | long-path support via `\\?\` | LC-009 | CARGO + manifest 断言 | **decided — code change required** |
-| Esc semantics (rename > clear > no-op) | SEL-010 | FE (key handler) | new |
+| Esc semantics (rename > clear > no-op) | SEL-010 | FE `esc-semantics-checks.ts` + gate | done 2026-11-24 — `navigatorSelection.escSemantics` 纯三层判定 + `check-esc-semantics.mjs`（钉 rename 输入框 `.stop` 拦截、列表 Escape 分支 `clearSelection`+消费）；顺带修复 `check-selection-view-order.mjs` needle 与 Phase5 Bug3 后的多行 `orderedPaths` 漂移 |
 
 Rule reminder from ADR 0025: an `#[ignore]`d or chain-absent gate protects nothing; cross-volume and
 restore-pathback cases may need a 2-mount or machine-state fixture — if impractical, keep them as

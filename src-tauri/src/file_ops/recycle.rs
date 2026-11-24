@@ -193,7 +193,17 @@ pub fn restore_original_paths(original_paths: &[String]) -> Result<Vec<String>, 
 #[cfg(windows)]
 fn restore_original_paths_with_list(wanted_file: &Path) -> Result<Vec<String>, String> {
     let escaped = wanted_file.to_string_lossy().replace('\'', "''");
-    let script = format!(
+    let script = restore_wanted_script(&escaped);
+    let output = run_powershell(&script)?;
+    parse_restored_paths(&output)
+}
+
+/// The one-pass PowerShell batch-restore script (list + match + restore).
+/// Extracted from `restore_original_paths_with_list` so tests can pin its
+/// behavior-critical fragments without spawning a real PowerShell/Recycle Bin.
+#[cfg(windows)]
+fn restore_wanted_script(escaped: &str) -> String {
+    format!(
         r#"
 $ErrorActionPreference = 'Stop'
 function Normalize-PathKey([string]$p) {{
@@ -233,6 +243,11 @@ foreach ($item in $bin.Items()) {{
     if ($label -eq 'Restore' -or $label -eq '还原') {{ $verb = $v; break }}
   }}
   if (-not $verb) {{ continue }}
+  # DEL-007: the original parent chain may be gone (Explorer recreates it on
+  # restore too) — rebuild it before DoIt() so the restore is not lost.
+  if ($origDir -and -not (Test-Path -LiteralPath $origDir)) {{
+    try {{ New-Item -ItemType Directory -Path $origDir -Force | Out-Null }} catch {{}}
+  }}
   $verb.DoIt()
   $waited = 0
   while (-not (Test-Path -LiteralPath $orig) -and $waited -lt 40) {{ Start-Sleep -Milliseconds 250; $waited++ }}
@@ -242,9 +257,7 @@ foreach ($item in $bin.Items()) {{
 }}
 if ($restored.Count -eq 0) {{ '[]' }} elseif ($restored.Count -eq 1) {{ ConvertTo-Json -Compress -InputObject @($restored[0]) }} else {{ $restored | ConvertTo-Json -Compress }}
 "#
-    );
-    let output = run_powershell(&script)?;
-    parse_restored_paths(&output)
+    )
 }
 
 #[cfg(test)]
@@ -290,5 +303,29 @@ mod tests {
         assert!(body.contains(r"C:\Temp\a.txt"));
         assert!(body.contains(r"D:\Temp\b.txt"));
         assert!(!body.contains("D:/Temp/b.txt"));
+    }
+
+    // DEL-007 (已拍板 2026-11-22): when the original parent chain is gone the
+    // restore must recreate it (Explorer parity) instead of losing the item.
+    // The batch script is the only place restore happens, so pin the recreation
+    // fragment + the embedded wanted-list path (escaping round-trip).
+    #[cfg(windows)]
+    #[test]
+    fn restore_script_recreates_missing_parent_chain() {
+        let wanted = std::env::temp_dir().join("afm-del007-wanted'.txt");
+        let escaped = wanted.to_string_lossy().replace('\'', "''");
+        let script = restore_wanted_script(&escaped);
+        assert!(
+            script.contains("New-Item -ItemType Directory -Path $origDir -Force"),
+            "DEL-007: script must recreate the vanished original parent chain"
+        );
+        assert!(
+            script.contains(&escaped),
+            "wanted-list path must be embedded with quotes escaped"
+        );
+        assert!(
+            !script.contains("''''"),
+            "double-escaping would break the LiteralPath"
+        );
     }
 }

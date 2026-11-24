@@ -63,6 +63,18 @@ export function setSelection(paths: string[], anchor?: string | null): void {
   selectionAnchor.value = anchor ?? paths[0] ?? null;
 }
 
+/** SEL-010 (已拍板 2026-11-22): Esc 三层优先级 — rename inline 中 → 取消
+ * rename（由重命名输入框自身的 keydown 拦截，优先级最高）；有选中 → 清空
+ * 选中；两者皆无 → 不消费，交给全局处理器。 */
+export function escSemantics(
+  renameActive: boolean,
+  selectionCount: number,
+): "cancel-rename" | "clear-selection" | "pass-through" {
+  if (renameActive) return "cancel-rename";
+  if (selectionCount > 0) return "clear-selection";
+  return "pass-through";
+}
+
 export function selectedEntries(
   entries: NavigatorEntry[] | null | undefined,
 ): NavigatorEntry[] {
