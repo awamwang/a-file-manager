@@ -1,4 +1,16 @@
 {
+  "fileOps": {
+    "error": {
+      "name_exists": "「{name}」は既に存在します。",
+      "name_empty": "名前を空にすることはできません。",
+      "name_invalid": "名前に不正な文字が含まれています。",
+      "name_not_allowed": "この名前は使用できません。",
+      "path_missing": "パスが存在しません。",
+      "not_a_directory": "パスはフォルダーではありません。",
+      "recycle_unavailable": "ごみ箱を利用できません。",
+      "io_failed": "操作に失敗しました。"
+    }
+  },
   "concepts": {
     "workGroups": "同じことに関係するフォルダーをまとめる",
     "projects": "ワークグループから作成（元のワークグループは保持）：作業ディレクトリを作成し、AI 開発向けの基盤を整える",

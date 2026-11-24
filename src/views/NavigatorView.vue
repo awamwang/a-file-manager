@@ -77,6 +77,7 @@ import {
   renameEntry,
   setClipboard,
 } from "../state/fileClipboard";
+import { localizeFileOpError } from "../state/fileOpsError";
 import { resetNameConflictBatch, resolveNameConflictChoice } from "../state/nameConflict";
 import {
   recordCopyUndo,
@@ -647,7 +648,7 @@ async function commitInlineRename() {
         if (item.newName === item.path.split(/[/\\]/).pop()) continue;
         const result = await renameEntry(item.path, item.newName);
         if (!result.ok) {
-          onNotice(result.error ?? t("contextMenu.opFailed"), "error");
+          onNotice(localizeFileOpError(result, t, "contextMenu.opFailed"), "error");
           await refreshListing();
           return;
         }
@@ -679,7 +680,7 @@ async function commitInlineRename() {
       }
       const replaced = await renameEntry(entry.path, next, true);
       if (!replaced.ok) {
-        onNotice(replaced.error ?? t("contextMenu.opFailed"), "error");
+        onNotice(localizeFileOpError(replaced, t, "contextMenu.opFailed"), "error");
         await refreshListing();
         return;
       }
@@ -692,7 +693,7 @@ async function commitInlineRename() {
     }
     const result = await renameEntry(entry.path, next);
     if (!result.ok) {
-      onNotice(result.error ?? t("contextMenu.opFailed"), "error");
+      onNotice(localizeFileOpError(result, t, "contextMenu.opFailed"), "error");
       return;
     }
     const renamed = result.paths[0];
@@ -1587,7 +1588,7 @@ async function restoreSelection() {
   try {
     const result = await restoreRecyclePaths(paths);
     if (!result.ok) {
-      onNotice(result.error ?? t("contextMenu.opFailed"), "error");
+      onNotice(localizeFileOpError(result, t, "contextMenu.opFailed"), "error");
       return;
     }
     if (!result.paths.length) {
@@ -1968,7 +1969,7 @@ async function shortcutPaste() {
     );
     const result = await pasteClipboard(pasteTarget);
     if (!result.ok) {
-      onNotice(result.error ?? t("contextMenu.opFailed"));
+      onNotice(localizeFileOpError(result, t, "contextMenu.opFailed"));
       return;
     }
     if (wasCut) {
@@ -2040,7 +2041,7 @@ async function shortcutNewFolder() {
   try {
     const result = await createFolder(currentPath.value, trimmed);
     if (!result.ok) {
-      onNotice(result.error ?? t("contextMenu.opFailed"));
+      onNotice(localizeFileOpError(result, t, "contextMenu.opFailed"));
       return;
     }
     const createdPath = result.paths[0];
@@ -2072,7 +2073,7 @@ async function shortcutNewFile() {
   try {
     const result = await createFile(currentPath.value, trimmed);
     if (!result.ok) {
-      onNotice(result.error ?? t("contextMenu.opFailed"));
+      onNotice(localizeFileOpError(result, t, "contextMenu.opFailed"));
       return;
     }
     const createdPath = result.paths[0];
@@ -2127,7 +2128,7 @@ async function shortcutDelete(permanent = false) {
       if (recyclable.length) {
         const recycled = await deleteEntries(recyclable, false);
         if (!recycled.ok) {
-          onNotice(recycled.error ?? t("contextMenu.opFailed"), "error");
+          onNotice(localizeFileOpError(recycled, t, "contextMenu.opFailed"), "error");
           await refreshListing();
           return;
         }
@@ -2137,7 +2138,7 @@ async function shortcutDelete(permanent = false) {
       const result = await deleteEntries(doomed, true);
       if (!result.ok) {
         if (done.length) removePathsFromListings(done);
-        onNotice(result.error ?? t("contextMenu.opFailed"), "error");
+        onNotice(localizeFileOpError(result, t, "contextMenu.opFailed"), "error");
         await refreshListing();
         return;
       }
@@ -2154,7 +2155,7 @@ async function shortcutDelete(permanent = false) {
     if (!ok) return;
     const result = await deleteEntries(paths);
     if (!result.ok) {
-      onNotice(result.error ?? t("contextMenu.opFailed"), "error");
+      onNotice(localizeFileOpError(result, t, "contextMenu.opFailed"), "error");
       return;
     }
     recordDeleteUndo(paths);

@@ -23,6 +23,17 @@ pub struct FileOpsResult {
     pub ok: bool,
     pub paths: Vec<String>,
     pub error: Option<String>,
+    /// Localized-error contract: a machine-readable code (e.g. `name_exists`,
+    /// `path_missing`) the frontend maps to a locale key `fileOps.error.<code>`.
+    /// `None` for successes and for hard refusals that keep the raw `error`
+    /// fallback. The English `error` string stays populated for logs + unknown
+    /// codes, so this is purely additive / backward-compatible.
+    #[serde(default)]
+    pub error_code: Option<String>,
+    /// Named placeholders (e.g. `name`, `path`) interpolated into the localized
+    /// message for `error_code`. Empty/`None` when the code carries no params.
+    #[serde(default)]
+    pub error_params: Option<std::collections::HashMap<String, String>>,
     /// LC-006 / LC-007 / LC-008: a machine-readable class for a **per-item**
     /// transfer failure so the frontend can offer Retry / Skip / Abort instead of
     /// silently aborting the whole batch. `None` for successes and for hard
@@ -118,6 +129,8 @@ fn ok_paths(paths: Vec<String>) -> FileOpsResult {
         ok: true,
         paths,
         error: None,
+        error_code: None,
+        error_params: None,
         error_class: None,
         cancelled: false,
     }
@@ -130,8 +143,110 @@ fn err_msg(message: impl Into<String>) -> FileOpsResult {
         ok: false,
         paths: Vec::new(),
         error: Some(message),
+        error_code: None,
+        error_params: None,
         error_class,
         cancelled: false,
+    }
+}
+
+/// Build an `ok = false` result carrying a machine-readable `error_code` plus
+/// interpolated `error_params`. The English `message` is kept verbatim in
+/// `error` for logs and for any locale that lacks the code (backward compat).
+/// `error_class` still runs through [`classify_transfer_error`] so a wrapped OS
+/// failure keeps surfacing the Retry / Skip / Abort class.
+fn err_code(
+    code: &str,
+    params: Vec<(String, String)>,
+    message: String,
+) -> FileOpsResult {
+    let error_class = classify_transfer_error(&message);
+    let mut map = std::collections::HashMap::new();
+    for (key, value) in params {
+        map.insert(key, value);
+    }
+    FileOpsResult {
+        ok: false,
+        paths: Vec::new(),
+        error: Some(message),
+        error_code: Some(code.to_string()),
+        error_params: if map.is_empty() {
+            None
+        } else {
+            Some(map)
+        },
+        error_class,
+        cancelled: false,
+    }
+}
+
+/// Classify a known English error message (emitted by the `Result<_, String>`
+/// helpers) into a localized-error code + params. This lets the `file_ops_*`
+/// command wrappers tag codes **without** threading a code through every helper
+/// (minimal-touch): the helpers stay `Result<_, String>`, and the wrapper maps
+/// the string back to a code at the boundary. Returns `None` for hard refusals
+/// (folder-into-itself, volume root) and anything unrecognized, so those keep
+/// the raw `error` fallback in the frontend and never surface a misleading
+/// `fileOps.error.*` line. `params` is empty here: the codes this returns
+/// (validation / path checks) carry no named placeholders.
+fn classify_error(message: &str) -> Option<(&'static str, Vec<(String, String)>)> {
+    if message.contains("Path does not exist") {
+        return Some(("path_missing", Vec::new()));
+    }
+    if message.contains("Path is not a directory") {
+        return Some(("not_a_directory", Vec::new()));
+    }
+    if message.contains("Name must not be empty") {
+        return Some(("name_empty", Vec::new()));
+    }
+    if message.contains("Name contains invalid characters") {
+        return Some(("name_invalid", Vec::new()));
+    }
+    if message.contains("Name is not allowed") {
+        return Some(("name_not_allowed", Vec::new()));
+    }
+    // rename / create collision: `A file|folder named 'X' already exists`.
+    // Extract the quoted name so the localized line can interpolate {name}.
+    if message.contains("already exists") {
+        let name = quoted_name(message);
+        let params = if name.is_empty() {
+            Vec::new()
+        } else {
+            vec![("name".to_string(), name)]
+        };
+        return Some(("name_exists", params));
+    }
+    // Recycle Bin list / restore with no host bin API (e.g. non-NTFS / macOS).
+    if message.contains("Recycle Bin") && message.contains("unavailable") {
+        return Some(("recycle_unavailable", Vec::new()));
+    }
+    // Generic copy / move IO failure surfaced at a command boundary.
+    if message.starts_with("Failed to ") {
+        return Some(("io_failed", Vec::new()));
+    }
+    None
+}
+
+/// Extract the single-quoted token from a message like `A file named 'x' already
+/// exists`. Returns an empty string when there is no well-formed quoted segment.
+fn quoted_name(message: &str) -> String {
+    if let Some(start) = message.find('\'') {
+        if let Some(end) = message[start + 1..].find('\'') {
+            return message[start + 1..start + 1 + end].to_string();
+        }
+    }
+    String::new()
+}
+
+/// Command-wrapper helper: attach a localized `error_code` when the English
+/// message maps to a known code, otherwise fall back to the plain [`err_msg`]
+/// (which still populates `error` + `error_class`). Behavior-preserving — it
+/// only adds `error_code` / `error_params`.
+fn err_msg_or_classified(message: impl Into<String>) -> FileOpsResult {
+    let message = message.into();
+    match classify_error(&message) {
+        Some((code, params)) => err_code(code, params, message),
+        None => err_msg(message),
     }
 }
 
@@ -140,6 +255,8 @@ fn cancelled_result() -> FileOpsResult {
         ok: false,
         paths: Vec::new(),
         error: Some("Cancelled".to_string()),
+        error_code: None,
+        error_params: None,
         error_class: None,
         cancelled: true,
     }
@@ -997,7 +1114,7 @@ pub async fn file_ops_copy(
     {
         Ok(Ok(run)) if run.cancelled => cancelled_result(),
         Ok(Ok(run)) => ok_paths(run.created),
-        Ok(Err(error)) => err_msg(error),
+        Ok(Err(error)) => err_msg_or_classified(error),
         Err(error) => err_msg(format!("file_ops_copy worker failed: {error}")),
     }
 }
@@ -1038,7 +1155,7 @@ pub async fn file_ops_move(
     {
         Ok(Ok(run)) if run.cancelled => cancelled_result(),
         Ok(Ok(run)) => ok_paths(run.created),
-        Ok(Err(error)) => err_msg(error),
+        Ok(Err(error)) => err_msg_or_classified(error),
         Err(error) => err_msg(format!("file_ops_move worker failed: {error}")),
     }
 }
@@ -1054,7 +1171,7 @@ pub fn file_ops_cancel(task_id: String) -> bool {
 pub fn file_ops_rename(path: String, new_name: String, replace: Option<bool>) -> FileOpsResult {
     match rename_path(&path, &new_name, replace.unwrap_or(false)) {
         Ok(p) => ok_paths(vec![p]),
-        Err(error) => err_msg(error),
+        Err(error) => err_msg_or_classified(error),
     }
 }
 
@@ -1062,7 +1179,7 @@ pub fn file_ops_rename(path: String, new_name: String, replace: Option<bool>) ->
 pub fn file_ops_create_dir(parent: String, name: String) -> FileOpsResult {
     match create_directory(&parent, &name) {
         Ok(p) => ok_paths(vec![p]),
-        Err(error) => err_msg(error),
+        Err(error) => err_msg_or_classified(error),
     }
 }
 
@@ -1070,7 +1187,7 @@ pub fn file_ops_create_dir(parent: String, name: String) -> FileOpsResult {
 pub fn file_ops_create_file(parent: String, name: String) -> FileOpsResult {
     match create_empty_file(&parent, &name) {
         Ok(p) => ok_paths(vec![p]),
-        Err(error) => err_msg(error),
+        Err(error) => err_msg_or_classified(error),
     }
 }
 
@@ -1079,7 +1196,7 @@ pub fn file_ops_create_file(parent: String, name: String) -> FileOpsResult {
 pub async fn file_ops_delete(paths: Vec<String>) -> FileOpsResult {
     match tauri::async_runtime::spawn_blocking(move || delete_paths(&paths)).await {
         Ok(Ok(paths)) => ok_paths(paths),
-        Ok(Err(error)) => err_msg(error),
+        Ok(Err(error)) => err_msg_or_classified(error),
         Err(error) => err_msg(format!("file_ops_delete worker failed: {error}")),
     }
 }
@@ -1089,7 +1206,7 @@ pub async fn file_ops_delete(paths: Vec<String>) -> FileOpsResult {
 pub async fn file_ops_delete_permanent(paths: Vec<String>) -> FileOpsResult {
     match tauri::async_runtime::spawn_blocking(move || delete_permanent_paths(&paths)).await {
         Ok(Ok(paths)) => ok_paths(paths),
-        Ok(Err(error)) => err_msg(error),
+        Ok(Err(error)) => err_msg_or_classified(error),
         Err(error) => err_msg(format!("file_ops_delete_permanent worker failed: {error}")),
     }
 }
@@ -1113,7 +1230,7 @@ pub async fn file_ops_restore(paths: Vec<String>) -> FileOpsResult {
     match tauri::async_runtime::spawn_blocking(move || crate::platform::trash_restore(&paths)).await
     {
         Ok(Ok(restored)) => ok_paths(restored),
-        Ok(Err(error)) => err_msg(error),
+        Ok(Err(error)) => err_msg_or_classified(error),
         Err(error) => err_msg(format!("file_ops_restore worker failed: {error}")),
     }
 }
@@ -1923,6 +2040,109 @@ mod tests {
 
         // Successes never carry a class.
         assert_eq!(ok_paths(vec!["x".to_string()]).error_class, None);
+    }
+
+    // LC-ERR: classify_error maps the known English helper messages to codes and
+    // leaves hard refusals / unknowns untagged (None) so the FE keeps the raw
+    // error fallback.
+    #[test]
+    fn classify_error_maps_known_messages_to_codes() {
+        assert_eq!(
+            classify_error("Path does not exist: C:\\gone.txt").map(|c| c.0),
+            Some("path_missing")
+        );
+        assert_eq!(
+            classify_error("Path is not a directory: C:\\file.txt").map(|c| c.0),
+            Some("not_a_directory")
+        );
+        assert_eq!(
+            classify_error("Name must not be empty").map(|c| c.0),
+            Some("name_empty")
+        );
+        assert_eq!(
+            classify_error("Name contains invalid characters").map(|c| c.0),
+            Some("name_invalid")
+        );
+        assert_eq!(
+            classify_error("Name is not allowed").map(|c| c.0),
+            Some("name_not_allowed")
+        );
+        assert_eq!(
+            classify_error("Failed to create folder: ...").map(|c| c.0),
+            Some("io_failed")
+        );
+        assert_eq!(
+            classify_error(
+                "Recycle Bin restore is unavailable on macOS; use Finder's Trash instead"
+            )
+            .map(|c| c.0),
+            Some("recycle_unavailable")
+        );
+        // A name collision carries an interpolated {name} extracted from quotes.
+        let (code, params) =
+            classify_error("A file named 'report.pdf' already exists").expect("name_exists");
+        assert_eq!(code, "name_exists");
+        assert_eq!(params, vec![("name".to_string(), "report.pdf".to_string())]);
+    }
+
+    #[test]
+    fn classify_error_leaves_hard_refusals_untagged() {
+        // folder-into-itself / volume root / Cancelled are NOT a localized code.
+        assert!(classify_error("Cannot copy a folder into itself: C:\\a").is_none());
+        assert!(classify_error("Refusing destructive op on a volume root: C:\\").is_none());
+        assert!(classify_error("Cancelled").is_none());
+        assert!(classify_error("Clipboard is empty").is_none());
+    }
+
+    #[test]
+    fn quoted_name_extracts_single_token() {
+        assert_eq!(quoted_name("A file named 'x' already exists"), "x");
+        assert_eq!(quoted_name("A folder named 'my docs' already exists"), "my docs");
+        assert_eq!(quoted_name("no quotes here"), "");
+    }
+
+    #[test]
+    fn err_code_preserves_message_and_populates_fields() {
+        let r = err_code(
+            "name_exists",
+            vec![("name".to_string(), "a.txt".to_string())],
+            "A file named 'a.txt' already exists".to_string(),
+        );
+        assert!(!r.ok);
+        assert_eq!(r.error_code.as_deref(), Some("name_exists"));
+        assert_eq!(
+            r.error_params.as_ref().and_then(|m| m.get("name")).map(String::as_str),
+            Some("a.txt")
+        );
+        // The English message is kept verbatim for logs + unknown codes.
+        assert_eq!(r.error.as_deref(), Some("A file named 'a.txt' already exists"));
+
+        // No params → error_params is None (not an empty map).
+        let no_params = err_code("path_missing", Vec::new(), "Path does not exist: x".to_string());
+        assert!(no_params.error_params.is_none());
+    }
+
+    #[test]
+    fn err_msg_or_classified_tags_known_and_falls_back() {
+        let known = err_msg_or_classified("Path does not exist: C:\\gone.txt".to_string());
+        assert_eq!(known.error_code.as_deref(), Some("path_missing"));
+        assert_eq!(known.error.as_deref(), Some("Path does not exist: C:\\gone.txt"));
+
+        // Unknown message → no code, but error_class still resolves via transfer path.
+        let inuse = err_msg_or_classified("Failed to move file: resource busy");
+        assert_eq!(inuse.error_code.as_deref(), Some("io_failed"));
+        assert_eq!(inuse.error_class.as_deref(), Some(ERROR_CLASS_IN_USE));
+
+        let refusal = err_msg_or_classified("Cannot move a folder into itself: D:\\a");
+        assert!(refusal.error_code.is_none());
+        assert!(refusal.error_params.is_none());
+    }
+
+    #[test]
+    fn err_code_untagged_paths_keep_none() {
+        // The plain helpers stay untagged; codes are attached at the boundary.
+        assert!(err_msg("something odd").error_code.is_none());
+        assert!(ok_paths(vec!["x".to_string()]).error_code.is_none());
     }
 
     // LC-006: copying OUT of a file that another process still has open (a held read

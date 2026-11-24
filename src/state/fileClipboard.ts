@@ -19,6 +19,13 @@ export type FileOpsResult = {
   ok: boolean;
   paths: string[];
   error: string | null;
+  /** Localized-error contract (`file_ops/mod.rs::classify_error` / `err_code`):
+   *  a machine-readable code the frontend maps to `fileOps.error.<code>`.
+   *  Null/undefined for successes and hard refusals that keep the raw `error`. */
+  errorCode?: string | null;
+  /** Named placeholders (e.g. `name`, `path`) interpolated into the localized
+   *  line for `errorCode`. */
+  errorParams?: Record<string, string> | null;
   /** LC-006/LC-007/LC-008 per-item error class from the backend
    *  (`file_ops/mod.rs::classify_transfer_error`): `in-use` / `access-denied` /
    *  `disk-full` for a retryable single-item failure, else null/undefined for

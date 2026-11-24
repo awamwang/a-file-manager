@@ -1,4 +1,16 @@
 {
+  "fileOps": {
+    "error": {
+      "name_exists": "「{name}」已存在。",
+      "name_empty": "名称不能为空。",
+      "name_invalid": "名称包含非法字符。",
+      "name_not_allowed": "该名称不被允许。",
+      "path_missing": "路径不存在。",
+      "not_a_directory": "路径不是文件夹。",
+      "recycle_unavailable": "回收站不可用。",
+      "io_failed": "操作失败。"
+    }
+  },
   "concepts": {
     "workGroups": "把同一件事相关的文件夹聚在一起",
     "projects": "从工作组创建，原工作组保留；会创建工作目录并建立面向 AI 开发的基础结构",

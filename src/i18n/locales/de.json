@@ -1,4 +1,16 @@
 {
+  "fileOps": {
+    "error": {
+      "name_exists": "„{name}“ ist bereits vorhanden.",
+      "name_empty": "Der Name darf nicht leer sein.",
+      "name_invalid": "Der Name enthält ungültige Zeichen.",
+      "name_not_allowed": "Dieser Name ist nicht zulässig.",
+      "path_missing": "Der Pfad ist nicht vorhanden.",
+      "not_a_directory": "Der Pfad ist kein Ordner.",
+      "recycle_unavailable": "Der Papierkorb ist nicht verfügbar.",
+      "io_failed": "Der Vorgang ist fehlgeschlagen."
+    }
+  },
   "concepts": {
     "workGroups": "Ordner zu einer Sache an einem Ort bündeln",
     "projects": "Aus einer Arbeitsgruppe erstellt (die Quelcharbeitsgruppe bleibt erhalten): erstellt ein Arbeitsverzeichnis und eine KI-Entwicklungsgrundlage",

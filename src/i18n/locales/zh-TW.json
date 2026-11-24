@@ -1,4 +1,16 @@
 {
+  "fileOps": {
+    "error": {
+      "name_exists": "「{name}」已存在。",
+      "name_empty": "名稱不能為空。",
+      "name_invalid": "名稱包含非法字元。",
+      "name_not_allowed": "該名稱不允許使用。",
+      "path_missing": "路徑不存在。",
+      "not_a_directory": "路徑不是資料夾。",
+      "recycle_unavailable": "資源回收筒不可用。",
+      "io_failed": "操作失敗。"
+    }
+  },
   "concepts": {
     "workGroups": "把同一件事相關的資料夾聚在一起",
     "projects": "從工作組建立，原工作組保留；會建立工作目錄並建立面向 AI 開發的基礎結構",

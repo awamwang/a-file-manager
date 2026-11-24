@@ -1,4 +1,16 @@
 {
+  "fileOps": {
+    "error": {
+      "name_exists": "« {name} » existe déjà.",
+      "name_empty": "Le nom ne peut pas être vide.",
+      "name_invalid": "Le nom contient des caractères non valides.",
+      "name_not_allowed": "Ce nom n'est pas autorisé.",
+      "path_missing": "Le chemin n'existe pas.",
+      "not_a_directory": "Le chemin n'est pas un dossier.",
+      "recycle_unavailable": "La corbeille est indisponible.",
+      "io_failed": "Échec de l'opération."
+    }
+  },
   "concepts": {
     "workGroups": "Rassemble les dossiers liés à une même chose",
     "projects": "Créé à partir d’un groupe de travail (le groupe d’origine est conservé) : crée un répertoire de travail et une base pour le développement IA",

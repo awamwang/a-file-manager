@@ -37,6 +37,7 @@ import {
   refreshClipboardFromSystem,
   setClipboard,
 } from "../../state/fileClipboard";
+import { localizeFileOpError } from "../../state/fileOpsError";
 import { clearSelection, selectOnly } from "../../state/navigatorSelection";
 import {
   recordCopyUndo,
@@ -349,7 +350,7 @@ async function runPaste() {
     const wasCut = clipboardMode.value === "cut";
     const result = await pasteClipboard(dest);
     if (!result.ok) {
-      emit("notice", result.error ?? t("contextMenu.opFailed"));
+      emit("notice", localizeFileOpError(result, t, "contextMenu.opFailed"));
       return;
     }
     if (wasCut) {
@@ -387,7 +388,7 @@ async function runNewFolder() {
   try {
     const result = await createFolder(parent, trimmed);
     if (!result.ok) {
-      emit("notice", result.error ?? t("contextMenu.opFailed"));
+      emit("notice", localizeFileOpError(result, t, "contextMenu.opFailed"));
       return;
     }
     const createdPath = result.paths[0];
@@ -425,7 +426,7 @@ async function runNewFile(defaultName?: string) {
   try {
     const result = await createFile(parent, trimmed);
     if (!result.ok) {
-      emit("notice", result.error ?? t("contextMenu.opFailed"));
+      emit("notice", localizeFileOpError(result, t, "contextMenu.opFailed"));
       return;
     }
     const createdPath = result.paths[0];
@@ -579,7 +580,7 @@ async function runDelete(entry: NavigatorEntry) {
       if (recyclable.length) {
         const recycled = await deleteEntries(recyclable, false);
         if (!recycled.ok) {
-          emit("notice", recycled.error ?? t("contextMenu.opFailed"));
+          emit("notice", localizeFileOpError(recycled, t, "contextMenu.opFailed"));
           await refreshListing();
           return;
         }
@@ -589,7 +590,7 @@ async function runDelete(entry: NavigatorEntry) {
       const removed = await deleteEntries(blocked, true);
       if (!removed.ok) {
         if (done.length) removePathsFromListings(done);
-        emit("notice", removed.error ?? t("contextMenu.opFailed"));
+        emit("notice", localizeFileOpError(removed, t, "contextMenu.opFailed"));
         await refreshListing();
         return;
       }
@@ -606,7 +607,7 @@ async function runDelete(entry: NavigatorEntry) {
     if (!ok) return;
     const result = await deleteEntries(paths);
     if (!result.ok) {
-      emit("notice", result.error ?? t("contextMenu.opFailed"));
+      emit("notice", localizeFileOpError(result, t, "contextMenu.opFailed"));
       return;
     }
     recordDeleteUndo(paths);
@@ -851,7 +852,7 @@ async function run(id: string) {
         const paths = pathsForClipboard(entry);
         const result = await restoreRecyclePaths(paths);
         if (!result.ok) {
-          emit("notice", result.error ?? t("contextMenu.opFailed"));
+          emit("notice", localizeFileOpError(result, t, "contextMenu.opFailed"));
           return;
         }
         if (!result.paths.length) {
