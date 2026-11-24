@@ -22,11 +22,6 @@ on:
         required: false
         default: true
         type: boolean
-      enable_mac_intel:
-        description: "是否构建 macOS Intel(x86_64) 托管产物 slice（需已接入 macos-15-intel 自建 runner；GitHub 托管 runner 不含 Intel macOS，缺 runner 时该 slice 会永久排队，故默认关闭并跳过）"
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: write
@@ -563,12 +558,11 @@ jobs:
   build-pack-feed:
     needs: prepare
     if: needs.prepare.outputs.want_feature_pack == 'true'
-    # 上游 awam-tool-manager/requirements.lock 把 Windows-only 的 pywin32==312 全 pin 进锁且无
-    # platform marker，macOS 上 uv 解析失败 → macos-aarch64 这个 slice 装不上依赖而失败。
-    # 先让 Windows slice 成功产出线上 feed：continue-on-error 让单平台 slice 失败不阻断 merge，
-    # merge 只聚合已成功上传的 slice（当前=Windows）。上游 lock 补 marker 后 mac 实例自动转成功、
-    # 无需改本 CI 即纳入 mac 产物。安全网：若连 Windows 都没产，merge 会因空 slice 报错、finalize 保留 draft。
-    continue-on-error: true
+    # 三平台 sidecar 均为发布阻塞项：Windows + Apple Silicon 在本 job 矩阵，Intel 见
+    # build-pack-feed-intel。任一平台失败就让 merge 跳过、finalize 保留 draft，绝不发布
+    # 一份缺 Mac 产物的 manifest（否则 Mac 用户装到的 pack 只有清单、起不了后端）。
+    # 旧的 continue-on-error 源于上游 requirements.lock 把 pywin32 无 marker pin 死；
+    # 现锁文件已带 `; sys_platform == 'win32'`，macOS 解析会正确跳过它（2026-11-24 实测）。
     strategy:
       fail-fast: false
       matrix:
@@ -683,18 +677,13 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  # macOS Intel(x86_64) feed slice 作为独立可选 job：GitHub 托管 runner 不含 Intel macOS，
-  # 本仓库当前也没有 macos-15-intel 自建 runner。若把它塞进 build-pack-feed 矩阵，该 job 会
-  # 永久 queued（不是 failed）并拖死 merge-pack-feed，导致 feed 的 manifest.json 永不产出。
-  # 改为 job 级 if：缺 runner / 未勾选时整个 job skipped（绝不排队），merge 的 needs 兼容 skipped，
-  # 正常产出 Windows + Apple Silicon 两平台 feed。未来接入 Intel 自建 runner 后 dispatch 勾
-  # enable_mac_intel=true 即恢复该平台产物。steps 与 build-pack-feed 同构，靠本 job 单行 matrix
-  # 把 platform/name_suffix/python_rel 解析为 Intel 值；pack zip 平台无关，仍只由主 job 打一次。
+  # macOS Intel(x86_64) feed slice：macos-15-intel 自 2025-09 起是 GitHub 托管 runner 的
+  # 公开标签（标准 runner 用户可用，非自建），因此默认构建，不再需要 dispatch 勾选。
+  # 独立 job 只为让 Intel 特有的 name_suffix="-x64" 与 python 路径单独解析；steps 与
+  # build-pack-feed 同构。pack zip 平台无关，仍只由主 job 打一次。
   build-pack-feed-intel:
     needs: prepare
-    if: needs.prepare.outputs.want_feature_pack == 'true' && inputs.enable_mac_intel == true
-    # 同 build-pack-feed：Intel slice 也可能因上游 pywin32 锁失败，启用时容错不阻断。
-    continue-on-error: true
+    if: needs.prepare.outputs.want_feature_pack == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -779,12 +768,9 @@ jobs:
   # 所以 Release 上传与 OSS 镜像都集中在本 job（聚合后只上传一次）。
   merge-pack-feed:
     needs: [prepare, build-pack-feed, build-pack-feed-intel]
-    # always()：上游 awam-tool-manager/requirements.lock 的 Windows-only pywin32 会让 macos-aarch64
-    # slice 失败（build-pack-feed 的 mac 实例 conclusion=failure）。默认 needs 规则下这会跳过本 job，
-    # 连已成功上传的 Windows slice 都无法聚合出 manifest。改为 always() 让 merge 照常跑：build_pack_feed.py
-    # merge-feed 只收集“实际存在的 afm-feed-* slice”，mac 失败未上传其 artifact 时被自动忽略，于是用
-    # Windows slice 产出含 Windows 产物+pack 的 manifest.json。上游 lock 补 marker 后 mac 自动纳入。
-    if: always() && needs.prepare.result == 'success' && needs.prepare.outputs.want_feature_pack == 'true'
+    # needs 默认要求三个上游 job 全部 success：任一平台构建失败就不聚合、不发 manifest，
+    # finalize 会把 release 留在 draft。缺平台的 manifest 比没有 manifest 更糟（Mac 安装是空壳）。
+    if: needs.prepare.outputs.want_feature_pack == 'true'
     runs-on: ubuntu-latest
     env:
       TAG: ${{ needs.prepare.outputs.tag }}
@@ -886,11 +872,13 @@ jobs:
           echo "build-app-macos=${{ needs.build-app-macos.result }}"
           echo "build-feature-packs=${{ needs.build-feature-packs.result }}"
           echo "build-pack-feed=${{ needs.build-pack-feed.result }}"
+          echo "build-pack-feed-intel=${{ needs.build-pack-feed-intel.result }}"
           echo "merge-pack-feed=${{ needs.merge-pack-feed.result }}"
           app="${{ needs.build-app.result }}"
           mac="${{ needs.build-app-macos.result }}"
           fp="${{ needs.build-feature-packs.result }}"
           feed_build="${{ needs.build-pack-feed.result }}"
+          feed_intel="${{ needs.build-pack-feed-intel.result }}"
           feed_merge="${{ needs.merge-pack-feed.result }}"
           ok_app=false
           ok_mac=false
@@ -899,9 +887,10 @@ jobs:
           [[ "$app" == "success" || "$app" == "skipped" ]] && ok_app=true
           [[ "$mac" == "success" || "$mac" == "skipped" ]] && ok_mac=true
           [[ "$fp" == "success" || "$fp" == "skipped" ]] && ok_fp=true
-          # 两段 feed 链路都要健康：build 失败时 merge 会被跳过，单看 merge
+          # 三段 feed 链路都要健康：任一 build 失败时 merge 会被跳过，单看 merge
           # 会把「跳过」误判为正常并发布一个缺产物的 release。
           if [[ ( "$feed_build" == "success" || "$feed_build" == "skipped" ) && \
+               ( "$feed_intel" == "success" || "$feed_intel" == "skipped" ) && \
                ( "$feed_merge" == "success" || "$feed_merge" == "skipped" ) ]]; then
             ok_feed=true
           fi

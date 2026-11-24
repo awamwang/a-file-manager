@@ -58,6 +58,7 @@ import {
   newFileTemplates,
 } from "../../state/newFileTemplates";
 import { selectedPaths } from "../../state/navigatorSelection";
+import { isMacPlatform } from "../../config/platform";
 import { folderPathsForWorkGroup as reduceFolderPathsForWorkGroup } from "./workGroupPaths";
 import { nextSelectionAfterRemoval } from "../../state/navigatorSelection";
 import { revealItemsInNavigator, scrollSelectionIntoView } from "../../state/revealInNavigator";
@@ -817,10 +818,18 @@ async function run(id: string) {
       emit("notice", t("contextMenu.copied"));
       break;
     case "copyAsLink":
-      // TR-203: 「复制为链接」— 应用内 link 剪贴板，粘贴时创建 .lnk 快捷方式。
+      // TR-203: 「复制为链接」— 应用内 link 剪贴板。Windows 粘贴创建 .lnk
+      // 快捷方式；macOS 降级为符号链接（shortcut.rs::create_one_shortcut）。
       if (!entry) break;
       setClipboard(pathsForClipboard(entry), "link");
-      emit("notice", t("contextMenu.copyAsLinkDone"));
+      emit(
+        "notice",
+        t(
+          isMacPlatform()
+            ? "contextMenu.copyAsLinkDoneUnix"
+            : "contextMenu.copyAsLinkDone",
+        ),
+      );
       break;
     case "cut":
       if (!entry) break;

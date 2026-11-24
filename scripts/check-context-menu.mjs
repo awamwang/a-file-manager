@@ -254,6 +254,47 @@ assert.equal(zh.contextMenu.copyAsLink, "复制为链接");
 assert.ok(en.contextMenu.copyAsLinkDone.length > 0, "TR-203: en done notice");
 assert.ok(zh.contextMenu.copyAsLinkDone.length > 0, "TR-203: zh done notice");
 
+// TR-203 macOS 降级：Windows .lnk / Unix symlink 的命名与提示必须分平台。
+assert.ok(
+  clip.includes('linkPasteName(baseName(source), isMacPlatform())'),
+  "TR-203: paste name must follow the platform (.lnk on Windows, .link on Unix)",
+);
+// Windows checkout 可能是 CRLF；用 \s* 跨行匹配，不绑定具体换行。
+assert.match(
+  menu,
+  /t\(\s*isMacPlatform\(\)\s*\?\s*"contextMenu\.copyAsLinkDoneUnix"/,
+  "TR-203: copyAsLink notice must use the symlink wording on macOS",
+);
+assert.ok(
+  en.contextMenu.copyAsLinkDoneUnix.includes("symbolic link"),
+  "TR-203: en symlink notice",
+);
+assert.ok(
+  zh.contextMenu.copyAsLinkDoneUnix.includes("符号链接"),
+  "TR-203: zh symlink notice",
+);
+const shortcutRs = readFileSync(
+  join(root, "src-tauri/src/file_ops/shortcut.rs"),
+  "utf8",
+);
+assert.ok(
+  shortcutRs.includes("std::os::unix::fs::symlink"),
+  "TR-203: Unix branch must create a real symlink",
+);
+assert.ok(
+  !shortcutRs.includes('"Shortcuts are only supported on Windows"'),
+  "TR-203: no unconditional Windows-only refusal may remain",
+);
+
+const linkNameCheck = spawnSync(
+  process.execPath,
+  ["--experimental-strip-types", join(root, "scripts/link-paste-name-checks.ts")],
+  { cwd: root, encoding: "utf8" },
+);
+if (linkNameCheck.stdout) process.stdout.write(linkNameCheck.stdout);
+if (linkNameCheck.stderr) process.stderr.write(linkNameCheck.stderr);
+assert.equal(linkNameCheck.status, 0, "link paste name checks failed");
+
 const modelCheck = spawnSync(
   process.execPath,
   ["--experimental-strip-types", join(root, "scripts/context-menu-model-checks.ts")],
