@@ -149,18 +149,20 @@ same-parent cut as no-op (`mod.rs:392`); `total_transfer_bytes` walks with `foll
 | TR-017 | copy `awam://…` | any transfer | refused (provider path is not a disk path) | — | `✅ code+test` | CARGO `rejects_awam_paths` (`mod.rs:936`) |
 
 **Drag-drop modifiers** (D1 × operation): decided in `explorer-baseline.md §拖放` (同盘移动、跨盘复制；
-Ctrl 强制复制，Shift 强制移动) — **not yet re-verified in the FE drag code this pass**, so the rows
-are `🔵 decided` and must be pinned by a FE matrix or cargo-backed drop test before marked done.
+Ctrl 强制复制，Shift 强制移动) — **verified in code 2026-11-24**: `src/state/dnd/mode.ts` `dropTransferMode`
+honors volume split + Ctrl/Shift/Alt, executed as a real FE unit by `check-drop-mode.mjs`→`drop-mode-checks.ts`
+(same-vol move, cross-vol copy, Ctrl copy, Shift move, UNC same-server move, Alt=link; Alt wins over Ctrl).
+Cross-tab / cross-window drop surface wiring is guarded by `check-cross-tab-drop.mjs`.
 
-| id | precondition | gesture | expected (Windows) | divergence | AFM state |
-| --- | --- | --- | --- | --- | --- |
-| TR-101 | drag item within same volume | drop on folder | **move** | Files: move; DC: move | `🔵 decided` (was: "app-internal drop always move" → needs to honor same/cross) |
-| TR-102 | drag item to another volume | drop | **copy** | — | `🔵 decided` |
-| TR-103 | same volume | drag + **Ctrl** | force **copy** | — | `🔵 decided` |
-| TR-104 | cross volume | drag + **Shift** | force **move** | — | `🔵 decided` |
-| TR-105 | any | drag + **Alt** | create **shortcut** | Explorer: yes; DC: `.lnk` | `🔵 decided` (explorer-baseline lists shortcut as 缺失) |
-| TR-106 | drag file out to Explorer | OLE drop | Explorer copies (default cross-process) | — | `🟡 code` (`file_ops` OLE copy) |
-| TR-107 | drag folder onto itself via mouse | drop on own subtree | refused, like TR-006 | — | `🔵 decided 2026-11-23` — 拒绝，复用 TR-006 的 `is_descendant_or_same` |
+| id | precondition | gesture | expected (Windows) | divergence | AFM state | guard |
+| --- | --- | --- | --- | --- | --- | --- |
+| TR-101 | drag item within same volume | drop on folder | **move** | Files: move; DC: move | `✅ code+test` — `dropTransferMode` 按卷分流 | FE `drop-mode-checks.ts`（同盘=move）；`check-cross-tab-drop.mjs` |
+| TR-102 | drag item to another volume | drop | **copy** | — | `✅ code+test` | FE `drop-mode-checks.ts`（跨盘=copy、UNC 同服务器=move / 跨服务器=copy） |
+| TR-103 | same volume | drag + **Ctrl** | force **copy** | — | `✅ code+test` | FE `drop-mode-checks.ts` |
+| TR-104 | cross volume | drag + **Shift** | force **move** | — | `✅ code+test` | FE `drop-mode-checks.ts` |
+| TR-105 | any | drag + **Alt** | create **shortcut** | Explorer: yes; DC: `.lnk` | `✅ code+test` — Alt=link 且优先于 Ctrl/Shift（`mode:"link"`→`file_ops_create_shortcuts`） | FE `drop-mode-checks.ts`（Alt=link、Alt+Ctrl=link）；`check-file-drag-inout.mjs` |
+| TR-106 | drag file out to Explorer | OLE drop | Explorer copies (default cross-process) | — | `🟡 code` (`file_ops` OLE copy) | `check-cross-app-dnd.mjs` |
+| TR-107 | drag folder onto itself via mouse | drop on own subtree | refused, like TR-006 | — | `🟡 code 2026-11-24` — 拖放与粘贴共用 `transferEntries`→后端 `is_descendant_or_same` 拒绝链；显式负向 CARGO 行仍缺（见 Part 5） | 后端拒绝链同 TR-006 |
 
 **Reparse points** (D2) — copy/move semantics are a common bug source:
 
@@ -196,7 +198,7 @@ Shift+Delete → confirmed permanent; volume root never deleted. UNC cannot recy
 | DEL-001 | local file | Delete | → Recycle Bin; selectable set updates | — | `✅ code+test` | CARGO `delete_to_recycle_local_file`; `check-recycle-bin.mjs` |
 | DEL-002 | local file | Delete, confirm-before-delete **on** (default) | confirmation dialog first | DC: opt-in | `✅ code+test` | `check-delete-confirm.mjs`→`confirm-before-delete-checks.ts` |
 | DEL-003 | removable **FAT32/exFAT** volume or UNC (判断依据 = 卷文件系统类型，**非可移动性**；NTFS 可移动盘仍可回收) | Delete | cannot recycle → **permanent delete with confirm** (not silent, not refused) | Explorer: permanent w/ confirm | `✅ code+test` — 判定已按文件系统：仅 NTFS 可回收，FAT32/exFAT/UNC → 不可回收并弹确认后永久删除（修此前「FAT32/exFAT 被误判可回收 → 静默永久删除」bug）；FE 分流链 `pathsWithoutRecycle`→`confirmPermanentDelete`→`deleteEntries` 在两个 Delete 入口生效 | CARGO `platform::windows::{only_ntfs_recycles, fat_and_exfat_do_not_recycle, unknown_filesystem_defers_to_trash}`、`file_ops::tests::unc_cannot_recycle`（`filesystem_supports_recycle_bin`/`volume_supports_recycle_bin`/`path_can_use_recycle_bin`）；FE `check-file-ops.mjs`（`pathsWithoutRecycle` + `confirmPermanentDelete` 两入口） |
-| DEL-004 | any | Shift+Delete | permanent, after confirm | — | `✅ code` (`delete_permanent_paths`) | needs a Shift+Delete-level gate |
+| DEL-004 | any | Shift+Delete | permanent, after confirm | — | `✅ code+test` (`delete_permanent_paths` + FE 接线) | `check-file-ops.mjs`（registry `navigator.deletePermanent` Shift+Delete chord + `registerShortcutHandler` handler + `deletePermanentConfirm` 菜单确认；2026-11-24 补钉） |
 | DEL-005 | volume root | Delete / Shift+Delete | refused | all refuse | `✅ code` (`refuse_volume_root`) | CARGO `..._refuses_root` |
 | DEL-006 | folder in Recycle Bin | restore | returns to **original path** (or best match) | — | `🟡 code` (`file_ops_restore`) | undo-restore loopback has no temp-exec test (ledger gap R2) |
 | DEL-007 | original path gone at restore | restore | recreated / best-match, not error-only | Explorer recreates path | `🔵 decided` — 自动重建原父目录链（对齐 Explorer） | **decided 2026-11-22** |
@@ -383,11 +385,11 @@ of *scenario* truth.
 | paste-onto-self replace = no-op | TR-004 | CARGO (add explicit row) | new |
 | folder-into-itself refused (copy) | TR-006, TR-007, TR-107 | CARGO negative | new |
 | same-parent cut no-op | TR-008 | CARGO | new |
-| cross-volume move source-safety (staging) | TR-010, TR-011, LC-005 | CARGO (needs 2-volume fixture / skip on CI) | open — fixture cost |
-| same-name-different-type conflict | TR-013, CF-006 | FE + CARGO | new |
-| case-only collision keep-both | CF-005 | FE + CARGO | new |
-| dir-into-dir merge + inner conflict | CF-007, CF-008 | CARGO | new |
-| rename reserved-name / case-only / trailing-dot | NM-003, NM-004, NM-007 | CARGO `validate_file_name` / rename | new |
+| cross-volume move source-safety (staging) | TR-010, TR-011, LC-005 | CARGO (needs 2-volume fixture / skip on CI) | LC-005 cancel/rollback **guarded 2026-11-24** — CARGO `cancelled_copy_short_circuits_before_work` / `rollback_removes_created_copy` / `rollback_moves_back_a_plain_move`；TR-010/011 真双卷夹具仍 open — fixture cost |
+| same-name-different-type conflict | TR-013, CF-006 | FE + CARGO | done — CARGO `name_conflict_info_detects_type_mismatch`；FE `check-file-ops.mjs`（`file_ops_name_conflict_info` parity）+ `name-conflict-checks.ts`（mismatch flag）→ ledger 行已存在 |
+| case-only collision keep-both | CF-005 | FE + CARGO | done — CARGO `unique_dest_treats_case_only_difference_as_collision` + `rename_case_only_*`（Windows 折叠 / Unix inode 身份）→ ledger 行已存在 |
+| dir-into-dir merge + inner conflict | CF-007, CF-008 | CARGO | done — CARGO `copy_dir_into_existing_dir_merges_no_inner_collision` / `..._handles_inner_collisions` / `move_dir_into_existing_dir_empties_source` → ledger 行已存在 |
+| rename reserved-name / case-only / trailing-dot | NM-003, NM-004, NM-007 | CARGO `validate_file_name` / rename | done — CARGO `validate_name_blocks_windows_reserved` / `validate_name_strips_trailing_dot_and_space` / `validate_name_keeps_posix_legal_names` / `rename_case_only_*` → ledger 行已存在 |
 | UNC/removable Delete → permanent fallback w/ confirm | DEL-003, DEL-008 | FE 已实现（grep + 调用链）；可选 FE-UNIT | **verified 2026-11-22** — `check-file-ops.mjs` 已 grep `confirmPermanentDelete`；本次扩展加 `pathsWithoutRecycle` 在两个入口里的调用钉住 |
 | restore to original path when parent gone | DEL-007 | CARGO (heavy, see ledger R2) | **decided — 自动重建父目录链；CARGO 可走 temp 路径，不再依赖 R2 的机器态** |
 | undo reverse-order multi-op | UN-006 | FE | guarded 2026-11-23 — `check-file-undo.mjs`→`file-undo-checks.ts` LIFO drain |
@@ -396,10 +398,10 @@ of *scenario* truth.
 | delete post-state = keep selection (not neighbor) | LC-003 | FE (`delete-keep-selection`) | done — `check-delete-keep-selection.mjs`（既有行为，2026-11-23 确认保留为有意差异；见 ledger R6 措辞冲突） |
 | descendant dedup in one transfer | SEL-007, SEL-011, TR-006 | FE reducer | done — `check-transfer-dedup.mjs`→`transfer-dedup-checks.ts`；`transferEntries` 跑 `dedupeDescendantSources` |
 | shift range in sorted view order | SEL-004 | FE | done — `check-selection-view-order.mjs`（`orderedPaths` = 排序+过滤）+ `list-select-checks.ts`（算术执行） |
-| drag same/cross/force modifiers | TR-101..TR-105 | FE (grep now) → decide if unitable | open — invoke-fused |
+| drag same/cross/force modifiers | TR-101..TR-105 | FE (pure module) | done 2026-11-24 — `check-drop-mode.mjs`→`drop-mode-checks.ts` 真执行 `src/state/dnd/mode.ts` `dropTransferMode`（同盘/跨盘/Ctrl/Shift/Alt/UNC 全矩阵）；面级接线 `check-cross-tab-drop.mjs` |
 | recycle-bin availability by **filesystem type** | DEL-003 | 改 `path_can_use_recycle_bin`/`file_ops_can_recycle`（仅 NTFS→可回收）+ CARGO | done — `platform/windows.rs` `filesystem_supports_recycle_bin`/`volume_supports_recycle_bin` + `file_ops` `path_can_use_recycle_bin`；CARGO `only_ntfs_recycles`/`fat_and_exfat_do_not_recycle`/`unknown_filesystem_defers_to_trash`/`unc_cannot_recycle` |
 | rename-to-existing → **Replace/Skip dialog** | NM-002 | CARGO(后端返回冲突信号) + FE(复用 name-conflict 对话框) | done — CARGO `rename_replace_overwrites_existing_file_only_when_allowed`；FE `check-navigator-inline-rename.mjs`（`resolveNameConflictChoice` + `renameEntry(...,true)`） |
-| apply-to-all per-operation scope | CF-003, TR-014 | FE (dialog state) | new |
+| apply-to-all per-operation scope | CF-003, TR-014 | FE (dialog state) | done — `check-name-conflict.mjs`（无 localStorage/`afm.nameConflictDefault` + `transferEntries` 调 `resetNameConflictBatch()`）+ `name-conflict-checks.ts` 批界重置 → ledger 行已存在 |
 | clipboard stale-cut-path drop | CLIP-008 | FE 验证 + 后端 `transferEntries` 跳过分支 | new |
 | undo contamination refusal | UN-008 | FE `file-undo-checks.ts` | new |
 | cancel rollback excluded from undo stack | UN-009 (ties to LC-005) | FE reducer | guarded 2026-11-23 — `check-file-undo.mjs` asserts paste/drop callers early-return on `!result.ok` before `record*Undo` |

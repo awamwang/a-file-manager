@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 # 资源管理器基本功能清单与对照
 
-盘点日期：2026-11-06。对照对象是当前仓库里的 Navigator / 文件操作实现，不是旧的 `docs/a-file-manager-feature-map.md`（那份地图仍写着缺 F5、新建文件、预览、属性、压缩，和现在的代码不符）。
+盘点日期：2026-11-06。对照对象是当前仓库里的 Navigator / 文件操作实现。（`docs/a-file-manager-feature-map.md` 曾长期过时——写着缺 F5、新建文件、预览、属性、压缩；2026-11-24 已按当前代码刷新，覆盖事实仍以本文件 + `external-behavior-baseline-coverage.md` 为准。）
 
 范围只收「打开一个文件夹就能用」的基本能力。工作组、项目、Discovery 全机搜索、Providers、扩展、双栏、命令面板、用 IDE / 终端打开，算本产品多出来的能力，不记成资源管理器缺口。
 

@@ -149,6 +149,18 @@ assert.match(
   /\.row--cut\s+\.name-block[\s\S]*?opacity:\s*0\.5/s,
 );
 
+// DEL-004: Shift+Delete permanent delete — registry chord + global handler wired.
+const registry = readFileSync(join(root, "src/shortcuts/registry.ts"), "utf8");
+assert.match(
+  registry,
+  /id: "navigator\.deletePermanent",[\s\S]{0,120}shift: true, key: "delete"/,
+  "Shift+Delete chord must stay registered as navigator.deletePermanent",
+);
+assert.ok(
+  navigatorView.includes('registerShortcutHandler("navigator.deletePermanent"'),
+  "NavigatorView must handle navigator.deletePermanent",
+);
+
 const modelCheck = spawnSync(
   process.execPath,
   ["--experimental-strip-types", join(root, "scripts/context-menu-model-checks.ts")],

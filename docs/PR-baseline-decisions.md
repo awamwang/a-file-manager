@@ -53,5 +53,5 @@
 ## 风险与合并注意
 1. **`src-tauri/src/file_ops/mod.rs` 合并冲突**：本 PR 改它约 +210 行（D1/D2/错误簇）；`master` 工作区另有他人未提交的「传输 cancel/rollback」WIP（`copy_paths_cancellable` 等）也改同一文件 → 合并需人工按 hunk 复核。`projects/*`（D5 大改）同理注意。
 2. **D5 不可逆**：移除 AIA-211 board 功能与任务 UI、旧 `board.json` 作废。PR 评审需向用户显著说明。
-3. **GUI 冒烟未完成**：交互观感 + 真实介质（exFAT/NTFS/UNC/锁定文件/满盘/重启）待人工，见 `pending-manual-tests/`（本轮暂缓）。
+3. **GUI 冒烟未完成**：交互观感 + 真实介质（exFAT/NTFS/UNC/锁定文件/满盘/重启）待人工，见 `docs/qa/gui-smoke-checklist.md`（本轮暂缓）。
 4. **未 push**：19 提交均本地；合并/推送需另行授权。
