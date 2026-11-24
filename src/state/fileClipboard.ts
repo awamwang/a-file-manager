@@ -14,6 +14,7 @@ import { dedupeDescendantSources } from "./transferDedup.ts";
 import { beginLongTask, finishLongTask, type LongTaskKind } from "./taskCenter.ts";
 import { showToast } from "./toast.ts";
 import { i18n } from "../i18n/index.ts";
+import { isMacPlatform } from "../config/platform.ts";
 
 /**
  * TR-203: `link` is an app-local clipboard mode ("Copy as link" context entry)
@@ -107,6 +108,16 @@ function baseName(path: string): string {
   return idx >= 0 ? norm.slice(idx + 1) : norm;
 }
 
+/**
+ * TR-203: the name chosen for a copy-as-link paste. Windows creates `.lnk`
+ * shortcuts; macOS creates a symlink with `.link` so it stays distinguishable
+ * from the source. Kept pure so both the FE contract and the platform split are
+ * testable headlessly (mirrors `shortcut.rs::shortcut_file_name`).
+ */
+export function linkPasteName(sourceName: string, mac: boolean): string {
+  return `${sourceName} - Shortcut.${mac ? "link" : "lnk"}`;
+}
+
 export async function pasteClipboard(destDir: string): Promise<FileOpsResult> {
   // TR-203: link 是应用内剪贴板模式，系统剪贴板刷新会把它覆盖成
   // copy/cut/null，粘贴前跳过刷新。
@@ -160,7 +171,7 @@ export async function transferEntries(
   for (const source of sources) {
     const name =
       mode === "link"
-        ? `${baseName(source)} - Shortcut.lnk`
+        ? linkPasteName(baseName(source), isMacPlatform())
         : baseName(source);
     const destFile = `${destDir.replace(/[\\/]+$/, "")}\\${name}`;
     // 同目录粘贴：copy 仍走重名确认弹窗（「保留两者」可生成 - Copy 副本）；

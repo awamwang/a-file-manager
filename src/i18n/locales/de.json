@@ -1475,6 +1475,7 @@
     "copied": "In die Zwischenablage kopiert",
     "copyAsLink": "Als Verknüpfung kopieren",
     "copyAsLinkDone": "Als Verknüpfung kopiert — Einfügen erstellt Verknüpfungen",
+    "copyAsLinkDoneUnix": "Als Link kopiert — Einfügen erstellt symbolische Links",
     "cutDone": "In die Zwischenablage ausgeschnitten",
     "pasted": "{count} Element(e) eingefügt",
     "pasteNoFolder": "Vor dem Einfügen einen Ordner öffnen",

@@ -83,6 +83,7 @@ Rule reminders: no e2e; `#[ignore]` ≠ coverage; FE↔BE command-name parity is
 | Behavior | Layers | Gate / test | Notes |
 | --- | --- | --- | --- |
 | floating shortcut hint never pops from cold-start focus (macOS reveal hands DOM focus to the first control), but still shows on hover and on Tab focus after real input | STATIC · FE | `check-action-tip.mjs` → `action-tip-checks.ts` (`src/shortcuts/actionTip.ts` `createActionTipInteractionGate`) | gate is per-mount and idempotent; only `pointerdown`/`keydown` mark interaction — `scroll`/`wheel` merely dismiss so startup scroll restoration cannot unlock it; hover stays immediate |
+| TR-203 Copy as link works on macOS via Unix symlink (`.lnk` on Windows), with platform-correct name and notice | STATIC · FE · CARGO | `check-context-menu.mjs` → `link-paste-name-checks.ts` (`fileClipboard.ts::linkPasteName`); `file_ops/shortcut.rs` `shortcut_name_appends_link_suffix` + `unix_copy_as_link_creates_readable_symlink` | non-Windows `create_one_shortcut` = `std::os::unix::fs::symlink` to canonicalized target; `read_shortcut_target` = `read_link` (link preview works); `.link` suffix keeps same-dir paste distinct; `copyAsLinkDoneUnix` in all 6 locales |
 
 ## Backend command surfaces
 
