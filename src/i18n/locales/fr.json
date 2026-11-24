@@ -5,6 +5,7 @@
       "name_empty": "Le nom ne peut pas être vide.",
       "name_invalid": "Le nom contient des caractères non valides.",
       "name_not_allowed": "Ce nom n'est pas autorisé.",
+      "name_reserved": "Ce nom est réservé par Windows.",
       "path_missing": "Le chemin n'existe pas.",
       "not_a_directory": "Le chemin n'est pas un dossier.",
       "recycle_unavailable": "La corbeille est indisponible.",

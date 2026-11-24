@@ -5,6 +5,7 @@
       "name_empty": "名前を空にすることはできません。",
       "name_invalid": "名前に不正な文字が含まれています。",
       "name_not_allowed": "この名前は使用できません。",
+      "name_reserved": "この名前は Windows で予約されています。",
       "path_missing": "パスが存在しません。",
       "not_a_directory": "パスはフォルダーではありません。",
       "recycle_unavailable": "ごみ箱を利用できません。",

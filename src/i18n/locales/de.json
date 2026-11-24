@@ -5,6 +5,7 @@
       "name_empty": "Der Name darf nicht leer sein.",
       "name_invalid": "Der Name enthält ungültige Zeichen.",
       "name_not_allowed": "Dieser Name ist nicht zulässig.",
+      "name_reserved": "Dieser Name ist unter Windows reserviert.",
       "path_missing": "Der Pfad ist nicht vorhanden.",
       "not_a_directory": "Der Pfad ist kein Ordner.",
       "recycle_unavailable": "Der Papierkorb ist nicht verfügbar.",

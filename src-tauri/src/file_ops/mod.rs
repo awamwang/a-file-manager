@@ -205,6 +205,10 @@ fn classify_error(message: &str) -> Option<(&'static str, Vec<(String, String)>)
     if message.contains("Name is not allowed") {
         return Some(("name_not_allowed", Vec::new()));
     }
+    // Windows-reserved device names (CON, PRN, AUX, NUL, COM1.., LPT1..).
+    if message.contains("Name is reserved") {
+        return Some(("name_reserved", Vec::new()));
+    }
     // rename / create collision: `A file|folder named 'X' already exists`.
     // Extract the quoted name so the localized line can interpolate {name}.
     if message.contains("already exists") {
@@ -2509,6 +2513,76 @@ mod tests {
         assert_eq!(fs::read(&orig_file).unwrap(), b"payload");
         let _ = fs::remove_dir_all(&dir);
     }
+
+    // EC-001 command-boundary proof of invariant ① + ②: a create that collides
+    // must come back `ok:false` carrying `error_code = name_exists` (so the
+    // frontend can localize) AND fabricate nothing — no second entry, no fake
+    // success. Covers the "新建文件夹/文件" gate cell (previously ungated).
+    #[test]
+    fn file_ops_create_dir_collision_returns_error_code_and_no_side_effect() {
+        let dir = temp_workspace("cmd-createdir");
+        let parent = display_path(&dir);
+        let first = file_ops_create_dir(parent.clone(), "dup".into());
+        assert!(first.ok, "first create should succeed");
+        let second = file_ops_create_dir(parent.clone(), "dup".into());
+        assert!(!second.ok, "collision must not report success");
+        assert_eq!(second.error_code.as_deref(), Some("name_exists"));
+        assert_eq!(
+            second.error_params.as_ref().and_then(|m| m.get("name")).map(|s| s.as_str()),
+            Some("dup"),
+            "collision must carry the conflicting name for localized interpolation"
+        );
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 1, "collision created nothing extra");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // EC-002: rejected names surface a code and create no file. `name_empty` is
+    // universal; the invalid-char / reserved-name rules are Windows-specific.
+    #[test]
+    fn file_ops_create_file_rejects_bad_names_with_code() {
+        let dir = temp_workspace("cmd-createfile");
+        let parent = display_path(&dir);
+        let empty = file_ops_create_file(parent.clone(), "".into());
+        assert!(!empty.ok);
+        assert_eq!(empty.error_code.as_deref(), Some("name_empty"));
+        #[cfg(windows)]
+        {
+            let invalid = file_ops_create_file(parent.clone(), "bad|name.txt".into());
+            assert!(!invalid.ok);
+            assert_eq!(invalid.error_code.as_deref(), Some("name_invalid"));
+            // A device-reserved name must be refused AND tagged, so the frontend
+            // can localize the real reason ("reserved by Windows") rather than a
+            // generic refusal (invariant ①).
+            let reserved = file_ops_create_file(parent.clone(), "CON".into());
+            assert!(!reserved.ok);
+            assert_eq!(reserved.error_code.as_deref(), Some("name_reserved"));
+        }
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 0, "rejected names create nothing");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // EC-003: a rename onto an existing name must refuse (invariant ① + ③), carry
+    // `name_exists`, and leave BOTH the source and the existing target untouched —
+    // no silent overwrite, no data loss.
+    #[test]
+    fn file_ops_rename_collision_returns_error_code_and_keeps_both_entries() {
+        let dir = temp_workspace("cmd-rename-collide");
+        let a = dir.join("a.txt");
+        let b = dir.join("b.txt");
+        fs::write(&a, b"aaa").unwrap();
+        fs::write(&b, b"bbb").unwrap();
+        let res = file_ops_rename(display_path(&a), "b.txt".into(), Some(false));
+        assert!(!res.ok, "collision rename must not report success");
+        assert_eq!(res.error_code.as_deref(), Some("name_exists"));
+        assert_eq!(
+            res.error_params.as_ref().and_then(|m| m.get("name")).map(|s| s.as_str()),
+            Some("b.txt"),
+        );
+        assert!(a.is_file(), "source must still exist after refused rename");
+        assert_eq!(fs::read(&b).unwrap(), b"bbb", "existing target content preserved");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
     /// Real two-volume fixture guard: the mount (attached VHD / second disk)
     /// is machine state, provided via `AFM_TEST_VOL2=<root>` (e.g. `V:\`).
     /// Pinned `#[ignore]`d per ADR 0025; run with

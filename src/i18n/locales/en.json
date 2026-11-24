@@ -5,6 +5,7 @@
       "name_empty": "The name must not be empty.",
       "name_invalid": "The name contains invalid characters.",
       "name_not_allowed": "This name is not allowed.",
+      "name_reserved": "This name is reserved by Windows.",
       "path_missing": "The path does not exist.",
       "not_a_directory": "The path is not a folder.",
       "recycle_unavailable": "The Recycle Bin is unavailable.",

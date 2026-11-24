@@ -5,6 +5,7 @@
       "name_empty": "名稱不能為空。",
       "name_invalid": "名稱包含非法字元。",
       "name_not_allowed": "該名稱不允許使用。",
+      "name_reserved": "該名稱是 Windows 保留名稱。",
       "path_missing": "路徑不存在。",
       "not_a_directory": "路徑不是資料夾。",
       "recycle_unavailable": "資源回收筒不可用。",
