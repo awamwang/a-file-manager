@@ -796,7 +796,18 @@ function entryLocation(path: string): string {
   return idx > 0 ? norm.slice(0, idx) : norm;
 }
 
-const orderedPaths = computed(() => visibleEntries.value.map((e) => e.path));
+const orderedPaths = computed(() => {
+  // Grouped view renders rows in type-group order (headers + per-group entries),
+  // which diverges from the flat sortedEntries order. Selection ranges, keyboard
+  // nav and type-ahead index by orderedPaths, so it must mirror the VISUAL order
+  // or Shift-select spans the wrong rows (Phase5 Bug3).
+  if (navigatorGroupByType.value) {
+    return primaryVirtItems.value
+      .filter((i) => i.kind === "entry")
+      .map((i) => (i as { entry: { path: string } }).entry.path);
+  }
+  return visibleEntries.value.map((e) => e.path);
+});
 
 /** 删除后保持选中：按活动窗格取可见顺序（键盘删除可能发生在双栏副窗格）。 */
 const activeOrderedPaths = computed(() =>
