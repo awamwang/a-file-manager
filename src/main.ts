@@ -11,6 +11,7 @@ import { hydrateSettings } from "./state/settingsHydrate.ts";
 import { startupMark } from "./state/startupTiming.ts";
 import { applyUiChromeFromValues } from "./state/uiChrome.ts";
 import { hydratePlatform } from "./config/platform.ts";
+import { runPerfBaselineIfEnabled } from "./state/perfBaseline.ts";
 import { vActionTip } from "./shortcuts/actionTip.ts";
 import { hydrateShortcutOverridesFromBackend } from "./shortcuts/config.ts";
 import "./styles/fluent-tokens.css";
@@ -80,6 +81,8 @@ async function bootstrap(): Promise<void> {
 
   createApp(App).use(router).use(i18n).directive("action-tip", vActionTip).mount("#app");
   startupMark("bootstrap:mounted");
+  // --afm-perf-baseline / AFM_PERF_BASELINE=1：自驱 S1/S5 基线，结果打回启动终端。
+  void runPerfBaselineIfEnabled();
   // AIA-272: show after first paint (window starts visible:false; no black/maximize flash).
   void revealMainWindowAfterReady();
 }

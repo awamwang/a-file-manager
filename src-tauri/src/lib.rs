@@ -24,6 +24,7 @@ mod shell_icons;
 mod ide_launch;
 mod open_with;
 mod palette;
+mod perf_baseline;
 mod projects;
 mod providers;
 mod settings;
@@ -93,11 +94,14 @@ pub fn run() {
     let raw_args: Vec<String> = std::env::args().collect();
     let from_autostart = launched_from_autostart(&raw_args);
     let add_favorite_path = favorites::take_add_favorite_path(&raw_args);
+    // --afm-perf-baseline / AFM_PERF_BASELINE=1：自驱基线诊断模式（可绕单实例）。
+    let perf_baseline = perf_baseline::detect_flag(&raw_args);
 
     // GUI single-instance: avoid stacked tray icons from a second process.
     // Shell-verb "add favorite" is allowed through so it can still mutate favorites.
+    // A perf-baseline diagnostic run is also allowed through (no tray, exits itself).
     let primary_instance = system_tray::try_acquire_single_instance_lock();
-    if !primary_instance && add_favorite_path.is_none() {
+    if !primary_instance && add_favorite_path.is_none() && !perf_baseline {
         eprintln!("A File Manager is already running (single-instance); exiting.");
         return;
     }
@@ -300,6 +304,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
                     health_get,
+                    perf_baseline::perf_baseline_enabled,
+                    perf_baseline::perf_baseline_report,
                     platform::platform_capabilities,
                     platform::platform_home_dir,
                     deps_probe::deps_probe_get,

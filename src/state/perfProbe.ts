@@ -26,6 +26,27 @@ function formatDetail(detail?: PerfDetail): string {
   return parts.length ? ` ${parts.join(" ")}` : "";
 }
 
+/**
+ * Perf-baseline mode (`--afm-perf-baseline`): additionally record span timings
+ * in-memory (capped) so the runner can report them to the CLI. No console
+ * noise; independent of the localStorage probe switch.
+ */
+const MAX_RECORDED_SPANS = 500;
+const recordedSpans: Array<{ name: string; ms: number; detail?: string }> = [];
+let spanRecording = false;
+
+export function setSpanRecording(on: boolean): void {
+  spanRecording = on;
+}
+
+export function getRecordedSpans(): ReadonlyArray<{
+  name: string;
+  ms: number;
+  detail?: string;
+}> {
+  return recordedSpans;
+}
+
 function resolveDetail(
   detail: PerfDetail | (() => PerfDetail) | undefined,
 ): PerfDetail | undefined {
@@ -49,7 +70,7 @@ export async function perfSpan<T>(
   fn: () => Promise<T> | T,
   detail?: PerfDetail | (() => PerfDetail),
 ): Promise<T> {
-  if (!enabled()) {
+  if (!enabled() && !spanRecording) {
     return await fn();
   }
   const t0 = performance.now();
@@ -57,6 +78,15 @@ export async function perfSpan<T>(
     return await fn();
   } finally {
     const ms = (performance.now() - t0).toFixed(1);
-    console.info(`[AFM_perf] ${name} ${ms}ms${formatDetail(resolveDetail(detail))}`);
+    if (spanRecording && recordedSpans.length < MAX_RECORDED_SPANS) {
+      recordedSpans.push({
+        name,
+        ms: Math.round(Number(ms) * 10) / 10,
+        detail: formatDetail(resolveDetail(detail)) || undefined,
+      });
+    }
+    if (enabled()) {
+      console.info(`[AFM_perf] ${name} ${ms}ms${formatDetail(resolveDetail(detail))}`);
+    }
   }
 }

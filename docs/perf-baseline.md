@@ -106,6 +106,30 @@ cargo test --manifest-path src-tauri/Cargo.toml --lib shell_icons::tests::bench_
 3. 按场景操作：进 med/large、切图标视图滚动、切 Tab、失焦回焦。
 4. 从控制台 `[AFM_perf]` / `[AFM_startup]` 与 `AFM_PERF_LOG` 汇总中位数。
 
+### 自驱模式（`--afm-perf-baseline`，S1/S5）
+
+免手动操作的一键基线：启动时带 `--afm-perf-baseline`（或设 `AFM_PERF_BASELINE=1`），
+前端 runner 自动等首个目录 listing 就绪（S1 里程碑链）、临时开第二个标签做
+6 轮往返切换采样（S5 墙钟 + perfSpan），逐行经 IPC 打回启动终端，报告完自动退出
+（诊断运行绕过单实例锁、不建托盘，可与已驻留实例并存）。**必须用 dev 构建**
+（`npm run tauri dev`）——release GUI exe 无控制台，`[AFM_BASELINE]` 行无处可落。
+
+```powershell
+$env:AFM_PERF_BASELINE = "1"
+npm run tauri dev          # 观察 [AFM_BASELINE] s1 {...} / s5 {...} / spans [...] / done 后自动退出
+Remove-Item Env:AFM_PERF_BASELINE
+```
+
+输出行：`s1`（bootstrap→mounted→first_listing_ready 里程碑链）、`s5`（tabA/tabB/
+rounds/samples/median）、`spans`（录制期 perfSpan 列表）、`done`。S2–S4/S6 仍走手动
+跑法。诊断模式，不进门禁链；gate `check-perf-baseline.mjs` 只钉 FE↔BE 命令 parity
+与接线完整性。
+
+实测（2026-11-24，debug/tauri dev，会话恢复 G:\…\skills\windows ↔ C:\Windows）：
+S1 链 first_listing_ready=519ms；S5 六轮 samples=[22, 56.8, 24.5, 51, 20.9, 49.4]
+median=37ms；spans 含 navigator_list/tab_switch/tree_list/shell_icon_batch；报告后
+自动退出。虚拟页（afm:// 等）作 tab 时不要求 listing 非空，`listLoading` 平息即就绪。
+
 ### JSON 片段格式
 
 ```json
