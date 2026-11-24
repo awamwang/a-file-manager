@@ -2509,4 +2509,147 @@ mod tests {
         assert_eq!(fs::read(&orig_file).unwrap(), b"payload");
         let _ = fs::remove_dir_all(&dir);
     }
+    /// Real two-volume fixture guard: the mount (attached VHD / second disk)
+    /// is machine state, provided via `AFM_TEST_VOL2=<root>` (e.g. `V:\`).
+    /// Pinned `#[ignore]`d per ADR 0025; run with
+    /// `cargo test --lib real_vol2 -- --ignored --nocapture`.
+    #[cfg(windows)]
+    fn real_vol2_root() -> Option<PathBuf> {
+        let root = std::env::var("AFM_TEST_VOL2").unwrap_or_default();
+        let trimmed = root.trim();
+        if trimmed.is_empty() {
+            eprintln!("skip: set AFM_TEST_VOL2=<mount> (attached VHD) to run the real two-volume fixture");
+            return None;
+        }
+        Some(PathBuf::from(trimmed))
+    }
+
+    /// Write `size_mb` MB of deterministic pattern (block index in first 4
+    /// bytes of every 4 KiB block) so a moved copy can be verified byte-wise.
+    fn write_pattern_file(path: &Path, size_mb: usize) {
+        use std::io::Write;
+        let mut file = fs::File::create(path).unwrap();
+        let blocks_per_mb = 256; // 4 KiB blocks
+        let mut block = vec![0u8; 4096];
+        for mb in 0..size_mb {
+            for b in 0..blocks_per_mb {
+                let seq = ((mb * blocks_per_mb + b) as u32).to_le_bytes();
+                block[..4].copy_from_slice(&seq);
+                block[4] = b'A';
+                file.write_all(&block).unwrap();
+            }
+        }
+    }
+
+    /// Byte-wise comparison via sampled pattern re-derivation (no second
+    /// 512 MB read needed): every 4 KiB block carries its sequence number.
+    fn assert_pattern_file(path: &Path, size_mb: usize) {
+        use std::io::{Read, Seek, SeekFrom};
+        let mut file = fs::File::open(path).unwrap();
+        let total = fs::metadata(path).unwrap().len();
+        assert_eq!(total, (size_mb as u64) * 1024 * 1024, "moved file size");
+        let blocks_per_mb = 256;
+        let mut block = vec![0u8; 4096];
+        let check_stride = if size_mb > 100 { 16 } else { 1 }; // sample for the big file
+        for mb in 0..size_mb {
+            for b in 0..blocks_per_mb {
+                let seq = (mb * blocks_per_mb + b) as usize;
+                if seq % check_stride != 0 {
+                    continue;
+                }
+                file.seek(SeekFrom::Start((seq as u64) * 4096)).unwrap();
+                file.read_exact(&mut block).unwrap();
+                let expect = ((mb * blocks_per_mb + b) as u32).to_le_bytes();
+                assert_eq!(&block[..4], &expect, "block {} content", seq);
+                assert_eq!(block[4], b'A', "block {} pattern byte", seq);
+            }
+        }
+    }
+
+    // TR-010 real two-volume fixture: cross-volume move of a large file is
+    // copy → verify → delete-source; the source must be gone and the
+    // destination must hold the identical bytes.
+    #[cfg(windows)]
+    #[ignore]
+    #[test]
+    fn real_vol2_cross_volume_move_large_file() {
+        let Some(vol2) = real_vol2_root() else { return };
+        let dir = temp_workspace("tr010real");
+        let file = dir.join("big.bin");
+        write_pattern_file(&file, 64);
+        let dest_dir = vol2.join("afm-tr010");
+        fs::create_dir_all(&dest_dir).unwrap();
+
+        let moved = move_paths(
+            &[display_path(&file)],
+            &display_path(&dest_dir),
+            NameConflict::KeepBoth,
+        )
+        .expect("cross-volume move");
+        assert_eq!(moved.len(), 1);
+        assert!(!file.exists(), "TR-010: source must be deleted after the verified copy");
+        let dest_file = dest_dir.join("big.bin");
+        assert!(dest_file.is_file(), "destination must hold the moved file");
+        assert_pattern_file(&dest_file, 64);
+        let _ = fs::remove_dir_all(&dest_dir);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // TR-011 real two-volume fixture: a cancelled mid-transfer multi-file move
+    // must report cancelled=true, keep ALL sources (nothing lost), and leave
+    // no completed entry behind at the destination (rollback moves it back).
+    // The cancel is requested from a timer thread; cross-volume copy of the
+    // 512 MB lead file cannot finish within the 150 ms window, so the token is
+    // guaranteed to be observed at an entry boundary no matter the timing.
+    #[cfg(windows)]
+    #[ignore]
+    #[test]
+    fn real_vol2_cancel_mid_move_keeps_sources_and_rolls_back() {
+        let Some(vol2) = real_vol2_root() else { return };
+        let dir = temp_workspace("tr011real");
+        let big = dir.join("big.bin");
+        write_pattern_file(&big, 512);
+        let s1 = dir.join("small-a.txt");
+        let s2 = dir.join("small-b.txt");
+        fs::write(&s1, b"aaa").unwrap();
+        fs::write(&s2, b"bbb").unwrap();
+        let dest_dir = vol2.join("afm-tr011");
+        fs::create_dir_all(&dest_dir).unwrap();
+
+        let task_id = format!("tr011-real-{}", std::process::id());
+        let token = cancel::register(&task_id);
+        let cancel_task = task_id.clone();
+        let handle = std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(150));
+            cancel::request_cancel(&cancel_task);
+        });
+        let run = move_paths_inner(
+            &[
+                display_path(&big),
+                display_path(&s1),
+                display_path(&s2),
+            ],
+            &display_path(&dest_dir),
+            NameConflict::KeepBoth,
+            None,
+            Some(&token),
+        )
+        .expect("cancelled move returns Ok(run)");
+        handle.join().unwrap();
+
+        assert!(run.cancelled, "TR-011: must report cancelled=true, got created={:?}", run.created);
+        assert!(big.is_file(), "TR-011: 512 MB source must NOT be lost");
+        assert!(s1.is_file(), "TR-011: small source a must NOT be lost");
+        assert!(s2.is_file(), "TR-011: small source b must NOT be lost");
+        assert_pattern_file(&big, 512);
+        assert_eq!(fs::read(&s1).unwrap(), b"aaa");
+        assert_eq!(fs::read(&s2).unwrap(), b"bbb");
+        assert!(
+            !dest_dir.join("big.bin").exists() && !dest_dir.join("small-a.txt").exists(),
+            "TR-011: rollback must leave no completed entry at the destination"
+        );
+        drop(token);
+        let _ = fs::remove_dir_all(&dest_dir);
+        let _ = fs::remove_dir_all(&dir);
+    }
 }

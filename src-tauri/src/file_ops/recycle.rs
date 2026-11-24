@@ -328,4 +328,59 @@ mod tests {
             "double-escaping would break the LiteralPath"
         );
     }
+
+    /// DEL-007 real-fixture proof (machine-state dependent, `#[ignore]`d per
+    /// ADR 0025): delete a file to the *real* Recycle Bin, remove its original
+    /// parent chain, then restore — the restore must recreate the vanished
+    /// parent directory and bring the content back intact (Explorer parity).
+    /// Run: `cargo test --lib real_recycle -- --ignored --nocapture`.
+    #[cfg(windows)]
+    #[ignore]
+    #[test]
+    fn real_recycle_restore_recreates_deleted_parent_dir() {
+        use crate::file_ops::{delete_paths, display_path};
+        // Long-form base dir: `std::env::temp_dir()` may return an 8.3 short
+        // path (C:\Users\ADMINI~1\…) while the bin records the DeletedFrom in
+        // long form; with the parent chain gone, Normalize-PathKey can no
+        // longer expand the short form, so the wanted key would never match.
+        let short = std::env::temp_dir().join(format!(
+            "afm-del007-real-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        fs::create_dir_all(&short).unwrap();
+        let long = fs::canonicalize(&short).unwrap();
+        let dir = PathBuf::from(
+            long.to_string_lossy()
+                .trim_start_matches(r"\\?\")
+                .to_string(),
+        );
+        let sub = dir.join("sub");
+        fs::create_dir_all(&sub).unwrap();
+        let file = sub.join("victim.txt");
+        fs::write(&file, b"del-007 real fixture").unwrap();
+        let original = display_path(&file);
+
+        delete_paths(&[original.clone()]).expect("delete to real Recycle Bin");
+        assert!(!file.exists());
+        fs::remove_dir_all(&sub).expect("remove the original parent chain");
+        assert!(!sub.exists());
+
+        let restored = restore_original_paths(&[original.clone()])
+            .expect("restore from real Recycle Bin");
+        assert_eq!(
+            restored,
+            vec![original.clone()],
+            "the victim must be reported restored to its original path"
+        );
+        assert!(sub.exists(), "DEL-007: vanished parent dir must be recreated");
+        assert_eq!(
+            fs::read_to_string(&file).unwrap(),
+            "del-007 real fixture",
+            "restored content must be intact"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
 }
