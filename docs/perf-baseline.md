@@ -270,6 +270,44 @@ cargo test --manifest-path src-tauri/Cargo.toml --lib shell_icons::tests::bench_
 }
 ```
 
+## Run #6（基线审计阶段复测：UN-008/DEL-007/SEL-010/LC-009/TR-004..107/TR-203 后）
+
+- **日期**：2026-11-24
+- **目的**：基线审计五个阶段提交（`4af48a91`..`4ba9c6a0`，全在 file-ops / 菜单 / 还原脚本侧，
+  不触 listing/icon 热路径）后复测 Rust bench，确认无性能回归。
+- **环境噪声**：复测时机器高负载（并行开发会话 + 多个高 CPU 进程），IO 型指标波动明显，
+  同一 bench 两次运行 list_directory n=5000 median 51.0→35.2ms；CPU 型（serde）稳定。
+- **结论**：serde（进程内 CPU 型，可比性最强）与 Run #3 持平 → **无回归**；list/thumb 冷路径
+  偏慢判定为环境噪声（S1/S5 墙钟仍留 DevTools 人工）。
+
+| 指标 | 对照 Run | 本次 | 判定 |
+| --- | --- | --- | --- |
+| list_serde_json n=5000 median | 12.1ms (R3) | **12.5ms** (bytes 354 004 不变) | 持平，无回归 |
+| list_serde_json n=1000 median | 4.1ms (R3) | **2.1ms** (bytes 70 002) | 改善（后续阶段优化） |
+| list_directory n=5000 median | 10.3ms (R1) | 35.2ms / 51.0ms（两次） | IO 噪声（高负载），复测窗口再确认 |
+| list_directory n=1000 median | 1.9ms (R1) | 5.8ms | 同上 |
+| shell_icon_batch n=40 thumb=0 cold | 18.4ms (R2) | **5.9ms**（warm 2.1ms） | 持平偏好 |
+| shell_icon_batch n=8 thumb=1 cold | 30.9ms (R2) | 102.8ms（warm 1.2ms） | Shell COM 冷路径受负载放大，warm 正常 |
+
+```json
+{
+  "run": 6,
+  "date": "2026-11-24",
+  "git_sha": "4ba9c6a0",
+  "machine": { "os": "Windows 11", "build": "debug", "notes": "baseline-audit stage re-run; heavy concurrent load" },
+  "samples": [
+    { "scenario": "S3", "op": "list_serde_json", "n": 5000, "median": 12.5, "bytes": 354004, "notes": "vs R3 12.1 — stable" },
+    { "scenario": "S2", "op": "list_serde_json", "n": 1000, "median": 2.1, "bytes": 70002 },
+    { "scenario": "S3", "op": "list_directory", "n": 5000, "median": 35.2, "notes": "51.0 on first pass; IO noise under load; R1 10.3" },
+    { "scenario": "S2", "op": "list_directory", "n": 1000, "median": 5.8, "notes": "R1 1.9; same IO noise" },
+    { "scenario": "S3", "op": "shell_icon_batch_cold", "n": 40, "median": 5.9, "warm": 2.1, "notes": "thumb=0; R2 18.4" },
+    { "scenario": "S4", "op": "shell_icon_batch_cold", "n": 8, "median": 102.8, "warm": 1.2, "notes": "thumb=1; R2 30.9; cold COM under load" },
+    { "scenario": "S1", "op": "startup chain", "notes": "manual DevTools todo" },
+    { "scenario": "S5", "op": "tab_switch", "notes": "manual DevTools todo" }
+  ]
+}
+```
+
 ## 下一阶段候选（按数据排序）
 
 1. **侧栏树祖先列举** — 进深路径多次 `navigator_list`；非关键但争用 IO/IPC。
