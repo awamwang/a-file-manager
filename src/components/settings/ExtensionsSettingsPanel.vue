@@ -74,7 +74,9 @@ const hasGroups = computed(() => groups.value.length > 0);
 
 .ext-config__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 26rem), 1fr));
+  /* 各 pack 的配置项数量不同：卡片按内容高度排列，避免少字段的卡片被撑高。 */
+  align-items: start;
   gap: var(--fluent-space-md);
 }
 

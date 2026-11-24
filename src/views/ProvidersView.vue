@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from "vue";
+import { nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
@@ -28,14 +28,7 @@ import {
 import { navigateTo } from "../state/navigatorBrowse";
 import { openProviderEntry, PROVIDER_ROOT } from "../state/provider";
 import { hydrateSettings } from "../state/settingsHydrate";
-import {
-  findConfigRowByPack,
-  loadConfigValues,
-  loadManagedModes,
-  saveConfig,
-  type ConfigRow,
-} from "../state/extensionConfig";
-import { toastSuccess } from "../state/toast";
+import PackConfigForm from "../components/extensions/PackConfigForm.vue";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -71,49 +64,72 @@ const loading = ref(false);
 const error = ref<string | null>(null);
 
 /**
- * Prowlarr API Key 内联编辑（状态卡片内直接改）：声明来自 file-gateway pack 的
- * config[]（单个真相源），保存后按托管模式重启网关使注入值生效。
+ * 卡片内联配置：声明来自各 Feature Pack 的 `config[]`（单一真相源），
+ * 编辑面板做成卡片的浮层，卡片本身保持统一高度，不会把同排卡片拉高。
  */
-const prowlarrRow = ref<ConfigRow | null>(null);
-const prowlarrKeyDraft = ref("");
-const prowlarrKeyOriginal = ref("");
-const prowlarrKeyVisible = ref(false);
-const prowlarrSaving = ref(false);
+const BACKEND_CONFIG: Record<string, { packId: string; ids: string[] }> = {
+  prowlarr: { packId: "awam.file-gateway", ids: ["prowlarr-api-key"] },
+};
 
-async function loadProwlarrConfig() {
-  const row = findConfigRowByPack("awam.file-gateway", "prowlarr-api-key");
-  prowlarrRow.value = row;
-  if (!row) return;
-  const values = await loadConfigValues([row]);
-  const current = String(values[row.settingKey] ?? "");
-  prowlarrKeyDraft.value = current;
-  prowlarrKeyOriginal.value = current;
+const configOpenFor = ref<string | null>(null);
+/** 浮层定位（fixed）：宽度按内容需要，左右/上下都夹在视口内，窄卡片也有足够长的输入框。 */
+const configPos = ref<{ left: number; top: number; width: number } | null>(null);
+const configPopRef = ref<HTMLElement | null>(null);
+
+/** 浮层在 v-for 内，用函数 ref 取元素（普通 ref 在这里会变成数组）。 */
+function setConfigPop(el: unknown) {
+  configPopRef.value = el instanceof HTMLElement ? el : null;
 }
 
-async function saveProwlarrKey() {
-  const row = prowlarrRow.value;
-  if (!row) return;
-  prowlarrSaving.value = true;
-  error.value = null;
-  try {
-    const restarted = await saveConfig(
-      [row],
-      { [row.settingKey]: prowlarrKeyDraft.value },
-      { [row.settingKey]: prowlarrKeyOriginal.value },
-      await loadManagedModes(),
-    );
-    prowlarrKeyOriginal.value = prowlarrKeyDraft.value;
-    toastSuccess(
-      restarted.length
-        ? t("settings.extensions.savedRestarted", { packs: restarted.join(", ") })
-        : t("providers.configSaved"),
-    );
-    await refreshStatus();
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : String(err);
-  } finally {
-    prowlarrSaving.value = false;
+function configSpecFor(backend: { id: string }): { packId: string; ids: string[] } | null {
+  return BACKEND_CONFIG[backend.id] ?? null;
+}
+
+function closeConfig() {
+  configOpenFor.value = null;
+  configPos.value = null;
+}
+
+async function toggleConfig(backendId: string, event: MouseEvent) {
+  if (configOpenFor.value === backendId) {
+    closeConfig();
+    return;
   }
+  const trigger = event.currentTarget as HTMLElement | null;
+  const anchor = (trigger?.closest(".backend-cell") as HTMLElement | null) ?? trigger;
+  const rect = anchor?.getBoundingClientRect();
+  if (!rect) return;
+  const width = Math.min(26 * 16, window.innerWidth - 16);
+  const left = Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - width - 8));
+  configOpenFor.value = backendId;
+  configPos.value = { left, top: rect.bottom + 6, width };
+  await nextTick();
+  const pop = configPopRef.value?.getBoundingClientRect();
+  if (pop && pop.bottom > window.innerHeight - 8) {
+    const above = rect.top - pop.height - 6;
+    configPos.value = { left, top: Math.max(8, above), width };
+  }
+}
+
+function onDocumentPointerDown(event: PointerEvent) {
+  if (!configOpenFor.value) return;
+  const target = event.target as HTMLElement | null;
+  if (target?.closest(".backend-cell--config-open")) return;
+  closeConfig();
+}
+
+function onDocumentKeydown(event: KeyboardEvent) {
+  if (event.key === "Escape") closeConfig();
+}
+
+/** 浮层是 fixed 定位，页面滚动/窗口尺寸变化后位置失效，直接收起。 */
+function onViewportChange() {
+  if (configOpenFor.value) closeConfig();
+}
+
+/** 配置保存后网关会重启注入新值，重探一次状态，卡片随之更新。 */
+function onConfigSaved() {
+  void refreshStatus();
 }
 
 watch(providerRootListing, (next) => {
@@ -230,7 +246,6 @@ async function refreshStatus() {
 onMounted(() => {
   // AIA-181: if idle preload has not finished (or was deferred), warm on first visit.
   void preloadProviderCache();
-  void loadProwlarrConfig();
   void loadGatewayUrlFromSettings()
     .then(() => ensureProviderSession())
     .then(() => {
@@ -253,6 +268,10 @@ onMounted(() => {
   }).then((fn) => {
     unlistenManagedHealth = fn;
   });
+  window.addEventListener("pointerdown", onDocumentPointerDown);
+  window.addEventListener("keydown", onDocumentKeydown);
+  window.addEventListener("resize", onViewportChange);
+  window.addEventListener("scroll", onViewportChange, true);
 });
 
 let unlistenManagedHealth: UnlistenFn | null = null;
@@ -260,6 +279,10 @@ let unlistenManagedHealth: UnlistenFn | null = null;
 onUnmounted(() => {
   unlistenManagedHealth?.();
   unlistenManagedHealth = null;
+  window.removeEventListener("pointerdown", onDocumentPointerDown);
+  window.removeEventListener("keydown", onDocumentKeydown);
+  window.removeEventListener("resize", onViewportChange);
+  window.removeEventListener("scroll", onViewportChange, true);
 });
 </script>
 
@@ -311,88 +334,20 @@ onUnmounted(() => {
       {{ t("providers.emptyBackends") }}
     </p>
     <div v-else class="backends" data-tour-id="tour-providers-backends">
-      <template v-for="backend in backends" :key="backend.id">
-        <!-- Prowlarr：状态卡片内可直接改 API Key（声明来自 file-gateway pack）。 -->
-        <div
-          v-if="backend.id === 'prowlarr' && prowlarrRow"
-          class="backend backend--panel"
-          :class="{
-            'fluent-accent-edge--ok': !backend.interfaceOnly && backend.healthy,
-            'fluent-accent-edge--down': !backend.interfaceOnly && !backend.healthy,
-            'fluent-accent-edge--stub': backend.interfaceOnly,
-          }"
-        >
-          <button
-            type="button"
-            class="backend-open"
-            @click="openInExplorer(`awam://${backend.id}`)"
-          >
-            <strong>{{ backend.name }}</strong>
-            <span class="backend-chips">
-              <span
-                class="fluent-chip fluent-chip--status"
-                :class="{
-                  'fluent-chip--stub': backend.interfaceOnly,
-                  'fluent-chip--ok': !backend.interfaceOnly && backend.healthy,
-                  'fluent-chip--down': !backend.interfaceOnly && !backend.healthy,
-                }"
-              >{{
-                backend.interfaceOnly
-                  ? t("providers.interfaceOnly")
-                  : backend.healthy
-                    ? t("providers.statusOk")
-                    : t("providers.statusDown")
-              }}</span>
-              <span v-if="backend.source === 'gateway'" class="fluent-chip fluent-chip--sm">{{
-                t("providers.sourceGateway")
-              }}</span>
-              <span v-else-if="backend.source === 'builtin'" class="fluent-chip fluent-chip--sm">{{
-                t("providers.sourceBuiltin")
-              }}</span>
-            </span>
-            <span class="detail">{{ backend.detail || backend.description }}</span>
-          </button>
-          <div class="backend-config">
-            <label class="backend-config-label" for="prowlarr-api-key">{{
-              t("providers.prowlarrKeyLabel")
-            }}</label>
-            <div class="backend-config-row">
-              <input
-                id="prowlarr-api-key"
-                v-model="prowlarrKeyDraft"
-                class="fluent-control backend-config-input"
-                :type="prowlarrKeyVisible ? 'text' : 'password'"
-                spellcheck="false"
-                autocomplete="off"
-              />
-              <button
-                class="fluent-control backend-config-reveal"
-                type="button"
-                @click="prowlarrKeyVisible = !prowlarrKeyVisible"
-              >
-                {{ prowlarrKeyVisible ? "•" : "•••" }}
-              </button>
-              <button
-                class="fluent-control fluent-control--accent"
-                type="button"
-                :disabled="prowlarrSaving"
-                @click="saveProwlarrKey"
-              >
-                {{ prowlarrSaving ? t("settings.extensions.saving") : t("settings.extensions.save") }}
-              </button>
-            </div>
-            <p class="backend-config-hint">{{ t("providers.prowlarrKeyHint") }}</p>
-          </div>
-        </div>
-
+      <div
+        v-for="backend in backends"
+        :key="backend.id"
+        class="backend-cell"
+        :class="{ 'backend-cell--config-open': configOpenFor === backend.id }"
+      >
         <button
-          v-else
           type="button"
           class="backend"
           :class="{
             'fluent-accent-edge--ok': !backend.interfaceOnly && backend.healthy,
             'fluent-accent-edge--down': !backend.interfaceOnly && !backend.healthy,
             'fluent-accent-edge--stub': backend.interfaceOnly,
+            'backend--configurable': !!configSpecFor(backend),
           }"
           @click="openInExplorer(`awam://${backend.id}`)"
         >
@@ -412,18 +367,52 @@ onUnmounted(() => {
                   ? t("providers.statusOk")
                   : t("providers.statusDown")
             }}</span>
-            <span
-              v-if="backend.source === 'gateway'"
-              class="fluent-chip fluent-chip--sm"
-            >{{ t("providers.sourceGateway") }}</span>
-            <span
-              v-else-if="backend.source === 'builtin'"
-              class="fluent-chip fluent-chip--sm"
-            >{{ t("providers.sourceBuiltin") }}</span>
+            <span v-if="backend.source === 'gateway'" class="fluent-chip fluent-chip--sm">{{
+              t("providers.sourceGateway")
+            }}</span>
+            <span v-else-if="backend.source === 'builtin'" class="fluent-chip fluent-chip--sm">{{
+              t("providers.sourceBuiltin")
+            }}</span>
           </span>
           <span class="detail">{{ backend.detail || backend.description }}</span>
         </button>
-      </template>
+
+        <!-- 卡片内联配置入口：面板是浮层，卡片高度与同排保持一致。 -->
+        <button
+          v-if="configSpecFor(backend)"
+          type="button"
+          class="backend-config-trigger"
+          :class="{ 'backend-config-trigger--active': configOpenFor === backend.id }"
+          :title="t('settings.extensions.packConfigHeading')"
+          :aria-label="t('settings.extensions.packConfigHeading')"
+          :aria-expanded="configOpenFor === backend.id ? 'true' : 'false'"
+          @click="toggleConfig(backend.id, $event)"
+        >
+          <FluentIcon name="settings" size="sm" />
+        </button>
+
+        <div
+          v-if="configOpenFor === backend.id && configPos"
+          :ref="setConfigPop"
+          class="backend-config-pop"
+          role="dialog"
+          :aria-label="t('settings.extensions.packConfigHeading')"
+          :style="{
+            left: `${configPos.left}px`,
+            top: `${configPos.top}px`,
+            width: `${configPos.width}px`,
+          }"
+        >
+          <p class="backend-config-pop__title">
+            {{ t("settings.extensions.packConfigHeading") }}
+          </p>
+          <PackConfigForm
+            :pack-id="configSpecFor(backend)?.packId ?? ''"
+            :only-ids="configSpecFor(backend)?.ids ?? []"
+            @saved="onConfigSaved"
+          />
+        </div>
+      </div>
     </div>
 
     <form class="uri-row" @submit.prevent="listUri()">
@@ -483,15 +472,31 @@ onUnmounted(() => {
 .backends {
   display: grid;
   /* 提高列宽下限：宽窗口下避免堆出过多过窄卡片导致文字被挤碎。 */
-  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  /* 每张卡片各按自身内容高度排布，行高不再被相邻卡片拉齐。 */
+  align-items: start;
   gap: var(--fluent-space-sm);
 }
 
+/* 卡片与配置浮层的定位容器；打开配置时抬高层级，浮层盖住下方卡片。 */
+.backend-cell {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  z-index: 1;
+}
+
+.backend-cell--config-open {
+  z-index: 30;
+}
+
 .backend {
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: var(--fluent-space-xs);
+  min-width: 0;
   min-height: var(--fluent-control-height-comfortable);
   padding: var(--fluent-space-md);
   padding-inline-start: var(--fluent-space-lg);
@@ -505,69 +510,73 @@ onUnmounted(() => {
   transition: background-color 80ms ease;
 }
 
+/* 带配置入口的卡片给右上角按钮让位，文字不钻到按钮下面。 */
+.backend--configurable {
+  padding-inline-end: 2.25rem;
+}
+
 .backend:hover {
   background: var(--fluent-color-fill-control-hover);
 }
 
-/* 可内联配置的卡片：整体不是按钮，只有上半区可点开。 */
-.backend--panel {
-  cursor: default;
-  gap: var(--fluent-space-sm);
-}
-
-.backend--panel:hover {
-  background: var(--fluent-color-fill-control);
-}
-
-.backend-open {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--fluent-space-xs);
-  width: 100%;
+/* 卡片右上角的配置入口：低对比常驻，悬停/聚焦/展开时提亮。 */
+.backend-config-trigger {
+  position: absolute;
+  inset-block-start: var(--fluent-space-xs);
+  inset-inline-end: var(--fluent-space-xs);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
   padding: 0;
   border: 0;
+  border-radius: var(--fluent-radius-sm);
   background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
+  color: var(--fluent-color-text-secondary);
+  opacity: 0.55;
   cursor: pointer;
+  transition: opacity 80ms ease, background-color 80ms ease, color 80ms ease;
 }
 
-.backend-config {
+.backend-cell:hover .backend-config-trigger,
+.backend-config-trigger:focus-visible,
+.backend-config-trigger--active {
+  opacity: 1;
+}
+
+.backend-config-trigger:hover,
+.backend-config-trigger--active {
+  background: var(--fluent-color-fill-control-hover);
+  color: var(--fluent-color-text-primary);
+}
+
+.backend-config-trigger:focus-visible {
+  outline: 2px solid var(--fluent-color-stroke-focus);
+  outline-offset: -2px;
+}
+
+/* 配置浮层：fixed 定位（位置由打开时按卡片与视口计算），宽度独立于卡片，
+   输入框因此始终有足够长度；卡片本身高度不变，同排卡片不会被拉高。 */
+.backend-config-pop {
+  position: fixed;
+  z-index: 60;
   display: flex;
   flex-direction: column;
-  gap: var(--fluent-space-2xs, 0.25rem);
-  width: 100%;
-  padding-top: var(--fluent-space-sm);
-  border-top: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  gap: var(--fluent-space-sm);
+  max-block-size: min(70vh, 32rem);
+  overflow-y: auto;
+  padding: var(--fluent-space-md);
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: var(--fluent-radius-md);
+  background: var(--fluent-color-fill-control);
+  box-shadow: var(--fluent-shadow-flyout);
 }
 
-.backend-config-label {
-  font-size: var(--fluent-font-size-caption);
-  color: var(--fluent-color-text-secondary);
-}
-
-.backend-config-row {
-  display: flex;
-  align-items: center;
-  gap: var(--fluent-space-2xs, 0.25rem);
-  width: 100%;
-}
-
-.backend-config-input {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.backend-config-reveal {
-  flex: 0 0 auto;
-  min-width: 2.5rem;
-}
-
-.backend-config-hint {
+.backend-config-pop__title {
   margin: 0;
   font-size: var(--fluent-font-size-caption);
+  font-weight: var(--fluent-font-weight-semibold);
   color: var(--fluent-color-text-secondary);
 }
 
