@@ -9,7 +9,8 @@
       "not_a_directory": "The path is not a folder.",
       "recycle_unavailable": "The Recycle Bin is unavailable.",
       "io_failed": "The operation failed."
-    }
+    },
+    "skippedMissing": "Skipped {count} items — the source no longer exists."
   },
   "concepts": {
     "workGroups": "Gathers the folders related to one thing",
@@ -693,6 +694,11 @@
       "title": "Managed backend services",
       "meta": "Connection settings for the AFM-managed backend services (file gateway, knowledge). When the corresponding pack is enabled in managed mode, the address is read-only (derived by AFM); in config mode you may edit it. The knowledge token is the shared secret AFM uses to authenticate and to seed the spawned service.",
       "managedReadonly": "Managed by an enabled pack — address is fixed and read-only.",
+      "notSet": "Not set — the service uses its own default",
+      "effective": "currently {value}",
+      "savedRestarted": "Configuration saved; restarted {packs}",
+      "saving": "Saving…",
+      "packConfigHeading": "This service's configuration",
       "indexUnconfigured": "Connected, but no knowledge base is configured — set the storage folder below or in the knowledge service settings.",
       "dataRootPlaceholder": "e.g. C:\\Users\\you\\Knowledge\\data",
       "sourceIdPlaceholder": "e.g. logseq-main",
@@ -1118,6 +1124,9 @@
     "interfaceOnly": "Preview only",
     "statusOk": "ok",
     "statusDown": "down",
+    "prowlarrKeyLabel": "Prowlarr API key",
+    "prowlarrKeyHint": "Used by the gateway for Prowlarr searches. Saving restarts the gateway so the new key takes effect.",
+    "configSaved": "API key saved",
     "sourceGateway": "file",
     "sourceBuiltin": "built-in",
     "gatewayOnline": "file gateway online — {count} backends via {url}",

@@ -2171,6 +2171,29 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
     }
 
+    // CLIP-008: a move whose source vanished externally (cut → deleted elsewhere →
+    // paste) must fail with the `path_missing` code so the frontend skips the item
+    // silently instead of erroring the whole batch. Not an error_class — no dialog.
+    #[test]
+    fn move_missing_source_tags_path_missing_for_clip008() {
+        let dir = temp_workspace("clip008-missing");
+        let dst = dir.join("dst");
+        fs::create_dir_all(&dst).unwrap();
+        let err = move_paths(
+            &[display_path(&dir.join("gone.txt"))],
+            &display_path(&dst),
+            NameConflict::KeepBoth,
+        )
+        .expect_err("moving a vanished source must fail");
+        let tagged = err_msg_or_classified(err);
+        assert_eq!(tagged.error_code.as_deref(), Some("path_missing"));
+        assert!(
+            tagged.error_class.is_none(),
+            "a vanished source is not a dialog (retry/skip/abort) class"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
     // LC-005: a pre-cancelled token makes the copy loop bail at the first
     // source boundary — no destination is created, result reports cancelled.
     #[test]

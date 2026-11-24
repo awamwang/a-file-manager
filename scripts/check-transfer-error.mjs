@@ -76,6 +76,24 @@ assert.ok(
 );
 assert.ok(clip.includes("errorClass"), "FileOpsResult must carry the per-item errorClass");
 
+// CLIP-008 (已拍板 2026-11-22): a cut/move source removed externally while on the
+// clipboard is skipped silently — no Retry/Skip/Abort dialog — the batch
+// continues, and one summary toast reports the skipped count at the end.
+assert.ok(
+  /mode === "move" && result\.errorCode === "path_missing"/.test(clip),
+  "transferEntries must auto-skip a vanished move source (CLIP-008)",
+);
+assert.ok(clip.includes("skippedMissing"), "transferEntries must track skipped items");
+assert.ok(
+  clip.includes('"fileOps.skippedMissing"'),
+  "the skip summary toast must use the fileOps.skippedMissing i18n key",
+);
+assert.ok(be.includes('"path_missing"'), "backend must tag missing sources as path_missing");
+assert.ok(
+  typeof en.fileOps.skippedMissing === "string" && en.fileOps.skippedMissing.includes("{count}"),
+  "en.json fileOps.skippedMissing missing or lacks {count}",
+);
+
 // 4. The dialog host exists, wires the three actions, and is mounted in AppShell.
 assert.ok(existsSync(join(root, hostRel)), "TransferErrorDialogHost.vue is missing");
 const host = read(hostRel);

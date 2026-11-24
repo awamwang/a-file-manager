@@ -12,6 +12,8 @@ import {
 import { normalizePathKey } from "./pathKey.ts";
 import { dedupeDescendantSources } from "./transferDedup.ts";
 import { beginLongTask, finishLongTask, type LongTaskKind } from "./taskCenter.ts";
+import { showToast } from "./toast.ts";
+import { i18n } from "../i18n/index.ts";
 
 export type ClipboardMode = "copy" | "cut";
 
@@ -139,6 +141,9 @@ export async function transferEntries(
     if (taskId) finishLongTask(taskId, ok, error, count, transferred);
   };
   const transferred: string[] = [];
+  // CLIP-008 (已拍板 2026-11-22): cut/move sources removed externally while on the
+  // clipboard are skipped silently — no dialog, batch continues, one toast at end.
+  const skippedMissing: string[] = [];
   for (const source of sources) {
     const name =
       mode === "link"
@@ -172,6 +177,13 @@ export async function transferEntries(
       conflict,
       taskId,
     });
+    // CLIP-008: a move source that no longer exists (deleted/moved/renamed after
+    // Ctrl+X) is skipped without a dialog; the backend tags it `path_missing`
+    // (`file_ops/mod.rs::classify_error`). Copy keeps the raw error path.
+    if (!result.ok && mode === "move" && result.errorCode === "path_missing") {
+      skippedMissing.push(source);
+      continue;
+    }
     // LC-006 / LC-007 / LC-008 (已拍板 2026-11-22): a per-item failure with a
     // recognized error class opens the Explorer-style Retry / Skip / Abort dialog
     // for THIS item. A hard refusal (no class — folder-into-itself, volume root,
@@ -211,6 +223,12 @@ export async function transferEntries(
       return outcome;
     }
     transferred.push(...outcome.paths);
+  }
+  if (skippedMissing.length) {
+    showToast(
+      i18n.global.t("fileOps.skippedMissing", { count: skippedMissing.length }),
+      "info",
+    );
   }
   finish(true, null, transferred.length);
   return { ok: true, paths: transferred, error: null };

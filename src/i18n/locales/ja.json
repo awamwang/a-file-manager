@@ -9,7 +9,8 @@
       "not_a_directory": "パスはフォルダーではありません。",
       "recycle_unavailable": "ごみ箱を利用できません。",
       "io_failed": "操作に失敗しました。"
-    }
+    },
+    "skippedMissing": "{count} 件をスキップしました（ソースが存在しません）"
   },
   "concepts": {
     "workGroups": "同じことに関係するフォルダーをまとめる",
@@ -946,6 +947,9 @@
     "sourceBuiltin": "内蔵",
     "sourceGateway": "file",
     "statusDown": "停止",
+    "prowlarrKeyLabel": "Prowlarr API キー",
+    "prowlarrKeyHint": "ゲートウェイが Prowlarr 検索に使用します。保存すると設定反映のためゲートウェイが再起動します。",
+    "configSaved": "API キーを保存しました",
     "statusOk": "正常",
     "title": "プロバイダー",
     "uriPlaceholder": "プロバイダーのパスを貼り付け（クラウドやナレッジのルートなど）",
@@ -1237,6 +1241,11 @@
       "title": "管理されたバックエンドサービス",
       "meta": "AFM 管理バックエンド（file ゲートウェイ、knowledge）の接続設定。対応パックを管理モードで有効化するとアドレスは読み取り専用（AFM が導出）。config モードでは編集可。knowledge トークンは AFM の認証と起動サービスへの注入に使う共有秘密です。",
       "managedReadonly": "有効化された管理パックが制御 — アドレスは固定で読み取り専用。",
+      "notSet": "未設定 — サービス既定値を使用",
+      "effective": "現在の実効値：{value}",
+      "savedRestarted": "設定を保存し、{packs} を再起動しました",
+      "saving": "保存中…",
+      "packConfigHeading": "このサービスの設定",
       "indexUnconfigured": "接続済みですがナレッジベース未設定 — 下のデータルートを設定するか、サービス自身の settings を使ってください。",
       "dataRootPlaceholder": "例: C:\\Users\\you\\Knowledge\\data",
       "sourceIdPlaceholder": "例: logseq-main",

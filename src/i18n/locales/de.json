@@ -9,7 +9,8 @@
       "not_a_directory": "Der Pfad ist kein Ordner.",
       "recycle_unavailable": "Der Papierkorb ist nicht verfügbar.",
       "io_failed": "Der Vorgang ist fehlgeschlagen."
-    }
+    },
+    "skippedMissing": "{count} Elemente übersprungen — die Quelle ist nicht mehr vorhanden."
   },
   "concepts": {
     "workGroups": "Ordner zu einer Sache an einem Ort bündeln",
@@ -946,6 +947,9 @@
     "sourceBuiltin": "eingebaut",
     "sourceGateway": "file",
     "statusDown": "offline",
+    "prowlarrKeyLabel": "Prowlarr-API-Schlüssel",
+    "prowlarrKeyHint": "Wird vom Gateway für Prowlarr-Suchen verwendet. Speichern startet das Gateway neu.",
+    "configSaved": "API-Schlüssel gespeichert",
     "statusOk": "ok",
     "title": "Anbieter",
     "uriPlaceholder": "Anbieterpfad einfügen (z. B. Cloud- oder Wissenswurzel)",
@@ -1237,6 +1241,11 @@
       "title": "Verwaltte Backend-Dienste",
       "meta": "Verbindungseinstellungen der AFM-verwalteten Backends (file-Gateway, knowledge). Ist das zugehörige Paket im verwalteten Modus aktiviert, ist die Adresse schreibgeschützt (von AFM abgeleitet); im Konfigurationsmodus editierbar. Das Knowledge-Token ist das gemeinsame Geheimnis, mit dem AFM sich authentifiziert und den gestarteten Dienst versieht.",
       "managedReadonly": "Wird von einem aktivierten verwalteten Paket gesteuert — Adresse fest und schreibgeschützt.",
+      "notSet": "Nicht gesetzt — der Dienst nutzt seinen eigenen Standard",
+      "effective": "aktuell {value}",
+      "savedRestarted": "Konfiguration gespeichert; {packs} neu gestartet",
+      "saving": "Wird gespeichert…",
+      "packConfigHeading": "Konfiguration dieses Dienstes",
       "indexUnconfigured": "Verbunden, aber keine Wissensbasis konfiguriert — setzen Sie unten den Datenstamm oder nutzen Sie die settings des Dienstes.",
       "dataRootPlaceholder": "z. B. C:\\Users\\you\\Knowledge\\data",
       "sourceIdPlaceholder": "z. B. logseq-main",

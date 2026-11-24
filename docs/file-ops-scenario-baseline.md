@@ -109,7 +109,7 @@ Clipboard is the **system** clipboard (`CF_HDROP`), verified: `src/state/fileCli
 | CLIP-005 | paste with **nothing** copied/cut | Ctrl+V | no-op, silent | — | `🟡 code` (`canPaste` guard) | `check-file-ops.mjs` |
 | CLIP-006 | copy in AFM | paste into **Explorer** | Explorer shows the item, paste works | requires system clipboard — now true | `🔵 decided`→`🟡 code` | `check-file-ops.mjs` |
 | CLIP-007 | copy in Explorer | paste into AFM | AFM reads `CF_HDROP` and pastes | — | `🟡 code` (`syncFromShell`) | `check-file-ops.mjs` |
-| CLIP-008 | clipboard cut paths later removed externally, paste | Ctrl+V | graceful error / drop stale cut, not panic | — | `🔵 decided` — 跳过该失效路径，继续其他项；最后 toast 提示「N 项已跳过」 | **decided 2026-11-22** |
+| CLIP-008 | clipboard cut paths later removed externally, paste | Ctrl+V | graceful error / drop stale cut, not panic | — | `✅ code+test` — move 源缺失后端打 `path_missing`（`classify_error`），FE `transferEntries` 对 `mode==="move"` 静默跳过该项、批次继续，末尾 toast「已跳过 {count} 项」（`fileOps.skippedMissing`，六语） | CARGO `move_missing_source_tags_path_missing_for_clip008`；`check-transfer-error.mjs`（跳过分支 + toast 键 + i18n {count}）；**2026-11-24** |
 
 **Paste-target resolution** (D1, the axis that causes the most surprise):
 
@@ -402,7 +402,7 @@ of *scenario* truth.
 | recycle-bin availability by **filesystem type** | DEL-003 | 改 `path_can_use_recycle_bin`/`file_ops_can_recycle`（仅 NTFS→可回收）+ CARGO | done — `platform/windows.rs` `filesystem_supports_recycle_bin`/`volume_supports_recycle_bin` + `file_ops` `path_can_use_recycle_bin`；CARGO `only_ntfs_recycles`/`fat_and_exfat_do_not_recycle`/`unknown_filesystem_defers_to_trash`/`unc_cannot_recycle` |
 | rename-to-existing → **Replace/Skip dialog** | NM-002 | CARGO(后端返回冲突信号) + FE(复用 name-conflict 对话框) | done — CARGO `rename_replace_overwrites_existing_file_only_when_allowed`；FE `check-navigator-inline-rename.mjs`（`resolveNameConflictChoice` + `renameEntry(...,true)`） |
 | apply-to-all per-operation scope | CF-003, TR-014 | FE (dialog state) | done — `check-name-conflict.mjs`（无 localStorage/`afm.nameConflictDefault` + `transferEntries` 调 `resetNameConflictBatch()`）+ `name-conflict-checks.ts` 批界重置 → ledger 行已存在 |
-| clipboard stale-cut-path drop | CLIP-008 | FE 验证 + 后端 `transferEntries` 跳过分支 | new |
+| clipboard stale-cut-path drop | CLIP-008 | FE 验证 + 后端 `transferEntries` 跳过分支 | done 2026-11-24 — CARGO `move_missing_source_tags_path_missing_for_clip008`（后端 `path_missing` 标记）；FE `check-transfer-error.mjs`（move+`path_missing` 静默跳过 + `fileOps.skippedMissing` toast + 六语 {count}） |
 | undo contamination refusal | UN-008 | FE `file-undo-checks.ts` | new |
 | cancel rollback excluded from undo stack | UN-009 (ties to LC-005) | FE reducer | guarded 2026-11-23 — `check-file-undo.mjs` asserts paste/drop callers early-return on `!result.ok` before `record*Undo` |
 | in-use / disk-full errors reuse per-item retry/skip/abort | LC-006, LC-008 (→ LC-007) | FE + CARGO (error class) | guarded 2026-11-23 — `check-transfer-error.mjs`→`transfer-error-checks.ts` + `mod.rs` `classify_transfer_error*` + `copy_paths_succeeds_while_source_handle_is_open` |

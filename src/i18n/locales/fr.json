@@ -9,7 +9,8 @@
       "not_a_directory": "Le chemin n'est pas un dossier.",
       "recycle_unavailable": "La corbeille est indisponible.",
       "io_failed": "Échec de l'opération."
-    }
+    },
+    "skippedMissing": "{count} éléments ignorés — la source n'existe plus."
   },
   "concepts": {
     "workGroups": "Rassemble les dossiers liés à une même chose",
@@ -946,6 +947,9 @@
     "sourceBuiltin": "intégré",
     "sourceGateway": "file",
     "statusDown": "indisponible",
+    "prowlarrKeyLabel": "Clé d’API Prowlarr",
+    "prowlarrKeyHint": "Utilisée par la passerelle pour les recherches Prowlarr. L’enregistrement redémarre la passerelle.",
+    "configSaved": "Clé d’API enregistrée",
     "statusOk": "ok",
     "title": "Fournisseurs",
     "uriPlaceholder": "Collez un chemin de fournisseur (ex. racine cloud ou connaissances)",
@@ -1237,6 +1241,11 @@
       "title": "Services backend gérés",
       "meta": "Paramètres de connexion des backends gérés par AFM (passerelle file, knowledge). Quand le pack correspondant est activé en mode géré, l'adresse est en lecture seule (dérivée par AFM) ; en mode config, elle est modifiable. Le jeton knowledge est le secret partagé qu'AFM utilise pour s'authentifier et alimenter le service lancé.",
       "managedReadonly": "Géré par un pack activé — adresse fixe et en lecture seule.",
+      "notSet": "Non défini — le service utilise sa valeur par défaut",
+      "effective": "actuellement {value}",
+      "savedRestarted": "Configuration enregistrée ; {packs} redémarré(s)",
+      "saving": "Enregistrement…",
+      "packConfigHeading": "Configuration de ce service",
       "indexUnconfigured": "Connecté, mais aucune base de connaissances configurée — définissez la racine de données ci-dessous ou via le settings du service.",
       "dataRootPlaceholder": "ex. C:\\Users\\vous\\Knowledge\\data",
       "sourceIdPlaceholder": "ex. logseq-main",

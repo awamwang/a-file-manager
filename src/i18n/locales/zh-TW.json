@@ -9,7 +9,8 @@
       "not_a_directory": "路徑不是資料夾。",
       "recycle_unavailable": "資源回收筒不可用。",
       "io_failed": "操作失敗。"
-    }
+    },
+    "skippedMissing": "已跳過 {count} 項（來源已不存在）"
   },
   "concepts": {
     "workGroups": "把同一件事相關的資料夾聚在一起",
@@ -693,6 +694,11 @@
       "title": "託管後端服務",
       "meta": "AFM 託管後端服務的連線配置（file 閘道器、knowledge）。對應 pack 以託管模式啟用時地址只讀（由 AFM 派生）；config 模式可編輯。知識令牌是 AFM 鑑權並注入被拉起服務的共享金鑰。",
       "managedReadonly": "由已啟用的託管 pack 管理——地址固定且只讀。",
+      "notSet": "未設定（使用服務預設）",
+      "effective": "目前生效：{value}",
+      "savedRestarted": "設定已儲存，並重新啟動了 {packs}",
+      "saving": "儲存中…",
+      "packConfigHeading": "本服務設定",
       "indexUnconfigured": "已連線，但未配置知識庫——請在下方設定資料根，或用知識服務自身的 settings。",
       "dataRootPlaceholder": "例如 C:\\Users\\你\\Knowledge\\data",
       "sourceIdPlaceholder": "例如 logseq-main",
@@ -1131,6 +1137,9 @@
     "interfaceOnly": "僅可預覽",
     "statusOk": "正常",
     "statusDown": "不可用",
+    "prowlarrKeyLabel": "Prowlarr API Key",
+    "prowlarrKeyHint": "閘道器存取 Prowlarr 時使用。儲存後閘道器會重新啟動以生效。",
+    "configSaved": "API Key 已儲存",
     "sourceGateway": "file",
     "sourceBuiltin": "內建",
     "gatewayOnline": "file 閘道器線上 — 經 {url} 發現 {count} 個後端",
