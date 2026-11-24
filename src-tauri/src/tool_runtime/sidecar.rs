@@ -541,7 +541,8 @@ mod tests {
             port_env: None,
         };
         let (exe, argv) = resolve_spawn_command(&c);
-        assert_eq!(exe, "node");
+        // macOS 可能命中 Homebrew 绝对路径；与 python 测试一样跟随平台解析结果。
+        assert_eq!(exe, crate::platform::node_command());
         assert_eq!(argv, vec!["http-server.js".to_string()]);
     }
 

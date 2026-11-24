@@ -259,8 +259,10 @@ assert.ok(
   clip.includes('linkPasteName(baseName(source), isMacPlatform())'),
   "TR-203: paste name must follow the platform (.lnk on Windows, .link on Unix)",
 );
-assert.ok(
-  menu.includes('t(\n          isMacPlatform()\n            ? "contextMenu.copyAsLinkDoneUnix"'),
+// Windows checkout 可能是 CRLF；用 \s* 跨行匹配，不绑定具体换行。
+assert.match(
+  menu,
+  /t\(\s*isMacPlatform\(\)\s*\?\s*"contextMenu\.copyAsLinkDoneUnix"/,
   "TR-203: copyAsLink notice must use the symlink wording on macOS",
 );
 assert.ok(
