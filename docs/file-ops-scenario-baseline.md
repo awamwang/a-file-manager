@@ -247,7 +247,7 @@ read this pass.
 | --- | --- | --- | --- | --- | --- | --- |
 | LC-001 | copy into empty dir done | auto | **new item selected** | Explorer selects new | `🟡 code` — 完成后 `revealItemsInNavigator` 选中新项（对齐 Explorer；invoke-fused → grep 层） | `check-paste-post-state.mjs`（`shortcutPaste`） |
 | LC-002 | move done | auto | new (moved) item selected | — | `🟡 code` — 完成后 `revealItemsInNavigator` 选中新项（invoke-fused → grep 层） | `check-paste-post-state.mjs`（`runPaste`） |
-| LC-003 | recycle-delete done | auto | selection moves to **neighbor** (Explorer) / keep-set (DC) | **有意差异**：与 Explorer 的「选邻居」不同，AFM 保持选区 | `🔵 decided 2026-11-23` — 保持现有 `delete-keep-selection` 的「保持选区」行为，**不**改为邻居 | `check-delete-keep-selection` |
+| LC-003 | recycle-delete done | auto | selection moves to **neighbor** (Explorer) / keep-set (DC) | — | `✅ code+test` — **R6 拍板 2026-11-24：选邻居**；代码与 gate 本就实现邻居规则（`nextSelectionAfterRemoval`：后继→末尾回退→清空），2026-11-23 文档误写为「保持选区」，本次纠正 | `check-delete-keep-selection.mjs`（历史 gate 名，断言的是邻居规则） |
 | LC-004 | large copy running | — | non-blocking UI, byte progress + speed + remaining | — | `🟡 code` (`ProgressEmitter`) | `check-file-ops.mjs` |
 | LC-005 | large copy running | cancel | **rollback**: remove partial destination results; source intact (guaranteed by safe_io staging regardless) | Explorer keeps partial; DC keeps; **AFM chooses rollback** | `🔵 decided` — rollback on cancel | **decided 2026-11-22** |
 | LC-006 | file **in use** by another process | copy out | copy succeeds (read) | move-in fails: "in use" | `✅ code+test` — copy-out succeeds (read-only, `safe_io`); move-in / replace onto an in-use target surfaces the `in-use` class via `classify_transfer_error` | CARGO `copy_paths_succeeds_while_source_handle_is_open`; `classify_transfer_error_maps_windows_codes` |
@@ -319,7 +319,7 @@ Verified in `explorer-baseline.md §选择` as 对齐: single, Ctrl, Shift, Ctrl
 | 鼠标拖入自身子树 (TR-107) | 拒绝，复用 TR-006 的 `is_descendant_or_same` |
 | 多步 undo 顺序 (UN-006) | **逆序逐项撤销**（标准栈语义） |
 | 复制/移动后选中 (LC-001, LC-002) | 完成后**选中新项**（对齐 Explorer；已实现，grep 接线 `check-paste-post-state.mjs`） |
-| 删除后选中 (LC-003) | 保持现有 `delete-keep-selection` 的「保持选区」行为，**不**改为邻居；与 Explorer「选邻居」为**有意差异** |
+| 删除后选中 (LC-003) | **选邻居**（R6 拍板 2026-11-24）：删除后选中被删项的下一个可见条目，删到末尾回退剩余最后一项，目录清空才清空选中（Explorer 习惯；代码与 gate 本就如此） |
 | 使用中文件错误类 (LC-006) | copy 出**成功**；move-in / replace 失败报 **"in use"** 错误类 |
 | 目标盘写满 (LC-008) | 复用 LC-007 已定的**逐项 retry/skip/abort**，不单独发明；源保持安全（LC-005 回滚语义） |
 | 操作后滚动/排序 (LC-011) | **保持滚动位置与当前排序**，不跳回顶部 |
@@ -363,7 +363,7 @@ radius.
 - ~~**LC-009**~~ — **DECIDED 2026-11-22**: 启用 `\\?\` 长路径处理（manifest `longPathAware=true`）。
 - ~~**SEL-010**~~ — **DECIDED 2026-11-22**: Esc 三层优先级 rename > 清选 > 不消费。
 - ~~**LC-001 / LC-002**~~ — **DECIDED 2026-11-23**: 复制/移动完成后选中新项（对齐 Explorer），仅缺 FE 验证。
-- ~~**LC-003**~~ — **DECIDED 2026-11-23**: 删除后保持现有 `delete-keep-selection`「保持选区」行为，**不**改为邻居；与 Explorer「选邻居」为有意差异。
+- ~~**LC-003**~~ — **R6 拍板 2026-11-24：选邻居**（删除后选中下一个可见条目，末尾回退，清空才清空）。代码与 `check-delete-keep-selection.mjs` 本就实现该规则；2026-11-23 文档「保持选区」系误写，已纠正。
 - ~~**SEL-004 / SEL-007 / SEL-011**~~ — **DECIDED 2026-11-23**: shift 范围按当前排序/视图顺序计算；一次传输对 parent+child 去重（后代只处理一次），仅缺 FE 验证。
 
 Each open decision becomes, once resolved, either a `explorer-baseline.md` decision-table row (if it
@@ -396,7 +396,7 @@ of *scenario* truth.
 | undo reverse-order multi-op | UN-006 | FE | guarded 2026-11-23 — `check-file-undo.mjs`→`file-undo-checks.ts` LIFO drain |
 | paste-target resolution (folder/file/none) | CLIP-101, CLIP-102, CLIP-104 | FE (pure resolver extraction) | done — `check-paste-target.mjs`→`paste-target-checks.ts`（FE pure resolver）+ grep 断言 `NavigatorView.shortcutPaste` 接 `resolvePasteTarget` |
 | select new post-state (copy / move / paste) | LC-001, LC-002, CLIP-003, CLIP-004 | FE | done — `check-paste-post-state.mjs`（`revealItemsInNavigator` in `shortcutPaste` + `NavigatorContextMenu.runPaste`） |
-| delete post-state = keep selection (not neighbor) | LC-003 | FE (`delete-keep-selection`) | done — `check-delete-keep-selection.mjs`（既有行为，2026-11-23 确认保留为有意差异；见 ledger R6 措辞冲突） |
+| delete post-state = select neighbor | LC-003 | FE (`delete-keep-selection` 历史名) | done — R6 拍板 2026-11-24（选邻居）；`check-delete-keep-selection.mjs` 断言 `nextSelectionAfterRemoval` 后继→末尾回退→清空 + 两个删除入口接线 |
 | descendant dedup in one transfer | SEL-007, SEL-011, TR-006 | FE reducer | done — `check-transfer-dedup.mjs`→`transfer-dedup-checks.ts`；`transferEntries` 跑 `dedupeDescendantSources` |
 | shift range in sorted view order | SEL-004 | FE | done — `check-selection-view-order.mjs`（`orderedPaths` = 排序+过滤）+ `list-select-checks.ts`（算术执行） |
 | drag same/cross/force modifiers | TR-101..TR-105 | FE (pure module) | done 2026-11-24 — `check-drop-mode.mjs`→`drop-mode-checks.ts` 真执行 `src/state/dnd/mode.ts` `dropTransferMode`（同盘/跨盘/Ctrl/Shift/Alt/UNC 全矩阵）；面级接线 `check-cross-tab-drop.mjs` |

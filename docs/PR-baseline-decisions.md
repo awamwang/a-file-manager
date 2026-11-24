@@ -33,7 +33,7 @@
 - `61d8acfc` 粘贴/复制/移动后选中新项 + 保持滚动/排序 → `check-paste-post-state.mjs`。
 - `4beb0753` Shift 范围按当前视图(排序/过滤)顺序 → `check-selection-view-order.mjs`。
 - `787c602e` 传输源 parent+child 去重（FE reducer）→ `state/transferDedup.ts` + `transfer-dedup-checks.ts` + gate。
-- 删除后保持选区（LC-003）核实已符合现有 `delete-keep-selection`，未改（有意差异，非 Explorer「选邻居」）。
+- 删除后选区（LC-003）**R6 拍板 2026-11-24：选邻居**。代码与 `check-delete-keep-selection.mjs`（历史名）本就实现 Explorer 邻居规则（`nextSelectionAfterRemoval`：后继→末尾回退→清空）；早期「保持选区」措辞系文档误写，已纠正。
 
 ## 主题 4 · 传输错误处理 + undo 语义
 - `e005e23f` 传输单项失败 **逐项 Retry/Skip/Abort** 弹窗 + 错误分类：后端 `file_ops/mod.rs`（+in-use/访问/磁盘满分类），前端 `state/transferError.ts` + `TransferErrorDialogHost.vue` + `transfer-error-checks.ts` + `check-transfer-error.mjs`（六语）。Abort 走 LC-005 回滚、源安全由 safe_io staging 保证。
