@@ -15,7 +15,12 @@ import { beginLongTask, finishLongTask, type LongTaskKind } from "./taskCenter.t
 import { showToast } from "./toast.ts";
 import { i18n } from "../i18n/index.ts";
 
-export type ClipboardMode = "copy" | "cut";
+/**
+ * TR-203: `link` is an app-local clipboard mode ("Copy as link" context entry)
+ * — the system CF_HDROP clipboard has no link semantics, so it is never synced
+ * and paste routes it to shortcut creation instead of a copy.
+ */
+export type ClipboardMode = "copy" | "cut" | "link";
 
 export type FileOpsResult = {
   ok: boolean;
@@ -64,6 +69,8 @@ export function isClipboardCutPath(path: string): boolean {
 export function setClipboard(paths: string[], mode: ClipboardMode): void {
   clipboardPaths.value = [...paths];
   clipboardMode.value = mode;
+  // TR-203: link 模式是应用内状态（CF_HDROP 无链接语义），不写系统剪贴板。
+  if (mode === "link") return;
   void invoke("file_ops_clipboard_set", { paths, mode }).catch(() => undefined);
 }
 
@@ -101,13 +108,19 @@ function baseName(path: string): string {
 }
 
 export async function pasteClipboard(destDir: string): Promise<FileOpsResult> {
-  await refreshClipboardFromSystem();
+  // TR-203: link 是应用内剪贴板模式，系统剪贴板刷新会把它覆盖成
+  // copy/cut/null，粘贴前跳过刷新。
+  if (clipboardMode.value !== "link") await refreshClipboardFromSystem();
   const paths = [...clipboardPaths.value];
   const mode = clipboardMode.value;
   if (!paths.length || !mode) {
     return { ok: false, paths: [], error: "Clipboard is empty" };
   }
-  const result = await transferEntries(paths, destDir, mode === "copy" ? "copy" : "move");
+  const result = await transferEntries(
+    paths,
+    destDir,
+    mode === "link" ? "link" : mode === "copy" ? "copy" : "move",
+  );
   if (result.ok && mode === "cut") clearClipboard();
   return result;
 }

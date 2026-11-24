@@ -816,6 +816,12 @@ async function run(id: string) {
       setClipboard(pathsForClipboard(entry), "copy");
       emit("notice", t("contextMenu.copied"));
       break;
+    case "copyAsLink":
+      // TR-203: 「复制为链接」— 应用内 link 剪贴板，粘贴时创建 .lnk 快捷方式。
+      if (!entry) break;
+      setClipboard(pathsForClipboard(entry), "link");
+      emit("notice", t("contextMenu.copyAsLinkDone"));
+      break;
     case "cut":
       if (!entry) break;
       setClipboard(pathsForClipboard(entry), "cut");

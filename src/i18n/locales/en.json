@@ -1471,6 +1471,8 @@
     "deleteStub": "Delete is not available here yet.",
     "copiedPath": "Path copied",
     "copied": "Copied to clipboard",
+    "copyAsLink": "Copy as link",
+    "copyAsLinkDone": "Copied as link — pasting will create shortcuts",
     "cutDone": "Cut to clipboard",
     "pasted": "Pasted {count} item(s)",
     "pasteNoFolder": "Open a folder before pasting",

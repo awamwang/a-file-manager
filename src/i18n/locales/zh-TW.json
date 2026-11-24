@@ -1493,6 +1493,8 @@
     "deleteStub": "這裡暫時不支援刪除。",
     "copiedPath": "已複製路徑",
     "copied": "已複製到剪貼簿",
+    "copyAsLink": "複製為連結",
+    "copyAsLinkDone": "已複製為連結，貼上時將建立捷徑",
     "cutDone": "已剪下到剪貼簿",
     "pasted": "已貼上 {count} 項",
     "pasteNoFolder": "請先開啟資料夾再貼上",

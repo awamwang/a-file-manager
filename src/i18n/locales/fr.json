@@ -1469,6 +1469,8 @@
     "deleteStub": "La suppression n'est pas encore disponible ici.",
     "copiedPath": "Chemin copié",
     "copied": "Copié dans le presse-papiers",
+    "copyAsLink": "Copier en tant que lien",
+    "copyAsLinkDone": "Copié en tant que lien — le collage créera des raccourcis",
     "cutDone": "Coupé dans le presse-papiers",
     "pasted": "{count} élément(s) collé(s)",
     "pasteNoFolder": "Ouvrez un dossier avant de coller",

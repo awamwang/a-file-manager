@@ -1471,6 +1471,8 @@
     "deleteStub": "这里暂时不支持删除。",
     "copiedPath": "已复制路径",
     "copied": "已复制到剪贴板",
+    "copyAsLink": "复制为链接",
+    "copyAsLinkDone": "已复制为链接，粘贴时将创建快捷方式",
     "cutDone": "已剪切到剪贴板",
     "pasted": "已粘贴 {count} 项",
     "pasteNoFolder": "请先打开文件夹再粘贴",

@@ -500,7 +500,8 @@ fn place_dest(
     let exact = parent.join(file_name);
     if exact == source {
         // 同目录粘贴自身（剪贴板复制 / Ctrl 拖放）：keep 生成「name - Copy」副本；
-        // replace 对自身是无操作；skip 跳过。剪切移动不会走到这里（同父目录已提前跳过）。
+        // replace 对自身是无操作（TR-004：不物理自拷贝，路径仍回报供选中）；
+        // skip 跳过。剪切移动不会走到这里（同父目录已提前跳过）。
         return match conflict {
             NameConflict::KeepBoth => Ok(Some(DestPlan {
                 path: unique_dest_path(parent, file_name),
@@ -717,6 +718,13 @@ fn copy_paths_inner(
         let Some(plan) = place_dest(&dest, &name, &src, conflict)? else {
             continue;
         };
+        // TR-004: replace-self is by definition a no-op — report the path for
+        // the post-op selection (same contract as TR-008's same-parent move)
+        // but never physically copy an entry onto itself.
+        if plan.path == src {
+            created.push(display_path(&plan.path));
+            continue;
+        }
         // CF-007 / CF-008: pasting a folder onto an existing same-name folder merges.
         if plan.merge {
             let merged = merge_directory_into(&src, &plan.path, conflict, false, emitter, cancel)?;
@@ -2265,6 +2273,173 @@ mod tests {
         assert_eq!(moved.len(), 1, "long-path move must succeed");
         assert!(Path::new(&moved[0]).is_file());
         assert!(!Path::new(&renamed).exists());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // TR-004: pasting a file onto itself in the same dir with Replace is a
+    // no-op success — no copy is made (no staging bytes either) and the path is
+    // reported so the post-op selection keeps the entry (TR-008 contract).
+    #[test]
+    fn paste_onto_self_replace_is_noop_success() {
+        let dir = temp_workspace("tr004-selfpaste");
+        fs::write(dir.join("a.txt"), b"self").unwrap();
+        let created = copy_paths(
+            &[display_path(&dir.join("a.txt"))],
+            &display_path(&dir),
+            NameConflict::Replace,
+        )
+        .unwrap();
+        assert_eq!(
+            created,
+            vec![display_path(&dir.join("a.txt"))],
+            "self-replace paste must be a reported no-op (TR-004), got {created:?}"
+        );
+        assert_eq!(
+            fs::read(dir.join("a.txt")).unwrap(),
+            b"self",
+            "content must be untouched"
+        );
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 1, "no duplicate made");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // TR-006: copying a folder into itself is refused outright — the folder
+    // stays intact.
+    #[test]
+    fn copy_folder_into_itself_refused() {
+        let dir = temp_workspace("tr006-selfcopy");
+        let a = dir.join("A");
+        fs::create_dir_all(&a).unwrap();
+        fs::write(a.join("x.txt"), b"x").unwrap();
+        let err = copy_paths(
+            &[display_path(&a)],
+            &display_path(&a),
+            NameConflict::KeepBoth,
+        )
+        .expect_err("copying a folder into itself must fail");
+        assert!(
+            err.contains("Cannot copy a folder into itself"),
+            "TR-006 refusal text: {err}"
+        );
+        assert!(a.join("x.txt").is_file(), "A must stay intact");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // TR-107 (copy variant): dropping/copying a folder onto its own subtree is
+    // refused through the same descendant check as paste.
+    #[test]
+    fn copy_folder_into_descendant_refused() {
+        let dir = temp_workspace("tr107-desc-copy");
+        let a = dir.join("A");
+        let sub = a.join("sub");
+        fs::create_dir_all(&sub).unwrap();
+        fs::write(a.join("x.txt"), b"x").unwrap();
+        let err = copy_paths(
+            &[display_path(&a)],
+            &display_path(&sub),
+            NameConflict::KeepBoth,
+        )
+        .expect_err("copying a folder into its own subtree must fail");
+        assert!(
+            err.contains("Cannot copy a folder into itself"),
+            "TR-107 copy refusal text: {err}"
+        );
+        assert!(a.join("x.txt").is_file(), "A must stay intact");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // TR-007: moving a folder into its own descendant (A → A/sub) is refused.
+    // Also the backend refusal behind TR-107's move-drag-onto-own-subtree.
+    #[test]
+    fn move_folder_into_descendant_refused() {
+        let dir = temp_workspace("tr007-descendant");
+        let a = dir.join("A");
+        let sub = a.join("sub");
+        fs::create_dir_all(&sub).unwrap();
+        fs::write(a.join("x.txt"), b"x").unwrap();
+        let err = move_paths(
+            &[display_path(&a)],
+            &display_path(&sub),
+            NameConflict::KeepBoth,
+        )
+        .expect_err("moving a folder into its own subtree must fail");
+        assert!(
+            err.contains("Cannot move a folder into itself"),
+            "TR-007 refusal text: {err}"
+        );
+        assert!(a.join("x.txt").is_file(), "A must stay intact");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // TR-008: a cut file pasted into its own dir is a no-op success — the file
+    // stays where it is, no copy, no error. The path is still reported so the
+    // post-op selection keeps the entry selected.
+    #[test]
+    fn same_parent_move_is_noop_success() {
+        let dir = temp_workspace("tr008-samemove");
+        fs::write(dir.join("a.txt"), b"stay").unwrap();
+        let moved = move_paths(
+            &[display_path(&dir.join("a.txt"))],
+            &display_path(&dir),
+            NameConflict::KeepBoth,
+        )
+        .unwrap();
+        assert_eq!(
+            moved,
+            vec![display_path(&dir.join("a.txt"))],
+            "same-parent move must be a reported no-op (TR-008), got {moved:?}"
+        );
+        assert_eq!(fs::read(dir.join("a.txt")).unwrap(), b"stay");
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 1, "no duplicate made");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // TR-203 (已拍板 2026-11-22): copying a directory junction/symlink follows
+    // the link — the destination is a real folder holding the target's content
+    // (Explorer default). The "Copy as link" context entry (FE, mode "link" →
+    // file_ops_create_shortcuts) covers the advanced case instead.
+    #[cfg(windows)]
+    #[test]
+    fn copy_junction_follows_link_content() {
+        let dir = temp_workspace("tr203-junction");
+        let target = dir.join("target");
+        fs::create_dir_all(&target).unwrap();
+        fs::write(target.join("data.txt"), b"junction-content").unwrap();
+        let junction = dir.join("the-link");
+        // mklink /J (junction) needs no elevation, unlike mklink /D.
+        let status = std::process::Command::new("cmd")
+            .args(["/C", "mklink", "/J"])
+            .arg(&junction)
+            .arg(&target)
+            .output()
+            .expect("spawn cmd for mklink");
+        assert!(
+            status.status.success(),
+            "mklink /J failed: {}",
+            String::from_utf8_lossy(&status.stderr)
+        );
+        let dest = dir.join("dest");
+        fs::create_dir_all(&dest).unwrap();
+        let copied = copy_paths(
+            &[display_path(&junction)],
+            &display_path(&dest),
+            NameConflict::KeepBoth,
+        )
+        .unwrap();
+        assert_eq!(copied.len(), 1, "junction copy must produce one entry");
+        let copied_dir = Path::new(&copied[0]);
+        assert!(
+            copied_dir.join("data.txt").is_file(),
+            "copy must follow the junction (TR-203)"
+        );
+        assert_eq!(
+            fs::read(copied_dir.join("data.txt")).unwrap(),
+            b"junction-content"
+        );
+        assert!(
+            !is_reparse_point(copied_dir),
+            "destination must be a real directory, not another link"
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 

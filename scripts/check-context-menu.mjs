@@ -228,6 +228,32 @@ for (const id of ["copy", "cut", "paste", "rename", "copyPath"]) {
   );
 }
 
+// TR-203: "Copy as link" — advanced escape hatch next to follow-on-copy.
+// App-local link clipboard (never synced to CF_HDROP); paste creates shortcuts.
+assert.ok(model.includes('id: "copyAsLink"'), "TR-203: model must expose Copy as link");
+assert.ok(menu.includes('case "copyAsLink"'), "TR-203: menu must handle copyAsLink");
+assert.ok(
+  menu.includes('setClipboard(pathsForClipboard(entry), "link")'),
+  "TR-203: handler must set the app-local link clipboard",
+);
+const clip = readFileSync(join(root, "src/state/fileClipboard.ts"), "utf8");
+assert.ok(
+  clip.includes('"copy" | "cut" | "link"'),
+  "TR-203: ClipboardMode must include link",
+);
+assert.ok(
+  /mode === "link"[\s\S]{0,80}return/.test(clip) && clip.includes("file_ops_clipboard_set"),
+  "TR-203: link mode must skip the system clipboard sync (CF_HDROP has no link semantics)",
+);
+assert.ok(
+  /clipboardMode\.value !== "link"[\s\S]{0,120}refreshClipboardFromSystem/.test(clip),
+  "TR-203: paste must not refresh (and thus clobber) the link clipboard from the system",
+);
+assert.equal(en.contextMenu.copyAsLink, "Copy as link");
+assert.equal(zh.contextMenu.copyAsLink, "复制为链接");
+assert.ok(en.contextMenu.copyAsLinkDone.length > 0, "TR-203: en done notice");
+assert.ok(zh.contextMenu.copyAsLinkDone.length > 0, "TR-203: zh done notice");
+
 const modelCheck = spawnSync(
   process.execPath,
   ["--experimental-strip-types", join(root, "scripts/context-menu-model-checks.ts")],

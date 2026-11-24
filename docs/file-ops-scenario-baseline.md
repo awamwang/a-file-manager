@@ -133,11 +133,11 @@ same-parent cut as no-op (`mod.rs:392`); `total_transfer_bytes` walks with `foll
 | TR-001 | file a.txt, empty other dir same volume | copy → dest | a.txt appears in dest, source intact | — | `✅ code+test` | CARGO `copy_rename_mkdir_roundtrip`; `check-file-ops.mjs` |
 | TR-002 | file a.txt, same dir | paste (keep-both) | `a - Copy.txt`, original kept | DC/Total: same suffix convention | `✅ code+test` | CARGO `same_dir_paste_keep_creates_copy` (`mod.rs:754`) |
 | TR-003 | dir sub, same dir | paste (keep-both) | `sub - Copy` with contents | — | `✅ code+test` | CARGO `same_dir_paste_keep_creates_copy` |
-| TR-004 | file a.txt, same dir | paste (replace) | **no-op success**, no copy made | Explorer: replace self = no-op | `✅ code` (`place_dest` exact==source, `mod.rs:232`) | needs its own CARGO row (see gaps) |
+| TR-004 | file a.txt, same dir | paste (replace) | **no-op success**, no copy made | Explorer: replace self = no-op | `✅ code+test` — replace 自身跳过物理拷贝、路径仍回报供选中（TR-008 同契约） | CARGO `paste_onto_self_replace_is_noop_success` |
 | TR-005 | file a.txt, same dir | paste (skip) | nothing created | — | `✅ code+test` | CARGO `same_dir_paste_keep_creates_copy` (skip branch) |
-| TR-006 | dir A | copy A **into** A | error "Cannot copy a folder into itself", A intact | all managers refuse | `✅ code` (`mod.rs:294`) | needs negative CARGO (gaps) |
-| TR-007 | dir A, A/sub exists | move A → A/sub (descendant) | refused as into-itself | — | `✅ code` (`is_descendant_or_same`) | needs negative CARGO (gaps) |
-| TR-008 | cut file, same parent as target | move to same dir | **no-op success** (no copy, source stays) | Explorer: same; DC: no-op | `✅ code` (`mod.rs:392`) | CARGO implied, needs explicit row |
+| TR-006 | dir A | copy A **into** A | error "Cannot copy a folder into itself", A intact | all managers refuse | `✅ code+test` | CARGO `copy_folder_into_itself_refused` |
+| TR-007 | dir A, A/sub exists | move A → A/sub (descendant) | refused as into-itself | — | `✅ code+test` | CARGO `move_folder_into_descendant_refused` |
+| TR-008 | cut file, same parent as target | move to same dir | **no-op success** (no copy, source stays) | Explorer: same; DC: no-op | `✅ code+test` — 无操作但回报路径供粘贴后选中 | CARGO `same_parent_move_is_noop_success` |
 | TR-009 | file on C: → folder on D: | cross-volume copy | full copy; byte progress shown; source stays | — | `✅ code` (tracked `copy_paths`) | `check-file-ops.mjs`; no cross-volume fixture |
 | TR-010 | file on C: → folder on D: | cross-volume **move** | copy to D:, verify, then delete on C:; on any failure source preserved | safe_io staging property | `✅ code` (`safe_io::safe_move_entry`) | CARGO `move_within_temp` (same-vol only) |
 | TR-011 | folder tree → other volume | move, mid-transfer power loss/cancel | destination may hold **partial** tree, but **source must NOT be lost** | this is the consensus safety invariant | `✅ code` (staging+verify) | gaps: no crash-mid test |
@@ -162,7 +162,7 @@ Cross-tab / cross-window drop surface wiring is guarded by `check-cross-tab-drop
 | TR-104 | cross volume | drag + **Shift** | force **move** | — | `✅ code+test` | FE `drop-mode-checks.ts` |
 | TR-105 | any | drag + **Alt** | create **shortcut** | Explorer: yes; DC: `.lnk` | `✅ code+test` — Alt=link 且优先于 Ctrl/Shift（`mode:"link"`→`file_ops_create_shortcuts`） | FE `drop-mode-checks.ts`（Alt=link、Alt+Ctrl=link）；`check-file-drag-inout.mjs` |
 | TR-106 | drag file out to Explorer | OLE drop | Explorer copies (default cross-process) | — | `🟡 code` (`file_ops` OLE copy) | `check-cross-app-dnd.mjs` |
-| TR-107 | drag folder onto itself via mouse | drop on own subtree | refused, like TR-006 | — | `🟡 code 2026-11-24` — 拖放与粘贴共用 `transferEntries`→后端 `is_descendant_or_same` 拒绝链；显式负向 CARGO 行仍缺（见 Part 5） | 后端拒绝链同 TR-006 |
+| TR-107 | drag folder onto itself via mouse | drop on own subtree | refused, like TR-006 | — | `✅ code+test 2026-11-24` — 拖放与粘贴共用拒绝链；copy/move 两向均有显式负向 CARGO | CARGO `copy_folder_into_descendant_refused` / `move_folder_into_descendant_refused` |
 
 **Reparse points** (D2) — copy/move semantics are a common bug source:
 
@@ -170,7 +170,7 @@ Cross-tab / cross-window drop surface wiring is guarded by `check-cross-tab-drop
 | --- | --- | --- | --- | --- | --- |
 | TR-201 | broken junction | **delete permanent** | unlink the junction only; target contents (if any) untouched | DC: may recurse (footgun) | `✅ code+test` (`mod.rs:895`) |
 | TR-202 | junction → real dir | delete permanent | remove link only, target remains | — | `✅ code+test` (`mod.rs:856`) |
-| TR-203 | dir symlink / junction | copy to other dir | 跟随链接，复制实际内容（对齐 Explorer 默认）；右键另设「复制为链接」入口给高级场景 | DC/Linux 默认复制链接本身 | `🔵 decided` — follow on copy; provide "Copy as link" context-menu alt | **decided 2026-11-22** |
+| TR-203 | dir symlink / junction | copy to other dir | 跟随链接，复制实际内容（对齐 Explorer 默认）；右键另设「复制为链接」入口给高级场景 | DC/Linux 默认复制链接本身 | `✅ code+test 2026-11-24` — copy 走 `copy_entry_with_progress` 跟随 junction（CARGO `copy_junction_follows_link_content`，mklink /J 实测）；「复制为链接」右键入口 → 应用内 link 剪贴板（不写 CF_HDROP）→ `transferEntries mode:"link"` 创建 .lnk | CARGO `copy_junction_follows_link_content`；`check-context-menu.mjs`（TR-203 段） |
 | TR-204 | deep tree with internal symlink cycle | copy | must not infinitely recurse (`follow_links(false)` in byte-count; copy path must match) | — | `✅ code` (`mod.rs:338`) verify copy path (gaps) |
 
 ### Group 4 · Name & structure (NM)
@@ -382,9 +382,10 @@ of *scenario* truth.
 
 | ledger row (behavior) | case id(s) | proposed layer | status |
 | --- | --- | --- | --- |
-| paste-onto-self replace = no-op | TR-004 | CARGO (add explicit row) | new |
-| folder-into-itself refused (copy) | TR-006, TR-007, TR-107 | CARGO negative | new |
-| same-parent cut no-op | TR-008 | CARGO | new |
+| paste-onto-self replace = no-op | TR-004 | CARGO (add explicit row) | done 2026-11-24 — CARGO `paste_onto_self_replace_is_noop_success`（无物理自拷贝、路径回报供选中，TR-008 同契约） |
+| folder-into-itself refused (copy) | TR-006, TR-007, TR-107 | CARGO negative | done 2026-11-24 — CARGO `copy_folder_into_itself_refused` / `copy_folder_into_descendant_refused` / `move_folder_into_descendant_refused` |
+| same-parent cut no-op | TR-008 | CARGO | done 2026-11-24 — CARGO `same_parent_move_is_noop_success`（无操作但回报路径供选中） |
+| reparse point copy follows link + "Copy as link" | TR-203, TR-204 | CARGO + FE gate | done 2026-11-24 — CARGO `copy_junction_follows_link_content`（mklink /J 实测跟随复制内容、目标非重解析点）；FE `check-context-menu.mjs` TR-203 段（copyAsLink 菜单项 + link 剪贴板不写 CF_HDROP + paste 不刷新覆盖）；TR-204 循环防护仍由 `follow_links(false)` 字节计数承担 |
 | cross-volume move source-safety (staging) | TR-010, TR-011, LC-005 | CARGO (needs 2-volume fixture / skip on CI) | LC-005 cancel/rollback **guarded 2026-11-24** — CARGO `cancelled_copy_short_circuits_before_work` / `rollback_removes_created_copy` / `rollback_moves_back_a_plain_move`；TR-010/011 真双卷夹具仍 open — fixture cost |
 | same-name-different-type conflict | TR-013, CF-006 | FE + CARGO | done — CARGO `name_conflict_info_detects_type_mismatch`；FE `check-file-ops.mjs`（`file_ops_name_conflict_info` parity）+ `name-conflict-checks.ts`（mismatch flag）→ ledger 行已存在 |
 | case-only collision keep-both | CF-005 | FE + CARGO | done — CARGO `unique_dest_treats_case_only_difference_as_collision` + `rename_case_only_*`（Windows 折叠 / Unix inode 身份）→ ledger 行已存在 |

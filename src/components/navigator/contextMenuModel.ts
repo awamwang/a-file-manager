@@ -282,6 +282,15 @@ export function buildContextMenuItems(
       icon: "folderOpen",
     },
     {
+      // TR-203（已拍板 2026-11-22）：复制符号链接/junction 时默认跟随链接复制
+      // 内容；高级场景经此入口改为「复制为链接」（应用内 link 剪贴板 → 粘贴
+      // 时创建 .lnk 快捷方式，transferEntries mode:"link"）。
+      id: "copyAsLink",
+      labelKey: "contextMenu.copyAsLink",
+      enabled: true,
+      icon: "link",
+    },
+    {
       id: "properties",
       labelKey: "contextMenu.properties",
       enabled: true,
