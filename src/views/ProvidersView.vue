@@ -28,6 +28,14 @@ import {
 import { navigateTo } from "../state/navigatorBrowse";
 import { openProviderEntry, PROVIDER_ROOT } from "../state/provider";
 import { hydrateSettings } from "../state/settingsHydrate";
+import {
+  findConfigRowByPack,
+  loadConfigValues,
+  loadManagedModes,
+  saveConfig,
+  type ConfigRow,
+} from "../state/extensionConfig";
+import { toastSuccess } from "../state/toast";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -61,6 +69,52 @@ const uri = ref(PROVIDER_ROOT);
 const listing = ref<DirListing | null>(providerRootListing.value);
 const loading = ref(false);
 const error = ref<string | null>(null);
+
+/**
+ * Prowlarr API Key 内联编辑（状态卡片内直接改）：声明来自 file-gateway pack 的
+ * config[]（单个真相源），保存后按托管模式重启网关使注入值生效。
+ */
+const prowlarrRow = ref<ConfigRow | null>(null);
+const prowlarrKeyDraft = ref("");
+const prowlarrKeyOriginal = ref("");
+const prowlarrKeyVisible = ref(false);
+const prowlarrSaving = ref(false);
+
+async function loadProwlarrConfig() {
+  const row = findConfigRowByPack("awam.file-gateway", "prowlarr-api-key");
+  prowlarrRow.value = row;
+  if (!row) return;
+  const values = await loadConfigValues([row]);
+  const current = String(values[row.settingKey] ?? "");
+  prowlarrKeyDraft.value = current;
+  prowlarrKeyOriginal.value = current;
+}
+
+async function saveProwlarrKey() {
+  const row = prowlarrRow.value;
+  if (!row) return;
+  prowlarrSaving.value = true;
+  error.value = null;
+  try {
+    const restarted = await saveConfig(
+      [row],
+      { [row.settingKey]: prowlarrKeyDraft.value },
+      { [row.settingKey]: prowlarrKeyOriginal.value },
+      await loadManagedModes(),
+    );
+    prowlarrKeyOriginal.value = prowlarrKeyDraft.value;
+    toastSuccess(
+      restarted.length
+        ? t("settings.extensions.savedRestarted", { packs: restarted.join(", ") })
+        : t("providers.configSaved"),
+    );
+    await refreshStatus();
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    prowlarrSaving.value = false;
+  }
+}
 
 watch(providerRootListing, (next) => {
   if (uri.value === PROVIDER_ROOT || !uri.value.trim()) {
@@ -176,6 +230,7 @@ async function refreshStatus() {
 onMounted(() => {
   // AIA-181: if idle preload has not finished (or was deferred), warm on first visit.
   void preloadProviderCache();
+  void loadProwlarrConfig();
   void loadGatewayUrlFromSettings()
     .then(() => ensureProviderSession())
     .then(() => {
@@ -256,45 +311,119 @@ onUnmounted(() => {
       {{ t("providers.emptyBackends") }}
     </p>
     <div v-else class="backends" data-tour-id="tour-providers-backends">
-      <button
-        v-for="backend in backends"
-        :key="backend.id"
-        type="button"
-        class="backend"
-        :class="{
-          'fluent-accent-edge--ok': !backend.interfaceOnly && backend.healthy,
-          'fluent-accent-edge--down': !backend.interfaceOnly && !backend.healthy,
-          'fluent-accent-edge--stub': backend.interfaceOnly,
-        }"
-        @click="openInExplorer(`awam://${backend.id}`)"
-      >
-        <strong>{{ backend.name }}</strong>
-        <span class="backend-chips">
-          <span
-            class="fluent-chip fluent-chip--status"
-            :class="{
-              'fluent-chip--stub': backend.interfaceOnly,
-              'fluent-chip--ok': !backend.interfaceOnly && backend.healthy,
-              'fluent-chip--down': !backend.interfaceOnly && !backend.healthy,
-            }"
-          >{{
-            backend.interfaceOnly
-              ? t("providers.interfaceOnly")
-              : backend.healthy
-                ? t("providers.statusOk")
-                : t("providers.statusDown")
-          }}</span>
-          <span
-            v-if="backend.source === 'gateway'"
-            class="fluent-chip fluent-chip--sm"
-          >{{ t("providers.sourceGateway") }}</span>
-          <span
-            v-else-if="backend.source === 'builtin'"
-            class="fluent-chip fluent-chip--sm"
-          >{{ t("providers.sourceBuiltin") }}</span>
-        </span>
-        <span class="detail">{{ backend.detail || backend.description }}</span>
-      </button>
+      <template v-for="backend in backends" :key="backend.id">
+        <!-- Prowlarr：状态卡片内可直接改 API Key（声明来自 file-gateway pack）。 -->
+        <div
+          v-if="backend.id === 'prowlarr' && prowlarrRow"
+          class="backend backend--panel"
+          :class="{
+            'fluent-accent-edge--ok': !backend.interfaceOnly && backend.healthy,
+            'fluent-accent-edge--down': !backend.interfaceOnly && !backend.healthy,
+            'fluent-accent-edge--stub': backend.interfaceOnly,
+          }"
+        >
+          <button
+            type="button"
+            class="backend-open"
+            @click="openInExplorer(`awam://${backend.id}`)"
+          >
+            <strong>{{ backend.name }}</strong>
+            <span class="backend-chips">
+              <span
+                class="fluent-chip fluent-chip--status"
+                :class="{
+                  'fluent-chip--stub': backend.interfaceOnly,
+                  'fluent-chip--ok': !backend.interfaceOnly && backend.healthy,
+                  'fluent-chip--down': !backend.interfaceOnly && !backend.healthy,
+                }"
+              >{{
+                backend.interfaceOnly
+                  ? t("providers.interfaceOnly")
+                  : backend.healthy
+                    ? t("providers.statusOk")
+                    : t("providers.statusDown")
+              }}</span>
+              <span v-if="backend.source === 'gateway'" class="fluent-chip fluent-chip--sm">{{
+                t("providers.sourceGateway")
+              }}</span>
+              <span v-else-if="backend.source === 'builtin'" class="fluent-chip fluent-chip--sm">{{
+                t("providers.sourceBuiltin")
+              }}</span>
+            </span>
+            <span class="detail">{{ backend.detail || backend.description }}</span>
+          </button>
+          <div class="backend-config">
+            <label class="backend-config-label" for="prowlarr-api-key">{{
+              t("providers.prowlarrKeyLabel")
+            }}</label>
+            <div class="backend-config-row">
+              <input
+                id="prowlarr-api-key"
+                v-model="prowlarrKeyDraft"
+                class="fluent-control backend-config-input"
+                :type="prowlarrKeyVisible ? 'text' : 'password'"
+                spellcheck="false"
+                autocomplete="off"
+              />
+              <button
+                class="fluent-control backend-config-reveal"
+                type="button"
+                @click="prowlarrKeyVisible = !prowlarrKeyVisible"
+              >
+                {{ prowlarrKeyVisible ? "•" : "•••" }}
+              </button>
+              <button
+                class="fluent-control fluent-control--accent"
+                type="button"
+                :disabled="prowlarrSaving"
+                @click="saveProwlarrKey"
+              >
+                {{ prowlarrSaving ? t("settings.extensions.saving") : t("settings.extensions.save") }}
+              </button>
+            </div>
+            <p class="backend-config-hint">{{ t("providers.prowlarrKeyHint") }}</p>
+          </div>
+        </div>
+
+        <button
+          v-else
+          type="button"
+          class="backend"
+          :class="{
+            'fluent-accent-edge--ok': !backend.interfaceOnly && backend.healthy,
+            'fluent-accent-edge--down': !backend.interfaceOnly && !backend.healthy,
+            'fluent-accent-edge--stub': backend.interfaceOnly,
+          }"
+          @click="openInExplorer(`awam://${backend.id}`)"
+        >
+          <strong>{{ backend.name }}</strong>
+          <span class="backend-chips">
+            <span
+              class="fluent-chip fluent-chip--status"
+              :class="{
+                'fluent-chip--stub': backend.interfaceOnly,
+                'fluent-chip--ok': !backend.interfaceOnly && backend.healthy,
+                'fluent-chip--down': !backend.interfaceOnly && !backend.healthy,
+              }"
+            >{{
+              backend.interfaceOnly
+                ? t("providers.interfaceOnly")
+                : backend.healthy
+                  ? t("providers.statusOk")
+                  : t("providers.statusDown")
+            }}</span>
+            <span
+              v-if="backend.source === 'gateway'"
+              class="fluent-chip fluent-chip--sm"
+            >{{ t("providers.sourceGateway") }}</span>
+            <span
+              v-else-if="backend.source === 'builtin'"
+              class="fluent-chip fluent-chip--sm"
+            >{{ t("providers.sourceBuiltin") }}</span>
+          </span>
+          <span class="detail">{{ backend.detail || backend.description }}</span>
+        </button>
+      </template>
     </div>
 
     <form class="uri-row" @submit.prevent="listUri()">
@@ -378,6 +507,68 @@ onUnmounted(() => {
 
 .backend:hover {
   background: var(--fluent-color-fill-control-hover);
+}
+
+/* 可内联配置的卡片：整体不是按钮，只有上半区可点开。 */
+.backend--panel {
+  cursor: default;
+  gap: var(--fluent-space-sm);
+}
+
+.backend--panel:hover {
+  background: var(--fluent-color-fill-control);
+}
+
+.backend-open {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--fluent-space-xs);
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.backend-config {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-2xs, 0.25rem);
+  width: 100%;
+  padding-top: var(--fluent-space-sm);
+  border-top: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+}
+
+.backend-config-label {
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+}
+
+.backend-config-row {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-2xs, 0.25rem);
+  width: 100%;
+}
+
+.backend-config-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.backend-config-reveal {
+  flex: 0 0 auto;
+  min-width: 2.5rem;
+}
+
+.backend-config-hint {
+  margin: 0;
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
 }
 
 .backend > strong {

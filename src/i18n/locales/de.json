@@ -10,7 +10,8 @@
       "recycle_unavailable": "Der Papierkorb ist nicht verfügbar.",
       "io_failed": "Der Vorgang ist fehlgeschlagen."
     },
-    "skippedMissing": "{count} Elemente übersprungen — die Quelle ist nicht mehr vorhanden."
+    "skippedMissing": "{count} Elemente übersprungen — die Quelle ist nicht mehr vorhanden.",
+    "undoContaminated": "Das Element wurde von einem anderen Programm geändert — Rückgängigmachen verweigert."
   },
   "concepts": {
     "workGroups": "Ordner zu einer Sache an einem Ort bündeln",

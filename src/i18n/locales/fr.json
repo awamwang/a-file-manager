@@ -10,7 +10,8 @@
       "recycle_unavailable": "La corbeille est indisponible.",
       "io_failed": "Échec de l'opération."
     },
-    "skippedMissing": "{count} éléments ignorés — la source n'existe plus."
+    "skippedMissing": "{count} éléments ignorés — la source n'existe plus.",
+    "undoContaminated": "L'élément a été modifié par un autre programme — annulation refusée."
   },
   "concepts": {
     "workGroups": "Rassemble les dossiers liés à une même chose",

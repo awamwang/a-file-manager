@@ -10,7 +10,8 @@
       "recycle_unavailable": "ごみ箱を利用できません。",
       "io_failed": "操作に失敗しました。"
     },
-    "skippedMissing": "{count} 件をスキップしました（ソースが存在しません）"
+    "skippedMissing": "{count} 件をスキップしました（ソースが存在しません）",
+    "undoContaminated": "項目が他のプログラムで変更されたため、元に戻せません。"
   },
   "concepts": {
     "workGroups": "同じことに関係するフォルダーをまとめる",

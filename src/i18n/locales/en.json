@@ -10,7 +10,8 @@
       "recycle_unavailable": "The Recycle Bin is unavailable.",
       "io_failed": "The operation failed."
     },
-    "skippedMissing": "Skipped {count} items — the source no longer exists."
+    "skippedMissing": "Skipped {count} items — the source no longer exists.",
+    "undoContaminated": "The item was modified by another program — undo refused."
   },
   "concepts": {
     "workGroups": "Gathers the folders related to one thing",

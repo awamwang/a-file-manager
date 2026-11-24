@@ -11,6 +11,8 @@ import { useI18n } from "vue-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import FluentIcon from "../../components/icons/FluentIcon.vue";
+import PackConfigForm from "../../components/extensions/PackConfigForm.vue";
+import { configRowsFor } from "../../state/extensionConfig";
 import { toastSuccess } from "../../state/toast";
 
 /** 后端托管服务健康收敛事件名（与 managed_dependency::commands::MANAGED_HEALTH_EVENT 一致）。 */
@@ -44,6 +46,8 @@ const status = ref<KnowledgeStatus | null>(null);
 const managed = ref(false);
 const busy = ref(false);
 const error = ref<string | null>(null);
+/** 本 pack 是否声明了配置项（没有则不渲染配置区块）。 */
+const hasConfig = computed(() => configRowsFor(KNOWLEDGE_PACK_ID).length > 0);
 
 const statusText = computed(() => {
   if (!status.value) return "";
@@ -200,6 +204,14 @@ onUnmounted(() => {
       </div>
 
       <p v-if="error" class="error-text">{{ error }}</p>
+    </div>
+
+    <div v-if="hasConfig" class="fluent-surface card">
+      <h2 class="section-title">
+        <span class="fluent-icon-wash"><FluentIcon name="settings" size="md" /></span>
+        <span class="section-title-text">{{ t("knowledgePage.configHeading") }}</span>
+      </h2>
+      <PackConfigForm pack-id="awam.knowledge" @saved="refreshStatus" />
     </div>
   </section>
 </template>

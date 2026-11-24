@@ -12,6 +12,8 @@ const TOOL_RUNTIME_PACK_ID = "awam.tool-runtime";
 
 defineProps<{ embedded?: boolean }>();
 import FluentIcon from "../../components/icons/FluentIcon.vue";
+import PackConfigForm from "../../components/extensions/PackConfigForm.vue";
+import { configRowsFor } from "../../state/extensionConfig";
 import { openConfirmDialog } from "../../state/confirmDialog";
 import { selectedPaths } from "../../state/navigatorSelection";
 import { toastSuccess } from "../../state/toast";
@@ -47,6 +49,8 @@ const router = useRouter();
 const DEFAULT_BASE_URL = "http://127.0.0.1:18778";
 
 const status = ref<GatewayStatus | null>(null);
+/** 本 pack 是否声明了配置项（没有则不渲染配置区块）。 */
+const hasPackConfig = computed(() => configRowsFor(TOOL_RUNTIME_PACK_ID).length > 0);
 const tools = ref<RuntimeTool[]>([]);
 const capabilities = ref<RuntimeCapability[]>([]);
 const selectedToolId = ref<string | null>(null);
@@ -484,6 +488,14 @@ function riskChipClass(risk: string): string {
       <p v-if="urlLocked" class="fluent-page-meta gateway-url-managed-hint">
         {{ t("toolRuntime.gatewayUrlManagedHint") }}
       </p>
+    </div>
+
+    <div v-if="hasPackConfig" class="fluent-surface card">
+      <h2 class="section-title">
+        <span class="fluent-icon-wash"><FluentIcon name="settings" size="md" /></span>
+        <span class="section-title-text">{{ t("toolRuntime.configHeading") }}</span>
+      </h2>
+      <PackConfigForm pack-id="awam.tool-runtime" @saved="refreshStatus({ loadToolsIfReachable: true })" />
     </div>
 
     <p v-if="error" class="fluent-banner fluent-banner--error error-banner">{{ error }}</p>

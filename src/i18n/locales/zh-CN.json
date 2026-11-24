@@ -10,7 +10,8 @@
       "recycle_unavailable": "回收站不可用。",
       "io_failed": "操作失败。"
     },
-    "skippedMissing": "已跳过 {count} 项（源已不存在）"
+    "skippedMissing": "已跳过 {count} 项（源已不存在）",
+    "undoContaminated": "项目已被外部修改，无法撤销"
   },
   "concepts": {
     "workGroups": "把同一件事相关的文件夹聚在一起",

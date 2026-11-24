@@ -10,7 +10,8 @@
       "recycle_unavailable": "資源回收筒不可用。",
       "io_failed": "操作失敗。"
     },
-    "skippedMissing": "已跳過 {count} 項（來源已不存在）"
+    "skippedMissing": "已跳過 {count} 項（來源已不存在）",
+    "undoContaminated": "項目已被外部修改，無法復原"
   },
   "concepts": {
     "workGroups": "把同一件事相關的資料夾聚在一起",
