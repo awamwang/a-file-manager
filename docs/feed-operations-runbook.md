@@ -138,15 +138,18 @@ python scripts/build_pack_feed.py pack-dir --pack-id awam.tool-runtime \
    - `manifestUrl` → `https://<AFM 线上域>/.../manifest.json`
    - `allowHosts` → 加上线上域（manifest 与 asset/install 同域即可，多域则都列）
 3. AFM 无需改代码：feed 拉取/下载/SHA 校验/落盘/spawn/升级全走既有接缝。
-4. **CI 已接（P2-5 → 三平台）**：打 tag 时 `release.yml` 依次跑两段 job：
-   - `build-pack-feed`（matrix，`windows-latest` / `macos-latest`(arm64) / `macos-15-intel`(x64)）：`checkout` 带 `submodules: recursive` → 按各仓 lockfile 从 `upstream/awam-*` 源码产 onefile → 每平台各写一份**局部** manifest（`--platform <key>`，`--url-layout flat`），整目录作为 Actions artifact `afm-feed-<platform>` 交接。pack zip 平台无关，只在 Windows slice 打一次。
+4. **CI 已接（P2-5 → 三平台；2026-11-24 改为发布阻塞项）**：打 tag 时 `release.yml` 跑三段 job：
+   - `build-pack-feed`（matrix：`windows-latest` / `macos-latest`(arm64)）：`checkout` 带 `submodules: recursive` → 按各仓 lockfile 从 `upstream/awam-*` 源码产 onefile → 每平台各写一份**局部** manifest（`--platform <key>`，`--url-layout flat`），整目录作为 Actions artifact `afm-feed-<platform>` 交接。pack zip 平台无关，只在 Windows slice 打一次。
+   - `build-pack-feed-intel`（`macos-15-intel`，GitHub 托管公开 runner，非自建）：与前者同构，仅 `name_suffix="-x64"` 与 venv 解释器路径不同。默认启用，不再需要 dispatch 勾选。
    - `merge-pack-feed`（ubuntu）：下载全部 slice → `build_pack_feed.py merge-feed` 合成**唯一** `manifest.json`（entries 按 `(packId, platform)` 合并；同名产物摘要不同直接报错）→ 统一上传 Release（主源）→ 配了 `OSS_*` secrets 再镜像对象存储（回落源），未配跳过。
 
-   Mac x64 的 `--name` 必须带 `-x64` 后缀：`awam-tool-manager-x64` / `awam-resource-gateway-x64`，否则与 Apple Silicon 的无扩展名同名产物在扁平 Release 资产里互相覆盖。`finalize` 同时检查 build 与 merge 两段结果（build 失败时 merge 会被跳过，单看 merge 会误判成功发布缺产物的 release）。客户端按宿主精确选条目，不必按 OS 拆 manifestUrl。整链以一次真实 release 运行为准。
+   Mac x64 的 `--name` 必须带 `-x64` 后缀：`awam-tool-manager-x64` / `awam-resource-gateway-x64`，否则与 Apple Silicon 的无扩展名同名产物在扁平 Release 资产里互相覆盖。三平台任一构建失败即跳过 merge、`finalize` 保留 draft——**不再**用 `continue-on-error` / `always()` 容错发布缺平台的 manifest（那会让 Mac 装到只有清单、起不了后端的空壳 pack）。`finalize` 同时检查 build / intel / merge 三段结果。客户端按宿主精确选条目，不必按 OS 拆 manifestUrl。整链以一次真实 release 运行为准。
+
+   **2026-11-24 可行性实测**：在 Intel Mac（macOS 15.8.3 / x86_64 / Python 3.12）用 `release.yml` 同款 lockfile + PyInstaller 命令，三个后端全部冻成 x86_64 Mach-O onefile（约 27 MB/个），`codesign -dv` 均为 `Signature=adhoc`，manifest 写入三条 `platform: macos-x86_64`。此前 CI 注释声称的"pywin32 无 marker 阻断 Mac"已不成立——锁文件现为 `pywin32==312 ; sys_platform == 'win32'`，macOS 解析正确跳过。门禁 `npm run test:mac-pack-release` 钉住三平台矩阵与"失败即阻断"。
 
 ## 3.1 源码来源（submodule）
 
-AFM 通过 `upstream/` 下的 git submodule 锁定三个后端源码（`awam-file`@`056e020`、`awam-tool-manager`@`5537eb5`、`awam-knowledge`@`381b83c`，均 `github.com/awamwang/*`）。
+AFM 通过 `upstream/` 下的 git submodule 锁定三个后端源码（`awam-file`@`056e020`、`awam-tool-manager`@`adcc1e2`、`awam-knowledge`@`91a6bcc`，均 `github.com/awamwang/*`）。
 
 - 克隆 AFM 后初始化：`git submodule update --init --recursive`。
 - in-tree 构建直接用锁定源码，CI 与本地一致：`build_pack_feed.py build --src upstream/awam-tool-manager --entry src/server.py …`。

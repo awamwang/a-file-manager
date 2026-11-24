@@ -103,6 +103,7 @@ Rule reminders: no e2e; `#[ignore]` ≠ coverage; FE↔BE command-name parity is
 | real-HTTP feed download roundtrip | — (ignored by design) | `provision.rs` `#[ignore]` | needs local listener; not in baseline |
 | provider download/extract, ext_host install_from_feed (network) | STATIC | `check-provider-download.mjs`, `check-feature-pack-shell.mjs` | real network intentionally not made mandatory |
 | provider error classification | STATIC · FE | `check-provider-error-hint.mjs` → `provider-error-message-checks.ts` | order-sensitive |
+| three Feature Packs ship native macOS sidecars (ADR 0022) | STATIC | `check-mac-pack-release.mjs` | 2026-11-24: 三平台矩阵（Windows / macos-aarch64 / macos-x86_64）各建三个 pack；任一失败阻断 merge 并保留 draft（禁 `continue-on-error` / `always()`）；产物 ad-hoc 签名、按 `(packId, platform)` 入 feed。本机 x86_64 实测三产物均为 Mach-O + adhoc，manifest 三条 `macos-x86_64` |
 
 ## Navigation / shell places
 
