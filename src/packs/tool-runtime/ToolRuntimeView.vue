@@ -1,8 +1,14 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+
+/** 后端托管服务健康收敛事件名（与 managed_dependency::commands::MANAGED_HEALTH_EVENT 一致）。 */
+const MANAGED_HEALTH_EVENT = "managed-dependency:health-changed";
+/** 本页对应的托管记录 id（= pack id）。 */
+const TOOL_RUNTIME_PACK_ID = "awam.tool-runtime";
 
 defineProps<{ embedded?: boolean }>();
 import FluentIcon from "../../components/icons/FluentIcon.vue";
@@ -88,12 +94,27 @@ const capabilityDetail = computed(() => {
   return (capability.description || capability.capabilityId).trim();
 });
 
+let unlistenManagedHealth: UnlistenFn | null = null;
+
 onMounted(() => {
+  // 工具网关启动收敛（启动中→就绪）后自动刷新状态并加载工具列表，静默完成连接。
+  void listen<string>(MANAGED_HEALTH_EVENT, (event) => {
+    if (event.payload === TOOL_RUNTIME_PACK_ID) {
+      void refreshStatus({ loadToolsIfReachable: true });
+    }
+  }).then((fn) => {
+    unlistenManagedHealth = fn;
+  });
   void (async () => {
     await loadConfig();
     await refreshStatus({ loadToolsIfReachable: true });
     await applyRoutePreselect();
   })();
+});
+
+onUnmounted(() => {
+  unlistenManagedHealth?.();
+  unlistenManagedHealth = null;
 });
 
 function routeQueryText(key: string): string {

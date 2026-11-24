@@ -1,8 +1,12 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script setup lang="ts">
-import { onMounted, ref, watch } from "vue";
+import { onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+
+/** 后端托管服务健康收敛事件名（与 managed_dependency::commands::MANAGED_HEALTH_EVENT 一致）。 */
+const MANAGED_HEALTH_EVENT = "managed-dependency:health-changed";
 
 defineProps<{ embedded?: boolean }>();
 import { invoke } from "@tauri-apps/api/core";
@@ -186,6 +190,21 @@ onMounted(() => {
     .catch((err) => {
       error.value = err instanceof Error ? err.message : String(err);
     });
+  // 托管网关启动收敛（启动中→就绪）后自动重探，避免启动早期缓存的「网关不可用」停留到需手动刷新。
+  void listen<string>(MANAGED_HEALTH_EVENT, (event) => {
+    if (event.payload === "awam.file-gateway") {
+      void refreshStatus();
+    }
+  }).then((fn) => {
+    unlistenManagedHealth = fn;
+  });
+});
+
+let unlistenManagedHealth: UnlistenFn | null = null;
+
+onUnmounted(() => {
+  unlistenManagedHealth?.();
+  unlistenManagedHealth = null;
 });
 </script>
 

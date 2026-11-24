@@ -21,6 +21,8 @@ const MANAGED_PORT_SPAN: u16 = 32;
 const HEALTH_STARTUP_WINDOW: Duration = Duration::from_secs(30);
 /// 预热窗口内的探活轮询间隔。
 const HEALTH_POLL_INTERVAL: Duration = Duration::from_millis(1500);
+/// 启动时产物暂不可得（feed 不可达且盘上无产物）→ 延迟一拍静默重试 ensure 的等待时长。
+const RETRY_ENSURE_DELAY: Duration = Duration::from_secs(20);
 /// 托管服务健康收敛事件（payload 为受影响记录 id）。前端 HealthView 监听后重拉依赖报告。
 pub const MANAGED_HEALTH_EVENT: &str = "managed-dependency:health-changed";
 /// awam-file 网关 pack id（managed 客户端同步用）。
@@ -298,8 +300,29 @@ fn finalize_health(app: &AppHandle, app_data: &Path, id: &str, next: HealthState
         }
         record.health = next;
         let _ = registry::save_record(app_data, &record);
+        // 网关就绪：失效 Providers 会话缓存，让 Providers 页下次进入重新探测（启动早期
+        // 缓存的「网关不可用」由此自动恢复，无需手动刷新）。
+        if next == HealthState::Healthy && record.pack_id == FILE_GATEWAY_PACK_ID {
+            crate::providers::invalidate_provider_session();
+        }
     }
     let _ = app.emit(MANAGED_HEALTH_EVENT, id.to_string());
+}
+
+/// 启动时产物暂不可得（feed 不可达且盘上无产物）→ 延迟一拍静默重试 ensure 一次：
+/// 启动早期 feed 往往尚未就绪，延后重试让「可恢复错误自动恢复、静默完成启动」成立。
+/// 仅重试一次（仍失败则保持现状，等待用户手动 ensure / 检查更新），避免无限循环刷网络。
+fn schedule_retry_ensure(app: AppHandle, app_data: PathBuf, id: String) {
+    tauri::async_runtime::spawn_blocking(move || {
+        std::thread::sleep(RETRY_ENSURE_DELAY);
+        let Ok(Some(record)) = registry::load_record(&app_data, &id) else {
+            return;
+        };
+        // 仅当仍未拉起且未健康时才重试；期间用户已手动 ensure/stop 的不做二次干预。
+        if record.spawned_pid.is_none() && record.health != HealthState::Healthy {
+            let _ = ensure_record_full(&app, &app_data, &id);
+        }
+    });
 }
 
 /// 自启服务后起一个有限时长的后台轮询：探活成功即写回 Healthy、超时写回 Unhealthy，两种收敛都
@@ -385,6 +408,50 @@ pub async fn managed_dependency_stop(
     .map_err(|err| format!("managed_dependency_stop worker failed: {err}"))?
 }
 
+/// ensure 的完整实现（命令与启动静默重试共用）：先探 config-mode，健康附着；否则按 pack
+/// sidecar 贡献 provision + 拉起。config-mode 不自动拉起（由工具页手动附着/连接）。
+fn ensure_record_full(
+    app: &AppHandle,
+    dir: &Path,
+    id: &str,
+) -> Result<ManagedDependencyRecord, String> {
+    let mut record = registry::load_record(dir, id)?
+        .ok_or_else(|| format!("managed_dependency ensure: unknown id '{id}'"))?;
+    // config-mode 不自动拉起（由工具页手动附着/连接）；仅托管记录走 provision+spawn。
+    if record.mode != DependencyMode::Managed {
+        return Ok(record);
+    }
+    let (pack_install_dir, contrib) = resolve_pack_sidecar(&record)?;
+    let Some(mut contrib) =
+        prepare_contrib_for_spawn(dir, &mut record, &pack_install_dir, contrib)?
+    else {
+        // 产物暂不可得（feed 不可达且盘上无产物）：不 spawn，落库后返回（下次启动/检查/手动再试）。
+        registry::save_record(dir, &record)?;
+        return Ok(record);
+    };
+    expand_contrib_env(&mut contrib, app);
+    apply_pack_config_env(&record, &mut contrib, app);
+    apply_managed_port(&mut record, &mut contrib);
+    ensure_record_with(
+        &mut record,
+        &pack_install_dir,
+        &contrib,
+        probe,
+        native_spawn,
+    )?;
+    registry::save_record(dir, &record)?;
+    sync_managed_client_url(&record);
+    if record.health == HealthState::Starting {
+        spawn_health_convergence(
+            app.clone(),
+            dir.to_path_buf(),
+            record.id.clone(),
+            record.base_url.clone(),
+        );
+    }
+    Ok(record)
+}
+
 /// 确保指定托管依赖可用：先探 config-mode，健康附着；否则按 pack sidecar 贡献拉起。
 #[tauri::command]
 pub async fn managed_dependency_ensure(
@@ -392,45 +459,9 @@ pub async fn managed_dependency_ensure(
     id: String,
 ) -> Result<ManagedDependencyRecord, String> {
     let dir = app_config_dir(&app)?;
-    tauri::async_runtime::spawn_blocking(move || {
-        let mut record = registry::load_record(&dir, &id)?
-            .ok_or_else(|| format!("managed_dependency ensure: unknown id '{id}'"))?;
-        // config-mode 不自动拉起（由工具页手动附着/连接）；仅托管记录走 provision+spawn。
-        if record.mode != DependencyMode::Managed {
-            return Ok(record);
-        }
-        let (pack_install_dir, contrib) = resolve_pack_sidecar(&record)?;
-        let Some(mut contrib) =
-            prepare_contrib_for_spawn(&dir, &mut record, &pack_install_dir, contrib)?
-        else {
-            // 产物暂不可得（feed 不可达且盘上无产物）：不 spawn，落库后返回（下次启动/检查/手动再试）。
-            registry::save_record(&dir, &record)?;
-            return Ok(record);
-        };
-        expand_contrib_env(&mut contrib, &app);
-        apply_pack_config_env(&record, &mut contrib, &app);
-        apply_managed_port(&mut record, &mut contrib);
-        ensure_record_with(
-            &mut record,
-            &pack_install_dir,
-            &contrib,
-            probe,
-            native_spawn,
-        )?;
-        registry::save_record(&dir, &record)?;
-        sync_managed_client_url(&record);
-        if record.health == HealthState::Starting {
-            spawn_health_convergence(
-                app.clone(),
-                dir.clone(),
-                record.id.clone(),
-                record.base_url.clone(),
-            );
-        }
-        Ok(record)
-    })
-    .await
-    .map_err(|err| format!("managed_dependency_ensure worker failed: {err}"))?
+    tauri::async_runtime::spawn_blocking(move || ensure_record_full(&app, &dir, &id))
+        .await
+        .map_err(|err| format!("managed_dependency_ensure worker failed: {err}"))?
 }
 
 /// 手动升级托管产物（ADR 0022「非静默升级」）。仅当 `record.available_version` 非空（ensure 检出磁盘
@@ -634,7 +665,9 @@ pub fn reconcile_managed_on_startup(app_data: &Path, app: &AppHandle) {
             let Some(mut contrib) =
                 prepare_contrib_for_spawn(app_data, &mut record, &pack_install_dir, contrib)?
             else {
-                // 产物暂不可得（feed 不可达且盘上无产物）：跳过 spawn，不算错误、不刷日志。
+                // 产物暂不可得（feed 不可达且盘上无产物）：跳过 spawn，不算错误、不刷日志；
+                // 延迟一拍静默重试一次，feed 就绪后自动补装并启动。
+                schedule_retry_ensure(app.clone(), app_data.to_path_buf(), record.id.clone());
                 return registry::save_record(app_data, &record);
             };
             expand_contrib_env(&mut contrib, app);

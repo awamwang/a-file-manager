@@ -118,24 +118,38 @@ fn http_agent() -> Agent {
         .into()
 }
 
-/// `GET {base}/health`；`/health` 免鉴权，与 awam-tool-manager 约定一致。
+/// `GET {base}/health`；`/health` 免鉴权。兼容两种健康契约：
+/// `{"status":"ok",...}`（awam-tool-manager）与 `{"ok":true,...}`（awam-file 网关 / awam-knowledge，
+/// 二者此前因缺 `status` 字段导致反序列化失败、managed 探活永远失败）。
 pub fn health_check(base_url: &str) -> Result<HealthOk, String> {
     let url = health_url(base_url)?;
     let mut response = http_agent()
         .get(&url)
         .call()
         .map_err(|err| format!("tool-runtime gateway request failed ({url}): {err}"))?;
-    let ok: HealthOk = response
+    let value: serde_json::Value = response
         .body_mut()
         .read_json()
         .map_err(|err| format!("tool-runtime gateway JSON decode failed ({url}): {err}"))?;
-    if !ok.status.eq_ignore_ascii_case("ok") {
+    // `status` 字段存在时以其为准；否则回退 `ok` 布尔标志（均缺失 = 不健康）。
+    let healthy = match value.get("status").and_then(|s| s.as_str()) {
+        Some(status) => status.eq_ignore_ascii_case("ok"),
+        None => value.get("ok").and_then(|b| b.as_bool()).unwrap_or(false),
+    };
+    if !healthy {
         return Err(format!(
-            "tool-runtime gateway /health unexpected status: {}",
-            ok.status
+            "tool-runtime gateway /health unexpected status: {value}"
         ));
     }
-    Ok(ok)
+    Ok(HealthOk {
+        status: value
+            .get("status")
+            .and_then(|s| s.as_str())
+            .unwrap_or("ok")
+            .to_string(),
+        transport: value.get("transport").and_then(|s| s.as_str()).map(str::to_string),
+        version: value.get("version").and_then(|s| s.as_str()).map(str::to_string),
+    })
 }
 
 /// 将探活结果转为附着状态（失败时仍返回结构体，不走 IPC Err）。
@@ -239,6 +253,22 @@ mod tests {
         assert_eq!(ok.status, "ok");
         assert_eq!(ok.transport.as_deref(), Some("http"));
         assert!(ok.version.is_none());
+    }
+
+    /// awam-file 网关 / awam-knowledge 的健康契约：无 `status` 字段，用 `ok:true`。
+    #[test]
+    fn health_check_accepts_ok_flag_payload() {
+        let base = serve_once("200 OK", r#"{"ok":true,"service":"awam-resource-gateway"}"#);
+        let ok = health_check(&base).unwrap();
+        assert_eq!(ok.status, "ok");
+        assert!(ok.transport.is_none());
+    }
+
+    #[test]
+    fn health_check_rejects_missing_both_fields() {
+        let base = serve_once("200 OK", r#"{"service":"x"}"#);
+        let err = health_check(&base).unwrap_err();
+        assert!(err.contains("unexpected status"), "{err}");
     }
 
     #[test]
