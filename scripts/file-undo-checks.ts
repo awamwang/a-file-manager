@@ -3,11 +3,13 @@ import assert from "node:assert/strict";
 import {
   baseName,
   dirsAffectedByUndo,
+  isContaminated,
   moveUndoRecord,
   parentDir,
   popRecord,
   pushRecord,
   renameUndoRecord,
+  type Fingerprint,
   type UndoRecord,
 } from "../src/state/fileUndo/stack.ts";
 import { BUILTIN_SHORTCUTS, resolveDispatchMap } from "../src/shortcuts/registry.ts";
@@ -100,4 +102,27 @@ assert.equal(seq.length, 0, "fully drained — no record is stranded by an earli
 const winners = resolveDispatchMap(BUILTIN_SHORTCUTS);
 assert.equal(winners.get(chordKey({ ctrl: true, key: "z" }))?.id, "navigator.undo");
 
-console.log("file-undo checks OK (AIA-192 / FIL-61 / UN-006 reverse-order multi-undo).");
+// UN-008 (已拍板 2026-11-22): an undo whose target was rewritten by a foreign
+// program must be refused. Only a real change (still-present path, different
+// size/mtime) counts — no baseline, a vanished path, or an unchanged file must
+// never block the undo.
+const fp = (size: number, modifiedMs: number): Fingerprint => ({ size, modifiedMs });
+assert.equal(isContaminated(undefined, [fp(1, 1)]), false, "no baseline captured → undo proceeds");
+assert.equal(isContaminated([], [fp(1, 1)]), false, "empty baseline → undo proceeds");
+assert.equal(isContaminated([null], [fp(1, 1)]), false, "unreadable baseline → undo proceeds");
+assert.equal(isContaminated([fp(1, 1)], [fp(1, 1)]), false, "identical fingerprints → not contaminated");
+assert.equal(isContaminated([fp(1, 1)], [null]), false, "path vanished externally → delete path handles it");
+assert.equal(isContaminated([fp(1, 1)], [fp(2, 1)]), true, "size drift → contaminated");
+assert.equal(isContaminated([fp(1, 1)], [fp(1, 2)]), true, "mtime drift → contaminated");
+assert.equal(
+  isContaminated([fp(1, 1), null], [fp(1, 1), fp(9, 9)]),
+  false,
+  "per-path: only the captured baselines are compared",
+);
+assert.equal(
+  isContaminated([fp(1, 1), fp(2, 2)], [fp(1, 1), fp(3, 2)]),
+  true,
+  "one drifted path is enough to refuse",
+);
+
+console.log("file-undo checks OK (AIA-192 / FIL-61 / UN-006 reverse-order multi-undo / UN-008 contamination).");

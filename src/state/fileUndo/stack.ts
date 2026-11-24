@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /** Pure undo-stack helpers (no Vue / IPC). */
 
+/** UN-008 change-detection token (`file_ops_fingerprints`, serde camelCase). */
+export type Fingerprint = { size: number; modifiedMs: number };
+
 export type UndoRecord =
   | {
       kind: "rename";
@@ -14,15 +17,42 @@ export type UndoRecord =
   | {
       kind: "copy";
       createdPaths: string[];
+      /** UN-008: record-time fingerprints of `createdPaths` (one per path,
+       * null where unreadable). Absent until the async capture resolves —
+       * undo must proceed when it is missing, never block. */
+      fingerprints?: Array<Fingerprint | null>;
     }
   | {
       kind: "create";
       path: string;
+      /** UN-008: record-time fingerprint of `path`. */
+      fingerprints?: Array<Fingerprint | null>;
     }
   | {
       kind: "delete";
       originalPaths: string[];
     };
+
+/** UN-008 (已拍板 2026-11-22): did the on-disk state drift from the record-time
+ * baseline? Only a real change on a still-present path counts (same index,
+ * different size/mtime): a vanished path (current null) is left to the delete
+ * path's own handling, and a missing baseline (stored null/undefined) must
+ * never block the undo. */
+export function isContaminated(
+  stored: ReadonlyArray<Fingerprint | null> | undefined,
+  current: ReadonlyArray<Fingerprint | null>,
+): boolean {
+  if (!stored || stored.length === 0) return false;
+  for (let i = 0; i < stored.length; i++) {
+    const before = stored[i];
+    const now = current[i];
+    if (!before || !now) continue;
+    if (before.size !== now.size || before.modifiedMs !== now.modifiedMs) {
+      return true;
+    }
+  }
+  return false;
+}
 
 export function parentDir(path: string): string {
   const norm = path.replace(/\//g, "\\").replace(/\\+$/, "");

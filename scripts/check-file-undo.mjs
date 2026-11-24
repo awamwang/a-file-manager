@@ -23,6 +23,7 @@ assert.equal(en.contextMenu.undone, "Undone");
 
 // AIA-192: Ctrl+Z with nothing undoable must stay silent.
 const fileUndo = readFileSync(join(root, "src/state/fileUndo/index.ts"), "utf8");
+const stackMod = readFileSync(join(root, "src/state/fileUndo/stack.ts"), "utf8");
 assert.ok(
   view.includes('"Nothing to undo"'),
   "undo must silently ignore 'Nothing to undo'",
@@ -79,7 +80,6 @@ assert.ok(
 // the settings store, Ctrl+Z would offer stale cross-session undos Explorer does
 // not have — this gate must go red. The stack is a module-scoped Vue `ref`; the
 // record/stack modules must contain no persistence calls.
-const stackMod = readFileSync(join(root, "src/state/fileUndo/stack.ts"), "utf8");
 for (const text of [fileUndo, stackMod]) {
   assert.ok(!text.includes("localStorage"), "undo stack must not read/write localStorage");
   assert.ok(!text.includes("sessionStorage"), "undo stack must not use sessionStorage");
@@ -102,6 +102,35 @@ const pasteBlock =
 assert.ok(
   pasteBlock,
   "paste path must early-return on failure before recordMoveUndo/recordCopyUndo — UN-009",
+);
+
+// UN-008 (已拍板 2026-11-22): an undo whose copy/create target was modified by a
+// foreign program between the operation and Ctrl+Z must be REFUSED with a
+// localized toast — never executed (would clobber the foreign edits), never
+// silent. copy/create records capture fingerprints at record time and re-check
+// at undo time via file_ops_fingerprints; the refused record is popped so the
+// LIFO stack keeps unwinding (UN-006).
+assert.ok(
+  stackMod.includes("export function isContaminated"),
+  "pure contamination comparison must live in stack.ts (UN-008)",
+);
+assert.ok(
+  fileUndo.includes('"file_ops_fingerprints"'),
+  "undo record/refusal must round-trip file_ops_fingerprints (UN-008)",
+);
+assert.ok(
+  fileUndo.includes('"fileOps.undoContaminated"'),
+  "the UN-008 refusal must toast the fileOps.undoContaminated i18n key",
+);
+assert.ok(
+  /case "copy":[\s\S]*?contaminationCheck\(record, record\.createdPaths\)[\s\S]*?case "create":[\s\S]*?contaminationCheck\(record, \[record\.path\]\)/.test(
+    fileUndo,
+  ),
+  "both destructive undos (copy/create) must run the UN-008 contamination check",
+);
+assert.ok(
+  typeof en.fileOps.undoContaminated === "string" && en.fileOps.undoContaminated.length,
+  "en.json fileOps.undoContaminated missing",
 );
 
 const result = spawnSync(

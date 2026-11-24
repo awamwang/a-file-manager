@@ -1881,6 +1881,20 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
     }
 
+    // UN-008: a foreign program rewriting the created item must move the
+    // fingerprint (size or mtime) so the FE contamination check catches it.
+    #[test]
+    fn fingerprint_changes_when_file_is_rewritten() {
+        let dir = temp_workspace("fingerprint-rewrite");
+        let file = dir.join("tracked.txt");
+        fs::write(&file, b"one").unwrap();
+        let before = fingerprint_one(&display_path(&file)).expect("baseline");
+        fs::write(&file, b"much longer content").unwrap();
+        let after = fingerprint_one(&display_path(&file)).expect("after rewrite");
+        assert_ne!(before, after, "rewrite must drift the fingerprint");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
     // NM-004: on a case-insensitive FS, a case-only rename must SUCCEED (not
     // "already exists"); renaming to a genuinely different existing file must fail.
     #[cfg(windows)]
