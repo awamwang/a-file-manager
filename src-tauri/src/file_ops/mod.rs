@@ -2208,6 +2208,66 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
     }
 
+    // LC-009: paths beyond MAX_PATH (260). The shipped exe opts in via the
+    // longPathAware manifest (pinned by check-long-path.mjs); the ops layer
+    // itself must round-trip \\?\-extended deep paths — the extended form is
+    // what `fs::canonicalize` hands back and the only form that exceeds
+    // MAX_PATH on the manifest-less test binary.
+    #[cfg(windows)]
+    #[test]
+    fn long_path_ops_roundtrip() {
+        let dir = temp_workspace("lc009-long");
+        let root = fs::canonicalize(&dir).unwrap(); // \\?\ extended form
+        let mut deep = root.clone();
+        while deep.as_os_str().len() < 280 {
+            deep.push("nested-segment-padding");
+            fs::create_dir_all(&deep).unwrap();
+        }
+        assert!(
+            deep.as_os_str().len() > 260,
+            "test fixture must exceed MAX_PATH, got {}",
+            deep.as_os_str().len()
+        );
+        let src_file = deep.join("source.txt");
+        fs::write(&src_file, b"long-path-payload").unwrap();
+
+        let dest_dir = deep.join("dest");
+        fs::create_dir_all(&dest_dir).unwrap();
+        let copied = copy_paths(
+            &[src_file.to_string_lossy().into_owned()],
+            &dest_dir.to_string_lossy().into_owned(),
+            NameConflict::KeepBoth,
+        )
+        .unwrap();
+        assert_eq!(copied.len(), 1, "long-path copy must succeed");
+        assert!(Path::new(&copied[0]).is_file());
+        assert_eq!(
+            fs::read(&copied[0]).unwrap(),
+            b"long-path-payload",
+            "long-path copy must preserve content"
+        );
+
+        let renamed = rename_path(&copied[0], "renamed.txt", false).unwrap();
+        assert!(
+            Path::new(&renamed).is_file(),
+            "long-path rename must succeed"
+        );
+        assert!(!Path::new(&copied[0]).exists());
+
+        let moved_dest = dest_dir.join("moved");
+        fs::create_dir_all(&moved_dest).unwrap();
+        let moved = move_paths(
+            &[renamed.clone()],
+            &moved_dest.to_string_lossy().into_owned(),
+            NameConflict::KeepBoth,
+        )
+        .unwrap();
+        assert_eq!(moved.len(), 1, "long-path move must succeed");
+        assert!(Path::new(&moved[0]).is_file());
+        assert!(!Path::new(&renamed).exists());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
     // LC-005: a pre-cancelled token makes the copy loop bail at the first
     // source boundary — no destination is created, result reports cancelled.
     #[test]

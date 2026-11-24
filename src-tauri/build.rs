@@ -2,6 +2,8 @@
 /// tauri-build 默认 manifest 只有 Common-Controls 依赖、缺 trustInfo，Windows
 /// 会退回 UAC 启发式（exe 名含 setup/install 等词会误弹提权）——这里固化语义。
 /// 注意 `app_manifest` 是整体替换，需自带 Common-Controls 依赖。
+/// LC-009：声明 longPathAware=true，配合系统 LongPathsEnabled 让 >260 字符
+/// 长路径在传输/重命名中不再报「name too long」。
 const APP_MANIFEST: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
   <dependency>
@@ -23,6 +25,11 @@ const APP_MANIFEST: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="y
       </requestedPrivileges>
     </security>
   </trustInfo>
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <longPathAware xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">true</longPathAware>
+    </windowsSettings>
+  </application>
 </assembly>"#;
 
 fn main() {
