@@ -224,10 +224,12 @@
     "extensions": "扩展",
     "settings": "设置",
     "health": "健康",
-    "toolRuntime": "工具运行时"
+    "toolRuntime": "工具运行时",
+    "knowledge": "知识库"
   },
   "cmd": {
-    "toolRuntimeOpen": "打开工具运行时"
+    "toolRuntimeOpen": "打开工具运行时",
+    "knowledgeOpen": "打开知识库"
   },
   "commands": {
     "groups": {
@@ -1312,7 +1314,7 @@
       "store": "商店",
       "providers": "提供程序",
       "config": "服务配置",
-      "toolRuntimeHint": "工具运行时由一个功能包提供。可在下方打开，或从商店安装该功能包。",
+      "toolRuntimeHint": "该分区由一个功能包提供。可在下方打开，或从商店安装该功能包。",
       "toolRuntimeOpen": "打开工具运行时"
     },
     "cap": {
@@ -1641,6 +1643,27 @@
     "subtitle": "浏览并还原已删除的项目",
     "restore": "还原",
     "restored": "已还原 {count} 项"
+  },
+"knowledgePage": {
+    "title": "知识库",
+    "meta": "本地 Markdown 知识服务——查看服务状态、索引根与密钥窗口状态",
+    "service": "知识库服务",
+    "start": "连接/启动",
+    "startingNow": "正在启动…",
+    "starting": "知识库服务正在后台启动，就绪后会自动转为在线",
+    "started": "知识库服务已就绪",
+    "statusOnline": "服务已连接",
+    "statusOffline": "服务未连接：{detail}",
+    "serviceUrl": "服务地址",
+    "managedHint": "由 feed 托管——该服务地址已固定，不可修改。",
+    "index": "索引根",
+    "indexConfigured": "已配置",
+    "indexNotConfigured": "未配置——知识搜索将没有结果。",
+    "vault": "密钥窗口",
+    "vaultConfigured": "已配置密钥",
+    "vaultNotConfigured": "未配置密钥",
+    "configHint": "服务 token、数据根与源 id 在「服务配置」页维护。",
+    "openConfig": "打开服务配置"
   },
   "toolRuntime": {
     "title": "工具运行时",

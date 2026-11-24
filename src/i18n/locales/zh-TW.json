@@ -224,10 +224,12 @@
     "extensions": "擴充套件",
     "settings": "設定",
     "health": "健康",
-    "toolRuntime": "工具執行時"
+    "toolRuntime": "工具執行時",
+    "knowledge": "知識庫"
   },
   "cmd": {
-    "toolRuntimeOpen": "開啟工具執行時"
+    "toolRuntimeOpen": "開啟工具執行時",
+    "knowledgeOpen": "開啟知識庫"
   },
   "commands": {
     "groups": {
@@ -1325,7 +1327,7 @@
       "store": "商店",
       "providers": "提供程式",
       "config": "服務配置",
-      "toolRuntimeHint": "工具執行時由 Tool Runtime Feature Pack 提供。可在下方開啟，或從商店安裝該 Pack。",
+      "toolRuntimeHint": "此分區由一個功能包提供。可在下方開啟，或從商店安裝該功能包。",
       "toolRuntimeOpen": "開啟工具執行時"
     },
     "cap": {
@@ -1663,6 +1665,27 @@
     "subtitle": "瀏覽並還原已刪除的專案",
     "restore": "還原",
     "restored": "已還原 {count} 項"
+  },
+  "knowledgePage": {
+    "title": "知識庫",
+    "meta": "本機 Markdown 知識服務——檢視服務狀態、索引根與金鑰視窗狀態",
+    "service": "知識庫服務",
+    "start": "連線/啟動",
+    "startingNow": "正在啟動…",
+    "starting": "知識庫服務正在背景啟動，就緒後會自動轉為線上",
+    "started": "知識庫服務已就緒",
+    "statusOnline": "服務已連線",
+    "statusOffline": "服務未連線：{detail}",
+    "serviceUrl": "服務位址",
+    "managedHint": "由 feed 託管——該服務位址已固定，不可修改。",
+    "index": "索引根",
+    "indexConfigured": "已設定",
+    "indexNotConfigured": "未設定——知識搜尋將沒有結果。",
+    "vault": "金鑰視窗",
+    "vaultConfigured": "已設定金鑰",
+    "vaultNotConfigured": "未設定金鑰",
+    "configHint": "服務 token、資料根與來源 id 在「服務設定」頁維護。",
+    "openConfig": "開啟服務設定"
   },
   "toolRuntime": {
     "title": "工具執行時",

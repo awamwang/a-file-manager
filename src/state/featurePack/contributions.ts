@@ -54,6 +54,8 @@ export type FeaturePackExtensionsSectionContribution = {
   /** builtinEntries 中的组件加载键。 */
   entry: string;
   order: number;
+  /** 聚合时由宿主写入来源 Pack id（= 商店 bid），用于分区排序。 */
+  packId?: string | null;
 };
 
 /** Pack 声明的配置项（发现机制）：服务配置页据此自动渲染。`settingKey` 由宿主解析为生效 key。 */
@@ -270,11 +272,17 @@ export function getSideNavExtras(): SideNavItem[] {
     }));
 }
 
-/** Pack 贡献的扩展页分区（ADR-0023），按 order 排序，已过滤 entry 未注册的项。 */
+/** Pack 贡献的扩展页分区（ADR-0023），按来源 Pack id（商店 bid）排序，其次按 `order`；
+ *  已过滤 entry 未注册的项。 */
 export function getExtensionsSectionExtras(): FeaturePackExtensionsSectionContribution[] {
   return cached.value.extensionsSections
     .filter((s) => s.id && s.labelKey && s.entry && builtinEntries[s.entry])
-    .sort((a, b) => a.order - b.order);
+    .sort((a, b) => {
+      const pa = a.packId ?? "";
+      const pb = b.packId ?? "";
+      if (pa !== pb) return pa.localeCompare(pb);
+      return a.order - b.order;
+    });
 }
 
 /** 启用 Pack 声明的配置项（已过滤缺 id/settingKey 的脏声明），按 (packId, order, id) 稳定排序。 */

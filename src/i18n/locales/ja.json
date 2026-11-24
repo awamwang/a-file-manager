@@ -679,7 +679,7 @@
       "store": "ストア",
       "providers": "プロバイダー",
       "config": "サービス設定",
-      "toolRuntimeHint": "ツールランタイムは Tool Runtime Feature Pack が提供します。以下から開くか、ストアからパックをインストールしてください。",
+      "toolRuntimeHint": "このセクションは機能パックが提供します。以下から開くか、ストアからパックをインストールしてください。",
       "toolRuntimeOpen": "ツールランタイムを開く"
     },
     "cap": {
@@ -807,10 +807,12 @@
     "providers": "プロバイダー",
     "settings": "設定",
     "toolRuntime": "ツールランタイム",
+    "knowledge": "ナレッジベース",
     "workGroups": "ワークグループ"
   },
   "cmd": {
-    "toolRuntimeOpen": "ツールランタイムを開く"
+    "toolRuntimeOpen": "ツールランタイムを開く",
+    "knowledgeOpen": "ナレッジベースを開く"
   },
   "taskCenter": {
     "title": "タスク",
@@ -1641,6 +1643,27 @@
     "subtitle": "削除した項目を表示して元に戻す",
     "restore": "元に戻す",
     "restored": "{count} 項目を元に戻しました"
+  },
+"knowledgePage": {
+    "title": "ナレッジベース",
+    "meta": "ローカル Markdown ナレッジサービス — 状態・インデックスルート・Vault 状態",
+    "service": "ナレッジサービス",
+    "start": "接続/起動",
+    "startingNow": "起動中…",
+    "starting": "ナレッジサービスをバックグラウンドで起動しています。準備完了で自動的にオンラインになります",
+    "started": "ナレッジサービスの準備ができました",
+    "statusOnline": "サービスに接続済み",
+    "statusOffline": "サービス未接続：{detail}",
+    "serviceUrl": "サービス URL",
+    "managedHint": "feed による管理 — このアドレスは固定で変更できません。",
+    "index": "インデックスルート",
+    "indexConfigured": "設定済み",
+    "indexNotConfigured": "未設定 — ナレッジ検索は結果を返しません。",
+    "vault": "Vault ウィンドウ",
+    "vaultConfigured": "Vault 設定済み",
+    "vaultNotConfigured": "Vault 未設定",
+    "configHint": "サービストークン・データルート・ソース ID は「サービス設定」で管理します。",
+    "openConfig": "サービス設定を開く"
   },
   "toolRuntime": {
     "title": "ツールランタイム",

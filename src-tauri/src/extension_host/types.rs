@@ -208,6 +208,9 @@ pub struct ExtensionsSectionContribution {
     pub entry: String,
     #[serde(default)]
     pub order: i32,
+    /// 聚合时宿主写入来源 Pack id（商店列表的 bid）；前端按它排序分区导航。
+    #[serde(default)]
+    pub pack_id: String,
 }
 
 /// 搜索面板静态条目贡献项；聚合时宿主写入 `packId` / `packName`（清单内声明无效）。

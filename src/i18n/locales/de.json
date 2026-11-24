@@ -679,7 +679,7 @@
       "store": "Store",
       "providers": "Anbieter",
       "config": "Dienstkonfiguration",
-      "toolRuntimeHint": "Die Tool-Laufzeit wird vom Tool Runtime Feature Pack bereitgestellt. Unten öffnen oder das Pack im Store installieren.",
+      "toolRuntimeHint": "Dieser Bereich wird von einem Feature-Pack bereitgestellt. Unten öffnen oder das Pack im Store installieren.",
       "toolRuntimeOpen": "Tool-Laufzeit öffnen"
     },
     "cap": {
@@ -807,10 +807,12 @@
     "providers": "Anbieter",
     "settings": "Einstellungen",
     "toolRuntime": "Tool-Laufzeit",
+    "knowledge": "Wissensdatenbank",
     "workGroups": "Arbeitsgruppen"
   },
   "cmd": {
-    "toolRuntimeOpen": "Tool-Laufzeit öffnen"
+    "toolRuntimeOpen": "Tool-Laufzeit öffnen",
+    "knowledgeOpen": "Wissensdatenbank öffnen"
   },
   "taskCenter": {
     "title": "Aufgaben",
@@ -1641,6 +1643,27 @@
     "subtitle": "Geloeschte Elemente anzeigen und wiederherstellen",
     "restore": "Wiederherstellen",
     "restored": "{count} Element(e) wiederhergestellt"
+  },
+"knowledgePage": {
+    "title": "Wissensdatenbank",
+    "meta": "Lokaler Markdown-Wissensdienst — Status, Indexwurzel und Vault-Status",
+    "service": "Wissensdienst",
+    "start": "Verbinden / Starten",
+    "startingNow": "Wird gestartet…",
+    "starting": "Der Wissensdienst startet im Hintergrund und wird automatisch online",
+    "started": "Der Wissensdienst ist bereit",
+    "statusOnline": "Dienst verbunden",
+    "statusOffline": "Dienst nicht verbunden: {detail}",
+    "serviceUrl": "Dienst-URL",
+    "managedHint": "Vom Feed verwaltet — diese Adresse ist fest und schreibgeschützt.",
+    "index": "Indexwurzel",
+    "indexConfigured": "Konfiguriert",
+    "indexNotConfigured": "Nicht konfiguriert — die Wissenssuche liefert keine Ergebnisse.",
+    "vault": "Vault-Fenster",
+    "vaultConfigured": "Vault konfiguriert",
+    "vaultNotConfigured": "Vault nicht konfiguriert",
+    "configHint": "Dienst-Token, Datenwurzel und Quell-ID werden in „Dienstkonfiguration“ gepflegt.",
+    "openConfig": "Dienstkonfiguration öffnen"
   },
   "toolRuntime": {
     "title": "Tool-Laufzeit",

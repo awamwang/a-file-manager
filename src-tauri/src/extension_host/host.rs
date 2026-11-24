@@ -366,9 +366,12 @@ impl ExtensionHost {
             aggregated
                 .sidecars
                 .extend(contrib.sidecars.iter().cloned());
-            aggregated
-                .extensions_sections
-                .extend(contrib.extensions_sections.iter().cloned());
+            // 分区导航：聚合时写入来源 packId（= 商店 bid），前端按它稳定排序。
+            for section in &contrib.extensions_sections {
+                let mut item = section.clone();
+                item.pack_id = id.clone();
+                aggregated.extensions_sections.push(item);
+            }
             // 搜索条目：聚合时写入 packId / packName（副标题显示 Pack 名）。
             for entry in &contrib.search {
                 let mut item = entry.clone();

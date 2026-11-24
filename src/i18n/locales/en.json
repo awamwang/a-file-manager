@@ -224,10 +224,12 @@
     "extensions": "Extensions",
     "settings": "Settings",
     "health": "Health",
-    "toolRuntime": "Tool Runtime"
+    "toolRuntime": "Tool Runtime",
+    "knowledge": "Knowledge"
   },
   "cmd": {
-    "toolRuntimeOpen": "Open Tool Runtime"
+    "toolRuntimeOpen": "Open Tool Runtime",
+    "knowledgeOpen": "Open Knowledge"
   },
   "commands": {
     "groups": {
@@ -1312,7 +1314,7 @@
       "store": "Store",
       "providers": "Providers",
       "config": "Service Config",
-      "toolRuntimeHint": "Tool Runtime is provided by a feature pack. Open it below, or install the pack from Store.",
+      "toolRuntimeHint": "This section is provided by a feature pack. Open it below, or install the pack from Store.",
       "toolRuntimeOpen": "Open Tool Runtime"
     },
     "cap": {
@@ -1641,6 +1643,27 @@
     "subtitle": "Browse and restore deleted items",
     "restore": "Restore",
     "restored": "Restored {count} item(s)"
+  },
+"knowledgePage": {
+    "title": "Knowledge",
+    "meta": "Local Markdown knowledge service — status, index root and vault state",
+    "service": "Knowledge service",
+    "start": "Connect / Start",
+    "startingNow": "Starting…",
+    "starting": "Knowledge service is starting in the background",
+    "started": "Knowledge service is ready",
+    "statusOnline": "Service connected",
+    "statusOffline": "Service not connected: {detail}",
+    "serviceUrl": "Service URL",
+    "managedHint": "Managed by the feed — this address is fixed and read-only.",
+    "index": "Index root",
+    "indexConfigured": "Configured",
+    "indexNotConfigured": "Not configured — knowledge search returns nothing.",
+    "vault": "Vault window",
+    "vaultConfigured": "Vault configured",
+    "vaultNotConfigured": "Vault not configured",
+    "configHint": "Service token, data root and source id are maintained in Service Config.",
+    "openConfig": "Open Service Config"
   },
   "toolRuntime": {
     "title": "Tool Runtime",

@@ -679,7 +679,7 @@
       "store": "Boutique",
       "providers": "Fournisseurs",
       "config": "Config. services",
-      "toolRuntimeHint": "L'exécuteur d'outils est fourni par le Feature Pack Tool Runtime. Ouvrez-le ci-dessous ou installez le pack depuis la boutique.",
+      "toolRuntimeHint": "Cette section est fournie par un pack de fonctionnalités. Ouvrez-la ci-dessous ou installez le pack depuis la boutique.",
       "toolRuntimeOpen": "Ouvrir l'exécuteur d'outils"
     },
     "cap": {
@@ -807,10 +807,12 @@
     "providers": "Fournisseurs",
     "settings": "Paramètres",
     "toolRuntime": "Runtime d’outils",
+    "knowledge": "Base de connaissances",
     "workGroups": "Groupes de travail"
   },
   "cmd": {
-    "toolRuntimeOpen": "Ouvrir le runtime d’outils"
+    "toolRuntimeOpen": "Ouvrir le runtime d’outils",
+    "knowledgeOpen": "Ouvrir la base de connaissances"
   },
   "taskCenter": {
     "title": "Tâches",
@@ -1641,6 +1643,27 @@
     "subtitle": "Parcourir et restaurer les elements supprimes",
     "restore": "Restaurer",
     "restored": "{count} element(s) restaure(s)"
+  },
+"knowledgePage": {
+    "title": "Base de connaissances",
+    "meta": "Service de connaissances Markdown local — état, racine d’index et coffre",
+    "service": "Service de connaissances",
+    "start": "Connecter / Démarrer",
+    "startingNow": "Démarrage…",
+    "starting": "Le service de connaissances démarre en arrière-plan et passera en ligne automatiquement",
+    "started": "Le service de connaissances est prêt",
+    "statusOnline": "Service connecté",
+    "statusOffline": "Service non connecté : {detail}",
+    "serviceUrl": "URL du service",
+    "managedHint": "Géré par le feed — cette adresse est fixe et en lecture seule.",
+    "index": "Racine d’index",
+    "indexConfigured": "Configurée",
+    "indexNotConfigured": "Non configurée — la recherche de connaissances ne renvoie rien.",
+    "vault": "Fenêtre du coffre",
+    "vaultConfigured": "Coffre configuré",
+    "vaultNotConfigured": "Coffre non configuré",
+    "configHint": "Le jeton du service, la racine de données et l’ID de source se règlent dans « Configuration du service ».",
+    "openConfig": "Ouvrir la configuration du service"
   },
   "toolRuntime": {
     "title": "Runtime d’outils",

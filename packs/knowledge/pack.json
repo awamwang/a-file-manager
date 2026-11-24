@@ -9,7 +9,8 @@
   "contributions": {
     "sideNav": [],
     "routes": [],
-    "commands": [],
+    "commands": [{ "id": "knowledge.open", "labelKey": "cmd.knowledgeOpen", "route": "/extensions/knowledge" }],
+    "extensionsSections": [{ "id": "knowledge", "labelKey": "nav.knowledge", "entry": "builtin:knowledge", "order": 40 }],
     "sidecars": [{
       "id": "awam-knowledge-http",
       "command": "awam-knowledge.exe",

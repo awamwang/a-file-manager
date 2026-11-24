@@ -35,12 +35,13 @@ type SectionDef = {
   static: boolean;
 };
 
+/** 静态分区顺序：服务配置在提供程序之前；Pack 贡献分区（按商店 bid 排序）排在其后。 */
 const STATIC_SECTIONS: SectionDef[] = [
   { id: "overview", labelKey: "extensions.sections.overview", icon: "viewAll", static: true },
   { id: "installed", labelKey: "extensions.sections.installed", icon: "library", static: true },
   { id: "store", labelKey: "extensions.sections.store", icon: "cloud", static: true },
-  { id: "providers", labelKey: "extensions.sections.providers", icon: "cloud", static: true },
   { id: "config", labelKey: "extensions.sections.config", icon: "settings", static: true },
+  { id: "providers", labelKey: "extensions.sections.providers", icon: "cloud", static: true },
 ];
 
 /** Pack 贡献的动态分区（响应式：hydrate 后自动合并，无需 remount）。 */
