@@ -1276,7 +1276,7 @@
       "knowledgeSaving": "Enregistrement…",
       "knowledgeSaved": "Configuration du service de connaissances enregistrée",
       "voiceTitle": "Saisie vocale (voix vers texte)",
-      "voiceMeta": "Le service de transcription par lots compatible OpenAI derrière le micro de la palette de recherche (ADR 0018). Les requêtes vont directement de l'application au service configuré."
+      "voiceMeta": "Le service de transcription par lots compatible OpenAI derrière le micro de la palette de recherche. Les requêtes vont directement de l'application au service configuré."
     },
     "title": "Paramètres",
     "sectionFavorites": "Favoris",

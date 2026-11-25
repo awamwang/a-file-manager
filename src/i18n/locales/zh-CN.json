@@ -729,7 +729,7 @@
       "knowledgeSaving": "保存中…",
       "knowledgeSaved": "知识服务配置已保存",
       "voiceTitle": "语音输入（语音转文字）",
-      "voiceMeta": "搜索面板麦克风背后的 OpenAI 兼容批量转写服务（ADR 0018）；请求由本应用直连所配置的服务。"
+      "voiceMeta": "搜索面板麦克风背后的 OpenAI 兼容批量转写服务；请求由本应用直连所配置的服务。"
     },
     "fields": {
       "core": {

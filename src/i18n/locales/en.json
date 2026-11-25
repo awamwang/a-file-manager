@@ -729,7 +729,7 @@
       "knowledgeSaving": "Saving…",
       "knowledgeSaved": "Knowledge service configuration saved",
       "voiceTitle": "Voice input (speech-to-text)",
-      "voiceMeta": "The OpenAI-compatible batch transcription service behind the Search Palette microphone (ADR 0018). Requests go straight from the app to the configured service."
+      "voiceMeta": "The OpenAI-compatible batch transcription service behind the Search Palette microphone. Requests go straight from the app to the configured service."
     },
     "fields": {
       "core": {

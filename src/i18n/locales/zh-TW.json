@@ -729,7 +729,7 @@
       "knowledgeSaving": "儲存中…",
       "knowledgeSaved": "知識服務配置已儲存",
       "voiceTitle": "語音輸入（語音轉文字）",
-      "voiceMeta": "搜尋面板麥克風背後的 OpenAI 相容批次轉寫服務（ADR 0018）；請求由本應用直連所配置的服務。"
+      "voiceMeta": "搜尋面板麥克風背後的 OpenAI 相容批次轉寫服務；請求由本應用直連所配置的服務。"
     },
     "fields": {
       "core": {

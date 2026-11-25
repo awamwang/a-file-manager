@@ -1276,7 +1276,7 @@
       "knowledgeSaving": "保存中…",
       "knowledgeSaved": "ナレッジサービス設定を保存しました",
       "voiceTitle": "音声入力（音声→テキスト）",
-      "voiceMeta": "検索パレットのマイクの背後にある OpenAI 互換の一括文字起こしサービス（ADR 0018）。リクエストはアプリから直接送信されます。"
+      "voiceMeta": "検索パレットのマイクの背後にある OpenAI 互換の一括文字起こしサービス。リクエストはアプリから直接送信されます。"
     },
     "title": "設定",
     "sectionFavorites": "お気に入り",

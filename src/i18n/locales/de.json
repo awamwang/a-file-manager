@@ -1276,7 +1276,7 @@
       "knowledgeSaving": "Speichern…",
       "knowledgeSaved": "Knowledge-Dienst-Konfiguration gespeichert",
       "voiceTitle": "Spracheingabe (Sprache zu Text)",
-      "voiceMeta": "Der OpenAI-kompatible Batch-Transkriptionsdienst hinter dem Mikrofon der Suchpalette (ADR 0018). Anfragen gehen direkt von der App an den konfigurierten Dienst."
+      "voiceMeta": "Der OpenAI-kompatible Batch-Transkriptionsdienst hinter dem Mikrofon der Suchpalette. Anfragen gehen direkt von der App an den konfigurierten Dienst."
     },
     "title": "Einstellungen",
     "sectionFavorites": "Favoriten",
