@@ -25,7 +25,19 @@ export default defineConfig({
     screenshot: "only-on-failure",
     video: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    {
+      name: "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        // Reuse a locally installed browser to SKIP the Chromium download:
+        //   $env:PW_CHANNEL='chrome'   → use system Google Chrome
+        //   $env:PW_CHANNEL='msedge'   → use system Edge
+        // Unset → Playwright's bundled Chromium (CI default; needs `playwright install`).
+        channel: process.env.PW_CHANNEL || undefined,
+      },
+    },
+  ],
   webServer: {
     // Run the webdemo build in dev mode so specs always exercise current src/.
     // node-direct invocation (this machine's npm/npx shims are unreliable).
