@@ -23,7 +23,10 @@ export default defineConfig({
     // ux-audit hard gate is enforced in-spec; keep artifacts on failure only.
     trace: "on-first-retry",
     screenshot: "only-on-failure",
-    video: "retain-on-failure",
+    // Video requires Playwright's bundled ffmpeg binary. Off by default so
+    // reusing a system browser (PW_CHANNEL) needs no extra download; opt in via
+    // PW_VIDEO=on (CI, where `playwright install` also fetches ffmpeg).
+    video: process.env.PW_VIDEO === "on" ? "retain-on-failure" : "off",
   },
   projects: [
     {
