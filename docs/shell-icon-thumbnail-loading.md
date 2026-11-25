@@ -42,7 +42,7 @@ NavigatorView
 
 | 层 | 职责 |
 |----|------|
-| 几何请求窗 | `computeThumbRequestWindow`：可见行 + `THUMB_REQUEST_OVERSCAN_ROWS`；`h≤0` 时仅 `THUMB_REQUEST_FALLBACK_ROWS` 兜底 |
+| 几何请求窗 | **请求窗与取消窗分离**：请求用窄窗（可见行 + `THUMB_REQUEST_OVERSCAN_ROWS`=1）控住甩动期 IPC 量；cancel 用宽窗（+ `THUMB_REQUEST_CANCEL_OVERSCAN_ROWS`=3）。`h≤0` 时仅 `THUMB_REQUEST_FALLBACK_ROWS` 兜底 |
 | 类型策略 | `entryWantsContentThumbnail`：仅图像/视频等走内容缩略图 |
 | 队列 | 单队列；`preferThumbnail=false` 优先抽干（`BATCH_ICON`）；thumb 小批（`BATCH_THUMB`）便于 cancel |
 | 后端 | `prefer_thumbnail && is_file` 才走 `IShellItemImageFactory`；否则壳图标 + `type:<ext>` 共享缓存 |
@@ -67,7 +67,7 @@ NavigatorView
 | 滚动速度 ≥ `CONTENT_THUMB_FLING_PX_PER_MS`（1.25 px/ms） | 挂起：从队列摘掉未开始的 content-thumb 项；本轮只请求快通道。**该阈值是内存安全阀**：调高会让常规滚动速度带内形成 IPC→解码分配洪峰，renderer 内存失控（2026-11-14 事故，详见 §7） |
 | 普通慢速滚动（< 1.25 px/ms） | 照常加载 |
 | 滚动停稳（`CONTENT_THUMB_SETTLE_MS`=140ms） | 恢复：对当前窗完整请求（含内容缩略图） |
-| 路径离开请求窗 | `cancelShellIconRequests`（FIL-33） |
+| 路径离开**取消窗**（宽） | `cancelShellIconRequests`（FIL-33）。cancel 判定用宽窗而非窄请求窗：边缘行在请求窗上/下沿反复进出时不被 cancel/soft，否则会被字节预算淘汰→重进即冷重请，表现为「停在屏幕仍逐行反复重载」 |
 | 换目录 / 换图标尺寸 | `clearShellIconQueue` |
 
 ### 4.4 入队顺序
@@ -126,7 +126,8 @@ padding、滚动条）存在系统性偏差，因此以实测为准：
 3. 快速甩动：队列不以视频缩略图堆积；停稳后当前屏再补齐。
 4. 滚出视口的项不再长期占用排队；滚回可命中缓存或重新排队。
 5. 大目录滚动停止后，可见缩略图不回落成占位图，也不在占位/缩略图间反复震荡（FIL-68 视口固定）。
-6. 契约脚本：`scripts/check-shell-icons.mjs`、`check-shell-icon-queue.mjs`、`check-shell-icon-budget.mjs` 通过。
+6. 静止停在任意一屏（含大目录末屏）时，屏幕上下边缘行不因贴近行边界而反复「重载」——由请求窗(窄)/取消窗(宽)分离保证，见 §4.3。
+7. 契约脚本：`scripts/check-shell-icons.mjs`、`check-shell-icon-queue.mjs`、`check-shell-icon-budget.mjs`、`check-list-virtual.mjs` 通过。
 
 ## 9. 参考
 

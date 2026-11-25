@@ -20,6 +20,13 @@ export const LIST_VIRTUAL_OVERSCAN_ROWS = 8;
  * 过小会导致滚动手感冷；过大则慢速外部缩略图器时取消粒度变差。
  */
 export const THUMB_REQUEST_OVERSCAN_ROWS = 1;
+/**
+ * 「取消（离开视口）」判定相对可视行的额外行数——必须 ≥ `THUMB_REQUEST_OVERSCAN_ROWS`。
+ * 请求窗窄（进得快、控住甩动期 IPC 量），取消窗宽（边缘行在请求窗上/下沿反复
+ * 进出时不被 cancel/soft）。否则静止落点贴近行边界会让某几行 soft→字节淘汰→
+ * 冷重请，表现为「停在屏幕仍逐行反复重载」。
+ */
+export const THUMB_REQUEST_CANCEL_OVERSCAN_ROWS = 3;
 /** 视口高度尚未量到时，按列数估算的兜底行数（偏一屏，避免未 layout 时扫到第二屏）。 */
 export const THUMB_REQUEST_FALLBACK_ROWS = 6;
 /** 与 `--fluent-list-row-height-compact` 对齐。 */

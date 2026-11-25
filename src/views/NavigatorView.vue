@@ -141,6 +141,7 @@ import {
   resolveListRowHeightPx,
   scrollTopForIndex,
   scrollTopForVirtIndex,
+  THUMB_REQUEST_CANCEL_OVERSCAN_ROWS,
   type ListVirtualWindow,
 } from "../state/listVirtualWindow";
 import {
@@ -1110,9 +1111,12 @@ function requestIconsFor(
  * 策略见 docs/shell-icon-thumbnail-loading.md。
  */
 let iconRequestSyncTimer: ReturnType<typeof requestAnimationFrame> | null = null;
-/** 当前缩略图请求窗内的路径；离开窗口时 diff cancel（FIL-33）。 */
+/** 当前缩略图请求窗（窄）内的路径；作为视口固定集（FIL-68）。 */
 let primaryThumbPaths = new Set<string>();
 let secondaryThumbPaths = new Set<string>();
+/** 取消窗（宽）内的路径：只有离开此窗才 diff cancel，消除边缘行反复进出（重载抖动）。 */
+let primaryThumbRetainedPaths = new Set<string>();
+let secondaryThumbRetainedPaths = new Set<string>();
 
 function pathsLeavingWindow(prev: Set<string>, next: Iterable<string>): string[] {
   const nextSet = next instanceof Set ? next : new Set(next);
@@ -1126,6 +1130,8 @@ function pathsLeavingWindow(prev: Set<string>, next: Iterable<string>): string[]
 function resetThumbRequestWindows() {
   primaryThumbPaths = new Set();
   secondaryThumbPaths = new Set();
+  primaryThumbRetainedPaths = new Set();
+  secondaryThumbRetainedPaths = new Set();
   setShellIconPinnedPaths([]);
 }
 
@@ -1133,9 +1139,13 @@ function syncThumbRequestsForPane(
   entries: { path: string; kind?: string }[],
   scrollTop: number,
   viewport: { w: number; h: number },
-  previousPaths: Set<string>,
+  previousRetained: Set<string>,
   geom: { columns: number; rowHeight: number },
-): { paths: Set<string>; entries: { path: string; kind?: string }[] } {
+): {
+  paths: Set<string>;
+  retained: Set<string>;
+  entries: { path: string; kind?: string }[];
+} {
   const mode = navigatorViewMode.value;
   const size = VIEW_ICON_SIZE[mode];
   // 动态发现：实测列数/行高优先，未测到回退估算。
@@ -1148,24 +1158,38 @@ function syncThumbRequestsForPane(
         mode as PlaceholderViewMode,
         isCompactListDensity(),
       );
-  const win = computeThumbRequestWindow({
+  const windowBase = {
     total: entries.length,
     scrollTop,
     viewportHeight: listViewportHeightPx(viewport),
     rowHeight,
     columns,
     mode,
-  });
+  };
+  // 请求窗（窄，overscan=THUMB_REQUEST_OVERSCAN_ROWS）：只对它发内容缩略图，控住甩动期 IPC 量。
+  const win = computeThumbRequestWindow(windowBase);
   const nextEntries: { path: string; kind?: string }[] = [];
   for (let i = win.startIndex; i < win.endIndex; i += 1) {
     const entry = entries[i];
     if (entry?.path) nextEntries.push(entry);
   }
   const nextSet = new Set(nextEntries.map((entry) => entry.path));
-  const left = pathsLeavingWindow(previousPaths, nextSet);
-  // 仅取消离开请求窗的排队/in-flight；已成功写入的缓存保留（仍挂载项回滚可直接命中）。
+  // 取消窗（宽，overscan=THUMB_REQUEST_CANCEL_OVERSCAN_ROWS）：只有真正离开这个更宽带才 cancel。
+  // 静止落点贴近行边界时，边缘行会在窄请求窗上/下沿反复进出；若以请求窗做 cancel，
+  // 这些行被反复 markSoft→字节预算淘汰→重进即冷启动重新 IPC，表现为「停在屏幕仍逐行反复重载」。
+  const keepWin = computeThumbRequestWindow({
+    ...windowBase,
+    overscanRows: THUMB_REQUEST_CANCEL_OVERSCAN_ROWS,
+  });
+  const retained = new Set<string>();
+  for (let i = keepWin.startIndex; i < keepWin.endIndex; i += 1) {
+    const entry = entries[i];
+    if (entry?.path) retained.add(entry.path);
+  }
+  const left = pathsLeavingWindow(previousRetained, retained);
+  // 仅取消离开宽窗的排队/in-flight；请求窗 ⊂ 宽窗，边缘抖动不再触发 cancel。
   if (left.length) cancelShellIconRequests(left, size);
-  return { paths: nextSet, entries: nextEntries };
+  return { paths: nextSet, retained, entries: nextEntries };
 }
 
 function refreshViewportIconRequests() {
@@ -1176,18 +1200,20 @@ function refreshViewportIconRequests() {
     visibleEntries.value,
     primaryScrollTop.value,
     listViewport.value,
-    primaryThumbPaths,
+    primaryThumbRetainedPaths,
     primaryGridGeometry.value,
   );
   const secondary = syncThumbRequestsForPane(
     secondaryEntries.value,
     secondaryScrollTop.value,
     secondaryViewport.value,
-    secondaryThumbPaths,
+    secondaryThumbRetainedPaths,
     secondaryGridGeometry.value,
   );
   primaryThumbPaths = primary.paths;
   secondaryThumbPaths = secondary.paths;
+  primaryThumbRetainedPaths = primary.retained;
+  secondaryThumbRetainedPaths = secondary.retained;
   // FIL-68：固定当前缩略图请求窗，LRU/字节预算淘汰时最后考虑，
   // 防止可见缩略图被新到结果挤掉后回落成占位图并反复震荡。
   setShellIconPinnedPaths([...primaryThumbPaths, ...secondaryThumbPaths]);
