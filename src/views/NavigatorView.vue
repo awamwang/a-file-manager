@@ -1405,6 +1405,13 @@ function entryHoverTitle(entry: NavigatorEntry): string {
   return lines.join("\n");
 }
 
+/** F34: Details 视图用 role=grid，排序列头需 aria-sort 暴露当前排序方向。 */
+function ariaSortFor(
+  column: "name" | "size" | "modified" | "type",
+): "ascending" | "descending" | "none" {
+  if (sortColumn.value !== column) return "none";
+  return sortDirection.value === "asc" ? "ascending" : "descending";
+}
 function sortIndicator(column: "name" | "size" | "modified" | "type"): string {
   if (sortColumn.value !== column) return "";
   return sortDirection.value === "asc" ? " ▲" : " ▼";
@@ -2567,7 +2574,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         'list--drop': dragOverPath === currentPath,
       }"
       :style="primaryListStyle"
-      role="listbox"
+      :role="isDetailsView ? 'grid' : 'listbox'"
       :aria-multiselectable="true"
       tabindex="-1"
       data-focus-default
@@ -2596,7 +2603,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         role="row"
         :style="detailsGridStyle"
       >
-        <button type="button" class="col-sort col-name" @click="toggleSort('name')">
+        <button type="button" class="col-sort col-name" role="columnheader" :aria-sort="ariaSortFor('name')" @click="toggleSort('name')">
           {{ t("navigator.colName") }}{{ sortIndicator("name") }}
           <span
             class="col-resizer"
@@ -2605,7 +2612,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
             @pointerdown.stop="onColumnResizeStart($event, 'name')"
           />
         </button>
-        <button type="button" class="col-sort col-type" @click="toggleSort('type')">
+        <button type="button" class="col-sort col-type" role="columnheader" :aria-sort="ariaSortFor('type')" @click="toggleSort('type')">
           {{ t("navigator.colType") }}{{ sortIndicator("type") }}
           <span
             class="col-resizer"
@@ -2614,7 +2621,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
             @pointerdown.stop="onColumnResizeStart($event, 'type')"
           />
         </button>
-        <button type="button" class="col-sort col-size" @click="toggleSort('size')">
+        <button type="button" class="col-sort col-size" role="columnheader" :aria-sort="ariaSortFor('size')" @click="toggleSort('size')">
           {{ t("navigator.colSize") }}{{ sortIndicator("size") }}
           <span
             class="col-resizer"
@@ -2623,7 +2630,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
             @pointerdown.stop="onColumnResizeStart($event, 'size')"
           />
         </button>
-        <button type="button" class="col-sort col-modified" @click="toggleSort('modified')">
+        <button type="button" class="col-sort col-modified" role="columnheader" :aria-sort="ariaSortFor('modified')" @click="toggleSort('modified')">
           {{ t("navigator.colModified") }}{{ sortIndicator("modified") }}
           <span
             class="col-resizer"
@@ -2685,11 +2692,11 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
             'row--drop': dragOverPath === item.entry.path,
           }"
           :style="isDetailsView ? detailsGridStyle : undefined"
-          role="option"
+          :role="isDetailsView ? 'row' : 'option'"
           tabindex="-1"
           draggable="true"
           :data-entry-path="item.entry.path"
-          :aria-selected="isSelected(item.entry.path)"
+          :aria-selected="isDetailsView ? undefined : isSelected(item.entry.path)"
           :title="entryHoverTitle(item.entry)"
           @mousedown="onRowMouseDown($event, item.entry)"
           @click="onRowClick($event, item.entry)"
@@ -2701,7 +2708,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           @dragleave="onDragLeave(item.entry)"
           @drop="onDrop($event, item.entry)"
         >
-          <span class="kind" :data-kind="item.entry.kind">
+          <span class="kind" :data-kind="item.entry.kind" :role="isDetailsView ? 'presentation' : undefined">
             <CloudFileIcon
               v-if="specialEntryIcon(item.entry, currentPath)"
               :name="specialEntryIcon(item.entry, currentPath)!"
@@ -2734,7 +2741,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
             @keydown.escape.prevent.stop="cancelInlineRename"
             @blur="onRenameBlur"
           />
-          <span v-else class="name-block">
+          <span v-else class="name-block" :role="isDetailsView ? 'gridcell' : undefined" :aria-selected="isDetailsView ? isSelected(item.entry.path) : undefined">
             <span class="name" @click="onNameClick($event, item.entry)">{{ item.entry.name }}</span>
             <span v-if="folderSearchActive" class="row-location">{{ entryLocation(item.entry.path) }}</span>
             <span v-if="isTilesView || isContentView" class="row-meta">
@@ -2742,9 +2749,9 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
               <template v-if="item.entry.kind !== 'dir'"> · {{ formatSize(item.entry) }}</template>
             </span>
           </span>
-          <span v-if="isDetailsView" class="type">{{ formatEntryType(item.entry) }}</span>
-          <span v-if="isDetailsView" class="size">{{ formatSize(item.entry) }}</span>
-          <span v-if="isDetailsView" class="modified">{{ formatModified(item.entry) }}</span>
+          <span v-if="isDetailsView" class="type" role="gridcell" :aria-selected="isSelected(item.entry.path)">{{ formatEntryType(item.entry) }}</span>
+          <span v-if="isDetailsView" class="size" role="gridcell" :aria-selected="isSelected(item.entry.path)">{{ formatSize(item.entry) }}</span>
+          <span v-if="isDetailsView" class="modified" role="gridcell" :aria-selected="isSelected(item.entry.path)">{{ formatModified(item.entry) }}</span>
         </div>
       </template>
       <div
@@ -2802,7 +2809,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           'list--drop': dragOverPath === secondaryPath,
         }"
         :style="secondaryListStyle"
-        role="listbox"
+        :role="isDetailsView ? 'grid' : 'listbox'"
         :aria-multiselectable="true"
         :aria-busy="secondaryLoading ? 'true' : undefined"
         :aria-label="secondaryPath || t('navigator.loading')"
@@ -2858,11 +2865,11 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
             'row--drop': dragOverPath === entry.path,
           }"
           :style="isDetailsView ? detailsGridStyle : undefined"
-          role="option"
+          :role="isDetailsView ? 'row' : 'option'"
           tabindex="-1"
           draggable="true"
           :data-entry-path="entry.path"
-          :aria-selected="isSelected(entry.path)"
+          :aria-selected="isDetailsView ? undefined : isSelected(entry.path)"
           :title="entryHoverTitle(entry)"
           @mousedown="onRowMouseDown($event, entry)"
           @click="onRowClick($event, entry)"
@@ -2874,7 +2881,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           @dragleave="onDragLeave(entry)"
           @drop="onDrop($event, entry)"
         >
-          <span class="kind" :data-kind="entry.kind">
+          <span class="kind" :data-kind="entry.kind" :role="isDetailsView ? 'presentation' : undefined">
             <CloudFileIcon
               v-if="specialEntryIcon(entry, secondaryPath)"
               :name="specialEntryIcon(entry, secondaryPath)!"
@@ -2890,7 +2897,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
               :is-link="isLinkEntry(entry)"
             />
           </span>
-          <span class="name-block">
+          <span class="name-block" :role="isDetailsView ? 'gridcell' : undefined" :aria-selected="isDetailsView ? isSelected(entry.path) : undefined">
             <span class="name">{{ entry.name }}</span>
             <span v-if="folderSearchActive" class="row-location">{{ entryLocation(entry.path) }}</span>
             <span v-if="isTilesView || isContentView" class="row-meta">
@@ -2898,9 +2905,9 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
               <template v-if="entry.kind !== 'dir'"> · {{ formatSize(entry) }}</template>
             </span>
           </span>
-          <span v-if="isDetailsView" class="type">{{ formatEntryType(entry) }}</span>
-          <span v-if="isDetailsView" class="size">{{ formatSize(entry) }}</span>
-          <span v-if="isDetailsView" class="modified">{{ formatModified(entry) }}</span>
+          <span v-if="isDetailsView" class="type" role="gridcell" :aria-selected="isSelected(entry.path)">{{ formatEntryType(entry) }}</span>
+          <span v-if="isDetailsView" class="size" role="gridcell" :aria-selected="isSelected(entry.path)">{{ formatSize(entry) }}</span>
+          <span v-if="isDetailsView" class="modified" role="gridcell" :aria-selected="isSelected(entry.path)">{{ formatModified(entry) }}</span>
         </div>
         <div
           v-if="showSecondaryVirtSpacers && secondaryVirtual.offsetAfterPx > 0"

@@ -5,7 +5,9 @@
 // runs). It locks the ARIA *substrate* an assistive tech reads from the DOM, so
 // the roles/states/landmarks delivered during the UX audit cannot silently
 // regress:
-//   • F26  navigator file list  -> role=listbox + role=option + aria-selected + aria-multiselectable
+//   • F26/F34 navigator list    -> role derived by view: listbox/option (icons/list)
+//                                   OR grid/row/gridcell + columnheader+aria-sort (Details)
+//                                   + aria-selected + aria-multiselectable
 //   • F27  folder tree          -> role=tree + role=treeitem + role=group + aria-expanded
 //   • F28  transient feedback    -> ToastHost live region (aria-live=polite) + DropHint status
 //   • F33  chrome landmarks      -> AppShell <nav>/role=navigation + role=search + role=tablist/tab,
@@ -31,20 +33,32 @@ const shell = read("src/components/shell/AppShell.vue");
 const toast = read("src/components/shell/ToastHost.vue");
 const dropHint = read("src/components/shell/DropHintOverlay.vue");
 
-// ---- F26 — navigator file list is a proper listbox/option composite ----
-assert.ok(list.includes('role="listbox"'), "navigator list must expose role=listbox");
-assert.ok(list.includes('role="option"'), "navigator rows must expose role=option");
+// ---- F26/F34 — navigator list exposes a derived composite: listbox/option (non-Details)
+//      or a proper grid (Details), both with selection + multiselect + accessible name ----
+// Container role is view-derived, so both role values must be reachable from source:
+assert.ok(
+  list.includes('isDetailsView ? \'grid\' : \'listbox\''),
+  "navigator container role must derive grid(Details) / listbox(other views)",
+);
+assert.ok(
+  list.includes('isDetailsView ? \'row\' : \'option\''),
+  "navigator row role must derive row(Details) / option(other views)",
+);
+// F34 — Details grid substrate must exist (this is what made the old header illegal in a listbox):
+assert.ok(list.includes('role="gridcell"'), "Details rows must expose role=gridcell");
+assert.ok(list.includes('role="columnheader"'), "Details column headers must expose role=columnheader");
+assert.ok(list.includes(":aria-sort="), "sortable Details columns must expose aria-sort");
 assert.ok(
   list.includes(":aria-multiselectable=\"true\"") || list.includes('aria-multiselectable="true"'),
   "multi-select list must set aria-multiselectable=true",
 );
 assert.ok(
   list.includes(":aria-selected=") || list.includes('aria-selected="'),
-  "option rows must reflect selection via aria-selected",
+  "rows/cells must reflect selection via aria-selected",
 );
 assert.ok(
   list.includes(":aria-label=") || list.includes('aria-label="'),
-  "listbox must carry an accessible name (aria-label)",
+  "list/grid must carry an accessible name (aria-label)",
 );
 
 // ---- F27 — folder tree is a proper tree/treeitem/group composite ----
@@ -88,5 +102,5 @@ assert.ok(!shell.includes('role="tabpanel"'), "F33: role=tabpanel must stay remo
 assert.ok(!shell.includes('role="region"'), "F33c: the body/main must not be wrapped in role=region");
 
 console.log(
-  "A11y semantics checks OK (F26 listbox/option, F27 tree/treeitem, F28 live region, F33 landmarks + tabpanel/region reverts).",
+  "A11y semantics checks OK (F26/F34 listbox|grid derived roles + gridcell/columnheader/aria-sort, F27 tree/treeitem, F28 live region, F33 landmarks + tabpanel/region reverts).",
 );
