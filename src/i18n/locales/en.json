@@ -956,6 +956,18 @@
           "title": "Knowledge source",
           "description": "The folder to index inside your knowledge library. Leave empty to use the service default."
         },
+        "awamKnowledgeSecretScript": {
+          "title": "Vault script path",
+          "description": "Absolute path to agent_secret.py enabling the knowledge vault channel; leave empty to disable secret reveal/copy."
+        },
+        "awamKnowledgeSecretAgentToken": {
+          "title": "Vault channel token",
+          "description": "Human-channel caller token for the vault script; leave empty to disable the vault channel."
+        },
+        "awamKnowledgeSecretId": {
+          "title": "Vault source",
+          "description": "Desensitization source id passed to the vault script; leave empty to use the service default."
+        },
         "voiceSearchAutoStart": {
           "title": "Voice search",
           "description": "Start capturing automatically when the Search Palette opens; recognized speech is appended to the query"

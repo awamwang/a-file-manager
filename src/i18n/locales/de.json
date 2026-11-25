@@ -1219,6 +1219,18 @@
           "title": "Wissens-Quell-ID",
           "description": "Der innerhalb deiner Wissensbibliothek zu indexierende Ordner. Leer gelassen wird die Standardangabe des Diensts verwendet."
         },
+        "awamKnowledgeSecretScript": {
+          "title": "Vault-Skript-Pfad",
+          "description": "Absoluter Pfad zu agent_secret.py; aktiviert den Vault-Kanal des Wissensdienstes. Leer = Anzeigen/Kopieren von Geheimnissen deaktiviert."
+        },
+        "awamKnowledgeSecretAgentToken": {
+          "title": "Vault-Kanal-Token",
+          "description": "Caller-Token des Mensch-Maschine-Kanals für das Vault-Skript; leer = Vault-Kanal deaktiviert."
+        },
+        "awamKnowledgeSecretId": {
+          "title": "Vault-Quell-ID",
+          "description": "An das Vault-Skript übergebene Anonymisierungs-Quell-ID; leer = Dienststandard."
+        },
         "voiceSearchAutoStart": {
           "title": "Sprachsuche",
           "description": "Beim Öffnen der Suchpalette automatisch Aufnahme starten; erkannter Text wird an die Suchanfrage angehängt"

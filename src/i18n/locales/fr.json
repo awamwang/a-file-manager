@@ -1219,6 +1219,18 @@
           "title": "ID de source connaissances",
           "description": "Dossier à indexer dans votre bibliothèque de connaissances. Laissez vide pour utiliser la valeur par défaut du service."
         },
+        "awamKnowledgeSecretScript": {
+          "title": "Chemin du script du coffre",
+          "description": "Chemin absolu vers agent_secret.py ; active le canal coffre du service de connaissances. Vide = affichage/copie des secrets désactivés."
+        },
+        "awamKnowledgeSecretAgentToken": {
+          "title": "Jeton du canal coffre",
+          "description": "Jeton d'appel du canal humain-machine pour le script du coffre ; vide = canal coffre désactivé."
+        },
+        "awamKnowledgeSecretId": {
+          "title": "ID de source du coffre",
+          "description": "ID de source d'anonymisation transmis au script du coffre ; vide = valeur par défaut du service."
+        },
         "voiceSearchAutoStart": {
           "title": "Recherche vocale",
           "description": "Démarrer automatiquement la capture à l'ouverture de la palette ; le texte reconnu est ajouté à la requête"

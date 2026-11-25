@@ -231,6 +231,16 @@ fn migrate_step(
             notes.push("Added core.openTool.order (schema v15)".to_string());
             Ok(())
         }
+        (15, 16) => {
+            for (key, value) in default_document().values {
+                values.entry(key).or_insert(value);
+            }
+            notes.push(
+                "Added power.awamKnowledgeSecretScript/SecretAgentToken/SecretId (schema v16)"
+                    .to_string(),
+            );
+            Ok(())
+        }
         _ => Err(format!("No migration path from {from} → {to}")),
     }
 }

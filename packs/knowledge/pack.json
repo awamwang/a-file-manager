@@ -24,7 +24,10 @@
         "KM_SERVICE_LOG": "0",
         "KM_SERVICE_TOKEN": "${afm:settings:power.awamKnowledgeServiceToken}",
         "KM_DATA_ROOT": "${afm:settings:power.awamKnowledgeDataRoot}",
-        "KM_SOURCE_ID": "${afm:settings:power.awamKnowledgeSourceId}"
+        "KM_SOURCE_ID": "${afm:settings:power.awamKnowledgeSourceId}",
+        "KM_SECRET_SCRIPT": "${afm:settings:power.awamKnowledgeSecretScript}",
+        "KM_SECRET_AGENT_TOKEN": "${afm:settings:power.awamKnowledgeSecretAgentToken}",
+        "KM_SECRET_ID": "${afm:settings:power.awamKnowledgeSecretId}"
       }
     }],
     "config": [
@@ -64,6 +67,33 @@
         "kind": "string",
         "settingKey": "power.awamKnowledgeSourceId",
         "order": 30
+      },
+      {
+        "id": "secret-script",
+        "title": "保险库脚本路径",
+        "titleKey": "settings.fields.power.awamKnowledgeSecretScript.title",
+        "descriptionKey": "settings.fields.power.awamKnowledgeSecretScript.description",
+        "kind": "string",
+        "settingKey": "power.awamKnowledgeSecretScript",
+        "order": 40
+      },
+      {
+        "id": "secret-agent-token",
+        "title": "保险库通道口令",
+        "titleKey": "settings.fields.power.awamKnowledgeSecretAgentToken.title",
+        "descriptionKey": "settings.fields.power.awamKnowledgeSecretAgentToken.description",
+        "kind": "secret",
+        "settingKey": "power.awamKnowledgeSecretAgentToken",
+        "order": 50
+      },
+      {
+        "id": "secret-id",
+        "title": "保险库源 id",
+        "titleKey": "settings.fields.power.awamKnowledgeSecretId.title",
+        "descriptionKey": "settings.fields.power.awamKnowledgeSecretId.description",
+        "kind": "string",
+        "settingKey": "power.awamKnowledgeSecretId",
+        "order": 60
       }
     ],
     "search": []

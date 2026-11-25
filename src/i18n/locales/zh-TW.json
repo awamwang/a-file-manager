@@ -956,6 +956,18 @@
           "title": "知識庫源 id",
           "description": "知識庫中要索引的目錄。留空=使用服務預設。"
         },
+        "awamKnowledgeSecretScript": {
+          "title": "保險庫腳本路徑",
+          "description": "agent_secret.py 的絕對路徑，啟用知識庫保險庫通道；留空=停用密鑰展示與複製。"
+        },
+        "awamKnowledgeSecretAgentToken": {
+          "title": "保險庫通道令牌",
+          "description": "保險庫人機通道的呼叫令牌；留空=停用保險庫通道。"
+        },
+        "awamKnowledgeSecretId": {
+          "title": "保險庫源 id",
+          "description": "傳給保險庫腳本的脫敏源 id；留空=使用服務預設。"
+        },
         "voiceSearchAutoStart": {
           "title": "語音搜尋",
           "description": "開啟搜尋面板時自動開始錄音；識別文字追加進搜尋詞"

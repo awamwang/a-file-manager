@@ -1219,6 +1219,18 @@
           "title": "ナレッジソース ID",
           "description": "ナレッジライブラリ内でインデックス対象のフォルダです。空欄の場合はサービスの既定値を使用します。"
         },
+        "awamKnowledgeSecretScript": {
+          "title": "ヴォールトスクリプトのパス",
+          "description": "agent_secret.py の絶対パス。ナレッジサービスのヴォールトチャネルを有効にします。空欄 = シークレットの表示・コピーを無効化。"
+        },
+        "awamKnowledgeSecretAgentToken": {
+          "title": "ヴォールトチャネルトークン",
+          "description": "ヴォールトスクリプトのヒューマンチャネル呼び出しトークン。空欄 = ヴォールトチャネルを無効化。"
+        },
+        "awamKnowledgeSecretId": {
+          "title": "ヴォールトソース ID",
+          "description": "ヴォールトスクリプトに渡す匿名化ソース ID。空欄 = サービスの既定値を使用。"
+        },
         "voiceSearchAutoStart": {
           "title": "音声検索",
           "description": "検索パレットを開いたときに自動で録音を開始し、認識テキストを検索語に追記します"

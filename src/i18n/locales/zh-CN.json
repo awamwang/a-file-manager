@@ -956,6 +956,18 @@
           "title": "知识库源 id",
           "description": "知识库中要索引的目录。留空=使用服务默认。"
         },
+        "awamKnowledgeSecretScript": {
+          "title": "保险库脚本路径",
+          "description": "agent_secret.py 的绝对路径，启用知识库保险库通道；留空=停用密钥展示与复制。"
+        },
+        "awamKnowledgeSecretAgentToken": {
+          "title": "保险库通道口令",
+          "description": "保险库人机通道的调用口令；留空=停用保险库通道。"
+        },
+        "awamKnowledgeSecretId": {
+          "title": "保险库源 id",
+          "description": "传给保险库脚本的脱敏源 id；留空=使用服务默认。"
+        },
         "voiceSearchAutoStart": {
           "title": "语音搜索",
           "description": "打开搜索面板时自动开始录音；识别文本追加进搜索词"
