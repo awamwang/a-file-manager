@@ -33,6 +33,22 @@ export const DEMO_ROUTE = "/demo/";
 // to be parsed and Vue to have mounted SOMETHING into #app. Per-test
 // assertions (toBeVisible) then auto-wait for the specific node.
 export async function openDemo(page: import("@playwright/test").Page, route = DEMO_ROUTE) {
-  await page.goto(route, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector("#app :is(*)", { timeout: 60_000 });
+  // 'commit' returns as soon as response headers arrive → a fast, SPECIFIC
+  // failure if the dev server isn't answering, instead of a black-hole timeout.
+  const resp = await page.goto(route, { waitUntil: "commit", timeout: 15_000 });
+  if (!resp) throw new Error(`openDemo: no response from ${route} (webServer not answering?)`);
+  const status = resp.status();
+  if (!resp.ok()) {
+    const snippet = (await resp.text().catch(() => "")).slice(0, 300);
+    throw new Error(`openDemo: ${route} -> HTTP ${status}\n${snippet}`);
+  }
+  try {
+    await page.waitForSelector("#app :is(*)", { state: "attached", timeout: 30_000 });
+  } catch {
+    const title = await page.title().catch(() => "?");
+    const body = (await page.locator("body").innerText().catch(() => "")).slice(0, 300);
+    throw new Error(
+      `openDemo: ${route} served (HTTP ${status}, title="${title}") but #app never mounted.\nbody: ${body}`,
+    );
+  }
 }

@@ -21,6 +21,10 @@ export default defineConfig({
   use: {
     baseURL,
     navigationTimeout: 60_000,
+    // This machine runs Clash/sing-box system proxies. A clean Playwright
+    // profile can route even 127.0.0.1 through them and stall on the local dev
+    // server. Force direct connections for the localhost harness.
+    launchOptions: { args: ["--no-proxy-server"] },
     // ux-audit hard gate is enforced in-spec; keep artifacts on failure only.
     trace: "on-first-retry",
     screenshot: "only-on-failure",
