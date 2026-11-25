@@ -15,7 +15,9 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (rel) => readFileSync(join(root, rel), "utf8");
 
 const pkg = JSON.parse(read("package.json"));
-const release = read(".github/workflows/release.yml");
+// 不绑定具体换行：Windows checkout 可能是 CRLF，字面量 "\n" 会误杀
+// （check-virtual-entry-info.mjs 同款约定）。
+const release = read(".github/workflows/release.yml").replace(/\r\n/g, "\n");
 const builder = read("scripts/build_pack_feed.py");
 
 // 1. Gate itself must be wired — an orphan gate protects nothing (AGENTS.md / H8).
