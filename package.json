@@ -182,7 +182,11 @@
     "test:name-conflict": "node scripts/check-name-conflict.mjs",
     "test:transfer-error": "node scripts/check-transfer-error.mjs",
     "test:test-hygiene": "node scripts/check-test-hygiene.mjs",
-    "test:ipc-parity": "node scripts/check-ipc-parity.mjs"
+    "test:ipc-parity": "node scripts/check-ipc-parity.mjs",
+
+    "e2e": "playwright test",
+    "e2e:install": "playwright install chromium",
+    "e2e:report": "playwright show-report"
   },
   "dependencies": {
     "@crabnebula/tauri-plugin-drag": "^2.1.0",
@@ -196,6 +200,8 @@
     "vue-router": "^4.6.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.10.1",
+    "@playwright/test": "^1.49.0",
     "@tauri-apps/cli": "^2",
     "@vitejs/plugin-vue": "^6.0.11",
     "typescript": "~5.9.3",
