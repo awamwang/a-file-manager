@@ -514,6 +514,9 @@ mod tests {
             String::new(),
             String::new(),
             String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
         )
         .unwrap();
         doc = set_enabled(&doc, "test-agent", true).unwrap();
@@ -552,6 +555,9 @@ mod tests {
             "Search Agent".into(),
             String::new(),
             r".search-skills".into(),
+            String::new(),
+            String::new(),
+            String::new(),
             String::new(),
             String::new(),
             String::new(),

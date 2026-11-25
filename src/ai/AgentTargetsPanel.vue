@@ -8,6 +8,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { toastSuccess } from "../state/toast";
 import {
+  aiAgentTargetOpenPath,
   aiAgentTargetsDiscover,
   aiAgentTargetsList,
   aiAgentTargetsRemove,
@@ -16,7 +17,7 @@ import {
   aiAgentTargetsUpdate,
   aiAgentTargetsUpsertCustom,
 } from "./client";
-import type { AgentTarget, AiConfigDocument } from "./types";
+import type { AgentGlobalPathSlot, AgentTarget, AiConfigDocument } from "./types";
 
 const { t } = useI18n();
 
@@ -31,6 +32,9 @@ const draftGlobalSkills = ref("");
 const draftProjectSkills = ref("");
 const draftGlobalMcp = ref("");
 const draftProjectMcp = ref("");
+const draftGlobalSessions = ref("");
+const draftGlobalRules = ref("");
+const draftProjectRules = ref("");
 const draftPrompt = ref("");
 
 const customName = ref("");
@@ -39,6 +43,9 @@ const customGlobalSkills = ref("");
 const customProjectSkills = ref("");
 const customGlobalMcp = ref("");
 const customProjectMcp = ref("");
+const customGlobalSessions = ref("");
+const customGlobalRules = ref("");
+const customProjectRules = ref("");
 const customPrompt = ref("");
 
 const AGENT_ERROR_KEYS: Record<string, string> = {
@@ -48,6 +55,9 @@ const AGENT_ERROR_KEYS: Record<string, string> = {
   AI_AGENT_UNKNOWN: "ai.agents.errorUnknown",
   AI_AGENT_BUILTIN_REMOVE: "ai.agents.errorBuiltinRemove",
   AI_AGENT_ID_CONFLICT: "ai.agents.errorIdConflict",
+  AI_AGENT_SLOT_UNKNOWN: "ai.agents.errorSlotUnknown",
+  AI_AGENT_PATH_EMPTY: "ai.agents.errorPathEmpty",
+  AI_AGENT_PATH_NOT_FOUND: "ai.agents.errorPathNotFound",
 };
 
 function mapError(err: unknown): string {
@@ -97,6 +107,9 @@ function syncDraft(target: AgentTarget | null) {
     draftProjectSkills.value = "";
     draftGlobalMcp.value = "";
     draftProjectMcp.value = "";
+    draftGlobalSessions.value = "";
+    draftGlobalRules.value = "";
+    draftProjectRules.value = "";
     draftPrompt.value = "";
     return;
   }
@@ -105,6 +118,9 @@ function syncDraft(target: AgentTarget | null) {
   draftProjectSkills.value = target.projectSkillsDir;
   draftGlobalMcp.value = target.globalMcpPath;
   draftProjectMcp.value = target.projectMcpPath;
+  draftGlobalSessions.value = target.globalSessionsDir;
+  draftGlobalRules.value = target.globalRulesPath;
+  draftProjectRules.value = target.projectRulesDir;
   draftPrompt.value = target.mcpUsagePrompt;
 }
 
@@ -172,9 +188,28 @@ async function saveSelected() {
       projectSkillsDir: draftProjectSkills.value,
       globalMcpPath: draftGlobalMcp.value,
       projectMcpPath: draftProjectMcp.value,
+      globalSessionsDir: draftGlobalSessions.value,
+      globalRulesPath: draftGlobalRules.value,
+      projectRulesDir: draftProjectRules.value,
       mcpUsagePrompt: draftPrompt.value,
     });
     toastSuccess(t("ai.agents.noticeSaved"));
+  } catch (err) {
+    error.value = mapError(err);
+  }
+}
+
+/** ADR 0028：在系统资源管理器 / 默认程序中打开选中 Agent 的全局路径槽。 */
+async function openSlot(slot: AgentGlobalPathSlot) {
+  if (!selected.value) return;
+  error.value = null;
+  try {
+    const result = await aiAgentTargetOpenPath(selected.value.id, slot);
+    if (!result.success) {
+      error.value = result.error || mapError(new Error("AI_AGENT_PATH_NOT_FOUND"));
+      return;
+    }
+    toastSuccess(t("ai.agents.noticeOpened"));
   } catch (err) {
     error.value = mapError(err);
   }
@@ -190,6 +225,9 @@ async function addCustom() {
       projectSkillsDir: customProjectSkills.value,
       globalMcpPath: customGlobalMcp.value,
       projectMcpPath: customProjectMcp.value,
+      globalSessionsDir: customGlobalSessions.value,
+      globalRulesPath: customGlobalRules.value,
+      projectRulesDir: customProjectRules.value,
       mcpUsagePrompt: customPrompt.value,
     });
     const created =
@@ -204,6 +242,9 @@ async function addCustom() {
     customProjectSkills.value = "";
     customGlobalMcp.value = "";
     customProjectMcp.value = "";
+    customGlobalSessions.value = "";
+    customGlobalRules.value = "";
+    customProjectRules.value = "";
     customPrompt.value = "";
     toastSuccess(t("ai.agents.noticeCustomAdded"));
   } catch (err) {
@@ -284,6 +325,18 @@ onMounted(() => {
       <label class="agents-field">
         <span>{{ t("ai.agents.fieldProjectMcp") }}</span>
         <input v-model="customProjectMcp" class="fluent-control" type="text" />
+      </label>
+      <label class="agents-field">
+        <span>{{ t("ai.agents.fieldGlobalSessions") }}</span>
+        <input v-model="customGlobalSessions" class="fluent-control" type="text" />
+      </label>
+      <label class="agents-field">
+        <span>{{ t("ai.agents.fieldGlobalRules") }}</span>
+        <input v-model="customGlobalRules" class="fluent-control" type="text" />
+      </label>
+      <label class="agents-field">
+        <span>{{ t("ai.agents.fieldProjectRules") }}</span>
+        <input v-model="customProjectRules" class="fluent-control" type="text" />
       </label>
       <label class="agents-field">
         <span>{{ t("ai.agents.fieldMcpPrompt") }}</span>
@@ -413,6 +466,60 @@ onMounted(() => {
           <span>{{ t("ai.agents.fieldProjectMcp") }}</span>
           <input v-model="draftProjectMcp" class="fluent-control" type="text" />
         </label>
+        <label class="agents-field">
+          <span>{{ t("ai.agents.fieldGlobalSessions") }}</span>
+          <input v-model="draftGlobalSessions" class="fluent-control" type="text" />
+        </label>
+        <label class="agents-field">
+          <span>{{ t("ai.agents.fieldGlobalRules") }}</span>
+          <input v-model="draftGlobalRules" class="fluent-control" type="text" />
+        </label>
+        <label class="agents-field">
+          <span>{{ t("ai.agents.fieldProjectRules") }}</span>
+          <input v-model="draftProjectRules" class="fluent-control" type="text" />
+        </label>
+        <div
+          v-if="
+            selected.globalSkillsDir ||
+            selected.globalSessionsDir ||
+            selected.globalRulesPath ||
+            selected.globalMcpPath
+          "
+          class="agents-open-row"
+        >
+          <button
+            v-if="selected.globalSkillsDir"
+            type="button"
+            class="fluent-control agents-open-btn"
+            @click="openSlot('globalSkillsDir')"
+          >
+            {{ t("ai.agents.openGlobalSkills") }}
+          </button>
+          <button
+            v-if="selected.globalSessionsDir"
+            type="button"
+            class="fluent-control agents-open-btn"
+            @click="openSlot('globalSessionsDir')"
+          >
+            {{ t("ai.agents.openGlobalSessions") }}
+          </button>
+          <button
+            v-if="selected.globalRulesPath"
+            type="button"
+            class="fluent-control agents-open-btn"
+            @click="openSlot('globalRulesPath')"
+          >
+            {{ t("ai.agents.openGlobalRules") }}
+          </button>
+          <button
+            v-if="selected.globalMcpPath"
+            type="button"
+            class="fluent-control agents-open-btn"
+            @click="openSlot('globalMcpPath')"
+          >
+            {{ t("ai.agents.openGlobalMcp") }}
+          </button>
+        </div>
         <label class="agents-field">
           <span>{{ t("ai.agents.fieldMcpPrompt") }}</span>
           <textarea
@@ -638,5 +745,17 @@ onMounted(() => {
   display: flex;
   gap: var(--fluent-space-sm);
   margin-top: var(--fluent-space-xs);
+}
+
+/* ADR 0028：全局路径「打开」按钮行。 */
+.agents-open-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fluent-space-xs);
+}
+
+.agents-open-btn {
+  font-size: var(--fluent-font-size-caption);
+  padding-inline: var(--fluent-space-sm);
 }
 </style>

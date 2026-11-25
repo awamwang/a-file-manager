@@ -152,6 +152,9 @@ pub fn ai_agent_targets_upsert_custom(
     project_skills_dir: String,
     global_mcp_path: String,
     project_mcp_path: String,
+    global_sessions_dir: String,
+    global_rules_path: String,
+    project_rules_dir: String,
     mcp_usage_prompt: String,
 ) -> Result<AiConfigDocument, String> {
     let dir = config_dir(&app)?;
@@ -164,6 +167,9 @@ pub fn ai_agent_targets_upsert_custom(
         project_skills_dir,
         global_mcp_path,
         project_mcp_path,
+        global_sessions_dir,
+        global_rules_path,
+        project_rules_dir,
         mcp_usage_prompt,
     )?;
     agents::save_to_path(&dir, &next)?;
@@ -385,6 +391,44 @@ pub fn ai_project_ai_get(
     let dir = config_dir(&app)?;
     let doc = agents::load_from_path(&dir)?;
     project_ai::load_or_init(&workspace_path, &doc)
+}
+
+/// ADR 0028：项目工作区内实际存在的 AI 目录（只读检测），供「AI 目录」跳转区。
+#[tauri::command]
+pub fn ai_project_ai_dirs(
+    app: AppHandle,
+    workspace_path: String,
+) -> Result<Vec<project_ai::ProjectAiDir>, String> {
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    project_ai::project_ai_dirs(&workspace_path, &doc)
+}
+
+/// ADR 0028：打开 Agent Target 的全局路径槽（Skills / Sessions / Rules / MCP）
+/// 在系统资源管理器或默认程序中打开。后端完成 token 展开；不写入任何内容。
+#[tauri::command]
+pub async fn ai_agent_target_open_path(
+    app: AppHandle,
+    id: String,
+    slot: String,
+) -> Result<crate::open_with::OpenWithResult, String> {
+    let dir = config_dir(&app)?;
+    let doc = agents::load_from_path(&dir)?;
+    let target = doc
+        .agent_targets
+        .iter()
+        .find(|t| t.id == id)
+        .ok_or_else(|| agents::ERR_AGENT_UNKNOWN.to_string())?;
+    let expanded = agents::resolve_global_slot_path(target, &slot)?;
+    if !std::path::Path::new(&expanded).exists() {
+        return Err(agents::ERR_AGENT_PATH_NOT_FOUND.to_string());
+    }
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        crate::open_with::open_existing_path(&expanded)
+    })
+    .await
+    .map_err(|err| format!("ai_agent_target_open_path worker failed: {err}"))?;
+    Ok(result)
 }
 
 #[tauri::command]
@@ -616,6 +660,9 @@ mod tests {
             String::new(),
             "a/mcp.json".into(),
             String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
         )
         .unwrap();
         doc = a;
@@ -672,6 +719,9 @@ mod tests {
             String::new(),
             String::new(),
             "on/mcp.json".into(),
+            String::new(),
+            String::new(),
+            String::new(),
             String::new(),
         )
         .unwrap();

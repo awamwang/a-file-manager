@@ -433,6 +433,8 @@ pub fn run() {
                     #[cfg(feature = "ai-addon")]
                     ai::ai_agent_targets_remove,
                     #[cfg(feature = "ai-addon")]
+                    ai::ai_agent_target_open_path,
+                    #[cfg(feature = "ai-addon")]
                     ai::ai_skill_deploy_mode_set,
                     #[cfg(feature = "ai-addon")]
                     ai::ai_skills_library_get,
@@ -470,6 +472,8 @@ pub fn run() {
                     ai::ai_harvest_skills_import,
                     #[cfg(feature = "ai-addon")]
                     ai::ai_project_ai_get,
+                    #[cfg(feature = "ai-addon")]
+                    ai::ai_project_ai_dirs,
                     #[cfg(feature = "ai-addon")]
                     ai::ai_project_ai_set_enabled_agents,
                     #[cfg(feature = "ai-addon")]

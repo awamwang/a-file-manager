@@ -277,6 +277,9 @@ mod tests {
             mcp_file.to_string_lossy().into(),
             String::new(),
             String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
         )
         .unwrap();
         // 中央未启用：扫描必须被拒绝。
@@ -298,6 +301,9 @@ mod tests {
             &doc,
             Some("off-agent".into()),
             "Off Agent".into(),
+            String::new(),
+            String::new(),
+            String::new(),
             String::new(),
             String::new(),
             String::new(),

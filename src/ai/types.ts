@@ -34,6 +34,12 @@ export type AgentTarget = {
   projectSkillsDir: string;
   globalMcpPath: string;
   projectMcpPath: string;
+  /** 会话/转录目录（只读展示与跳转，ADR 0028）。 */
+  globalSessionsDir: string;
+  /** 全局规则/记忆文件或目录（只读展示与跳转，ADR 0028）。 */
+  globalRulesPath: string;
+  /** 项目相对规则目录（只读展示与跳转，ADR 0028）。 */
+  projectRulesDir: string;
   /** Placeholder only — never injected (A2). */
   mcpUsagePrompt: string;
   createdAt: number;
@@ -79,7 +85,25 @@ export type AgentTargetPatch = {
   projectSkillsDir?: string | null;
   globalMcpPath?: string | null;
   projectMcpPath?: string | null;
+  globalSessionsDir?: string | null;
+  globalRulesPath?: string | null;
+  projectRulesDir?: string | null;
   mcpUsagePrompt?: string | null;
+};
+
+/** ADR 0028：`ai_agent_target_open_path` 的全局路径槽位名（与后端 SLOT_* 对齐）。 */
+export type AgentGlobalPathSlot =
+  | "globalSkillsDir"
+  | "globalSessionsDir"
+  | "globalRulesPath"
+  | "globalMcpPath";
+
+/** ADR 0028：项目工作区内实际存在的 AI 目录条目。 */
+export type ProjectAiDir = {
+  /** 相对路径（如 `.afm`、`.cursor/skills`）。 */
+  name: string;
+  /** 工作区内的绝对路径。 */
+  path: string;
 };
 
 export type LibrarySkill = {

@@ -68,6 +68,12 @@ fn open_path_default_inner(path: String) -> OpenWithResult {
     }
 }
 
+/// ADR 0028：供仓内其他模块复用的「已存在路径 → 系统默认打开」通路
+/// （目录 explorer 直启 / 文件系统关联）。调用方自行完成 token 展开与存在性检查。
+pub(crate) fn open_existing_path(path: &str) -> OpenWithResult {
+    open_path_default_inner(path.to_string())
+}
+
 /// 把 Prowlarr 搜索结果交给系统默认程序：magnet 走协议关联，.torrent 下载链接
 /// 先落地为临时 `.torrent` 再走文件关联。AFM 不猜具体下载器，交给系统关联。
 const TORRENT_DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(60);

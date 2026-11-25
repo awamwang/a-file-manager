@@ -6,6 +6,7 @@
  * 列表始终把已添加（启用）的项排在前面，组内保持目录原有顺序。
  */
 import { computed, onMounted, ref, watch } from "vue";
+import { invoke } from "@tauri-apps/api/core";
 import { useI18n } from "vue-i18n";
 import { toastSuccess } from "../state/toast";
 import {
@@ -13,6 +14,7 @@ import {
   aiMcpCatalogList,
   aiMcpDeploy,
   aiMcpUndeploy,
+  aiProjectAiDirs,
   aiProjectAiGet,
   aiProjectAiSetEnabledAgents,
   aiProjectDeployments,
@@ -26,6 +28,7 @@ import type {
   AiProjectDocument,
   LibrarySkill,
   McpCatalogEntry,
+  ProjectAiDir,
 } from "./types";
 
 const props = defineProps<{
@@ -43,6 +46,8 @@ const skills = ref<LibrarySkill[]>([]);
 const mcpFilter = ref("");
 const skillFilter = ref("");
 const deployments = ref<AiProjectDeployments>({ mcpIds: [], skillNames: [] });
+/** ADR 0028：工作区内实际存在的 AI 目录（只读检测），供「AI 目录」跳转区。 */
+const aiDirs = ref<ProjectAiDir[]>([]);
 /** 防止同一行在 IPC 未返回时被重复切换。 */
 const pending = ref<Set<string>>(new Set());
 
@@ -111,6 +116,16 @@ async function refreshDeployments(): Promise<void> {
   }
 }
 
+/** ADR 0028：AI 目录检测失败时退化为空列表，不阻塞面板。 */
+async function refreshAiDirs(): Promise<void> {
+  if (!props.workspacePath.trim()) return;
+  try {
+    aiDirs.value = await aiProjectAiDirs(props.workspacePath);
+  } catch {
+    aiDirs.value = [];
+  }
+}
+
 async function refresh() {
   if (!props.workspacePath.trim()) return;
   loading.value = true;
@@ -122,6 +137,7 @@ async function refresh() {
       aiMcpCatalogList(),
       aiSkillsLibraryGet(),
       refreshDeployments(),
+      refreshAiDirs(),
     ]);
     projectAi.value = aiDoc;
     agents.value = agentDoc.agentTargets;
@@ -131,6 +147,24 @@ async function refresh() {
     error.value = mapError(err);
   } finally {
     loading.value = false;
+  }
+}
+
+/** ADR 0028：在系统资源管理器中打开项目内的 AI 目录。 */
+async function openAiDir(dir: ProjectAiDir) {
+  error.value = null;
+  try {
+    const result = await invoke<{ success: boolean; error: string | null }>(
+      "open_path_default",
+      { path: dir.path },
+    );
+    if (!result.success) {
+      error.value = result.error || t("ai.project.errorDirOpen");
+      return;
+    }
+    toastSuccess(t("ai.project.noticeDirOpened", { name: dir.name }));
+  } catch (err) {
+    error.value = mapError(err);
   }
 }
 
@@ -147,8 +181,9 @@ async function toggleAgent(id: string) {
     if (next.has(id)) next.delete(id);
     else next.add(id);
     projectAi.value = await aiProjectAiSetEnabledAgents(props.workspacePath, [...next]);
-    // Agent 启用集变化会改变部署目标，必须同步刷新「已添加」状态。
+    // Agent 启用集变化会改变部署目标，必须同步刷新「已添加」状态与 AI 目录检测。
     await refreshDeployments();
+    await refreshAiDirs();
     toastSuccess(t("ai.project.noticeAgentsSaved"));
   } catch (err) {
     error.value = mapError(err);
@@ -254,6 +289,26 @@ onMounted(() => {
         <p v-if="!enabledAgents.length" class="project-ai-hint">
           {{ t("ai.agents.noneEnabledHint") }}
         </p>
+      </div>
+    </section>
+
+    <!-- ADR 0028：工作区内实际存在的 AI 目录（只读检测 + 系统资源管理器跳转）。 -->
+    <section v-if="aiDirs.length" class="fluent-surface project-ai-block">
+      <div class="project-ai-block-head">
+        <h4 class="project-ai-sub">{{ t("ai.project.dirsTitle") }}</h4>
+        <p class="project-ai-hint">{{ t("ai.project.dirsHint") }}</p>
+      </div>
+      <div class="project-ai-agents">
+        <button
+          v-for="dir in aiDirs"
+          :key="dir.path"
+          type="button"
+          class="project-ai-chip project-ai-dir-chip"
+          :title="dir.path"
+          @click="openAiDir(dir)"
+        >
+          <span>{{ dir.name }}</span>
+        </button>
       </div>
     </section>
 
@@ -436,6 +491,15 @@ onMounted(() => {
   background: var(--fluent-color-fill-subtle);
   font-size: var(--fluent-font-size-caption);
   cursor: pointer;
+}
+/* ADR 0028：AI 目录跳转 chip —— 是按钮不是 checkbox，继承 chip 底色并给出可点击反馈。 */
+.project-ai-dir-chip {
+  border: none;
+  color: var(--fluent-color-text-primary);
+  font-family: var(--fluent-font-family-mono);
+}
+.project-ai-dir-chip:hover {
+  background: var(--fluent-color-fill-control-hover);
 }
 .project-ai-cols {
   display: grid;

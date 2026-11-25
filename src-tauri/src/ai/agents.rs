@@ -13,8 +13,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub const AI_CONFIG_FILE_NAME: &str = "ai-config.json";
 /// One-shot backup of unparseable non-empty `ai-config.json` (AIA-277).
 pub const AI_CONFIG_CORRUPT_BACKUP_NAME: &str = "ai-config.json.corrupt.bak";
-/// v2：Agent Target 增加 `defaultInProjects`；AI 配置增加 `skillDeployMode`（ADR 0010 / 0011）。
-pub const AI_CONFIG_SCHEMA_VERSION: u32 = 2;
+/// v3：Agent Target 增加 sessions / rules 只读路径槽（ADR 0028）。v2：`defaultInProjects` + `skillDeployMode`（ADR 0010 / 0011）。
+pub const AI_CONFIG_SCHEMA_VERSION: u32 = 3;
 
 pub const SKILL_DEPLOY_MODE_JUNCTION: &str = "junction";
 pub const SKILL_DEPLOY_MODE_COPY: &str = "copy";
@@ -25,6 +25,15 @@ pub const ERR_AGENT_NAME_EMPTY: &str = "AI_AGENT_NAME_EMPTY";
 pub const ERR_AGENT_UNKNOWN: &str = "AI_AGENT_UNKNOWN";
 pub const ERR_AGENT_BUILTIN_REMOVE: &str = "AI_AGENT_BUILTIN_REMOVE";
 pub const ERR_AGENT_ID_CONFLICT: &str = "AI_AGENT_ID_CONFLICT";
+pub const ERR_AGENT_SLOT_UNKNOWN: &str = "AI_AGENT_SLOT_UNKNOWN";
+pub const ERR_AGENT_PATH_EMPTY: &str = "AI_AGENT_PATH_EMPTY";
+pub const ERR_AGENT_PATH_NOT_FOUND: &str = "AI_AGENT_PATH_NOT_FOUND";
+
+/// ADR 0028：`ai_agent_target_open_path` 的全局路径槽位名（与 FE types 对齐）。
+pub const SLOT_GLOBAL_SKILLS_DIR: &str = "globalSkillsDir";
+pub const SLOT_GLOBAL_SESSIONS_DIR: &str = "globalSessionsDir";
+pub const SLOT_GLOBAL_RULES_PATH: &str = "globalRulesPath";
+pub const SLOT_GLOBAL_MCP_PATH: &str = "globalMcpPath";
 
 const MAX_ID_LEN: usize = 64;
 
@@ -45,6 +54,15 @@ pub struct AgentTarget {
     pub project_skills_dir: String,
     pub global_mcp_path: String,
     pub project_mcp_path: String,
+    /// 会话/转录目录（只读展示与跳转，ADR 0028）。
+    #[serde(default)]
+    pub global_sessions_dir: String,
+    /// 全局规则/记忆文件或目录（只读展示与跳转，ADR 0028）。
+    #[serde(default)]
+    pub global_rules_path: String,
+    /// 项目相对规则目录（只读展示与跳转，ADR 0028）。
+    #[serde(default)]
+    pub project_rules_dir: String,
     /// Placeholder only — not injected into agents (ADR 0006 / A2).
     pub mcp_usage_prompt: String,
     pub created_at: u64,
@@ -61,6 +79,9 @@ pub struct AgentTargetPatch {
     pub project_skills_dir: Option<String>,
     pub global_mcp_path: Option<String>,
     pub project_mcp_path: Option<String>,
+    pub global_sessions_dir: Option<String>,
+    pub global_rules_path: Option<String>,
+    pub project_rules_dir: Option<String>,
     pub mcp_usage_prompt: Option<String>,
 }
 
@@ -126,6 +147,33 @@ struct BuiltinDef {
     project_skills_dir: &'static str,
     global_mcp_path: &'static str,
     project_mcp_path: &'static str,
+}
+
+/// ADR 0028：sessions / rules 扩展路径槽的内置补充表（与 60 条 `BUILTIN_DEFS` 分离，避免全量改写）。
+/// 仅收录有公开约定路径的 Agent；未列出的预设三槽为空（用户可自行补填）。
+/// (id, global_sessions_dir, global_rules_path, project_rules_dir)
+const BUILTIN_EXTRA_PATHS: &[(&str, &str, &str, &str)] = &[
+    ("claude-code", r"%USERPROFILE%\.claude\projects", r"%USERPROFILE%\.claude\CLAUDE.md", r".claude"),
+    ("codex", r"~/.codex/sessions", r"~/.codex/AGENTS.md", ""),
+    ("gemini-cli", r"~/.gemini/tmp", r"~/.gemini/GEMINI.md", ""),
+    ("qwen-code", "", r"~/.qwen/QWEN.md", ""),
+    ("cursor", "", r"%USERPROFILE%\.cursor\rules", r".cursor\rules"),
+    ("trae", "", r"%USERPROFILE%\.trae\rules", r".trae\rules"),
+    ("trae-cn", "", r"~/.trae-cn/rules", r".trae/rules"),
+    ("windsurf", "", "", r".windsurf/rules"),
+    ("kilo-code", "", "", r".kilocode/rules"),
+    ("roo-code", "", "", r".roo/rules"),
+    ("opencode", "", r"%USERPROFILE%\.config\opencode\AGENTS.md", ""),
+    ("goose", r"~/.config/goose/sessions", "", ""),
+];
+
+fn builtin_extra_paths(id: &str) -> (&'static str, &'static str, &'static str) {
+    for (extra_id, sessions, global_rules, project_rules) in BUILTIN_EXTRA_PATHS {
+        if *extra_id == id {
+            return (sessions, global_rules, project_rules);
+        }
+    }
+    ("", "", "")
 }
 
 /// Built-in Agent Target presets (path conventions from ADR 0006 + local agent layouts).
@@ -728,6 +776,7 @@ fn validate_id(raw: &str) -> Result<String, String> {
 }
 
 fn builtin_target(def: &BuiltinDef, stamp: u64) -> AgentTarget {
+    let (sessions, global_rules, project_rules) = builtin_extra_paths(def.id);
     let mut target = AgentTarget {
         id: def.id.to_string(),
         display_name: def.display_name.to_string(),
@@ -739,6 +788,9 @@ fn builtin_target(def: &BuiltinDef, stamp: u64) -> AgentTarget {
         project_skills_dir: def.project_skills_dir.to_string(),
         global_mcp_path: def.global_mcp_path.to_string(),
         project_mcp_path: def.project_mcp_path.to_string(),
+        global_sessions_dir: sessions.to_string(),
+        global_rules_path: global_rules.to_string(),
+        project_rules_dir: project_rules.to_string(),
         mcp_usage_prompt: String::new(),
         created_at: stamp,
         updated_at: stamp,
@@ -752,6 +804,9 @@ pub fn sync_builtins_and_discover(document: &AiConfigDocument) -> AiConfigDocume
     let stamp = now_millis();
     let mut next = document.clone();
     let migrate_defaults = next.schema_version < 2;
+    // ADR 0028：v2→v3 一次性迁移——内置条目按补充预设表种入 sessions/rules 槽
+    // （空才种；用户已填/已清空的值不覆盖）。
+    let migrate_extra_paths = next.schema_version < 3;
     next.schema_version = AI_CONFIG_SCHEMA_VERSION;
     next.skill_deploy_mode = normalize_skill_deploy_mode(&next.skill_deploy_mode);
 
@@ -760,6 +815,18 @@ pub fn sync_builtins_and_discover(document: &AiConfigDocument) -> AiConfigDocume
             // Keep user overrides for paths / prompt / enabled; refresh discovery only.
             if existing.kind != "custom" {
                 existing.kind = "builtin".to_string();
+            }
+            if migrate_extra_paths {
+                let (sessions, global_rules, project_rules) = builtin_extra_paths(def.id);
+                if existing.global_sessions_dir.trim().is_empty() && !sessions.is_empty() {
+                    existing.global_sessions_dir = sessions.to_string();
+                }
+                if existing.global_rules_path.trim().is_empty() && !global_rules.is_empty() {
+                    existing.global_rules_path = global_rules.to_string();
+                }
+                if existing.project_rules_dir.trim().is_empty() && !project_rules.is_empty() {
+                    existing.project_rules_dir = project_rules.to_string();
+                }
             }
             refresh_discovered(existing);
         } else {
@@ -909,6 +976,15 @@ pub fn update_target(
     if let Some(v) = patch.project_mcp_path {
         target.project_mcp_path = v.trim().to_string();
     }
+    if let Some(v) = patch.global_sessions_dir {
+        target.global_sessions_dir = v.trim().to_string();
+    }
+    if let Some(v) = patch.global_rules_path {
+        target.global_rules_path = v.trim().to_string();
+    }
+    if let Some(v) = patch.project_rules_dir {
+        target.project_rules_dir = v.trim().to_string();
+    }
     if let Some(v) = patch.mcp_usage_prompt {
         // Placeholder field — store as-is; never inject (A2).
         target.mcp_usage_prompt = v;
@@ -926,6 +1002,9 @@ pub fn upsert_custom(
     project_skills_dir: String,
     global_mcp_path: String,
     project_mcp_path: String,
+    global_sessions_dir: String,
+    global_rules_path: String,
+    project_rules_dir: String,
     mcp_usage_prompt: String,
 ) -> Result<AiConfigDocument, String> {
     let name = display_name.trim();
@@ -964,6 +1043,9 @@ pub fn upsert_custom(
         existing.project_skills_dir = project_skills_dir.trim().to_string();
         existing.global_mcp_path = global_mcp_path.trim().to_string();
         existing.project_mcp_path = project_mcp_path.trim().to_string();
+        existing.global_sessions_dir = global_sessions_dir.trim().to_string();
+        existing.global_rules_path = global_rules_path.trim().to_string();
+        existing.project_rules_dir = project_rules_dir.trim().to_string();
         existing.mcp_usage_prompt = mcp_usage_prompt;
         existing.updated_at = stamp;
         refresh_discovered(existing);
@@ -985,6 +1067,9 @@ pub fn upsert_custom(
         project_skills_dir: project_skills_dir.trim().to_string(),
         global_mcp_path: global_mcp_path.trim().to_string(),
         project_mcp_path: project_mcp_path.trim().to_string(),
+        global_sessions_dir: global_sessions_dir.trim().to_string(),
+        global_rules_path: global_rules_path.trim().to_string(),
+        project_rules_dir: project_rules_dir.trim().to_string(),
         mcp_usage_prompt,
         created_at: stamp,
         updated_at: stamp,
@@ -1009,6 +1094,23 @@ pub fn remove_custom(document: &AiConfigDocument, id: &str) -> Result<AiConfigDo
     let mut next = document.clone();
     next.agent_targets.retain(|t| t.id != id);
     Ok(next)
+}
+
+/// ADR 0028：slot 名 → Agent Target 全局路径（已展开 token），供 `ai_agent_target_open_path`。
+/// 返回 `Err` 时携带错误码（`AI_AGENT_SLOT_UNKNOWN` / `AI_AGENT_PATH_EMPTY`）。
+pub fn resolve_global_slot_path(target: &AgentTarget, slot: &str) -> Result<String, String> {
+    let raw = match slot {
+        SLOT_GLOBAL_SKILLS_DIR => target.global_skills_dir.as_str(),
+        SLOT_GLOBAL_SESSIONS_DIR => target.global_sessions_dir.as_str(),
+        SLOT_GLOBAL_RULES_PATH => target.global_rules_path.as_str(),
+        SLOT_GLOBAL_MCP_PATH => target.global_mcp_path.as_str(),
+        _ => return Err(ERR_AGENT_SLOT_UNKNOWN.to_string()),
+    };
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Err(ERR_AGENT_PATH_EMPTY.to_string());
+    }
+    Ok(expand_agent_path(trimmed))
 }
 
 #[cfg(test)]
@@ -1088,6 +1190,9 @@ mod tests {
                 project_skills_dir: None,
                 global_mcp_path: None,
                 project_mcp_path: None,
+                global_sessions_dir: None,
+                global_rules_path: None,
+                project_rules_dir: None,
                 mcp_usage_prompt: Some("PLACEHOLDER — do not inject".into()),
             },
         )
@@ -1115,6 +1220,9 @@ mod tests {
             r".my-agent\skills".into(),
             r"%USERPROFILE%\.my-agent\mcp.json".into(),
             r".my-agent\mcp.json".into(),
+            r"%USERPROFILE%\.my-agent\sessions".into(),
+            r"%USERPROFILE%\.my-agent\RULES.md".into(),
+            r".my-agent\rules".into(),
             String::new(),
         )
         .unwrap();
@@ -1122,6 +1230,14 @@ mod tests {
             .agent_targets
             .iter()
             .any(|t| t.id == "my-agent" && t.kind == "custom"));
+        let mine = with
+            .agent_targets
+            .iter()
+            .find(|t| t.id == "my-agent")
+            .unwrap();
+        assert_eq!(mine.global_sessions_dir, r"%USERPROFILE%\.my-agent\sessions");
+        assert_eq!(mine.global_rules_path, r"%USERPROFILE%\.my-agent\RULES.md");
+        assert_eq!(mine.project_rules_dir, r".my-agent\rules");
 
         let removed = remove_custom(&with, "my-agent").unwrap();
         assert!(!removed.agent_targets.iter().any(|t| t.id == "my-agent"));
@@ -1141,6 +1257,9 @@ mod tests {
             &doc,
             Some("cursor".into()),
             "Fake Cursor".into(),
+            String::new(),
+            String::new(),
+            String::new(),
             String::new(),
             String::new(),
             String::new(),
@@ -1185,6 +1304,120 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn every_builtin_extra_path_expands_without_tokens_or_foreign_separators() {
+        // ADR 0028：补充预设表同样必须无残留 token / 异平台分隔符。
+        let foreign = if crate::platform::current().path_separator() == '/' {
+            '\\'
+        } else {
+            '/'
+        };
+        for (_, sessions, global_rules, project_rules) in BUILTIN_EXTRA_PATHS {
+            for raw in [*sessions, *global_rules, *project_rules] {
+                if raw.is_empty() {
+                    continue;
+                }
+                let expanded = super::expand_agent_path(raw);
+                assert!(
+                    !expanded.contains('%') && !expanded.contains('~'),
+                    "token left in {raw} -> {expanded}"
+                );
+                assert!(
+                    !expanded.contains(foreign),
+                    "foreign separator in {raw} -> {expanded}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn migrates_v2_seeds_extra_paths_once_and_keeps_user_values() {
+        // ADR 0028：v2 配置加载即补种 sessions/rules 槽；用户已有值不覆盖；
+        // 迁移一次性完成——之后用户清空也不会被回种。
+        let dir = temp_dir("v2-migrate");
+        let path = ai_config_path(&dir);
+        let v2_text = serde_json::json!({
+            "schemaVersion": 2,
+            "agentTargets": [
+                {
+                    "id": "claude-code",
+                    "displayName": "Claude Code",
+                    "kind": "builtin",
+                    "enabled": true,
+                    "discovered": true,
+                    "globalSkillsDir": "%USERPROFILE%\\.claude\\skills",
+                    "projectSkillsDir": ".claude\\skills",
+                    "globalMcpPath": "%USERPROFILE%\\.claude.json",
+                    "projectMcpPath": ".mcp.json",
+                    "mcpUsagePrompt": "",
+                    "createdAt": 1,
+                    "updatedAt": 1
+                }
+            ],
+            "skillDeployMode": "junction"
+        })
+        .to_string();
+        fs::write(&path, v2_text).unwrap();
+        let doc = load_from_path(&dir).unwrap();
+        assert_eq!(doc.schema_version, AI_CONFIG_SCHEMA_VERSION);
+        let claude = doc.agent_targets.iter().find(|t| t.id == "claude-code").unwrap();
+        assert_eq!(claude.global_sessions_dir, r"%USERPROFILE%\.claude\projects");
+        assert_eq!(claude.global_rules_path, r"%USERPROFILE%\.claude\CLAUDE.md");
+        assert_eq!(claude.project_rules_dir, r".claude");
+
+        // 用户改写后重载：保留用户值，不回种。
+        let patched = update_target(
+            &doc,
+            "claude-code",
+            AgentTargetPatch {
+                display_name: None,
+                enabled: None,
+                default_in_projects: None,
+                global_skills_dir: None,
+                project_skills_dir: None,
+                global_mcp_path: None,
+                project_mcp_path: None,
+                global_sessions_dir: Some("D:\\custom-sessions".into()),
+                global_rules_path: Some(String::new()),
+                project_rules_dir: None,
+                mcp_usage_prompt: None,
+            },
+        )
+        .unwrap();
+        save_to_path(&dir, &patched).unwrap();
+        let reloaded = load_from_path(&dir).unwrap();
+        let claude = reloaded.agent_targets.iter().find(|t| t.id == "claude-code").unwrap();
+        assert_eq!(claude.global_sessions_dir, r"D:\custom-sessions");
+        assert_eq!(claude.global_rules_path, "", "user-cleared value must not be re-seeded");
+        assert_eq!(claude.project_rules_dir, r".claude");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn resolves_global_slot_paths_with_expansion_and_errors() {
+        let dir = temp_dir("slot");
+        let doc = load_from_path(&dir).unwrap();
+        let claude = doc.agent_targets.iter().find(|t| t.id == "claude-code").unwrap();
+        let sessions = resolve_global_slot_path(claude, SLOT_GLOBAL_SESSIONS_DIR).unwrap();
+        assert!(!sessions.contains('%'), "token must expand: {sessions}");
+        assert!(sessions.ends_with(".claude\\projects") || sessions.ends_with(".claude/projects"));
+        let rules = resolve_global_slot_path(claude, SLOT_GLOBAL_RULES_PATH).unwrap();
+        assert!(!rules.contains('%'), "token must expand: {rules}");
+        assert!(rules.contains("CLAUDE.md"));
+        // 无会话预设的 Agent → AI_AGENT_PATH_EMPTY。
+        let cline = doc.agent_targets.iter().find(|t| t.id == "cline").unwrap();
+        assert_eq!(
+            resolve_global_slot_path(cline, SLOT_GLOBAL_SESSIONS_DIR).unwrap_err(),
+            ERR_AGENT_PATH_EMPTY
+        );
+        // 未知槽位 → AI_AGENT_SLOT_UNKNOWN。
+        assert_eq!(
+            resolve_global_slot_path(claude, "nope").unwrap_err(),
+            ERR_AGENT_SLOT_UNKNOWN
+        );
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]

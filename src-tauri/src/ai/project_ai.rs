@@ -159,6 +159,55 @@ pub fn resolve_global_agents(central: &AiConfigDocument) -> Vec<&AgentTarget> {
         .collect()
 }
 
+/// 项目工作区内实际存在的 AI 目录条目（只读检测，ADR 0028）。
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectAiDir {
+    /// 相对路径（如 `.afm`、`.cursor/skills`）。
+    pub name: String,
+    /// 工作区内的绝对路径。
+    pub path: String,
+}
+
+/// 汇总 `.afm` + 该项目启用 Agent 的 `projectSkillsDir` / `projectRulesDir`
+/// 真实配置（项目启用集 ∩ 中央 enabled，ADR 0010 修订），只返回磁盘上存在的目录。
+/// 只读：不创建任何文件/目录（用 `enabled_agent_ids` 而非 `load_or_init`）。
+pub fn project_ai_dirs(
+    workspace: &str,
+    central: &AiConfigDocument,
+) -> Result<Vec<ProjectAiDir>, String> {
+    let root = require_workspace(workspace)?;
+    let enabled = enabled_agent_ids(workspace, central)?;
+
+    let mut rel_dirs: Vec<String> = vec![AFM_DIR_NAME.to_string()];
+    for agent in central
+        .agent_targets
+        .iter()
+        .filter(|t| t.enabled && enabled.iter().any(|id| id == &t.id))
+    {
+        for rel in [&agent.project_skills_dir, &agent.project_rules_dir] {
+            let trimmed = rel.trim().trim_end_matches(['/', '\\']);
+            if !trimmed.is_empty() {
+                rel_dirs.push(trimmed.to_string());
+            }
+        }
+    }
+    rel_dirs.sort();
+    rel_dirs.dedup();
+
+    let mut out = Vec::new();
+    for rel in rel_dirs {
+        let abs = root.join(&rel);
+        if abs.is_dir() {
+            out.push(ProjectAiDir {
+                name: rel,
+                path: abs.to_string_lossy().into_owned(),
+            });
+        }
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -194,6 +243,9 @@ mod tests {
                 project_skills_dir: None,
                 global_mcp_path: None,
                 project_mcp_path: None,
+                global_sessions_dir: None,
+                global_rules_path: None,
+                project_rules_dir: None,
                 mcp_usage_prompt: None,
             },
         )
@@ -219,6 +271,9 @@ mod tests {
             "skills".into(),
             String::new(),
             "mcp.json".into(),
+            String::new(),
+            String::new(),
+            String::new(),
             String::new(),
         )
         .unwrap();
@@ -246,5 +301,63 @@ mod tests {
 
         let _ = fs::remove_dir_all(&cfg);
         let _ = fs::remove_dir_all(&ws);
+    }
+
+    /// ADR 0028：项目 AI 目录只读检测——`.afm` + 启用 Agent 的
+    /// projectSkillsDir/projectRulesDir 中磁盘上真实存在的目录。
+    #[test]
+    fn project_ai_dirs_lists_existing_dirs_readonly() {
+        let cfg = temp_ws("cfg-dirs");
+        let ws = temp_ws("ws-dirs");
+        let mut doc = load_from_path(&cfg).unwrap();
+        doc = upsert_custom(
+            &doc,
+            Some("dirs-a".into()),
+            "Dirs A".into(),
+            String::new(),
+            "skills".into(),
+            String::new(),
+            "mcp.json".into(),
+            String::new(),
+            String::new(),
+            "rules".into(),
+            String::new(),
+        )
+        .unwrap();
+        doc = set_enabled(&doc, "dirs-a", true).unwrap();
+        set_enabled_agents(ws.to_str().unwrap(), &doc, vec!["dirs-a".to_string()]).unwrap();
+
+        // 未创建任何目录：只报 .afm（enabled_agent_ids 读路径会因 load_or_init 缺席而回落——
+        // set_enabled_agents 已写 .afm/ai-project.json，因此 .afm 存在）。
+        fs::create_dir_all(ws.join("skills")).unwrap();
+        fs::create_dir_all(ws.join("rules")).unwrap();
+        let dirs = project_ai_dirs(ws.to_str().unwrap(), &doc).unwrap();
+        let names: Vec<&str> = dirs.iter().map(|d| d.name.as_str()).collect();
+        assert!(names.contains(&".afm"), "afm dir expected: {names:?}");
+        assert!(names.contains(&"skills"), "agent skills dir expected: {names:?}");
+        assert!(names.contains(&"rules"), "agent rules dir expected: {names:?}");
+        // 不存在的目录（mcp.json 是文件路径，不计）不出现。
+        assert!(!names.iter().any(|n| n.contains("mcp")));
+        for d in &dirs {
+            assert!(Path::new(&d.path).is_dir(), "reported dir must exist: {}", d.path);
+            assert!(d.path.starts_with(ws.to_str().unwrap()), "path must be inside ws");
+        }
+
+        // 磁盘上无 skills 目录时不列出。
+        fs::remove_dir_all(ws.join("skills")).unwrap();
+        let dirs = project_ai_dirs(ws.to_str().unwrap(), &doc).unwrap();
+        assert!(!dirs.iter().any(|d| d.name == "skills"));
+
+        let _ = fs::remove_dir_all(&cfg);
+        let _ = fs::remove_dir_all(&ws);
+    }
+
+    #[test]
+    fn project_ai_dirs_rejects_invalid_workspace() {
+        let cfg = temp_ws("cfg-dirs-invalid");
+        let doc = load_from_path(&cfg).unwrap();
+        let err = project_ai_dirs("Z:\\definitely\\not\\a\\dir", &doc).unwrap_err();
+        assert_eq!(err, ERR_PROJECT_AI_WORKSPACE);
+        let _ = fs::remove_dir_all(&cfg);
     }
 }

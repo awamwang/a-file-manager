@@ -3,6 +3,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  AgentGlobalPathSlot,
   AgentTargetPatch,
   AiAddonStatus,
   AiConfigDocument,
@@ -19,6 +20,7 @@ import type {
   McpDeployReport,
   McpImportReport,
   McpUndeployReport,
+  ProjectAiDir,
   ProjectSkillHit,
   SkillDeployReport,
   SkillsLibraryStatus,
@@ -67,6 +69,9 @@ export function aiAgentTargetsUpsertCustom(args: {
   projectSkillsDir: string;
   globalMcpPath: string;
   projectMcpPath: string;
+  globalSessionsDir: string;
+  globalRulesPath: string;
+  projectRulesDir: string;
   mcpUsagePrompt: string;
 }): Promise<AiConfigDocument> {
   return invoke<AiConfigDocument>("ai_agent_targets_upsert_custom", args);
@@ -74,6 +79,22 @@ export function aiAgentTargetsUpsertCustom(args: {
 
 export function aiAgentTargetsRemove(id: string): Promise<AiConfigDocument> {
   return invoke<AiConfigDocument>("ai_agent_targets_remove", { id });
+}
+
+/** ADR 0028：打开 Agent Target 的全局路径槽（系统资源管理器 / 默认程序）。 */
+export function aiAgentTargetOpenPath(
+  id: string,
+  slot: AgentGlobalPathSlot,
+): Promise<{ success: boolean; error: string | null }> {
+  return invoke<{ success: boolean; error: string | null }>("ai_agent_target_open_path", {
+    id,
+    slot,
+  });
+}
+
+/** ADR 0028：项目工作区内实际存在的 AI 目录（只读检测）。 */
+export function aiProjectAiDirs(workspacePath: string): Promise<ProjectAiDir[]> {
+  return invoke<ProjectAiDir[]>("ai_project_ai_dirs", { workspacePath });
 }
 
 export function aiSkillDeployModeSet(mode: string): Promise<AiConfigDocument> {

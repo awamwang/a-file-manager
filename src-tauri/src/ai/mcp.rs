@@ -506,6 +506,9 @@ mod tests {
             mcp_path.to_string_lossy().into(),
             r".cursor\mcp.json".into(),
             String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
         )
         .unwrap();
         doc = set_enabled(&doc, "mcp-agent", true).unwrap();
