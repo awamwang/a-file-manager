@@ -129,7 +129,10 @@ if (AI_ADDON_ENABLED) {
 }
 
 const router = createRouter({
-  history: createWebHistory(),
+  // Honour Vite's public base URL so the SPA also routes correctly when served
+  // under a sub-path (e.g. webdemo at /demo/). In production (Tauri) BASE_URL
+  // is "/", which is identical to createWebHistory() — behaviour unchanged.
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes,
 });
 

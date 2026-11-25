@@ -2299,7 +2299,6 @@ onUnmounted(() => {
               class="fluent-control wg-trigger"
               :class="{ 'wg-trigger--active': workGroupMenuOpen }"
               :title="t('chrome.workGroupMenu')"
-              :aria-label="t('chrome.workGroupMenu')"
               :aria-expanded="workGroupMenuOpen"
               aria-haspopup="menu"
               :disabled="workGroupChromeBusy"

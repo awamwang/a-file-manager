@@ -49,3 +49,4 @@ publish-check-report.json
 # Playwright E2E run artifacts
 /test-results/
 /playwright-report/
+/.pwtmp/
