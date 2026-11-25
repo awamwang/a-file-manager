@@ -51,8 +51,11 @@ import {
   clearShellIconQueue,
   requestShellIcons,
   setShellIconPinnedPaths,
+  shellIconCacheStatsForTests,
+  shellIconQueueSizeForTests,
   suspendQueuedContentThumbnails,
 } from "../state/shellIcons";
+import { perfEnabled, perfMark } from "../state/perfProbe";
 import {
   CONTENT_THUMB_FLING_PX_PER_MS,
   CONTENT_THUMB_SETTLE_MS,
@@ -1136,6 +1139,7 @@ function resetThumbRequestWindows() {
 }
 
 function syncThumbRequestsForPane(
+  pane: string,
   entries: { path: string; kind?: string }[],
   scrollTop: number,
   viewport: { w: number; h: number },
@@ -1189,7 +1193,41 @@ function syncThumbRequestsForPane(
   const left = pathsLeavingWindow(previousRetained, retained);
   // 仅取消离开宽窗的排队/in-flight；请求窗 ⊂ 宽窗，边缘抖动不再触发 cancel。
   if (left.length) cancelShellIconRequests(left, size);
+  probeThumbSync(pane, scrollTop, win, keepWin, left.length, entries.length);
   return { paths: nextSet, retained, entries: nextEntries };
+}
+
+let lastThumbSyncProbeKey = "";
+/** 诊断（afm.perfProbe=1）：记录请求窗/取消窗/cancel 数/甩动态/缓存，区分边缘抖动与批失败。 */
+function probeThumbSync(
+  pane: string,
+  scrollTop: number,
+  win: { startIndex: number; endIndex: number },
+  keepWin: { startIndex: number; endIndex: number },
+  leftCount: number,
+  total: number,
+): void {
+  if (!perfEnabled()) return;
+  const stats = shellIconCacheStatsForTests();
+  const roundedTop = Math.round(scrollTop);
+  const key =
+    `${pane}:${roundedTop}:${win.startIndex}-${win.endIndex}:` +
+    `${keepWin.startIndex}-${keepWin.endIndex}:${leftCount}:${stats.entries}:${contentThumbnailsAllowed ? 1 : 0}`;
+  if (key === lastThumbSyncProbeKey) return;
+  lastThumbSyncProbeKey = key;
+  perfMark("thumb_sync", {
+    pane,
+    top: roundedTop,
+    win: `${win.startIndex}-${win.endIndex}`,
+    keep: `${keepWin.startIndex}-${keepWin.endIndex}`,
+    cancelled: leftCount,
+    total,
+    allowed: contentThumbnailsAllowed ? 1 : 0,
+    cache: stats.entries,
+    kb: Math.round(stats.bytes / 1024),
+    soft: stats.soft,
+    q: shellIconQueueSizeForTests(),
+  });
 }
 
 function refreshViewportIconRequests() {
@@ -1197,6 +1235,7 @@ function refreshViewportIconRequests() {
   measurePaneGeometry(listRoot.value, primaryGridGeometry);
   measurePaneGeometry(secondaryListRoot.value, secondaryGridGeometry);
   const primary = syncThumbRequestsForPane(
+    "primary",
     visibleEntries.value,
     primaryScrollTop.value,
     listViewport.value,
@@ -1204,6 +1243,7 @@ function refreshViewportIconRequests() {
     primaryGridGeometry.value,
   );
   const secondary = syncThumbRequestsForPane(
+    "secondary",
     secondaryEntries.value,
     secondaryScrollTop.value,
     secondaryViewport.value,

@@ -61,6 +61,14 @@ export function perfMark(name: string, detail?: PerfDetail): void {
 }
 
 /**
+ * Whether the `[AFM_perf]` switch is on. Callers use this to avoid building
+ * expensive detail objects (e.g. path lists) when disabled.
+ */
+export function perfEnabled(): boolean {
+  return enabled();
+}
+
+/**
  * Time an async or sync operation and log `[AFM_perf] <name> <ms>ms …`.
  * When disabled, runs `fn` with no timing overhead beyond one flag check.
  * `detail` may be a thunk evaluated after `fn` so callers can include `n=…`.

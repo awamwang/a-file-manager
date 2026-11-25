@@ -4,7 +4,7 @@
 
 import { reactive } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { perfSpan } from "./perfProbe.ts";
+import { perfSpan, perfMark, perfEnabled } from "./perfProbe.ts";
 
 export type ShellIconResult = {
   path: string;
@@ -62,6 +62,9 @@ let generation = 0;
 let flushing = false;
 let applyTimer: ReturnType<typeof requestAnimationFrame> | null = null;
 const pendingApplies: Array<{ key: string; dataUrl: string }> = [];
+
+/** 诊断（仅 afm.perfProbe=1 时写）：连续拿不到 dataUrl 的路径计数，定位坏图 / 慢缩略图 handler（常见于视频）。 */
+const diagThumbFailCounts = new Map<string, number>();
 
 /** Thumbnail IPC is expensive (Shell handlers); keep batches small so cancel can bite. */
 const BATCH_ICON = 40;
@@ -294,6 +297,37 @@ async function flushQueue(): Promise<void> {
           );
           if (gen !== generation) return;
           const byPath = new Map(results.map((item) => [item.path, item] as const));
+          // 诊断：整批内有多少项没拿到 dataUrl；同一路径连续失败 → 疑似坏图 / 慢 handler。
+          if (perfEnabled()) {
+            let got = 0;
+            const nulls: string[] = [];
+            for (const item of activeItems) {
+              if (byPath.get(item.path)?.dataUrl) {
+                got += 1;
+                diagThumbFailCounts.delete(item.path);
+              } else {
+                nulls.push(item.path);
+                diagThumbFailCounts.set(
+                  item.path,
+                  (diagThumbFailCounts.get(item.path) ?? 0) + 1,
+                );
+              }
+            }
+            if (nulls.length) {
+              perfMark("shell_thumb_incomplete", {
+                n: activeItems.length,
+                got,
+                missing: nulls.length,
+                size,
+                thumb: preferThumbnail ? 1 : 0,
+                q: queue.length,
+              });
+              for (const p of nulls) {
+                const fails = diagThumbFailCounts.get(p) ?? 0;
+                if (fails >= 2) perfMark("shell_thumb_suspect", { path: p, fails, thumb: preferThumbnail ? 1 : 0 });
+              }
+            }
+          }
           for (const item of activeItems) {
             const key = cacheKey(item.path, item.size);
             if (attemptByKey.get(key) !== item.attempt) continue;
@@ -305,6 +339,19 @@ async function flushQueue(): Promise<void> {
             if (attemptByKey.get(key) === item.attempt) settleKey(key);
           }
         } catch {
+          if (perfEnabled()) {
+            perfMark("shell_thumb_batch_ipc_error", {
+              n: activeItems.length,
+              size,
+              thumb: preferThumbnail ? 1 : 0,
+            });
+            for (const item of activeItems) {
+              diagThumbFailCounts.set(
+                item.path,
+                (diagThumbFailCounts.get(item.path) ?? 0) + 1,
+              );
+            }
+          }
           // Fallback glyphs remain visible; clear attempts so viewport reenter can retry.
           for (const item of activeItems) {
             const key = cacheKey(item.path, item.size);
