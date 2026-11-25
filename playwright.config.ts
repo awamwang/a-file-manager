@@ -17,9 +17,10 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 2 : undefined,
   reporter: process.env.CI ? [["list"], ["github"]] : [["list"], ["html", { open: "never" }]],
-  timeout: 30_000,
+  timeout: 60_000,
   use: {
     baseURL,
+    navigationTimeout: 60_000,
     // ux-audit hard gate is enforced in-spec; keep artifacts on failure only.
     trace: "on-first-retry",
     screenshot: "only-on-failure",

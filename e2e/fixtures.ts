@@ -27,3 +27,12 @@ export { expect };
 // The webdemo boots the SPA under the /demo/ base. Absolute path resolves
 // against the config baseURL origin → http://127.0.0.1:<port>/demo/.
 export const DEMO_ROUTE = "/demo/";
+
+// Robust entry: don't wait for the full 'load' event (vite dev cold-transforms
+// route chunks on demand and the load event can lag), just require the document
+// to be parsed and Vue to have mounted SOMETHING into #app. Per-test
+// assertions (toBeVisible) then auto-wait for the specific node.
+export async function openDemo(page: import("@playwright/test").Page, route = DEMO_ROUTE) {
+  await page.goto(route, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("#app :is(*)", { timeout: 60_000 });
+}

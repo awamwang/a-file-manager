@@ -9,10 +9,10 @@
 // Selectors use the classes fixed during the audit; the rename step degrades to
 // test.skip (not a false red) if the demo's rename entry point differs.
 import AxeBuilder from "@axe-core/playwright";
-import { test, expect, DEMO_ROUTE } from "./fixtures";
+import { test, expect, openDemo } from "./fixtures";
 
 test("explorer renders an accessible listbox with option selection state", async ({ page }) => {
-  await page.goto(DEMO_ROUTE);
+  await openDemo(page);
   const listbox = page.locator('[role="listbox"]').first();
   await expect(listbox).toBeVisible();
   const rows = page.locator('[role="listbox"] [role="option"]');
@@ -24,13 +24,13 @@ test("explorer renders an accessible listbox with option selection state", async
 });
 
 test("browse mode disables the address Go button", async ({ page }) => {
-  await page.goto(DEMO_ROUTE);
+  await openDemo(page);
   await expect(page.locator('[role="option"]').first()).toBeVisible();
   await expect(page.locator(".address-go")).toBeDisabled();
 });
 
 test("navigator load produces no uncaught page errors or console errors", async ({ page, logs }) => {
-  await page.goto(DEMO_ROUTE);
+  await openDemo(page);
   await expect(page.locator('[role="option"]').first()).toBeVisible();
   // Wait out any late hydration noise, then assert the hard gate.
   await page.waitForTimeout(500);
@@ -39,7 +39,7 @@ test("navigator load produces no uncaught page errors or console errors", async 
 });
 
 test("navigator is free of axe critical + serious violations", async ({ page }) => {
-  await page.goto(DEMO_ROUTE);
+  await openDemo(page);
   await expect(page.locator('[role="option"]').first()).toBeVisible();
   const results = await new AxeBuilder({ page }).analyze();
   const blocking = results.violations.filter((v) => v.impact === "critical" || v.impact === "serious");
@@ -50,7 +50,7 @@ test("navigator is free of axe critical + serious violations", async ({ page }) 
 });
 
 test("renaming onto an existing name surfaces a conflict dialog and is cancel-safe", async ({ page }) => {
-  await page.goto(DEMO_ROUTE);
+  await openDemo(page);
   const rows = page.locator('[role="listbox"] [role="option"]');
   await expect(rows.first()).toBeVisible();
   if ((await rows.count()) < 2) {
