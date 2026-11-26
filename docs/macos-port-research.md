@@ -1135,6 +1135,29 @@ spctl -a -vvv 'A File Manager.app'
 
 **本机验证**：对已安装的 `/Applications/A File Manager.app` 执行 `xattr -dr com.apple.quarantine`（`com.apple.provenance` 是受保护属性，删不掉但不触发拦截），随后 `open` 成功拉起进程；安装脚本的语法、帮助、`--apps-dir` 演练与 gate 结果见本轮工具记录。**边界**：ad-hoc 仍不是 Developer ID + 公证，直接双击未经脚本/手工清隔离的下载包依然会被拦；签名/公证路径仍未在本机验证。
 
+## 7.29 自建 Homebrew tap：无证书版本的包管理器安装路径（第 24 轮）
+
+**触发**：用户在「安装脚本清隔离」之外询问包管理器分发（例如 Homebrew Cask），希望 `brew install` 一步装好。
+
+**边界（2026-11 现状，别再走弯路）**：
+
+- Homebrew 5.0.0（2025-11）起弃用 `--no-quarantine` / `--quarantine`，并声明 **2026-09 起禁用所有过不了 Gatekeeper 的 `homebrew/cask` 官方 cask**；未签名 / 未公证的 ad-hoc 包不能进官方仓库。Cask Cookbook 同时要求官方 macOS cask 满足 Gatekeeper requirement。
+- 自建 tap 不受官方仓库那条禁令约束，但必须显式声明清隔离步骤。Homebrew 7（2026-09）把 cask 的 `postflight` Ruby block 标为 deprecated（2027-12-11 移除），改为 `postflight_steps` 里的 `run` 步骤；因此本项目直接用新语法：`run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{appdir}}/A File Manager.app"]`。
+- Homebrew 6+ 对第三方 tap 要求显式信任；`brew install --cask awamwang/tap/a-file-manager` 这种全名安装只信任这一个 cask，不需要 `brew trust` 整个 tap。该步骤代替用户跳过一次 Gatekeeper 检查，只在信任本项目 Release 时使用。
+
+**实现**：
+
+| 落点 | 内容 |
+| --- | --- |
+| `awamwang/homebrew-tap` | 新建公开 tap 仓库，`main` 分支含 `README.md` 与 `Casks/a-file-manager.rb`；初始 Cask 指向已发布的 v0.3.0 主线版 `.app.zip`，sha256 来自 Release 资产 `digest`。 |
+| `packaging/homebrew-tap/a-file-manager.rb.tmpl` | Cask 模板：`arch arm: "aarch64", intel: "x64"`，`version` + 双架构 `sha256` 占位符，URL 用主线版素名资产，`postflight_steps` 清隔离，`uninstall quit: "com.a-file-manager.app"`。 |
+| `scripts/sync-homebrew-tap.mjs` | 从 `--sha-aarch64` / `--sha-x64`（或从 `--aarch64` / `--x64` 资产路径计算 sha256）渲染模板，校验版本号与 hex 格式，写 `--out`。 |
+| `.github/workflows/release.yml` | 新增 `publish-homebrew-tap` 作业：`needs: [prepare, build-app-macos]`，仅在 `want_ai == 'true'` 时运行；用 `gh api` 从 Release 资产 `digest` 取两架构 sha256 → 渲染 Cask → `ruby -c` → 用 `secrets.HOMEBREW_TAP_TOKEN` 通过 Contents API PUT 到 tap。加入 `finalize` 的 `needs` 与结果检查，失败则 Release 保持 draft。 |
+| 文档 / 帮助 | README 与 `macos-open-help.txt` 把 Homebrew 列为推荐路径；Release 说明同步加 `brew install --cask awamwang/tap/a-file-manager`。 |
+| `scripts/check-ci-macos.mjs` | 新增 2h 契约：Cask 模板架构/占位符/URL/新语法、同步脚本、workflow 的 tap 作业与 token、README/帮助文案。 |
+
+**已配置**：仓库 Secret `HOMEBREW_TAP_TOKEN`（用本机 `gh auth token` 写入 `awamwang/a-file-manager`，具备 `repo` 权限且可写 `awamwang/homebrew-tap`）。若以后轮换 PAT，需同步更新该 Secret；未配置时新作业会失败并阻止 Release 正式发布，避免「Release 发布了但 Cask 没更新」。
+
 ---
 
 ## 附录 B · 参考资源

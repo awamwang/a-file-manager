@@ -228,8 +228,9 @@ jobs:
             if [ "${MAC_SIGNING}" = "true" ]; then
               echo "macOS 包已用 Developer ID 签名并经 Apple 公证（notarized + stapled），可直接双击打开。"
             else
-              echo "macOS 包为 ad-hoc 签名（未配置 Developer ID / 公证）。macOS 15+ 已移除 Finder 右键 →「打开」的单次放行入口，请用安装脚本："
-              echo '从 DMG 根目录在终端执行 `bash 安装-A-File-Manager.sh`；独立资产 `A.File.Manager_'"${VERSION}"'_macos-install.sh` 需先与 `.app.zip` 解压出的 App 放同一目录再执行。脚本会把 App 装到 /Applications、清除下载隔离属性并直接启动。'
+              echo "macOS 包为 ad-hoc 签名（未配置 Developer ID / 公证）。macOS 15+ 已移除 Finder 右键 →「打开」的单次放行入口。推荐 Homebrew 一行安装（自建 tap，装完自动清隔离）："
+              echo '`brew install --cask awamwang/tap/a-file-manager`，之后 `brew upgrade --cask a-file-manager` 即可升级。'
+              echo '或下载本 Release 用安装脚本：从 DMG 根目录在终端执行 `bash 安装-A-File-Manager.sh`；独立资产 `A.File.Manager_'"${VERSION}"'_macos-install.sh` 需先与 `.app.zip` 解压出的 App 放同一目录再执行。脚本会把 App 装到 /Applications、清除下载隔离属性并直接启动。'
               echo '安装后双击即可打开，不需要系统设置或右键放行。若不想用脚本，手工方式见包内《打开帮助.txt》：'
               echo '1) 双击 App 一次 → 系统设置 → 隐私与安全性 → 安全性 → 仍要打开 → 打开；'
               echo '2) 或终端执行 `xattr -dr com.apple.quarantine "/Applications/A File Manager.app"`。'
@@ -238,6 +239,7 @@ jobs:
             echo "### Install"
             echo
             echo "Download a Windows NSIS \`.exe\`, a macOS \`.dmg\` / \`.app.zip\`, or Feature Pack \`.zip\` below."
+            echo "macOS via Homebrew: \`brew install --cask awamwang/tap/a-file-manager\` (self-hosted tap)."
             echo
             echo "All builds: https://github.com/${{ github.repository }}/releases"
           } > "${NOTES_FILE}"
@@ -532,6 +534,78 @@ jobs:
           gh release upload "${{ needs.prepare.outputs.tag }}" \
             "dist/release/${{ steps.asset.outputs.dmg }}" \
             "dist/release/${{ steps.asset.outputs.app_zip }}" --clobber
+
+  # 自建 tap：官方 homebrew/cask 不再接受无 Developer ID / 公证的 cask。
+  # 这里从 Release 资产 digest 生成 Cask，装完用 postflight_steps 清隔离。
+  publish-homebrew-tap:
+    needs: [prepare, build-app-macos]
+    if: needs.prepare.outputs.want_ai == 'true'
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Read release asset checksums
+        id: digest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          V="${{ needs.prepare.outputs.version }}"
+          API="repos/${{ github.repository }}/releases/tags/${{ needs.prepare.outputs.tag }}"
+          A="A.File.Manager_${V}_aarch64.app.zip"
+          X="A.File.Manager_${V}_x64.app.zip"
+          for name in "$A" "$X"; do
+            digest="$(gh api "$API" --jq ".assets[] | select(.name == \"${name}\") | .digest // \"\"" | head -1)"
+            if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+              echo "Missing sha256 digest for ${name}" >&2
+              exit 1
+            fi
+            case "$name" in
+              "$A") echo "aarch64=${digest#sha256:}" >> "$GITHUB_OUTPUT" ;;
+              "$X") echo "x64=${digest#sha256:}" >> "$GITHUB_OUTPUT" ;;
+            esac
+          done
+
+      - name: Render Cask
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/sync-homebrew-tap.mjs \
+            --version "${{ needs.prepare.outputs.version }}" \
+            --sha-aarch64 "${{ steps.digest.outputs.aarch64 }}" \
+            --sha-x64 "${{ steps.digest.outputs.x64 }}" \
+            --out dist/release/a-file-manager.rb
+          ruby -c dist/release/a-file-manager.rb
+
+      - name: Publish to awamwang/homebrew-tap
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TAP: awamwang/homebrew-tap
+          VERSION: ${{ needs.prepare.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          API="repos/${TAP}/contents/Casks/a-file-manager.rb"
+          CONTENT="$(base64 < dist/release/a-file-manager.rb | tr -d '\n')"
+          SHA="$(gh api "${API}?ref=main" --jq .sha 2>/dev/null || true)"
+          if [ -n "$SHA" ]; then
+            gh api --method PUT "$API" \
+              -f message="chore(cask): update a-file-manager to ${VERSION}" \
+              -f content="$CONTENT" \
+              -f sha="$SHA"
+          else
+            gh api --method PUT "$API" \
+              -f message="chore(cask): add a-file-manager ${VERSION}" \
+              -f content="$CONTENT"
+          fi
+          echo "Tap Cask updated for ${VERSION}"
 
   build-feature-packs:
     needs: prepare
@@ -869,7 +943,7 @@ jobs:
           echo "注：启用回落时，把 AFM feed 的 fallbackManifestUrl 与 OSS 主机 allowHost 配到该镜像地址。"
 
   finalize:
-    needs: [prepare, build-app, build-app-macos, build-feature-packs, build-pack-feed, build-pack-feed-intel, merge-pack-feed]
+    needs: [prepare, build-app, build-app-macos, publish-homebrew-tap, build-feature-packs, build-pack-feed, build-pack-feed-intel, merge-pack-feed]
     if: always() && needs.prepare.result == 'success'
     runs-on: ubuntu-latest
     steps:
@@ -886,22 +960,26 @@ jobs:
           set -euo pipefail
           echo "build-app=${{ needs.build-app.result }}"
           echo "build-app-macos=${{ needs.build-app-macos.result }}"
+          echo "publish-homebrew-tap=${{ needs.publish-homebrew-tap.result }}"
           echo "build-feature-packs=${{ needs.build-feature-packs.result }}"
           echo "build-pack-feed=${{ needs.build-pack-feed.result }}"
           echo "build-pack-feed-intel=${{ needs.build-pack-feed-intel.result }}"
           echo "merge-pack-feed=${{ needs.merge-pack-feed.result }}"
           app="${{ needs.build-app.result }}"
           mac="${{ needs.build-app-macos.result }}"
+          tap="${{ needs.publish-homebrew-tap.result }}"
           fp="${{ needs.build-feature-packs.result }}"
           feed_build="${{ needs.build-pack-feed.result }}"
           feed_intel="${{ needs.build-pack-feed-intel.result }}"
           feed_merge="${{ needs.merge-pack-feed.result }}"
           ok_app=false
           ok_mac=false
+          ok_tap=false
           ok_fp=false
           ok_feed=false
           [[ "$app" == "success" || "$app" == "skipped" ]] && ok_app=true
           [[ "$mac" == "success" || "$mac" == "skipped" ]] && ok_mac=true
+          [[ "$tap" == "success" || "$tap" == "skipped" ]] && ok_tap=true
           [[ "$fp" == "success" || "$fp" == "skipped" ]] && ok_fp=true
           # 三段 feed 链路都要健康：任一 build 失败时 merge 会被跳过，单看 merge
           # 会把「跳过」误判为正常并发布一个缺产物的 release。
@@ -910,7 +988,7 @@ jobs:
                ( "$feed_merge" == "success" || "$feed_merge" == "skipped" ) ]]; then
             ok_feed=true
           fi
-          if [ "$ok_app" != true ] || [ "$ok_mac" != true ] || [ "$ok_fp" != true ] || [ "$ok_feed" != true ]; then
+          if [ "$ok_app" != true ] || [ "$ok_mac" != true ] || [ "$ok_tap" != true ] || [ "$ok_fp" != true ] || [ "$ok_feed" != true ]; then
             echo "One or more build jobs failed; leaving release as draft"
             exit 1
           fi

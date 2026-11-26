@@ -4,7 +4,14 @@ A File Manager — macOS 首次打开帮助
 这个版本没有使用 Apple Developer ID 签名和公证。macOS 的 Gatekeeper 首次拦截未公证 App 是正常现象，不代表文件损坏。请只从本项目官方 GitHub Release 下载：
 https://github.com/awamwang/a-file-manager/releases
 
-【推荐：用安装脚本（无需开发者账号）】
+【推荐 1：Homebrew 一行安装】
+如果你装了 Homebrew，直接用自建 tap：
+
+    brew install --cask awamwang/tap/a-file-manager
+
+Cask 会在装入“应用程序”后自动清掉隔离属性，之后双击即可打开；升级用 `brew upgrade --cask a-file-manager`。这是第三方 tap，Homebrew 6+ 用上面这种全名安装时只会信任这一个 cask。
+
+【推荐 2：用安装脚本（无需 Homebrew）】
 macOS 15（Sequoia）及以后，Apple 已移除 Finder 的“右键 → 打开”单次放行入口；双击未公证 App 只会看到“完成 / 移到废纸篓”。所以请用脚本安装一次：
 
 1. 打开“终端”(Terminal)。
