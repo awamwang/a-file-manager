@@ -7,6 +7,8 @@
     消毒后替换为 chip 槽位，手动挂载 KnowledgeSecretChip（复制 / 5s 短显）。
   - 单实例：重复打开复用同一弹窗并替换内容；z-index 1050——面板(1000)之上、
     解锁确认框(1100)之下，chip 解锁确认不被遮挡。
+  - 「在 AFM 中显示」：关弹窗 → 切资源管理器路由 → 标签条末尾新建标签打开笔记
+    所在目录并选中该 .md（ADR 0029）；不再拉起系统文件管理器。
   明文边界：明文只经 Rust 返回值进 vaultChannel 非响应式 Map（5s 自动回掩码）。
 -->
 <script setup lang="ts">
@@ -22,7 +24,7 @@ import {
 import { useI18n } from "vue-i18n";
 import { createVNode, render } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import DOMPurify from "dompurify";
 import { marked } from "marked";
 import KnowledgeSecretChip from "./KnowledgeSecretChip.vue";
@@ -225,8 +227,16 @@ onUnmounted(() => {
   unmountChips();
 });
 
-function onRevealInExplorer(): void {
-  if (absPath.value) void revealItemInDir(absPath.value);
+/**
+ * 「在 AFM 中显示」：不离开本应用——关掉知识页，切到资源管理器路由，
+ * 在标签条末尾新建标签打开笔记所在目录，并选中该 .md（ADR 0029）。
+ */
+async function onShowInNavigator(): Promise<void> {
+  const target = absPath.value;
+  if (!target) return;
+  closeKnowledgeDoc();
+  const { revealItemsInNavigator } = await import("../../state/revealInNavigator.ts");
+  await revealItemsInNavigator([target], { appendTab: true });
 }
 
 function onReload(): void {
@@ -270,9 +280,9 @@ function onDocClick(event: MouseEvent): void {
           v-if="absPath"
           type="button"
           class="knowledge-action fluent-control"
-          @click="onRevealInExplorer"
+          @click="onShowInNavigator"
         >
-          {{ t("knowledgeView.openInExplorer") }}
+          {{ t("knowledgeView.showInNavigator") }}
         </button>
         <button
           v-if="fileQuery"

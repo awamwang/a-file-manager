@@ -80,7 +80,6 @@
       "voice.error.permission": "マイクへのアクセスがブロックされています——「システム設定 → プライバシーとセキュリティ → マイク」で許可してください",
       "voice.selftest.permissionHint": "このアプリのマイクアクセスを許可してください：システム設定 → プライバシーとセキュリティ → マイク。初回録音時にシステムの許可ダイアログが表示されます。",
       "voice.error.noAudio": "マイクから音声が入力されませんでした——入力デバイスが有効・ミュート解除・他アプリに占有されていないか確認してください",
-      "knowledgeView.openInExplorer": "Finder で表示",
       "about.link.releases.desc": "最新の macOS インストーラー（.dmg）を入手",
       "ai.skills.deployModeJunction": "シンボリック リンク（既定）",
       "health.deps.items.quicklook.ok.detail": "クイックルックが利用可能です。Space プレビューは macOS のシステム プレビューで行われます。",
@@ -1765,7 +1764,7 @@
     "tooLarge": "ドキュメントが 2MiB 上限を超えています。",
     "invalidPath": "ドキュメントパスが不正です。",
     "offline": "ナレッジサービスに到達できません。",
-    "openInExplorer": "エクスプローラーで表示",
+    "showInNavigator": "AFM で表示",
     "reload": "再読み込み",
     "chip": {
       "copy": "コピー",

@@ -80,7 +80,6 @@
       "voice.error.permission": "Mikrofonzugriff ist blockiert — aktivieren Sie ihn unter Systemeinstellungen → Datenschutz und Sicherheit → Mikrofon",
       "voice.selftest.permissionHint": "Erlauben Sie den Mikrofonzugriff für diese App: Systemeinstellungen → Datenschutz und Sicherheit → Mikrofon. Beim ersten Aufnehmen erscheint ein Systemdialog.",
       "voice.error.noAudio": "Das Mikrofon lieferte keine Audiodaten — prüfen, ob das Eingabegerät aktiviert, nicht stummgeschaltet und nicht von einer anderen App belegt ist",
-      "knowledgeView.openInExplorer": "Im Finder anzeigen",
       "about.link.releases.desc": "Neuesten macOS-Installer (.dmg) erhalten",
       "ai.skills.deployModeJunction": "Symbolische Verknüpfung (Standard)",
       "health.deps.items.quicklook.ok.detail": "Quick Look ist verfügbar; die Leertaste-Vorschau läuft über die macOS-Systemvorschau.",
@@ -1765,7 +1764,7 @@
     "tooLarge": "Dokument überschreitet das 2-MiB-Limit.",
     "invalidPath": "Ungültiger Dokumentpfad.",
     "offline": "Wissensdienst nicht erreichbar.",
-    "openInExplorer": "Im Explorer anzeigen",
+    "showInNavigator": "In AFM anzeigen",
     "reload": "Neu laden",
     "chip": {
       "copy": "Kopieren",

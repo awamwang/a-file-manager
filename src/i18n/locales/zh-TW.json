@@ -80,7 +80,6 @@
       "voice.error.permission": "麥克風訪問被阻止——請在「系統設定 → 隱私與安全性 → 麥克風」中開啟",
       "voice.selftest.permissionHint": "請允許本應用使用麥克風：系統設定 → 隱私與安全性 → 麥克風。首次錄音時會彈出系統授權對話方塊。",
       "voice.error.noAudio": "麥克風沒有產出任何音訊——請檢查輸入裝置是否已啟用、未靜音且未被其他應用獨佔",
-      "knowledgeView.openInExplorer": "在訪達中顯示",
       "about.link.releases.desc": "獲取最新的 macOS 安裝包（.dmg）",
       "ai.skills.deployModeJunction": "符號連結（預設）",
       "health.deps.items.quicklook.ok.detail": "系統「快速檢視」可用，空格預覽由 macOS 系統預覽提供。",
@@ -1787,7 +1786,7 @@
     "tooLarge": "文件超過 2MiB 上限。",
     "invalidPath": "文件路徑非法。",
     "offline": "知識服務不可達。",
-    "openInExplorer": "在資源管理器中顯示",
+    "showInNavigator": "在 AFM 中顯示",
     "reload": "重新載入",
     "chip": {
       "copy": "複製",

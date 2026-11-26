@@ -80,7 +80,6 @@
       "voice.error.permission": "Microphone access is blocked — enable it in System Settings → Privacy & Security → Microphone",
       "voice.selftest.permissionHint": "Allow microphone access for this app: System Settings → Privacy & Security → Microphone. The first recording shows a system prompt.",
       "voice.error.noAudio": "The microphone produced no audio — check the input device is enabled, not muted, and not reserved by another app",
-      "knowledgeView.openInExplorer": "Reveal in Finder",
       "about.link.releases.desc": "Get the latest macOS installer (.dmg)",
       "ai.skills.deployModeJunction": "Symbolic link (default)",
       "health.deps.items.quicklook.ok.detail": "Quick Look is available; Space previews are served by the macOS system preview.",
@@ -1765,7 +1764,7 @@
     "tooLarge": "Document exceeds the 2 MiB limit.",
     "invalidPath": "Invalid document path.",
     "offline": "Knowledge service is unreachable.",
-    "openInExplorer": "Reveal in Explorer",
+    "showInNavigator": "Show in AFM",
     "reload": "Reload",
     "chip": {
       "copy": "Copy",

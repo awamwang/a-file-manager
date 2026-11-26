@@ -80,7 +80,6 @@
       "voice.error.permission": "L’accès au micro est bloqué — activez-le dans Réglages système → Confidentialité et sécurité → Micro",
       "voice.selftest.permissionHint": "Autorisez l’accès au micro pour cette application : Réglages système → Confidentialité et sécurité → Micro. Un dialogue système s’affiche au premier enregistrement.",
       "voice.error.noAudio": "Le micro n’a produit aucun son — vérifiez que le périphérique d’entrée est activé, non coupé et non réservé par une autre application",
-      "knowledgeView.openInExplorer": "Afficher dans le Finder",
       "about.link.releases.desc": "Obtenir le dernier installateur macOS (.dmg)",
       "ai.skills.deployModeJunction": "Lien symbolique (par défaut)",
       "health.deps.items.quicklook.ok.detail": "Quick Look est disponible ; l’aperçu Espace passe par l’aperçu système macOS.",
@@ -1765,7 +1764,7 @@
     "tooLarge": "Le document dépasse la limite de 2 Mio.",
     "invalidPath": "Chemin de document invalide.",
     "offline": "Service de connaissances inaccessible.",
-    "openInExplorer": "Afficher dans l'Explorateur",
+    "showInNavigator": "Afficher dans AFM",
     "reload": "Recharger",
     "chip": {
       "copy": "Copier",

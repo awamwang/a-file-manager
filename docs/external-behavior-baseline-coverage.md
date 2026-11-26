@@ -114,6 +114,12 @@ Rule reminders: no e2e; `#[ignore]` ≠ coverage; FE↔BE command-name parity is
 | --- | --- | --- | --- |
 | Network shares in tree (ADR 0026) | STATIC · CARGO | `check-shell-places.mjs` / `check-folder-tree.mjs` (Network root wiring); `navigator/places.rs` `parse_mount_network_filters_to_network_fstypes`, `parse_mount_network_accepts_macos_bare_mount_output` | Windows: Shell Network folder (WS-Discovery) + `net view \\server` for share expansion. macOS/Linux: bare `mount` (macOS rejects `-p`) parsed into mounted smbfs/afpfs/nfs/cifs/webdav volumes, mountpoints with spaces preserved. Unmounted-server Bonjour discovery is deliberately out of scope |
 
+## Knowledge capability
+
+| Behavior | Layers | Gate / test | Notes |
+| --- | --- | --- | --- |
+| Knowledge doc "Show in AFM" → AFM-internal reveal: the note's folder opens as a **new tab at the end of the current open group**, the `.md` is selected, and no system file manager is launched (ADR 0029) | STATIC | `check-knowledge-reveal-in-navigator.mjs` | dialog closes first (z-index 1050 overlay would cover the navigator), then `revealItemsInNavigator([path], { appendTab: true })` → `newNavigatorTab` → `openStateWithNewTab` (append + activate); `revealItemInDir` must stay out of the dialog; 6 locales on `knowledgeView.showInNavigator`, the retired `knowledgeView.openInExplorer` key and its macOS Finder override are gone |
+
 ## Wiring hygiene
 
 | Item | State |

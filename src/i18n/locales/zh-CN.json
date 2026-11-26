@@ -80,7 +80,6 @@
       "voice.error.permission": "麦克风访问被阻止——请在「系统设置 → 隐私与安全性 → 麦克风」中开启",
       "voice.selftest.permissionHint": "请允许本应用使用麦克风：系统设置 → 隐私与安全性 → 麦克风。首次录音时会弹出系统授权对话框。",
       "voice.error.noAudio": "麦克风没有产出任何音频——请检查输入设备是否已启用、未静音且未被其他应用独占",
-      "knowledgeView.openInExplorer": "在访达中显示",
       "about.link.releases.desc": "获取最新的 macOS 安装包（.dmg）",
       "ai.skills.deployModeJunction": "符号链接（默认）",
       "health.deps.items.quicklook.ok.detail": "系统「快速查看」可用，空格预览由 macOS 系统预览提供。",
@@ -1765,7 +1764,7 @@
     "tooLarge": "文档超过 2MiB 上限。",
     "invalidPath": "文档路径非法。",
     "offline": "知识服务不可达。",
-    "openInExplorer": "在资源管理器中显示",
+    "showInNavigator": "在 AFM 中显示",
     "reload": "重新加载",
     "chip": {
       "copy": "复制",

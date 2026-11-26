@@ -87,7 +87,7 @@ const EXPECTED_KEYS = [
   "discovery.everythingConfigHint",
   // Post-7.22 features that shipped with Windows-only copy in the base catalog:
   // search palette shortcuts / Everything, extension paths, voice permission
-  // guidance, Finder/open-in text, release asset name, skill deploy mode.
+  // guidance, system file-manager text, release asset name, skill deploy mode.
   "discovery.testMeta",
   "settings.search.paletteMeta",
   "settings.search.knowledgeMeta",
@@ -97,7 +97,6 @@ const EXPECTED_KEYS = [
   "voice.error.permission",
   "voice.selftest.permissionHint",
   "voice.error.noAudio",
-  "knowledgeView.openInExplorer",
   "about.link.releases.desc",
   "ai.skills.deployModeJunction",
   // QuickLook health status-specific copy (depText() prefers `...<status>.detail`
@@ -239,8 +238,6 @@ for (const id of localeIds) {
       `${id}:${key} must point to macOS System Settings`,
     );
   }
-  assert.match(macos["knowledgeView.openInExplorer"], /Finder|访达|ファインダー/i,
-    `${id}: knowledge reveal must say Finder`);
   assert.match(macos["about.link.releases.desc"], /\.dmg|macOS/i,
     `${id}: releases link must name the macOS asset`);
   assert.ok(

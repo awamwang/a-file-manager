@@ -11,6 +11,7 @@ import {
   currentPath,
   listing,
   navigateTo,
+  newNavigatorTab,
   openOrFocusNavigatorTab,
 } from "./navigatorBrowse.ts";
 import { navigableParentPath } from "./navHistory.ts";
@@ -20,6 +21,12 @@ import { normalizePathKey, pathsEqual } from "./pathKey.ts";
 export type RevealInNavigatorOptions = {
   /** 默认 true：导航后选中目标条目；false 时仅打开目标所在目录。 */
   select?: boolean;
+  /**
+   * true：目标目录在**标签条末尾新建**一个标签（不复用已打开的同一目录）。
+   * 知识页「在 AFM 中显示」用它——落位永远是当前打开组的最后一个标签，
+   * 不会跳回标签条中间已存在的同名标签。
+   */
+  appendTab?: boolean;
 };
 
 /** 不在 Navigator 路由时切回（动态 import 避免与 router 静态环）。 */
@@ -93,7 +100,10 @@ export async function revealItemsInNavigator(
   }
 
   await ensureNavigatorRoute();
-  if (normalizePathKey(currentPath.value) !== normalizePathKey(parentDir)) {
+  if (options?.appendTab) {
+    // 末尾新建标签：即使同一目录已在别处打开，也不复用那个标签。
+    await newNavigatorTab(parentDir);
+  } else if (normalizePathKey(currentPath.value) !== normalizePathKey(parentDir)) {
     await openOrFocusNavigatorTab(parentDir);
   }
   // openOrFocus 内部为非阻塞 reveal；此处确保 listing 完成后再选中。
