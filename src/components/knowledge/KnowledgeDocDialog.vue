@@ -6,6 +6,8 @@
     知识笔记多为 Logseq 风格「一行一块」，GFM 默认把软换行折成空格会让整段挤成一行；
   - 文内掩码 token（[REDACTED:label:hash8] / [vault:label:hash8]）→ 私用区占位符 →
     消毒后替换为 chip 槽位，手动挂载 KnowledgeSecretChip（复制 / 5s 短显）。
+  - 相对图片（`![](../assets/x.jpg)`）：解析回知识根内绝对路径后用 preview_load
+    取回 data: URL 内联——弹窗按应用 origin 解析相对路径必然裂图；越界路径拒。
   - 单实例：重复打开复用同一弹窗并替换内容；z-index 1050——面板(1000)之上、
     解锁确认框(1100)之下，chip 解锁确认不被遮挡。
   - 「在 AFM 中显示」：关弹窗 → 切资源管理器路由 → 标签条末尾新建标签打开笔记
@@ -30,6 +32,7 @@ import DOMPurify from "dompurify";
 import { marked } from "marked";
 import KnowledgeSecretChip from "./KnowledgeSecretChip.vue";
 import FluentIcon from "../icons/FluentIcon.vue";
+import { resolveKnowledgeAssetPath } from "./assetPath";
 import { vaultErrorCode } from "../../state/vaultAccess.ts";
 import {
   closeKnowledgeDoc,
@@ -56,6 +59,12 @@ type KnowledgeDoc = {
   path: string;
   root: string | null;
   content: string;
+};
+
+/** preview_load 的图片载荷（只取用得到的字段）。 */
+type PreviewImagePayload = {
+  kind: string;
+  dataUrl: string | null;
 };
 
 const { t } = useI18n();
@@ -148,6 +157,35 @@ function sanitizeMarkdown(html: string): string {
   }
 }
 
+/**
+ * 笔记里的相对图片：弹窗按应用 origin 解析必然裂图 →
+ * 解析回知识根内的绝对路径，用 preview_load 取回 data: URL 内联显示。
+ * 取不到（越界 / 非图片 / 超 8MiB）就保留原相对路径，行为与修复前一致。
+ */
+async function inlineKnowledgeImages(
+  root: string | null,
+  docRelPath: string,
+): Promise<void> {
+  const host = docEl.value;
+  if (!host || !root) return;
+  const imgs = Array.from(host.querySelectorAll<HTMLImageElement>("img"));
+  await Promise.all(
+    imgs.map(async (img) => {
+      const src = img.getAttribute("src") ?? "";
+      const abs = resolveKnowledgeAssetPath(root, docRelPath, src);
+      if (!abs) return;
+      try {
+        const payload = await invoke<PreviewImagePayload>("preview_load", {
+          path: abs,
+        });
+        if (payload.kind === "image" && payload.dataUrl) img.src = payload.dataUrl;
+      } catch {
+        // 取不到就保持原相对路径（裂图），不打断正文渲染
+      }
+    }),
+  );
+}
+
 /** 渲染管线：token→占位符 → marked → DOMPurify 消毒 → 占位符替换为 chip 槽位。 */
 function renderMarkdown(content: string): { html: string; chips: ChipInfo[] } {
   const { text, chips } = extractChips(content);
@@ -199,6 +237,7 @@ async function loadDoc(rel: string): Promise<void> {
     await nextTick();
     if (seq !== loadEpoch) return;
     mountChips();
+    void inlineKnowledgeImages(doc.root, doc.path);
   } catch (error) {
     if (seq !== loadEpoch) return;
     loadErrorKey.value = errorKeyOf(vaultErrorCode(error));

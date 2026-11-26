@@ -20,6 +20,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { marked } from "marked";
+import { resolveKnowledgeAssetPath } from "../src/components/knowledge/assetPath.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const readFrom = (rel) => readFileSync(join(root, rel), "utf8");
@@ -136,6 +137,51 @@ assert.ok(render("a\n\n---\n\nb").includes("<hr>"), "分隔线");
 assert.ok(render("\\*不是斜体\\*").includes("*不是斜体*"), "反斜杠转义");
 assert.ok(render("&amp; &#65;").includes("&amp; A"), "实体引用");
 
+// --- 11. 相对图片：解析回知识根内的绝对路径（越界即拒）---
+const winRoot = "G:\\Knowledge\\data\\logseq-main";
+assert.equal(
+  resolveKnowledgeAssetPath(winRoot, "pages/点子.md", "../assets/x.jpg"),
+  "G:\\Knowledge\\data\\logseq-main\\assets\\x.jpg",
+  "相对图片必须解析回知识根内的绝对路径",
+);
+assert.equal(
+  resolveKnowledgeAssetPath("/Users/x/notes", "pages/a.md", "../assets/y.png"),
+  "/Users/x/notes/assets/y.png",
+  "POSIX 根路径同样成立",
+);
+assert.equal(
+  resolveKnowledgeAssetPath("/Users/x/notes", "pages/a.md", "../../etc/passwd"),
+  null,
+  "越出知识根的路径必须拒",
+);
+assert.equal(
+  resolveKnowledgeAssetPath("/Users/x/notes", "pages/a.md", "/etc/passwd"),
+  null,
+  "绝对路径必须拒",
+);
+assert.equal(
+  resolveKnowledgeAssetPath("/Users/x/notes", "pages/a.md", "https://x/y.png"),
+  null,
+  "带协议的引用不当作知识根内相对路径",
+);
+assert.equal(
+  resolveKnowledgeAssetPath("/Users/x/notes", "pages/a.md", ".."),
+  null,
+  "落到知识根本身（不是文件）必须拒",
+);
+
+// --- 12. 图片内联链路：弹窗必须真的把相对图片换成 data: URL ---
+assert.ok(
+  dialog.includes("resolveKnowledgeAssetPath") &&
+    dialog.includes("inlineKnowledgeImages") &&
+    /invoke<[^>]*>\("preview_load"/.test(dialog),
+  "知识页必须用 resolveKnowledgeAssetPath + preview_load 把相对图片内联成 data: URL",
+);
+assert.ok(
+  /img\.src\s*=\s*payload\.dataUrl/.test(dialog),
+  "图片必须以 data: URL 覆盖 src（否则仍是按应用 origin 解析的裂图）",
+);
+
 console.log(
-  "knowledge-markdown-render OK (软换行保留 + 任务列表 checkbox 放行；标题/列表/引用/代码/强调/链接/图片/表格/分隔线/转义/实体 渲染正常).",
+  "knowledge-markdown-render OK (软换行保留 + 任务列表 checkbox 放行 + 相对图片解析回知识根内并内联 data: URL；标题/列表/引用/代码/强调/链接/表格/分隔线/转义/实体 渲染正常).",
 );
