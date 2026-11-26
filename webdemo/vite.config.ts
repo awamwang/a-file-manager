@@ -34,5 +34,25 @@ export default defineConfig({
     // loaded upfront by index.html — no lazy CSS to miss, no style flash.
     cssCodeSplit: false,
   },
-  server: { host: "127.0.0.1", port: Number(process.env.DEMO_PORT || 1420), strictPort: true },
+  server: {
+    host: "127.0.0.1",
+    port: Number(process.env.DEMO_PORT || 1420),
+    strictPort: true,
+    watch: {
+      // Repo root is the vite root, but only src/ + webdemo/ + public/ are
+      // frontend sources. src-tauri (cargo target/ + vendored crates) holds
+      // 10k+ directories; without these ignores the dev server spawns tens of
+      // thousands of ReadDirectoryChangesW watchers on Windows, starving the
+      // event loop until module transforms stall (e2e "#app never mounted").
+      ignored: [
+        "**/node_modules/**",
+        "**/.git/**",
+        "**/src-tauri/**",
+        "**/dist/**",
+        "**/upstream/**",
+        "**/test-results/**",
+        "**/playwright-report/**",
+      ],
+    },
+  },
 });
