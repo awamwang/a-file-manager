@@ -2,7 +2,8 @@
 <!--
   知识弹窗（ADR 0017，单实例）：搜索命中知识文件行 Enter 打开；
   - Rust `knowledge_service_read_doc` 读取索引根下文档全文（服务端强制路径边界）；
-  - markdown 渲染（marked + DOMPurify 消毒）；
+  - markdown 渲染（marked + DOMPurify 消毒）；软换行按源码行保留（breaks: true）——
+    知识笔记多为 Logseq 风格「一行一块」，GFM 默认把软换行折成空格会让整段挤成一行；
   - 文内掩码 token（[REDACTED:label:hash8] / [vault:label:hash8]）→ 私用区占位符 →
     消毒后替换为 chip 槽位，手动挂载 KnowledgeSecretChip（复制 / 5s 短显）。
   - 单实例：重复打开复用同一弹窗并替换内容；z-index 1050——面板(1000)之上、
@@ -125,14 +126,33 @@ function extractChips(content: string): { text: string; chips: ChipInfo[] } {
   return { text, chips };
 }
 
+/**
+ * 消毒策略：禁掉 style/form/iframe 与事件属性；
+ * `input` 只放行 GFM 任务列表的 disabled checkbox（其余 input 一律剔除）——
+ * FORBID_TAGS 含 input 时 `- [ ] 待办` 的勾选框会被整块抹掉，只剩文字。
+ */
+function sanitizeMarkdown(html: string): string {
+  DOMPurify.addHook("uponSanitizeElement", (currentNode, hookEvent) => {
+    if (hookEvent.tagName !== "input") return;
+    const el = currentNode as Element;
+    const type = (el.getAttribute("type") ?? "").toLowerCase();
+    if (type !== "checkbox" || !el.hasAttribute("disabled")) el.remove();
+  });
+  try {
+    return DOMPurify.sanitize(html, {
+      FORBID_TAGS: ["style", "form", "iframe"],
+      FORBID_ATTR: ["style", "onerror", "onload", "onclick"],
+    });
+  } finally {
+    DOMPurify.removeHook("uponSanitizeElement");
+  }
+}
+
 /** 渲染管线：token→占位符 → marked → DOMPurify 消毒 → 占位符替换为 chip 槽位。 */
 function renderMarkdown(content: string): { html: string; chips: ChipInfo[] } {
   const { text, chips } = extractChips(content);
-  const parsed = marked.parse(text, { async: false, gfm: true, breaks: false });
-  const safe = DOMPurify.sanitize(parsed, {
-    FORBID_TAGS: ["style", "form", "input", "iframe"],
-    FORBID_ATTR: ["style", "onerror", "onload", "onclick"],
-  });
+  const parsed = marked.parse(text, { async: false, gfm: true, breaks: true });
+  const safe = sanitizeMarkdown(parsed);
   const html = safe.replace(
     PLACEHOLDER_RX,
     (_match: string, idx: string): string =>
