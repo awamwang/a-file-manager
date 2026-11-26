@@ -121,6 +121,12 @@ Rule reminders: no e2e; `#[ignore]` ≠ coverage; FE↔BE command-name parity is
 | --- | --- | --- | --- |
 | 排序依据/分组依据下拉 + 空白右键子菜单 + 组折叠（ADR 0030） | STATIC · FE · CARGO | `check-navigator-sort-group.mjs` → `navigator-sort-group-checks.ts`（四字段分桶、「#」/unknown 垫底不随方向翻转、文件夹单独组置顶、折叠只剩组头、切字段默认方向、settings 水合、`toggleSort` 语义真执行 + 六语言 i18n 针）；`check-view-layout.mjs` / `check-list-virtual.mjs` 针同步；`migrate.rs` v16→v17 4 tests | 选字段保持当前方向；折叠会话级记忆；中文首字母桶走 zh collation 二分；四键持久化，legacy `core.navigatorGroupByType` 仅留迁移，UI 隐藏 |
 
+## Navigator view (drill-through)
+
+| Behavior | Layers | Gate / test | Notes |
+| --- | --- | --- | --- |
+| 穿透视图：把当前目录的子文件夹摊平进同一列表，深度可调（ADR 0031） | STATIC · FE · CARGO | `check-navigator-drill.mjs` → `navigator-drill-checks.ts`（深度档位收敛、树内判定、排序键=根相对路径、写入落点=穿透根 真执行 + 六语言 i18n 针）；`navigator/drill.rs` 6 tests（深度 1/2 语义、深度 0 不遍历、相对层级、隐藏项、拒 awam://）；`migrate.rs` v17→v18 2 tests | 资源管理器的显示模式（左侧导航不变）；入口＝工具条「图标 + chevron」弹层（关闭 / 1…5 层）；穿透根与当前位置是两个概念，树内双击＝树内定位，走出树则自动关闭；名称按根相对路径排，普通视图等价；新建/粘贴落点=穿透根；上限 2000 行 / 20000 次访问，超出截断横幅；档位持久化（`core.navigatorDrillDepth`，v18），开关会话级 |
+
 ## Knowledge capability
 
 | Behavior | Layers | Gate / test | Notes |

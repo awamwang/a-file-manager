@@ -43,6 +43,7 @@ export type FluentGlyphId =
   | "arrowDown"
   | "sort"
   | "group"
+  | "drill"
   | "copy"
   | "cut"
   | "paste"
@@ -322,6 +323,20 @@ export const FLUENT_GLYPHS: Record<FluentGlyphId, FluentGlyph> = {
       "M2.5 2.8h11v4h-11V2.8zm1.2 1.2v1.6h8.6V4H3.7z",
       "M2.5 9.2h11v4h-11V9.2zm1.2 1.2v1.6h8.6v-1.6H3.7z",
       "M2.2 7.5h11.6v1H2.2v-1z",
+    ],
+  },
+  /**
+   * Win11 drill-through metaphor: three progressively indented rows (a tree
+   * flattened into one list) — AFM-drawn, SVG rendering only.
+   * 与 density（全宽三条横线）、sort（递减横条 + 箭头）刻意区分。
+   */
+  drill: {
+    codepoint: "\uF002",
+    svgOnly: true,
+    paths: [
+      "M2.2 2.9h11.6v1.5H2.2V2.9z",
+      "M4.4 6.6h7.2v1.5H4.4V6.6z",
+      "M6.6 10.3h5v1.5h-5v-1.5z",
     ],
   },
   /** Segoe Copy — clipboard duplicate. */

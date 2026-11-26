@@ -23,7 +23,12 @@ const defaults = read("src-tauri/src/settings/defaults.rs");
 const migrate = read("src-tauri/src/settings/migrate.rs");
 
 // ---- 后端 schema v17：新键 + 迁移 + 旧键保留（legacy） ----
-assert.ok(types.includes("SETTINGS_SCHEMA_VERSION: u32 = 17"));
+// The sort/group keys landed in v17; later schema bumps (ADR 0031 → v18) must
+// not break this gate, so assert the floor instead of pinning one version.
+const schemaVersion = Number(
+  types.match(/SETTINGS_SCHEMA_VERSION:\s*u32\s*=\s*(\d+)/)?.[1] ?? 0,
+);
+assert.ok(schemaVersion >= 17, `settings schema must be at least v17 (got v${schemaVersion})`);
 for (const key of [
   "core.navigatorSortColumn",
   "core.navigatorSortDirection",

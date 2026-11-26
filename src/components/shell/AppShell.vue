@@ -131,6 +131,7 @@ import {
   toggleDualPane,
   windowMinWidthForDualPane,
 } from "../../state/dualPane";
+import { activePane } from "../../state/dualPane";
 import {
   loadNavigatorViewMode,
   NAVIGATOR_GROUP_FIELDS,
@@ -186,6 +187,17 @@ import {
   scheduleFolderSearch,
 } from "../../state/navigatorFilter";
 import { loadShowHidden, setShowHidden, showHiddenItems } from "../../state/showHidden";
+import {
+  MAX_DRILL_DEPTH,
+  clearDrill,
+  drillDepth,
+  drillPaneState,
+  enableDrill,
+  isInsideDrillTree,
+  primaryDrill,
+  resolveDrillPane,
+  setDrillDepth,
+} from "../../state/navigatorDrill";
 import {
   DEFAULT_SIDENAV_WIDTH,
   MAX_SIDENAV_WIDTH,
@@ -448,6 +460,93 @@ function chooseGroupField(field: NavigatorGroupField) {
 function chooseGroupDirection(direction: SortDirection) {
   void setNavigatorGroupDirection(direction);
   closeGroupMenu();
+}
+
+/* ---------------------------------------------------------------------------
+ * ADR 0031: drill-through — flatten the subfolders of the current directory
+ * into one list.
+ * ------------------------------------------------------------------------- */
+const drillMenuOpen = ref(false);
+
+/** The pane the toolbar acts on (the focused pane in dual-pane mode). */
+const drillPane = computed(() =>
+  resolveDrillPane(activePane.value, dualPaneEnabled.value),
+);
+
+/** Drill state of that pane. */
+const drillState = computed(() => drillPaneState(drillPane.value));
+
+/** Drill-through is live in the toolbar's pane (enabled and depth > 0). */
+const drillActive = computed(
+  () => drillState.value.enabled.value && drillDepth.value > 0,
+);
+
+/**
+ * Drill-through is live in the primary pane. The breadcrumb chip and the
+ * status bar belong to the primary pane's context (the secondary pane has
+ * its own path row and badge inside the Navigator view).
+ */
+const primaryDrillActive = computed(
+  () => primaryDrill.enabled.value && drillDepth.value > 0,
+);
+
+/** Selectable depth levels (1..5). */
+const DRILL_DEPTHS: number[] = Array.from(
+  { length: MAX_DRILL_DEPTH },
+  (_, index) => index + 1,
+);
+
+function toggleDrillMenu() {
+  placesMenuOpen.value = false;
+  workGroupMenuOpen.value = false;
+  viewModeMenuOpen.value = false;
+  sortMenuOpen.value = false;
+  groupMenuOpen.value = false;
+  drillMenuOpen.value = !drillMenuOpen.value;
+}
+
+function closeDrillMenu() {
+  drillMenuOpen.value = false;
+}
+
+/**
+ * Pick a depth level: remember it and drill the tree. Changing the level
+ * keeps the drill root — the tree overview must not jump to the current
+ * position halfway through it.
+ */
+async function chooseDrillDepth(depth: number) {
+  const pane = drillPane.value;
+  setDrillDepth(depth);
+  const state = drillPaneState(pane);
+  const root =
+    state.enabled.value && state.root.value.trim()
+      ? state.root.value
+      : pane === "secondary"
+        ? secondaryPath.value
+        : currentPath.value;
+  closeDrillMenu();
+  if (!root.trim() || isGuidePath(root)) return;
+  await enableDrill(pane, root, depth);
+}
+
+/** Turn drill-through off (shared by the breadcrumb chip and the menu). */
+function chooseDrillOff() {
+  clearDrill(drillPane.value);
+  closeDrillMenu();
+}
+
+/** Turn drill-through off for the primary pane (breadcrumb chip). */
+function choosePrimaryDrillOff() {
+  clearDrill("primary");
+  closeDrillMenu();
+}
+
+/** Tabs inside the drilled tree get a "· Drill" suffix (the tab strip is primary-pane context). */
+function tabDrillSuffix(path: string): string {
+  if (!primaryDrill.enabled.value) return "";
+  const root = primaryDrill.root.value;
+  if (!root || !isInsideDrillTree(path, root)) return "";
+  return t("chrome.drillTabSuffix");
 }
 
 function chooseViewMode(mode: NavigatorViewMode) {
@@ -1225,6 +1324,30 @@ const browseStatusText = computed(() => {
     return t("providers.searchBlocked");
   }
   if (listError.value) return t("chrome.navigatorError");
+  if (primaryDrillActive.value) {
+    // ADR 0031: in drill-through mode the counts come from the flattened rows,
+    // plus how many subfolders they came from.
+    const entries = primaryDrill.entries.value;
+    const dirs = entries.filter((entry) => entry.kind === "dir").length;
+    const files = entries.length - dirs;
+    const parts = [
+      t("chrome.navigatorCounts", { dirs, files }),
+      t("chrome.drillSources", {
+        count: primaryDrill.sourceDirCount.value,
+      }),
+    ];
+    if (selectedPaths.value.length) {
+      const bytes = selectionByteSize(selectedPaths.value, entries);
+      parts.push(
+        t("chrome.selectionStatus", {
+          count: selectedPaths.value.length,
+          size: formatBytes(bytes),
+        }),
+      );
+    }
+    if (freeDiskText.value) parts.push(freeDiskText.value);
+    return parts.join(" · ");
+  }
   if (listing.value) {
     const parts = [
       t("chrome.navigatorCounts", {
@@ -2334,7 +2457,7 @@ onUnmounted(() => {
               <FluentIcon name="pin" size="sm" aria-hidden="true" />
             </span>
             <FluentIcon name="folder" size="sm" class="tab-icon" aria-hidden="true" />
-            <span class="tab-label">{{ tab.name || tabLabel(tab.path) }}</span>
+            <span class="tab-label">{{ tab.name || tabLabel(tab.path) }}{{ tabDrillSuffix(tab.path) }}</span>
             <span
               class="tab-close"
               role="presentation"
@@ -2776,6 +2899,62 @@ onUnmounted(() => {
             </div>
           </div>
 
+          <div id="navigator-drill-menu" class="places-menu">
+            <button
+              type="button"
+              class="fluent-control nav-icon-btn places-trigger"
+              :class="{ 'nav-icon-btn--active': drillMenuOpen || drillActive }"
+              :title="t('chrome.drillThrough')"
+              :aria-label="t('chrome.drillThrough')"
+              :aria-expanded="drillMenuOpen"
+              aria-haspopup="menu"
+              @click.stop="toggleDrillMenu"
+            >
+              <FluentIcon name="drill" size="sm" force-svg />
+              <FluentIcon name="chevronDown" size="sm" class="places-chevron" />
+            </button>
+            <div
+              v-if="drillMenuOpen"
+              class="places-popover fluent-surface view-mode-popover"
+              role="menu"
+              :aria-label="t('chrome.drillThrough')"
+            >
+              <button
+                type="button"
+                class="fluent-list-row places-item"
+                role="menuitemradio"
+                :aria-checked="!drillActive"
+                :class="{ 'places-item--active': !drillActive }"
+                @click="chooseDrillOff"
+              >
+                <FluentIcon
+                  :name="drillActive ? 'viewAll' : 'check'"
+                  size="sm"
+                  class="places-item-check"
+                />
+                <span>{{ t("chrome.drillOff") }}</span>
+              </button>
+              <div class="places-sep" role="separator" />
+              <button
+                v-for="depth in DRILL_DEPTHS"
+                :key="depth"
+                type="button"
+                class="fluent-list-row places-item"
+                role="menuitemradio"
+                :aria-checked="drillActive && drillDepth === depth"
+                :class="{ 'places-item--active': drillActive && drillDepth === depth }"
+                @click="chooseDrillDepth(depth)"
+              >
+                <FluentIcon
+                  :name="drillActive && drillDepth === depth ? 'check' : 'viewAll'"
+                  size="sm"
+                  class="places-item-check"
+                />
+                <span>{{ t("chrome.drillDepth", { depth }) }}</span>
+              </button>
+            </div>
+          </div>
+
           <button
             type="button"
             class="fluent-control nav-icon-btn"
@@ -2867,6 +3046,16 @@ onUnmounted(() => {
                   </button>
                 </div>
               </div>
+              <button
+                v-if="primaryDrillActive"
+                type="button"
+                class="crumb crumb--drill"
+                :title="t('chrome.drillChipTitle')"
+                @click.stop="choosePrimaryDrillOff"
+              >
+                <FluentIcon name="drill" size="sm" force-svg class="crumb-drill-icon" />
+                <span class="crumb-label">{{ t("chrome.drillChip", { depth: drillDepth }) }}</span>
+              </button>
             </template>
             <span v-else class="crumb-placeholder">{{ t("chrome.pathPlaceholder") }}</span>
           </div>
@@ -3679,6 +3868,27 @@ onUnmounted(() => {
   outline: 2px solid var(--fluent-color-stroke-accent-soft, var(--fluent-color-fill-accent));
   outline-offset: -2px;
   background: var(--fluent-color-fill-selected);
+}
+
+/* ADR 0031: the drill chip at the end of the breadcrumb — click to turn it off. */
+.crumb--drill {
+  flex-shrink: 0;
+  gap: 0.2rem;
+  max-width: none;
+  margin-left: 0.2rem;
+  color: var(--fluent-color-text-secondary);
+  border: 1px solid var(--fluent-color-stroke-accent-soft);
+  background: var(--fluent-color-fill-accent-soft, transparent);
+}
+
+.crumb--drill:hover,
+.crumb--drill:focus-visible {
+  color: var(--fluent-color-text-primary);
+  background: var(--fluent-color-fill-selected);
+}
+
+.crumb-drill-icon {
+  flex-shrink: 0;
 }
 
 .crumb-label {

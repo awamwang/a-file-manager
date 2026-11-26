@@ -49,6 +49,11 @@ import { readNewTabBehavior } from "./newTabBehavior.ts";
 import { hydrateSettings } from "./settingsHydrate.ts";
 import { recordPathVisit } from "./visitStats.ts";
 import { clearNavigatorFilter } from "./navigatorFilter.ts";
+import {
+  clearDrill,
+  drillSurvivesNavigation,
+  refreshDrill,
+} from "./navigatorDrill.ts";
 import { showHiddenItems } from "./showHidden/index.ts";
 import {
   commitPinnedPersistence,
@@ -98,6 +103,8 @@ export type NavigatorEntry = {
   isLink?: boolean | null;
   /** Directory the link points to; double-click navigates into it. */
   linkTarget?: string | null;
+  /** Root-relative location — drill-through rows only (ADR 0031). */
+  relativePath?: string | null;
 };
 
 export type NavigatorListing = {
@@ -149,6 +156,7 @@ export function hydrateNavigatorListing(listing: NavigatorListingWire): Navigato
         providerKind: entry.providerKind ?? null,
         isLink: entry.isLink ?? null,
         linkTarget: entry.linkTarget ?? null,
+        relativePath: entry.relativePath ?? null,
         path: trimmed || joinListingChildPath(parent, entry.name),
       };
     }),
@@ -220,6 +228,17 @@ function normalizeBrowseKey(path: string): string {
 }
 
 /**
+ * ADR 0031: drill-through survives navigation inside the tree and turns off
+ * as soon as the pane leaves it (a different directory, a provider, the
+ * recycle bin, the guide).
+ */
+function syncDrillAfterNavigation(pane: "primary" | "secondary", path: string): void {
+  if (!drillSurvivesNavigation(pane, path)) {
+    clearDrill(pane);
+  }
+}
+
+/**
  * AIA-225: paint tab-group content chrome immediately; fill the listing off the
  * critical path (same tabs-first pattern as bootstrapNavigatorOpenState).
  * Open-state persist stays debounced so disk IPC does not contend with list.
@@ -288,6 +307,8 @@ export function refreshActiveListing(): void {
     recordVisit: false,
     bypassListingCache: true,
   });
+  // ADR 0031: the flattened rows are a second data source — refresh them too.
+  void refreshDrill("primary");
 }
 
 /**
@@ -306,11 +327,14 @@ export async function reloadListingAfterMutation(options?: {
     recordVisit: false,
     bypassListingCache: true,
   });
+  // ADR 0031: mutations inside the tree change the flattened rows too.
+  await refreshDrill("primary");
   if (!options?.includeSecondary) return;
   const secondary = secondaryPath.value.trim();
   if (!secondary) return;
   invalidateListingCache(secondary);
   await navigateSecondary(secondary);
+  await refreshDrill("secondary");
 }
 
 /** 剪切/移动后作废源目录 listing 缓存，避免回访仍显示已移走项。 */
@@ -409,6 +433,7 @@ export async function navigateSecondary(path: string): Promise<void> {
     if (normalizeBrowseKey(previous) !== normalizeBrowseKey(result.path)) {
       clearNavigatorFilter();
     }
+    syncDrillAfterNavigation("secondary", result.path);
   } catch (err) {
     secondaryListing.value = null;
     secondaryError.value = err instanceof Error ? err.message : String(err);
@@ -445,6 +470,7 @@ export async function navigateTo(
   const epoch = ++browseEpoch;
 
   if (isGuidePath(trimmed)) {
+    syncDrillAfterNavigation("primary", GUIDE_PATH);
     if (epoch !== browseEpoch) return;
     listing.value = null;
     listError.value = null;
@@ -474,6 +500,7 @@ export async function navigateTo(
 
   if (isRecyclePath(trimmed)) {
     // FIL-52：默认用 Explorer/`shell:RecycleBinFolder` 打开，不再在 AFM 内枚举整仓。
+    syncDrillAfterNavigation("primary", trimmed);
     if (epoch !== browseEpoch) return;
     listLoading.value = false;
     try {
@@ -492,6 +519,7 @@ export async function navigateTo(
   }
 
   if (isProviderPath(trimmed)) {
+    syncDrillAfterNavigation("primary", trimmed);
     const target = toProviderUri(trimmed);
     listLoading.value = true;
     listError.value = null;
@@ -587,6 +615,7 @@ export async function navigateTo(
     if (normalizeBrowseKey(previous) !== normalizeBrowseKey(result.path)) {
       clearNavigatorFilter();
     }
+    syncDrillAfterNavigation("primary", result.path);
     // AIA-74: count directory landings (tab enter + folder nav share this path).
     if (recordVisit) {
       void recordPathVisit(result.path, true);

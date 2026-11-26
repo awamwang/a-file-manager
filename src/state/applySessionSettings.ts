@@ -6,6 +6,7 @@
  */
 
 import { applyCloseBehaviorFromValues } from "./closeBehavior.ts";
+import { applyNavigatorDrillDepthFromValues } from "./navigatorDrill.ts";
 import { applyNavigatorSortFromValues } from "./navigatorSort.ts";
 import { applyNavigatorViewModeFromValues } from "./navigatorViewMode.ts";
 import { applyShowHiddenFromValues } from "./showHidden/index.ts";
@@ -15,5 +16,6 @@ export function applySessionSettingsFromValues(values: Record<string, unknown>):
   applyShowHiddenFromValues(values);
   applyNavigatorSortFromValues(values);
   applyNavigatorViewModeFromValues(values);
+  applyNavigatorDrillDepthFromValues(values);
   applyCloseBehaviorFromValues(values);
 }

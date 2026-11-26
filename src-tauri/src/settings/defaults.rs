@@ -294,6 +294,17 @@ pub(crate) fn raw_setting_definitions() -> Vec<SettingDefinition> {
             Some(vec!["asc".to_string(), "desc".to_string()]),
             json!("asc"),
         ),
+        // ADR 0031: drill depth level (user preference). Whether drill-through
+        // is currently on is session state and is never persisted.
+        def(
+            "core.navigatorDrillDepth",
+            SettingsTier::Core,
+            "Drill-through depth",
+            "How many levels of subfolders the Navigator flattens when drill-through is on: 1..5",
+            SettingValueKind::Number,
+            None,
+            json!(2),
+        ),
         def(
             "core.newTabBehavior",
             SettingsTier::Core,

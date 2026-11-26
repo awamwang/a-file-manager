@@ -177,6 +177,13 @@
     "viewContent": "Inhalt",
     "sortBy": "Sortieren nach",
     "groupBy": "Gruppieren nach",
+    "drillThrough": "Unterordner anzeigen",
+    "drillOff": "Unterordner-Ansicht beenden",
+    "drillDepth": "{depth} Ebene(n) Unterordner einbeziehen",
+    "drillChip": "Ebene {depth}",
+    "drillChipTitle": "Klicken, um die Unterordner-Ansicht zu beenden",
+    "drillTabSuffix": "· Unterordner",
+    "drillSources": "aus {count} Unterordnern",
     "groupNone": "Keine",
     "sortAscending": "Aufsteigend",
     "sortDescending": "Absteigend",
@@ -905,6 +912,9 @@
     "filterSearching": "Suche läuft…",
     "filterStatus": "{count} Treffer",
     "filterTruncated": "Nur die ersten {count} Treffer.",
+    "drillBadge": "Ebene {depth}",
+    "drillWriteTarget": "Wird erstellt in {path}",
+    "drillTruncated": "Nur die ersten {count} Einträge (Unterordner-Ansicht wurde begrenzt).",
     "colModified": "Änderungsdatum"
   },
   "projects": {
@@ -1163,6 +1173,10 @@
             "asc": "Aufsteigend",
             "desc": "Absteigend"
           }
+        },
+        "navigatorDrillDepth": {
+          "title": "Unterordner-Tiefe",
+          "description": "Wie viele Ebenen von Unterordnern der Explorer in eine Liste aufnimmt (1-5)"
         },
         "openTool": {
           "vscode": {

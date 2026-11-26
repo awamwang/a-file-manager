@@ -195,6 +195,7 @@ const settingsDoc = {
     "core.showHidden": false, "core.navigatorViewMode": "details",
     "core.navigatorSortColumn": "name", "core.navigatorSortDirection": "asc",
     "core.navigatorGroupBy": "none", "core.navigatorGroupDirection": "asc",
+    "core.navigatorDrillDepth": 2,
     "core.closeBehavior": "ask", "core.startupPage": "navigator",
     "core.defaultLocation": "G:\\Projects", "core.projectsRoot": "G:\\Projects",
     "core.fileDoubleClickAction": "systemDefault", "core.newTabBehavior": "guide", "core.trackRecentVisits": true,
@@ -284,6 +285,42 @@ export function handle(cmd: string, a: any = {}): any {
       const walk = (node: VNode, p: string, depth: number) => { if (depth > 5) return; Object.entries(node.children).forEach(([name, c]) => { const cp = join(p, name); if (name.toLowerCase().includes(q)) out.push({ name, path: cp, kind: c.kind === "file" ? "file" : "dir", size: c.size || 0, modifiedMs: c.modifiedMs || Date.now() }); if (c.kind !== "file") walk(c, cp, depth + 1); }); };
       const rn = findNode(root); if (rn) walk(rn, root, 0);
       return { path: root, query: a.query, entries: out.slice(0, 200), truncated: out.length > 200 };
+    }
+    case "navigator_drill_list": {
+      // ADR 0031: same semantics as the Rust side — flatten N levels of
+      // subfolders; folders on the boundary level stay hidden.
+      const root = norm(a.path);
+      const depth = Math.max(1, Math.min(5, Number(a.depth) || 2));
+      const rn = findNode(root);
+      if (!rn) return { path: root, entries: [], dirCount: 0, fileCount: 0, sourceDirCount: 0, truncated: false };
+      const out: any[] = [];
+      const sources = new Set<string>();
+      const walk = (node: VNode, p: string, level: number, rel: string) => {
+        Object.entries(node.children).forEach(([name, c]) => {
+          const isDir = c.kind !== "file";
+          const cp = join(p, name);
+          const crel = rel ? `${rel}\\${name}` : name;
+          if (isDir && level >= depth + 1) return;
+          if (isDir) sources.add(cp);
+          out.push({
+            name, path: cp, kind: isDir ? "dir" : "file",
+            size: c.size || 0, modifiedMs: c.modifiedMs || Date.now(),
+            isLink: null, linkTarget: null, relativePath: crel, depth: level - 1,
+          });
+          if (isDir) walk(c, cp, level + 1, crel);
+        });
+      };
+      walk(rn, root, 1, "");
+      const truncated = out.length > 2000;
+      const entries = out.slice(0, 2000);
+      return {
+        path: root,
+        entries,
+        dirCount: entries.filter((e) => e.kind === "dir").length,
+        fileCount: entries.filter((e) => e.kind === "file").length,
+        sourceDirCount: sources.size,
+        truncated,
+      };
     }
     case "shell_icon_get_many": return [];
     case "shell_show_context_menu": return { success: false, cancelled: true, error: null };

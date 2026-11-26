@@ -206,6 +206,13 @@ import {
   secondarySearch,
   clearNavigatorFilter,
 } from "../state/navigatorFilter";
+import {
+  drillDepth,
+  drillTargetPath,
+  entryRelativePath,
+  primaryDrill,
+  secondaryDrill,
+} from "../state/navigatorDrill";
 import { toastError, toastInfo, toastSuccess } from "../state/toast";
 import {
   acceptFolderDragOver,
@@ -760,9 +767,33 @@ function onRequestRename(path: string) {
 
 const folderSearchActive = computed(() => navigatorFilterQuery.value.trim().length > 0);
 
+/**
+ * ADR 0031: drill-through state.
+ *  - `drillActive` — the pane is in drill-through mode (may be covered by a
+ *    running in-folder search).
+ *  - `drillRowsActive` — the rows really come from the flattened tree (false
+ *    while a search takes precedence).
+ */
+const drillActive = computed(() => primaryDrill.enabled.value && drillDepth.value > 0);
+const drillRowsActive = computed(
+  () => !folderSearchActive.value && primaryDrill.enabled.value && drillDepth.value > 0,
+);
+const drillTruncated = computed(() => primaryDrill.truncated.value);
+const drillSourceDirCount = computed(() => primaryDrill.sourceDirCount.value);
+const secondaryDrillActive = computed(
+  () => secondaryDrill.enabled.value && drillDepth.value > 0,
+);
+const secondaryDrillRowsActive = computed(
+  () => !folderSearchActive.value && secondaryDrill.enabled.value && drillDepth.value > 0,
+);
+const secondaryDrillTruncated = computed(() => secondaryDrill.truncated.value);
+
 const visibleEntries = computed(() => {
   if (folderSearchActive.value) {
     return sortedEntries(primarySearch.value?.entries ?? []);
+  }
+  if (primaryDrill.enabled.value) {
+    return sortedEntries(primaryDrill.entries.value);
   }
   if (!listing.value) return [];
   return sortedEntries(listing.value.entries);
@@ -780,6 +811,9 @@ const propertiesEntry = computed(() => findVisibleEntry(propertiesPath.value));
 const secondaryEntries = computed(() => {
   if (folderSearchActive.value) {
     return sortedEntries(secondarySearch.value?.entries ?? []);
+  }
+  if (secondaryDrill.enabled.value) {
+    return sortedEntries(secondaryDrill.entries.value);
   }
   if (!secondaryListing.value) return [];
   return sortedEntries(secondaryListing.value.entries);
@@ -1725,6 +1759,21 @@ function onActivate(entry: NavigatorEntry) {
     void restoreSelection();
     return;
   }
+  // ADR 0031: activating a subfolder in drill-through mode is a jump inside
+  // the tree — the root stays, the list stays the whole tree, and the target
+  // row is highlighted and scrolled into view.
+  if (entry.kind === "dir" && primaryDrill.enabled.value) {
+    const target = linkTargetForEntry(entry) ?? entry.path;
+    selectOnly(entry.path);
+    void navigateTo(target)
+      .then(() => {
+        scrollSelectionIntoView(entry.path);
+      })
+      .catch((err) => {
+        toastError(err instanceof Error ? err.message : String(err));
+      });
+    return;
+  }
   // Primary list always uses openEntry; secondary pane has its own handler.
   void openEntry(entry).catch((err) => {
     toastError(err instanceof Error ? err.message : String(err));
@@ -1737,6 +1786,14 @@ function onActivateSecondary(entry: NavigatorEntry) {
   const target = linkTargetForEntry(entry);
   if (target) {
     void navigateSecondary(target);
+    return;
+  }
+  // ADR 0031: the secondary pane jumps inside the tree the same way.
+  if (entry.kind === "dir" && secondaryDrill.enabled.value) {
+    selectOnly(entry.path);
+    void navigateSecondary(entry.path).then(() => {
+      scrollSelectionIntoView(entry.path);
+    });
     return;
   }
   if (entry.kind === "dir") {
@@ -2079,13 +2136,17 @@ async function shortcutPaste() {
     const wasCut = clipboardMode.value === "cut";
     // CLIP-101/102/104: a single selected folder → paste into it; a single selected file →
     // its parent; mixed / no single container → the current dir.
-    const pasteTarget = resolvePasteTarget(
-      selectedEntries(visibleEntries.value).map((entry) => ({
-        path: entry.path,
-        isDirectory: entry.kind === "dir",
-      })),
-      currentPath.value,
-    );
+    // ADR 0031: in drill-through mode every paste lands in the drill root — a
+    // selected row in a flattened list is not a write target.
+    const pasteTarget = primaryDrill.enabled.value
+      ? drillTargetPath("primary", currentPath.value)
+      : resolvePasteTarget(
+          selectedEntries(visibleEntries.value).map((entry) => ({
+            path: entry.path,
+            isDirectory: entry.kind === "dir",
+          })),
+          currentPath.value,
+        );
     const result = await pasteClipboard(pasteTarget);
     if (!result.ok) {
       onNotice(localizeFileOpError(result, t, "contextMenu.opFailed"));
@@ -2147,9 +2208,15 @@ function shortcutRename() {
 
 async function shortcutNewFolder() {
   if (!currentPath.value) return;
+  // ADR 0031: in drill-through mode writes land in the drill root, and the
+  // prompt states the target.
+  const target = drillTargetPath("primary", currentPath.value);
   const suggested = await resolveNewFolderDefaultName(t("contextMenu.newFolderDefault"));
   const prompted = await openPromptDialog({
     title: t("contextMenu.newFolder"),
+    message: primaryDrill.enabled.value
+      ? t("navigator.drillWriteTarget", { path: target })
+      : undefined,
     label: t("contextMenu.newFolderPrompt"),
     defaultValue: suggested,
     confirmLabel: t("common.create"),
@@ -2158,7 +2225,7 @@ async function shortcutNewFolder() {
   const trimmed = prompted.value.trim();
   if (!trimmed) return;
   try {
-    const result = await createFolder(currentPath.value, trimmed);
+    const result = await createFolder(target, trimmed);
     if (!result.ok) {
       onNotice(localizeFileOpError(result, t, "contextMenu.opFailed"));
       return;
@@ -2179,9 +2246,15 @@ async function shortcutNewFolder() {
 
 async function shortcutNewFile() {
   if (!currentPath.value) return;
+  // ADR 0031: in drill-through mode writes land in the drill root, and the
+  // prompt states the target.
+  const target = drillTargetPath("primary", currentPath.value);
   const suggested = await resolveNewFileDefaultName(t("contextMenu.newFileDefault"));
   const prompted = await openPromptDialog({
     title: t("contextMenu.newFile"),
+    message: primaryDrill.enabled.value
+      ? t("navigator.drillWriteTarget", { path: target })
+      : undefined,
     label: t("contextMenu.newFilePrompt"),
     defaultValue: suggested,
     confirmLabel: t("common.create"),
@@ -2190,7 +2263,7 @@ async function shortcutNewFile() {
   const trimmed = prompted.value.trim();
   if (!trimmed) return;
   try {
-    const result = await createFile(currentPath.value, trimmed);
+    const result = await createFile(target, trimmed);
     if (!result.ok) {
       onNotice(localizeFileOpError(result, t, "contextMenu.opFailed"));
       return;
@@ -2619,6 +2692,13 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
     <div v-if="listSurfaceMounted" v-show="!showingGuide" class="pane-list-surface">
     <div class="pane-path-row">
       <p class="pane-path" data-tour-id="tour-navigator-path" :title="currentPath">{{ currentPath || t("navigator.noPath") }}</p>
+      <span
+        v-if="drillActive"
+        class="pane-path-drill"
+        :title="t('chrome.drillSources', { count: drillSourceDirCount })"
+      >
+        {{ t("navigator.drillBadge", { depth: drillDepth }) }}
+      </span>
       <HelpLink entry-id="navigator" tour data-tour-id="tour-navigator-help" />
     </div>
     <ProviderErrorBanner v-if="listError && !listLoading" :error="listError" />
@@ -2656,6 +2736,12 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
       class="fluent-banner fluent-banner--info"
     >
       {{ t("navigator.filterTruncated", { count: visibleEntries.length }) }}
+    </p>
+    <p
+      v-if="drillRowsActive && drillTruncated"
+      class="fluent-banner fluent-banner--info"
+    >
+      {{ t("navigator.drillTruncated", { count: visibleEntries.length }) }}
     </p>
 
     <div
@@ -2855,7 +2941,8 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           />
           <span v-else class="name-block" :role="isDetailsView ? 'gridcell' : undefined" :aria-selected="isDetailsView ? isSelected(item.entry.path) : undefined">
             <span class="name" @click="onNameClick($event, item.entry)">{{ item.entry.name }}</span>
-            <span v-if="folderSearchActive" class="row-location">{{ entryLocation(item.entry.path) }}</span>
+            <span v-if="drillRowsActive" class="row-location">{{ entryRelativePath(item.entry) }}</span>
+            <span v-else-if="folderSearchActive" class="row-location">{{ entryLocation(item.entry.path) }}</span>
             <span v-if="isTilesView || isContentView" class="row-meta">
               {{ formatEntryType(item.entry) }}
               <template v-if="item.entry.kind !== 'dir'"> · {{ formatSize(item.entry) }}</template>
@@ -2899,10 +2986,19 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
       <p class="pane-path" :title="secondaryPath">
         {{ secondaryPath || t("navigator.noPath") }}
       </p>
+      <span v-if="secondaryDrillActive" class="pane-path-drill">
+        {{ t("navigator.drillBadge", { depth: drillDepth }) }}
+      </span>
       <ProviderErrorBanner
         v-if="secondaryError && !secondaryLoading"
         :error="secondaryError"
       />
+      <p
+        v-if="secondaryDrillRowsActive && secondaryDrillTruncated"
+        class="fluent-banner fluent-banner--info"
+      >
+        {{ t("navigator.drillTruncated", { count: secondaryEntries.length }) }}
+      </p>
       <div
         v-if="secondaryListing || secondaryLoading"
         ref="secondaryListRoot"
@@ -3011,7 +3107,8 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           </span>
           <span class="name-block" :role="isDetailsView ? 'gridcell' : undefined" :aria-selected="isDetailsView ? isSelected(entry.path) : undefined">
             <span class="name">{{ entry.name }}</span>
-            <span v-if="folderSearchActive" class="row-location">{{ entryLocation(entry.path) }}</span>
+            <span v-if="secondaryDrillRowsActive" class="row-location">{{ entryRelativePath(entry) }}</span>
+            <span v-else-if="folderSearchActive" class="row-location">{{ entryLocation(entry.path) }}</span>
             <span v-if="isTilesView || isContentView" class="row-meta">
               {{ formatEntryType(entry) }}
               <template v-if="entry.kind !== 'dir'"> · {{ formatSize(entry) }}</template>
@@ -3160,6 +3257,18 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   white-space: nowrap;
   -webkit-user-select: text;
   user-select: text;
+}
+
+/* ADR 0031: drill badge — the list is a flattened tree, not this one folder. */
+.pane-path-drill {
+  flex-shrink: 0;
+  margin: 0 var(--fluent-space-xs) var(--fluent-space-xs) 0;
+  padding: 0 var(--fluent-space-xs);
+  border: 1px solid var(--fluent-color-stroke-accent-soft);
+  border-radius: var(--fluent-radius-sm);
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+  white-space: nowrap;
 }
 
 .list {

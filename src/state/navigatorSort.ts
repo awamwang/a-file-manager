@@ -135,8 +135,19 @@ function compareEntries(
     const typeCmp = at.localeCompare(bt, undefined, { sensitivity: "base" });
     if (typeCmp !== 0) return typeCmp * dir;
   }
-  const nameCmp = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+  const nameCmp = sortNameKey(a).localeCompare(sortNameKey(b), undefined, {
+    sensitivity: "base",
+  });
   return nameCmp * dir;
+}
+
+/**
+ * ADR 0031: drill-through rows sort by their root-relative location
+ * (`sub1\file.txt`), so the flattened list keeps its hierarchy. For ordinary
+ * listings the relative path IS the file name — the comparison is unchanged.
+ */
+function sortNameKey(entry: NavigatorEntry): string {
+  return entry.relativePath || entry.name;
 }
 
 function probeEnabled(): boolean {

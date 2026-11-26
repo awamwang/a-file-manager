@@ -177,6 +177,13 @@
     "viewContent": "コンテンツ",
     "sortBy": "並べ替え",
     "groupBy": "グループ化",
+    "drillThrough": "サブフォルダー展開",
+    "drillOff": "サブフォルダー展開をOFF",
+    "drillDepth": "サブフォルダーを {depth} 階層まで展開",
+    "drillChip": "展開 {depth}",
+    "drillChipTitle": "クリックでサブフォルダー展開をOFFにします",
+    "drillTabSuffix": "· 展開",
+    "drillSources": "{count} 個のサブフォルダーから",
     "groupNone": "なし",
     "sortAscending": "昇順",
     "sortDescending": "降順",
@@ -905,6 +912,9 @@
     "filterSearching": "検索しています…",
     "filterStatus": "{count} 件",
     "filterTruncated": "先頭 {count} 件だけ表示しています。",
+    "drillBadge": "展開 {depth}",
+    "drillWriteTarget": "{path} に作成されます",
+    "drillTruncated": "先頭 {count} 件のみ表示しています（サブフォルダー展開は途中で打ち切られました）。",
     "colModified": "更新日時"
   },
   "projects": {
@@ -1163,6 +1173,10 @@
             "asc": "昇順",
             "desc": "降順"
           }
+        },
+        "navigatorDrillDepth": {
+          "title": "サブフォルダー展開の深さ",
+          "description": "エクスプローラーが 1 つのリストにまとめるサブフォルダーの階層数（1-5）"
         },
         "openTool": {
           "vscode": {

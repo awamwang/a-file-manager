@@ -212,6 +212,13 @@
     "viewContent": "内容",
     "sortBy": "排序依据",
     "groupBy": "分组依据",
+    "drillThrough": "穿透",
+    "drillOff": "关闭穿透",
+    "drillDepth": "摊平 {depth} 层子文件夹",
+    "drillChip": "穿透 {depth} 层",
+    "drillChipTitle": "点击关闭穿透",
+    "drillTabSuffix": "· 穿透",
+    "drillSources": "来自 {count} 个子文件夹",
     "groupNone": "无",
     "sortAscending": "递增",
     "sortDescending": "递减",
@@ -673,6 +680,9 @@
     "filterSearching": "正在搜索…",
     "filterStatus": "找到 {count} 个",
     "filterTruncated": "只显示前 {count} 个结果。",
+    "drillBadge": "穿透 {depth} 层",
+    "drillWriteTarget": "将创建在 {path}",
+    "drillTruncated": "穿透结果已截断，仅显示前 {count} 项。",
     "colModified": "修改日期"
   },
   "discovery": {
@@ -923,6 +933,10 @@
             "asc": "递增",
             "desc": "递减"
           }
+        },
+        "navigatorDrillDepth": {
+          "title": "穿透深度",
+          "description": "资源管理器摊平子文件夹的层数（1-5）"
         },
         "newTabBehavior": {
           "title": "新标签行为",

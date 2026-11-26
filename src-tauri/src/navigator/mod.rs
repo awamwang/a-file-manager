@@ -3,6 +3,7 @@
 
 mod attrs;
 mod disk_space;
+mod drill;
 mod env_path;
 mod list;
 mod places;
@@ -50,6 +51,40 @@ pub async fn navigator_search(
     })
     .await
     .map_err(|err| format!("navigator_search worker failed: {err}"))?
+}
+
+/// ADR 0031: drill-through listing — flatten the tree under `path` up to
+/// `depth` levels of subfolders. The drill root stays put while the user
+/// walks inside the tree, so this is asked once per (root, depth) pair.
+#[tauri::command]
+pub async fn navigator_drill_list(
+    path: String,
+    depth: u32,
+    show_hidden: Option<bool>,
+) -> Result<drill::DrillListing, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let t0 = std::time::Instant::now();
+        let result = drill::drill_directory(&path, depth, show_hidden.unwrap_or(false));
+        match &result {
+            Ok(listing) => crate::perf_log::afm_perf_line(format!(
+                "AFM_PERF navigator_drill_list n={} {:.1}ms depth={} path={}",
+                listing.entries.len(),
+                t0.elapsed().as_secs_f64() * 1000.0,
+                depth,
+                path
+            )),
+            Err(err) => crate::perf_log::afm_perf_line(format!(
+                "AFM_PERF navigator_drill_list ERR {:.1}ms depth={} path={} err={}",
+                t0.elapsed().as_secs_f64() * 1000.0,
+                depth,
+                path,
+                err
+            )),
+        }
+        result
+    })
+    .await
+    .map_err(|err| format!("navigator_drill_list worker failed: {err}"))?
 }
 
 #[tauri::command]

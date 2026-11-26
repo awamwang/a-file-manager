@@ -29,6 +29,9 @@ export const SETTINGS_UI_HIDDEN_KEYS = [
   "core.navigatorSortColumn",
   "core.navigatorSortDirection",
   "core.navigatorGroupDirection",
+  // ADR 0031: the drill depth is edited from the Navigator toolbar drill menu,
+  // so the settings page must not offer a second entry point.
+  "core.navigatorDrillDepth",
   // Providers 页已有网关地址编辑，避免双入口。
   "power.awamGatewayUrl",
   // ADR 0016：知识服务地址/令牌编辑入口在设置 → 扩展能力（ExtensionsSettingsPanel）。

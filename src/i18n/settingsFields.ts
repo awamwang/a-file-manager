@@ -24,6 +24,7 @@ export const SCHEMA_SETTING_KEYS = [
   "core.navigatorSortDirection",
   "core.navigatorGroupBy",
   "core.navigatorGroupDirection",
+  "core.navigatorDrillDepth",
   "core.newTabBehavior",
   "core.trackRecentVisits",
   "core.openTool.vscode.enabled",

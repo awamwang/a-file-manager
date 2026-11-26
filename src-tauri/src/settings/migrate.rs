@@ -263,6 +263,15 @@ fn migrate_step(
             }
             Ok(())
         }
+        (17, 18) => {
+            // ADR 0031: drill depth level (1..5, default 2). Additive only —
+            // no old value is migrated; the drill switch itself is session state.
+            for (key, value) in default_document().values {
+                values.entry(key).or_insert(value);
+            }
+            notes.push("Added core.navigatorDrillDepth (schema v18)".to_string());
+            Ok(())
+        }
         _ => Err(format!("No migration path from {from} → {to}")),
     }
 }
@@ -366,6 +375,32 @@ mod tests {
         assert_eq!(
             result.document.values.get("core.navigatorGroupBy"),
             Some(&json!("size"))
+        );
+    }
+
+    #[test]
+    fn migrates_v17_to_v18_filling_default_drill_depth() {
+        let raw = json!({ "version": 17, "values": {} });
+        let result = migrate_to_latest(&raw).unwrap();
+        assert_eq!(result.from_version, 17);
+        assert_eq!(result.to_version, SETTINGS_SCHEMA_VERSION);
+        // Number keys are sanitized through f64, so the stored value is 2.0.
+        assert_eq!(
+            result.document.values.get("core.navigatorDrillDepth"),
+            Some(&json!(2.0))
+        );
+    }
+
+    #[test]
+    fn migration_keeps_existing_v18_drill_depth() {
+        let raw = json!({
+            "version": 17,
+            "values": { "core.navigatorDrillDepth": 4 }
+        });
+        let result = migrate_to_latest(&raw).unwrap();
+        assert_eq!(
+            result.document.values.get("core.navigatorDrillDepth"),
+            Some(&json!(4.0))
         );
     }
 }

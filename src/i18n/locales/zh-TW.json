@@ -212,6 +212,13 @@
     "viewContent": "內容",
     "sortBy": "排序依據",
     "groupBy": "群組依據",
+    "drillThrough": "穿透",
+    "drillOff": "關閉穿透",
+    "drillDepth": "攤平 {depth} 層子資料夾",
+    "drillChip": "穿透 {depth} 層",
+    "drillChipTitle": "點擊關閉穿透",
+    "drillTabSuffix": "· 穿透",
+    "drillSources": "來自 {count} 個子資料夾",
     "groupNone": "無",
     "sortAscending": "遞增",
     "sortDescending": "遞減",
@@ -673,6 +680,9 @@
     "filterSearching": "正在搜尋…",
     "filterStatus": "找到 {count} 個",
     "filterTruncated": "只顯示前 {count} 個結果。",
+    "drillBadge": "穿透 {depth} 層",
+    "drillWriteTarget": "將建立在 {path}",
+    "drillTruncated": "穿透結果已截斷，僅顯示前 {count} 項。",
     "colModified": "修改日期"
   },
   "discovery": {
@@ -923,6 +933,10 @@
             "asc": "遞增",
             "desc": "遞減"
           }
+        },
+        "navigatorDrillDepth": {
+          "title": "穿透深度",
+          "description": "資源管理器攤平子資料夾的層數（1-5）"
         },
         "newTabBehavior": {
           "title": "新標籤行為",

@@ -177,6 +177,13 @@
     "viewContent": "Contenu",
     "sortBy": "Trier par",
     "groupBy": "Grouper par",
+    "drillThrough": "Sous-dossiers",
+    "drillOff": "Désactiver l'affichage des sous-dossiers",
+    "drillDepth": "Aplatir {depth} niveau(x) de sous-dossiers",
+    "drillChip": "Niveau {depth}",
+    "drillChipTitle": "Cliquez pour désactiver l'affichage des sous-dossiers",
+    "drillTabSuffix": "· Sous-dossiers",
+    "drillSources": "de {count} sous-dossiers",
     "groupNone": "Aucun",
     "sortAscending": "Croissant",
     "sortDescending": "Décroissant",
@@ -905,6 +912,9 @@
     "filterSearching": "Recherche…",
     "filterStatus": "{count} résultats",
     "filterTruncated": "Affichage des {count} premiers résultats.",
+    "drillBadge": "Niveau {depth}",
+    "drillWriteTarget": "Sera créé dans {path}",
+    "drillTruncated": "Seuls les {count} premiers éléments (affichage des sous-dossiers limité).",
     "colModified": "Date de modification"
   },
   "projects": {
@@ -1163,6 +1173,10 @@
             "asc": "Croissant",
             "desc": "Décroissant"
           }
+        },
+        "navigatorDrillDepth": {
+          "title": "Profondeur des sous-dossiers",
+          "description": "Nombre de niveaux de sous-dossiers que l'explorateur aplatit dans une seule liste (1-5)"
         },
         "openTool": {
           "vscode": {

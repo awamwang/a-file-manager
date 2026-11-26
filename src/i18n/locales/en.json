@@ -212,6 +212,13 @@
     "viewContent": "Content",
     "sortBy": "Sort by",
     "groupBy": "Group by",
+    "drillThrough": "Drill-through",
+    "drillOff": "Turn off drill-through",
+    "drillDepth": "Flatten {depth} level(s) of subfolders",
+    "drillChip": "Drill {depth}",
+    "drillChipTitle": "Click to turn drill-through off",
+    "drillTabSuffix": "· Drill",
+    "drillSources": "from {count} subfolders",
     "groupNone": "None",
     "sortAscending": "Ascending",
     "sortDescending": "Descending",
@@ -673,6 +680,9 @@
     "filterSearching": "Searching…",
     "filterStatus": "{count} matches",
     "filterTruncated": "Showing the first {count} matches.",
+    "drillBadge": "Drill {depth}",
+    "drillWriteTarget": "Will be created in {path}",
+    "drillTruncated": "Showing the first {count} items (drill-through was truncated).",
     "colModified": "Date modified"
   },
   "discovery": {
@@ -923,6 +933,10 @@
             "asc": "Ascending",
             "desc": "Descending"
           }
+        },
+        "navigatorDrillDepth": {
+          "title": "Drill-through depth",
+          "description": "How many levels of subfolders the Explorer flattens into one list (1-5)"
         },
         "newTabBehavior": {
           "title": "New tab behavior",
