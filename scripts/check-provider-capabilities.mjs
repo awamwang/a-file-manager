@@ -6,6 +6,7 @@
  * can never satisfy an assertion (same trap as 7.21 / 7.22).
  */
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -127,5 +128,35 @@ assert.ok(platform.includes("pub struct RecycleBinItem {"));
 assert.ok(platform.includes("pub shell_clipboard: bool"));
 assert.ok(platformTs.includes("shellClipboard: boolean;"));
 assert.ok(platformTs.includes("shellClipboard: false,"));
+
+// 6. macOS hides Windows-only provider backends. The filter is applied at the
+//    single cache hydration point so Providers cards + Guide roots agree.
+const providerFilter = code(read("src/state/provider/platformFilter.ts"));
+const providerCache = code(read("src/state/providerCache.ts"));
+for (const id of ["smb", "volumes", "places", "wsl", "filehistory"]) {
+  assert.ok(
+    providerFilter.includes(`"${id}"`),
+    `Windows-only backend ${id} must be in the macOS hide set`,
+  );
+}
+assert.ok(
+  providerFilter.includes('.os === "macos"') && providerFilter.includes(".driveLetters === false"),
+  "filter must key off os=macos + driveLetters=false (neutral host stays Windows-first)",
+);
+assert.ok(
+  providerCache.includes("filterUnsupportedBackends(list)") &&
+    providerCache.includes('from "./provider/platformFilter.ts"'),
+  "provider cache must apply the platform filter at hydration",
+);
+// Runtime behavior: cached capabilities are neutral by default -> no filtering;
+// after hydrating a Mac capability set -> the five Windows-only ids disappear.
+const filterCheck = spawnSync(
+  process.execPath,
+  ["--experimental-strip-types", join(root, "scripts/provider-platform-filter-checks.ts")],
+  { cwd: root, encoding: "utf8" },
+);
+if (filterCheck.stdout) process.stdout.write(filterCheck.stdout);
+if (filterCheck.stderr) process.stderr.write(filterCheck.stderr);
+assert.equal(filterCheck.status, 0, "provider platform filter checks failed");
 
 console.log("Provider capability checks OK (6.5 §4 / 7.24).");

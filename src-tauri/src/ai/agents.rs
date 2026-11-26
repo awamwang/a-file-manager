@@ -13,8 +13,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub const AI_CONFIG_FILE_NAME: &str = "ai-config.json";
 /// One-shot backup of unparseable non-empty `ai-config.json` (AIA-277).
 pub const AI_CONFIG_CORRUPT_BACKUP_NAME: &str = "ai-config.json.corrupt.bak";
+/// v4：Unix 宿主把内置预设的 Windows 路径字面量归一化成 `~/...`（展示修复）。
 /// v3：Agent Target 增加 sessions / rules 只读路径槽（ADR 0028）。v2：`defaultInProjects` + `skillDeployMode`（ADR 0010 / 0011）。
-pub const AI_CONFIG_SCHEMA_VERSION: u32 = 3;
+pub const AI_CONFIG_SCHEMA_VERSION: u32 = 4;
 
 pub const SKILL_DEPLOY_MODE_JUNCTION: &str = "junction";
 pub const SKILL_DEPLOY_MODE_COPY: &str = "copy";
@@ -775,6 +776,28 @@ fn validate_id(raw: &str) -> Result<String, String> {
     Ok(id)
 }
 
+/**
+ * macOS/Unix 展示归一化：内置预设以 Windows 约定存储（`%USERPROFILE%\x\y`），
+ * `expand_agent_path` 虽能在使用时展开，但编辑框会直接展示字面量，Mac 用户
+ * 看到 `C:\Users\...` 式的无效路径。这里只在分隔符为 `/` 的宿主上，把
+ * `%USERPROFILE%` 前缀写成可移植的 `~/`，并把 `\` 归一为 `/`。
+ * `expand_agent_path` 原生支持 `~`，故发现/跳转/部署行为不变；Windows
+ * 宿主（分隔符 `\`）原样返回，零行为变化。自定义路径不经此函数。
+ */
+fn display_path(raw: &str) -> String {
+    if raw.is_empty() || crate::platform::current().path_separator() != '/' {
+        return raw.to_string();
+    }
+    let mut out = raw.trim().replace('\\', "/");
+    for token in ["%USERPROFILE%", "%APPDATA%", "%LOCALAPPDATA%"] {
+        if out.to_ascii_uppercase().starts_with(token) {
+            out = format!("~{}", &out[token.len()..]);
+            break;
+        }
+    }
+    out
+}
+
 fn builtin_target(def: &BuiltinDef, stamp: u64) -> AgentTarget {
     let (sessions, global_rules, project_rules) = builtin_extra_paths(def.id);
     let mut target = AgentTarget {
@@ -784,13 +807,13 @@ fn builtin_target(def: &BuiltinDef, stamp: u64) -> AgentTarget {
         enabled: false,
         default_in_projects: false,
         discovered: false,
-        global_skills_dir: def.global_skills_dir.to_string(),
-        project_skills_dir: def.project_skills_dir.to_string(),
-        global_mcp_path: def.global_mcp_path.to_string(),
-        project_mcp_path: def.project_mcp_path.to_string(),
-        global_sessions_dir: sessions.to_string(),
-        global_rules_path: global_rules.to_string(),
-        project_rules_dir: project_rules.to_string(),
+        global_skills_dir: display_path(def.global_skills_dir),
+        project_skills_dir: display_path(def.project_skills_dir),
+        global_mcp_path: display_path(def.global_mcp_path),
+        project_mcp_path: display_path(def.project_mcp_path),
+        global_sessions_dir: display_path(sessions),
+        global_rules_path: display_path(global_rules),
+        project_rules_dir: display_path(project_rules),
         mcp_usage_prompt: String::new(),
         created_at: stamp,
         updated_at: stamp,
@@ -807,6 +830,10 @@ pub fn sync_builtins_and_discover(document: &AiConfigDocument) -> AiConfigDocume
     // ADR 0028：v2→v3 一次性迁移——内置条目按补充预设表种入 sessions/rules 槽
     // （空才种；用户已填/已清空的值不覆盖）。
     let migrate_extra_paths = next.schema_version < 3;
+    // v3→v4：macOS/Unix 上把内置条目的 Windows 路径字面量
+    //（`%USERPROFILE%\...`）归一化成可移植的 `~/...`，只动仍含 token 的
+    // 预设值；用户自定义过的具体路径不改写。
+    let migrate_display_paths = next.schema_version < 4;
     next.schema_version = AI_CONFIG_SCHEMA_VERSION;
     next.skill_deploy_mode = normalize_skill_deploy_mode(&next.skill_deploy_mode);
 
@@ -826,6 +853,30 @@ pub fn sync_builtins_and_discover(document: &AiConfigDocument) -> AiConfigDocume
                 }
                 if existing.project_rules_dir.trim().is_empty() && !project_rules.is_empty() {
                     existing.project_rules_dir = project_rules.to_string();
+                }
+            }
+            if migrate_display_paths {
+                // Only rewrite fields still holding the untouched preset value.
+                // A user-edited path never equals the raw Windows convention.
+                for (slot, raw) in [
+                    (&mut existing.global_skills_dir, def.global_skills_dir),
+                    (&mut existing.project_skills_dir, def.project_skills_dir),
+                    (&mut existing.global_mcp_path, def.global_mcp_path),
+                    (&mut existing.project_mcp_path, def.project_mcp_path),
+                ] {
+                    if *slot == raw {
+                        *slot = display_path(raw);
+                    }
+                }
+                let (sessions, global_rules, project_rules) = builtin_extra_paths(def.id);
+                for (slot, raw) in [
+                    (&mut existing.global_sessions_dir, sessions),
+                    (&mut existing.global_rules_path, global_rules),
+                    (&mut existing.project_rules_dir, project_rules),
+                ] {
+                    if *slot == raw {
+                        *slot = display_path(raw);
+                    }
                 }
             }
             refresh_discovered(existing);
@@ -1333,6 +1384,22 @@ mod tests {
     }
 
     #[test]
+    fn display_path_normalizes_windows_presets_on_unix_only() {
+        let is_unix = crate::platform::current().path_separator() == '/';
+        let result = display_path(r"%USERPROFILE%\.cursor\skills");
+        if is_unix {
+            assert_eq!(result, "~/.cursor/skills");
+            assert!(!result.contains('%') && !result.contains('\\'));
+            assert_eq!(display_path(r".claude\skills"), ".claude/skills");
+        } else {
+            assert_eq!(result, r"%USERPROFILE%\.cursor\skills");
+        }
+        // 归一化后的值仍可被展开器解析（发现 / 跳转 / 部署不受影响）。
+        let expanded = expand_agent_path(&result);
+        assert!(!expanded.contains('%') && !expanded.contains('~'));
+    }
+
+    #[test]
     fn migrates_v2_seeds_extra_paths_once_and_keeps_user_values() {
         // ADR 0028：v2 配置加载即补种 sessions/rules 槽；用户已有值不覆盖；
         // 迁移一次性完成——之后用户清空也不会被回种。
@@ -1363,9 +1430,16 @@ mod tests {
         let doc = load_from_path(&dir).unwrap();
         assert_eq!(doc.schema_version, AI_CONFIG_SCHEMA_VERSION);
         let claude = doc.agent_targets.iter().find(|t| t.id == "claude-code").unwrap();
-        assert_eq!(claude.global_sessions_dir, r"%USERPROFILE%\.claude\projects");
-        assert_eq!(claude.global_rules_path, r"%USERPROFILE%\.claude\CLAUDE.md");
-        assert_eq!(claude.project_rules_dir, r".claude");
+        // v3→v4 在 Unix 上把未改动的预设归一化成 `~/...`；Windows 原样保留。
+        assert_eq!(
+            claude.global_sessions_dir,
+            display_path(r"%USERPROFILE%\.claude\projects")
+        );
+        assert_eq!(
+            claude.global_rules_path,
+            display_path(r"%USERPROFILE%\.claude\CLAUDE.md")
+        );
+        assert_eq!(claude.project_rules_dir, display_path(r".claude"));
 
         // 用户改写后重载：保留用户值，不回种。
         let patched = update_target(
@@ -1391,7 +1465,7 @@ mod tests {
         let claude = reloaded.agent_targets.iter().find(|t| t.id == "claude-code").unwrap();
         assert_eq!(claude.global_sessions_dir, r"D:\custom-sessions");
         assert_eq!(claude.global_rules_path, "", "user-cleared value must not be re-seeded");
-        assert_eq!(claude.project_rules_dir, r".claude");
+        assert_eq!(claude.project_rules_dir, display_path(r".claude"));
         let _ = fs::remove_dir_all(&dir);
     }
 

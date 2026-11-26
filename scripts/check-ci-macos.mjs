@@ -33,7 +33,11 @@ const assets = code(read("scripts/release-assets.mjs"));
 const pkg = JSON.parse(read("package.json"));
 const conf = JSON.parse(read("src-tauri/tauri.conf.json"));
 const helpText = read("src-tauri/resources/macos-open-help.txt");
+const installer = read("scripts/install-macos.sh");
 const finalizeAdhoc = code(read("scripts/finalize-macos-adhoc.mjs"));
+const caskTemplate = read("packaging/homebrew-tap/a-file-manager.rb.tmpl");
+const tapSync = code(read("scripts/sync-homebrew-tap.mjs"));
+const readmeText = read("README.md");
 
 // 1. CI is a real two-OS matrix, not a Windows job with a Mac afterthought.
 assert.ok(ci.includes("runs-on: ${{ matrix.os }}"), "CI must select runner from matrix");
@@ -118,7 +122,7 @@ assert.ok(
   "ad-hoc fallback must be the default when signing is off",
 );
 assert.ok(
-  release.includes("直接双击打开") && release.includes("右键 → 打开只在部分 macOS 版本有效"),
+  release.includes("直接双击打开") && release.includes("macOS 15+ 已移除 Finder 右键"),
   "release notes must describe both signed and ad-hoc first-launch behavior",
 );
 assert.ok(
@@ -241,6 +245,86 @@ for (const phrase of [
   assert.ok(helpText.includes(phrase), `macOS help text must explain: ${phrase}`);
 }
 
+// 2e. macOS 15+ removed the Finder right-click → Open override. The ad-hoc
+// path must therefore ship an installer that clears quarantine at install
+// time, both in the DMG and as a standalone Release asset.
+assert.ok(
+  installer.includes('xattr -dr com.apple.quarantine "${DEST}"') &&
+    installer.includes('ditto "${SOURCE_APP}" "${DEST}"') &&
+    installer.includes("codesign --verify --deep --strict") &&
+    installer.includes("--no-open"),
+  "installer must copy the signed app, clear quarantine and verify the seal",
+);
+assert.ok(
+  finalizeAdhoc.includes('arg("--installer")') &&
+    finalizeAdhoc.includes('copyFileSync(installerPath, join(staging, "安装-A-File-Manager.sh"))'),
+  "ad-hoc finalizer must put the installer at the DMG root",
+);
+assert.ok(
+  release.includes("cp scripts/install-macos.sh") &&
+    release.includes("A.File.Manager_${VERSION}_macos-install.sh"),
+  "release must publish the installer as a canonical asset",
+);
+assert.ok(
+  read(".gitattributes").includes("scripts/install-macos.sh text eol=lf"),
+  "installer must keep LF line endings when prepared on Windows",
+);
+for (const phrase of [
+  "macOS 15（Sequoia）",
+  "安装-A-File-Manager.sh",
+  "清掉下载隔离属性",
+  "不需要系统设置",
+]) {
+  assert.ok(helpText.includes(phrase), `macOS help text must explain the installer path: ${phrase}`);
+}
+
+  // 2h. Self-hosted Homebrew tap: official homebrew/cask rejects ad-hoc builds,
+  // so the release publishes a checksummed cask to awamwang/homebrew-tap.
+  assert.ok(caskTemplate.includes('cask "a-file-manager" do'), "cask token must stay a-file-manager");
+  assert.ok(
+    caskTemplate.includes('arch arm: "aarch64", intel: "x64"'),
+    "cask must map both native macOS architectures",
+  );
+  assert.ok(
+    caskTemplate.includes('version "__VERSION__"') &&
+      caskTemplate.includes('sha256 arm:   "__SHA256_AARCH64__"') &&
+      caskTemplate.includes('intel: "__SHA256_X64__"'),
+    "cask template must carry version and per-arch checksum placeholders",
+  );
+  assert.ok(
+    caskTemplate.includes("releases/download/v#{version}/A.File.Manager_#{version}_#{arch}.app.zip"),
+    "cask must point at canonical mainline .app.zip assets",
+  );
+  assert.ok(
+    caskTemplate.includes("postflight_steps do") &&
+      caskTemplate.includes('run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine"'),
+    "cask must clear quarantine via Homebrew 7 postflight_steps",
+  );
+  assert.ok(
+    !caskTemplate.includes("postflight do") && !caskTemplate.includes("--no-quarantine"),
+    "cask must avoid deprecated Ruby hooks and removed --no-quarantine",
+  );
+  assert.ok(
+    tapSync.includes("createHash") && tapSync.includes("sha256"),
+    "tap sync script must compute asset checksums",
+  );
+  assert.ok(
+    release.includes("publish-homebrew-tap:") &&
+      release.includes("secrets.HOMEBREW_TAP_TOKEN") &&
+      release.includes("repos/${TAP}/contents/Casks/a-file-manager.rb") &&
+      release.includes("scripts/sync-homebrew-tap.mjs"),
+    "release workflow must render and push the tap cask",
+  );
+  assert.ok(
+    release.includes("brew install --cask awamwang/tap/a-file-manager"),
+    "release notes must document the Homebrew install path",
+  );
+  assert.ok(
+    helpText.includes("brew install --cask awamwang/tap/a-file-manager") &&
+      readmeText.includes("brew install --cask awamwang/tap/a-file-manager"),
+    "help and README must document the Homebrew install path",
+  );
+
 // 3. Build entry reuses the existing flavor logic, only the bundle set differs.
 assert.ok(buildFlavor.includes("--target"), "build-flavor must forward --target");
 assert.ok(buildFlavor.includes('"nsis"'), "Windows NSIS default must stay intact");
@@ -272,4 +356,4 @@ assert.equal(conf.bundle.macOS.signingIdentity, undefined, "signing stays opt-in
 assert.ok(pkg.scripts.test.includes("npm run test:macos-bundle"));
 assert.ok(pkg.scripts.test.includes("npm run test:ci-macos"));
 
-console.log("CI macOS packaging checks OK (7.25 + 7.26 signing + 7.27 help + 3-host feed).");
+console.log("CI macOS packaging checks OK (7.25 + 7.26 signing + 7.27 help + 7.28 installer + 7.29 Homebrew tap + 3-host feed).");

@@ -42,7 +42,14 @@ Windows 优先的现代桌面文件管理器，基于 **Tauri 2 + Vue 3**，采�
 - **主线版 Mainline**（默认含 AI 技能，普通正式版，建议首选）；
 - **精简版 Lite**（不含 AI 附加组件，`-lite` 后缀，可选次级）。
 
-macOS 用户下载对应的 `.dmg`（Apple Silicon / Intel）。
+macOS 用户推荐用 Homebrew 一行安装（自建 tap，装完直接双击，无需系统设置放行）：
+
+```sh
+brew install --cask awamwang/tap/a-file-manager
+# 升级：brew upgrade --cask a-file-manager
+```
+
+也可下载对应的 `.dmg` / `.app.zip`（Apple Silicon / Intel），或 Release 里的 `macos-install.sh` 一键安装脚本。当前 macOS 包为 ad-hoc 签名（无 Developer ID / 公证），详见包内《打开帮助.txt》。
 
 若你的电脑还没有 WebView2 运行环境，安装过程会自动为你补齐，无需手动处理。
 

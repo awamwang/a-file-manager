@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Generated from awamwang/a-file-manager — do not edit by hand in the tap.
+# Source: packaging/homebrew-tap/a-file-manager.rb.tmpl
+
+cask "a-file-manager" do
+  arch arm: "aarch64", intel: "x64"
+
+  version "__VERSION__"
+  sha256 arm:   "__SHA256_AARCH64__",
+         intel: "__SHA256_X64__"
+
+  url "https://github.com/awamwang/a-file-manager/releases/download/v#{version}/A.File.Manager_#{version}_#{arch}.app.zip"
+  name "A File Manager"
+  desc "Cross-platform dual-pane file manager"
+  homepage "https://github.com/awamwang/a-file-manager"
+
+  app "A File Manager.app"
+
+  # Ad-hoc signed build (no Developer ID / notarization): clear the download
+  # quarantine after install so the first double-click works on macOS 15+.
+  postflight_steps do
+    on_macos do
+      run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{appdir}}/A File Manager.app"]
+    end
+  end
+
+  uninstall quit: "com.a-file-manager.app"
+end

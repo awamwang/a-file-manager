@@ -1,0 +1,2 @@
+# macOS shell assets must keep LF even when the release-prepare job checks out on Windows.
+scripts/install-macos.sh text eol=lf
