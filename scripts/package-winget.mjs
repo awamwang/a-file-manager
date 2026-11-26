@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
- * 生成 winget 社区源（microsoft/winget-pkgs）清单并给出提交指引（ADR 0031）。
+ * 生成 winget 社区源（microsoft/winget-pkgs）清单并给出提交指引（ADR 0032）。
  *
  * 用法：npm run package:winget [-- --version 0.4.0] [--dry-run] [--release-date 2026-12-01]
  *

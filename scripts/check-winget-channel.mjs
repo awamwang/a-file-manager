@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
- * ADR 0031：winget 包管理器分发渠道门禁。
+ * ADR 0032：winget 包管理器分发渠道门禁。
  *
  * 静态针（脚本存在 + package.json 接线 + tauri.conf.json publisher 对齐）
  * + 真执行（buildWingetManifests / manifestRelativeDir / installerUrl 断言，
@@ -95,5 +95,5 @@ for (const needle of [
 assert.throws(() => buildWingetManifests({ version: "0.4.0", installerSha256: "xyz", releaseDate: "2026-12-01" }), /64/);
 
 console.log(
-  `winget-channel OK (ADR 0031: ${WINGET_PACKAGE_IDENTIFIER} @ ${WINGET_PKGS_REPO}, publisher=${WINGET_PUBLISHER}).`,
+  `winget-channel OK (ADR 0032: ${WINGET_PACKAGE_IDENTIFIER} @ ${WINGET_PKGS_REPO}, publisher=${WINGET_PUBLISHER}).`,
 );
