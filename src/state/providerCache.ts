@@ -14,6 +14,7 @@
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { PROVIDER_ROOT, type ProviderQueryParam } from "./provider/path.ts";
+import { filterUnsupportedBackends } from "./provider/platformFilter.ts";
 
 export type PreloadReport = {
   uris: string[];
@@ -79,7 +80,9 @@ export async function hydrateProviderDiscovery(): Promise<void> {
     invoke<ProviderBackendSession[]>("provider_backends"),
   ]);
   providerGateway.value = status;
-  providerBackends.value = list;
+  // macOS 上隐藏 Windows-only 后端（smb/volumes/places/wsl/filehistory），
+  // 它们的卡片点了只会得到 "Windows only" / *.exe not found 错误。
+  providerBackends.value = filterUnsupportedBackends(list);
 }
 
 /** 拉取 Provider 根目录列表（depth-1 缓存命中时几乎瞬时）。 */

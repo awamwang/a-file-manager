@@ -89,8 +89,24 @@ fn resolve_rclone_executable() -> Result<PathBuf, String> {
     }
 
     for name in rclone_path_candidates() {
+        // macOS 候选含绝对路径；Windows 仍保持原有纯 PATH 解析语义。
+        #[cfg(target_os = "macos")]
+        {
+            let as_path = PathBuf::from(name);
+            if as_path.is_file() {
+                return Ok(as_path);
+            }
+        }
         if let Some(found) = win_process::resolve_on_path(name) {
             return Ok(found);
+        }
+    }
+    // macOS GUI（Dock / Finder 启动）不继承 shell PATH，Homebrew 与用户本地 bin
+    // 里的 rclone 会漏检。补一轮固定路径探测，环境变量仍保持最高优先级。
+    #[cfg(target_os = "macos")]
+    for path in rclone_macos_candidate_paths(std::env::var_os("HOME").as_deref()) {
+        if path.is_file() {
+            return Ok(path);
         }
     }
     Err(rclone_missing_message(None))
@@ -105,6 +121,20 @@ fn rclone_path_candidates() -> &'static [&'static str] {
     {
         &["rclone"]
     }
+}
+
+/// macOS 上 rclone 的常见安装位置（GUI 启动不继承 shell PATH 时的兜底）。
+/// 抽成纯函数以便离线断言，HOME 由调用方注入，避免测试改动进程环境。
+#[cfg(target_os = "macos")]
+fn rclone_macos_candidate_paths(home: Option<&std::ffi::OsStr>) -> Vec<PathBuf> {
+    let mut paths = vec![
+        PathBuf::from("/opt/homebrew/bin/rclone"), // Apple Silicon Homebrew
+        PathBuf::from("/usr/local/bin/rclone"),    // Intel Homebrew
+    ];
+    if let Some(home) = home {
+        paths.push(PathBuf::from(home).join(".local/bin/rclone")); // 用户级安装
+    }
+    paths
 }
 
 fn rclone_missing_message(configured: Option<&str>) -> String {
@@ -713,5 +743,17 @@ mod tests {
         assert!(names.contains(&"rclone"));
         #[cfg(windows)]
         assert!(names.contains(&"rclone.exe"));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_candidates_cover_brew_prefixes_and_user_bin() {
+        let paths = rclone_macos_candidate_paths(Some(std::ffi::OsStr::new("/Users/demo")));
+        assert!(paths.iter().any(|p| p == &PathBuf::from("/opt/homebrew/bin/rclone")));
+        assert!(paths.iter().any(|p| p == &PathBuf::from("/usr/local/bin/rclone")));
+        assert!(paths.iter().any(|p| p == &PathBuf::from("/Users/demo/.local/bin/rclone")));
+        // 无 HOME 时仍保留两个 Homebrew 前缀，不能 panic。
+        let no_home = rclone_macos_candidate_paths(None);
+        assert_eq!(no_home.len(), 2);
     }
 }

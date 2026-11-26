@@ -19,8 +19,12 @@ const types = read("src/ai/types.ts");
 const panel = read("src/ai/AgentTargetsPanel.vue");
 const projectPanel = read("src/ai/ProjectAiPanel.vue");
 
-// --- Backend: schema v3 + extra path slots (ADR 0028). ---
-assert.ok(agentsRs.includes("pub const AI_CONFIG_SCHEMA_VERSION: u32 = 3"), "schema v3");
+// --- Backend: schema v4 + extra path slots (ADR 0028 + macOS display normalization). ---
+assert.ok(agentsRs.includes("pub const AI_CONFIG_SCHEMA_VERSION: u32 = 4"), "schema v4");
+assert.ok(
+  agentsRs.includes("migrate_display_paths") && agentsRs.includes("fn display_path"),
+  "one-shot v3→v4 migration normalizes Windows preset paths on Unix hosts",
+);
 assert.ok(agentsRs.includes("BUILTIN_EXTRA_PATHS"), "builtin extras table separate from defs");
 assert.ok(agentsRs.includes("global_sessions_dir"), "AgentTarget.global_sessions_dir");
 assert.ok(agentsRs.includes("global_rules_path"), "AgentTarget.global_rules_path");

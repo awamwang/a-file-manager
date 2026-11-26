@@ -1113,6 +1113,53 @@ spctl -a -vvv 'A File Manager.app'
 | 前端能力层（7.8） | `src/config/platform.ts`；`src/shortcuts/chord.ts`；`src/main.ts`；`src/views/SettingsView.vue`；`src/state/settingsUi.ts`；`scripts/shortcut-checks.ts` |
 | 全局搜索（7.21） | `src-tauri/src/platform/{mod,macos,windows}.rs`；`src-tauri/src/discovery/{mod,types,backend,service,blacklist,platform_backend}.rs`；`src/views/DiscoveryView.vue`；`scripts/check-global-search-provider.mjs` |
 
+## 7.28 macOS 15+ 右键放行失效：无证书路径改为安装脚本清隔离（第 23 轮）
+
+**触发**：用户实测 v0.4.0 的 `/Applications/A File Manager.app` 仍无法通过右键 → 打开放行，截图只有「完成 / 移到废纸篓」。本机为 macOS 15.8.3，App 为有效 ad-hoc 签名（`codesign --verify --deep --strict` 通过），`com.apple.quarantine=0381` 来自 Edge，`spctl -a -vvv` 因无 Developer ID + 公证而 rejected。
+
+**结论（不要再反复试错）**：Apple 从 macOS 15（Sequoia）起移除了 Finder 的 Control-click / 右键 →「打开」单次放行入口，官方指南现在只保留「系统设置 → 隐私与安全性 → 仍要打开」。在不考虑 Developer ID 的前提下，**无法让未公证的 `.app` 自身恢复这个入口**。实测还排除了两条捷径：
+
+1.  quarantined DMG 里放干净的 `.app`，挂载后用 `cp -R` / `ditto` 拖出 → 目标仍继承 `com.apple.quarantine`；`.app.zip` 解压同样继承。
+2.  把 App 的 quarantine 预置成「已批准」值再打进 ZIP → 解压时被系统覆盖为未批准值，`spctl` 仍 rejected。
+
+**实现（用户选择「安装脚本清隔离」方案）**：
+
+| 落点 | 内容 |
+| --- | --- |
+| `scripts/install-macos.sh` | 新增。用 `bash` 从终端执行（脚本本身无签名，终端 `bash` 读取文件不触发 Gatekeeper 的脚本校验）。校验源包签名 → `ditto` 复制到 `/Applications` → 旧版移入 `~/.Trash` → 递归清 `com.apple.quarantine`（并 best-effort 清 `com.apple.provenance`）→ 再次严格校验签名 → 可选 `open` 启动。支持 `--app` / `--apps-dir` / `--no-open` 供本地演练。 |
+| `scripts/finalize-macos-adhoc.mjs` | 新增 `--installer` 参数，把脚本以 `安装-A-File-Manager.sh` 放进重建的 DMG 根目录；帮助文件仍在根目录。仅无证书路径调用，签名/公证路径不受影响。 |
+| `.github/workflows/release.yml` | `prepare` 作业把脚本作为 `A.File.Manager_${VERSION}_macos-install.sh` 上传 Release（一次，不在矩阵里重复上传）；ad-hoc finalize 步骤传 `--installer`；发布说明改为「macOS 15+ 用安装脚本」并保留系统设置 / `xattr` 兜底。 |
+| `.gitattributes` | 新增，钉住 `scripts/install-macos.sh text eol=lf`，避免 Windows runner checkout 后出现 CRLF 导致脚本失效。 |
+| `src-tauri/resources/macos-open-help.txt` | 首选路径改为安装脚本，明确 macOS 15+ 已移除右键入口；保留系统设置与 `xattr` 两种手工兜底和「不要点移到废纸篓」。 |
+| `scripts/check-ci-macos.mjs` | 新增 2e 契约：安装脚本清隔离/复制/校验、finalizer 的 DMG 内脚本、Release 资产、LF 行尾、帮助文案关键短语。 |
+
+**本机验证**：对已安装的 `/Applications/A File Manager.app` 执行 `xattr -dr com.apple.quarantine`（`com.apple.provenance` 是受保护属性，删不掉但不触发拦截），随后 `open` 成功拉起进程；安装脚本的语法、帮助、`--apps-dir` 演练与 gate 结果见本轮工具记录。**边界**：ad-hoc 仍不是 Developer ID + 公证，直接双击未经脚本/手工清隔离的下载包依然会被拦；签名/公证路径仍未在本机验证。
+
+## 7.29 自建 Homebrew tap：无证书版本的包管理器安装路径（第 24 轮）
+
+**触发**：用户在「安装脚本清隔离」之外询问包管理器分发（例如 Homebrew Cask），希望 `brew install` 一步装好。
+
+**边界（2026-11 现状，别再走弯路）**：
+
+- Homebrew 5.0.0（2025-11）起弃用 `--no-quarantine` / `--quarantine`，并声明 **2026-09 起禁用所有过不了 Gatekeeper 的 `homebrew/cask` 官方 cask**；未签名 / 未公证的 ad-hoc 包不能进官方仓库。Cask Cookbook 同时要求官方 macOS cask 满足 Gatekeeper requirement。
+- 自建 tap 不受官方仓库那条禁令约束，但必须显式声明清隔离步骤。Homebrew 7（2026-09）把 cask 的 `postflight` Ruby block 标为 deprecated（2027-12-11 移除），改为 `postflight_steps` 里的 `run` 步骤；因此本项目直接用新语法：`run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{appdir}}/A File Manager.app"]`。
+- Homebrew 6+ 对第三方 tap 要求显式信任；`brew install --cask awamwang/tap/a-file-manager` 这种全名安装只信任这一个 cask，不需要 `brew trust` 整个 tap。该步骤代替用户跳过一次 Gatekeeper 检查，只在信任本项目 Release 时使用。
+
+**实现**：
+
+| 落点 | 内容 |
+| --- | --- |
+| `awamwang/homebrew-tap` | 新建公开 tap 仓库，`main` 分支含 `README.md` 与 `Casks/a-file-manager.rb`；初始 Cask 指向已发布的 v0.3.0 主线版 `.app.zip`，sha256 来自 Release 资产 `digest`。 |
+| `packaging/homebrew-tap/a-file-manager.rb.tmpl` | Cask 模板：`arch arm: "aarch64", intel: "x64"`，`version` + 双架构 `sha256` 占位符，URL 用主线版素名资产，`postflight_steps` 清隔离，`uninstall quit: "com.a-file-manager.app"`。 |
+| `scripts/sync-homebrew-tap.mjs` | 从 `--sha-aarch64` / `--sha-x64`（或从 `--aarch64` / `--x64` 资产路径计算 sha256）渲染模板，校验版本号与 hex 格式，写 `--out`。 |
+| `.github/workflows/release.yml` | 新增 `publish-homebrew-tap` 作业：`needs: [prepare, build-app-macos]`，仅在 `want_ai == 'true'` 时运行；用 `gh api` 从 Release 资产 `digest` 取两架构 sha256 → 渲染 Cask → `ruby -c` → 用 `secrets.HOMEBREW_TAP_TOKEN` 通过 Contents API PUT 到 tap。加入 `finalize` 的 `needs` 与结果检查，失败则 Release 保持 draft。 |
+| 文档 / 帮助 | README 与 `macos-open-help.txt` 把 Homebrew 列为推荐路径；Release 说明同步加 `brew install --cask awamwang/tap/a-file-manager`。 |
+| `scripts/check-ci-macos.mjs` | 新增 2h 契约：Cask 模板架构/占位符/URL/新语法、同步脚本、workflow 的 tap 作业与 token、README/帮助文案。 |
+
+**已配置**：仓库 Secret `HOMEBREW_TAP_TOKEN`（用本机 `gh auth token` 写入 `awamwang/a-file-manager`，具备 `repo` 权限且可写 `awamwang/homebrew-tap`）。若以后轮换 PAT，需同步更新该 Secret；未配置时新作业会失败并阻止 Release 正式发布，避免「Release 发布了但 Cask 没更新」。
+
+---
+
 ## 附录 B · 参考资源
 
 以下为本次检索命中的入口（外部资料，仅供复核；社区项目需自行确认维护状态与许可证）。
