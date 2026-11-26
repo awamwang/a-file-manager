@@ -12,9 +12,13 @@ import {
   THUMB_REQUEST_FALLBACK_ROWS,
 } from "../src/state/listVirtualWindow.ts";
 import {
+  buildGroupedGridLayout,
+  buildGridRows,
+  computeGridListVirtualWindow,
   flattenEntryItems,
   flattenGroupedItems,
   LIST_GROUP_HEADER_HEIGHT_PX,
+  nextGroupedGridPath,
   virtItemHeightPx,
 } from "../src/state/listVirtItems.ts";
 import { groupEntriesBy } from "../src/state/navigatorGrouping.ts";
@@ -218,5 +222,96 @@ clearSortedEntriesCache();
 const once = sortedEntries(sampleEntries);
 const twice = sortedEntries(sampleEntries);
 assert.equal(once, twice);
+
+// ---- 分组 + 网格：组头独占一行，组内按列流动 ----
+const mkEntry = (path: string): NavigatorEntry => ({
+  name: path.split("\\").pop()!,
+  path,
+  kind: "file",
+  size: 0,
+  modifiedMs: 0,
+});
+
+// 两组：A 有 3 项，B 有 2 项；列数 2 → A 占 2 行（2+1），B 占 1 行（2）。
+// 用「名称」分组才能分出两组（同类型只会分出一组）。
+const gridEntries: NavigatorEntry[] = [
+  mkEntry("C:\\t\\a1"),
+  mkEntry("C:\\t\\a2"),
+  mkEntry("C:\\t\\a3"),
+  mkEntry("C:\\t\\b1"),
+  mkEntry("C:\\t\\b2"),
+];
+const gridGroups = groupEntriesBy(gridEntries, "name", "asc", groupLabels, 0);
+assert.equal(gridGroups.length, 2, "a/b 两组");
+const gridItems = flattenGroupedItems(gridGroups, new Set<string>());
+const gridRows = buildGridRows(gridItems, {
+  columns: 2,
+  headerHeight: LIST_GROUP_HEADER_HEIGHT_PX,
+  entryRowHeight: 32,
+});
+// 每个组一个组头行；组内 ceil(n / columns) 行。
+const headerRows = gridRows.filter((row) => row.spansFullWidth);
+assert.equal(headerRows.length, gridGroups.length, "每组一个组头行");
+assert.ok(
+  gridRows.every((row) => row.endItem > row.startItem),
+  "每行至少覆盖一个虚拟项",
+);
+assert.equal(
+  gridRows.reduce((sum, row) => sum + (row.spansFullWidth ? 0 : row.endItem - row.startItem), 0),
+  gridItems.filter((item) => item.kind === "entry").length,
+  "组内行必须覆盖全部条目（不能丢行）",
+);
+
+// 组内条目按列切分：3 项 / 2 列 → 2+1。
+const aRowSizes = gridRows
+  .filter((row) => !row.spansFullWidth)
+  .map((row) => row.endItem - row.startItem);
+assert.deepEqual(aRowSizes, [2, 1, 2], "组内按列数切行，末行可不满");
+
+// ---- 行级窗口：可见范围对齐组边界 ----
+const gridWin = computeGridListVirtualWindow({
+  rows: gridRows,
+  scrollTop: 0,
+  viewportHeight: 40,
+});
+assert.equal(gridWin.active, true);
+assert.equal(gridWin.startIndex, 0, "从组头开始");
+assert.ok(gridWin.endIndex >= gridWin.startIndex);
+// 窗口落在某一行的中间时，必须回退到该组的组头行。
+const gridWinMid = computeGridListVirtualWindow({
+  rows: gridRows,
+  scrollTop: LIST_GROUP_HEADER_HEIGHT_PX + 32,
+  viewportHeight: 10,
+});
+assert.equal(
+  gridWinMid.startIndex,
+  gridRows.findIndex((row) => row.spansFullWidth),
+  "可见范围必须对齐到组边界（组头与组同批渲染）",
+);
+assert.ok(gridWinMid.offsetBeforePx >= 0);
+
+// ---- 分组网格的方向键：按视觉行列，不按「序号 ÷ 列数」 ----
+const layout = buildGroupedGridLayout(gridItems, gridRows);
+assert.equal(layout.rows.length, gridRows.length);
+// 组头行没有条目。
+assert.deepEqual(layout.rows[0], [], "组头行不含条目");
+// A 组占第 1、2 行（每行 2 列），B 组占第 3 行。
+assert.equal(layout.cells.get("C:\\t\\a1")?.row, 1);
+assert.equal(layout.cells.get("C:\\t\\a1")?.col, 0);
+assert.equal(layout.cells.get("C:\\t\\a2")?.col, 1);
+assert.equal(layout.cells.get("C:\\t\\a3")?.row, 2);
+assert.equal(layout.cells.get("C:\\t\\a3")?.col, 0, "组内第二行的首项在第 0 列");
+assert.equal(layout.cells.get("C:\\t\\b1")?.row, 4, "新组前面有自己的组头行");
+assert.equal(layout.cells.get("C:\\t\\b1")?.col, 0, "新组的首项回到第 0 列");
+
+assert.equal(nextGroupedGridPath(layout, "C:\\t\\a1", "right"), "C:\\t\\a2");
+assert.equal(nextGroupedGridPath(layout, "C:\\t\\a2", "right"), null, "行末不跨行");
+assert.equal(nextGroupedGridPath(layout, "C:\\t\\a2", "left"), "C:\\t\\a1");
+assert.equal(nextGroupedGridPath(layout, "C:\\t\\a1", "left"), null, "行首不跨组");
+assert.equal(nextGroupedGridPath(layout, "C:\\t\\a3", "down"), "C:\\t\\b1", "向下进入下一组");
+assert.equal(nextGroupedGridPath(layout, "C:\\t\\a1", "down"), "C:\\t\\a3", "向下在本组换行");
+assert.equal(nextGroupedGridPath(layout, "C:\\t\\b2", "down"), null, "末行下方无处可去");
+assert.equal(nextGroupedGridPath(layout, "C:\\t\\b1", "up"), "C:\\t\\a3", "向上跳过组头行");
+assert.equal(nextGroupedGridPath(layout, "C:\\t\\a1", "up"), null, "首行上方无处可去");
 
 console.log("list-virtual-window checks OK");

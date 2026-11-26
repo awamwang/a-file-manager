@@ -2824,45 +2824,6 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div id="navigator-view-mode-menu" class="places-menu">
-            <button
-              type="button"
-              class="fluent-control nav-icon-btn places-trigger"
-              :class="{ 'nav-icon-btn--active': viewModeMenuOpen }"
-              :title="t('chrome.viewMode')"
-              :aria-label="t('chrome.viewMode')"
-              :aria-expanded="viewModeMenuOpen"
-              aria-haspopup="menu"
-              @click.stop="toggleViewModeMenu"
-            >
-              <FluentIcon name="list" size="sm" />
-              <FluentIcon name="chevronDown" size="sm" class="places-chevron" />
-            </button>
-            <div
-              v-if="viewModeMenuOpen"
-              class="places-popover fluent-surface view-mode-popover"
-              role="menu"
-              :aria-label="t('chrome.viewMode')"
-            >
-              <button
-                v-for="mode in NAVIGATOR_VIEW_MODES"
-                :key="mode"
-                type="button"
-                class="fluent-list-row places-item"
-                role="menuitemradio"
-                :aria-checked="navigatorViewMode === mode"
-                :class="{ 'places-item--active': navigatorViewMode === mode }"
-                @click="chooseViewMode(mode)"
-              >
-                <FluentIcon
-                  :name="mode === 'details' || mode.startsWith('icons') ? 'view' : 'viewAll'"
-                  size="sm"
-                />
-                <span>{{ t(viewModeLabelKey(mode)) }}</span>
-              </button>
-            </div>
-          </div>
-
           <div id="navigator-group-menu" class="places-menu">
             <button
               type="button"
@@ -2922,6 +2883,45 @@ onUnmounted(() => {
               >
                 <FluentIcon name="arrowDown" size="sm" />
                 <span>{{ t("chrome.sortDescending") }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="navigator-view-mode-menu" class="places-menu">
+            <button
+              type="button"
+              class="fluent-control nav-icon-btn places-trigger"
+              :class="{ 'nav-icon-btn--active': viewModeMenuOpen }"
+              :title="t('chrome.viewMode')"
+              :aria-label="t('chrome.viewMode')"
+              :aria-expanded="viewModeMenuOpen"
+              aria-haspopup="menu"
+              @click.stop="toggleViewModeMenu"
+            >
+              <FluentIcon name="list" size="sm" />
+              <FluentIcon name="chevronDown" size="sm" class="places-chevron" />
+            </button>
+            <div
+              v-if="viewModeMenuOpen"
+              class="places-popover fluent-surface view-mode-popover"
+              role="menu"
+              :aria-label="t('chrome.viewMode')"
+            >
+              <button
+                v-for="mode in NAVIGATOR_VIEW_MODES"
+                :key="mode"
+                type="button"
+                class="fluent-list-row places-item"
+                role="menuitemradio"
+                :aria-checked="navigatorViewMode === mode"
+                :class="{ 'places-item--active': navigatorViewMode === mode }"
+                @click="chooseViewMode(mode)"
+              >
+                <FluentIcon
+                  :name="mode === 'details' || mode.startsWith('icons') ? 'view' : 'viewAll'"
+                  size="sm"
+                />
+                <span>{{ t(viewModeLabelKey(mode)) }}</span>
               </button>
             </div>
           </div>

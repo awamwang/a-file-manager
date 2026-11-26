@@ -103,6 +103,15 @@ assert.ok(shell.includes("sortMenuOpen"));
 assert.ok(shell.includes("groupMenuOpen"));
 assert.ok(shell.includes('id="navigator-sort-menu"'));
 assert.ok(shell.includes('id="navigator-group-menu"'));
+// 工具条顺序：分组紧跟排序，中间不能被视图切换隔开（两者是同一族操作）。
+const sortMenuAt = shell.indexOf('id="navigator-sort-menu"');
+const groupMenuAt = shell.indexOf('id="navigator-group-menu"');
+const viewModeAt = shell.indexOf('id="navigator-view-mode-menu"');
+assert.ok(sortMenuAt > 0 && groupMenuAt > 0 && viewModeAt > 0, "三个菜单都在工具条里");
+assert.ok(
+  groupMenuAt > sortMenuAt && groupMenuAt < viewModeAt,
+  "分组按钮必须排在排序之后、视图切换之前",
+);
 
 // ---- 右键菜单：空白菜单排序/分组子菜单（含 radio 状态） ----
 assert.ok(ctxModel.includes("buildSortGroupMenuItems(options)"), "空白菜单挂排序/分组子菜单");

@@ -19,6 +19,27 @@ assert.ok(state.includes("LIST_VIRTUALIZE_MIN_ENTRIES"));
 assert.ok(state.includes("THUMB_REQUEST_OVERSCAN_ROWS"));
 assert.ok(virtItems.includes("flattenGroupedItems"));
 assert.ok(virtItems.includes("LIST_GROUP_HEADER_HEIGHT_PX"));
+// 分组 + 图标/平铺视图：组内按列流动（组头横跨整行），不再是「一行一个」。
+assert.ok(virtItems.includes("buildGridRows"), "grouped grid row mapping");
+assert.ok(virtItems.includes("computeGridListVirtualWindow"), "grouped grid window");
+assert.ok(virtItems.includes("buildGroupedGridLayout"), "grouped grid visual layout");
+assert.ok(virtItems.includes("nextGroupedGridPath"), "grouped grid arrow navigation");
+assert.ok(
+  view.includes("list--grouped-grid"),
+  "grouped icon/tiles views must use the grid canvas, not a single-column flow",
+);
+assert.ok(
+  view.includes("groupedGridColumns"),
+  "grouped grid column count must be explicit so the virtual window matches the layout",
+);
+assert.ok(
+  view.includes("--group-cols"),
+  "the grid canvas must receive the explicit column count",
+);
+assert.ok(
+  !view.includes("'list--canvas': (isIconView || isTilesView) && !isGrouped"),
+  "the secondary pane is never grouped — it must keep the grid canvas",
+);
 assert.ok(sortState.includes("clearSortedEntriesCache"));
 assert.ok(sortState.includes("list_sort"));
 assert.ok(view.includes("listVirtualWindow") || view.includes("computeListVirtualWindow"));

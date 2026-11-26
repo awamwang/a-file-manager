@@ -116,6 +116,8 @@ import {
   arrowDirectionFromKey,
   moveSelectionByArrow,
   primarySelectionIndex,
+  selectionRangePaths,
+  type ArrowSelectionState,
 } from "../state/navigatorKeyboardNav";
 import {
   feedChar,
@@ -148,9 +150,16 @@ import {
   type ListVirtualWindow,
 } from "../state/listVirtualWindow";
 import {
+  buildGroupedGridLayout,
+  buildGridRows,
+  computeGridListVirtualWindow,
   flattenEntryItems,
   flattenGroupedItems,
+  LIST_GROUP_HEADER_HEIGHT_PX,
+  nextGroupedGridPath,
   virtItemHeightPx,
+  type GroupedGridLayout,
+  type ListVirtGridRow,
   type ListVirtItem,
 } from "../state/listVirtItems";
 import { sortedEntries, sortColumn, sortDirection, toggleSort } from "../state/navigatorSort";
@@ -887,6 +896,26 @@ function entryLocation(path: string): string {
 /** 分组开启（v17：navigatorGroupBy ≠ "none"）。 */
 const isGrouped = computed(() => navigatorGroupBy.value !== "none");
 
+/**
+ * 分组 + 图标/平铺视图：组头横跨整行，组内条目按列流动（Explorer 的
+ * 「组头 + 组内图标网格」）。副窗格不分组，永远走平铺网格。
+ */
+const groupedGridView = computed(
+  () => isGrouped.value && (isIconView.value || isTilesView.value),
+);
+
+/**
+ * 分组网格的列数。
+ *
+ * 显式写进 CSS（`repeat(N, ...)`）而不是用 `auto-fill`：虚拟化要按「组内
+ * 条目占几行」算块高，列数必须与浏览器实际排出的完全一致，否则高度对不上、
+ * 滚动位置会漂。用估算值而非实测值 —— 实测依赖已渲染的 DOM，分组切换的
+ * 第一帧拿不到，且会与 CSS 的显式列数互相污染。
+ */
+const groupedGridColumns = computed(() =>
+  Math.max(1, estimateListColumns(navigatorViewMode.value, listViewport.value.w)),
+);
+
 /** 分组桶（仅主窗格；副窗格保持平铺）。 */
 const primaryGroups = computed((): NavigatorGroup<NavigatorEntry>[] => {
   const field: NavigatorGroupField = navigatorGroupBy.value;
@@ -1039,6 +1068,24 @@ function paneRowHeight(geom: { columns: number; rowHeight: number }): number {
 }
 
 /**
+ * 分组网格的行映射：组头独占一行，组内条目按列流动。
+ * 仅在分组 + 图标/平铺视图下有意义。
+ */
+const primaryGridRows = computed((): ListVirtGridRow[] => {
+  if (!groupedGridView.value) return [];
+  return buildGridRows(primaryVirtItems.value, {
+    columns: groupedGridColumns.value,
+    headerHeight: LIST_GROUP_HEADER_HEIGHT_PX,
+    entryRowHeight: paneRowHeight(primaryGridGeometry.value),
+  });
+});
+
+/** 分组网格的视觉布局（方向键按视觉行列走）。 */
+const primaryGridLayout = computed((): GroupedGridLayout =>
+  buildGroupedGridLayout(primaryVirtItems.value, primaryGridRows.value),
+);
+
+/**
  * FIL-58：图标/平铺重新窗口化。
  * 用容器 padding 承担前后偏移（见 gridVirtualPaddingStyle），避免 grid 内插
  * virt-spacer 把缩略图压成细条的老问题。
@@ -1050,7 +1097,21 @@ const primaryVirtual = computed((): ListVirtualWindow => {
   const rowHeight = paneRowHeight(primaryGridGeometry.value);
   const grouped = isGrouped.value;
   let win: ListVirtualWindow;
-  if (grouped && !(mode.startsWith("icons") || mode === "tiles")) {
+  if (grouped && groupedGridView.value) {
+    // 分组网格：按「行」窗口化（组头独占行、组内按列流动），并对齐组边界。
+    const gridWin = computeGridListVirtualWindow({
+      rows: primaryGridRows.value,
+      scrollTop: primaryScrollTop.value,
+      viewportHeight,
+    });
+    win = {
+      active: gridWin.active,
+      startIndex: gridWin.startIndex,
+      endIndex: gridWin.endIndex,
+      offsetBeforePx: gridWin.offsetBeforePx,
+      offsetAfterPx: gridWin.offsetAfterPx,
+    };
+  } else if (grouped && !(mode.startsWith("icons") || mode === "tiles")) {
     // 组头变高：按项高前缀和窗口化（仅纵向列表视图）。
     const heights = items.map((item) => virtItemHeightPx(item, rowHeight));
     win = computeVariableListVirtualWindow({
@@ -1660,11 +1721,20 @@ const iconPixelSize = computed(() => VIEW_ICON_SIZE[navigatorViewMode.value]);
  * 滚动条；ResizeObserver 又读到被撑高的 clientHeight，窗口重算后 padding
  * 缩小、容器恢复……形成「外层滚动条出现/消失」的往返震荡。
  */
-function gridVirtualPaddingStyle(win: ListVirtualWindow): Record<string, string> {
+/**
+ * 窗口化偏移的承载方式。
+ *
+ * `groupedFlat` = 该窗格是否处于「分组 + 纵向流」：那种形态用 flex spacer
+ * 承担偏移；其余（图标/平铺网格）用内层 canvas 的 padding（FIL-71：grid 内
+ * 插 spacer 会把缩略图压成细条）。
+ */
+function gridVirtualPaddingStyle(
+  win: ListVirtualWindow,
+  groupedFlat: boolean,
+): Record<string, string> {
   if (!win.active) return {};
   if (!(isIconView.value || isTilesView.value)) return {};
-  // 分组纵向流（list--virt-flat）仍用 flex spacer，不走 padding。
-  if (isGrouped.value) return {};
+  if (groupedFlat) return {};
   return {
     paddingTop: `calc(var(--fluent-space-sm, 8px) + ${win.offsetBeforePx}px)`,
     paddingBottom: `calc(var(--fluent-space-sm, 8px) + ${win.offsetAfterPx}px)`,
@@ -1673,7 +1743,8 @@ function gridVirtualPaddingStyle(win: ListVirtualWindow): Record<string, string>
 
 function usesVirtSpacers(win: ListVirtualWindow): boolean {
   if (!win.active) return false;
-  if ((isIconView.value || isTilesView.value) && !isGrouped.value) {
+  if (isIconView.value || isTilesView.value) {
+    // 图标/平铺视图的偏移挂在内层 canvas 的 padding 上（FIL-71）。
     return false;
   }
   return true;
@@ -1683,6 +1754,8 @@ function usesVirtSpacers(win: ListVirtualWindow): boolean {
 const primaryListStyle = computed(() => ({
   "--nav-icon-size": iconSlotCssSize(navigatorViewMode.value),
   "--nav-icon-caption-extra": `${ICON_CAPTION_EXTRA_PX}px`,
+  // 分组网格的显式列数：必须与虚拟化算块高时用的列数一致。
+  "--group-cols": String(groupedGridColumns.value),
 }));
 
 const secondaryListStyle = computed(() => ({
@@ -1691,8 +1764,16 @@ const secondaryListStyle = computed(() => ({
 }));
 
 // 窗口化偏移只作用于内层 canvas，.list 自身的高度不再随内容变化（FIL-71）。
-const primaryCanvasStyle = computed(() => gridVirtualPaddingStyle(primaryVirtual.value));
-const secondaryCanvasStyle = computed(() => gridVirtualPaddingStyle(secondaryVirtual.value));
+// 副窗格永远平铺（不分组），不受全局分组开关影响。
+const primaryCanvasStyle = computed(() =>
+  gridVirtualPaddingStyle(
+    primaryVirtual.value,
+    isGrouped.value && !groupedGridView.value,
+  ),
+);
+const secondaryCanvasStyle = computed(() =>
+  gridVirtualPaddingStyle(secondaryVirtual.value, false),
+);
 
 const showPrimaryVirtSpacers = computed(() => usesVirtSpacers(primaryVirtual.value));
 const showSecondaryVirtSpacers = computed(() => usesVirtSpacers(secondaryVirtual.value));
@@ -1864,6 +1945,19 @@ function onListWheel(event: WheelEvent) {
 }
 
 /**
+ * 分组网格里某个虚拟项所在行的顶部像素（组头行独占行、组内按列流动）。
+ * 与 `buildGridRows` 的行高口径一致，滚动定位才不会漂。
+ */
+function groupedGridRowTop(itemIndex: number): number {
+  let top = 0;
+  for (const row of primaryGridRows.value) {
+    if (itemIndex >= row.startItem && itemIndex < row.endItem) return top;
+    top += row.height;
+  }
+  return top;
+}
+
+/**
  * 键入定位命中远项：先按几何把目标行滚入虚拟窗口，待行挂载后再聚焦。
  * `focusEntryRow` 依赖 DOM 中已挂载目标行，虚拟列表 > 阈值时需先设 scrollTop
  * 触发 primaryVirtual 重算，再用有界 rAF 重试聚焦（参考 scrollSelectionIntoView）。
@@ -1884,7 +1978,10 @@ function revealTypeAheadRow(index: number, path: string): void {
       (item) => item.kind === "entry" && item.entry.path === path,
     );
     const flatIndex = virtIndex < 0 ? index : virtIndex;
-    if (!isIconView.value && mode !== "tiles") {
+    if (groupedGridView.value) {
+      // 分组网格：行级坐标（组头独占行、组内按列流动）。
+      targetTop = groupedGridRowTop(flatIndex);
+    } else if (!isIconView.value && mode !== "tiles") {
       // 纵向列表：组头变高，用变高前缀和（对齐 computeVariableListVirtualWindow）。
       const heights = primaryVirtItems.value.map((item) =>
         virtItemHeightPx(item, rowHeight),
@@ -2002,25 +2099,61 @@ function onListKeyDown(event: KeyboardEvent) {
     return;
   }
   typeAheadState = resetTypeAhead();
-  const columns = isIconView.value
-    ? paneColumns(listViewport.value.w, primaryGridGeometry.value)
-    : 1;
-  const moved = moveSelectionByArrow(
-    orderedPaths.value,
-    direction,
-    columns,
-    event.shiftKey,
-    {
-      selectedPaths: selectedPaths.value,
-      selectionAnchor: selectionAnchor.value,
-    },
-  );
+  const moved = groupedGridView.value
+    ? moveSelectionInGroupedGrid(direction, event.shiftKey)
+    : moveSelectionByArrow(
+        orderedPaths.value,
+        direction,
+        isIconView.value
+          ? paneColumns(listViewport.value.w, primaryGridGeometry.value)
+          : 1,
+        event.shiftKey,
+        {
+          selectedPaths: selectedPaths.value,
+          selectionAnchor: selectionAnchor.value,
+        },
+      );
   if (!moved) return;
   selectedPaths.value = moved.state.selectedPaths;
   selectionAnchor.value = moved.state.selectionAnchor;
   event.preventDefault();
   event.stopPropagation();
   void nextTick(() => focusEntryRow(moved.path));
+}
+
+/**
+ * 分组网格里的方向键移动：按视觉行列走，不按「条目序号 ÷ 列数」——
+ * 组的条目数通常不是列数的整数倍，后者跨组就会错位。
+ */
+function moveSelectionInGroupedGrid(
+  direction: "up" | "down" | "left" | "right",
+  extend: boolean,
+): { path: string; state: ArrowSelectionState } | null {
+  const paths = orderedPaths.value;
+  if (!paths.length) return null;
+  const anchor =
+    selectionAnchor.value && paths.includes(selectionAnchor.value)
+      ? selectionAnchor.value
+      : null;
+  const current =
+    primarySelectionIndex(paths, selectedPaths.value, selectionAnchor.value);
+  const from = current >= 0 ? paths[current]! : paths[0]!;
+  const next = nextGroupedGridPath(primaryGridLayout.value, from, direction);
+  if (!next) return null;
+  if (extend) {
+    const anchorPath = anchor ?? from;
+    return {
+      path: next,
+      state: {
+        selectedPaths: selectionRangePaths(paths, anchorPath, next),
+        selectionAnchor: anchorPath,
+      },
+    };
+  }
+  return {
+    path: next,
+    state: { selectedPaths: [next], selectionAnchor: next },
+  };
 }
 
 /**
@@ -2831,8 +2964,9 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         'list--tiles': isTilesView,
         'list--content': isContentView,
         'list--grouped': isGrouped,
-        'list--virt-flat': isGrouped && primaryVirtual.active,
-        'list--canvas': (isIconView || isTilesView) && !isGrouped,
+        'list--virt-flat': isGrouped && !groupedGridView && primaryVirtual.active,
+        'list--canvas': isIconView || isTilesView,
+        'list--grouped-grid': groupedGridView,
         'list--drop': dragOverPath === currentPath,
       }"
       :style="primaryListStyle"
@@ -3119,7 +3253,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           'list--icons-small': navigatorViewMode === 'iconsSmall',
           'list--tiles': isTilesView,
           'list--content': isContentView,
-          'list--canvas': (isIconView || isTilesView) && !isGrouped,
+          'list--canvas': isIconView || isTilesView,
           'list--drop': dragOverPath === secondaryPath,
         }"
         :style="secondaryListStyle"
@@ -3449,6 +3583,41 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
 }
 
+/*
+ * 分组 + 网格视图：组头横跨整行，组内条目按列流动。
+ * 列数由 JS 显式给出（--group-cols），不用 auto-fill —— 虚拟化按「组内条目
+ * 占几行」算块高，列数必须与浏览器实际排出的完全一致。
+ */
+.list--canvas.list--grouped-grid .list__canvas {
+  grid-template-columns: repeat(var(--group-cols, 1), minmax(var(--group-col-min, 6rem), 1fr));
+}
+
+.list--canvas.list--grouped-grid.list--tiles .list__canvas {
+  gap: var(--fluent-space-sm);
+  --group-col-min: 14rem;
+}
+
+.list--canvas.list--grouped-grid.list--icons-extra-large .list__canvas {
+  --group-col-min: 18rem;
+}
+
+.list--canvas.list--grouped-grid.list--icons-large .list__canvas {
+  --group-col-min: 7.5rem;
+}
+
+.list--canvas.list--grouped-grid.list--icons-medium .list__canvas {
+  --group-col-min: 6rem;
+}
+
+.list--canvas.list--grouped-grid.list--icons-small .list__canvas {
+  --group-col-min: 5rem;
+}
+
+/* 网格里 spacer 必须横跨整行，否则它会占掉一个格子、把后续行挤歪。 */
+.list--canvas .virt-spacer {
+  grid-column: 1 / -1;
+}
+
 .list--content {
   display: flex;
   flex-direction: column;
@@ -3467,7 +3636,11 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   display: flex;
   align-items: center;
   gap: var(--fluent-space-sm);
-  padding: var(--fluent-space-sm) var(--fluent-space-sm);
+  /* 固定高度 = LIST_GROUP_HEADER_HEIGHT_PX：分组网格按行高前缀和算偏移，
+     组头高度必须与 JS 口径一致，否则滚动位置会漂。 */
+  height: 28px;
+  box-sizing: border-box;
+  padding: 0 var(--fluent-space-sm);
   font-size: var(--fluent-font-size-caption);
   font-weight: var(--fluent-font-weight-semibold);
   color: var(--fluent-color-text-secondary);

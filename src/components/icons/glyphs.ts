@@ -326,19 +326,29 @@ export const FLUENT_GLYPHS: Record<FluentGlyphId, FluentGlyph> = {
     ],
   },
   /**
-   * Win11 drill-through metaphor: three progressively indented rows (a tree
-   * flattened into one list) — AFM-drawn, SVG rendering only.
-   * 与 density（全宽三条横线）、sort（递减横条 + 箭头）刻意区分。
+   * Win11 drill-through metaphor: a directory tree above, one flat row below
+   * — the tree flattened into a single list. AFM-drawn, SVG rendering only.
+   *
+   * Two bars at the top (root line + two stems) and two child lines form the
+   * classic tree-view glyph; the wide bar underneath is the flattened list.
+   * Deliberately free of any arrow: at 16 px an arrow between the two halves
+   * collapses into a blob and reads as "download" instead of "flatten".
+   * Distinct from density (three full-width bars) and sort (descending bars
+   * + arrow).
    */
   drill: {
     codepoint: "\uF002",
     svgOnly: true,
     paths: [
-      "M2.2 2.9h11.6v1.5H2.2V2.9z",
-      "M4.4 6.6h7.2v1.5H4.4V6.6z",
-      "M6.6 10.3h5v1.5h-5v-1.5z",
+      "M4.2 3.4h7.6v1.5H4.2z",
+      "M4.9 4.9h1.2v2.4H4.9z",
+      "M9.9 4.9h1.2v2.4H9.9z",
+      "M2.9 7.3h5.2v1.5H2.9z",
+      "M7.9 7.3h5.2v1.5H7.9z",
+      "M1.7 11.4h12.6v1.6H1.7z",
     ],
   },
+
   /** Segoe Copy — clipboard duplicate. */
   copy: {
     codepoint: "\uE8C8",

@@ -122,7 +122,7 @@ Rule reminders: no e2e; `#[ignore]` ≠ coverage; FE↔BE command-name parity is
 
 | Behavior | Layers | Gate / test | Notes |
 | --- | --- | --- | --- |
-| 排序依据/分组依据下拉 + 空白右键子菜单 + 组折叠（ADR 0030） | STATIC · FE · CARGO | `check-navigator-sort-group.mjs` → `navigator-sort-group-checks.ts`（四字段分桶、「#」/unknown 垫底不随方向翻转、文件夹单独组置顶、折叠只剩组头、切字段默认方向、settings 水合、`toggleSort` 语义真执行 + 六语言 i18n 针）；`check-view-layout.mjs` / `check-list-virtual.mjs` 针同步；`migrate.rs` v16→v17 4 tests | 选字段保持当前方向；折叠会话级记忆；中文首字母桶走 zh collation 二分；四键持久化，legacy `core.navigatorGroupByType` 仅留迁移，UI 隐藏 |
+| 排序依据/分组依据下拉 + 空白右键子菜单 + 组折叠（ADR 0030） | STATIC · FE · CARGO | `check-navigator-sort-group.mjs` → `navigator-sort-group-checks.ts`（四字段分桶、「#」/unknown 垫底不随方向翻转、文件夹单独组置顶、折叠只剩组头、切字段默认方向、settings 水合、`toggleSort` 语义真执行 + 六语言 i18n 针 + 工具条顺序针：分组紧跟排序、不被视图切换隔开）；`check-view-layout.mjs` / `check-list-virtual.mjs` 针同步；`list-virtual-window-checks.ts` 新增分组网格断言（行映射：组头独占行、组内按列切行；行级窗口对齐组边界；视觉行列导航）；`migrate.rs` v16→v17 4 tests | 选字段保持当前方向；折叠会话级记忆；中文首字母桶走 zh collation 二分；四键持久化，legacy `core.navigatorGroupByType` 仅留迁移，UI 隐藏；**分组 + 大图标/平铺按网格排**（组头横跨整行、组内按列流动，每组从新行开始），不再是「一行一个」；列数由 JS 显式给出以与虚拟化口径一致；方向键按视觉行列移动；副窗格不分组且不受全局分组牵连 |
 
 ## Navigator view (drill-through)
 

@@ -182,6 +182,23 @@ assert.ok(sort.includes("entry.relativePath || entry.name"), "相对路径优先
 assert.ok(glyphs.includes('| "drill"'), "字形 id 登记");
 assert.ok(glyphs.includes("drill: {"), "字形定义");
 assert.ok(/drill:\s*\{[\s\S]{0,400}svgOnly: true/.test(glyphs), "drill 是 svgOnly 自绘字形");
+// 语义修正（2026-11-27）：「三条递减缩进横线」被判定为不像穿透，改为
+// 「树在上 + 平铺的一行在下」。钉住路径段数与底部横条，防止悄悄退回旧形态。
+const drillGlyphPaths =
+  glyphs.match(/drill:\s*\{[\s\S]*?paths:\s*\[([\s\S]*?)\]/)?.[1].match(/"M[^"]*"/g) ?? [];
+assert.equal(
+  drillGlyphPaths.length,
+  6,
+  "穿透字形应为 6 段路径（树 5 段 + 平铺横条 1 段）",
+);
+assert.ok(
+  drillGlyphPaths.some((d) => d.includes("M1.7 11.4h12.6v1.6H1.7z")),
+  "底部必须有平铺后的单行横条",
+);
+assert.ok(
+  !drillGlyphPaths.some((d) => d.includes("M2.2 2.9h11.6v1.5H2.2V2.9z")),
+  "不得退回旧的缩进横条形态",
+);
 
 // ---- webdemo mock 同步新命令 ----
 assert.ok(mock.includes('case "navigator_drill_list"'), "mock 实现新命令");

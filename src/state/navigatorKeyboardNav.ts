@@ -76,7 +76,7 @@ export function primarySelectionIndex(
   return -1;
 }
 
-function rangePaths(
+export function rangePaths(
   orderedPaths: string[],
   fromPath: string,
   toPath: string,
@@ -87,6 +87,15 @@ function rangePaths(
   const start = Math.min(fromIndex, toIndex);
   const end = Math.max(fromIndex, toIndex);
   return orderedPaths.slice(start, end + 1);
+}
+
+/** Shift+方向键的范围选择（公开给分组网格路径复用）。 */
+export function selectionRangePaths(
+  orderedPaths: string[],
+  fromPath: string,
+  toPath: string,
+): string[] {
+  return rangePaths(orderedPaths, fromPath, toPath);
 }
 
 /**
