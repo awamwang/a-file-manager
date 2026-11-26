@@ -97,20 +97,26 @@ export function buildContextMenuItems(
 ): ContextMenuItemDef[] {
   if (options.recycleMode) {
     if (!entry) return [];
-    return [
-      {
+    // macOS has no recycle-bin list/restore API (caps.trashListRestore=false).
+    // Sidebar tab already degrades to opening ~/.Trash; hide the restore verb
+    // rather than offering an action that always returns Err. Unknown caps
+    // keeps the Windows-first menu intact.
+    const items: ContextMenuItemDef[] = [];
+    if (options.caps?.trashListRestore !== false) {
+      items.push({
         id: "restore",
         labelKey: "recycleBin.restore",
         enabled: true,
         icon: "folderOpen",
-      },
-      {
-        id: "properties",
-        labelKey: "contextMenu.properties",
-        enabled: true,
-        icon: "view",
-      },
-    ];
+      });
+    }
+    items.push({
+      id: "properties",
+      labelKey: "contextMenu.properties",
+      enabled: true,
+      icon: "view",
+    });
+    return items;
   }
   if (options.emptyArea || !entry) {
     if (!options.emptyArea) return [];
@@ -203,7 +209,11 @@ export function buildContextMenuItems(
       })),
     );
   }
-  if (isDir) {
+  // FIL-53 follow-up: the native "Open in Explorer" verb is Windows-only.
+  // The file branch above already gates on nativeOpenWithDialog; apply the
+  // same gate to the folder branch so macOS doesn't offer a verb whose
+  // backend returns "only supported on Windows".
+  if (isDir && options.caps?.nativeOpenWithDialog !== false) {
     openWithChildren.push({
       id: "openWithNative",
       labelKey: "contextMenu.openWithExplorer",

@@ -176,4 +176,52 @@ assert.equal(
 
 assert.equal(buildContextMenuItems(null).length, 0);
 
+// macOS 降级：native Open With 对话框与回收站还原均为 Windows-only。
+// 能力标记明确为 false 时，菜单不得提供点了必报错的入口；
+// 未传 caps 时保持 Windows-first 行为（兼容旧调用方）。
+const { NEUTRAL_PLATFORM } = await import("../src/config/platform.ts");
+const macCaps = {
+  ...NEUTRAL_PLATFORM,
+  nativeOpenWithDialog: false,
+  trashListRestore: false,
+};
+const dirWithMacCaps = buildContextMenuItems(dir, { caps: macCaps });
+assert.equal(
+  dirWithMacCaps.find((item) => item.id === "openWith")?.children?.some(
+    (c) => c.id === "openWithNative",
+  ),
+  false,
+  "macOS: folder Open-with submenu must not offer the Windows-only native dialog",
+);
+assert.ok(
+  dirWithMacCaps.find((item) => item.id === "openWith")?.children?.some(
+    (c) => c.id === "openInNewTab",
+  ),
+  "macOS: other folder Open-with verbs must remain",
+);
+const recycleWithMacCaps = buildContextMenuItems(file, {
+  recycleMode: true,
+  caps: macCaps,
+});
+assert.equal(
+  recycleWithMacCaps.find((item) => item.id === "restore"),
+  undefined,
+  "macOS: recycle-bin menu must not offer always-failing restore",
+);
+assert.ok(
+  recycleWithMacCaps.find((item) => item.id === "properties")?.enabled,
+  "macOS: recycle-bin menu keeps Properties",
+);
+// Windows-first fallback: no caps → both verbs still present.
+assert.ok(
+  buildContextMenuItems(dir).find((item) => item.id === "openWith")?.children?.some(
+    (c) => c.id === "openWithNative",
+  ),
+  "without caps the native verb stays (Windows-first default)",
+);
+assert.ok(
+  buildContextMenuItems(file, { recycleMode: true }).find((item) => item.id === "restore"),
+  "without caps the restore verb stays (Windows-first default)",
+);
+
 console.log("Context menu model checks OK (FIL-53 native shell cascade).");
