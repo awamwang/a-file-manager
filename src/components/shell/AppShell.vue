@@ -133,14 +133,29 @@ import {
 } from "../../state/dualPane";
 import {
   loadNavigatorViewMode,
+  NAVIGATOR_GROUP_FIELDS,
   NAVIGATOR_VIEW_MODES,
-  navigatorGroupByType,
+  navigatorGroupBy,
+  navigatorGroupDirection,
   navigatorViewMode,
-  setNavigatorGroupByType,
+  setNavigatorGroupBy,
+  setNavigatorGroupDirection,
   setNavigatorViewMode,
   viewModeLabelKey,
+  groupFieldLabelKey,
+  type NavigatorGroupField,
   type NavigatorViewMode,
 } from "../../state/navigatorViewMode";
+import {
+  NAVIGATOR_SORT_COLUMNS,
+  setSortColumn,
+  setSortDirection,
+  sortColumn,
+  sortColumnLabelKey,
+  sortDirection,
+  type SortColumn,
+  type SortDirection,
+} from "../../state/navigatorSort";
 import {
   activeWorkGroup,
   createWorkGroupFromLiveTabs,
@@ -213,7 +228,9 @@ const placesFileDropOver = ref<string | null>(null);
 /** AIA-250: dwell then open the places popover while file-dragging. */
 const placesHoverOpen = createDropHoverScheduler();
 const workGroupMenuOpen = ref(false);
-const viewModeMenuOpen = ref(false);
+  const viewModeMenuOpen = ref(false);
+  const sortMenuOpen = ref(false);
+  const groupMenuOpen = ref(false);
 const crumbMenuIndex = ref<number | null>(null);
 const crumbSiblings = ref<Array<{ name: string; path: string }>>([]);
 const crumbMenuLoading = ref(false);
@@ -269,6 +286,8 @@ async function submitProviderQuery() {
 function togglePlacesMenu() {
   workGroupMenuOpen.value = false;
   viewModeMenuOpen.value = false;
+  sortMenuOpen.value = false;
+  groupMenuOpen.value = false;
   if (placesMenuOpen.value) {
     closePlacesMenu();
   } else {
@@ -304,6 +323,8 @@ function onPlacesMenuDragOver(event: DragEvent) {
     placesHoverOpen.schedule("places-menu", () => {
       workGroupMenuOpen.value = false;
       viewModeMenuOpen.value = false;
+      sortMenuOpen.value = false;
+      groupMenuOpen.value = false;
       placesMenuOpen.value = true;
     });
   }
@@ -358,6 +379,8 @@ async function onPlacesItemDrop(event: DragEvent, path: string, isDir: boolean, 
 function toggleWorkGroupMenu() {
   placesMenuOpen.value = false;
   viewModeMenuOpen.value = false;
+  sortMenuOpen.value = false;
+  groupMenuOpen.value = false;
   workGroupMenuOpen.value = !workGroupMenuOpen.value;
   if (workGroupMenuOpen.value) {
     // Fresh disk read when opening the menu (startup hydrate is single-flight).
@@ -372,6 +395,8 @@ function closeWorkGroupMenu() {
 function toggleViewModeMenu() {
   placesMenuOpen.value = false;
   workGroupMenuOpen.value = false;
+  sortMenuOpen.value = false;
+  groupMenuOpen.value = false;
   viewModeMenuOpen.value = !viewModeMenuOpen.value;
 }
 
@@ -379,13 +404,55 @@ function closeViewModeMenu() {
   viewModeMenuOpen.value = false;
 }
 
+/** 排序菜单（Win11 对齐）：字段单选 + 递增/递减单选。 */
+function toggleSortMenu() {
+  placesMenuOpen.value = false;
+  workGroupMenuOpen.value = false;
+  viewModeMenuOpen.value = false;
+  groupMenuOpen.value = false;
+  sortMenuOpen.value = !sortMenuOpen.value;
+}
+
+function closeSortMenu() {
+  sortMenuOpen.value = false;
+}
+
+function chooseSortColumn(column: SortColumn) {
+  setSortColumn(column);
+  closeSortMenu();
+}
+
+function chooseSortDirection(direction: SortDirection) {
+  setSortDirection(direction);
+  closeSortMenu();
+}
+
+/** 分组菜单（Win11 对齐）：None/名称/修改日期/类型/大小 + 组方向单选。 */
+function toggleGroupMenu() {
+  placesMenuOpen.value = false;
+  workGroupMenuOpen.value = false;
+  viewModeMenuOpen.value = false;
+  sortMenuOpen.value = false;
+  groupMenuOpen.value = !groupMenuOpen.value;
+}
+
+function closeGroupMenu() {
+  groupMenuOpen.value = false;
+}
+
+function chooseGroupField(field: NavigatorGroupField) {
+  void setNavigatorGroupBy(field);
+  closeGroupMenu();
+}
+
+function chooseGroupDirection(direction: SortDirection) {
+  void setNavigatorGroupDirection(direction);
+  closeGroupMenu();
+}
+
 function chooseViewMode(mode: NavigatorViewMode) {
   void setNavigatorViewMode(mode);
   closeViewModeMenu();
-}
-
-function toggleGroupByType() {
-  void setNavigatorGroupByType(!navigatorGroupByType.value);
 }
 
 async function onToggleShowHidden() {
@@ -434,6 +501,8 @@ function closeChromeMenus() {
   closePlacesMenu();
   closeWorkGroupMenu();
   closeViewModeMenu();
+  closeSortMenu();
+  closeGroupMenu();
   closeCrumbMenu();
   closeTabContextMenu();
 }
@@ -831,6 +900,8 @@ function onGlobalKeydown(event: KeyboardEvent) {
     (placesMenuOpen.value ||
       workGroupMenuOpen.value ||
       viewModeMenuOpen.value ||
+      sortMenuOpen.value ||
+      groupMenuOpen.value ||
       crumbMenuIndex.value !== null ||
       tabContextGroupIndex.value !== null)
   ) {
@@ -848,6 +919,8 @@ function onDocumentPointerDown(event: PointerEvent) {
     !placesMenuOpen.value &&
     !workGroupMenuOpen.value &&
     !viewModeMenuOpen.value &&
+    !sortMenuOpen.value &&
+    !groupMenuOpen.value &&
     crumbMenuIndex.value === null &&
     tabContextGroupIndex.value === null
   ) {
@@ -858,6 +931,8 @@ function onDocumentPointerDown(event: PointerEvent) {
   const placesRoot = document.getElementById("navigator-places-menu");
   const wgRoot = document.getElementById("navigator-work-group-menu");
   const viewRoot = document.getElementById("navigator-view-mode-menu");
+  const sortRoot = document.getElementById("navigator-sort-menu");
+  const groupRoot = document.getElementById("navigator-group-menu");
   const crumbBar = document.getElementById("navigator-crumb-menu");
   const crumbFlyout = document.getElementById("navigator-crumb-siblings");
   const tabMenu = document.getElementById("navigator-tab-context-menu");
@@ -870,6 +945,12 @@ function onDocumentPointerDown(event: PointerEvent) {
   }
   if (viewModeMenuOpen.value && viewRoot && !viewRoot.contains(target)) {
     closeViewModeMenu();
+  }
+  if (sortMenuOpen.value && sortRoot && !sortRoot.contains(target)) {
+    closeSortMenu();
+  }
+  if (groupMenuOpen.value && groupRoot && !groupRoot.contains(target)) {
+    closeGroupMenu();
   }
   if (
     tabContextGroupIndex.value !== null &&
@@ -2530,6 +2611,69 @@ onUnmounted(() => {
             </div>
           </div>
 
+          <div id="navigator-sort-menu" class="places-menu">
+            <button
+              type="button"
+              class="fluent-control nav-icon-btn places-trigger"
+              :class="{ 'nav-icon-btn--active': sortMenuOpen }"
+              :title="t('chrome.sortBy')"
+              :aria-label="t('chrome.sortBy')"
+              :aria-expanded="sortMenuOpen"
+              aria-haspopup="menu"
+              @click.stop="toggleSortMenu"
+            >
+              <FluentIcon name="sort" size="sm" />
+              <FluentIcon name="chevronDown" size="sm" class="places-chevron" />
+            </button>
+            <div
+              v-if="sortMenuOpen"
+              class="places-popover fluent-surface view-mode-popover"
+              role="menu"
+              :aria-label="t('chrome.sortBy')"
+            >
+              <button
+                v-for="column in NAVIGATOR_SORT_COLUMNS"
+                :key="column"
+                type="button"
+                class="fluent-list-row places-item"
+                role="menuitemradio"
+                :aria-checked="sortColumn === column"
+                :class="{ 'places-item--active': sortColumn === column }"
+                @click="chooseSortColumn(column)"
+              >
+                <FluentIcon
+                  :name="sortColumn === column ? 'check' : 'viewAll'"
+                  size="sm"
+                  :class="{ 'places-item-check': sortColumn === column }"
+                />
+                <span>{{ t(sortColumnLabelKey(column)) }}</span>
+              </button>
+              <div class="places-sep" role="separator" />
+              <button
+                type="button"
+                class="fluent-list-row places-item"
+                role="menuitemradio"
+                :aria-checked="sortDirection === 'asc'"
+                :class="{ 'places-item--active': sortDirection === 'asc' }"
+                @click="chooseSortDirection('asc')"
+              >
+                <FluentIcon name="arrowUp" size="sm" />
+                <span>{{ t("chrome.sortAscending") }}</span>
+              </button>
+              <button
+                type="button"
+                class="fluent-list-row places-item"
+                role="menuitemradio"
+                :aria-checked="sortDirection === 'desc'"
+                :class="{ 'places-item--active': sortDirection === 'desc' }"
+                @click="chooseSortDirection('desc')"
+              >
+                <FluentIcon name="arrowDown" size="sm" />
+                <span>{{ t("chrome.sortDescending") }}</span>
+              </button>
+            </div>
+          </div>
+
           <div id="navigator-view-mode-menu" class="places-menu">
             <button
               type="button"
@@ -2566,17 +2710,68 @@ onUnmounted(() => {
                 />
                 <span>{{ t(viewModeLabelKey(mode)) }}</span>
               </button>
+            </div>
+          </div>
+
+          <div id="navigator-group-menu" class="places-menu">
+            <button
+              type="button"
+              class="fluent-control nav-icon-btn places-trigger"
+              :class="{ 'nav-icon-btn--active': groupMenuOpen }"
+              :title="t('chrome.groupBy')"
+              :aria-label="t('chrome.groupBy')"
+              :aria-expanded="groupMenuOpen"
+              aria-haspopup="menu"
+              @click.stop="toggleGroupMenu"
+            >
+              <FluentIcon name="group" size="sm" />
+              <FluentIcon name="chevronDown" size="sm" class="places-chevron" />
+            </button>
+            <div
+              v-if="groupMenuOpen"
+              class="places-popover fluent-surface view-mode-popover"
+              role="menu"
+              :aria-label="t('chrome.groupBy')"
+            >
+              <button
+                v-for="field in NAVIGATOR_GROUP_FIELDS"
+                :key="field"
+                type="button"
+                class="fluent-list-row places-item"
+                role="menuitemradio"
+                :aria-checked="navigatorGroupBy === field"
+                :class="{ 'places-item--active': navigatorGroupBy === field }"
+                @click="chooseGroupField(field)"
+              >
+                <FluentIcon
+                  :name="navigatorGroupBy === field ? 'check' : 'viewAll'"
+                  size="sm"
+                  :class="{ 'places-item-check': navigatorGroupBy === field }"
+                />
+                <span>{{ t(groupFieldLabelKey(field)) }}</span>
+              </button>
               <div class="places-sep" role="separator" />
               <button
                 type="button"
                 class="fluent-list-row places-item"
-                role="menuitemcheckbox"
-                :aria-checked="navigatorGroupByType"
-                :class="{ 'places-item--active': navigatorGroupByType }"
-                @click="toggleGroupByType"
+                role="menuitemradio"
+                :aria-checked="navigatorGroupDirection === 'asc'"
+                :class="{ 'places-item--active': navigatorGroupDirection === 'asc' }"
+                @click="chooseGroupDirection('asc')"
               >
-                <FluentIcon name="viewAll" size="sm" />
-                <span>{{ t("chrome.viewGroupByType") }}</span>
+                <FluentIcon name="arrowUp" size="sm" />
+                <span>{{ t("chrome.sortAscending") }}</span>
+              </button>
+              <button
+                type="button"
+                class="fluent-list-row places-item"
+                role="menuitemradio"
+                :aria-checked="navigatorGroupDirection === 'desc'"
+                :class="{ 'places-item--active': navigatorGroupDirection === 'desc' }"
+                @click="chooseGroupDirection('desc')"
+              >
+                <FluentIcon name="arrowDown" size="sm" />
+                <span>{{ t("chrome.sortDescending") }}</span>
               </button>
             </div>
           </div>

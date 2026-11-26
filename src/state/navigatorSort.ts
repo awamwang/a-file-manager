@@ -1,15 +1,70 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-/** Client-side Navigator list sort (AIA-64). */
+/** Client-side Navigator list sort (AIA-64) + persisted sort field/direction (schema v17). */
 
 import { ref } from "vue";
+import { invoke } from "@tauri-apps/api/core";
 import type { NavigatorEntry } from "./navigatorBrowse.ts";
 import { entryTypeKey } from "./entryType.ts";
+import { rememberSettingsDocument } from "./settingsHydrate.ts";
 
 export type SortColumn = "name" | "size" | "modified" | "type";
 export type SortDirection = "asc" | "desc";
 
 export const sortColumn = ref<SortColumn>("name");
 export const sortDirection = ref<SortDirection>("asc");
+
+const SORT_COLUMNS: readonly SortColumn[] = ["name", "size", "modified", "type"];
+
+/** 排序菜单字段（Win11 顺序：名称/修改日期/类型/大小）。 */
+export const NAVIGATOR_SORT_COLUMNS: readonly SortColumn[] = [
+  "name",
+  "modified",
+  "type",
+  "size",
+];
+
+export function sortColumnLabelKey(column: SortColumn): string {
+  switch (column) {
+    case "name":
+      return "chrome.sortName";
+    case "size":
+      return "chrome.sortSize";
+    case "modified":
+      return "chrome.sortModified";
+    case "type":
+      return "chrome.sortType";
+  }
+}
+
+function coerceColumn(value: unknown): SortColumn {
+  return typeof value === "string" && (SORT_COLUMNS as readonly string[]).includes(value)
+    ? (value as SortColumn)
+    : "name";
+}
+
+function coerceDirection(value: unknown): SortDirection {
+  return value === "desc" ? "desc" : "asc";
+}
+
+/** Sync apply from already-hydrated settings (cold-start critical path). */
+export function applyNavigatorSortFromValues(values: Record<string, unknown>): void {
+  sortColumn.value = coerceColumn(values["core.navigatorSortColumn"]);
+  sortDirection.value = coerceDirection(values["core.navigatorSortDirection"]);
+}
+
+function persistSortPatch(
+  patch: Partial<
+    Record<"core.navigatorSortColumn" | "core.navigatorSortDirection", string>
+  >,
+): void {
+  void invoke<{ version: number; values: Record<string, unknown> }>("settings_set", {
+    patch,
+  })
+    .then((doc) => rememberSettingsDocument(doc))
+    .catch(() => {
+      // Persist 失败保留本地值；下次启动以后端文档为准。
+    });
+}
 
 type SortCache = {
   source: readonly NavigatorEntry[];
@@ -25,6 +80,22 @@ export function clearSortedEntriesCache(): void {
   sortCache = null;
 }
 
+/** Windows 式显式选列（下拉/右键菜单）：保持当前方向不变。 */
+export function setSortColumn(column: SortColumn): void {
+  if (sortColumn.value === column) return;
+  sortColumn.value = column;
+  sortCache = null;
+  persistSortPatch({ "core.navigatorSortColumn": column });
+}
+
+/** Windows 式方向单选（递增/递减）。 */
+export function setSortDirection(direction: SortDirection): void {
+  if (sortDirection.value === direction) return;
+  sortDirection.value = direction;
+  sortCache = null;
+  persistSortPatch({ "core.navigatorSortDirection": direction });
+}
+
 export function toggleSort(column: SortColumn): void {
   if (sortColumn.value === column) {
     sortDirection.value = sortDirection.value === "asc" ? "desc" : "asc";
@@ -33,6 +104,10 @@ export function toggleSort(column: SortColumn): void {
     sortDirection.value = "asc";
   }
   sortCache = null;
+  persistSortPatch({
+    "core.navigatorSortColumn": sortColumn.value,
+    "core.navigatorSortDirection": sortDirection.value,
+  });
 }
 
 function compareEntries(

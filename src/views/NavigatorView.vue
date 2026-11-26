@@ -155,18 +155,27 @@ import {
 } from "../state/listVirtItems";
 import { sortedEntries, sortColumn, sortDirection, toggleSort } from "../state/navigatorSort";
 import {
+  collapsedGroupKeys,
   isContentView,
   isDetailsView,
   isIconView,
   isListView,
   isTilesView,
   loadNavigatorViewMode,
-  navigatorGroupByType,
+  navigatorGroupBy,
+  navigatorGroupDirection,
   navigatorViewMode,
   nudgeIconViewMode,
   setNavigatorViewMode,
+  toggleGroupCollapsed,
   VIEW_ICON_SIZE,
 } from "../state/navigatorViewMode";
+import {
+  groupEntriesBy,
+  type GroupDirection,
+  type NavigatorGroup,
+  type NavigatorGroupField,
+} from "../state/navigatorGrouping";
 import { entryTypeLabel } from "../state/entryType";
 import { specialEntryIcon } from "../state/entryIcon";
 import { isCloudFileEntry } from "../state/providerFileIcon";
@@ -229,6 +238,7 @@ import DetailsPane from "../components/navigator/DetailsPane.vue";
 import PropertiesPanel from "../components/navigator/PropertiesPanel.vue";
 import ShellIconImg from "../components/navigator/ShellIconImg.vue";
 import CloudFileIcon from "../components/navigator/CloudFileIcon.vue";
+import FluentIcon from "../components/icons/FluentIcon.vue";
 
 /** KeepAlive include name in App.vue (AIA-276). */
 defineOptions({ name: "NavigatorView" });
@@ -802,12 +812,29 @@ function entryLocation(path: string): string {
   return idx > 0 ? norm.slice(0, idx) : norm;
 }
 
+/** 分组开启（v17：navigatorGroupBy ≠ "none"）。 */
+const isGrouped = computed(() => navigatorGroupBy.value !== "none");
+
+/** 分组桶（仅主窗格；副窗格保持平铺）。 */
+const primaryGroups = computed((): NavigatorGroup<NavigatorEntry>[] => {
+  const field: NavigatorGroupField = navigatorGroupBy.value;
+  if (field === "none") return [];
+  const direction: GroupDirection = navigatorGroupDirection.value;
+  return groupEntriesBy(
+    visibleEntries.value,
+    field,
+    direction,
+    typeLabels.value,
+    Date.now(),
+  );
+});
+
 const orderedPaths = computed(() => {
-  // Grouped view renders rows in type-group order (headers + per-group entries),
+  // Grouped view renders rows in bucket order (headers + per-group entries),
   // which diverges from the flat sortedEntries order. Selection ranges, keyboard
   // nav and type-ahead index by orderedPaths, so it must mirror the VISUAL order
   // or Shift-select spans the wrong rows (Phase5 Bug3).
-  if (navigatorGroupByType.value) {
+  if (isGrouped.value) {
     return primaryVirtItems.value
       .filter((i) => i.kind === "entry")
       .map((i) => (i as { entry: { path: string } }).entry.path);
@@ -858,8 +885,8 @@ function probeListWindow(win: ListVirtualWindow, total: number, grouped: boolean
 
 const primaryVirtItems = computed((): ListVirtItem[] => {
   const entries = visibleEntries.value;
-  if (navigatorGroupByType.value) {
-    return flattenGroupedItems(entries, typeLabels.value);
+  if (navigatorGroupBy.value !== "none") {
+    return flattenGroupedItems(primaryGroups.value, collapsedGroupKeys.value);
   }
   return flattenEntryItems(entries);
 });
@@ -949,7 +976,7 @@ const primaryVirtual = computed((): ListVirtualWindow => {
   const mode = navigatorViewMode.value as PlaceholderViewMode;
   const viewportHeight = listViewportHeightPx(listViewport.value);
   const rowHeight = paneRowHeight(primaryGridGeometry.value);
-  const grouped = navigatorGroupByType.value;
+  const grouped = isGrouped.value;
   let win: ListVirtualWindow;
   if (grouped && !(mode.startsWith("icons") || mode === "tiles")) {
     // 组头变高：按项高前缀和窗口化（仅纵向列表视图）。
@@ -1493,6 +1520,18 @@ const typeLabels = computed(() => ({
   file: t("navigator.typeFile"),
   shortcut: t("navigator.typeShortcut"),
   typedFile: (ext: string) => t("navigator.typeFileExt", { ext }),
+  nameOther: t("navigator.groupNameOther"),
+  sizeEmpty: t("navigator.groupSizeEmpty"),
+  sizeSmall: t("navigator.groupSizeSmall"),
+  sizeMedium: t("navigator.groupSizeMedium"),
+  sizeLarge: t("navigator.groupSizeLarge"),
+  sizeHuge: t("navigator.groupSizeHuge"),
+  dateUnknown: t("navigator.groupDateUnknown"),
+  dateToday: t("navigator.groupDateToday"),
+  dateYesterday: t("navigator.groupDateYesterday"),
+  dateThisWeek: t("navigator.groupDateThisWeek"),
+  dateLastWeek: t("navigator.groupDateLastWeek"),
+  dateEarlier: t("navigator.groupDateEarlier"),
 }));
 
 function formatEntryType(entry: NavigatorEntry): string {
@@ -1553,7 +1592,7 @@ function gridVirtualPaddingStyle(win: ListVirtualWindow): Record<string, string>
   if (!win.active) return {};
   if (!(isIconView.value || isTilesView.value)) return {};
   // 分组纵向流（list--virt-flat）仍用 flex spacer，不走 padding。
-  if (navigatorGroupByType.value) return {};
+  if (isGrouped.value) return {};
   return {
     paddingTop: `calc(var(--fluent-space-sm, 8px) + ${win.offsetBeforePx}px)`,
     paddingBottom: `calc(var(--fluent-space-sm, 8px) + ${win.offsetAfterPx}px)`,
@@ -1562,7 +1601,7 @@ function gridVirtualPaddingStyle(win: ListVirtualWindow): Record<string, string>
 
 function usesVirtSpacers(win: ListVirtualWindow): boolean {
   if (!win.active) return false;
-  if ((isIconView.value || isTilesView.value) && !navigatorGroupByType.value) {
+  if ((isIconView.value || isTilesView.value) && !isGrouped.value) {
     return false;
   }
   return true;
@@ -1744,7 +1783,7 @@ function revealTypeAheadRow(index: number, path: string): void {
   const rowHeight = paneRowHeight(primaryGridGeometry.value);
 
   let targetTop: number;
-  if (navigatorGroupByType.value) {
+  if (isGrouped.value) {
     // 分组视图 virt item 含组头：先按 path 找到展平后的真实索引。
     const virtIndex = primaryVirtItems.value.findIndex(
       (item) => item.kind === "entry" && item.entry.path === path,
@@ -2634,9 +2673,9 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         'list--icons-small': navigatorViewMode === 'iconsSmall',
         'list--tiles': isTilesView,
         'list--content': isContentView,
-        'list--grouped': navigatorGroupByType,
-        'list--virt-flat': navigatorGroupByType && primaryVirtual.active,
-        'list--canvas': (isIconView || isTilesView) && !navigatorGroupByType,
+        'list--grouped': isGrouped,
+        'list--virt-flat': isGrouped && primaryVirtual.active,
+        'list--canvas': (isIconView || isTilesView) && !isGrouped,
         'list--drop': dragOverPath === currentPath,
       }"
       :style="primaryListStyle"
@@ -2738,14 +2777,21 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         :style="{ height: `${primaryVirtual.offsetBeforePx}px` }"
       />
       <template v-for="item in primaryWindowedItems" :key="item.key">
-        <div
+        <button
           v-if="item.kind === 'header'"
           class="list-group-header"
-          role="presentation"
+          type="button"
+          :aria-expanded="item.collapsed ? 'false' : 'true'"
+          @click="toggleGroupCollapsed(item.groupKey)"
         >
+          <FluentIcon
+            class="list-group-chevron"
+            :name="item.collapsed ? 'chevronRight' : 'chevronDown'"
+            size="sm"
+          />
           {{ item.label }}
           <span class="list-group-count">{{ item.count }}</span>
-        </div>
+        </button>
         <div
           v-else
           class="fluent-list-row fluent-list-row--density row"
@@ -2871,7 +2917,7 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
           'list--icons-small': navigatorViewMode === 'iconsSmall',
           'list--tiles': isTilesView,
           'list--content': isContentView,
-          'list--canvas': (isIconView || isTilesView) && !navigatorGroupByType,
+          'list--canvas': (isIconView || isTilesView) && !isGrouped,
           'list--drop': dragOverPath === secondaryPath,
         }"
         :style="secondaryListStyle"
@@ -3210,10 +3256,24 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
   font-size: var(--fluent-font-size-caption);
   font-weight: var(--fluent-font-weight-semibold);
   color: var(--fluent-color-text-secondary);
+  border: 0;
   border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  cursor: default;
   grid-column: 1 / -1;
   flex: 0 0 auto;
   width: 100%;
+}
+
+.list-group-header:hover {
+  background: var(--fluent-color-subtle);
+}
+
+.list-group-chevron {
+  flex: 0 0 auto;
+  color: var(--fluent-color-text-secondary);
 }
 
 .list-group-count {

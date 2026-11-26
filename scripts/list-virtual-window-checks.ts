@@ -17,6 +17,7 @@ import {
   LIST_GROUP_HEADER_HEIGHT_PX,
   virtItemHeightPx,
 } from "../src/state/listVirtItems.ts";
+import { groupEntriesBy } from "../src/state/navigatorGrouping.ts";
 import type { NavigatorEntry } from "../src/state/navigatorBrowse.ts";
 import { clearSortedEntriesCache, sortedEntries } from "../src/state/navigatorSort.ts";
 
@@ -162,14 +163,54 @@ const sampleEntries: NavigatorEntry[] = Array.from({ length: 5 }, (_, i) => ({
 const flat = flattenEntryItems(sampleEntries);
 assert.equal(flat.length, 5);
 assert.equal(flat[0]?.kind, "entry");
-const grouped = flattenGroupedItems(sampleEntries, {
+const groupLabels = {
   folder: "Folders",
   file: "Files",
-  typedFile: (ext) => `${ext} file`,
-});
+  shortcut: "Shortcuts",
+  typedFile: (ext: string) => `${ext} file`,
+  nameOther: "#",
+  sizeEmpty: "Empty",
+  sizeSmall: "Small",
+  sizeMedium: "Medium",
+  sizeLarge: "Large",
+  sizeHuge: "Huge",
+  dateToday: "Today",
+  dateYesterday: "Yesterday",
+  dateThisWeek: "This week",
+  dateLastWeek: "Last week",
+  dateEarlier: "Earlier",
+  dateUnknown: "Unknown",
+};
+const groups = groupEntriesBy(sampleEntries, "type", "asc", groupLabels, 0);
+const grouped = flattenGroupedItems(groups, new Set<string>());
 assert.ok(grouped.some((item) => item.kind === "header"));
+// v17：折叠组只留组头；组头携带原始 groupKey 与 collapsed 状态。
+const collapsedItems = flattenGroupedItems(
+  groups,
+  new Set<string>(groups.map((group) => group.key)),
+);
 assert.equal(
-  virtItemHeightPx({ kind: "header", key: "h", label: "x", count: 1 }, 32),
+  collapsedItems.length,
+  groups.length,
+  "collapsed groups render header only",
+);
+assert.ok(
+  collapsedItems.every(
+    (item) => item.kind === "header" && item.collapsed && item.groupKey.length > 0,
+  ),
+);
+assert.equal(
+  virtItemHeightPx(
+    {
+      kind: "header",
+      key: "h:g",
+      groupKey: "g",
+      label: "x",
+      count: 1,
+      collapsed: false,
+    },
+    32,
+  ),
   LIST_GROUP_HEADER_HEIGHT_PX,
 );
 

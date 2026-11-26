@@ -53,6 +53,8 @@ export type ContextMenuItemDef = {
   elevated?: boolean;
   /** Pre-resolved label (e.g. ShellNew template name); skips i18n. */
   rawLabel?: string;
+  /** Radio state for Sort/Group submenu rows (v17, ADR 0030). */
+  checked?: boolean;
 };
 
 export type ContextMenuBuildOptions = {
@@ -88,6 +90,10 @@ export type ContextMenuBuildOptions = {
    * Default WG is included: members are allowed; Project bind remains forbidden elsewhere.
    */
   workGroups?: Array<{ id: string; name: string }>;
+  /** Sort state for empty-area Sort submenu (v17, ADR 0030). */
+  sortState?: { column: string; direction: string };
+  /** Group state for empty-area Group submenu (v17, ADR 0030). */
+  groupState?: { field: string; direction: string };
 };
 
 /** Day-1 visibility rules for a single selected Navigator entry. */
@@ -114,13 +120,15 @@ export function buildContextMenuItems(
   }
   if (options.emptyArea || !entry) {
     if (!options.emptyArea) return [];
-    // Paste lives in the top toolbar; empty-area list is New only.
+    // Paste lives in the top toolbar; empty-area list is Sort/Group + New.
     return [
+      ...buildSortGroupMenuItems(options),
       {
         id: "newFolder",
         labelKey: "contextMenu.newFolder",
         enabled: true,
         icon: "folder",
+        separatorBefore: true,
       },
       buildNewFileMenuItem(options.newFileTemplates),
     ];
@@ -307,8 +315,95 @@ export function buildContextMenuItems(
   ];
 }
 
-/** Win11-style icon strip: Cut / Copy / Paste / Rename / Copy path. */
-export function buildContextToolbarItems(
+const SORT_GROUP_FIELD_LABEL_KEYS: Record<string, string> = {
+  none: "chrome.groupNone",
+  name: "chrome.sortName",
+  modified: "chrome.sortModified",
+  type: "chrome.sortType",
+  size: "chrome.sortSize",
+};
+
+/** Win11 empty-area「排序依据/分组依据」子菜单（v17, ADR 0030）。 */
+export function buildSortGroupMenuItems(
+  options: ContextMenuBuildOptions,
+): ContextMenuItemDef[] {
+  const sortColumn = options.sortState?.column ?? "name";
+  const sortDirection = options.sortState?.direction ?? "asc";
+  const groupField = options.groupState?.field ?? "none";
+  const groupDirection = options.groupState?.direction ?? "asc";
+  const sortChildren: ContextMenuItemDef[] = ["name", "modified", "type", "size"].map(
+    (column) => ({
+      id: `sortColumn:${column}`,
+      labelKey: SORT_GROUP_FIELD_LABEL_KEYS[column],
+      enabled: true,
+      checked: sortColumn === column,
+    }),
+  );
+  sortChildren.push(
+    {
+      id: "sortDirection:asc",
+      labelKey: "chrome.sortAscending",
+      enabled: true,
+      checked: sortDirection === "asc",
+      separatorBefore: true,
+      icon: "arrowUp",
+    },
+    {
+      id: "sortDirection:desc",
+      labelKey: "chrome.sortDescending",
+      enabled: true,
+      checked: sortDirection === "desc",
+      icon: "arrowDown",
+    },
+  );
+  const groupChildren: ContextMenuItemDef[] = [
+    "none",
+    "name",
+    "modified",
+    "type",
+    "size",
+  ].map((field) => ({
+    id: `groupBy:${field}`,
+    labelKey: SORT_GROUP_FIELD_LABEL_KEYS[field],
+    enabled: true,
+    checked: groupField === field,
+  }));
+  groupChildren.push(
+    {
+      id: "groupDirection:asc",
+      labelKey: "chrome.sortAscending",
+      enabled: true,
+      checked: groupDirection === "asc",
+      separatorBefore: true,
+      icon: "arrowUp",
+    },
+    {
+      id: "groupDirection:desc",
+      labelKey: "chrome.sortDescending",
+      enabled: true,
+      checked: groupDirection === "desc",
+      icon: "arrowDown",
+    },
+  );
+  return [
+    {
+      id: "sortBy",
+      labelKey: "chrome.sortBy",
+      enabled: true,
+      icon: "sort",
+      children: sortChildren,
+    },
+    {
+      id: "groupBy",
+      labelKey: "chrome.groupBy",
+      enabled: true,
+      icon: "group",
+      children: groupChildren,
+    },
+  ];
+}
+
+/** Win11-style icon strip: Cut / Copy / Paste / Rename / Copy path. */export function buildContextToolbarItems(
   options: ContextMenuBuildOptions = {},
 ): ContextMenuItemDef[] {
   const entryMode = !options.emptyArea;

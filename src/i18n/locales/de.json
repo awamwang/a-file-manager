@@ -175,7 +175,15 @@
     "viewDetails": "Details",
     "viewTiles": "Kacheln",
     "viewContent": "Inhalt",
-    "viewGroupByType": "Nach Typ gruppieren",
+    "sortBy": "Sortieren nach",
+    "groupBy": "Gruppieren nach",
+    "groupNone": "Keine",
+    "sortAscending": "Aufsteigend",
+    "sortDescending": "Absteigend",
+    "sortName": "Name",
+    "sortModified": "Änderungsdatum",
+    "sortType": "Typ",
+    "sortSize": "Größe",
     "viewIconsExtraLarge": "Sehr große Symbole",
     "viewIconsLarge": "Große Symbole",
     "viewIconsMedium": "Mittlere Symbole",
@@ -871,6 +879,18 @@
     "typeFile": "Datei",
     "typeFileExt": "{ext}-Datei",
     "typeShortcut": "Verknüpfung",
+    "groupNameOther": "#",
+    "groupSizeEmpty": "Leer",
+    "groupSizeSmall": "Klein",
+    "groupSizeMedium": "Mittel",
+    "groupSizeLarge": "Groß",
+    "groupSizeHuge": "Riesig",
+    "groupDateUnknown": "Nicht angegeben",
+    "groupDateToday": "Heute",
+    "groupDateYesterday": "Gestern",
+    "groupDateThisWeek": "Diese Woche",
+    "groupDateLastWeek": "Letzte Woche",
+    "groupDateEarlier": "Älter",
     "nItems": "{count} Elemente",
     "movedInto": "{count} Element(e) nach {name} verschoben",
     "copiedInto": "{count} Element(e) nach {name} kopiert",
@@ -1106,6 +1126,43 @@
         "navigatorGroupByType": {
           "title": "Nach Typ gruppieren",
           "description": "Explorer-Liste nach Dateityp abschnittsweise anzeigen"
+        },
+        "navigatorSortColumn": {
+          "title": "Sortieren nach",
+          "description": "Sortierfeld der Explorer-Liste (Name, Änderungsdatum, Typ, Größe)",
+          "options": {
+            "name": "Name",
+            "size": "Größe",
+            "modified": "Änderungsdatum",
+            "type": "Typ"
+          }
+        },
+        "navigatorSortDirection": {
+          "title": "Sortierrichtung",
+          "description": "Auf- oder absteigende Reihenfolge des Sortierfelds",
+          "options": {
+            "asc": "Aufsteigend",
+            "desc": "Absteigend"
+          }
+        },
+        "navigatorGroupBy": {
+          "title": "Gruppieren nach",
+          "description": "Explorer-Liste nach einem Feld gruppieren (Keine = nicht gruppieren)",
+          "options": {
+            "none": "Keine",
+            "name": "Name",
+            "size": "Größe",
+            "modified": "Änderungsdatum",
+            "type": "Typ"
+          }
+        },
+        "navigatorGroupDirection": {
+          "title": "Gruppenrichtung",
+          "description": "Auf- oder absteigende Reihenfolge der Gruppenüberschriften",
+          "options": {
+            "asc": "Aufsteigend",
+            "desc": "Absteigend"
+          }
         },
         "openTool": {
           "vscode": {
@@ -1349,6 +1406,9 @@
   "workGroups": {
     "addMemberPlaceholder": "Mitglieder-Ordnerpfad hinzufügen",
     "addSync": "Hinzufügen + sync",
+    "addTabToMembers": "Zu Mitgliedern hinzufügen",
+    "addedTabToMembers": "\"{name}\" zu den Mitgliedern hinzugefügt",
+    "alreadyMember": "Bereits ein Mitglied",
     "defaultName": "Standard",
     "defaultHint": "Zum vorübergehenden Durchsuchen, wenn es keine eigene Arbeitsgruppe gibt. Kann nicht gelöscht werden.",
     "detailMeta": "id {id} · Mitglieder {count}",

@@ -23,6 +23,12 @@ export const SETTINGS_UI_HIDDEN_KEYS = [
   "core.discoveryBlacklist",
   // 设置 → 搜索分区持有「优先 Everything」，避免常规列表双入口。
   "core.everythingPreferred",
+  // v17（ADR 0030）：排序/分组方向由 Navigator 工具栏与右键菜单持有；
+  // 旧布尔分组开关已迁移到 core.navigatorGroupBy，仅保留键定义。
+  "core.navigatorGroupByType",
+  "core.navigatorSortColumn",
+  "core.navigatorSortDirection",
+  "core.navigatorGroupDirection",
   // Providers 页已有网关地址编辑，避免双入口。
   "power.awamGatewayUrl",
   // ADR 0016：知识服务地址/令牌编辑入口在设置 → 扩展能力（ExtensionsSettingsPanel）。
@@ -57,7 +63,7 @@ const KEY_GROUP: Record<string, SettingsUiGroupId> = {
   "core.theme": "appearance",
   "core.listDensity": "appearance",
   "core.navigatorViewMode": "appearance",
-  "core.navigatorGroupByType": "appearance",
+  "core.navigatorGroupBy": "appearance",
 
   "core.startupPage": "startup",
   "core.defaultLocation": "startup",

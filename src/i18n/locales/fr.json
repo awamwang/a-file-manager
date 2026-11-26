@@ -175,7 +175,15 @@
     "viewDetails": "Détails",
     "viewTiles": "Tuiles",
     "viewContent": "Contenu",
-    "viewGroupByType": "Grouper par type",
+    "sortBy": "Trier par",
+    "groupBy": "Grouper par",
+    "groupNone": "Aucun",
+    "sortAscending": "Croissant",
+    "sortDescending": "Décroissant",
+    "sortName": "Nom",
+    "sortModified": "Date de modification",
+    "sortType": "Type",
+    "sortSize": "Taille",
     "viewIconsExtraLarge": "Très grandes icônes",
     "viewIconsLarge": "Grandes icônes",
     "viewIconsMedium": "Icônes moyennes",
@@ -871,6 +879,18 @@
     "typeFile": "Fichier",
     "typeFileExt": "Fichier {ext}",
     "typeShortcut": "Raccourci",
+    "groupNameOther": "#",
+    "groupSizeEmpty": "Vide",
+    "groupSizeSmall": "Petit",
+    "groupSizeMedium": "Moyen",
+    "groupSizeLarge": "Grand",
+    "groupSizeHuge": "Énorme",
+    "groupDateUnknown": "Non spécifié",
+    "groupDateToday": "Aujourd'hui",
+    "groupDateYesterday": "Hier",
+    "groupDateThisWeek": "Cette semaine",
+    "groupDateLastWeek": "La semaine dernière",
+    "groupDateEarlier": "Plus ancien",
     "nItems": "{count} éléments",
     "movedInto": "{count} élément(s) déplacé(s) vers {name}",
     "copiedInto": "{count} élément(s) copié(s) vers {name}",
@@ -1106,6 +1126,43 @@
         "navigatorGroupByType": {
           "title": "Grouper par type",
           "description": "Afficher la liste par sections selon le type de fichier"
+        },
+        "navigatorSortColumn": {
+          "title": "Trier par",
+          "description": "Champ de tri de la liste Explorer (nom, date de modification, type, taille)",
+          "options": {
+            "name": "Nom",
+            "size": "Taille",
+            "modified": "Date de modification",
+            "type": "Type"
+          }
+        },
+        "navigatorSortDirection": {
+          "title": "Sens de tri",
+          "description": "Ordre croissant ou décroissant du champ de tri",
+          "options": {
+            "asc": "Croissant",
+            "desc": "Décroissant"
+          }
+        },
+        "navigatorGroupBy": {
+          "title": "Grouper par",
+          "description": "Regrouper la liste Explorer par champ (Aucun = aucun regroupement)",
+          "options": {
+            "none": "Aucun",
+            "name": "Nom",
+            "size": "Taille",
+            "modified": "Date de modification",
+            "type": "Type"
+          }
+        },
+        "navigatorGroupDirection": {
+          "title": "Sens du regroupement",
+          "description": "Ordre croissant ou décroissant entre les en-têtes de groupe",
+          "options": {
+            "asc": "Croissant",
+            "desc": "Décroissant"
+          }
         },
         "openTool": {
           "vscode": {
@@ -1349,6 +1406,9 @@
   "workGroups": {
     "addMemberPlaceholder": "Ajouter un chemin de dossier membre",
     "addSync": "Ajouter + sync",
+    "addTabToMembers": "Ajouter aux membres",
+    "addedTabToMembers": "\"{name}\" ajouté aux membres",
+    "alreadyMember": "Déjà membre",
     "defaultName": "Groupe par défaut",
     "defaultHint": "Navigation temporaire lorsqu’il n’y a pas de groupe dédié. Impossible à supprimer.",
     "detailMeta": "id {id} · membres {count}",

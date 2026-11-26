@@ -175,7 +175,15 @@
     "viewDetails": "詳細",
     "viewTiles": "タイル",
     "viewContent": "コンテンツ",
-    "viewGroupByType": "種類でグループ化",
+    "sortBy": "並べ替え",
+    "groupBy": "グループ化",
+    "groupNone": "なし",
+    "sortAscending": "昇順",
+    "sortDescending": "降順",
+    "sortName": "名前",
+    "sortModified": "更新日時",
+    "sortType": "種類",
+    "sortSize": "サイズ",
     "viewIconsExtraLarge": "特大アイコン",
     "viewIconsLarge": "大アイコン",
     "viewIconsMedium": "中アイコン",
@@ -871,6 +879,18 @@
     "typeFile": "ファイル",
     "typeFileExt": "{ext} ファイル",
     "typeShortcut": "ショートカット",
+    "groupNameOther": "その他",
+    "groupSizeEmpty": "空",
+    "groupSizeSmall": "小",
+    "groupSizeMedium": "中",
+    "groupSizeLarge": "大",
+    "groupSizeHuge": "特大",
+    "groupDateUnknown": "未指定",
+    "groupDateToday": "今日",
+    "groupDateYesterday": "昨日",
+    "groupDateThisWeek": "今週",
+    "groupDateLastWeek": "先週",
+    "groupDateEarlier": "以前",
     "nItems": "{count} 項目",
     "movedInto": "{count} 項目を {name} へ移動しました",
     "copiedInto": "{count} 項目を {name} へコピーしました",
@@ -1106,6 +1126,43 @@
         "navigatorGroupByType": {
           "title": "種類でグループ化",
           "description": "ファイルの種類ごとにセクション表示"
+        },
+        "navigatorSortColumn": {
+          "title": "並べ替え",
+          "description": "エクスプローラー一覧の並べ替え項目（名前/更新日時/種類/サイズ）",
+          "options": {
+            "name": "名前",
+            "size": "サイズ",
+            "modified": "更新日時",
+            "type": "種類"
+          }
+        },
+        "navigatorSortDirection": {
+          "title": "並べ順",
+          "description": "並べ替え項目の昇順/降順",
+          "options": {
+            "asc": "昇順",
+            "desc": "降順"
+          }
+        },
+        "navigatorGroupBy": {
+          "title": "グループ化",
+          "description": "項目ごとにエクスプローラー一覧をグループ化（なし = グループ化しない）",
+          "options": {
+            "none": "なし",
+            "name": "名前",
+            "size": "サイズ",
+            "modified": "更新日時",
+            "type": "種類"
+          }
+        },
+        "navigatorGroupDirection": {
+          "title": "グループ化の方向",
+          "description": "グループ見出し間の昇順/降順",
+          "options": {
+            "asc": "昇順",
+            "desc": "降順"
+          }
         },
         "openTool": {
           "vscode": {
@@ -1349,6 +1406,9 @@
   "workGroups": {
     "addMemberPlaceholder": "メンバーフォルダーパスを追加",
     "addSync": "追加 + 同期",
+    "addTabToMembers": "メンバーに追加",
+    "addedTabToMembers": "「{name}」をメンバーに追加しました",
+    "alreadyMember": "すでにメンバーです",
     "defaultName": "既定のワークグループ",
     "defaultHint": "専用のワークグループがないときの一時的な閲覧用です。削除できません。",
     "detailMeta": "id {id} · メンバー {count}",

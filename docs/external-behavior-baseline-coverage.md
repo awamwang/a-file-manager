@@ -114,6 +114,12 @@ Rule reminders: no e2e; `#[ignore]` ≠ coverage; FE↔BE command-name parity is
 | --- | --- | --- | --- |
 | Network shares in tree (ADR 0026) | STATIC · CARGO | `check-shell-places.mjs` / `check-folder-tree.mjs` (Network root wiring); `navigator/places.rs` `parse_mount_network_filters_to_network_fstypes`, `parse_mount_network_accepts_macos_bare_mount_output` | Windows: Shell Network folder (WS-Discovery) + `net view \\server` for share expansion. macOS/Linux: bare `mount` (macOS rejects `-p`) parsed into mounted smbfs/afpfs/nfs/cifs/webdav volumes, mountpoints with spaces preserved. Unmounted-server Bonjour discovery is deliberately out of scope |
 
+## Navigator view (sort / group)
+
+| Behavior | Layers | Gate / test | Notes |
+| --- | --- | --- | --- |
+| 排序依据/分组依据下拉 + 空白右键子菜单 + 组折叠（ADR 0030） | STATIC · FE · CARGO | `check-navigator-sort-group.mjs` → `navigator-sort-group-checks.ts`（四字段分桶、「#」/unknown 垫底不随方向翻转、文件夹单独组置顶、折叠只剩组头、切字段默认方向、settings 水合、`toggleSort` 语义真执行 + 六语言 i18n 针）；`check-view-layout.mjs` / `check-list-virtual.mjs` 针同步；`migrate.rs` v16→v17 4 tests | 选字段保持当前方向；折叠会话级记忆；中文首字母桶走 zh collation 二分；四键持久化，legacy `core.navigatorGroupByType` 仅留迁移，UI 隐藏 |
+
 ## Knowledge capability
 
 | Behavior | Layers | Gate / test | Notes |

@@ -4,10 +4,13 @@
 import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { hydrateSettings, rememberSettingsDocument } from "./settingsHydrate.ts";
+import type { GroupDirection, NavigatorGroupField } from "./navigatorGrouping.ts";
 import {
   ICON_VIEW_ZOOM_ORDER,
   nudgeIconViewMode as nudgeIconViewModePure,
 } from "./iconViewZoom.ts";
+
+export type { GroupDirection, NavigatorGroupField };
 
 export type NavigatorViewMode =
   | "iconsExtraLarge"
@@ -54,8 +57,70 @@ export function nudgeIconViewMode(
 
 export const navigatorViewMode = ref<NavigatorViewMode>("details");
 
-/** When true, list is sectioned by type groups. */
-export const navigatorGroupByType = ref(false);
+/** v17（ADR 0030）：分组字段；"none" = 不分组。 */
+export const navigatorGroupBy = ref<NavigatorGroupField>("none");
+
+/** 分组桶排序方向（组头间顺序；组内行序仍由 sortColumn/sortDirection 决定）。 */
+export const navigatorGroupDirection = ref<GroupDirection>("asc");
+
+/** 折叠组的会话级记忆（key = 桶 key；跨目录保留，不做持久化）。 */
+export const collapsedGroupKeys = ref<Set<string>>(new Set());
+
+const GROUP_FIELDS: readonly NavigatorGroupField[] = [
+  "none",
+  "name",
+  "size",
+  "modified",
+  "type",
+];
+
+/** 分组菜单字段（Win11 顺序：None/名称/修改日期/类型/大小）。 */
+export const NAVIGATOR_GROUP_FIELDS: readonly NavigatorGroupField[] = [
+  "none",
+  "name",
+  "modified",
+  "type",
+  "size",
+];
+
+export function groupFieldLabelKey(field: NavigatorGroupField): string {
+  switch (field) {
+    case "none":
+      return "chrome.groupNone";
+    case "name":
+      return "chrome.sortName";
+    case "size":
+      return "chrome.sortSize";
+    case "modified":
+      return "chrome.sortModified";
+    case "type":
+      return "chrome.sortType";
+  }
+}
+
+function coerceGroupField(value: unknown): NavigatorGroupField {
+  return typeof value === "string" && (GROUP_FIELDS as readonly string[]).includes(value)
+    ? (value as NavigatorGroupField)
+    : "none";
+}
+
+/** 切换分组字段时的 Windows 默认方向：name/type 升序，size/modified 降序。 */
+export function defaultDirectionForGroupField(
+  field: NavigatorGroupField,
+): GroupDirection {
+  return field === "size" || field === "modified" ? "desc" : "asc";
+}
+
+/** 会话级折叠切换（组头点击）。 */
+export function toggleGroupCollapsed(key: string): void {
+  const next = new Set(collapsedGroupKeys.value);
+  if (next.has(key)) {
+    next.delete(key);
+  } else {
+    next.add(key);
+  }
+  collapsedGroupKeys.value = next;
+}
 
 export const isIconView = computed(() =>
   navigatorViewMode.value.startsWith("icons"),
@@ -81,7 +146,9 @@ function coerceMode(value: unknown): NavigatorViewMode {
 /** Sync apply from already-hydrated settings (cold-start critical path). */
 export function applyNavigatorViewModeFromValues(values: Record<string, unknown>): void {
   navigatorViewMode.value = coerceMode(values["core.navigatorViewMode"]);
-  navigatorGroupByType.value = values["core.navigatorGroupByType"] === true;
+  navigatorGroupBy.value = coerceGroupField(values["core.navigatorGroupBy"]);
+  navigatorGroupDirection.value =
+    values["core.navigatorGroupDirection"] === "desc" ? "desc" : "asc";
 }
 
 export async function loadNavigatorViewMode(): Promise<NavigatorViewMode> {
@@ -92,7 +159,8 @@ export async function loadNavigatorViewMode(): Promise<NavigatorViewMode> {
         applyNavigatorViewModeFromValues(doc.values ?? {});
       } catch {
         navigatorViewMode.value = "details";
-        navigatorGroupByType.value = false;
+        navigatorGroupBy.value = "none";
+        navigatorGroupDirection.value = "asc";
       }
     })().finally(() => {
       loadPromise = null;
@@ -117,18 +185,43 @@ export async function setNavigatorViewMode(mode: NavigatorViewMode): Promise<voi
   }
 }
 
-export async function setNavigatorGroupByType(enabled: boolean): Promise<void> {
-  navigatorGroupByType.value = enabled;
+/** 切换分组字段：方向重置为该字段默认，折叠记忆清空，两个键一并持久化。 */
+export async function setNavigatorGroupBy(
+  field: NavigatorGroupField,
+): Promise<void> {
+  navigatorGroupBy.value = field;
+  navigatorGroupDirection.value = defaultDirectionForGroupField(field);
+  collapsedGroupKeys.value = new Set();
   try {
     const doc = await invoke<{ version: number; values: Record<string, unknown> }>(
       "settings_set",
       {
-        patch: { "core.navigatorGroupByType": enabled },
+        patch: {
+          "core.navigatorGroupBy": field,
+          "core.navigatorGroupDirection": navigatorGroupDirection.value,
+        },
       },
     );
     rememberSettingsDocument(doc);
   } catch {
-    // Keep local flag even if persist fails.
+    // Keep local field even if persist fails.
+  }
+}
+
+export async function setNavigatorGroupDirection(
+  direction: GroupDirection,
+): Promise<void> {
+  navigatorGroupDirection.value = direction;
+  try {
+    const doc = await invoke<{ version: number; values: Record<string, unknown> }>(
+      "settings_set",
+      {
+        patch: { "core.navigatorGroupDirection": direction },
+      },
+    );
+    rememberSettingsDocument(doc);
+  } catch {
+    // Keep local direction even if persist fails.
   }
 }
 

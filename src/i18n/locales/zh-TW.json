@@ -210,7 +210,15 @@
     "viewDetails": "詳細資訊",
     "viewTiles": "平鋪",
     "viewContent": "內容",
-    "viewGroupByType": "按型別分組",
+    "sortBy": "排序依據",
+    "groupBy": "群組依據",
+    "groupNone": "無",
+    "sortAscending": "遞增",
+    "sortDescending": "遞減",
+    "sortName": "名稱",
+    "sortModified": "修改日期",
+    "sortType": "類型",
+    "sortSize": "大小",
     "viewIconsExtraLarge": "超大圖示",
     "viewIconsLarge": "大圖示",
     "viewIconsMedium": "中等圖示",
@@ -639,6 +647,18 @@
     "typeFile": "檔案",
     "typeFileExt": "{ext} 檔案",
     "typeShortcut": "快捷方式",
+    "groupNameOther": "#",
+    "groupSizeEmpty": "空",
+    "groupSizeSmall": "小",
+    "groupSizeMedium": "中",
+    "groupSizeLarge": "大",
+    "groupSizeHuge": "巨大",
+    "groupDateUnknown": "未指定",
+    "groupDateToday": "今天",
+    "groupDateYesterday": "昨天",
+    "groupDateThisWeek": "本週",
+    "groupDateLastWeek": "上週",
+    "groupDateEarlier": "更早",
     "nItems": "{count} 項",
     "movedInto": "已將 {count} 項移入 {name}",
     "copiedInto": "已將 {count} 項複製到 {name}",
@@ -866,6 +886,43 @@
         "navigatorGroupByType": {
           "title": "按型別分組",
           "description": "按檔案型別分段顯示導航列表"
+        },
+        "navigatorSortColumn": {
+          "title": "排序依據",
+          "description": "檔案總管列表排序欄位（名稱/修改日期/類型/大小）",
+          "options": {
+            "name": "名稱",
+            "size": "大小",
+            "modified": "修改日期",
+            "type": "類型"
+          }
+        },
+        "navigatorSortDirection": {
+          "title": "排序方向",
+          "description": "排序欄位的遞增/遞減方向",
+          "options": {
+            "asc": "遞增",
+            "desc": "遞減"
+          }
+        },
+        "navigatorGroupBy": {
+          "title": "群組依據",
+          "description": "按欄位對檔案總管列表分組（無 = 不分組）",
+          "options": {
+            "none": "無",
+            "name": "名稱",
+            "size": "大小",
+            "modified": "修改日期",
+            "type": "類型"
+          }
+        },
+        "navigatorGroupDirection": {
+          "title": "群組方向",
+          "description": "群組標題之間的遞增/遞減順序",
+          "options": {
+            "asc": "遞增",
+            "desc": "遞減"
+          }
         },
         "newTabBehavior": {
           "title": "新標籤行為",
@@ -1219,6 +1276,9 @@
     "addSync": "新增並同步",
     "runtimeOpenState": "目前開啟的標籤",
     "noOpenTabs": "無開啟的標籤",
+    "addTabToMembers": "加入成員",
+    "addedTabToMembers": "已將「{name}」加入成員",
+    "alreadyMember": "已是成員",
     "saveMembersFromTabs": "開啟標籤 → 成員配置",
     "errorSavePrompt": "靜默切換時出現意外的儲存提示",
     "promoteToProject": "從工作組建立專案",

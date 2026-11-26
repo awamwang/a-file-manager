@@ -58,6 +58,18 @@ import {
   newFileTemplates,
 } from "../../state/newFileTemplates";
 import { selectedPaths } from "../../state/navigatorSelection";
+import {
+  setSortColumn,
+  setSortDirection,
+  sortColumn,
+  sortDirection,
+} from "../../state/navigatorSort";
+import {
+  navigatorGroupBy,
+  navigatorGroupDirection,
+  setNavigatorGroupBy,
+  setNavigatorGroupDirection,
+} from "../../state/navigatorViewMode";
 import { isMacPlatform } from "../../config/platform";
 import { folderPathsForWorkGroup as reduceFolderPathsForWorkGroup } from "./workGroupPaths";
 import { nextSelectionAfterRemoval } from "../../state/navigatorSelection";
@@ -245,6 +257,11 @@ const items = computed(() =>
     newFileTemplates: newFileTemplates.value,
     workGroups: workGroupMenuOptions.value,
     caps: getCachedPlatformCapabilities(),
+    sortState: { column: sortColumn.value, direction: sortDirection.value },
+    groupState: {
+      field: navigatorGroupBy.value,
+      direction: navigatorGroupDirection.value,
+    },
   }).map((item) => ({
     ...item,
     label: t(item.labelKey),
@@ -885,6 +902,41 @@ async function run(id: string) {
       if (entry) await runDelete(entry);
       break;
     default:
+      if (id.startsWith("sortColumn:")) {
+        const column = id.slice("sortColumn:".length);
+        if (
+          column === "name" ||
+          column === "size" ||
+          column === "modified" ||
+          column === "type"
+        ) {
+          setSortColumn(column);
+        }
+        break;
+      }
+      if (id.startsWith("sortDirection:")) {
+        setSortDirection(id === "sortDirection:desc" ? "desc" : "asc");
+        break;
+      }
+      if (id.startsWith("groupBy:")) {
+        const field = id.slice("groupBy:".length);
+        if (
+          field === "none" ||
+          field === "name" ||
+          field === "size" ||
+          field === "modified" ||
+          field === "type"
+        ) {
+          void setNavigatorGroupBy(field);
+        }
+        break;
+      }
+      if (id.startsWith("groupDirection:")) {
+        void setNavigatorGroupDirection(
+          id === "groupDirection:desc" ? "desc" : "asc",
+        );
+        break;
+      }
       if (id.startsWith("addToWorkGroup:") && entry) {
         const workGroupId = id.slice("addToWorkGroup:".length);
         if (workGroupId && workGroupId !== "empty") {
@@ -1238,16 +1290,19 @@ onUnmounted(() => {
         :key="child.id"
         type="button"
         class="ctx-item"
-        role="menuitem"
+        :role="child.checked === undefined ? 'menuitem' : 'menuitemcheckbox'"
+        :aria-checked="child.checked"
         :disabled="!child.enabled"
         :class="{
           'ctx-item--danger': child.danger,
           'ctx-item--sep': child.separatorBefore,
+          'ctx-item--checked': child.checked,
         }"
         @click="run(child.id)"
       >
         <span class="ctx-leading">
-          <FluentIcon v-if="child.icon" :name="child.icon" size="sm" class="ctx-icon" />
+          <FluentIcon v-if="child.checked" name="check" size="sm" class="ctx-icon" />
+          <FluentIcon v-else-if="child.icon" :name="child.icon" size="sm" class="ctx-icon" />
           <span>{{ child.label }}</span>
         </span>
       </button>

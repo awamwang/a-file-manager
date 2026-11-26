@@ -192,7 +192,9 @@ const settingsDoc = {
   version: 1,
   values: {
     "core.language": "zh-CN", "core.theme": "system", "core.listDensity": "standard",
-    "core.showHidden": false, "core.navigatorViewMode": "details", "core.navigatorGroupByType": false,
+    "core.showHidden": false, "core.navigatorViewMode": "details",
+    "core.navigatorSortColumn": "name", "core.navigatorSortDirection": "asc",
+    "core.navigatorGroupBy": "none", "core.navigatorGroupDirection": "asc",
     "core.closeBehavior": "ask", "core.startupPage": "navigator",
     "core.defaultLocation": "G:\\Projects", "core.projectsRoot": "G:\\Projects",
     "core.fileDoubleClickAction": "systemDefault", "core.newTabBehavior": "guide", "core.trackRecentVisits": true,

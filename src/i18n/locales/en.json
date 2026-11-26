@@ -210,7 +210,15 @@
     "viewDetails": "Details",
     "viewTiles": "Tiles",
     "viewContent": "Content",
-    "viewGroupByType": "Group by type",
+    "sortBy": "Sort by",
+    "groupBy": "Group by",
+    "groupNone": "None",
+    "sortAscending": "Ascending",
+    "sortDescending": "Descending",
+    "sortName": "Name",
+    "sortModified": "Date modified",
+    "sortType": "Type",
+    "sortSize": "Size",
     "viewIconsExtraLarge": "Extra large icons",
     "viewIconsLarge": "Large icons",
     "viewIconsMedium": "Medium icons",
@@ -639,6 +647,18 @@
     "typeFile": "File",
     "typeFileExt": "{ext} File",
     "typeShortcut": "Shortcut",
+    "groupNameOther": "#",
+    "groupSizeEmpty": "Empty",
+    "groupSizeSmall": "Small",
+    "groupSizeMedium": "Medium",
+    "groupSizeLarge": "Large",
+    "groupSizeHuge": "Huge",
+    "groupDateUnknown": "Unspecified",
+    "groupDateToday": "Today",
+    "groupDateYesterday": "Yesterday",
+    "groupDateThisWeek": "This week",
+    "groupDateLastWeek": "Last week",
+    "groupDateEarlier": "Earlier",
     "nItems": "{count} items",
     "movedInto": "Moved {count} item(s) into {name}",
     "copiedInto": "Copied {count} item(s) into {name}",
@@ -866,6 +886,43 @@
         "navigatorGroupByType": {
           "title": "Group by type",
           "description": "Section Navigator listings by file type"
+        },
+        "navigatorSortColumn": {
+          "title": "Sort by",
+          "description": "Explorer list sort field (name, date modified, type, size)",
+          "options": {
+            "name": "Name",
+            "size": "Size",
+            "modified": "Date modified",
+            "type": "Type"
+          }
+        },
+        "navigatorSortDirection": {
+          "title": "Sort direction",
+          "description": "Ascending or descending order for the sort field",
+          "options": {
+            "asc": "Ascending",
+            "desc": "Descending"
+          }
+        },
+        "navigatorGroupBy": {
+          "title": "Group by",
+          "description": "Group Explorer listings by a field (None disables grouping)",
+          "options": {
+            "none": "None",
+            "name": "Name",
+            "size": "Size",
+            "modified": "Date modified",
+            "type": "Type"
+          }
+        },
+        "navigatorGroupDirection": {
+          "title": "Group direction",
+          "description": "Ascending or descending order between group headers",
+          "options": {
+            "asc": "Ascending",
+            "desc": "Descending"
+          }
         },
         "newTabBehavior": {
           "title": "New tab behavior",
@@ -1206,6 +1263,9 @@
     "addSync": "Add + sync",
     "runtimeOpenState": "Currently open tabs",
     "noOpenTabs": "No open tabs",
+    "addTabToMembers": "Add to members",
+    "addedTabToMembers": "Added \"{name}\" to members",
+    "alreadyMember": "Already a member",
     "saveMembersFromTabs": "Open tabs → member config",
     "errorSavePrompt": "Unexpected save prompt on silent switch",
     "promoteToProject": "Create project from Work Group",

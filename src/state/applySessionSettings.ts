@@ -6,12 +6,14 @@
  */
 
 import { applyCloseBehaviorFromValues } from "./closeBehavior.ts";
+import { applyNavigatorSortFromValues } from "./navigatorSort.ts";
 import { applyNavigatorViewModeFromValues } from "./navigatorViewMode.ts";
 import { applyShowHiddenFromValues } from "./showHidden/index.ts";
 
 /** Sync-apply listing/chrome settings that affect first interactive UI. */
 export function applySessionSettingsFromValues(values: Record<string, unknown>): void {
   applyShowHiddenFromValues(values);
+  applyNavigatorSortFromValues(values);
   applyNavigatorViewModeFromValues(values);
   applyCloseBehaviorFromValues(values);
 }

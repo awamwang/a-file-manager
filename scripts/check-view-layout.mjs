@@ -14,7 +14,8 @@ const en = JSON.parse(readFileSync(join(root, "src/i18n/locales/en.json"), "utf8
 
 assert.ok(mode.includes('"tiles"'));
 assert.ok(mode.includes('"content"'));
-assert.ok(mode.includes("navigatorGroupByType"));
+assert.ok(mode.includes("navigatorGroupBy"));
+assert.ok(mode.includes("setNavigatorGroupBy"), "v17 分组 setter");
 assert.ok(mode.includes('"iconsExtraLarge"'), "AIA-233: Extra large mode");
 assert.ok(mode.includes("iconsExtraLarge: 256") || mode.includes("iconsExtraLarge:256"));
 assert.ok(view.includes("col-type"));
@@ -30,7 +31,12 @@ assert.ok(view.includes("onListWheel"), "AIA-232: Ctrl+wheel must be wired on th
 assert.ok(view.includes("nudgeIconViewMode"), "AIA-232: wheel uses icon zoom ladder");
 assert.ok(mode.includes("ICON_VIEW_ZOOM_ORDER"));
 assert.ok(mode.includes("nudgeIconViewMode"));
-assert.ok(shell.includes("viewGroupByType"));
+assert.ok(shell.includes("viewModeMenuOpen"));
+// v17（ADR 0030）：工具栏排序/分组下拉菜单。
+assert.ok(shell.includes("navigator-sort-menu"));
+assert.ok(shell.includes("navigator-group-menu"));
+assert.ok(shell.includes("toggleSortMenu"));
+assert.ok(shell.includes("toggleGroupMenu"));
 assert.ok(defaults.includes("tiles"));
 assert.ok(defaults.includes("iconsExtraLarge"));
 assert.ok(defaults.includes("core.navigatorGroupByType"));

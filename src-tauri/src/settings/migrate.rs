@@ -241,6 +241,28 @@ fn migrate_step(
             );
             Ok(())
         }
+        (16, 17) => {
+            // ADR 0030：布尔分组开关 → 分组字段枚举（true→type；false/缺省→none）。
+            // 新键（排序字段/方向、分组方向）由 defaults 补齐；or_insert 不会覆盖
+            // 已迁移出的 navigatorGroupBy。
+            let group_by = match values.get("core.navigatorGroupByType") {
+                Some(Value::Bool(true)) => "type",
+                _ => "none",
+            };
+            if !values.contains_key("core.navigatorGroupBy") {
+                values.insert(
+                    "core.navigatorGroupBy".to_string(),
+                    Value::String(group_by.to_string()),
+                );
+                notes.push(format!(
+                    "Converted core.navigatorGroupByType → core.navigatorGroupBy={group_by} (schema v17)"
+                ));
+            }
+            for (key, value) in default_document().values {
+                values.entry(key).or_insert(value);
+            }
+            Ok(())
+        }
         _ => Err(format!("No migration path from {from} → {to}")),
     }
 }
@@ -284,5 +306,66 @@ mod tests {
         let next = apply_patch(doc, patch).unwrap();
         assert_eq!(next.values.get("core.showHidden"), Some(&json!(true)));
         assert_eq!(next.values.get("core.listDensity"), Some(&json!("standard")));
+    }
+
+    fn v16_doc(group_by_type: Option<bool>) -> Value {
+        let mut values = json!({});
+        if let Some(flag) = group_by_type {
+            values["core.navigatorGroupByType"] = json!(flag);
+        }
+        json!({ "version": 16, "values": values })
+    }
+
+    #[test]
+    fn migrates_v16_group_by_type_true_to_type() {
+        let result = migrate_to_latest(&v16_doc(Some(true))).unwrap();
+        assert_eq!(result.from_version, 16);
+        assert_eq!(
+            result.document.values.get("core.navigatorGroupBy"),
+            Some(&json!("type"))
+        );
+    }
+
+    #[test]
+    fn migrates_v16_group_by_type_false_to_none() {
+        let result = migrate_to_latest(&v16_doc(Some(false))).unwrap();
+        assert_eq!(
+            result.document.values.get("core.navigatorGroupBy"),
+            Some(&json!("none"))
+        );
+    }
+
+    #[test]
+    fn migrates_v16_missing_group_by_type_to_none_and_fills_sort_keys() {
+        let result = migrate_to_latest(&v16_doc(None)).unwrap();
+        assert_eq!(
+            result.document.values.get("core.navigatorGroupBy"),
+            Some(&json!("none"))
+        );
+        assert_eq!(
+            result.document.values.get("core.navigatorSortColumn"),
+            Some(&json!("name"))
+        );
+        assert_eq!(
+            result.document.values.get("core.navigatorSortDirection"),
+            Some(&json!("asc"))
+        );
+        assert_eq!(
+            result.document.values.get("core.navigatorGroupDirection"),
+            Some(&json!("asc"))
+        );
+    }
+
+    #[test]
+    fn migration_keeps_existing_v17_group_by_value() {
+        let raw = json!({
+            "version": 16,
+            "values": { "core.navigatorGroupBy": "size" }
+        });
+        let result = migrate_to_latest(&raw).unwrap();
+        assert_eq!(
+            result.document.values.get("core.navigatorGroupBy"),
+            Some(&json!("size"))
+        );
     }
 }

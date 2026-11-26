@@ -55,7 +55,7 @@ for (const key of [
   assert.ok(defaults.includes(`"${key}"`), `defaults.rs missing ${key}`);
   assert.ok(migrate.includes("SecretScript/SecretAgentToken/SecretId (schema v16)"));
 }
-assert.ok(/SETTINGS_SCHEMA_VERSION:\s*u32\s*=\s*16/.test(types), "schema version must be 16");
+assert.ok(/SETTINGS_SCHEMA_VERSION:\s*u32\s*=\s*17/.test(types), "schema version must be 17");
 
 // 4. i18n: field labels exist in every shipped locale.
 const locales = ["en", "zh-CN", "zh-TW", "ja", "de", "fr"];

@@ -25,7 +25,7 @@
 ## 差异化与缺口
 
 - **强项**：WG Open State 会话、Projects 绑定、Discovery、Fluent shell、三层回归基线门禁（ADR 0025：STATIC-GATE + FE-UNIT + CARGO，150 门禁全接入 `npm test`）。
-- **资源管理器基本盘已齐**（2026-11-24 核对）：F5 刷新（`navigator.refresh`）、新建文件/文件夹（`new_templates.rs`）、WG 改名/删除/移除成员（`work_groups_*`）、预览窗格（`PreviewPane.vue` + preview bridge）、视图模式（`navigatorViewMode`）、ZIP 压缩/解压（`archive/`）、属性（`navigator/stat.rs` + `test:properties-attrs`）。
+- **资源管理器基本盘已齐**（2026-11-24 核对）：F5 刷新（`navigator.refresh`）、新建文件/文件夹（`new_templates.rs`）、WG 改名/删除/移除成员（`work_groups_*`）、预览窗格（`PreviewPane.vue` + preview bridge）、视图模式（`navigatorViewMode`）、排序/分组（四字段下拉 + 可折叠分组，schema v17 / ADR 0030）、ZIP 压缩/解压（`archive/`）、属性（`navigator/stat.rs` + `test:properties-attrs`）。
 - **已拍板未实现的场景项**：以 `file-ops-scenario-baseline.md` 的 🔵/🟡 行为准（如 TR-203 右键「复制为链接」、CLIP-008 剪切源消失跳过、DEL-007 还原重建父目录、SEL-010 Esc 第 2/3 层）。
 - **架构债**：AppShell 体量、路径卡片重复、FE/Rust 路径规范化对齐、双栏窄窗。
 

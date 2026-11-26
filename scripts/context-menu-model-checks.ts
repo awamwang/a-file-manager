@@ -164,8 +164,13 @@ assert.ok(termKids.some((c) => c.id === "terminal:powershell:admin"));
 assert.ok(!termKids.some((c) => c.id.startsWith("terminal:missing")));
 
 const empty = buildContextMenuItems(null, { emptyArea: true, canPaste: false });
-assert.equal(empty.length, 2);
+assert.equal(empty.length, 4, "空白菜单：排序 + 分组 + 新建两项（ADR 0030）");
 assert.equal(empty.find((item) => item.id === "paste"), undefined);
+const sortMenu = empty.find((item) => item.id === "sortBy");
+const groupMenu = empty.find((item) => item.id === "groupBy");
+assert.ok(sortMenu?.children?.some((c) => c.id === "sortColumn:name" && c.checked));
+assert.ok(sortMenu?.children?.some((c) => c.id === "sortDirection:desc" && !c.checked));
+assert.ok(groupMenu?.children?.some((c) => c.id === "groupBy:none" && c.checked));
 assert.ok(empty.find((item) => item.id === "newFolder")?.enabled);
 assert.ok(empty.find((item) => item.id === "newFile")?.enabled);
 assert.equal(

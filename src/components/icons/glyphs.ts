@@ -38,6 +38,11 @@ export type FluentGlyphId =
   | "add"
   | "check"
   | "chevronDown"
+  | "chevronRight"
+  | "arrowUp"
+  | "arrowDown"
+  | "sort"
+  | "group"
   | "copy"
   | "cut"
   | "paste"
@@ -283,6 +288,41 @@ export const FLUENT_GLYPHS: Record<FluentGlyphId, FluentGlyph> = {
   chevronDown: {
     codepoint: "\uE70D",
     paths: ["M3.4 6.2 8 10.6l4.6-4.4.9.9L8 12.4 2.5 7.1l.9-.9z"],
+  },
+  chevronRight: {
+    codepoint: "\uE76C",
+    paths: ["M6.2 3.4 10.6 8l-4.4 4.6-.9-.9L8.9 8 5.3 4.3l.9-.9z"],
+  },
+  /** Segoe Up arrow — sort ascending (E74A, same shape as the Up glyph). */
+  arrowUp: {
+    codepoint: "\uE74A",
+    paths: ["M8 3.5 3.2 8.3h3.3v4.2h2.8V8.3h3.3L8 3.5z"],
+  },
+  /** Segoe Down arrow — sort descending (E74B). */
+  arrowDown: {
+    codepoint: "\uE74B",
+    paths: ["M8 12.5 12.8 7.7H9.5V3.5H6.7v4.2H3.2L8 12.5z"],
+  },
+  /** Win11 排序隐喻：递减横条 + 下箭头（自定义形状，仅 SVG 渲染）。 */
+  sort: {
+    codepoint: "\uF000",
+    svgOnly: true,
+    paths: [
+      "M2.5 3.5h9v1.5h-9V3.5z",
+      "M2.5 7.25h6.5v1.5h-6.5v-1.5z",
+      "M2.5 11h4v1.5h-4V11z",
+      "M12.4 5.1l1.9 2.5h-1.1v3.4h-1.5V7.6h-1.1l1.8-2.5z",
+    ],
+  },
+  /** Win11 分组隐喻：上下两组块以分隔线隔开（自定义形状，仅 SVG 渲染）。 */
+  group: {
+    codepoint: "\uF001",
+    svgOnly: true,
+    paths: [
+      "M2.5 2.8h11v4h-11V2.8zm1.2 1.2v1.6h8.6V4H3.7z",
+      "M2.5 9.2h11v4h-11V9.2zm1.2 1.2v1.6h8.6v-1.6H3.7z",
+      "M2.2 7.5h11.6v1H2.2v-1z",
+    ],
   },
   /** Segoe Copy — clipboard duplicate. */
   copy: {

@@ -210,7 +210,15 @@
     "viewDetails": "详细信息",
     "viewTiles": "平铺",
     "viewContent": "内容",
-    "viewGroupByType": "按类型分组",
+    "sortBy": "排序依据",
+    "groupBy": "分组依据",
+    "groupNone": "无",
+    "sortAscending": "递增",
+    "sortDescending": "递减",
+    "sortName": "名称",
+    "sortModified": "修改日期",
+    "sortType": "类型",
+    "sortSize": "大小",
     "viewIconsExtraLarge": "超大图标",
     "viewIconsLarge": "大图标",
     "viewIconsMedium": "中等图标",
@@ -639,6 +647,18 @@
     "typeFile": "文件",
     "typeFileExt": "{ext} 文件",
     "typeShortcut": "快捷方式",
+    "groupNameOther": "#",
+    "groupSizeEmpty": "空",
+    "groupSizeSmall": "小",
+    "groupSizeMedium": "中",
+    "groupSizeLarge": "大",
+    "groupSizeHuge": "巨大",
+    "groupDateUnknown": "未指定",
+    "groupDateToday": "今天",
+    "groupDateYesterday": "昨天",
+    "groupDateThisWeek": "本周",
+    "groupDateLastWeek": "上周",
+    "groupDateEarlier": "更早",
     "nItems": "{count} 项",
     "movedInto": "已将 {count} 项移入 {name}",
     "copiedInto": "已将 {count} 项复制到 {name}",
@@ -866,6 +886,43 @@
         "navigatorGroupByType": {
           "title": "按类型分组",
           "description": "按文件类型分段显示导航列表"
+        },
+        "navigatorSortColumn": {
+          "title": "排序依据",
+          "description": "资源管理器列表排序字段（名称/修改日期/类型/大小）",
+          "options": {
+            "name": "名称",
+            "size": "大小",
+            "modified": "修改日期",
+            "type": "类型"
+          }
+        },
+        "navigatorSortDirection": {
+          "title": "排序方向",
+          "description": "排序字段的递增/递减方向",
+          "options": {
+            "asc": "递增",
+            "desc": "递减"
+          }
+        },
+        "navigatorGroupBy": {
+          "title": "分组依据",
+          "description": "按字段对资源管理器列表分组（无 = 不分组）",
+          "options": {
+            "none": "无",
+            "name": "名称",
+            "size": "大小",
+            "modified": "修改日期",
+            "type": "类型"
+          }
+        },
+        "navigatorGroupDirection": {
+          "title": "分组方向",
+          "description": "组头之间的递增/递减顺序",
+          "options": {
+            "asc": "递增",
+            "desc": "递减"
+          }
         },
         "newTabBehavior": {
           "title": "新标签行为",
@@ -1206,6 +1263,9 @@
     "addSync": "添加并同步",
     "runtimeOpenState": "当前打开的标签",
     "noOpenTabs": "无打开的标签",
+    "addTabToMembers": "添加到成员",
+    "addedTabToMembers": "已将「{name}」添加为成员",
+    "alreadyMember": "已是成员",
     "saveMembersFromTabs": "打开标签 → 成员配置",
     "errorSavePrompt": "静默切换时出现意外的保存提示",
     "promoteToProject": "从工作组创建项目",
