@@ -9,7 +9,10 @@
  *   1. ad-hoc signs the .app (integrity seal, NOT Developer ID / notarization);
  *   2. rebuilds the Tauri .dmg with an in-package 打开帮助.txt at the root
  *      plus the usual /Applications drop target;
- *   3. verifies both the signature and the DMG image.
+ *   3. ships install-macos.sh at the DMG root: macOS 15+ removed the Finder
+ *      right-click → Open override, so the installer clears quarantine after
+ *      copying the app into /Applications and the app then opens by double-click;
+ *   4. verifies both the signature and the DMG image.
  *
  * Signed/notarized builds must NOT call this: repackaging would invalidate
  * the Developer ID signature. Their help file comes from bundle.resources and
@@ -19,7 +22,8 @@
  *   node scripts/finalize-macos-adhoc.mjs \
  *     --app "src-tauri/target/<triple>/release/bundle/macos/A File Manager.app" \
  *     --dmg "src-tauri/target/<triple>/release/bundle/dmg/A File Manager_<ver>_<arch>.dmg" \
- *     --help-file src-tauri/resources/macos-open-help.txt
+ *     --help-file src-tauri/resources/macos-open-help.txt \
+ *     --installer scripts/install-macos.sh
  */
 import { execFileSync, spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdtempSync, rmSync } from "node:fs";
@@ -39,6 +43,7 @@ function arg(name) {
 const appPath = arg("--app");
 const dmgPath = arg("--dmg");
 const helpPath = arg("--help-file");
+const installerPath = arg("--installer");
 
 if (process.platform !== "darwin") {
   throw new Error("ad-hoc 收尾只能在 macOS runner 上执行");
@@ -46,6 +51,7 @@ if (process.platform !== "darwin") {
 if (!existsSync(appPath)) throw new Error(`找不到 .app: ${appPath}`);
 if (!existsSync(dmgPath)) throw new Error(`找不到 .dmg: ${dmgPath}`);
 if (!existsSync(helpPath)) throw new Error(`找不到打开帮助文件: ${helpPath}`);
+if (!existsSync(installerPath)) throw new Error(`找不到安装脚本: ${installerPath}`);
 
 const embeddedHelp = join(appPath, "Contents", "Resources", "resources", "macos-open-help.txt");
 if (!existsSync(embeddedHelp)) {
@@ -83,6 +89,7 @@ try {
   const stagedApp = join(staging, basename(appPath));
   run("cp", ["-R", appPath, stagedApp]);
   copyFileSync(helpPath, join(staging, "打开帮助.txt"));
+  copyFileSync(installerPath, join(staging, "安装-A-File-Manager.sh"));
   // Standard drag-to-Applications affordance, same as the Tauri-generated DMG.
   execFileSync("ln", ["-s", "/Applications", join(staging, "Applications")]);
   run("hdiutil", [
@@ -105,5 +112,5 @@ try {
 }
 
 console.log(
-  `ad-hoc macOS fallback ready: ${basename(appPath)} + ${basename(dmgPath)} (打开帮助.txt included)`,
+  `ad-hoc macOS fallback ready: ${basename(appPath)} + ${basename(dmgPath)} (打开帮助.txt + 安装-A-File-Manager.sh included)`,
 );

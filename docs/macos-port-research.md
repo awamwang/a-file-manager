@@ -1113,6 +1113,30 @@ spctl -a -vvv 'A File Manager.app'
 | 前端能力层（7.8） | `src/config/platform.ts`；`src/shortcuts/chord.ts`；`src/main.ts`；`src/views/SettingsView.vue`；`src/state/settingsUi.ts`；`scripts/shortcut-checks.ts` |
 | 全局搜索（7.21） | `src-tauri/src/platform/{mod,macos,windows}.rs`；`src-tauri/src/discovery/{mod,types,backend,service,blacklist,platform_backend}.rs`；`src/views/DiscoveryView.vue`；`scripts/check-global-search-provider.mjs` |
 
+## 7.28 macOS 15+ 右键放行失效：无证书路径改为安装脚本清隔离（第 23 轮）
+
+**触发**：用户实测 v0.4.0 的 `/Applications/A File Manager.app` 仍无法通过右键 → 打开放行，截图只有「完成 / 移到废纸篓」。本机为 macOS 15.8.3，App 为有效 ad-hoc 签名（`codesign --verify --deep --strict` 通过），`com.apple.quarantine=0381` 来自 Edge，`spctl -a -vvv` 因无 Developer ID + 公证而 rejected。
+
+**结论（不要再反复试错）**：Apple 从 macOS 15（Sequoia）起移除了 Finder 的 Control-click / 右键 →「打开」单次放行入口，官方指南现在只保留「系统设置 → 隐私与安全性 → 仍要打开」。在不考虑 Developer ID 的前提下，**无法让未公证的 `.app` 自身恢复这个入口**。实测还排除了两条捷径：
+
+1.  quarantined DMG 里放干净的 `.app`，挂载后用 `cp -R` / `ditto` 拖出 → 目标仍继承 `com.apple.quarantine`；`.app.zip` 解压同样继承。
+2.  把 App 的 quarantine 预置成「已批准」值再打进 ZIP → 解压时被系统覆盖为未批准值，`spctl` 仍 rejected。
+
+**实现（用户选择「安装脚本清隔离」方案）**：
+
+| 落点 | 内容 |
+| --- | --- |
+| `scripts/install-macos.sh` | 新增。用 `bash` 从终端执行（脚本本身无签名，终端 `bash` 读取文件不触发 Gatekeeper 的脚本校验）。校验源包签名 → `ditto` 复制到 `/Applications` → 旧版移入 `~/.Trash` → 递归清 `com.apple.quarantine`（并 best-effort 清 `com.apple.provenance`）→ 再次严格校验签名 → 可选 `open` 启动。支持 `--app` / `--apps-dir` / `--no-open` 供本地演练。 |
+| `scripts/finalize-macos-adhoc.mjs` | 新增 `--installer` 参数，把脚本以 `安装-A-File-Manager.sh` 放进重建的 DMG 根目录；帮助文件仍在根目录。仅无证书路径调用，签名/公证路径不受影响。 |
+| `.github/workflows/release.yml` | `prepare` 作业把脚本作为 `A.File.Manager_${VERSION}_macos-install.sh` 上传 Release（一次，不在矩阵里重复上传）；ad-hoc finalize 步骤传 `--installer`；发布说明改为「macOS 15+ 用安装脚本」并保留系统设置 / `xattr` 兜底。 |
+| `.gitattributes` | 新增，钉住 `scripts/install-macos.sh text eol=lf`，避免 Windows runner checkout 后出现 CRLF 导致脚本失效。 |
+| `src-tauri/resources/macos-open-help.txt` | 首选路径改为安装脚本，明确 macOS 15+ 已移除右键入口；保留系统设置与 `xattr` 两种手工兜底和「不要点移到废纸篓」。 |
+| `scripts/check-ci-macos.mjs` | 新增 2e 契约：安装脚本清隔离/复制/校验、finalizer 的 DMG 内脚本、Release 资产、LF 行尾、帮助文案关键短语。 |
+
+**本机验证**：对已安装的 `/Applications/A File Manager.app` 执行 `xattr -dr com.apple.quarantine`（`com.apple.provenance` 是受保护属性，删不掉但不触发拦截），随后 `open` 成功拉起进程；安装脚本的语法、帮助、`--apps-dir` 演练与 gate 结果见本轮工具记录。**边界**：ad-hoc 仍不是 Developer ID + 公证，直接双击未经脚本/手工清隔离的下载包依然会被拦；签名/公证路径仍未在本机验证。
+
+---
+
 ## 附录 B · 参考资源
 
 以下为本次检索命中的入口（外部资料，仅供复核；社区项目需自行确认维护状态与许可证）。

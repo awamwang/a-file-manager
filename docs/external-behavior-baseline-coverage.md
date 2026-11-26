@@ -107,6 +107,7 @@ Rule reminders: no e2e; `#[ignore]` ≠ coverage; FE↔BE command-name parity is
 | provider download/extract, ext_host install_from_feed (network) | STATIC | `check-provider-download.mjs`, `check-feature-pack-shell.mjs` | real network intentionally not made mandatory |
 | provider error classification | STATIC · FE | `check-provider-error-hint.mjs` → `provider-error-message-checks.ts` | order-sensitive |
 | three Feature Packs ship native macOS sidecars (ADR 0022) | STATIC | `check-mac-pack-release.mjs` | 2026-11-24: 三平台矩阵（Windows / macos-aarch64 / macos-x86_64）各建三个 pack；任一失败阻断 merge 并保留 draft（禁 `continue-on-error` / `always()`）；产物 ad-hoc 签名、按 `(packId, platform)` 入 feed。本机 x86_64 实测三产物均为 Mach-O + adhoc，manifest 三条 `macos-x86_64` |
+| ad-hoc macOS install clears Gatekeeper quarantine (7.28) | STATIC + local rehearsal | `check-ci-macos.mjs` (installer / DMG / Release asset / help text); `scripts/install-macos.sh` exercised on a real app copy in a temp `--apps-dir` | macOS 15+ removed the Finder right-click → Open override, so the zero-Developer-ID path ships `install-macos.sh` inside the DMG and as a Release asset: it ditto-copies the ad-hoc-signed app to /Applications, moves the old version to Trash, removes `com.apple.quarantine`, re-verifies the signature and opens the app. Quarantine propagation from both ZIP and DMG was measured; pre-flagging a ZIP as approved is overwritten on extraction |
 
 ## Navigation / shell places
 

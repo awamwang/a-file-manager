@@ -1,21 +1,34 @@
 A File Manager — macOS 首次打开帮助
 ====================================
 
-这个版本没有使用 Apple Developer ID 签名和公证。macOS 的 Gatekeeper 首次运行时拦截它是正常现象，不代表文件损坏。请只从本项目官方 GitHub Release 下载：
+这个版本没有使用 Apple Developer ID 签名和公证。macOS 的 Gatekeeper 首次拦截未公证 App 是正常现象，不代表文件损坏。请只从本项目官方 GitHub Release 下载：
 https://github.com/awamwang/a-file-manager/releases
 
-【推荐：通过系统设置允许】
+【推荐：用安装脚本（无需开发者账号）】
+macOS 15（Sequoia）及以后，Apple 已移除 Finder 的“右键 → 打开”单次放行入口；双击未公证 App 只会看到“完成 / 移到废纸篓”。所以请用脚本安装一次：
+
+1. 打开“终端”(Terminal)。
+2. 输入 `bash `（注意末尾有空格），然后把 DMG 根目录的“安装-A-File-Manager.sh”拖进终端窗口，按回车。
+   完整形式类似：
+       bash "/Volumes/A File Manager/安装-A-File-Manager.sh"
+   如果下载的是独立 Release 资产，请先把 `.app.zip` 解压出的 `A File Manager.app` 与脚本放在同一目录，再拖进终端。
+3. 脚本会把 App 装到“应用程序”(Applications)，清掉下载隔离属性并直接启动。
+4. 之后双击 App 即可正常打开，不需要系统设置，也不需要右键放行。
+
+脚本会先把旧版本移到废纸篓再安装新版本，不会静默删除你的数据。若看到拦截提示，不要点“移到废纸篓”，直接关掉提示即可。
+
+【手工兜底：系统设置】
+如果不想用脚本：
 1. 先把 A File Manager.app 拖到“应用程序”(Applications) 文件夹。
 2. 双击打开一次。出现“Apple 无法验证…”提示时，点“完成”或“取消”。
-   注意：不要点“移到废纸篓”，否则需要重新从安装包里把 App 拖出来。
 3. 打开“系统设置” → “隐私与安全性” → 向下滚动到“安全性”。
 4. 找到 A File Manager 被阻止的提示，点“仍要打开”，再在弹窗里点“打开”。
 5. 之后这个版本就可以正常双击打开。
 
-【如果“仍要打开”按钮没有出现】
-打开“终端”(Terminal)，执行下面命令，然后把 Finder 里的 A File Manager.app 直接拖到终端窗口末尾，按回车：
+【手工兜底：终端命令】
+打开“终端”，执行下面命令，然后把 Finder 里的 A File Manager.app 直接拖到终端窗口末尾，按回车：
 
-    xattr -dr com.apple.quarantine 
+    xattr -dr com.apple.quarantine
 
 完整例子：
 
@@ -23,17 +36,12 @@ https://github.com/awamwang/a-file-manager/releases
 
 再双击 App 即可。若下载的是 DMG，也可以先对 DMG 执行同样命令，再挂载安装。
 
-【右键 → 打开】
-在部分 macOS 版本上，可以在 Finder 里按住 Control 点按 App（或右键）→“打开”。
-但这个入口在 macOS 15/26 对未公证/无 Developer ID 的包可能不显示“打开”按钮，或点了仍被拦。
-遇到这种情况请改用上面的“系统设置”或 xattr 方法；这是正常的系统安全策略，不是 App 本身的问题。
-
 【为什么会这样】
 macOS 对 Mac App Store 之外分发的软件会检查 Developer ID 签名和 Apple 公证。
 只有签名 + 公证的版本才能双击直接打开，不弹这个警告。
-当前无证书版本只能做 ad-hoc 签名：它能证明包内文件在构建后没有被改动，但不能替代 Apple 的开发者身份验证。
+当前无证书版本只能做 ad-hoc 签名：它能证明包内文件在构建后没有被改动，但不能替代 Apple 的开发者身份验证。macOS 15+ 不再提供 Finder 右键单次放行，因此用安装脚本在落盘后清除隔离属性。
 
 【本文件在哪里】
-- DMG 根目录：打开帮助.txt
+- DMG 根目录：打开帮助.txt、安装-A-File-Manager.sh
 - App 包内：A File Manager.app/Contents/Resources/resources/macos-open-help.txt
-- Release 资产：A.File.Manager_<版本>_macos-open-help.txt
+- Release 资产：A.File.Manager_<版本>_macos-open-help.txt、A.File.Manager_<版本>_macos-install.sh
