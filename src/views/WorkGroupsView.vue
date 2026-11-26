@@ -17,6 +17,8 @@ import {
 } from "../state/navigatorBrowse";
 import { displayNameFromPath } from "../state/openState";
 import type { WorkGroupOpenState } from "../state/openState";
+import { normalizePathKey } from "../state/pathKey";
+import { isTabPinned } from "../state/tabPins";
 import { ensureWorkGroupActive, pendingRenameWorkGroupId, workGroupDisplayName } from "../state/workGroup";
 import { workGroupsDoc } from "../state/workGroup";
 import { createListPointerReorder } from "../state/listPointerReorder";
@@ -69,6 +71,29 @@ const active = computed(
 );
 
 const liveTabs = computed(() => (liveOpenState.value?.tabGroups ?? []).flat());
+
+/** 成员路径比较键：原生分隔符 + 忽略末尾分隔符 + 大小写不敏感（与后端一致）。 */
+function memberPathKey(path: string): string {
+  const text = (path ?? "").trim();
+  const withoutTail = text.replace(/[\\/]+$/, "");
+  const kept =
+    withoutTail.length >= 2 && !/^[a-z]:$/i.test(withoutTail) ? withoutTail : text;
+  return normalizePathKey(kept);
+}
+
+const memberPathKeys = computed(
+  () => new Set((active.value?.memberPaths ?? []).map(memberPathKey)),
+);
+
+/** 这个打开的标签是否已经是固定成员。 */
+function isHardMember(path: string): boolean {
+  return memberPathKeys.value.has(memberPathKey(path));
+}
+
+/** 只有普通文件夹标签能作为固定成员（guide / 回收站 / provider 不是文件夹）。 */
+function canBeMember(tab: { type?: string }): boolean {
+  return (tab.type || "directory") === "directory";
+}
 
 function pathLabel(path: string): string {
   return displayNameFromPath(path);
@@ -311,6 +336,46 @@ async function saveMembersFromTabs() {
     workGroupId: active.value.id,
     liveOpenState: snapshotLiveOpenState(),
   });
+}
+
+/**
+ * 把某个打开的标签提升为固定成员（追加语义：只加这一个，不动其它成员）。
+ * 后端 add_member 会顺带把成员补进运行时 Open State；这里标签本来就开着，
+ * 因此正常不会新开标签，也不会动焦点。
+ */
+async function addTabToMembers(tab: { id: string; path: string; name?: string }) {
+  if (!active.value) return;
+  const path = (tab.path ?? "").trim();
+  if (!path || isHardMember(path)) return;
+  error.value = null;
+  try {
+    // AIA-245：固定标签属于会话而非工作组，常规剥离 pin 再下发；
+    // 点到的正是 pin 本身时带全量快照，否则后端会当成"未打开"再开一个同路径标签。
+    const liveOpenState = isTabPinned(tab.id)
+      ? snapshotLiveOpenState()
+      : snapshotLeavingOpenState();
+    const [nextDoc, nextOpen, soft] = await invoke<
+      [UserWorkGroups, WorkGroupOpenState, SoftNotice | null]
+    >("work_groups_add_member", {
+      workGroupId: active.value.id,
+      memberPath: path,
+      liveOpenState,
+    });
+    document.value = nextDoc;
+    rememberHydratedWorkGroups(nextDoc);
+    workGroupsDoc.value = nextDoc;
+    if (soft) {
+      toastInfo(t("workGroups.softSync", { paths: soft.openedMemberPaths.join(", ") }));
+      await restoreWorkGroupOpenState(active.value.id, nextOpen);
+    }
+    toastSuccess(
+      t("workGroups.addedTabToMembers", { name: tab.name || pathLabel(path) }),
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    error.value = msg;
+    toastError(msg);
+  }
 }
 
 async function removeMember(path: string) {
@@ -891,6 +956,17 @@ onUnmounted(() => {
               </span>
             </button>
             <div class="path-card-actions">
+              <button
+                v-if="canBeMember(tab)"
+                type="button"
+                class="fluent-control path-card-promote"
+                :title="isHardMember(tab.path) ? t('workGroups.alreadyMember') : t('workGroups.addTabToMembers')"
+                :aria-label="isHardMember(tab.path) ? t('workGroups.alreadyMember') : t('workGroups.addTabToMembers')"
+                :disabled="isHardMember(tab.path)"
+                @click.stop="addTabToMembers(tab)"
+              >
+                <FluentIcon name="arrowUp" size="sm" />
+              </button>
               <button
                 type="button"
                 class="fluent-control path-card-copy"

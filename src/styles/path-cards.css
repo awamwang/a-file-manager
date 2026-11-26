@@ -89,6 +89,7 @@
 }
 
 .path-card-copy,
+.path-card-promote,
 .path-card-remove {
   flex-shrink: 0;
   align-self: flex-start;
@@ -100,6 +101,17 @@
 .path-card-copy:hover,
 .path-card-copy:focus-visible {
   color: var(--fluent-color-fill-accent);
+}
+
+/* ↑「添加到成员」：可用时用强调色，禁用（已是成员）时退回禁用色。 */
+.path-card-promote:hover:not(:disabled),
+.path-card-promote:focus-visible:not(:disabled) {
+  color: var(--fluent-color-fill-accent);
+}
+
+.path-card-promote:disabled {
+  color: var(--fluent-color-text-disabled);
+  cursor: default;
 }
 
 .path-card-remove:hover,
