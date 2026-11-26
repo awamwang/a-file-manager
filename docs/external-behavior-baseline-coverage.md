@@ -108,6 +108,7 @@ Rule reminders: no e2e; `#[ignore]` ≠ coverage; FE↔BE command-name parity is
 | provider download/extract, ext_host install_from_feed (network) | STATIC | `check-provider-download.mjs`, `check-feature-pack-shell.mjs` | real network intentionally not made mandatory |
 | provider error classification | STATIC · FE | `check-provider-error-hint.mjs` → `provider-error-message-checks.ts` | order-sensitive |
 | three Feature Packs ship native macOS sidecars (ADR 0022) | STATIC | `check-mac-pack-release.mjs` | 2026-11-24: 三平台矩阵（Windows / macos-aarch64 / macos-x86_64）各建三个 pack；任一失败阻断 merge 并保留 draft（禁 `continue-on-error` / `always()`）；产物 ad-hoc 签名、按 `(packId, platform)` 入 feed。本机 x86_64 实测三产物均为 Mach-O + adhoc，manifest 三条 `macos-x86_64` |
+| winget 社区源清单生成（Awam.AFileManager，ADR 0031） | STATIC · FE | `check-winget-channel.mjs` | 2026-11-27: `package-winget.mjs` 导出纯函数（目录小写首级 / defaultLocale 区分 / SHA 校验 / 拒预发布版本）真执行断言 + 脚本静态针；`winget validate` 成功判定解析输出文本（succeeded 也非零退出）；v0.3.0 冒烟通过（4 文件 validate succeeded） |
 
 ## Navigation / shell places
 
