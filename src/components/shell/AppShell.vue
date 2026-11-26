@@ -190,7 +190,6 @@ import { loadShowHidden, setShowHidden, showHiddenItems } from "../../state/show
 import {
   MAX_DRILL_DEPTH,
   clearDrill,
-  drillDepth,
   drillPaneState,
   enableDrill,
   isInsideDrillTree,
@@ -300,6 +299,7 @@ function togglePlacesMenu() {
   viewModeMenuOpen.value = false;
   sortMenuOpen.value = false;
   groupMenuOpen.value = false;
+  drillMenuOpen.value = false;
   if (placesMenuOpen.value) {
     closePlacesMenu();
   } else {
@@ -337,6 +337,7 @@ function onPlacesMenuDragOver(event: DragEvent) {
       viewModeMenuOpen.value = false;
       sortMenuOpen.value = false;
       groupMenuOpen.value = false;
+      drillMenuOpen.value = false;
       placesMenuOpen.value = true;
     });
   }
@@ -393,6 +394,7 @@ function toggleWorkGroupMenu() {
   viewModeMenuOpen.value = false;
   sortMenuOpen.value = false;
   groupMenuOpen.value = false;
+  drillMenuOpen.value = false;
   workGroupMenuOpen.value = !workGroupMenuOpen.value;
   if (workGroupMenuOpen.value) {
     // Fresh disk read when opening the menu (startup hydrate is single-flight).
@@ -409,6 +411,7 @@ function toggleViewModeMenu() {
   workGroupMenuOpen.value = false;
   sortMenuOpen.value = false;
   groupMenuOpen.value = false;
+  drillMenuOpen.value = false;
   viewModeMenuOpen.value = !viewModeMenuOpen.value;
 }
 
@@ -422,6 +425,7 @@ function toggleSortMenu() {
   workGroupMenuOpen.value = false;
   viewModeMenuOpen.value = false;
   groupMenuOpen.value = false;
+  drillMenuOpen.value = false;
   sortMenuOpen.value = !sortMenuOpen.value;
 }
 
@@ -445,6 +449,7 @@ function toggleGroupMenu() {
   workGroupMenuOpen.value = false;
   viewModeMenuOpen.value = false;
   sortMenuOpen.value = false;
+  drillMenuOpen.value = false;
   groupMenuOpen.value = !groupMenuOpen.value;
 }
 
@@ -476,9 +481,18 @@ const drillPane = computed(() =>
 /** Drill state of that pane. */
 const drillState = computed(() => drillPaneState(drillPane.value));
 
+/**
+ * The depth the toolbar's pane is actually flattened at.
+ *
+ * Not the global `drillDepth` — that is only the *preferred* level for the
+ * next activation. Each pane runs at the depth it was drilled with, so two
+ * panes can drill at different levels at the same time.
+ */
+const drillPaneDepth = computed(() => drillState.value.depth.value);
+
 /** Drill-through is live in the toolbar's pane (enabled and depth > 0). */
 const drillActive = computed(
-  () => drillState.value.enabled.value && drillDepth.value > 0,
+  () => drillState.value.enabled.value && drillPaneDepth.value > 0,
 );
 
 /**
@@ -487,7 +501,7 @@ const drillActive = computed(
  * its own path row and badge inside the Navigator view).
  */
 const primaryDrillActive = computed(
-  () => primaryDrill.enabled.value && drillDepth.value > 0,
+  () => primaryDrill.enabled.value && primaryDrill.depth.value > 0,
 );
 
 /** Selectable depth levels (1..5). */
@@ -602,6 +616,7 @@ function closeChromeMenus() {
   closeViewModeMenu();
   closeSortMenu();
   closeGroupMenu();
+  closeDrillMenu();
   closeCrumbMenu();
   closeTabContextMenu();
 }
@@ -617,6 +632,7 @@ async function toggleCrumbMenu(
 ) {
   closePlacesMenu();
   closeWorkGroupMenu();
+  closeDrillMenu();
   if (crumbMenuIndex.value === index) {
     closeCrumbMenu();
     return;
@@ -1001,6 +1017,7 @@ function onGlobalKeydown(event: KeyboardEvent) {
       viewModeMenuOpen.value ||
       sortMenuOpen.value ||
       groupMenuOpen.value ||
+      drillMenuOpen.value ||
       crumbMenuIndex.value !== null ||
       tabContextGroupIndex.value !== null)
   ) {
@@ -1020,6 +1037,7 @@ function onDocumentPointerDown(event: PointerEvent) {
     !viewModeMenuOpen.value &&
     !sortMenuOpen.value &&
     !groupMenuOpen.value &&
+    !drillMenuOpen.value &&
     crumbMenuIndex.value === null &&
     tabContextGroupIndex.value === null
   ) {
@@ -1032,6 +1050,7 @@ function onDocumentPointerDown(event: PointerEvent) {
   const viewRoot = document.getElementById("navigator-view-mode-menu");
   const sortRoot = document.getElementById("navigator-sort-menu");
   const groupRoot = document.getElementById("navigator-group-menu");
+  const drillRoot = document.getElementById("navigator-drill-menu");
   const crumbBar = document.getElementById("navigator-crumb-menu");
   const crumbFlyout = document.getElementById("navigator-crumb-siblings");
   const tabMenu = document.getElementById("navigator-tab-context-menu");
@@ -1050,6 +1069,9 @@ function onDocumentPointerDown(event: PointerEvent) {
   }
   if (groupMenuOpen.value && groupRoot && !groupRoot.contains(target)) {
     closeGroupMenu();
+  }
+  if (drillMenuOpen.value && drillRoot && !drillRoot.contains(target)) {
+    closeDrillMenu();
   }
   if (
     tabContextGroupIndex.value !== null &&
@@ -1336,6 +1358,11 @@ const browseStatusText = computed(() => {
         count: primaryDrill.sourceDirCount.value,
       }),
     ];
+    if (primaryDrill.limitReached.value) {
+      parts.push(
+        t("chrome.drillLimited", { limit: primaryDrill.limit.value }),
+      );
+    }
     if (selectedPaths.value.length) {
       const bytes = selectionByteSize(selectedPaths.value, entries);
       parts.push(
@@ -2941,12 +2968,12 @@ onUnmounted(() => {
                 type="button"
                 class="fluent-list-row places-item"
                 role="menuitemradio"
-                :aria-checked="drillActive && drillDepth === depth"
-                :class="{ 'places-item--active': drillActive && drillDepth === depth }"
+                :aria-checked="drillActive && drillPaneDepth === depth"
+                :class="{ 'places-item--active': drillActive && drillPaneDepth === depth }"
                 @click="chooseDrillDepth(depth)"
               >
                 <FluentIcon
-                  :name="drillActive && drillDepth === depth ? 'check' : 'viewAll'"
+                  :name="drillActive && drillPaneDepth === depth ? 'check' : 'viewAll'"
                   size="sm"
                   class="places-item-check"
                 />
@@ -3054,7 +3081,7 @@ onUnmounted(() => {
                 @click.stop="choosePrimaryDrillOff"
               >
                 <FluentIcon name="drill" size="sm" force-svg class="crumb-drill-icon" />
-                <span class="crumb-label">{{ t("chrome.drillChip", { depth: drillDepth }) }}</span>
+                <span class="crumb-label">{{ t("chrome.drillChip", { depth: primaryDrill.depth.value }) }}</span>
               </button>
             </template>
             <span v-else class="crumb-placeholder">{{ t("chrome.pathPlaceholder") }}</span>

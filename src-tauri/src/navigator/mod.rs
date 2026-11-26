@@ -61,10 +61,16 @@ pub async fn navigator_drill_list(
     path: String,
     depth: u32,
     show_hidden: Option<bool>,
+    limit: Option<usize>,
 ) -> Result<drill::DrillListing, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let t0 = std::time::Instant::now();
-        let result = drill::drill_directory(&path, depth, show_hidden.unwrap_or(false));
+        let result = drill::drill_directory(
+            &path,
+            depth,
+            show_hidden.unwrap_or(false),
+            limit.unwrap_or(drill::DEFAULT_DRILL_LIMIT),
+        );
         match &result {
             Ok(listing) => crate::perf_log::afm_perf_line(format!(
                 "AFM_PERF navigator_drill_list n={} {:.1}ms depth={} path={}",

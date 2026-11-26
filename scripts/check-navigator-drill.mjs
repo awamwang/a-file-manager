@@ -39,8 +39,25 @@ assert.ok(drillRust.includes("pub struct DrillListing"), "DrillListing 结构");
 assert.ok(drillRust.includes("pub relative_path: String"), "条目带根相对路径");
 assert.ok(drillRust.includes("pub source_dir_count: u64"), "来源子文件夹计数");
 assert.ok(drillRust.includes("pub truncated: bool"), "截断标志");
-assert.ok(drillRust.includes("const MAX_RESULTS: usize = 2_000;"), "结果上限 2000");
+assert.ok(drillRust.includes("pub limit_reached: bool"), "行数上限标志");
+assert.ok(drillRust.includes("pub visited: u64"), "访问计数");
+assert.ok(
+  drillRust.includes("pub const DEFAULT_DRILL_LIMIT: usize = 2_000;"),
+  "默认行数上限 2000",
+);
+assert.ok(
+  drillRust.includes("pub const MAX_DRILL_LIMIT: usize = 20_000;"),
+  "行数上限硬顶 20000",
+);
 assert.ok(drillRust.includes("const MAX_VISITED: usize = 20_000;"), "访问上限 20000");
+assert.ok(
+  drillRust.includes("const MAX_VISITED_HARD: usize = 100_000;"),
+  "访问上限硬顶 100000",
+);
+assert.ok(
+  drillRust.includes("MAX_VISITED\n        .max(limit.saturating_mul(2))"),
+  "访问预算随行数上限缩放",
+);
 assert.ok(drillRust.includes("pub const MAX_DRILL_DEPTH: u32 = 5;"), "最深 5 层");
 assert.ok(drillRust.includes("max_depth(max_walk_depth)"), "按深度限制遍历");
 assert.ok(drillRust.includes("min_depth(1)"), "不含根自身");
@@ -77,6 +94,13 @@ assert.ok(state.includes("export function drillTargetPath"), "写入落点");
 assert.ok(state.includes("export function resolveDrillPane"), "焦点窗格判定");
 assert.ok(state.includes("export const MAX_DRILL_DEPTH = 5;"), "档位上限 5");
 assert.ok(state.includes('invoke<DrillListingWire>("navigator_drill_list"'), "调用新命令");
+// 生效深度是每窗格的：徽标/勾选不能读全局偏好。
+assert.ok(state.includes("depth: Ref<number>"), "每窗格记录生效深度");
+assert.ok(state.includes("limit: Ref<number>"), "每窗格记录行数上限");
+assert.ok(state.includes("state.depth.value = depth"), "加载时写入生效深度");
+assert.ok(state.includes("export async function loadMoreDrill"), "加载更多");
+assert.ok(state.includes("export const MAX_DRILL_LIMIT = 20_000;"), "行数上限硬顶");
+assert.ok(state.includes("export const DEFAULT_DRILL_LIMIT = 2_000;"), "默认行数上限");
 // 开关是会话态：不得随 settings 落盘。
 assert.ok(!state.includes('"core.navigatorDrillEnabled"'), "开关不落盘");
 
@@ -99,12 +123,50 @@ assert.ok(shell.includes("drillMenuOpen"), "菜单开合状态");
 assert.ok(shell.includes("crumb--drill"), "面包屑 chip");
 assert.ok(shell.includes("chrome.drillChip"), "面包屑 chip 文案");
 assert.ok(shell.includes("chrome.drillSources"), "状态栏来源子文件夹数");
+assert.ok(shell.includes("chrome.drillLimited"), "状态栏行数上限提示");
 assert.ok(shell.includes("tabDrillSuffix(tab.path)"), "标签标题后缀");
 assert.ok(shell.includes("chrome.drillTabSuffix"), "标签后缀文案");
 assert.ok(view.includes("pane-path-drill"), "窗格路径行徽标");
 assert.ok(view.includes("navigator.drillBadge"), "窗格徽标文案");
 assert.ok(view.includes("entryRelativePath(item.entry)"), "行内相对路径");
 assert.ok(view.includes("navigator.drillTruncated"), "截断横幅");
+assert.ok(view.includes("navigator.drillLoadMore"), "加载更多按钮");
+assert.ok(view.includes("navigator.drillLoading"), "加载中提示");
+assert.ok(view.includes("navigator.drillError"), "加载失败提示");
+
+// ---- 深度切换必须真正刷新：徽标/勾选读本窗格生效深度，不是全局偏好 ----
+assert.ok(
+  shell.includes(
+    "primaryDrill.enabled.value && primaryDrill.depth.value > 0",
+  ),
+  "主窗格徽标读本窗格生效深度",
+);
+assert.ok(shell.includes("drillPaneDepth === depth"), "菜单勾选读本窗格生效深度");
+assert.ok(
+  !shell.includes("drillActive && drillDepth === depth"),
+  "菜单勾选不得读全局偏好",
+);
+assert.ok(
+  view.includes("primaryDrill.depth.value > 0"),
+  "行来源条件读本窗格生效深度",
+);
+assert.ok(
+  view.includes("secondaryDrill.depth.value > 0"),
+  "副窗格行来源条件读本窗格生效深度",
+);
+assert.ok(!view.includes('t("navigator.drillBadge", { depth: drillDepth })'), "徽标不得读全局偏好");
+
+// ---- 菜单关闭语义与排序/视图/分组一致 ----
+assert.ok(shell.includes("closeDrillMenu"), "关闭穿透菜单");
+assert.ok(
+  shell.includes("drillMenuOpen.value && drillRoot && !drillRoot.contains(target)"),
+  "点击外部关闭穿透菜单",
+);
+assert.ok(shell.includes('getElementById("navigator-drill-menu")'), "穿透菜单容器锚点");
+assert.ok(
+  /drillMenuOpen\.value \|\|/.test(shell),
+  "Esc 关闭穿透菜单",
+);
 
 // ---- 写入落点=穿透根；双击=树内定位 ----
 assert.ok(view.includes("drillTargetPath(\"primary\", currentPath.value)"), "新建落点=穿透根");
@@ -137,13 +199,23 @@ for (const loc of LOCALES) {
     "drillChipTitle",
     "drillTabSuffix",
     "drillSources",
+    "drillLimited",
   ]) {
     assert.ok(
       typeof doc.chrome[key] === "string" && doc.chrome[key].length > 0,
       `${loc}.chrome.${key}`,
     );
   }
-  for (const key of ["drillBadge", "drillWriteTarget", "drillTruncated"]) {
+  for (const key of [
+    "drillBadge",
+    "drillWriteTarget",
+    "drillTruncated",
+    "drillTruncatedBudget",
+    "drillLoadMore",
+    "drillLoading",
+    "drillError",
+    "drillRetry",
+  ]) {
     assert.ok(
       typeof doc.navigator[key] === "string" && doc.navigator[key].length > 0,
       `${loc}.navigator.${key}`,

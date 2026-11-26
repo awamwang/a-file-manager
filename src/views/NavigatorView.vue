@@ -207,10 +207,11 @@ import {
   clearNavigatorFilter,
 } from "../state/navigatorFilter";
 import {
-  drillDepth,
   drillTargetPath,
   entryRelativePath,
+  loadMoreDrill,
   primaryDrill,
+  refreshDrill,
   secondaryDrill,
 } from "../state/navigatorDrill";
 import { toastError, toastInfo, toastSuccess } from "../state/toast";
@@ -773,20 +774,57 @@ const folderSearchActive = computed(() => navigatorFilterQuery.value.trim().leng
  *    running in-folder search).
  *  - `drillRowsActive` — the rows really come from the flattened tree (false
  *    while a search takes precedence).
+ *
+ * The depth comes from the pane's own state, not the global preference: each
+ * pane runs at the depth it was drilled with, so two panes can differ.
  */
-const drillActive = computed(() => primaryDrill.enabled.value && drillDepth.value > 0);
+const drillActive = computed(
+  () => primaryDrill.enabled.value && primaryDrill.depth.value > 0,
+);
 const drillRowsActive = computed(
-  () => !folderSearchActive.value && primaryDrill.enabled.value && drillDepth.value > 0,
+  () =>
+    !folderSearchActive.value &&
+    primaryDrill.enabled.value &&
+    primaryDrill.depth.value > 0,
 );
 const drillTruncated = computed(() => primaryDrill.truncated.value);
+const drillLimitReached = computed(() => primaryDrill.limitReached.value);
+const drillLoading = computed(() => primaryDrill.loading.value);
+const drillError = computed(() => primaryDrill.error.value);
 const drillSourceDirCount = computed(() => primaryDrill.sourceDirCount.value);
 const secondaryDrillActive = computed(
-  () => secondaryDrill.enabled.value && drillDepth.value > 0,
+  () => secondaryDrill.enabled.value && secondaryDrill.depth.value > 0,
 );
 const secondaryDrillRowsActive = computed(
-  () => !folderSearchActive.value && secondaryDrill.enabled.value && drillDepth.value > 0,
+  () =>
+    !folderSearchActive.value &&
+    secondaryDrill.enabled.value &&
+    secondaryDrill.depth.value > 0,
 );
 const secondaryDrillTruncated = computed(() => secondaryDrill.truncated.value);
+const secondaryDrillLimitReached = computed(
+  () => secondaryDrill.limitReached.value,
+);
+const secondaryDrillLoading = computed(() => secondaryDrill.loading.value);
+const secondaryDrillError = computed(() => secondaryDrill.error.value);
+
+/**
+ * Show more flattened rows: widen the row cap and walk again. Not paging —
+ * the whole result set comes back and is sorted here, so "the first N rows"
+ * stays "the first N rows after sorting".
+ */
+async function drillLoadMore(pane: "primary" | "secondary"): Promise<void> {
+  await loadMoreDrill(pane);
+}
+
+async function secondaryDrillLoadMore(): Promise<void> {
+  await loadMoreDrill("secondary");
+}
+
+/** Retry a failed drill load with the same depth and row cap. */
+async function drillRetry(pane: "primary" | "secondary"): Promise<void> {
+  await refreshDrill(pane);
+}
 
 const visibleEntries = computed(() => {
   if (folderSearchActive.value) {
@@ -2697,13 +2735,29 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         class="pane-path-drill"
         :title="t('chrome.drillSources', { count: drillSourceDirCount })"
       >
-        {{ t("navigator.drillBadge", { depth: drillDepth }) }}
+        {{ t("navigator.drillBadge", { depth: primaryDrill.depth.value }) }}
       </span>
       <HelpLink entry-id="navigator" tour data-tour-id="tour-navigator-help" />
     </div>
     <ProviderErrorBanner v-if="listError && !listLoading" :error="listError" />
     <p v-else-if="folderSearchActive && primarySearchLoading" class="fluent-banner">
       {{ t("navigator.filterSearching") }}
+    </p>
+    <p v-else-if="drillLoading" class="fluent-banner">
+      {{ t("navigator.drillLoading") }}
+    </p>
+    <p
+      v-else-if="drillError"
+      class="fluent-banner fluent-banner--info banner-actionable"
+    >
+      <span>{{ t("navigator.drillError", { error: drillError }) }}</span>
+      <button
+        type="button"
+        class="fluent-control"
+        @click="drillRetry('primary')"
+      >
+        {{ t("navigator.drillRetry") }}
+      </button>
     </p>
     <div
       v-else-if="folderSearchActive && !primarySearchLoading && !visibleEntries.length"
@@ -2737,12 +2791,29 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
     >
       {{ t("navigator.filterTruncated", { count: visibleEntries.length }) }}
     </p>
-    <p
+    <div
       v-if="drillRowsActive && drillTruncated"
-      class="fluent-banner fluent-banner--info"
+      class="fluent-banner fluent-banner--info banner-actionable"
     >
-      {{ t("navigator.drillTruncated", { count: visibleEntries.length }) }}
-    </p>
+      <span>
+        {{
+          drillLimitReached
+            ? t("navigator.drillTruncated", { count: visibleEntries.length })
+            : t("navigator.drillTruncatedBudget", {
+                count: visibleEntries.length,
+                visited: primaryDrill.visited.value,
+              })
+        }}
+      </span>
+      <button
+        v-if="drillLimitReached"
+        type="button"
+        class="fluent-control"
+        @click="drillLoadMore('primary')"
+      >
+        {{ t("navigator.drillLoadMore") }}
+      </button>
+    </div>
 
     <div
       v-if="listing || listLoading"
@@ -2987,18 +3058,53 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         {{ secondaryPath || t("navigator.noPath") }}
       </p>
       <span v-if="secondaryDrillActive" class="pane-path-drill">
-        {{ t("navigator.drillBadge", { depth: drillDepth }) }}
+        {{ t("navigator.drillBadge", { depth: secondaryDrill.depth.value }) }}
       </span>
       <ProviderErrorBanner
         v-if="secondaryError && !secondaryLoading"
         :error="secondaryError"
       />
-      <p
-        v-if="secondaryDrillRowsActive && secondaryDrillTruncated"
-        class="fluent-banner fluent-banner--info"
-      >
-        {{ t("navigator.drillTruncated", { count: secondaryEntries.length }) }}
+      <p v-if="secondaryDrillLoading" class="fluent-banner">
+        {{ t("navigator.drillLoading") }}
       </p>
+      <p
+        v-else-if="secondaryDrillError"
+        class="fluent-banner fluent-banner--info banner-actionable"
+      >
+        <span>{{ t("navigator.drillError", { error: secondaryDrillError }) }}</span>
+        <button
+          type="button"
+          class="fluent-control"
+          @click="drillRetry('secondary')"
+        >
+          {{ t("navigator.drillRetry") }}
+        </button>
+      </p>
+      <div
+        v-if="secondaryDrillRowsActive && secondaryDrillTruncated"
+        class="fluent-banner fluent-banner--info banner-actionable"
+      >
+        <span>
+          {{
+            secondaryDrillLimitReached
+              ? t("navigator.drillTruncated", {
+                  count: secondaryEntries.length,
+                })
+              : t("navigator.drillTruncatedBudget", {
+                  count: secondaryEntries.length,
+                  visited: secondaryDrill.visited.value,
+                })
+          }}
+        </span>
+        <button
+          v-if="secondaryDrillLimitReached"
+          type="button"
+          class="fluent-control"
+          @click="secondaryDrillLoadMore"
+        >
+          {{ t("navigator.drillLoadMore") }}
+        </button>
+      </div>
       <div
         v-if="secondaryListing || secondaryLoading"
         ref="secondaryListRoot"

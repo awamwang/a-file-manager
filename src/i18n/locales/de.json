@@ -184,6 +184,7 @@
     "drillChipTitle": "Klicken, um die Unterordner-Ansicht zu beenden",
     "drillTabSuffix": "· Unterordner",
     "drillSources": "aus {count} Unterordnern",
+    "drillLimited": "bei {limit} Einträgen gedeckelt",
     "groupNone": "Keine",
     "sortAscending": "Aufsteigend",
     "sortDescending": "Absteigend",
@@ -914,7 +915,12 @@
     "filterTruncated": "Nur die ersten {count} Treffer.",
     "drillBadge": "Ebene {depth}",
     "drillWriteTarget": "Wird erstellt in {path}",
-    "drillTruncated": "Nur die ersten {count} Einträge (Unterordner-Ansicht wurde begrenzt).",
+    "drillTruncated": "Nur die ersten {count} Einträge — es sind weitere vorhanden.",
+    "drillTruncatedBudget": "{visited} Einträge durchsucht — der Ordner ist zu groß, daher nur {count} Einträge.",
+    "drillLoadMore": "Mehr laden",
+    "drillLoading": "Unterordner werden abgeflacht…",
+    "drillError": "Unterordner-Ansicht fehlgeschlagen: {error}",
+    "drillRetry": "Erneut versuchen",
     "colModified": "Änderungsdatum"
   },
   "projects": {

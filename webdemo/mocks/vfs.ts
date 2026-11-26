@@ -311,15 +311,19 @@ export function handle(cmd: string, a: any = {}): any {
         });
       };
       walk(rn, root, 1, "");
-      const truncated = out.length > 2000;
-      const entries = out.slice(0, 2000);
+      // ADR 0031: the row cap is request-driven — "load more" raises it.
+      const limit = Math.max(1, Math.min(20000, Number(a.limit) || 2000));
+      const limitReached = out.length > limit;
+      const entries = out.slice(0, limit);
       return {
         path: root,
         entries,
         dirCount: entries.filter((e) => e.kind === "dir").length,
         fileCount: entries.filter((e) => e.kind === "file").length,
         sourceDirCount: sources.size,
-        truncated,
+        truncated: limitReached,
+        limitReached,
+        visited: out.length,
       };
     }
     case "shell_icon_get_many": return [];

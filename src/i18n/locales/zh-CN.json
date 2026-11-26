@@ -219,6 +219,7 @@
     "drillChipTitle": "点击关闭穿透",
     "drillTabSuffix": "· 穿透",
     "drillSources": "来自 {count} 个子文件夹",
+    "drillLimited": "已达 {limit} 项上限",
     "groupNone": "无",
     "sortAscending": "递增",
     "sortDescending": "递减",
@@ -682,7 +683,12 @@
     "filterTruncated": "只显示前 {count} 个结果。",
     "drillBadge": "穿透 {depth} 层",
     "drillWriteTarget": "将创建在 {path}",
-    "drillTruncated": "穿透结果已截断，仅显示前 {count} 项。",
+    "drillTruncated": "仅显示前 {count} 项，还有更多结果可加载。",
+    "drillTruncatedBudget": "已扫描 {visited} 项，目录过大，仅显示 {count} 项。",
+    "drillLoadMore": "加载更多",
+    "drillLoading": "正在摊平子文件夹…",
+    "drillError": "穿透失败：{error}",
+    "drillRetry": "重试",
     "colModified": "修改日期"
   },
   "discovery": {

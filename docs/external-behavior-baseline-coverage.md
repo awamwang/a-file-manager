@@ -128,7 +128,7 @@ Rule reminders: no e2e; `#[ignore]` ≠ coverage; FE↔BE command-name parity is
 
 | Behavior | Layers | Gate / test | Notes |
 | --- | --- | --- | --- |
-| 穿透视图：把当前目录的子文件夹摊平进同一列表，深度可调（ADR 0031） | STATIC · FE · CARGO | `check-navigator-drill.mjs` → `navigator-drill-checks.ts`（深度档位收敛、树内判定、排序键=根相对路径、写入落点=穿透根 真执行 + 六语言 i18n 针）；`navigator/drill.rs` 6 tests（深度 1/2 语义、深度 0 不遍历、相对层级、隐藏项、拒 awam://）；`migrate.rs` v17→v18 2 tests | 资源管理器的显示模式（左侧导航不变）；入口＝工具条「图标 + chevron」弹层（关闭 / 1…5 层）；穿透根与当前位置是两个概念，树内双击＝树内定位，走出树则自动关闭；名称按根相对路径排，普通视图等价；新建/粘贴落点=穿透根；上限 2000 行 / 20000 次访问，超出截断横幅；档位持久化（`core.navigatorDrillDepth`，v18），开关会话级 |
+| 穿透视图：把当前目录的子文件夹摊平进同一列表，深度可调（ADR 0031） | STATIC · FE · CARGO | `check-navigator-drill.mjs` → `navigator-drill-checks.ts`（深度档位收敛、每窗格生效深度隔离、行数上限翻倍曲线、树内判定、排序键=根相对路径、写入落点=穿透根 真执行 + 六语言 i18n 针）；`navigator/drill.rs` 10 tests（深度 1/2 语义、深度 0 不遍历、相对层级、隐藏项、拒 awam://、limit 截断/回退/硬顶）；`migrate.rs` v17→v18 2 tests | 资源管理器的显示模式（左侧导航不变）；入口＝工具条「图标 + chevron」弹层（关闭 / 1…5 层），关闭语义与排序/视图/分组一致（外部点击 / Esc / 互斥）；穿透根与当前位置是两个概念，树内双击＝树内定位，走出树则自动关闭；生效深度按窗格隔离，徽标/勾选读本窗格实际深度；名称按根相对路径排，普通视图等价；新建/粘贴落点=穿透根；行数上限按请求可调（默认 2000 / 硬顶 20000），「加载更多」翻倍递增而非分页（排序在前端），访问预算随上限缩放（20000×2，硬顶 100000），超限时横幅区分「可加载更多」与「目录过大」并提供加载更多/重试；档位持久化（`core.navigatorDrillDepth`，v18），开关会话级 |
 
 ## Knowledge capability
 

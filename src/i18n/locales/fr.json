@@ -184,6 +184,7 @@
     "drillChipTitle": "Cliquez pour désactiver l'affichage des sous-dossiers",
     "drillTabSuffix": "· Sous-dossiers",
     "drillSources": "de {count} sous-dossiers",
+    "drillLimited": "limité à {limit} éléments",
     "groupNone": "Aucun",
     "sortAscending": "Croissant",
     "sortDescending": "Décroissant",
@@ -914,7 +915,12 @@
     "filterTruncated": "Affichage des {count} premiers résultats.",
     "drillBadge": "Niveau {depth}",
     "drillWriteTarget": "Sera créé dans {path}",
-    "drillTruncated": "Seuls les {count} premiers éléments (affichage des sous-dossiers limité).",
+    "drillTruncated": "Seuls les {count} premiers éléments — d'autres sont disponibles.",
+    "drillTruncatedBudget": "{visited} entrées analysées — le dossier est trop volumineux, {count} éléments affichés.",
+    "drillLoadMore": "Charger plus",
+    "drillLoading": "Aplatissement des sous-dossiers…",
+    "drillError": "Échec de l'affichage des sous-dossiers : {error}",
+    "drillRetry": "Réessayer",
     "colModified": "Date de modification"
   },
   "projects": {

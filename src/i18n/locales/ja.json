@@ -184,6 +184,7 @@
     "drillChipTitle": "クリックでサブフォルダー展開をOFFにします",
     "drillTabSuffix": "· 展開",
     "drillSources": "{count} 個のサブフォルダーから",
+    "drillLimited": "{limit} 件で上限に達しました",
     "groupNone": "なし",
     "sortAscending": "昇順",
     "sortDescending": "降順",
@@ -914,7 +915,12 @@
     "filterTruncated": "先頭 {count} 件だけ表示しています。",
     "drillBadge": "展開 {depth}",
     "drillWriteTarget": "{path} に作成されます",
-    "drillTruncated": "先頭 {count} 件のみ表示しています（サブフォルダー展開は途中で打ち切られました）。",
+    "drillTruncated": "先頭 {count} 件のみ表示しています — さらに読み込めます。",
+    "drillTruncatedBudget": "{visited} 件を走査しました。フォルダーが大きすぎるため {count} 件のみ表示しています。",
+    "drillLoadMore": "さらに読み込む",
+    "drillLoading": "サブフォルダーを展開しています…",
+    "drillError": "サブフォルダー展開に失敗しました: {error}",
+    "drillRetry": "再試行",
     "colModified": "更新日時"
   },
   "projects": {

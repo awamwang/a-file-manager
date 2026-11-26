@@ -17,13 +17,19 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
-/// Browse-mode result cap. The in-folder search keeps its own 400 because it
-/// is a "find the needle" surface; drill-through is a browsing surface.
-const MAX_RESULTS: usize = 2_000;
+/// Rows returned per request when the caller does not ask for more.
+pub const DEFAULT_DRILL_LIMIT: usize = 2_000;
 
-/// Visited-entry cap — the real filesystem protection. A deep tree must never
-/// stall the UI; the walk stops here and reports `truncated`.
+/// Hard ceiling on rows one request may return. The frontend raises the limit
+/// progressively ("load more") — it never asks for more than this.
+pub const MAX_DRILL_LIMIT: usize = 20_000;
+
+/// Visited-entry budget for a default request — the filesystem protection.
+/// A deep tree must never stall the UI; the walk stops here.
 const MAX_VISITED: usize = 20_000;
+
+/// Absolute ceiling on visited entries, whatever limit was asked for.
+const MAX_VISITED_HARD: usize = 100_000;
 
 /// Deepest drill depth the UI may request.
 pub const MAX_DRILL_DEPTH: u32 = 5;
@@ -59,9 +65,19 @@ pub struct DrillListing {
     pub source_dir_count: u64,
     /// A cap cut the walk short.
     pub truncated: bool,
+    /// The requested row limit stopped the walk — more rows exist and asking
+    /// for a bigger limit shows them.
+    pub limit_reached: bool,
+    /// Filesystem entries the walk visited (diagnostics + banner text).
+    pub visited: u64,
 }
 
-pub fn drill_directory(root: &str, depth: u32, show_hidden: bool) -> Result<DrillListing, String> {
+pub fn drill_directory(
+    root: &str,
+    depth: u32,
+    show_hidden: bool,
+    limit: usize,
+) -> Result<DrillListing, String> {
     assert_os_path(root)?;
 
     let root_path = Path::new(root.trim());
@@ -79,6 +95,8 @@ pub fn drill_directory(root: &str, depth: u32, show_hidden: bool) -> Result<Dril
             file_count: 0,
             source_dir_count: 0,
             truncated: false,
+            limit_reached: false,
+            visited: 0,
         });
     }
 
@@ -87,9 +105,22 @@ pub fn drill_directory(root: &str, depth: u32, show_hidden: bool) -> Result<Dril
     // contents of the deepest expanded subfolder level (walk depth depth+1).
     let max_walk_depth = depth as usize + 1;
 
+    // The row limit is request-driven so the user can widen it ("load more").
+    // The visit budget follows it, because a bigger limit needs a bigger walk
+    // — boundary folders are visited but produce no row.
+    let limit = if limit == 0 {
+        DEFAULT_DRILL_LIMIT
+    } else {
+        limit.min(MAX_DRILL_LIMIT)
+    };
+    let visit_budget = MAX_VISITED
+        .max(limit.saturating_mul(2))
+        .min(MAX_VISITED_HARD);
+
     let mut entries: Vec<DrillEntry> = Vec::new();
     let mut source_dirs: BTreeSet<PathBuf> = BTreeSet::new();
     let mut truncated = false;
+    let mut limit_reached = false;
     let mut visited = 0usize;
 
     for item in WalkDir::new(root_path)
@@ -108,7 +139,7 @@ pub fn drill_directory(root: &str, depth: u32, show_hidden: bool) -> Result<Dril
         })
     {
         visited += 1;
-        if visited > MAX_VISITED {
+        if visited > visit_budget {
             truncated = true;
             break;
         }
@@ -159,8 +190,9 @@ pub fn drill_directory(root: &str, depth: u32, show_hidden: bool) -> Result<Dril
             depth: walk_depth.saturating_sub(1) as u32,
         });
 
-        if entries.len() >= MAX_RESULTS {
+        if entries.len() >= limit {
             truncated = true;
+            limit_reached = true;
             break;
         }
     }
@@ -177,6 +209,8 @@ pub fn drill_directory(root: &str, depth: u32, show_hidden: bool) -> Result<Dril
         file_count,
         source_dir_count: source_dirs.len() as u64,
         truncated,
+        limit_reached,
+        visited: visited as u64,
     })
 }
 
@@ -256,7 +290,7 @@ mod tests {
     #[test]
     fn depth_one_flattens_one_subfolder_level() {
         let dir = tree("depth1");
-        let listing = drill_directory(&dir.to_string_lossy(), 1, true).unwrap();
+        let listing = drill_directory(&dir.to_string_lossy(), 1, true, DEFAULT_DRILL_LIMIT).unwrap();
 
         let mut names: Vec<String> = listing
             .entries
@@ -288,7 +322,7 @@ mod tests {
     #[test]
     fn depth_two_reaches_the_second_subfolder_level() {
         let dir = tree("depth2");
-        let listing = drill_directory(&dir.to_string_lossy(), 2, true).unwrap();
+        let listing = drill_directory(&dir.to_string_lossy(), 2, true, DEFAULT_DRILL_LIMIT).unwrap();
 
         let mut names: Vec<String> = listing
             .entries
@@ -309,7 +343,7 @@ mod tests {
     #[test]
     fn depth_zero_is_empty_and_never_walks() {
         let dir = tree("depth0");
-        let listing = drill_directory(&dir.to_string_lossy(), 0, true).unwrap();
+        let listing = drill_directory(&dir.to_string_lossy(), 0, true, DEFAULT_DRILL_LIMIT).unwrap();
         assert!(listing.entries.is_empty());
         assert_eq!(listing.source_dir_count, 0);
         assert!(!listing.truncated);
@@ -320,7 +354,7 @@ mod tests {
     #[test]
     fn relative_depth_counts_levels_below_the_root() {
         let dir = tree("depths");
-        let listing = drill_directory(&dir.to_string_lossy(), 2, true).unwrap();
+        let listing = drill_directory(&dir.to_string_lossy(), 2, true, DEFAULT_DRILL_LIMIT).unwrap();
 
         let root_file = listing
             .entries
@@ -357,13 +391,13 @@ mod tests {
             .expect("attrib");
         assert!(status.success());
 
-        let concealed = drill_directory(&dir.to_string_lossy(), 1, false).unwrap();
+        let concealed = drill_directory(&dir.to_string_lossy(), 1, false, DEFAULT_DRILL_LIMIT).unwrap();
         assert!(concealed
             .entries
             .iter()
             .all(|entry| entry.name != "secret.txt"));
 
-        let shown = drill_directory(&dir.to_string_lossy(), 1, true).unwrap();
+        let shown = drill_directory(&dir.to_string_lossy(), 1, true, DEFAULT_DRILL_LIMIT).unwrap();
         assert!(shown.entries.iter().any(|entry| entry.name == "secret.txt"));
 
         let _ = fs::remove_dir_all(&dir);
@@ -371,7 +405,64 @@ mod tests {
 
     #[test]
     fn rejects_awam_paths() {
-        let err = drill_directory("awam://local/C:/", 1, false).unwrap_err();
+        let err = drill_directory("awam://local/C:/", 1, false, DEFAULT_DRILL_LIMIT).unwrap_err();
         assert!(err.contains("awam://"));
+    }
+
+    /// root/{a.txt, b.txt, c.txt, d.txt}
+    fn wide_tree(label: &str) -> PathBuf {
+        let dir = scratch(label);
+        for name in ["a.txt", "b.txt", "c.txt", "d.txt"] {
+            write_file(&dir.join(name), name);
+        }
+        dir
+    }
+
+    #[test]
+    fn a_small_limit_cuts_the_walk_and_reports_more_rows() {
+        let dir = wide_tree("limit-cut");
+        let listing = drill_directory(&dir.to_string_lossy(), 1, true, 2).unwrap();
+
+        assert_eq!(listing.entries.len(), 2);
+        assert!(listing.truncated, "the row limit cut the walk short");
+        assert!(listing.limit_reached, "a bigger limit can show more rows");
+        assert!(listing.visited >= 2);
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_limit_above_the_result_count_does_not_truncate() {
+        let dir = wide_tree("limit-fit");
+        let listing = drill_directory(&dir.to_string_lossy(), 1, true, 500).unwrap();
+
+        assert_eq!(listing.entries.len(), 4);
+        assert!(!listing.truncated);
+        assert!(!listing.limit_reached);
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_limit_is_clamped_to_the_hard_ceiling() {
+        let dir = wide_tree("limit-clamp");
+        let listing = drill_directory(&dir.to_string_lossy(), 1, true, usize::MAX).unwrap();
+
+        // The tree fits into any allowed limit, so nothing was cut.
+        assert_eq!(listing.entries.len(), 4);
+        assert!(!listing.limit_reached);
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn zero_limit_falls_back_to_the_default() {
+        let dir = wide_tree("limit-zero");
+        let listing = drill_directory(&dir.to_string_lossy(), 1, true, 0).unwrap();
+
+        assert_eq!(listing.entries.len(), 4);
+        assert!(!listing.limit_reached);
+
+        let _ = fs::remove_dir_all(&dir);
     }
 }

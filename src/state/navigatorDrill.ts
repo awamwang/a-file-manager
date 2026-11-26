@@ -23,10 +23,26 @@ import { normalizePathKey } from "./pathKey.ts";
 /** Deepest level the UI may request (ADR 0031: 0..5, 0 = off). */
 export const MAX_DRILL_DEPTH = 5;
 
+/**
+ * Rows the backend returns per request. The frontend raises this
+ * progressively ("load more") — the row cap is request-driven, not a hard
+ * truncation, so a big tree can be shown in full.
+ */
+export const DEFAULT_DRILL_LIMIT = 2_000;
+
+/** Hard ceiling on rows one request may ask for. */
+export const MAX_DRILL_LIMIT = 20_000;
+
 /** Persisted default when the document has no drill depth yet. */
 export const DEFAULT_DRILL_DEPTH = 2;
 
-/** Persisted preference: the depth level the user last chose (1..5). */
+/**
+ * Persisted preference: the depth level the user last chose (1..5).
+ *
+ * This is the *preferred* level for the next activation — the depth a pane
+ * actually runs at lives in that pane's own state (`DrillPaneState.depth`),
+ * because two panes can drill at different levels at the same time.
+ */
 export const drillDepth = ref(DEFAULT_DRILL_DEPTH);
 
 export type DrillPane = "primary" | "secondary";
@@ -36,12 +52,24 @@ type DrillPaneState = {
   enabled: Ref<boolean>;
   /** The flattened directory (the drill root). */
   root: Ref<string>;
+  /**
+   * The depth this pane is actually flattened at. Read by the badge, the
+   * menu checkmark and the row source — the global `drillDepth` is only the
+   * preferred level, so the two must not be confused.
+   */
+  depth: Ref<number>;
+  /** Row cap the last request used ("load more" raises it). */
+  limit: Ref<number>;
   /** Flattened rows. */
   entries: Ref<NavigatorEntry[]>;
   loading: Ref<boolean>;
   error: Ref<string | null>;
   /** A cap cut the walk short (rows are incomplete). */
   truncated: Ref<boolean>;
+  /** The row cap cut it — a bigger limit would show more rows. */
+  limitReached: Ref<boolean>;
+  /** Filesystem entries the last walk visited. */
+  visited: Ref<number>;
   /** How many subfolders contributed rows (shown as "from N subfolders"). */
   sourceDirCount: Ref<number>;
 };
@@ -50,10 +78,14 @@ function createDrillPane(): DrillPaneState {
   return {
     enabled: ref(false),
     root: ref(""),
+    depth: ref(0),
+    limit: ref(DEFAULT_DRILL_LIMIT),
     entries: shallowRef<NavigatorEntry[]>([]),
     loading: ref(false),
     error: ref(null),
     truncated: ref(false),
+    limitReached: ref(false),
+    visited: ref(0),
     sourceDirCount: ref(0),
   };
 }
@@ -84,6 +116,8 @@ type DrillListingWire = {
   fileCount: number;
   sourceDirCount: number;
   truncated: boolean;
+  limitReached?: boolean;
+  visited?: number;
 };
 
 export function clampDrillDepth(depth: number): number {
@@ -128,11 +162,19 @@ function toNavigatorEntry(entry: DrillEntryWire): NavigatorEntry {
   };
 }
 
-/** Fetch the flattened tree for `root` at `depth`. */
+/**
+ * Fetch the flattened tree for `root` at `depth`.
+ *
+ * `limit` is the row cap for this request. It is request-driven on purpose:
+ * the frontend raises it ("load more") instead of paging, because sorting
+ * happens on the frontend — a paged backend result would break the global
+ * sort order.
+ */
 export async function loadDrill(
   pane: DrillPane,
   root: string,
   depth: number = drillDepth.value,
+  limit: number = DEFAULT_DRILL_LIMIT,
 ): Promise<void> {
   const state = drillPaneState(pane);
   const target = root.trim();
@@ -140,6 +182,7 @@ export async function loadDrill(
     clearDrill(pane);
     return;
   }
+  const rowLimit = Math.min(MAX_DRILL_LIMIT, Math.max(1, Math.trunc(limit)));
   state.loading.value = true;
   state.error.value = null;
   try {
@@ -147,10 +190,15 @@ export async function loadDrill(
       path: target,
       depth,
       showHidden: showHiddenItems.value,
+      limit: rowLimit,
     });
     state.entries.value = (result.entries ?? []).map(toNavigatorEntry);
     state.root.value = result.path || target;
+    state.depth.value = depth;
+    state.limit.value = rowLimit;
     state.truncated.value = Boolean(result.truncated);
+    state.limitReached.value = Boolean(result.limitReached);
+    state.visited.value = result.visited ?? 0;
     state.sourceDirCount.value = result.sourceDirCount ?? 0;
   } catch (err) {
     state.entries.value = [];
@@ -169,14 +217,44 @@ export async function enableDrill(
   const state = drillPaneState(pane);
   state.enabled.value = true;
   state.root.value = root.trim();
-  await loadDrill(pane, root, depth);
+  // A new depth is a new query — the previous row cap does not carry over.
+  state.limit.value = DEFAULT_DRILL_LIMIT;
+  await loadDrill(pane, root, depth, DEFAULT_DRILL_LIMIT);
+}
+
+/**
+ * The next row cap for "load more": double it, capped at the hard ceiling.
+ * Pure function so the gate can pin the growth curve.
+ */
+export function nextDrillLimit(current: number): number {
+  if (!Number.isFinite(current) || current <= 0) return DEFAULT_DRILL_LIMIT;
+  return Math.min(MAX_DRILL_LIMIT, Math.trunc(current) * 2);
+}
+
+/**
+ * Show more flattened rows: widen the row cap and walk again.
+ *
+ * Not paging — the whole result set is returned and sorted on the frontend,
+ * so "the first N rows" stays "the first N rows after sorting".
+ */
+export async function loadMoreDrill(pane: DrillPane): Promise<void> {
+  const state = drillPaneState(pane);
+  if (!state.enabled.value || !state.root.value.trim()) return;
+  if (state.depth.value <= 0) return;
+  if (state.limit.value >= MAX_DRILL_LIMIT) return;
+  await loadDrill(
+    pane,
+    state.root.value,
+    state.depth.value,
+    nextDrillLimit(state.limit.value),
+  );
 }
 
 /** Re-fetch the flattened tree (F5 / after a mutation). */
 export async function refreshDrill(pane: DrillPane): Promise<void> {
   const state = drillPaneState(pane);
   if (!state.enabled.value) return;
-  await loadDrill(pane, state.root.value, drillDepth.value);
+  await loadDrill(pane, state.root.value, state.depth.value, state.limit.value);
 }
 
 /** Turn drill-through off and drop the flattened rows. */
@@ -184,9 +262,13 @@ export function clearDrill(pane: DrillPane): void {
   const state = drillPaneState(pane);
   state.enabled.value = false;
   state.root.value = "";
+  state.depth.value = 0;
+  state.limit.value = DEFAULT_DRILL_LIMIT;
   state.entries.value = [];
   state.error.value = null;
   state.truncated.value = false;
+  state.limitReached.value = false;
+  state.visited.value = 0;
   state.sourceDirCount.value = 0;
   state.loading.value = false;
 }

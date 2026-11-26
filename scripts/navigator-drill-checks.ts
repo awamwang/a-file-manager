@@ -5,10 +5,13 @@ import {
   applyNavigatorDrillDepthFromValues,
   clampDrillDepth,
   DEFAULT_DRILL_DEPTH,
+  DEFAULT_DRILL_LIMIT,
   drillDepth,
   drillTargetPath,
   isInsideDrillTree,
   MAX_DRILL_DEPTH,
+  MAX_DRILL_LIMIT,
+  nextDrillLimit,
   primaryDrill,
   resolveDrillPane,
   secondaryDrill,
@@ -50,6 +53,28 @@ assert.equal(isInsideDrillTree("C:\\a", ""), false);
 assert.equal(resolveDrillPane("secondary", true), "secondary");
 assert.equal(resolveDrillPane("secondary", false), "primary");
 assert.equal(resolveDrillPane("primary", true), "primary");
+
+// ---- 生效深度是每窗格的：全局偏好只决定「下次开启用哪档」 ----
+primaryDrill.enabled.value = true;
+primaryDrill.depth.value = 2;
+secondaryDrill.enabled.value = true;
+secondaryDrill.depth.value = 5;
+assert.equal(primaryDrill.depth.value, 2, "主窗格保留自己的生效深度");
+assert.equal(secondaryDrill.depth.value, 5, "副窗格保留自己的生效深度");
+assert.notEqual(
+  primaryDrill.depth.value,
+  secondaryDrill.depth.value,
+  "两个窗格可以同时跑在不同深度",
+);
+
+// ---- 行数上限：加载更多是翻倍递增，触顶后不再增长 ----
+assert.equal(nextDrillLimit(DEFAULT_DRILL_LIMIT), 4_000);
+assert.equal(nextDrillLimit(4_000), 8_000);
+assert.equal(nextDrillLimit(16_000), MAX_DRILL_LIMIT);
+assert.equal(nextDrillLimit(MAX_DRILL_LIMIT), MAX_DRILL_LIMIT, "触顶后保持不变");
+assert.equal(nextDrillLimit(0), DEFAULT_DRILL_LIMIT, "非法值回落到默认");
+assert.equal(nextDrillLimit(Number.NaN), DEFAULT_DRILL_LIMIT);
+assert.ok(MAX_DRILL_LIMIT > DEFAULT_DRILL_LIMIT, "上限必须大于默认值");
 
 // ---- 写入落点：穿透开启时落在穿透根，否则是当前目录 ----
 primaryDrill.enabled.value = false;
