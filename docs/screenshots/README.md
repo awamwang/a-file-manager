@@ -11,6 +11,8 @@
 | `ai.png` | AI（Agent 目标 / 技能 / MCP） |
 | `extensions.png` | 扩展（Feature Pack） |
 
+> Microsoft Store 上架使用的 16:9 版本（1920×1080）、商店图标与配套中英文文案见 [docs/store/](../store/store-listing.md)。
+
 ## 更新截图
 
 界面改版后需重新截取。本地起应用后截取对应视图，按上表文件名覆盖保存即可（README 引用不变）：
