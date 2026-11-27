@@ -1117,7 +1117,11 @@
       "projectArgsPlaceholder": "项目启动参数（空格分隔）…",
       "newCustomName": "新工具",
       "orderTitle": "菜单顺序",
-      "orderMeta": "拖动可调整顺序。该顺序会同时作用于“打开方式”菜单（资源管理器“打开方式”与项目“在其他地方打开”）以及下方列表。"
+      "orderMeta": "拖动可调整顺序。该顺序会同时作用于“打开方式”菜单（资源管理器“打开方式”与项目“在其他地方打开”）以及下方列表。",
+      "searchPlaceholder": "搜索工具…",
+      "showUnavailable": "显示未安装的 {count} 个",
+      "hideUnavailable": "收起未安装项",
+      "fileExtensionsPlaceholder": "文件扩展名，逗号分隔（留空 = 全部）…"
     },
     "groups": {
       "appearance": "外观",

@@ -5,6 +5,7 @@ import {
   buildContextToolbarItems,
   canOpenInNewTab,
   canOpenInSecondPane,
+  openToolMatchesSelection,
 } from "../src/components/navigator/contextMenuModel.ts";
 
 const dir = { name: "Docs", path: "C:/Temp/afm-fixture/Docs", kind: "dir" as const, size: 0 };
@@ -132,6 +133,72 @@ assert.ok(
     ?.children?.some((c) => c.id === "openWithIde:cursor"),
   "disabled open-tool must not appear in Open with",
 );
+// 扩展名过滤（7-Zip / 浏览器 / VLC / Notepad++ 预设）：非空列表只匹配列表内
+// 扩展名的文件；目录永不匹配非空列表；"*" 匹配任意文件；空列表 = 不过滤。
+const zip = { name: "pack.zip", path: "C:/Temp/afm-fixture/Docs/pack.zip", kind: "file" as const, size: 100 };
+assert.ok(
+  !buildContextMenuItems(dir, {
+    ideApps: [
+      { id: "sevenzip", name: "7-Zip File Manager", available: true, enabled: true, fileExtensions: ["zip", "rar"] },
+    ],
+  })
+    .find((item) => item.id === "openWith")
+    ?.children?.some((c) => c.id === "openWithIde:sevenzip"),
+  "extension-scoped tool must not appear for a directory",
+);
+assert.ok(
+  buildContextMenuItems(file, {
+    ideApps: [
+      { id: "sevenzip", name: "7-Zip File Manager", available: true, enabled: true, fileExtensions: ["zip", "rar"] },
+    ],
+  })
+    .find((item) => item.id === "openWith")
+    ?.children?.some((c) => c.id === "openWithIde:sevenzip") === false,
+  "extension-scoped tool must not appear for a non-listed extension",
+);
+assert.ok(
+  buildContextMenuItems(zip, {
+    ideApps: [
+      { id: "sevenzip", name: "7-Zip File Manager", available: true, enabled: true, fileExtensions: ["zip", "rar"] },
+    ],
+  })
+    .find((item) => item.id === "openWith")
+    ?.children?.some((c) => c.id === "openWithIde:sevenzip"),
+  "extension-scoped tool appears for a listed extension",
+);
+assert.ok(
+  buildContextMenuItems(file, {
+    ideApps: [
+      { id: "notepadpp", name: "Notepad++", available: true, enabled: true, fileExtensions: ["*"] },
+    ],
+  })
+    .find((item) => item.id === "openWith")
+    ?.children?.some((c) => c.id === "openWithIde:notepadpp"),
+  `"*" scoped tool appears for any file`,
+);
+assert.ok(
+  buildContextMenuItems(dir, {
+    ideApps: [
+      { id: "vscode", name: "Visual Studio Code", available: true, enabled: true },
+    ],
+  })
+    .find((item) => item.id === "openWith")
+    ?.children?.some((c) => c.id === "openWithIde:vscode"),
+  "unscoped tool appears for directories",
+);
+// openToolMatchesSelection 纯函数契约。
+const sevenzipScope = ["zip", "rar"];
+assert.equal(openToolMatchesSelection(undefined, file), true);
+assert.equal(openToolMatchesSelection([], file), true);
+assert.equal(openToolMatchesSelection([], dir), true);
+assert.equal(openToolMatchesSelection(sevenzipScope, zip), true);
+assert.equal(openToolMatchesSelection(["ZIP"], { ...file, name: "b.ZIP" }), true, "case-insensitive");
+assert.equal(openToolMatchesSelection(sevenzipScope, file), false);
+assert.equal(openToolMatchesSelection(sevenzipScope, dir), false, "directories never match a non-empty list");
+assert.equal(openToolMatchesSelection(sevenzipScope, null), false);
+assert.equal(openToolMatchesSelection(["*"], file), true);
+assert.equal(openToolMatchesSelection(["*"], { ...file, name: "noext" }), true, `"*" matches any file`);
+assert.equal(openToolMatchesSelection(["*"], dir), false);
 assert.equal(fileItems.find((item) => item.id === "reveal"), undefined);
 assert.equal(dirItems.find((item) => item.id === "reveal"), undefined);
 assert.ok(
@@ -148,7 +215,6 @@ assert.equal(emptyToolbar.find((item) => item.id === "paste")?.enabled, true);
 assert.ok(fileItems.find((item) => item.id === "compressZip")?.enabled);
 assert.equal(fileItems.find((item) => item.id === "extractZip")?.enabled, false);
 
-const zip = { name: "pack.zip", path: "C:/Temp/afm-fixture/Docs/pack.zip", kind: "file" as const, size: 100 };
 const zipItems = buildContextMenuItems(zip);
 assert.equal(zipItems.find((item) => item.id === "extractZip")?.enabled, true);
 

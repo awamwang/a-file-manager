@@ -1117,7 +1117,11 @@
       "projectArgsPlaceholder": "Project launch arguments (space-separated)…",
       "newCustomName": "New tool",
       "orderTitle": "Menu order",
-      "orderMeta": "Drag to reorder. This order drives the Open-with menus (Navigator “Open with” and Project “Open elsewhere”) and the list below."
+      "orderMeta": "Drag to reorder. This order drives the Open-with menus (Navigator “Open with” and Project “Open elsewhere”) and the list below.",
+      "searchPlaceholder": "Search tools…",
+      "showUnavailable": "Show {count} unavailable",
+      "hideUnavailable": "Hide unavailable",
+      "fileExtensionsPlaceholder": "File extensions, comma-separated (empty = all)…"
     },
     "groups": {
       "appearance": "Appearance",

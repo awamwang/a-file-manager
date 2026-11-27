@@ -1408,7 +1408,11 @@
       "projectArgsPlaceholder": "Arguments de lancement projet (séparés par espaces)…",
       "newCustomName": "Nouvel outil",
       "orderTitle": "Ordre du menu",
-      "orderMeta": "Faites glisser pour réordonner. Cet ordre pilote les menus « Ouvrir avec » (« Ouvrir avec » du Navigator et « Ouvrir ailleurs » du projet) ainsi que la liste ci-dessous."
+      "orderMeta": "Faites glisser pour réordonner. Cet ordre pilote les menus « Ouvrir avec » (« Ouvrir avec » du Navigator et « Ouvrir ailleurs » du projet) ainsi que la liste ci-dessous.",
+      "searchPlaceholder": "Rechercher un outil…",
+      "showUnavailable": "Afficher {count} introuvables",
+      "hideUnavailable": "Masquer les introuvables",
+      "fileExtensionsPlaceholder": "Extensions de fichiers, séparées par des virgules (vide = tout)…"
     },
     "groups": {
       "appearance": "Apparence",

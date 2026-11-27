@@ -1117,7 +1117,11 @@
       "projectArgsPlaceholder": "專案啟動引數（空格分隔）…",
       "newCustomName": "新工具",
       "orderTitle": "選單順序",
-      "orderMeta": "拖動可調整順序。該順序會同時作用於“開啟方式”選單（資源管理器“開啟方式”與專案“在其他地方開啟”）以及下方列表。"
+      "orderMeta": "拖動可調整順序。該順序會同時作用於“開啟方式”選單（資源管理器“開啟方式”與專案“在其他地方開啟”）以及下方列表。",
+      "searchPlaceholder": "搜尋工具…",
+      "showUnavailable": "顯示未安裝的 {count} 個",
+      "hideUnavailable": "收起未安裝項",
+      "fileExtensionsPlaceholder": "副檔名，逗號分隔（留空 = 全部）…"
     },
     "groups": {
       "appearance": "外觀",

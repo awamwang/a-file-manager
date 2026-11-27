@@ -769,6 +769,34 @@ const IDE_APPS: &[(&str, &str, &[&str])] = &[
             "qwenwork",
         ],
     ),
+    (
+        "sublime",
+        "Sublime Text",
+        &[
+            "/Applications/Sublime Text.app",
+            "~/Applications/Sublime Text.app",
+            "subl",
+        ],
+    ),
+    (
+        "idea",
+        "IntelliJ IDEA",
+        &[
+            "/Applications/IntelliJ IDEA.app",
+            "~/Applications/IntelliJ IDEA.app",
+            "idea",
+        ],
+    ),
+    (
+        "pycharm",
+        "PyCharm",
+        &["/Applications/PyCharm.app", "~/Applications/PyCharm.app", "pycharm"],
+    ),
+    (
+        "webstorm",
+        "WebStorm",
+        &["/Applications/WebStorm.app", "~/Applications/WebStorm.app", "webstorm"],
+    ),
 ];
 
 fn ide_name(id: &str) -> String {
@@ -872,7 +900,13 @@ mod tests {
 
         let ides = MacosPlatform.ide_targets();
         let ids: Vec<_> = ides.iter().map(|t| t.id.as_str()).collect();
-        assert_eq!(ids, vec!["vscode", "cursor", "trae", "qoder", "qwenwork"]);
+        assert_eq!(
+            ids,
+            vec![
+                "vscode", "cursor", "trae", "qoder", "qwenwork", "sublime", "idea", "pycharm",
+                "webstorm",
+            ]
+        );
         assert!(ides.iter().all(|t| !t.supports_elevation));
     }
 

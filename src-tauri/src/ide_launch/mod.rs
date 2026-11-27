@@ -45,6 +45,12 @@ pub struct OpenToolMeta {
     pub project_open_mode: ProjectOpenMode,
     pub folders_only: bool,
     pub project_args: Vec<String>,
+    /// Extension allow-list (lowercase, no leading dot). Empty = applies to
+    /// every selection (files and folders). Non-empty = only files whose
+    /// extension is listed; the entry `"*"` matches any file. Directories
+    /// never match a non-empty list. Filtering is presentation-level (the
+    /// Navigator "Open with" submenu); launch itself stays permissive.
+    pub file_extensions: Vec<String>,
 }
 
 impl OpenToolMeta {
@@ -54,20 +60,50 @@ impl OpenToolMeta {
             project_open_mode: ProjectOpenMode::Workspace,
             folders_only: false,
             project_args: Vec::new(),
+            file_extensions: Vec::new(),
+        }
+    }
+
+    fn workspace_project(file_extensions: Vec<String>) -> Self {
+        Self {
+            supports_project: true,
+            project_open_mode: ProjectOpenMode::Workspace,
+            folders_only: false,
+            project_args: Vec::new(),
+            file_extensions,
+        }
+    }
+
+    /// Project-incapable launcher scoped to the given extensions.
+    fn file_scoped(extensions: &[&str]) -> Self {
+        Self {
+            supports_project: false,
+            project_open_mode: ProjectOpenMode::Workspace,
+            folders_only: false,
+            project_args: Vec::new(),
+            file_extensions: extensions.iter().map(|ext| ext.to_string()).collect(),
         }
     }
 }
+
+/// 7-Zip file manager browses/extracts archives AFM cannot (RAR/7z/…).
+const SEVENZIP_FILE_EXTENSIONS: &[&str] = &[
+    "zip", "7z", "rar", "tar", "gz", "tgz", "bz2", "xz", "zst", "iso", "cab",
+];
+/// Browsers open web documents; PDF/SVG render natively in the viewport.
+const BROWSER_FILE_EXTENSIONS: &[&str] = &["html", "htm", "xhtml", "svg", "pdf"];
+/// VLC covers the common audio/video containers.
+const VLC_FILE_EXTENSIONS: &[&str] = &[
+    "mp4", "mkv", "avi", "mov", "wmv", "flv", "webm", "m4v", "mp3", "flac", "wav", "aac",
+    "ogg", "opus", "m4a",
+];
 
 /// Built-in preset project behaviour, keyed by id. Anything not listed is
 /// treated as a file-only launcher that never shows up under "open project".
 pub fn preset_meta(id: &str) -> OpenToolMeta {
     match id {
-        "vscode" | "cursor" | "trae" | "qwenwork" => OpenToolMeta {
-            supports_project: true,
-            project_open_mode: ProjectOpenMode::Workspace,
-            folders_only: false,
-            project_args: Vec::new(),
-        },
+        "vscode" | "cursor" | "trae" | "qwenwork" | "sublime" | "windsurf" | "idea"
+        | "pycharm" | "webstorm" => OpenToolMeta::workspace_project(Vec::new()),
         // Qoder CN opens the workspace's CONTEXT.md so the agent picks up the
         // project brief instead of a bare folder.
         "qoder" => OpenToolMeta {
@@ -75,7 +111,13 @@ pub fn preset_meta(id: &str) -> OpenToolMeta {
             project_open_mode: ProjectOpenMode::ContextFile,
             folders_only: false,
             project_args: Vec::new(),
+            file_extensions: Vec::new(),
         },
+        // Any file, never a folder: Notepad++ has no folder view.
+        "notepadpp" => OpenToolMeta::file_scoped(&["*"]),
+        "sevenzip" => OpenToolMeta::file_scoped(SEVENZIP_FILE_EXTENSIONS),
+        "chrome" | "edge" => OpenToolMeta::file_scoped(BROWSER_FILE_EXTENSIONS),
+        "vlc" => OpenToolMeta::file_scoped(VLC_FILE_EXTENSIONS),
         _ => OpenToolMeta::not_project(),
     }
 }
@@ -97,6 +139,9 @@ pub struct CustomOpenTool {
     pub folders_only: bool,
     #[serde(default)]
     pub project_args: Vec<String>,
+    /// Extension allow-list; same semantics as [`OpenToolMeta::file_extensions`].
+    #[serde(default)]
+    pub file_extensions: Vec<String>,
 }
 
 fn default_true() -> bool {
@@ -188,6 +233,9 @@ pub struct IdeAppInfo {
     pub folders_only: bool,
     /// Extra arguments appended before the path when opening a project.
     pub project_args: Vec<String>,
+    /// Lowercase extension allow-list (no leading dot). Empty = applies to
+    /// every selection; `"*"` = any file, never a directory.
+    pub file_extensions: Vec<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -242,6 +290,7 @@ fn resolve_tool(app: &AppHandle, id: &str) -> Option<ResolvedTool> {
                 project_open_mode: custom.project_open_mode,
                 folders_only: custom.folders_only,
                 project_args: custom.project_args,
+                file_extensions: custom.file_extensions,
             },
             enabled: custom.enabled,
         });
@@ -313,6 +362,7 @@ pub fn ide_list_apps(app: AppHandle) -> Vec<IdeAppInfo> {
             project_open_mode: meta.project_open_mode.as_str().to_string(),
             folders_only: meta.folders_only,
             project_args: meta.project_args,
+            file_extensions: meta.file_extensions,
         });
     }
 
@@ -335,6 +385,7 @@ pub fn ide_list_apps(app: AppHandle) -> Vec<IdeAppInfo> {
             project_open_mode: custom.project_open_mode.as_str().to_string(),
             folders_only: custom.folders_only,
             project_args: custom.project_args,
+            file_extensions: custom.file_extensions,
         });
     }
 
@@ -445,8 +496,17 @@ mod tests {
 
     #[test]
     fn lists_preset_ides_including_qoder_and_qwenwork() {
+        // Platform-specific id lists are pinned per-adapter (platform/windows.rs
+        // `ide_targets_list_the_fifteen_open_tool_presets`, platform/macos.rs
+        // `targets_and_launch_contract`) plus scripts/check-launch-targets.mjs;
+        // this stays adapter-neutral (7.20: no cfg in the thin wire module).
         let ids: Vec<_> = discovered().into_iter().map(|t| t.id).collect();
-        assert_eq!(ids, vec!["vscode", "cursor", "trae", "qoder", "qwenwork"]);
+        for id in [
+            "vscode", "cursor", "trae", "qoder", "qwenwork", "sublime", "idea", "pycharm",
+            "webstorm",
+        ] {
+            assert!(ids.contains(&id.to_string()), "{id} missing from presets");
+        }
         assert_eq!(
             discovered().iter().find(|t| t.id == "qoder").unwrap().name,
             "Qoder CN"
@@ -459,11 +519,27 @@ mod tests {
         assert_eq!(preset_meta("qoder").project_open_mode, ProjectOpenMode::ContextFile);
         assert!(preset_meta("qwenwork").supports_project);
         assert!(!preset_meta("wt").supports_project);
+        // New project-capable presets open workspaces like VS Code.
+        for id in ["sublime", "windsurf", "idea", "pycharm", "webstorm"] {
+            assert!(preset_meta(id).supports_project, "{id} should be project-capable");
+            assert!(preset_meta(id).file_extensions.is_empty(), "{id} is unscoped");
+        }
+        // Project-incapable presets are extension-scoped instead.
+        assert_eq!(preset_meta("notepadpp").file_extensions, vec!["*".to_string()]);
+        assert!(!preset_meta("notepadpp").supports_project);
+        assert!(preset_meta("sevenzip").file_extensions.contains(&"zip".to_string()));
+        assert!(preset_meta("sevenzip").file_extensions.contains(&"rar".to_string()));
+        assert_eq!(
+            preset_meta("chrome").file_extensions,
+            preset_meta("edge").file_extensions
+        );
+        assert!(preset_meta("vlc").file_extensions.contains(&"mp4".to_string()));
+        assert!(preset_meta("vlc").file_extensions.contains(&"flac".to_string()));
     }
 
     #[test]
     fn custom_tools_parse_and_tolerate_garbage() {
-        let json = r#"[{"id":"custom:foo","name":"Foo","path":"C:\\foo.exe","supportsProject":true,"projectOpenMode":"contextFile","foldersOnly":true,"projectArgs":["--agent"]}]"#;
+        let json = r#"[{"id":"custom:foo","name":"Foo","path":"C:\\foo.exe","supportsProject":true,"projectOpenMode":"contextFile","foldersOnly":true,"projectArgs":["--agent"],"fileExtensions":["zip","rar"]}]"#;
         let tools = parse_custom_tools(json);
         assert_eq!(tools.len(), 1);
         assert_eq!(tools[0].id, "custom:foo");
@@ -471,6 +547,10 @@ mod tests {
         assert!(tools[0].supports_project);
         assert_eq!(tools[0].project_open_mode, ProjectOpenMode::ContextFile);
         assert_eq!(tools[0].project_args, vec!["--agent".to_string()]);
+        assert_eq!(tools[0].file_extensions, vec!["zip".to_string(), "rar".to_string()]);
+        // Legacy records without fileExtensions default to unscoped.
+        let legacy = parse_custom_tools(r#"[{"id":"custom:bar","name":"Bar","path":"C:\\bar.exe"}]"#);
+        assert!(legacy[0].file_extensions.is_empty());
         // Garbage / empty degrade to none, never panic.
         assert!(parse_custom_tools("").is_empty());
         assert!(parse_custom_tools("not json").is_empty());

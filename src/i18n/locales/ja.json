@@ -1408,7 +1408,11 @@
       "projectArgsPlaceholder": "プロジェクト起動引数（スペース区切り）…",
       "newCustomName": "新しいツール",
       "orderTitle": "メニューの順序",
-      "orderMeta": "ドラッグで並べ替え。この順序は「プログラムから開く」メニュー（Navigator の「プログラムから開く」とプロジェクトの「別の場所で開く」）および下のリストに反映されます。"
+      "orderMeta": "ドラッグで並べ替え。この順序は「プログラムから開く」メニュー（Navigator の「プログラムから開く」とプロジェクトの「別の場所で開く」）および下のリストに反映されます。",
+      "searchPlaceholder": "ツールを検索…",
+      "showUnavailable": "未検出の {count} 個を表示",
+      "hideUnavailable": "未検出項目を折りたたむ",
+      "fileExtensionsPlaceholder": "拡張子をカンマ区切りで（空欄 = すべて）…"
     },
     "groups": {
       "appearance": "外観",

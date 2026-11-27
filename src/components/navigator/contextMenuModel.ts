@@ -70,6 +70,7 @@ export type ContextMenuBuildOptions = {
     available: boolean;
     enabled?: boolean;
     foldersOnly?: boolean;
+    fileExtensions?: string[];
   }>;
   terminals?: Array<{
     id: string;
@@ -145,6 +146,9 @@ export function buildContextMenuItems(
     .filter((app) => app.available && app.enabled !== false)
     // Folder-only tools (QwenWork, plain-CLI editors, …) never open a lone file.
     .filter((app) => !app.foldersOnly || isDir)
+    // Extension-scoped tools (7-Zip / browsers / VLC / Notepad++, …) only
+    // match files with a listed extension; unscoped tools match everything.
+    .filter((app) => openToolMatchesSelection(app.fileExtensions, entry))
     .map((app) => ({
       id: `openWithIde:${app.id}`,
       labelKey: "contextMenu.openWithIde",
@@ -537,6 +541,26 @@ function isZipEntry(entry: NavigatorEntry): boolean {
   if (entry.kind !== "file") return false;
   const name = entry.name.toLowerCase();
   return name.endsWith(".zip");
+}
+
+/**
+ * Extension-scope filter for Open tools: an empty/missing list applies to
+ * every selection (files and folders); a non-empty list only matches files
+ * whose extension is listed (`"*"` = any file); directories never match a
+ * non-empty list. Case-insensitive, no leading dot, presentation-level only.
+ */
+export function openToolMatchesSelection(
+  fileExtensions: string[] | undefined,
+  entry: Pick<NavigatorEntry, "kind" | "name"> | null,
+): boolean {
+  const list = (fileExtensions ?? []).map((ext) => ext.toLowerCase());
+  if (list.length === 0) return true;
+  if (!entry || entry.kind !== "file") return false;
+  if (list.includes("*")) return true;
+  const name = entry.name.toLowerCase();
+  const dot = name.lastIndexOf(".");
+  const ext = dot >= 0 ? name.slice(dot + 1) : "";
+  return ext !== "" && list.includes(ext);
 }
 
 /** True when Open in new tab should run (directory selection only). */

@@ -25,6 +25,9 @@ export type OpenToolInfo = {
   projectOpenMode: ProjectOpenMode;
   foldersOnly: boolean;
   projectArgs: string[];
+  /** Lowercase extension allow-list (no leading dot); empty = unscoped,
+   * `"*"` = any file, never a directory. Presentation-level filter only. */
+  fileExtensions: string[];
 };
 
 /** A user-defined custom tool, persisted as JSON in `core.openTool.custom`. */
@@ -37,6 +40,7 @@ export type CustomOpenTool = {
   projectOpenMode: ProjectOpenMode;
   foldersOnly: boolean;
   projectArgs: string[];
+  fileExtensions: string[];
 };
 
 export const CUSTOM_TOOLS_SETTING_KEY = "core.openTool.custom";

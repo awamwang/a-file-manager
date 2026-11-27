@@ -537,12 +537,96 @@ const IDE_DEFS: &[(&str, &str, &[&str])] = &[
         ],
     ),
     (
-        // QwenWork installs into a versioned folder (C:\Program Files\QwenWorkCN\<ver>\);
+        // QwenWork installs into a versioned folder (C:\Program Files\QwenWorkCN\<ver>/);
         // the candidate list only covers an optional PATH shim. The version scan in
         // `resolve_auto` handles the real per-version executable.
         "qwenwork",
         "QwenWork",
         &["qwenwork.cmd", "qwenwork"],
+    ),
+    (
+        "sublime",
+        "Sublime Text",
+        &[
+            "subl",
+            r"C:\Users\{user}\AppData\Local\Programs\Sublime Text\sublime_text.exe",
+            r"C:\Program Files\Sublime Text\sublime_text.exe",
+        ],
+    ),
+    (
+        "notepadpp",
+        "Notepad++",
+        &[
+            "notepad++",
+            r"C:\Program Files\Notepad++\notepad++.exe",
+            r"C:\Program Files (x86)\Notepad++\notepad++.exe",
+        ],
+    ),
+    (
+        "windsurf",
+        "Windsurf",
+        &[
+            "windsurf.cmd",
+            "windsurf",
+            r"C:\Users\{user}\AppData\Local\Programs\Windsurf\Windsurf.exe",
+            r"C:\Program Files\Windsurf\Windsurf.exe",
+        ],
+    ),
+    (
+        // Toolbox/standalone layouts are versioned; `resolve_jetbrains_exe`
+        // scans them. Candidates only cover the optional PATH shim.
+        "idea",
+        "IntelliJ IDEA",
+        &["idea"],
+    ),
+    (
+        "pycharm",
+        "PyCharm",
+        &["pycharm"],
+    ),
+    (
+        "webstorm",
+        "WebStorm",
+        &["webstorm"],
+    ),
+    (
+        // 7zFM.exe is the GUI file manager that browses/extracts archives;
+        // 7z.exe is a console tool and never a good "open with" target.
+        "sevenzip",
+        "7-Zip File Manager",
+        &[
+            "7zFM",
+            r"C:\Program Files\7-Zip\7zFM.exe",
+            r"C:\Program Files (x86)\7-Zip\7zFM.exe",
+        ],
+    ),
+    (
+        "chrome",
+        "Google Chrome",
+        &[
+            "chrome",
+            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+            r"C:\Users\{user}\AppData\Local\Google\Chrome\Application\chrome.exe",
+        ],
+    ),
+    (
+        "edge",
+        "Microsoft Edge",
+        &[
+            "msedge",
+            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+        ],
+    ),
+    (
+        "vlc",
+        "VLC media player",
+        &[
+            "vlc",
+            r"C:\Program Files\VideoLAN\VLC\vlc.exe",
+            r"C:\Program Files (x86)\VideoLAN\VLC\vlc.exe",
+        ],
     ),
 ];
 
@@ -594,6 +678,10 @@ fn resolve_auto(id: &str) -> Option<PathBuf> {
         // Prefer an explicit PATH shim, else the newest versioned install.
         return from_candidates.or_else(resolve_qwenwork_exe);
     }
+    if matches!(id, "idea" | "pycharm" | "webstorm") {
+        // Prefer an explicit PATH shim, else the newest Toolbox/standalone install.
+        return from_candidates.or_else(|| resolve_jetbrains_exe(id));
+    }
     from_candidates
 }
 
@@ -630,11 +718,78 @@ fn resolve_qwenwork_exe() -> Option<PathBuf> {
     if launcher.is_file() {
         return Some(launcher);
     }
+    newest_versioned_exe(&base, Path::new("QwenWorkCN.exe"))
+}
+
+/// Per-SKU JetBrains discovery data: Toolbox app folder names (2.x full
+/// product names first, 1.x uppercase codes last — first hit wins, so the
+/// Professional/Ultimate edition is preferred when several are installed)
+/// and the launcher stem (`idea` → `bin\idea64.exe`).
+struct JetBrainsSku {
+    id: &'static str,
+    stem: &'static str,
+    toolbox_dirs: &'static [&'static str],
+}
+
+const JETBRAINS_SKUS: &[JetBrainsSku] = &[
+    JetBrainsSku {
+        id: "idea",
+        stem: "idea",
+        toolbox_dirs: &[
+            "IntelliJ IDEA Ultimate",
+            "IntelliJ IDEA Community",
+            "IDEA-U",
+            "IDEA-C",
+        ],
+    },
+    JetBrainsSku {
+        id: "pycharm",
+        stem: "pycharm",
+        toolbox_dirs: &["PyCharm Professional", "PyCharm Community", "PYCHARM-P", "PYCHARM-C"],
+    },
+    JetBrainsSku {
+        id: "webstorm",
+        stem: "webstorm",
+        toolbox_dirs: &["WebStorm", "WEBSTORM"],
+    },
+];
+
+/// Resolve a JetBrains IDE: newest Toolbox-managed install, else the newest
+/// standalone install.
+///
+/// Toolbox layout (1.x and 2.x):
+/// `%LOCALAPPDATA%\JetBrains\Toolbox\apps\<app>\ch-0\<version>\bin\<stem>64.exe`.
+/// Standalone layout: `<ProgramFiles>\JetBrains\<Product <ver>>\bin\<stem>64.exe`
+/// — the `bin\<stem>64.exe` existence check alone discriminates products, so
+/// sibling products in the same root never shadow each other.
+fn resolve_jetbrains_exe(id: &str) -> Option<PathBuf> {
+    let sku = JETBRAINS_SKUS.iter().find(|sku| sku.id == id)?;
+    let rel_exe = Path::new("bin").join(format!("{}64.exe", sku.stem));
+    if let Ok(local) = std::env::var("LOCALAPPDATA") {
+        let apps = PathBuf::from(local).join(r"JetBrains\Toolbox\apps");
+        for app_dir in sku.toolbox_dirs {
+            let channel_dir = apps.join(app_dir).join("ch-0");
+            if let Some(exe) = newest_versioned_exe(&channel_dir, &rel_exe) {
+                return Some(exe);
+            }
+        }
+    }
+    let standalone_root = match std::env::var("PROGRAMFILES") {
+        Ok(root) if !root.trim().is_empty() => PathBuf::from(root).join("JetBrains"),
+        _ => PathBuf::from(r"C:\Program Files\JetBrains"),
+    };
+    newest_versioned_exe(&standalone_root, &rel_exe)
+}
+
+/// Pick the highest-versioned child directory of `base` (folder names compared
+/// via [`parse_version_key`]) that contains `rel_exe`. Shared by the QwenWork
+/// fallback and the JetBrains Toolbox/standalone scans.
+fn newest_versioned_exe(base: &Path, rel_exe: &Path) -> Option<PathBuf> {
     let entries = std::fs::read_dir(base).ok()?;
     let mut best: Option<(Vec<u64>, PathBuf)> = None;
     for entry in entries.flatten() {
         let dir = entry.path();
-        let exe = dir.join("QwenWorkCN.exe");
+        let exe = dir.join(rel_exe);
         if !exe.is_file() {
             continue;
         }
@@ -951,6 +1106,32 @@ pub(crate) fn network_computers() -> Vec<String> {
 mod tests {
     use super::*;
 
+    /// 7.2x open-tool expansion: the shared versioned scan must compare
+    /// numerically (`2.10.0` > `2.9.0`, not lexicographically) and skip
+    /// child dirs without the expected executable.
+    #[test]
+    fn newest_versioned_exe_prefers_highest_numeric_version() {
+        use std::fs;
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
+        let base = std::env::temp_dir().join(format!("afm-ver-scan-{stamp}"));
+        for (folder, with_exe) in [("2.1.0", true), ("2.10.0", true), ("2.9.0", true), ("notes", false)] {
+            let dir = base.join(folder);
+            fs::create_dir_all(&dir).unwrap();
+            if with_exe {
+                fs::write(dir.join("app.exe"), b"x").unwrap();
+            }
+        }
+        let best = newest_versioned_exe(&base, Path::new("app.exe")).unwrap();
+        assert_eq!(best, base.join("2.10.0").join("app.exe"));
+        // No matching child → None, never panic.
+        assert_eq!(newest_versioned_exe(&base, Path::new("missing.exe")), None);
+        let _ = fs::remove_dir_all(&base);
+    }
+
     /// ADR 0026 host probe (run manually): `cargo test -- --ignored --nocapture
     /// probe_network_computers`. Enumerates the Shell Network folder
     /// (`::{Network}` / WS-Discovery, the same source Explorer's 网络 pane uses)
@@ -965,6 +1146,23 @@ mod tests {
     #[test]
     fn windows_adapter_honours_the_shared_provider_contract() {
         super::super::assert_provider_capability_contract(&WindowsPlatform);
+    }
+
+    /// 7.2x open-tool expansion: Windows ships exactly the fifteen presets in
+    /// IDE_DEFS order (5 legacy + 10 new). The macOS list and the static gate
+    /// (`check-launch-targets.mjs` §3b) pin the other platform.
+    #[test]
+    fn ide_targets_list_the_fifteen_open_tool_presets() {
+        let targets = WindowsPlatform.ide_targets();
+        let ids: Vec<_> = targets.iter().map(|t| t.id.as_str()).collect();
+        assert_eq!(
+            ids,
+            vec![
+                "vscode", "cursor", "trae", "qoder", "qwenwork", "sublime", "notepadpp",
+                "windsurf", "idea", "pycharm", "webstorm", "sevenzip", "chrome", "edge", "vlc",
+            ]
+        );
+        assert!(targets.iter().all(|t| !t.supports_elevation));
     }
 
     #[test]

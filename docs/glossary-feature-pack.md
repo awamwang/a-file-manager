@@ -31,8 +31,8 @@ _Avoid_: MCP 目录条目、Library Skill、Open tool（IDE 预设）、插件
 _Avoid_: 命令（命令面板）、uiCommand、后端工具（对外叙事）
 
 **Open tool**：
-Core 内硬编码的 IDE/编辑器启动预设（Settings → Open tools）；与工具管理运行时长期并存、互不迁移为对方。
-_Avoid_: 工具、Feature Pack、MCP 服务器
+Core 内硬编码的外部程序启动预设（Settings → Open tools），覆盖编辑器/IDE（VS Code、Cursor、Trae、Qoder、QwenWork、Sublime、Windsurf、IntelliJ IDEA、PyCharm、WebStorm）、查看器/浏览器（Notepad++、7-Zip、Chrome、Edge、VLC）与用户自定义条目；可按文件扩展名限定适用范围（空 = 全部，`*` = 任意文件）。与工具管理运行时长期并存、互不迁移为对方。
+_Avoid_: 工具、Feature Pack、MCP 服务器、IDE 预设（已不限于 IDE）
 
 ## 托管依赖词汇（ADR 0019 / 0020）
 

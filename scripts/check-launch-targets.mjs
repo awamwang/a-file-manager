@@ -73,9 +73,36 @@ for (const needle of [
   assert.ok(windows.includes(needle), `Windows adapter lost preset: ${needle}`);
 }
 
+// 3b. 7.2x open-tool expansion: ten new Windows presets plus the shared
+//     versioned-scan helper (QwenWork + JetBrains Toolbox/standalone).
+for (const needle of [
+  '"sublime"',
+  '"notepad++"',
+  '"windsurf"',
+  '"idea"',
+  '"pycharm"',
+  '"webstorm"',
+  '"sevenzip"',
+  '"chrome"',
+  '"edge"',
+  '"vlc"',
+  "Sublime Text",
+  "Notepad++",
+  "7zFM",
+  "7-Zip File Manager",
+  "Google Chrome",
+  "Microsoft Edge",
+  "VLC media player",
+  "fn resolve_jetbrains_exe",
+  "fn newest_versioned_exe",
+  "JetBrains\\Toolbox\\apps",
+]) {
+  assert.ok(windows.includes(needle), `Windows adapter lost open-tool preset: ${needle}`);
+}
+
 // 4. macOS preset ids must match SettingsView's OPEN_TOOL_IDS, and launching
 //    must go through /usr/bin/open (never a Windows .exe path).
-for (const id of ["vscode", "cursor", "trae", "qoder"]) {
+for (const id of ["vscode", "cursor", "trae", "qoder", "sublime", "idea", "pycharm", "webstorm"]) {
   assert.ok(macos.includes(`"${id}"`), `macOS adapter missing IDE id ${id}`);
 }
 for (const id of ["terminal", "iterm", "warp"]) {

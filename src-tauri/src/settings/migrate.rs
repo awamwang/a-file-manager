@@ -272,6 +272,16 @@ fn migrate_step(
             notes.push("Added core.navigatorDrillDepth (schema v18)".to_string());
             Ok(())
         }
+        (18, 19) => {
+            // 7.2x open-tool expansion: enabled/path pairs for the ten new
+            // presets (sublime/notepadpp/windsurf/idea/pycharm/webstorm/
+            // sevenzip/chrome/edge/vlc). Additive only.
+            for (key, value) in default_document().values {
+                values.entry(key).or_insert(value);
+            }
+            notes.push("Added core.openTool.* enabled/path pairs for ten new open tools (schema v19)".to_string());
+            Ok(())
+        }
         _ => Err(format!("No migration path from {from} → {to}")),
     }
 }
@@ -401,6 +411,41 @@ mod tests {
         assert_eq!(
             result.document.values.get("core.navigatorDrillDepth"),
             Some(&json!(4.0))
+        );
+    }
+
+    #[test]
+    fn migrates_v18_to_v19_filling_new_open_tool_keys() {
+        let raw = json!({ "version": 18, "values": { "core.openTool.vscode.enabled": false } });
+        let result = migrate_to_latest(&raw).unwrap();
+        assert_eq!(result.from_version, 18);
+        assert_eq!(result.to_version, SETTINGS_SCHEMA_VERSION);
+        // New keys are backfilled with defaults …
+        assert_eq!(
+            result.document.values.get("core.openTool.sublime.enabled"),
+            Some(&json!(true))
+        );
+        assert_eq!(
+            result.document.values.get("core.openTool.sevenzip.path"),
+            Some(&json!(""))
+        );
+        // … while pre-existing values survive untouched.
+        assert_eq!(
+            result.document.values.get("core.openTool.vscode.enabled"),
+            Some(&json!(false))
+        );
+    }
+
+    #[test]
+    fn migration_keeps_existing_v19_open_tool_toggle() {
+        let raw = json!({
+            "version": 18,
+            "values": { "core.openTool.vlc.enabled": false }
+        });
+        let result = migrate_to_latest(&raw).unwrap();
+        assert_eq!(
+            result.document.values.get("core.openTool.vlc.enabled"),
+            Some(&json!(false))
         );
     }
 }

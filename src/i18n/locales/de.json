@@ -1408,7 +1408,11 @@
       "projectArgsPlaceholder": "Projekt-Startargumente (leergetrennt)…",
       "newCustomName": "Neues Tool",
       "orderTitle": "Menüreihenfolge",
-      "orderMeta": "Ziehen zum Umsortieren. Diese Reihenfolge bestimmt die „Öffnen mit“‑Menüs (Navigator „Öffnen mit“ und Projekt „Anderweitig öffnen“) sowie die Liste unten."
+      "orderMeta": "Ziehen zum Umsortieren. Diese Reihenfolge bestimmt die „Öffnen mit“‑Menüs (Navigator „Öffnen mit“ und Projekt „Anderweitig öffnen“) sowie die Liste unten.",
+      "searchPlaceholder": "Tools suchen…",
+      "showUnavailable": "{count} nicht gefundene anzeigen",
+      "hideUnavailable": "Nicht gefundene ausblenden",
+      "fileExtensionsPlaceholder": "Dateierweiterungen, kommagetrennt (leer = alle)…"
     },
     "groups": {
       "appearance": "Darstellung",

@@ -20,6 +20,7 @@ import {
   type ProjectOpenMode,
 } from "../state/openTools";
 import { createListPointerReorder } from "../state/listPointerReorder";
+import { normalizeOpenToolExtensions } from "../state/openToolExtensions";
 import { applyUiChromeFromValues } from "../state/uiChrome";
 import {
   getCachedSettingsDocument,
@@ -138,7 +139,69 @@ type SettingsSection =
 
 type IdeAppInfo = OpenToolInfo;
 
-const OPEN_TOOL_IDS = ["vscode", "cursor", "trae", "qoder", "qwenwork"] as const;
+const OPEN_TOOL_IDS = [
+  "vscode",
+  "cursor",
+  "trae",
+  "qoder",
+  "qwenwork",
+  "sublime",
+  "notepadpp",
+  "windsurf",
+  "idea",
+  "pycharm",
+  "webstorm",
+  "sevenzip",
+  "chrome",
+  "edge",
+  "vlc",
+] as const;
+
+/**
+ * Fallback rows when `ide_list_apps` fails. Names and scopes mirror the
+ * backend presets (`preset_meta` / platform IDE_DEFS) so the Settings page
+ * still renders meaningful rows without the registry.
+ */
+const OPEN_TOOL_FALLBACK: Record<
+  string,
+  { name: string; supportsProject: boolean; fileExtensions: string[] }
+> = {
+  vscode: { name: "Visual Studio Code", supportsProject: true, fileExtensions: [] },
+  cursor: { name: "Cursor", supportsProject: true, fileExtensions: [] },
+  trae: { name: "Trae", supportsProject: true, fileExtensions: [] },
+  qoder: { name: "Qoder CN", supportsProject: true, fileExtensions: [] },
+  qwenwork: { name: "QwenWork", supportsProject: true, fileExtensions: [] },
+  sublime: { name: "Sublime Text", supportsProject: true, fileExtensions: [] },
+  // Any file, never a folder: Notepad++ has no folder view.
+  notepadpp: { name: "Notepad++", supportsProject: false, fileExtensions: ["*"] },
+  windsurf: { name: "Windsurf", supportsProject: true, fileExtensions: [] },
+  idea: { name: "IntelliJ IDEA", supportsProject: true, fileExtensions: [] },
+  pycharm: { name: "PyCharm", supportsProject: true, fileExtensions: [] },
+  webstorm: { name: "WebStorm", supportsProject: true, fileExtensions: [] },
+  sevenzip: {
+    name: "7-Zip File Manager",
+    supportsProject: false,
+    fileExtensions: ["zip", "7z", "rar", "tar", "gz", "tgz", "bz2", "xz", "zst", "iso", "cab"],
+  },
+  chrome: {
+    name: "Google Chrome",
+    supportsProject: false,
+    fileExtensions: ["html", "htm", "xhtml", "svg", "pdf"],
+  },
+  edge: {
+    name: "Microsoft Edge",
+    supportsProject: false,
+    fileExtensions: ["html", "htm", "xhtml", "svg", "pdf"],
+  },
+  vlc: {
+    name: "VLC media player",
+    supportsProject: false,
+    fileExtensions: [
+      "mp4", "mkv", "avi", "mov", "wmv", "flv", "webm", "m4v",
+      "mp3", "flac", "wav", "aac", "ogg", "opus", "m4a",
+    ],
+  },
+};
 
 type SettingDefinition = SettingsSchemaManifest["definitions"][number];
 
@@ -197,6 +260,45 @@ const ideAppsLoading = ref(false);
 const customTools = ref<CustomOpenTool[]>([]);
 /** Built-in preset rows (project-capable + file launchers) from the registry. */
 const builtinApps = computed(() => ideApps.value.filter((app) => app.builtin));
+
+/** Settings-page search over built-in + custom tool names. */
+const openToolSearch = ref("");
+const openToolSearchActive = computed(() => openToolSearch.value.trim() !== "");
+/** More than this many unavailable built-in rows collapse behind an expander. */
+const UNAVAILABLE_COLLAPSE_THRESHOLD = 4;
+const showUnavailableTools = ref(false);
+
+const filteredBuiltinApps = computed(() => {
+  const query = openToolSearch.value.trim().toLowerCase();
+  if (!query) return builtinApps.value;
+  return builtinApps.value.filter((app) => app.name.toLowerCase().includes(query));
+});
+
+const filteredCustomTools = computed(() => {
+  const query = openToolSearch.value.trim().toLowerCase();
+  if (!query) return customTools.value;
+  return customTools.value.filter((tool) => tool.name.toLowerCase().includes(query));
+});
+
+const availableBuiltinApps = computed(() => filteredBuiltinApps.value.filter((app) => app.available));
+const unavailableBuiltinApps = computed(() => filteredBuiltinApps.value.filter((app) => !app.available));
+/** Unavailable rows hidden behind the expander (0 = nothing collapsed). */
+const hiddenUnavailableCount = computed(() => {
+  if (openToolSearchActive.value || showUnavailableTools.value) return 0;
+  return Math.max(0, unavailableBuiltinApps.value.length - UNAVAILABLE_COLLAPSE_THRESHOLD);
+});
+/** Rows actually rendered under “Built-in tools” (available first). */
+const visibleBuiltinApps = computed(() => {
+  if (openToolSearchActive.value || showUnavailableTools.value) return filteredBuiltinApps.value;
+  return [
+    ...availableBuiltinApps.value,
+    ...unavailableBuiltinApps.value.slice(0, UNAVAILABLE_COLLAPSE_THRESHOLD),
+  ];
+});
+/** The “hide” affordance only makes sense with a collapsible surplus. */
+const canCollapseUnavailable = computed(
+  () => showUnavailableTools.value && unavailableBuiltinApps.value.length > UNAVAILABLE_COLLAPSE_THRESHOLD,
+);
 
 /** One row per function, with all FINAL chords (builtins + user overrides). */
 const shortcutActionRows = computed(() => {
@@ -432,20 +534,24 @@ async function refreshIdeApps() {
   try {
     ideApps.value = await listOpenTools();
   } catch {
-    ideApps.value = OPEN_TOOL_IDS.map((id) => ({
-      id,
-      name: id,
-      available: false,
-      enabled: Boolean(valueOf(openToolEnabledKey(id)) ?? true),
-      configuredPath: String(valueOf(openToolPathKey(id)) ?? ""),
-      resolution: "none",
-      resolvedPath: null,
-      builtin: true,
-      supportsProject: id !== "vscode",
-      projectOpenMode: "workspace" as ProjectOpenMode,
-      foldersOnly: false,
-      projectArgs: [],
-    }));
+    ideApps.value = OPEN_TOOL_IDS.map((id) => {
+      const meta = OPEN_TOOL_FALLBACK[id] ?? { name: id, supportsProject: false, fileExtensions: [] };
+      return {
+        id,
+        name: meta.name,
+        available: false,
+        enabled: Boolean(valueOf(openToolEnabledKey(id)) ?? true),
+        configuredPath: String(valueOf(openToolPathKey(id)) ?? ""),
+        resolution: "none",
+        resolvedPath: null,
+        builtin: true,
+        supportsProject: meta.supportsProject,
+        projectOpenMode: "workspace" as ProjectOpenMode,
+        foldersOnly: false,
+        projectArgs: [],
+        fileExtensions: meta.fileExtensions,
+      };
+    });
   } finally {
     ideAppsLoading.value = false;
   }
@@ -521,6 +627,7 @@ function addCustomTool() {
       projectOpenMode: "workspace",
       foldersOnly: false,
       projectArgs: [],
+      fileExtensions: [],
     },
   ]);
 }
@@ -537,6 +644,10 @@ function patchCustomTool(id: string, patch: Partial<CustomOpenTool>) {
 
 function onCustomProjectArgsChange(id: string, raw: string) {
   patchCustomTool(id, { projectArgs: raw.split(/\s+/).filter(Boolean) });
+}
+
+function onCustomFileExtensionsChange(id: string, raw: string) {
+  patchCustomTool(id, { fileExtensions: normalizeOpenToolExtensions(raw) });
 }
 
 function customToolAvailable(id: string): boolean {
@@ -822,6 +933,12 @@ onMounted(() => {
 
       <div v-else-if="activeSection === 'openTools'" class="fluent-surface open-tools-panel">
         <p class="open-tools-meta">{{ t("settings.openTools.meta") }}</p>
+        <input
+          v-model="openToolSearch"
+          class="fluent-control text open-tools-search"
+          type="text"
+          :placeholder="t('settings.openTools.searchPlaceholder')"
+        />
         <p v-if="ideAppsLoading" class="fluent-hint">{{ t("settings.loading") }}</p>
 
         <h2 class="open-tools-subtitle">{{ t("settings.openTools.orderTitle") }}        </h2>
@@ -858,7 +975,7 @@ onMounted(() => {
         </div>
 
         <h2 class="open-tools-subtitle">{{ t("settings.openTools.builtinTitle") }}        </h2>
-        <div v-for="app in builtinApps" :key="app.id" class="open-tool-row">
+        <div v-for="app in visibleBuiltinApps" :key="app.id" class="open-tool-row">
           <div class="open-tool-text">
             <span class="title">{{ app.name }}</span>
             <p class="desc">{{ ideStatusLabel(app) }}</p>
@@ -888,6 +1005,22 @@ onMounted(() => {
           </div>
         </div>
         <button
+          v-if="hiddenUnavailableCount > 0"
+          type="button"
+          class="fluent-control open-tools-unavailable-toggle"
+          @click="showUnavailableTools = true"
+        >
+          {{ t("settings.openTools.showUnavailable", { count: hiddenUnavailableCount }) }}
+        </button>
+        <button
+          v-else-if="canCollapseUnavailable"
+          type="button"
+          class="fluent-control open-tools-unavailable-toggle"
+          @click="showUnavailableTools = false"
+        >
+          {{ t("settings.openTools.hideUnavailable") }}
+        </button>
+        <button
           type="button"
           class="fluent-control open-tools-refresh"
           :disabled="ideAppsLoading"
@@ -902,7 +1035,7 @@ onMounted(() => {
           {{ t("settings.openTools.customEmpty") }}
         </p>
         <div
-          v-for="tool in customTools"
+          v-for="tool in filteredCustomTools"
           :key="tool.id"
           class="open-tool-row open-tool-custom"
         >
@@ -942,6 +1075,13 @@ onMounted(() => {
               :value="tool.projectArgs.join(' ')"
               :placeholder="t('settings.openTools.projectArgsPlaceholder')"
               @change="onCustomProjectArgsChange(tool.id, ($event.target as HTMLInputElement).value)"
+            />
+            <input
+              class="fluent-control text open-tool-extensions"
+              type="text"
+              :value="tool.fileExtensions.join(', ')"
+              :placeholder="t('settings.openTools.fileExtensionsPlaceholder')"
+              @change="onCustomFileExtensionsChange(tool.id, ($event.target as HTMLInputElement).value)"
             />
           </div>
           <div class="open-tool-controls open-tool-custom-controls">
@@ -1490,6 +1630,20 @@ onMounted(() => {
 
 .open-tool-path {
   width: 100%;
+}
+
+.open-tool-extensions {
+  width: 100%;
+}
+
+.open-tools-search {
+  max-width: 320px;
+  margin: 0 var(--fluent-space-lg);
+}
+
+.open-tools-unavailable-toggle {
+  align-self: flex-start;
+  margin: var(--fluent-space-xs) var(--fluent-space-lg) 0;
 }
 
 .open-tools-refresh {
