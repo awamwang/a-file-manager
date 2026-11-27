@@ -1,0 +1,126 @@
+{
+  "$comment": "AFM release-channel manifest — single source of truth. Read by awam-software/scripts/sync-release-channels.mjs to regenerate the product JSON `installMethods` + version `downloadSources` blocks. Keep status values in {live, pending, disabled}. See packaging/README-release-channels.md and docs/adr/0032-winget-package-manager-channel.md.",
+  "schemaVersion": 1,
+  "product": "a-file-manager",
+  "site": {
+    "slug": "a-file-manager",
+    "targetRepo": "awam-software",
+    "targetPath": "content/products/a-file-manager.json"
+  },
+  "identity": {
+    "displayName": "A File Manager",
+    "sourceRepo": "awamwang/a-file-manager",
+    "sourceRepoUrl": "https://github.com/awamwang/a-file-manager",
+    "releasesUrl": "https://github.com/awamwang/a-file-manager/releases",
+    "license": "GPL-3.0-or-later"
+  },
+  "platformNotes": "Windows 10 / 11 (x64) · macOS (Apple Silicon / Intel, .dmg & .app.zip) · winget / Homebrew 一键安装见下",
+  "channels": {
+    "github": {
+      "type": "release_direct",
+      "status": "live",
+      "label": "GitHub Release",
+      "releasesUrl": "https://github.com/awamwang/a-file-manager/releases"
+    },
+    "oss": {
+      "type": "mirror",
+      "status": "disabled",
+      "bucket": "awam-software",
+      "pathPrefix": "releases/a-file-manager",
+      "reason": "Binaries not yet uploaded to the awam-software OSS bucket. Flip to live and add per-version ossObjectKey after pnpm release:upload."
+    },
+    "winget": {
+      "type": "package_manager",
+      "status": "pending",
+      "packageId": "Awam.AFileManager",
+      "moniker": "afilemanager",
+      "minimumOsVersion": "10.0.17763.0",
+      "command": "winget install --id Awam.AFileManager -e",
+      "caption": "Windows 10/11 终端执行",
+      "label": "winget",
+      "tabLabel": "winget · 即将上线",
+      "note": "社区源 PR 仍在 Microsoft 审核中，命令暂时不可用。请先用「GitHub Release」下载安装包；本站会在合并后自动同步为可复制状态。",
+      "pendingNote": "清单本地就绪（scripts/package-winget.mjs）；PR 合并并同步到 winget 源后本卡即激活。",
+      "docsUrl": "https://github.com/microsoft/winget-pkgs"
+    },
+    "homebrew": {
+      "type": "package_manager",
+      "status": "live",
+      "tap": "awamwang/homebrew-tap",
+      "cask": "a-file-manager",
+      "installCommand": "brew install --cask awamwang/tap/a-file-manager",
+      "upgradeCommand": "brew upgrade --cask a-file-manager",
+      "caption": "macOS 终端执行（自建 tap）",
+      "label": "Homebrew",
+      "note": "自建 tap 不受官方 homebrew/cask 对未公证包的限制；全名安装只信任本 cask，不需要 brew trust 整个 tap。装完自动清隔离，macOS 15+ 可直接双击打开。",
+      "docsUrl": "https://github.com/awamwang/homebrew-tap"
+    }
+  },
+  "releases": [
+    {
+      "version": "0.4.0",
+      "channel": "stable",
+      "publishedAt": "2026-11-27T06:26:13.000Z",
+      "assets": [
+        {
+          "platform": "windows",
+          "downloadSources": [
+            {
+              "type": "github",
+              "label": "GitHub Release（主线版 / 精简版 / Feature Pack）",
+              "url": "https://github.com/awamwang/a-file-manager/releases/tag/v0.4.0",
+              "primary": true
+            }
+          ]
+        },
+        {
+          "platform": "macos",
+          "downloadSources": [
+            {
+              "type": "github",
+              "label": "GitHub Release（Apple Silicon / Intel，含 .dmg 与 .app.zip）",
+              "url": "https://github.com/awamwang/a-file-manager/releases/tag/v0.4.0",
+              "primary": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.3.0",
+      "channel": "stable",
+      "publishedAt": "2026-11-16T14:11:10.000Z",
+      "assets": [
+        {
+          "platform": "windows",
+          "downloadSources": [
+            {
+              "type": "github",
+              "label": "GitHub Release（Core / AI / Feature Pack）",
+              "url": "https://github.com/awamwang/a-file-manager/releases/tag/v0.3.0",
+              "primary": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.0",
+      "channel": "stable",
+      "publishedAt": "2026-11-12T14:18:21.000Z",
+      "assets": [
+        {
+          "platform": "windows",
+          "downloadSources": [
+            {
+              "type": "github",
+              "label": "GitHub Release（Core / AI / Feature Pack）",
+              "url": "https://github.com/awamwang/a-file-manager/releases/tag/v0.2.0",
+              "primary": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
