@@ -19,8 +19,15 @@ assert.match(
 );
 
 // NavigatorView keyboard paste resolves the target from the selection, not currentPath only.
+// ADR 0031 (drill-through): in drill mode the same `pasteTarget` binding lands
+// in the drill root instead — a selected flattened row is not a write target.
 assert.ok(view.includes('from "../state/pasteTarget"'));
-assert.ok(view.includes("const pasteTarget = resolvePasteTarget("));
+assert.ok(
+  /const pasteTarget = primaryDrill\.enabled\.value\s*\?\s*drillTargetPath\([\s\S]*?: resolvePasteTarget\(/.test(
+    view,
+  ),
+  "keyboard paste must resolve via drillTargetPath (drill) or resolvePasteTarget (selection)",
+);
 assert.ok(view.includes("await pasteClipboard(pasteTarget)"));
 assert.ok(view.includes("selectedEntries(visibleEntries.value)"));
 
