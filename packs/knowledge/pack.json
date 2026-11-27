@@ -94,6 +94,16 @@
         "kind": "string",
         "settingKey": "power.awamKnowledgeSecretId",
         "order": 60
+      },
+      {
+        "id": "provider-preload",
+        "title": "预加载知识库 Provider",
+        "titleKey": "settings.fields.power.providerPreloadKnowledge.title",
+        "descriptionKey": "settings.fields.power.providerPreloadKnowledge.description",
+        "kind": "boolean",
+        "settingKey": "power.providerPreloadKnowledge",
+        "default": "true",
+        "order": 70
       }
     ],
     "search": []

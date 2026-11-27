@@ -40,6 +40,13 @@ export const SETTINGS_UI_HIDDEN_KEYS = [
   // 知识库工作副本路径/源 id：编辑入口在设置 → 扩展能力。
   "power.awamKnowledgeDataRoot",
   "power.awamKnowledgeSourceId",
+  // 保险库三项（脚本路径 / 通道口令 / 源 id）：pack 已声明，编辑入口在设置 → 扩展能力，
+  // 通用面板不再重复出现（键仍保留，托管时按 pack env 注入 sidecar）。
+  "power.awamKnowledgeSecretScript",
+  "power.awamKnowledgeSecretAgentToken",
+  "power.awamKnowledgeSecretId",
+  // 预加载知识库开关：随 knowledge 扩展配置一并管理。
+  "power.providerPreloadKnowledge",
   // ADR 0018：语音输入四键的编辑入口在设置 → 搜索板块（SearchSettingsPanel）。
   "power.voiceSearchAutoStart",
   "power.sttBaseUrl",
