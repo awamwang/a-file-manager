@@ -223,6 +223,14 @@ import {
   refreshDrill,
   secondaryDrill,
 } from "../state/navigatorDrill";
+import {
+  clearTypeFilter,
+  filterEntriesByType,
+  setTypeFilterFacetEntries,
+  typeFilterActive,
+  typeFilterCategories,
+  typeFilterExtensions,
+} from "../state/navigatorTypeFilter";
 import { toastError, toastInfo, toastSuccess } from "../state/toast";
 import {
   acceptFolderDragOver,
@@ -835,15 +843,30 @@ async function drillRetry(pane: "primary" | "secondary"): Promise<void> {
   await refreshDrill(pane);
 }
 
-const visibleEntries = computed(() => {
+/**
+ * Unfiltered row source behind the primary list — search hits, drill-through
+ * rows or the plain folder listing. The type filter applies to whichever is
+ * active (so it filters the drill-through view too), and this same source
+ * feeds the filter dialog's dynamic type facets.
+ */
+const primaryRowSource = computed<NavigatorEntry[]>(() => {
   if (folderSearchActive.value) {
-    return sortedEntries(primarySearch.value?.entries ?? []);
+    return primarySearch.value?.entries ?? [];
   }
   if (primaryDrill.enabled.value) {
-    return sortedEntries(primaryDrill.entries.value);
+    return primaryDrill.entries.value;
   }
-  if (!listing.value) return [];
-  return sortedEntries(listing.value.entries);
+  return listing.value?.entries ?? [];
+});
+
+const visibleEntries = computed(() => {
+  return sortedEntries(
+    filterEntriesByType(
+      primaryRowSource.value,
+      typeFilterCategories.value,
+      typeFilterExtensions.value,
+    ),
+  );
 });
 
 /** Listing rows backing the preview/properties panels (virtual-entry info source). */
@@ -855,16 +878,35 @@ function findVisibleEntry(path: string | null): NavigatorEntry | null {
 const previewEntry = computed(() => findVisibleEntry(previewPath.value));
 const propertiesEntry = computed(() => findVisibleEntry(propertiesPath.value));
 
-const secondaryEntries = computed(() => {
+/** Unfiltered secondary row source (same precedence as the primary pane). */
+const secondaryRowSource = computed<NavigatorEntry[]>(() => {
   if (folderSearchActive.value) {
-    return sortedEntries(secondarySearch.value?.entries ?? []);
+    return secondarySearch.value?.entries ?? [];
   }
   if (secondaryDrill.enabled.value) {
-    return sortedEntries(secondaryDrill.entries.value);
+    return secondaryDrill.entries.value;
   }
-  if (!secondaryListing.value) return [];
-  return sortedEntries(secondaryListing.value.entries);
+  return secondaryListing.value?.entries ?? [];
 });
+
+const secondaryEntries = computed(() => {
+  return sortedEntries(
+    filterEntriesByType(
+      secondaryRowSource.value,
+      typeFilterCategories.value,
+      typeFilterExtensions.value,
+    ),
+  );
+});
+
+watch(
+  primaryRowSource,
+  (entries) => {
+    // 筛选弹窗的类型清单跟随主窗格当前行来源（搜索/穿透/普通列表）。
+    setTypeFilterFacetEntries(entries);
+  },
+  { immediate: true },
+);
 
 watch([navigatorFilterQuery, currentPath], () => {
   // 目录或搜索词变化会让可见顺序失效，重置键入定位缓冲。
@@ -2913,6 +2955,24 @@ async function onListDrop(event: DragEvent, destPath: string | null | undefined)
         @click="clearNavigatorFilter()"
       >
         {{ t("navigator.filterClear") }}
+      </button>
+    </div>
+    <div
+      v-else-if="
+        typeFilterActive &&
+        !listLoading &&
+        primaryRowSource.length > 0 &&
+        !visibleEntries.length
+      "
+      class="fluent-banner fluent-banner--info banner-actionable"
+    >
+      <span>{{ t("navigator.typeFilterEmpty") }}</span>
+      <button
+        type="button"
+        class="fluent-control"
+        @click="clearTypeFilter()"
+      >
+        {{ t("navigator.typeFilterClear") }}
       </button>
     </div>
     <div

@@ -142,6 +142,12 @@ Rule reminders: no e2e; `#[ignore]` ≠ coverage; FE↔BE command-name parity is
 | --- | --- | --- | --- |
 | 穿透视图：把当前目录的子文件夹摊平进同一列表，深度可调（ADR 0031） | STATIC · FE · CARGO | `check-navigator-drill.mjs` → `navigator-drill-checks.ts`（深度档位收敛、每窗格生效深度隔离、行数上限翻倍曲线、树内判定、排序键=根相对路径、写入落点=穿透根 真执行 + 六语言 i18n 针）；`navigator/drill.rs` 10 tests（深度 1/2 语义、深度 0 不遍历、相对层级、隐藏项、拒 awam://、limit 截断/回退/硬顶）；`migrate.rs` v17→v18 2 tests | 资源管理器的显示模式（左侧导航不变）；入口＝工具条「图标 + chevron」弹层（关闭 / 1…5 层），关闭语义与排序/视图/分组一致（外部点击 / Esc / 互斥）；穿透根与当前位置是两个概念，树内双击＝树内定位，走出树则自动关闭；生效深度按窗格隔离，徽标/勾选读本窗格实际深度；名称按根相对路径排，普通视图等价；新建/粘贴落点=穿透根；行数上限按请求可调（默认 2000 / 硬顶 20000），「加载更多」翻倍递增而非分页（排序在前端），访问预算随上限缩放（20000×2，硬顶 100000），超限时横幅区分「可加载更多」与「目录过大」并提供加载更多/重试；档位持久化（`core.navigatorDrillDepth`，v18），开关会话级 |
 
+## Navigator view (type filter)
+
+| Behavior | Layers | Gate / test | Notes |
+| --- | --- | --- | --- |
+| 文件类型筛选：大类（文件夹/图片/视频/音频/文档/压缩包/代码/其他）+ 动态具体类型 + 工具栏弹窗；过滤作用于普通列表、文件夹搜索结果与穿透视图（2026-11-27） | STATIC · FE | `check-navigator-type-filter.mjs` → `navigator-type-filter-checks.ts`（扩展名→大类映射、行→大类、动态清单只列当前行存在的类别/具体类型且按数量降序、匹配语义（大类勾选 + 大类内具体类型细化、文件夹独立勾选）、`filterEntriesByType` 未激活返回同内容、选择不变式（具体类型自动勾父类、孤儿细化被丢弃、去重/小写化/未知键剔除、类别固定顺序）、响应式动作真执行 + 六语言 i18n 针） | 两级模型：`navigatorTypeFilter.ts` 固定注册表（8 大类）映射扩展名；弹窗清单（`collectTypeFacets`）从主窗格当前未过滤行来源（搜索结果 / 穿透行 / 目录列表）动态收集，只出现存在的类别与格式；过滤在 `visibleEntries` / `secondaryEntries` 生成处统一应用，穿透视图随之生效；文件夹是独立大类；选择是会话态（不落盘、不随导航清除，搜索词仍按原语义随目录切换重置）；弹窗关闭语义与排序/视图/分组/穿透一致（外部点击 / Esc / 互斥）；状态栏计数随筛选收窄（含穿透行）并附「筛选后 N 项」；筛选后列表为空时横幅提供「全部类型」一键清除；触发钮在筛选激活或弹窗展开时保持选中态；新增 `filter`（漏斗）/`code` 字形，类别图标复用既有字形；`.ts` 归入代码（视频不含 ts，避免与 TypeScript 冲突） |
+
 ## Knowledge capability
 
 | Behavior | Layers | Gate / test | Notes |
