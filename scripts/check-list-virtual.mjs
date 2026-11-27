@@ -65,6 +65,35 @@ assert.ok(
   view.includes("watch([collapsedGroupKeys, navigatorGroupBy]"),
   "collapse/group-field switch must re-sync the clamped scrollTop after DOM update",
 );
+// 分组缩略图请求窗（2026-11-27 真机 bug：分组后缩略图不加载/首屏不加载）：
+// 请求/取消窗必须跟分组视觉模型（桶序 + 组头高度），不能沿用扁平排序序几何。
+assert.ok(
+  virtItems.includes("computeGridThumbRequestWindow"),
+  "grouped grid thumbnail request window",
+);
+assert.ok(
+  view.includes("syncGroupedThumbRequests"),
+  "grouped views must sync thumbnail requests through the grouped visual model",
+);
+assert.ok(
+  view.includes("const primary = isGrouped.value") &&
+    view.includes("? syncGroupedThumbRequests(primaryThumbRetainedPaths)"),
+  "refreshViewportIconRequests must branch to the grouped sync when grouped",
+);
+assert.ok(
+  view.includes("groupedThumbItemRange(THUMB_REQUEST_OVERSCAN_ROWS)"),
+  "grouped request window must use the narrow overscan",
+);
+assert.ok(
+  view.includes("groupedThumbItemRange(THUMB_REQUEST_CANCEL_OVERSCAN_ROWS)"),
+  "grouped cancel window must use the wide overscan",
+);
+// 分组切换/折叠不动 visibleEntries——图标请求 watch 必须单独监听分组状态，
+// 否则切分组后到下一次滚动前完全不重同步。
+assert.ok(
+  view.includes("navigatorGroupBy,") && view.includes("collapsedGroupKeys,"),
+  "icon request watch must observe grouping state",
+);
 
 const result = spawnSync(
   process.execPath,

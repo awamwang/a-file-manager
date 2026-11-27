@@ -9,12 +9,15 @@ import {
   LIST_VIRTUALIZE_MIN_ENTRIES,
   resolveListRowHeightPx,
   standardDetailsRowHeight,
+  THUMB_REQUEST_CANCEL_OVERSCAN_ROWS,
   THUMB_REQUEST_FALLBACK_ROWS,
+  THUMB_REQUEST_OVERSCAN_ROWS,
 } from "../src/state/listVirtualWindow.ts";
 import {
   buildGroupedGridLayout,
   buildGridRows,
   computeGridListVirtualWindow,
+  computeGridThumbRequestWindow,
   flattenEntryItems,
   flattenGroupedItems,
   LIST_GROUP_HEADER_HEIGHT_PX,
@@ -22,11 +25,12 @@ import {
   virtItemHeightPx,
   type ListVirtGridRow,
 } from "../src/state/listVirtItems.ts";
-import { FOLDER_GROUP_KEY, groupEntriesBy } from "../src/state/navigatorGrouping.ts";
+import { groupEntriesBy } from "../src/state/navigatorGrouping.ts";
 import type { NavigatorEntry } from "../src/state/navigatorBrowse.ts";
 import {
   clearSortedEntriesCache,
   setSortColumn,
+  setSortDirection,
   sortedEntries,
 } from "../src/state/navigatorSort.ts";
 import type { ListVirtItem } from "../src/state/listVirtItems.ts";
@@ -180,10 +184,12 @@ const groupLabels = {
   typedFile: (ext: string) => `${ext} file`,
   nameOther: "#",
   sizeEmpty: "Empty",
+  sizeTiny: "Tiny",
   sizeSmall: "Small",
   sizeMedium: "Medium",
   sizeLarge: "Large",
   sizeHuge: "Huge",
+  sizeUnspecified: "Unspecified",
   dateToday: "Today",
   dateYesterday: "Yesterday",
   dateThisWeek: "This week",
@@ -423,9 +429,8 @@ assert.ok(
 
 // 折叠组骤缩内容 + 过期 scrollTop：窗口函数仍必须切在界内
 // （.vue 层负责 DOM 更新后回同步 clamp，见 watch([collapsedGroupKeys, navigatorGroupBy])）。
-const collapseKey =
-  groupedBySize.find((group) => group.key !== FOLDER_GROUP_KEY)?.key ?? "";
-assert.ok(collapseKey.length > 0, "必须存在可折叠的非文件夹组");
+const collapseKey = groupedBySize[0]?.key ?? "";
+assert.ok(collapseKey.length > 0, "必须存在可折叠的分组");
 const itemsCollapsed = flattenGroupedItems(groupedBySize, new Set([collapseKey]));
 assert.ok(itemsCollapsed.length < itemsSizeSort.length, "折叠组必须减少虚拟项");
 const winStale = computeVariableListVirtualWindow({
@@ -523,5 +528,226 @@ for (const row of singleGroupRows) {
 }
 assertGridWindowCoversViewport(singleGroupRows, singleGroupPrefix, 0, 800, "单一大组首屏");
 assertGridWindowCoversViewport(singleGroupRows, singleGroupPrefix, 900, 800, "单一大组中部");
+
+// ---- 分组缩略图请求窗（2026-11-27 真机 bug：分组后缩略图不加载、首屏不加载）----
+// 症状：缩略图请求/取消窗此前按「扁平排序序 + 无组头几何」切片
+// （computeThumbRequestWindow over visibleEntries），而分组渲染按桶序 + 含组头高度：
+//   1) 桶序 ≠ 扁平排序序 → 请求打到屏幕外条目，可见条目（含首屏）永不被请求；
+//   2) 组头累计高度 → 深滚时扁平映射超前于可见区，请求/取消窗双双漂移：
+//      轻则漏掉视口顶行，重则越过 totalRows 变空窗（请求清零 + 全量 cancel）。
+// 修复：分组时请求/取消窗改用分组视觉模型（网格行窗 computeGridThumbRequestWindow /
+// 变高项窗 computeVariableListVirtualWindow），不做组边界对齐——渲染窗的
+// 「整组挂载」语义不进请求侧，避免大组一次性放大成整组缩略图 IPC。
+// 不变量：请求窗（窄，overscan=THUMB_REQUEST_OVERSCAN_ROWS）覆盖视口相交行上的
+// 全部条目；取消窗（宽，overscan=THUMB_REQUEST_CANCEL_OVERSCAN_ROWS）⊇ 请求窗。
+const THUMB_VH = 800;
+
+function visibleGridEntryPaths(
+  rows: readonly ListVirtGridRow[],
+  prefix: readonly number[],
+  items: readonly ListVirtItem<NavigatorEntry>[],
+  scrollTop: number,
+  viewportHeight: number,
+): Set<string> {
+  const paths = new Set<string>();
+  for (let r = 0; r < rows.length; r += 1) {
+    const top = prefix[r] ?? 0;
+    const bottom = prefix[r + 1] ?? top;
+    if (bottom <= scrollTop || top >= scrollTop + viewportHeight) continue;
+    const row = rows[r]!;
+    for (let i = row.startItem; i < row.endItem; i += 1) {
+      const item = items[i];
+      if (item && item.kind === "entry") paths.add(item.entry.path);
+    }
+  }
+  return paths;
+}
+
+function assertGridThumbWindowCoversViewport(
+  rows: readonly ListVirtGridRow[],
+  prefix: readonly number[],
+  items: readonly ListVirtItem<NavigatorEntry>[],
+  scrollTop: number,
+  label: string,
+): void {
+  const win = computeGridThumbRequestWindow({
+    rows,
+    scrollTop,
+    viewportHeight: THUMB_VH,
+    overscanRows: THUMB_REQUEST_OVERSCAN_ROWS,
+  });
+  const keep = computeGridThumbRequestWindow({
+    rows,
+    scrollTop,
+    viewportHeight: THUMB_VH,
+    overscanRows: THUMB_REQUEST_CANCEL_OVERSCAN_ROWS,
+  });
+  assert.ok(win.endIndex > win.startIndex, `${label}: 请求窗不能为空`);
+  assert.ok(
+    keep.startIndex <= win.startIndex && win.endIndex <= keep.endIndex,
+    `${label}: 取消窗必须覆盖请求窗`,
+  );
+  const visible = visibleGridEntryPaths(rows, prefix, items, scrollTop, THUMB_VH);
+  assert.ok(visible.size > 0, `${label}: 场景必须存在可见条目`);
+  const requested = new Set(entryPathsOf(items.slice(win.startIndex, win.endIndex)));
+  for (const path of visible) {
+    assert.ok(requested.has(path), `${label}: 请求窗必须覆盖可见条目 ${path}`);
+  }
+}
+
+assertGridThumbWindowCoversViewport(photoRows, photoPrefix, photoItems, 0, "首屏 scrollTop=0");
+assertGridThumbWindowCoversViewport(photoRows, photoPrefix, photoItems, 1200, "大组中部");
+assertGridThumbWindowCoversViewport(photoRows, photoPrefix, photoItems, 3200, "跨组边界");
+assertGridThumbWindowCoversViewport(
+  photoRows,
+  photoPrefix,
+  photoItems,
+  Math.max(0, photoTotalHeight - THUMB_VH),
+  "贴底最后一屏",
+);
+
+// 多组深滚：12 个首字母桶 × 20 项，组头累计高度把扁平映射推出 totalRows。
+const driftEntries: NavigatorEntry[] = [];
+for (let bucket = 0; bucket < 12; bucket += 1) {
+  for (let i = 0; i < 20; i += 1) {
+    driftEntries.push(
+      mkEntry(`C:\\drift\\${String.fromCharCode(65 + bucket)}${String(i).padStart(2, "0")}.jpg`),
+    );
+  }
+}
+const driftGroups = groupEntriesBy(driftEntries, "name", "asc", groupLabels, 0);
+assert.equal(driftGroups.length, 12, "12 个首字母桶");
+const driftItems = flattenGroupedItems(driftGroups, new Set<string>());
+const driftRows = buildGridRows(driftItems, {
+  columns: 8,
+  headerHeight: LIST_GROUP_HEADER_HEIGHT_PX,
+  entryRowHeight: 100,
+});
+const driftPrefix: number[] = [0];
+for (const row of driftRows) driftPrefix.push(driftPrefix[driftPrefix.length - 1]! + row.height);
+const driftTotalHeight = driftPrefix[driftPrefix.length - 1]!;
+assertGridThumbWindowCoversViewport(driftRows, driftPrefix, driftItems, 0, "多组首屏");
+assertGridThumbWindowCoversViewport(driftRows, driftPrefix, driftItems, 3700, "多组深滚");
+assertGridThumbWindowCoversViewport(
+  driftRows,
+  driftPrefix,
+  driftItems,
+  driftTotalHeight - THUMB_VH,
+  "多组贴底",
+);
+// 场景自检（钉死旧路径的故障机制，防止测试场景失效后静默通过）：
+// 同一深滚位置，旧扁平几何越过 totalRows → 空窗（startIndex >= endIndex）。
+{
+  const flatWin = computeThumbRequestWindow({
+    total: driftEntries.length,
+    scrollTop: 3700,
+    viewportHeight: THUMB_VH,
+    rowHeight: 100,
+    columns: 8,
+    mode: "iconsLarge",
+  });
+  assert.ok(
+    flatWin.endIndex <= flatWin.startIndex,
+    "扁平几何必须在多组深滚处漂移成空窗（否则本场景不再复现原 bug）",
+  );
+}
+
+// 桶序 ≠ 扁平排序序：降序排序 + 升序分组，首屏可见条目部分落在扁平请求窗之外。
+setSortColumn("name");
+setSortDirection("desc");
+clearSortedEntriesCache();
+const descSorted = sortedEntries(photoEntries);
+const descGroups = groupEntriesBy(descSorted, "name", "asc", groupLabels, 0);
+const descItems = flattenGroupedItems(descGroups, new Set<string>());
+const descRows = buildGridRows(descItems, {
+  columns: 8,
+  headerHeight: LIST_GROUP_HEADER_HEIGHT_PX,
+  entryRowHeight: 100,
+});
+const descPrefix: number[] = [0];
+for (const row of descRows) descPrefix.push(descPrefix[descPrefix.length - 1]! + row.height);
+assertGridThumbWindowCoversViewport(descRows, descPrefix, descItems, 0, "倒序分组首屏");
+{
+  const flatWin = computeThumbRequestWindow({
+    total: descSorted.length,
+    scrollTop: 0,
+    viewportHeight: THUMB_VH,
+    rowHeight: 100,
+    columns: 8,
+    mode: "iconsLarge",
+  });
+  const flatPaths = new Set(
+    descSorted.slice(flatWin.startIndex, flatWin.endIndex).map((entry) => entry.path),
+  );
+  const visible = visibleGridEntryPaths(descRows, descPrefix, descItems, 0, THUMB_VH);
+  const missed = [...visible].filter((path) => !flatPaths.has(path));
+  assert.ok(
+    missed.length > 0,
+    "扁平几何在桶序≠排序序时必须错过部分可见条目（否则本场景不再复现原 bug）",
+  );
+}
+
+// 纵向分组视图（list/details/content）：请求/取消窗走变高项窗，同样覆盖可见条目。
+const photoHeights = photoItems.map((item) => virtItemHeightPx(item, 32));
+function visibleVirtEntryPaths(
+  heights: readonly number[],
+  items: readonly ListVirtItem<NavigatorEntry>[],
+  scrollTop: number,
+  viewportHeight: number,
+): Set<string> {
+  const prefix: number[] = [0];
+  for (const height of heights) prefix.push(prefix[prefix.length - 1]! + height);
+  const paths = new Set<string>();
+  for (let i = 0; i < items.length; i += 1) {
+    const top = prefix[i]!;
+    const bottom = prefix[i + 1]!;
+    if (bottom <= scrollTop || top >= scrollTop + viewportHeight) continue;
+    const item = items[i]!;
+    if (item.kind === "entry") paths.add(item.entry.path);
+  }
+  return paths;
+}
+const virtPrefix: number[] = [0];
+for (const height of photoHeights) virtPrefix.push(virtPrefix[virtPrefix.length - 1]! + height);
+const virtTotalHeight = virtPrefix[virtPrefix.length - 1]!;
+for (const scrollTop of [0, 1500, 3210, Math.max(0, virtTotalHeight - 600)]) {
+  const win = computeVariableListVirtualWindow({
+    heights: photoHeights,
+    scrollTop,
+    viewportHeight: 600,
+    overscanItems: THUMB_REQUEST_OVERSCAN_ROWS,
+  });
+  const keep = computeVariableListVirtualWindow({
+    heights: photoHeights,
+    scrollTop,
+    viewportHeight: 600,
+    overscanItems: THUMB_REQUEST_CANCEL_OVERSCAN_ROWS,
+  });
+  const visible = visibleVirtEntryPaths(photoHeights, photoItems, scrollTop, 600);
+  const requested = new Set(entryPathsOf(photoItems.slice(win.startIndex, win.endIndex)));
+  for (const path of visible) {
+    assert.ok(requested.has(path), `纵向 scrollTop=${scrollTop}: 请求窗必须覆盖可见条目 ${path}`);
+  }
+  assert.ok(
+    keep.startIndex <= win.startIndex && win.endIndex <= keep.endIndex,
+    `纵向 scrollTop=${scrollTop}: 取消窗必须覆盖请求窗`,
+  );
+}
+
+// 过期 scrollTop（折叠组骤缩后）：分组请求窗必须保持界内非退化。
+{
+  const staleWin = computeGridThumbRequestWindow({
+    rows: photoRows,
+    scrollTop: photoTotalHeight * 2,
+    viewportHeight: THUMB_VH,
+    overscanRows: THUMB_REQUEST_OVERSCAN_ROWS,
+  });
+  assert.ok(
+    staleWin.startIndex >= 0 &&
+      staleWin.startIndex <= staleWin.endIndex &&
+      staleWin.endIndex <= photoItems.length,
+    "过期 scrollTop：分组请求窗不得越界",
+  );
+}
 
 console.log("list-virtual-window checks OK");

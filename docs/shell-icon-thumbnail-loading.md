@@ -43,6 +43,7 @@ NavigatorView
 | 层 | 职责 |
 |----|------|
 | 几何请求窗 | **请求窗与取消窗分离**：请求用窄窗（可见行 + `THUMB_REQUEST_OVERSCAN_ROWS`=1）控住甩动期 IPC 量；cancel 用宽窗（+ `THUMB_REQUEST_CANCEL_OVERSCAN_ROWS`=3）。`h≤0` 时仅 `THUMB_REQUEST_FALLBACK_ROWS` 兜底 |
+| 分组视图请求窗 | **窗跟分组视觉模型**（2026-11-27 真机 bug 修复）：分组网格用 `computeGridThumbRequestWindow`（行前缀高度上的行窗→虚拟项区间），分组纵向用 `computeVariableListVirtualWindow`；**不做组边界对齐**（渲染窗的整组挂载语义不进请求侧，防大组一次性放大成整组缩略图 IPC）。分组切换/折叠不动 `visibleEntries`，图标请求 watch 需单独监听 `navigatorGroupBy`/`collapsedGroupKeys` |
 | 类型策略 | `entryWantsContentThumbnail`：仅图像/视频等走内容缩略图 |
 | 队列 | 单队列；`preferThumbnail=false` 优先抽干（`BATCH_ICON`）；thumb 小批（`BATCH_THUMB`）便于 cancel |
 | 后端 | `prefer_thumbnail && is_file` 才走 `IShellItemImageFactory`；否则壳图标 + `type:<ext>` 共享缓存 |
@@ -68,6 +69,7 @@ NavigatorView
 | 普通慢速滚动（< 1.25 px/ms） | 照常加载 |
 | 滚动停稳（`CONTENT_THUMB_SETTLE_MS`=140ms） | 恢复：对当前窗完整请求（含内容缩略图） |
 | 路径离开**取消窗**（宽） | `cancelShellIconRequests`（FIL-33）。cancel 判定用宽窗而非窄请求窗：边缘行在请求窗上/下沿反复进出时不被 cancel/soft，否则会被字节预算淘汰→重进即冷重请，表现为「停在屏幕仍逐行反复重载」 |
+| 分组视图（任意视图模式） | 请求/取消窗按分组渲染序（桶序 + 组头高度）计算，不用扁平排序序几何——否则桶序 ≠ 排序序时请求打到屏幕外（首屏不加载），组头累计高度让深滚映射超前（请求清零 + 全量 cancel） |
 | 换目录 / 换图标尺寸 | `clearShellIconQueue` |
 
 ### 4.4 入队顺序

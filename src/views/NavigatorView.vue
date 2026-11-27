@@ -147,12 +147,14 @@ import {
   scrollTopForIndex,
   scrollTopForVirtIndex,
   THUMB_REQUEST_CANCEL_OVERSCAN_ROWS,
+  THUMB_REQUEST_OVERSCAN_ROWS,
   type ListVirtualWindow,
 } from "../state/listVirtualWindow";
 import {
   buildGroupedGridLayout,
   buildGridRows,
   computeGridListVirtualWindow,
+  computeGridThumbRequestWindow,
   flattenEntryItems,
   flattenGroupedItems,
   LIST_GROUP_HEADER_HEIGHT_PX,
@@ -1442,18 +1444,89 @@ function probeThumbSync(
   });
 }
 
+/**
+ * 分组视图的缩略图请求/取消窗（虚拟项区间）。
+ *
+ * 2026-11-27 真机 bug：此前分组沿用了扁平几何（computeThumbRequestWindow over
+ * visibleEntries），而分组渲染按桶序 + 含组头高度——桶序 ≠ 排序序时请求打到
+ * 屏幕外条目（首屏即不加载）；组头累计高度让深滚映射超前，请求窗漂移甚至越过
+ * totalRows 变空窗（请求清零 + 全量 cancel）。修复：窗跟分组视觉模型走——
+ * 分组网格用行窗（computeGridThumbRequestWindow），分组纵向用变高项窗，
+ * 均不做组边界对齐（渲染窗的整组挂载语义不进请求侧）。
+ */
+function groupedThumbItemRange(overscanRows: number): { startIndex: number; endIndex: number } {
+  const viewportHeight = listViewportHeightPx(listViewport.value);
+  if (groupedGridView.value) {
+    return computeGridThumbRequestWindow({
+      rows: primaryGridRows.value,
+      scrollTop: primaryScrollTop.value,
+      viewportHeight,
+      overscanRows,
+    });
+  }
+  const rowHeight = paneRowHeight(primaryGridGeometry.value);
+  const heights = primaryVirtItems.value.map((item) => virtItemHeightPx(item, rowHeight));
+  const win = computeVariableListVirtualWindow({
+    heights,
+    scrollTop: primaryScrollTop.value,
+    viewportHeight,
+    overscanItems: overscanRows,
+  });
+  return { startIndex: win.startIndex, endIndex: win.endIndex };
+}
+
+/** 分组主栏的缩略图视口同步：与 syncThumbRequestsForPane 同契约，条目按分组渲染序。 */
+function syncGroupedThumbRequests(
+  previousRetained: Set<string>,
+): {
+  paths: Set<string>;
+  retained: Set<string>;
+  entries: { path: string; kind?: string }[];
+} {
+  const items = primaryVirtItems.value;
+  const win = groupedThumbItemRange(THUMB_REQUEST_OVERSCAN_ROWS);
+  const keepWin = groupedThumbItemRange(THUMB_REQUEST_CANCEL_OVERSCAN_ROWS);
+  const clampIndex = (index: number): number =>
+    Math.min(Math.max(0, index), items.length);
+  const entriesInRange = (start: number, end: number): { path: string; kind?: string }[] => {
+    const list: { path: string; kind?: string }[] = [];
+    for (let i = clampIndex(start); i < clampIndex(end); i += 1) {
+      const item = items[i];
+      if (item && item.kind === "entry") {
+        list.push({ path: item.entry.path, kind: item.entry.kind });
+      }
+    }
+    return list;
+  };
+  const nextEntries = entriesInRange(win.startIndex, win.endIndex);
+  const retained = new Set(
+    entriesInRange(keepWin.startIndex, keepWin.endIndex).map((entry) => entry.path),
+  );
+  const left = pathsLeavingWindow(previousRetained, retained);
+  const size = VIEW_ICON_SIZE[navigatorViewMode.value];
+  if (left.length) cancelShellIconRequests(left, size);
+  probeThumbSync("primary", primaryScrollTop.value, win, keepWin, left.length, items.length);
+  return {
+    paths: new Set(nextEntries.map((entry) => entry.path)),
+    retained,
+    entries: nextEntries,
+  };
+}
+
 function refreshViewportIconRequests() {
   // 每次同步前实测几何：滚动中若列数/行高因滚动条出现等变化，窗口立刻跟随。
   measurePaneGeometry(listRoot.value, primaryGridGeometry);
   measurePaneGeometry(secondaryListRoot.value, secondaryGridGeometry);
-  const primary = syncThumbRequestsForPane(
-    "primary",
-    visibleEntries.value,
-    primaryScrollTop.value,
-    listViewport.value,
-    primaryThumbRetainedPaths,
-    primaryGridGeometry.value,
-  );
+  const primary = isGrouped.value
+    ? syncGroupedThumbRequests(primaryThumbRetainedPaths)
+    : syncThumbRequestsForPane(
+        "primary",
+        visibleEntries.value,
+        primaryScrollTop.value,
+        listViewport.value,
+        primaryThumbRetainedPaths,
+        primaryGridGeometry.value,
+      );
   const secondary = syncThumbRequestsForPane(
     "secondary",
     secondaryEntries.value,
@@ -1495,6 +1568,11 @@ watch(
     visibleEntries,
     secondaryEntries,
     navigatorViewMode,
+    // 分组切换/折叠改变渲染序与几何，但不动 visibleEntries——必须单独监听，
+    // 否则切分组后到下一次滚动前缩略图请求完全不重同步（2026-11-27 真机 bug）。
+    navigatorGroupBy,
+    navigatorGroupDirection,
+    collapsedGroupKeys,
     listViewport,
     secondaryViewport,
   ],
@@ -1707,10 +1785,12 @@ const typeLabels = computed(() => ({
   typedFile: (ext: string) => t("navigator.typeFileExt", { ext }),
   nameOther: t("navigator.groupNameOther"),
   sizeEmpty: t("navigator.groupSizeEmpty"),
+  sizeTiny: t("navigator.groupSizeTiny"),
   sizeSmall: t("navigator.groupSizeSmall"),
   sizeMedium: t("navigator.groupSizeMedium"),
   sizeLarge: t("navigator.groupSizeLarge"),
   sizeHuge: t("navigator.groupSizeHuge"),
+  sizeUnspecified: t("navigator.groupSizeUnspecified"),
   dateUnknown: t("navigator.groupDateUnknown"),
   dateToday: t("navigator.groupDateToday"),
   dateYesterday: t("navigator.groupDateYesterday"),

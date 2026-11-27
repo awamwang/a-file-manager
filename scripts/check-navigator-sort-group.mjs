@@ -79,7 +79,8 @@ assert.ok(mode.includes('navigatorGroupBy.value = "none"'));
 assert.ok(grouping.includes("export function groupEntriesBy"));
 assert.ok(grouping.includes("export function nameBucketKey"));
 assert.ok(grouping.includes("export function dateBucketKey"));
-assert.ok(grouping.includes("FOLDER_GROUP_KEY"));
+assert.ok(grouping.includes("UNSPECIFIED_GROUP_KEY"), "大小分组「未指定」桶常量");
+assert.ok(!grouping.includes("FOLDER_GROUP_KEY"), "文件夹置顶组已退役（Win11 对齐）");
 assert.ok(grouping.includes("pinnedLast"), "“#”/unknown 桶垫底机制");
 
 // ---- NavigatorView：分组渲染 + 可折叠组头 ----
@@ -169,10 +170,12 @@ for (const loc of LOCALES) {
   for (const key of [
     "groupNameOther",
     "groupSizeEmpty",
+    "groupSizeTiny",
     "groupSizeSmall",
     "groupSizeMedium",
     "groupSizeLarge",
     "groupSizeHuge",
+    "groupSizeUnspecified",
     "groupDateUnknown",
     "groupDateToday",
     "groupDateYesterday",

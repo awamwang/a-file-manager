@@ -243,6 +243,62 @@ export function computeGridListVirtualWindow(args: {
   };
 }
 
+/** 分组网格视图的缩略图请求/取消窗（虚拟项区间，半开）。 */
+export type GridThumbRequestWindow = {
+  startIndex: number;
+  endIndex: number;
+};
+
+/**
+ * 分组网格视图的缩略图请求/取消窗。
+ *
+ * 与 `computeGridListVirtualWindow` 共用「行前缀高度」几何，但**不做组边界对齐**：
+ * 请求侧只覆盖与视口相交的行（± overscan 行），渲染窗的「整组挂载」语义不能
+ * 带进来，否则一个大组会被一次性放大成整组的缩略图 IPC。
+ * 调用方用窄窗（`THUMB_REQUEST_OVERSCAN_ROWS`）发请求、宽窗
+ * （`THUMB_REQUEST_CANCEL_OVERSCAN_ROWS`）做 cancel 判定。
+ * 视口高度未量到（≤0）时返回全量区间：首帧只走快通道（调用方门控），
+ * 且避免瞬时空窗把已排队项全部 cancel。
+ */
+export function computeGridThumbRequestWindow(args: {
+  rows: readonly ListVirtGridRow[];
+  scrollTop: number;
+  viewportHeight: number;
+  overscanRows?: number;
+}): GridThumbRequestWindow {
+  const total = args.rows.length;
+  if (total === 0) return { startIndex: 0, endIndex: 0 };
+  const overscan = Math.max(0, Math.trunc(args.overscanRows ?? 1));
+  const viewportHeight = Math.max(0, args.viewportHeight);
+  const scrollTop = Math.max(0, args.scrollTop);
+  if (viewportHeight <= 0) {
+    return {
+      startIndex: args.rows[0]?.startItem ?? 0,
+      endIndex: args.rows[total - 1]?.endItem ?? 0,
+    };
+  }
+
+  const prefix = new Array<number>(total + 1);
+  prefix[0] = 0;
+  for (let i = 0; i < total; i += 1) {
+    prefix[i + 1] = prefix[i]! + Math.max(0, args.rows[i]!.height);
+  }
+
+  // 与视口 [scrollTop, scrollTop+viewportHeight) 相交的首/末行。
+  let firstRow = 0;
+  while (firstRow < total && prefix[firstRow + 1]! <= scrollTop) firstRow += 1;
+  let lastRow = firstRow;
+  while (lastRow + 1 < total && prefix[lastRow + 1]! < scrollTop + viewportHeight) {
+    lastRow += 1;
+  }
+  const startRow = Math.max(0, firstRow - overscan);
+  const endRow = Math.min(total, lastRow + 1 + overscan);
+  return {
+    startIndex: args.rows[startRow]?.startItem ?? 0,
+    endIndex: args.rows[endRow - 1]?.endItem ?? 0,
+  };
+}
+
 /** 分组网格里一个条目的视觉位置。 */
 export type GroupedGridCell = {
   /** 视觉行索引（组头行也占一行，但没有条目）。 */

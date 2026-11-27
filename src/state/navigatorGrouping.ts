@@ -2,7 +2,11 @@
 /**
  * Explorer-like grouping for Navigator listings.
  * v17（ADR 0030）：布尔「按类型分组」泛化为 field × direction 分组
- * （name / size / modified / type），文件夹永远单独成组置顶。
+ * （name / size / modified / type）。
+ * 2026-11-27 对齐 Win11 实测（build 26200，自宿主 IExplorerBrowser 取证）：
+ * 文件夹不再单独成组置顶——按自身属性正常入桶（名称/日期/类型）；
+ * 大小分组时文件夹无大小，落入「未指定」桶（rank 最高，随方向翻转：
+ * 升序垫底、降序置顶）。
  */
 
 import { entryTypeKey, entryTypeLabel } from "./entryType.ts";
@@ -32,10 +36,13 @@ export type GroupLabelFns = {
   /** 名称分组：非字母桶（数字/符号/未识别文字）。 */
   nameOther: string;
   sizeEmpty: string;
+  sizeTiny: string;
   sizeSmall: string;
   sizeMedium: string;
   sizeLarge: string;
   sizeHuge: string;
+  /** 大小分组：无大小的条目（文件夹、未知大小）。 */
+  sizeUnspecified: string;
   dateUnknown: string;
   dateToday: string;
   dateYesterday: string;
@@ -44,9 +51,10 @@ export type GroupLabelFns = {
   dateEarlier: string;
 };
 
-/** 文件夹组的固定 key（各 field 通用；始终置顶）。 */
-export const FOLDER_GROUP_KEY = "folder";
+/** 大小分组的「未指定」桶 key（文件夹/未知大小；rank 最高，随方向翻转）。 */
+export const UNSPECIFIED_GROUP_KEY = "unspecified";
 
+const SIZE_16KB = 16 * 1024;
 const SIZE_1MB = 1024 * 1024;
 const SIZE_128MB = 128 * SIZE_1MB;
 const SIZE_1GB = 1024 * SIZE_1MB;
@@ -88,24 +96,38 @@ export function nameBucketKey(name: string): string {
   return asciiLetterBucket(first) ?? pinyinInitial(first) ?? "#";
 }
 
-type SizeBucketKey = "empty" | "small" | "medium" | "large" | "huge";
+type SizeBucketKey =
+  | "unspecified"
+  | "empty"
+  | "tiny"
+  | "small"
+  | "medium"
+  | "large"
+  | "huge";
 const SIZE_RANK: Record<SizeBucketKey, number> = {
   empty: 0,
-  small: 1,
-  medium: 2,
-  large: 3,
-  huge: 4,
+  tiny: 1,
+  small: 2,
+  medium: 3,
+  large: 4,
+  huge: 5,
+  // Win11：未指定 rank 最高，升序垫底、降序置顶（随方向翻转，不 pin）。
+  unspecified: 6,
 };
 const SIZE_LABEL_KEY: Record<SizeBucketKey, string> = {
   empty: "sizeEmpty",
+  tiny: "sizeTiny",
   small: "sizeSmall",
   medium: "sizeMedium",
   large: "sizeLarge",
   huge: "sizeHuge",
+  unspecified: "sizeUnspecified",
 };
 
-function sizeBucketKey(size: number): SizeBucketKey {
+function sizeBucketKey(size: number | null | undefined): SizeBucketKey {
+  if (size == null) return UNSPECIFIED_GROUP_KEY;
   if (size <= 0) return "empty";
+  if (size < SIZE_16KB) return "tiny";
   if (size < SIZE_1MB) return "small";
   if (size < SIZE_128MB) return "medium";
   if (size < SIZE_1GB) return "large";
@@ -176,6 +198,8 @@ function labelFor(labels: GroupLabelFns, labelKey: string, name: string): string
       return labels.nameOther;
     case "sizeEmpty":
       return labels.sizeEmpty;
+    case "sizeTiny":
+      return labels.sizeTiny;
     case "sizeSmall":
       return labels.sizeSmall;
     case "sizeMedium":
@@ -184,6 +208,8 @@ function labelFor(labels: GroupLabelFns, labelKey: string, name: string): string
       return labels.sizeLarge;
     case "sizeHuge":
       return labels.sizeHuge;
+    case "sizeUnspecified":
+      return labels.sizeUnspecified;
     case "dateToday":
       return labels.dateToday;
     case "dateYesterday":
@@ -202,8 +228,10 @@ function labelFor(labels: GroupLabelFns, labelKey: string, name: string): string
 }
 
 /**
- * 按字段分桶。文件夹（kind === "dir"）永远单独成组且置顶，
- * 不受 direction 影响；其余桶按 rank 升/降序排，方向只翻转桶间顺序。
+ * 按字段分桶（Win11 对齐）：文件夹与文件一样按自身属性入桶——
+ * 名称/日期/类型正常参与；大小分组时文件夹（无大小）与未知大小的
+ * 文件落入「未指定」桶。桶按 rank 升/降序排，方向只翻转桶间顺序；
+ * "#"（名称）/unknown（日期）桶永远垫底，不随方向翻转。
  */
 export function groupEntriesBy<T extends GroupableEntry>(
   entries: readonly T[],
@@ -212,15 +240,10 @@ export function groupEntriesBy<T extends GroupableEntry>(
   labels: GroupLabelFns,
   nowMs: number,
 ): NavigatorGroup<T>[] {
-  const dirs: T[] = [];
   const buckets = new Map<string, Bucket<T>>();
   const sign = direction === "asc" ? 1 : -1;
 
   for (const entry of entries) {
-    if (entry.kind === "dir") {
-      dirs.push(entry);
-      continue;
-    }
     let bucket: Bucket<T> | undefined;
     if (field === "type") {
       const key = entryTypeKey(entry.kind, entry.name);
@@ -250,7 +273,9 @@ export function groupEntriesBy<T extends GroupableEntry>(
         buckets.set(key, bucket);
       }
     } else if (field === "size") {
-      const sizeKey = sizeBucketKey(entry.size ?? 0);
+      // 文件夹无大小 → 未指定桶（Explorer 同款：升序垫底、降序置顶）。
+      const sizeKey: SizeBucketKey =
+        entry.kind === "dir" ? UNSPECIFIED_GROUP_KEY : sizeBucketKey(entry.size);
       bucket = buckets.get(sizeKey);
       if (!bucket) {
         bucket = {
@@ -279,10 +304,6 @@ export function groupEntriesBy<T extends GroupableEntry>(
     bucket.entries.push(entry);
   }
 
-  const groups: NavigatorGroup<T>[] = [];
-  if (dirs.length) {
-    groups.push({ key: FOLDER_GROUP_KEY, label: labels.folder, entries: dirs });
-  }
   const ordered = [...buckets.values()].sort((a, b) => {
     if (a.pinnedLast !== b.pinnedLast) return a.pinnedLast ? 1 : -1;
     if (a.rank !== b.rank) return (a.rank - b.rank) * sign;
@@ -290,8 +311,9 @@ export function groupEntriesBy<T extends GroupableEntry>(
       a.label.localeCompare(b.label, undefined, { sensitivity: "base" }) * sign
     );
   });
-  for (const bucket of ordered) {
-    groups.push({ key: bucket.key, label: bucket.label, entries: bucket.entries });
-  }
-  return groups;
+  return ordered.map((bucket) => ({
+    key: bucket.key,
+    label: bucket.label,
+    entries: bucket.entries,
+  }));
 }

@@ -5,7 +5,7 @@ import {
   groupEntriesBy,
   nameBucketKey,
   dateBucketKey,
-  FOLDER_GROUP_KEY,
+  UNSPECIFIED_GROUP_KEY,
   type GroupableEntry,
 } from "../src/state/navigatorGrouping.ts";
 import {
@@ -41,10 +41,12 @@ const labels = {
   typedFile: (ext: string) => `${ext} File`,
   nameOther: "#",
   sizeEmpty: "Empty",
+  sizeTiny: "Tiny",
   sizeSmall: "Small",
   sizeMedium: "Medium",
   sizeLarge: "Large",
   sizeHuge: "Huge",
+  sizeUnspecified: "Unspecified",
   dateToday: "Today",
   dateYesterday: "Yesterday",
   dateThisWeek: "This week",
@@ -58,10 +60,11 @@ const DAY = 86_400_000;
 
 type Entry = GroupableEntry & { kind: "dir" | "file" };
 
-const dir = (name: string): Entry => ({
+const dir = (name: string, modifiedMs?: number): Entry => ({
   name,
   path: `C:\\t\\${name}`,
   kind: "dir",
+  modifiedMs,
 });
 const file = (name: string, size: number, modifiedMs: number): Entry => ({
   name,
@@ -89,7 +92,7 @@ assert.equal(dateBucketKey(NOW - 9 * DAY, NOW), "lastWeek");
 assert.equal(dateBucketKey(NOW - 40 * DAY, NOW), "earlier");
 assert.equal(dateBucketKey(null, NOW), "unknown");
 
-// ---- 分组：文件夹永远单独成组置顶 ----
+// ---- 分组：文件夹按自身属性入桶（Win11 build 26200 实测，2026-11-27）----
 const mixed: Entry[] = [
   file("b.txt", 10, NOW),
   dir("Docs"),
@@ -97,9 +100,37 @@ const mixed: Entry[] = [
   file("c.png", 10, NOW),
 ];
 const byType = groupEntriesBy(mixed, "type", "asc", labels, NOW);
-assert.equal(byType[0]?.key, FOLDER_GROUP_KEY);
+// type：文件夹入 "dir" 桶（label = folder），与类型桶一起按标签字母序排。
+assert.deepEqual(
+  byType.map((g) => g.key),
+  ["dir", "file:png", "file:txt"],
+);
+assert.equal(byType[0]?.label, "Folders");
 assert.equal(byType[0]?.entries.length, 1);
-assert.equal(byType.length, 3); // folder + file:txt + file:png
+assert.equal(byType.length, 3);
+const byTypeDesc = groupEntriesBy(mixed, "type", "desc", labels, NOW);
+assert.deepEqual(
+  byTypeDesc.map((g) => g.key),
+  ["file:txt", "file:png", "dir"],
+  "type desc 完全反转，文件夹桶不置顶",
+);
+
+// ---- 名称分组：文件夹与文件入同一字母桶 ----
+const namesWithDir: Entry[] = [
+  file("beta", 1, NOW),
+  dir("alphaDir"),
+  file("alpha", 1, NOW),
+];
+const byNameMixed = groupEntriesBy(namesWithDir, "name", "asc", labels, NOW);
+assert.deepEqual(
+  byNameMixed.map((g) => g.key),
+  ["A", "B"],
+);
+assert.equal(byNameMixed[0]?.entries.length, 2);
+assert.ok(
+  byNameMixed[0]?.entries.some((entry) => entry.name === "alphaDir"),
+  "文件夹混入字母桶，不单独成组",
+);
 
 // ---- 名称分组：字母桶顺序 + “#”垫底（不随方向翻转） ----
 const names: Entry[] = [
@@ -120,28 +151,55 @@ assert.deepEqual(
   "desc 翻转字母桶但 # 永远垫底",
 );
 
-// ---- 大小分组：桶 rank 顺序随方向翻转 ----
+// ---- 大小分组：桶 rank 随方向翻转；文件夹→「未指定」桶（rank 最高，随方向翻转）----
 const sizes: Entry[] = [
   file("big.bin", 2 * 1024 ** 3, NOW),
   file("tiny.txt", 512, NOW),
   file("mid.doc", 8 * 1024 ** 2, NOW),
+  dir("Docs"),
 ];
 const bySizeAsc = groupEntriesBy(sizes, "size", "asc", labels, NOW);
 assert.deepEqual(
   bySizeAsc.map((g) => g.key),
-  ["small", "medium", "huge"],
+  ["tiny", "medium", "huge", UNSPECIFIED_GROUP_KEY],
+  "asc：未指定垫底（Win11：Empty→Tiny→Small→…→未指定）",
+);
+assert.equal(bySizeAsc[3]?.label, "Unspecified");
+assert.ok(
+  bySizeAsc[3]?.entries.some((entry) => entry.name === "Docs"),
+  "文件夹落未指定桶",
 );
 const bySizeDesc = groupEntriesBy(sizes, "size", "desc", labels, NOW);
 assert.deepEqual(
   bySizeDesc.map((g) => g.key),
-  ["huge", "medium", "small"],
+  [UNSPECIFIED_GROUP_KEY, "huge", "medium", "tiny"],
+  "desc：未指定置顶（随方向翻转，非固定 pin）",
 );
 
-// ---- 修改日期分组：unknown 桶永远垫底 ----
+// ---- Tiny 段边界（Win11：Tiny 0-16KB，Small 16KB-1MB）----
+const tinyEdges: Entry[] = [
+  file("zero.dat", 0, NOW),
+  file("one.bin", 1, NOW),
+  file("justUnder16k.bin", 16 * 1024 - 1, NOW),
+  file("exact16k.bin", 16 * 1024, NOW),
+];
+const byTiny = groupEntriesBy(tinyEdges, "size", "asc", labels, NOW);
+assert.deepEqual(
+  byTiny.map((g) => g.key),
+  ["empty", "tiny", "small"],
+  "0 字节属空桶；1B-16383B 属超小桶；16KB 起属小桶",
+);
+assert.deepEqual(
+  byTiny[1]?.entries.map((entry) => entry.name),
+  ["one.bin", "justUnder16k.bin"],
+);
+
+// ---- 修改日期分组：unknown 桶永远垫底；文件夹按 mtime 混入日期桶 ----
 const dates: Entry[] = [
   file("old.log", 1, NOW - 40 * DAY),
   file("mystery.dat", 1, NOW),
   file("fresh.txt", 1, NOW),
+  dir("dirD", NOW - 40 * DAY),
 ];
 const dated = dates.map((entry) =>
   entry.name === "mystery.dat" ? { ...entry, modifiedMs: undefined } : entry,
@@ -151,6 +209,10 @@ assert.deepEqual(
   byDateAsc.map((g) => g.key),
   ["earlier", "today", "unknown"],
 );
+assert.ok(
+  byDateAsc[0]?.entries.some((entry) => entry.name === "dirD"),
+  "文件夹按 mtime 与文件混入同一日期桶",
+);
 const byDateDesc = groupEntriesBy(dated, "modified", "desc", labels, NOW);
 assert.deepEqual(
   byDateDesc.map((g) => g.key),
@@ -158,7 +220,7 @@ assert.deepEqual(
 );
 
 // ---- 折叠：collapsedKeys 只留组头；组头带 groupKey/collapsed ----
-const collapsed = flattenGroupedItems(byType, new Set([FOLDER_GROUP_KEY]));
+const collapsed = flattenGroupedItems(byType, new Set(["dir"]));
 assert.equal(collapsed.length, 6, "折叠组只剩组头，未折叠组保留条目");
 const visibleNames = collapsed
   .filter((item) => item.kind === "entry")
@@ -167,7 +229,7 @@ assert.ok(!visibleNames.includes("Docs"), "已折叠组的条目不渲染");
 const header = collapsed[0];
 assert.equal(header?.kind, "header");
 if (header?.kind === "header") {
-  assert.equal(header.groupKey, FOLDER_GROUP_KEY);
+  assert.equal(header.groupKey, "dir");
   assert.equal(header.collapsed, true);
   assert.equal(header.count, 1);
 }

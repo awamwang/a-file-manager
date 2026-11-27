@@ -5,7 +5,7 @@ Windows 资源管理器视图栏有「排序依据 / 分组依据」下拉，覆
 决定补齐为完整能力：
 
 1. **Chrome 两个互斥下拉**（排序依据 / 分组依据）：字段为名称 / 修改日期 / 类型 / 大小（与详细信息可排序列一致），方向为递增 / 递减（arrowUp / arrowDown 图标）。**选字段保持当前方向**，方向是独立单选。详细信息列头 `toggleSort` 保留：同列翻转方向、换列重置升序。四项全部持久化（settings schema v17：`core.navigatorSortColumn` / `core.navigatorSortDirection` / `core.navigatorGroupBy` / `core.navigatorGroupDirection`）。
-2. **分组泛化**：5 字段（无 + 4）。组头标签对齐 Win11——名称走 A–Z 拼音首字母桶（「#」桶永远垫底，不随方向翻转），修改日期走日期桶（更早/今天/…/未知，未知垫底），类型/大小走语义桶；**文件夹永远单独成组置顶**。组头是可点击折叠的 button（aria-expanded + chevron），折叠态 `collapsedGroupKeys` 仅会话级记忆，不持久化。
+2. **分组泛化**：5 字段（无 + 4）。组头标签对齐 Win11——名称走 A–Z 拼音首字母桶（「#」桶永远垫底，不随方向翻转），修改日期走日期桶（更早/今天/…/未知，未知垫底），类型/大小走语义桶。~~文件夹永远单独成组置顶~~ **2026-11-27 修正（Win11 build 26200 自宿主 IExplorerBrowser 实测）**：文件夹与文件一样按自身属性入桶——名称/日期/类型正常参与（类型分组的文件夹桶标签即「文件文件夹」，按类型标签字母序排、随方向翻转；日期分组文件夹按 mtime 混入日期桶）；大小分组时文件夹无大小，落入「未指定」桶（`UNSPECIFIED_GROUP_KEY`，rank 最高且随方向翻转：升序垫底、降序置顶，与 Win11 的 Empty→…→未指定 / 未指定→…→Empty 一致；大小桶清单：空(0B)/超小(<16KB)/小(<1MB)/中(<128MB)/大(<1GB)/巨大(≥1GB)/未指定，其中「超小」段为 2026-11-28 对齐 Win11 Tiny(0-16KB) 补齐）。组头是可点击折叠的 button（aria-expanded + chevron），折叠态 `collapsedGroupKeys` 仅会话级记忆，不持久化。
 3. **空白处右键子菜单**：排序/分组项复用 `ContextMenuItemDef.checked`（menuitemcheckbox），与 chrome 下拉同一状态源，选中即写同一批 settings 键。
 4. **旧 `core.navigatorGroupByType` 退役方式**：后端定义与 v16→v17 迁移保留（老用户设置平滑搬家），FE Settings UI 隐藏该键（i18n 条目保留以满足 i18n-checks），交互只走新键。
 5. **工具条顺序：分组紧跟排序**。两者是同一族操作（同一批 settings 键、同一套下拉形态），中间被「视图切换」隔开会让人以为分组属于视图而不是列表。顺序钉为 排序 → 分组 → 视图 → 穿透。
