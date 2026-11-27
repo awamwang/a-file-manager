@@ -50,3 +50,6 @@ publish-check-report.json
 /test-results/
 /playwright-report/
 /.pwtmp/
+
+# MSIX 本地打包中间产物（含唯一 staging / verify 目录）
+/build/msix/
