@@ -32,6 +32,8 @@ export type PlatformCapabilities = {
   osShellVerb: boolean;
   registryAutostart: boolean;
   nativeAutostart: boolean;
+  /** Store (MSIX) build: autostart is owned by windows.startupTask, not HKCU Run. */
+  storeBuild: boolean;
   singleInstance: boolean;
   globalSearch: boolean;
   /** Host-wide index: "everything" (Windows) | "spotlight" (macOS) | "none". */
@@ -79,6 +81,7 @@ export const NEUTRAL_PLATFORM: PlatformCapabilities = {
   osShellVerb: false,
   registryAutostart: false,
   nativeAutostart: false,
+  storeBuild: false,
   singleInstance: false,
   globalSearch: false,
   globalSearchEngine: "none",

@@ -57,17 +57,29 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "scripts\build_msix.ps1" -SelfSign
 ## 开机自启（windows.startupTask）
 
 manifest 已声明 `desktop:windows.startupTask`（TaskId `AFMAutoStart`），默认
-`Enabled=true`（与设置项 `core.launchAtStartup` 默认开启一致）。打包脚本同步在包根写
-`msix-startup.json`（`{"startupTask":true,"taskId":"AFMAutoStart"}`）作为 MSIX 标识。
+`Enabled=true`。打包脚本在包根写配置标记 `msix-startup.json`：
 
-- 关闭打包自启：`-StartupTaskEnabled $false` → manifest `Enabled=false` 且不写标记。
-- **关闭方法**：商店版自启由 Windows 管理，用户到
-  **设置 → 应用 → 启动 → A File Manager** 关闭开关即可。
-- **应用内限制**：当前 `core.launchAtStartup` 设置开关走 HKCU `Run` 注册表，MSIX 容器内
-  该写入会被虚拟化，「应用内关掉但开机仍自启」是已知不一致。本次未改 Rust / 前端代码，
-  因此商店版的自启请以系统「启动应用」页为准。若要让应用内开关真正生效，需改造
-  `src-tauri/src/autostart.rs` + 前端（用 `windows.startupTask` 的 WinRT API），并补
-  baseline 测试 —— 本次工作区有未提交的前端改动，未越界修改。
+```json
+{"storeBuild":true,"startupTask":true,"taskId":"AFMAutoStart"}
+```
+
+- `storeBuild`：**始终为 true**（只要是 MSIX 包）。这是打包时的商店版配置开关。
+- `startupTask`：随 `-StartupTaskEnabled` 变化；关闭时 manifest `Enabled=false` 且此处为
+  `false`，但 `storeBuild` 仍为 true，应用内勾选项照样隐藏。
+
+**运行时行为（配置驱动，不探测包身份）**：Rust `platform_capabilities()` 读取 exe 同目录的
+`msix-startup.json`，把 `storeBuild` 暴露为 `PlatformCapabilities.storeBuild`。设置策略据此
+隐藏 `core.launchAtStartup` / `core.launchAtStartupHidden` 两行（HKCU Run 在 MSIX 里会被
+虚拟化，应用内开关无效），设置页顶部改为显示提示：到 **Windows 设置 → 应用 → 启动 →
+A File Manager** 开启或关闭。绿色版 NSIS 包没有该标记，勾选项保持原样。
+
+关闭方法：商店版自启由 Windows「启动应用」页管理，用户到
+**设置 → 应用 → 启动 → A File Manager** 关闭开关即可。i18n key
+`settings.storeBuildAutostartNotice`（6 个 locale）提供该提示文案。
+
+baseline 覆盖：`platform/mod.rs::store_build_marker_only_truthy_flag`（CARGO）、
+`settings/platform_policy.rs::store_build_hides_in_app_autostart_rows`（CARGO）、
+`scripts/check-autostart.mjs`（STATIC，含 FE↔BE 字段镜像断言），已接入 `npm test` 链。
 
 ## 代码签名（官网直发 NSIS 用）
 

@@ -222,6 +222,9 @@ pub struct PlatformCapabilities {
     pub os_shell_verb: bool,
     pub registry_autostart: bool,
     pub native_autostart: bool,
+    /// Store (MSIX) build: autostart is owned by windows.startupTask, so the
+    /// in-app HKCU Run toggle is hidden in favour of the OS Settings page.
+    pub store_build: bool,
     pub single_instance: bool,
     /// A host-wide index exists (Everything on Windows, Spotlight on macOS).
     pub global_search: bool,
@@ -279,6 +282,7 @@ impl PlatformCapabilities {
             os_shell_verb: false,
             registry_autostart: false,
             native_autostart: false,
+            store_build: false,
             single_instance: false,
             global_search: false,
             global_search_engine: "none".to_string(),
@@ -743,10 +747,36 @@ pub(super) fn has_uri_scheme(value: &str) -> bool {
         && value[idx + 1..].starts_with("//")
 }
 
+/// Detect a Store (MSIX) build from the `msix-startup.json` marker the packaging
+/// script writes next to `a-file-manager.exe`. Pure in the parsed JSON so the
+/// decision is unit-testable without a packaged install.
+pub fn is_store_build_marker(marker: &str) -> bool {
+    serde_json::from_str::<serde_json::Value>(marker)
+        .ok()
+        .and_then(|value| value.get("storeBuild").and_then(|flag| flag.as_bool()))
+        .unwrap_or(false)
+}
+
+/// Read the build marker beside the running exe. Absent/unreadable = normal
+/// (non-store) build, so an unsigned NSIS install keeps the in-app toggle.
+fn detect_store_build() -> bool {
+    let Ok(exe) = std::env::current_exe() else {
+        return false;
+    };
+    let Some(dir) = exe.parent() else {
+        return false;
+    };
+    std::fs::read_to_string(dir.join("msix-startup.json"))
+        .map(|text| is_store_build_marker(&text))
+        .unwrap_or(false)
+}
+
 /// Frontend entry point: one call replaces scattered `if (isWindows)` checks.
 #[tauri::command]
 pub fn platform_capabilities() -> PlatformCapabilities {
-    current().capabilities()
+    let mut caps = current().capabilities();
+    caps.store_build = detect_store_build();
+    caps
 }
 
 /// Startup browse path. `navigator::default_path` should use this instead of
@@ -768,6 +798,14 @@ mod tests {
         assert!(has_uri_scheme("https://example.com/a"));
         assert!(!has_uri_scheme("C:/Users"));
         assert!(!has_uri_scheme("/Users/demo"));
+    }
+
+    #[test]
+    fn store_build_marker_only_truthy_flag() {
+        assert!(is_store_build_marker(r#"{"storeBuild":true,"startupTask":true,"taskId":"AFMAutoStart"}"#));
+        assert!(!is_store_build_marker(r#"{"storeBuild":false,"startupTask":true}"#));
+        assert!(!is_store_build_marker(r#"{"startupTask":true}"#));
+        assert!(!is_store_build_marker("not json"));
     }
 
     #[test]

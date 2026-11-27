@@ -1425,7 +1425,8 @@
       "preview": "プレビュー",
       "other": "その他"
     },
-    "sectionAbout": "バージョン情報"
+    "sectionAbout": "バージョン情報",
+    "storeBuildAutostartNotice": "スタートアップは Microsoft Store で管理されています。Windows の設定 > アプリ > スタートアップ でオン/オフを切り替えてください。"
   },
   "workGroups": {
     "addMemberPlaceholder": "メンバーフォルダーパスを追加",

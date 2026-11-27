@@ -1425,7 +1425,8 @@
       "preview": "Aperçu",
       "other": "Autre"
     },
-    "sectionAbout": "À propos"
+    "sectionAbout": "À propos",
+    "storeBuildAutostartNotice": "Le démarrage automatique est géré par le Microsoft Store. Ouvrez Paramètres Windows > Applications > Démarrage pour l'activer ou le désactiver."
   },
   "workGroups": {
     "addMemberPlaceholder": "Ajouter un chemin de dossier membre",

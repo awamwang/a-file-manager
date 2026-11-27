@@ -1134,7 +1134,8 @@
       "preview": "预览",
       "other": "其他"
     },
-    "sectionAbout": "关于"
+    "sectionAbout": "关于",
+    "storeBuildAutostartNotice": "开机自启由 Microsoft Store 管理。请到 Windows 设置 > 应用 > 启动 中开启或关闭。"
   },
   "managedDep": {
     "status": { "config": "连接模式", "managed": "AFM 托管" },

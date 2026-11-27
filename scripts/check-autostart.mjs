@@ -47,6 +47,26 @@ assert.ok(cargo.includes("tray-icon"));
 assert.ok(!cargo.includes("tauri-plugin-autostart"));
 const autostartRs = readFileSync(join(root, "src-tauri/src/autostart.rs"), "utf8");
 assert.ok(autostartRs.includes("CurrentVersion\\\\Run") || autostartRs.includes(String.raw`CurrentVersion\Run`));
+
+// Store (MSIX) build: in-app autostart toggle is hidden in favour of the OS
+// Settings page. Marker written at pack time, read via platform capability.
+const platformRs = readFileSync(join(root, "src-tauri/src/platform/mod.rs"), "utf8");
+const policyRs = readFileSync(join(root, "src-tauri/src/settings/platform_policy.rs"), "utf8");
+const platformTs = readFileSync(join(root, "src/config/platform.ts"), "utf8");
+const buildMsix = readFileSync(join(root, "scripts/build_msix.ps1"), "utf8");
+assert.ok(platformRs.includes("store_build: bool"), "PlatformCapabilities must expose store_build");
+assert.ok(platformRs.includes("is_store_build_marker"), "store build marker must be parsed in Rust");
+assert.ok(
+  policyRs.includes("rule.hidden = caps.store_build"),
+  "store build must hide in-app autostart rows",
+);
+assert.ok(platformTs.includes("storeBuild: boolean"), "FE platform type must mirror storeBuild");
+assert.ok(settingsView.includes("platformCaps.storeBuild"), "Settings must gate notice on storeBuild");
+assert.ok(settingsView.includes("settings.storeBuildAutostartNotice"));
+assert.ok(buildMsix.includes("storeBuild  = $true"), "MSIX pack must write the storeBuild marker");
+assert.equal(en.settings.storeBuildAutostartNotice.length > 0, true);
+assert.equal(zh.settings.storeBuildAutostartNotice.length > 0, true);
+
 assert.equal(en.settings.fields.core.launchAtStartup.title, "Launch at startup");
 assert.equal(zh.settings.fields.core.launchAtStartup.title, "开机自启动");
 assert.equal(zh.settings.fields.core.launchAtStartupHidden.title, "启动后隐藏到托盘");

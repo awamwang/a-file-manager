@@ -1336,6 +1336,12 @@ onMounted(() => {
         <p v-else-if="error" class="fluent-banner fluent-banner--error">{{ error }}</p>
 
         <div v-else-if="schema && document" class="fluent-surface fields">
+          <p
+            v-if="platformCaps.storeBuild"
+            class="fluent-banner fluent-banner--info store-build-autostart-notice"
+          >
+            {{ t("settings.storeBuildAutostartNotice") }}
+          </p>
           <section
             v-for="group in visibleFieldGroups"
             :key="group.id"

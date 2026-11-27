@@ -1134,7 +1134,8 @@
       "preview": "Preview",
       "other": "Other"
     },
-    "sectionAbout": "About"
+    "sectionAbout": "About",
+    "storeBuildAutostartNotice": "Startup is managed by Microsoft Store. Open Windows Settings > Apps > Startup to turn it on or off."
   },
   "managedDep": {
     "status": { "config": "Connect mode", "managed": "AFM-managed" },

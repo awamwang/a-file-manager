@@ -35,7 +35,11 @@ pub fn rule_for(key: &str, definition: &SettingDefinition, caps: &PlatformCapabi
     let mut rule = SettingPlatformRule::default();
     match key {
         "core.launchAtStartup" | "core.launchAtStartupHidden" => {
-            rule.hidden = !caps.registry_autostart && !caps.native_autostart;
+            // Store (MSIX) builds own autostart via windows.startupTask; the
+            // in-app HKCU Run toggle is virtualised there, so hide it and let
+            // the UI point users to Settings → Apps → Startup instead.
+            rule.hidden = caps.store_build
+                || (!caps.registry_autostart && !caps.native_autostart);
         }
         "core.everythingPreferred" => {
             rule.hidden = caps.global_search_engine != "everything";
@@ -187,6 +191,17 @@ mod tests {
         let mut dblclick = definition("core.fileDoubleClickAction");
         apply(&mut dblclick, &mac);
         assert!(!dblclick.enum_values.unwrap().contains(&"openWithDialog".to_string()));
+    }
+
+    #[test]
+    fn store_build_hides_in_app_autostart_rows() {
+        let mut store = caps("windows");
+        store.store_build = true;
+        for key in ["core.launchAtStartup", "core.launchAtStartupHidden"] {
+            let mut def = definition(key);
+            apply(&mut def, &store);
+            assert!(def.hidden, "{key} must be hidden in a Store build");
+        }
     }
 
     #[test]

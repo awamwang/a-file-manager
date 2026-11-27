@@ -28,7 +28,7 @@
 
 .PARAMETER StartupTaskEnabled
   是否让 windows.startupTask 默认启用（默认 true，与设置 core.launchAtStartup 默认值一致）。
-  关闭时 manifest Enabled=false 且不写 msix-startup.json。
+  关闭时 manifest Enabled=false，但 msix-startup.json 仍写入（storeBuild=true / startupTask=false）。
 
 .PARAMETER SelfSign
   用本机证书对 MSIX 再签一次（本地安装测试用；Store 提交可省略，微软会重签）。
@@ -177,25 +177,26 @@ if ($manifest -match '__[A-Z_]+__') {
 }
 [System.IO.File]::WriteAllText((Join-Path $stageDir "AppxManifest.xml"), $manifest, [System.Text.UTF8Encoding]::new($false))
 
-# 3) 商店版自启配置标记：包内文件，供未来 Rust 侧识别 MSIX 模式用
-if ($StartupTaskEnabled) {
-    $startupConfig = @{ startupTask = $true; taskId = "AFMAutoStart" } | ConvertTo-Json -Compress
-    [System.IO.File]::WriteAllText(
-        (Join-Path $stageDir "msix-startup.json"),
-        $startupConfig,
-        [System.Text.UTF8Encoding]::new($false)
-    )
-    Write-Host "==> 已写入 msix-startup.json（商店版启用 startupTask）"
-} else {
-    Write-Host "==> 未写入 msix-startup.json（manifest 自启已关闭）"
-}
+# 3) 商店版配置标记：包内文件，运行时据此隐藏应用内自启勾选项并提示到系统设置。
+#    storeBuild 始终为 true（只要是 MSIX 包）；startupTask 反映 manifest 的开关。
+$startupConfig = @{
+    storeBuild  = $true
+    startupTask = [bool]$StartupTaskEnabled
+    taskId      = "AFMAutoStart"
+} | ConvertTo-Json -Compress
+[System.IO.File]::WriteAllText(
+    (Join-Path $stageDir "msix-startup.json"),
+    $startupConfig,
+    [System.Text.UTF8Encoding]::new($false)
+)
+Write-Host "==> 已写入 msix-startup.json（storeBuild=true; startupTask=$StartupTaskEnabled）"
 
 # 4) 复制 exe（MSIX 内文件名须与 manifest Executable 一致）
 Copy-Item -LiteralPath $ExePath -Destination (Join-Path $stageDir "a-file-manager.exe") -Force
 
 # 5) 校验 staging 结构
 $requiredFiles = @("AppxManifest.xml", "a-file-manager.exe", "Assets\StoreLogo.png", "Assets\Square150x150Logo.png", "Assets\Square44x44Logo.png")
-if ($StartupTaskEnabled) { $requiredFiles += "msix-startup.json" }
+$requiredFiles += "msix-startup.json"
 foreach ($required in $requiredFiles) {
     if (-not (Test-Path -LiteralPath (Join-Path $stageDir $required))) {
         throw "staging 缺少必需文件: $required"
@@ -220,7 +221,7 @@ if (-not $SkipValidate) {
     New-Item -ItemType Directory -Path $verifyDir -Force | Out-Null
     Invoke-NativeChecked -Exe $makeAppxCli -ArgList @("unpack", "/p", $OutputPath, "/d", $verifyDir)
     $verifyRequired = @("AppxManifest.xml", "a-file-manager.exe", "Assets\StoreLogo.png")
-    if ($StartupTaskEnabled) { $verifyRequired += "msix-startup.json" }
+    $verifyRequired += "msix-startup.json"
     foreach ($required in $verifyRequired) {
         if (-not (Test-Path -LiteralPath (Join-Path $verifyDir $required))) {
             throw "MSIX 往返校验失败，包内缺少: $required"

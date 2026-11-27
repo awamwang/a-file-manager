@@ -1425,7 +1425,8 @@
       "preview": "Vorschau",
       "other": "Sonstiges"
     },
-    "sectionAbout": "Über"
+    "sectionAbout": "Über",
+    "storeBuildAutostartNotice": "Der Autostart wird vom Microsoft Store verwaltet. Öffnen Sie Windows-Einstellungen > Apps > Start, um ihn zu aktivieren oder zu deaktivieren."
   },
   "workGroups": {
     "addMemberPlaceholder": "Mitglieder-Ordnerpfad hinzufügen",

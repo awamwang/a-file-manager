@@ -1134,7 +1134,8 @@
       "preview": "預覽",
       "other": "其他"
     },
-    "sectionAbout": "關於"
+    "sectionAbout": "關於",
+    "storeBuildAutostartNotice": "開機自啟由 Microsoft Store 管理。請到 Windows 設定 > 應用程式 > 啟動 中開啟或關閉。"
   },
   "managedDep": {
     "status": {
