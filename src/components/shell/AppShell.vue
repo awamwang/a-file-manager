@@ -86,6 +86,7 @@ import {
   switchNavigatorTab,
   switchNavigatorTabAdjacent,
   toggleNavigatorTabPin,
+  type NavigatorEntry,
 } from "../../state/navigatorBrowse";
 import {
   normalizeRestoredOpenState,
@@ -198,6 +199,22 @@ import {
   setDrillDepth,
 } from "../../state/navigatorDrill";
 import {
+  clearTypeFilter,
+  closeTypeFilterDialog,
+  collectTypeFacets,
+  filterEntriesByType,
+  toggleTypeFilterCategory,
+  toggleTypeFilterDialog,
+  toggleTypeFilterExtension,
+  typeFilterActive,
+  typeFilterCategories,
+  typeFilterDialogOpen,
+  typeFilterExtensions,
+  typeFilterFacetEntries,
+  type TypeFilterCategoryKey,
+} from "../../state/navigatorTypeFilter";
+import type { FluentGlyphId } from "../icons/glyphs";
+import {
   DEFAULT_SIDENAV_WIDTH,
   MAX_SIDENAV_WIDTH,
   MIN_SIDENAV_WIDTH,
@@ -300,6 +317,7 @@ function togglePlacesMenu() {
   sortMenuOpen.value = false;
   groupMenuOpen.value = false;
   drillMenuOpen.value = false;
+  closeTypeFilterDialog();
   if (placesMenuOpen.value) {
     closePlacesMenu();
   } else {
@@ -338,6 +356,7 @@ function onPlacesMenuDragOver(event: DragEvent) {
       sortMenuOpen.value = false;
       groupMenuOpen.value = false;
       drillMenuOpen.value = false;
+      closeTypeFilterDialog();
       placesMenuOpen.value = true;
     });
   }
@@ -395,6 +414,7 @@ function toggleWorkGroupMenu() {
   sortMenuOpen.value = false;
   groupMenuOpen.value = false;
   drillMenuOpen.value = false;
+  closeTypeFilterDialog();
   workGroupMenuOpen.value = !workGroupMenuOpen.value;
   if (workGroupMenuOpen.value) {
     // Fresh disk read when opening the menu (startup hydrate is single-flight).
@@ -412,6 +432,7 @@ function toggleViewModeMenu() {
   sortMenuOpen.value = false;
   groupMenuOpen.value = false;
   drillMenuOpen.value = false;
+  closeTypeFilterDialog();
   viewModeMenuOpen.value = !viewModeMenuOpen.value;
 }
 
@@ -426,6 +447,7 @@ function toggleSortMenu() {
   viewModeMenuOpen.value = false;
   groupMenuOpen.value = false;
   drillMenuOpen.value = false;
+  closeTypeFilterDialog();
   sortMenuOpen.value = !sortMenuOpen.value;
 }
 
@@ -450,6 +472,7 @@ function toggleGroupMenu() {
   viewModeMenuOpen.value = false;
   sortMenuOpen.value = false;
   drillMenuOpen.value = false;
+  closeTypeFilterDialog();
   groupMenuOpen.value = !groupMenuOpen.value;
 }
 
@@ -519,6 +542,7 @@ function toggleDrillMenu() {
   viewModeMenuOpen.value = false;
   sortMenuOpen.value = false;
   groupMenuOpen.value = false;
+  closeTypeFilterDialog();
   drillMenuOpen.value = !drillMenuOpen.value;
 }
 
@@ -564,6 +588,92 @@ function tabDrillSuffix(path: string): string {
   const root = primaryDrill.root.value;
   if (!root || !isInsideDrillTree(path, root)) return "";
   return t("chrome.drillTabSuffix");
+}
+
+/* ---------------------------------------------------------------------------
+ * Type filter — major categories + specific types collected dynamically from
+ * the pane's current rows. The dialog is a toolbar popover; the selection
+ * lives in the shared navigatorTypeFilter state.
+ * ------------------------------------------------------------------------- */
+
+const TYPE_CATEGORY_LABEL_KEYS: Record<TypeFilterCategoryKey, string> = {
+  folder: "navigator.typeCatFolder",
+  image: "navigator.typeCatImage",
+  video: "navigator.typeCatVideo",
+  audio: "navigator.typeCatAudio",
+  document: "navigator.typeCatDocument",
+  archive: "navigator.typeCatArchive",
+  code: "navigator.typeCatCode",
+  other: "navigator.typeCatOther",
+};
+
+const TYPE_CATEGORY_GLYPHS: Record<TypeFilterCategoryKey, FluentGlyphId> = {
+  folder: "folder",
+  image: "picture",
+  video: "video",
+  audio: "musicNote",
+  document: "document",
+  archive: "library",
+  code: "code",
+  other: "board",
+};
+
+/** Dynamic facets of the current rows (only present categories/types). */
+const typeFacets = computed(() =>
+  collectTypeFacets(typeFilterFacetEntries.value),
+);
+
+/** Categories whose specific-type chip grid is expanded in the dialog. */
+const expandedTypeCategories = ref<string[]>([]);
+
+function toggleTypeFilterMenu() {
+  placesMenuOpen.value = false;
+  workGroupMenuOpen.value = false;
+  viewModeMenuOpen.value = false;
+  sortMenuOpen.value = false;
+  groupMenuOpen.value = false;
+  drillMenuOpen.value = false;
+  toggleTypeFilterDialog();
+}
+
+function closeTypeFilterMenu() {
+  closeTypeFilterDialog();
+}
+
+function chooseTypeFilterClear() {
+  clearTypeFilter();
+}
+
+function typeCategoryLabel(key: string): string {
+  return t(
+    TYPE_CATEGORY_LABEL_KEYS[key as TypeFilterCategoryKey] ??
+      "navigator.typeCatOther",
+  );
+}
+
+function typeCategoryGlyph(key: string): FluentGlyphId {
+  return (
+    TYPE_CATEGORY_GLYPHS[key as TypeFilterCategoryKey] ?? "board"
+  );
+}
+
+function typeCategoryChecked(key: string): boolean {
+  return typeFilterCategories.value.includes(key);
+}
+
+function typeCategoryExpanded(key: string): boolean {
+  return expandedTypeCategories.value.includes(key);
+}
+
+function toggleTypeCategoryExpanded(key: string) {
+  const next = expandedTypeCategories.value;
+  expandedTypeCategories.value = next.includes(key)
+    ? next.filter((entry) => entry !== key)
+    : [...next, key];
+}
+
+function typeExtensionChecked(ext: string): boolean {
+  return typeFilterExtensions.value.includes(ext);
 }
 
 function chooseViewMode(mode: NavigatorViewMode) {
@@ -620,6 +730,7 @@ function closeChromeMenus() {
   closeSortMenu();
   closeGroupMenu();
   closeDrillMenu();
+  closeTypeFilterMenu();
   closeCrumbMenu();
   closeTabContextMenu();
 }
@@ -636,6 +747,7 @@ async function toggleCrumbMenu(
   closePlacesMenu();
   closeWorkGroupMenu();
   closeDrillMenu();
+  closeTypeFilterMenu();
   if (crumbMenuIndex.value === index) {
     closeCrumbMenu();
     return;
@@ -1021,6 +1133,7 @@ function onGlobalKeydown(event: KeyboardEvent) {
       sortMenuOpen.value ||
       groupMenuOpen.value ||
       drillMenuOpen.value ||
+      typeFilterDialogOpen.value ||
       crumbMenuIndex.value !== null ||
       tabContextGroupIndex.value !== null)
   ) {
@@ -1041,6 +1154,7 @@ function onDocumentPointerDown(event: PointerEvent) {
     !sortMenuOpen.value &&
     !groupMenuOpen.value &&
     !drillMenuOpen.value &&
+    !typeFilterDialogOpen.value &&
     crumbMenuIndex.value === null &&
     tabContextGroupIndex.value === null
   ) {
@@ -1054,6 +1168,7 @@ function onDocumentPointerDown(event: PointerEvent) {
   const sortRoot = document.getElementById("navigator-sort-menu");
   const groupRoot = document.getElementById("navigator-group-menu");
   const drillRoot = document.getElementById("navigator-drill-menu");
+  const typeFilterRoot = document.getElementById("navigator-type-filter-menu");
   const crumbBar = document.getElementById("navigator-crumb-menu");
   const crumbFlyout = document.getElementById("navigator-crumb-siblings");
   const tabMenu = document.getElementById("navigator-tab-context-menu");
@@ -1075,6 +1190,13 @@ function onDocumentPointerDown(event: PointerEvent) {
   }
   if (drillMenuOpen.value && drillRoot && !drillRoot.contains(target)) {
     closeDrillMenu();
+  }
+  if (
+    typeFilterDialogOpen.value &&
+    typeFilterRoot &&
+    !typeFilterRoot.contains(target)
+  ) {
+    closeTypeFilterMenu();
   }
   if (
     tabContextGroupIndex.value !== null &&
@@ -1351,8 +1473,9 @@ const browseStatusText = computed(() => {
   if (listError.value) return t("chrome.navigatorError");
   if (primaryDrillActive.value) {
     // ADR 0031: in drill-through mode the counts come from the flattened rows,
-    // plus how many subfolders they came from.
-    const entries = primaryDrill.entries.value;
+    // plus how many subfolders they came from. An active type filter narrows
+    // the counts to the visible rows.
+    const entries = typeFilteredDrillEntries();
     const dirs = entries.filter((entry) => entry.kind === "dir").length;
     const files = entries.length - dirs;
     const parts = [
@@ -1365,6 +1488,9 @@ const browseStatusText = computed(() => {
       parts.push(
         t("chrome.drillLimited", { limit: primaryDrill.limit.value }),
       );
+    }
+    if (typeFilterActive.value) {
+      parts.push(t("navigator.typeFilterStatus", { count: entries.length }));
     }
     if (selectedPaths.value.length) {
       const bytes = selectionByteSize(selectedPaths.value, entries);
@@ -1379,14 +1505,22 @@ const browseStatusText = computed(() => {
     return parts.join(" · ");
   }
   if (listing.value) {
+    const filtered = typeFilteredListingEntries();
     const parts = [
       t("chrome.navigatorCounts", {
-        dirs: listing.value.dirCount,
-        files: listing.value.fileCount,
+        dirs: typeFilterActive.value
+          ? filtered.filter((entry) => entry.kind === "dir").length
+          : listing.value.dirCount,
+        files: typeFilterActive.value
+          ? filtered.length - filtered.filter((entry) => entry.kind === "dir").length
+          : listing.value.fileCount,
       }),
     ];
+    if (typeFilterActive.value) {
+      parts.push(t("navigator.typeFilterStatus", { count: filtered.length }));
+    }
     if (selectedPaths.value.length) {
-      const bytes = selectionByteSize(selectedPaths.value, listing.value.entries);
+      const bytes = selectionByteSize(selectedPaths.value, filtered);
       parts.push(
         t("chrome.selectionStatus", {
           count: selectedPaths.value.length,
@@ -1399,6 +1533,28 @@ const browseStatusText = computed(() => {
   }
   return t("navigator.noPath");
 });
+
+/** Primary drill rows narrowed by the type filter (status bar counts). */
+function typeFilteredDrillEntries(): NavigatorEntry[] {
+  const entries = primaryDrill.entries.value;
+  if (!typeFilterActive.value) return entries;
+  return filterEntriesByType(
+    entries,
+    typeFilterCategories.value,
+    typeFilterExtensions.value,
+  );
+}
+
+/** Primary listing rows narrowed by the type filter (status bar counts). */
+function typeFilteredListingEntries(): NavigatorEntry[] {
+  const entries = listing.value?.entries ?? [];
+  if (!typeFilterActive.value) return entries;
+  return filterEntriesByType(
+    entries,
+    typeFilterCategories.value,
+    typeFilterExtensions.value,
+  );
+}
 
 const healthStatusText = computed(() => {
   void locale.value;
@@ -2985,6 +3141,111 @@ onUnmounted(() => {
             </div>
           </div>
 
+          <div id="navigator-type-filter-menu" class="places-menu">
+            <button
+              type="button"
+              class="fluent-control nav-icon-btn places-trigger"
+              :class="{
+                'nav-icon-btn--active': typeFilterDialogOpen || typeFilterActive,
+              }"
+              :title="t('navigator.typeFilterToggle')"
+              :aria-label="t('navigator.typeFilterToggle')"
+              :aria-expanded="typeFilterDialogOpen"
+              aria-haspopup="menu"
+              @click.stop="toggleTypeFilterMenu"
+            >
+              <FluentIcon name="filter" size="sm" />
+            </button>
+            <div
+              v-if="typeFilterDialogOpen"
+              class="places-popover fluent-surface type-filter-popover"
+              role="menu"
+              :aria-label="t('navigator.typeFilterTitle')"
+            >
+              <p class="type-filter-title">{{ t("navigator.typeFilterTitle") }}</p>
+              <p v-if="!typeFacets.length" class="type-filter-none">
+                {{ t("navigator.typeFilterNoTypes") }}
+              </p>
+              <template v-else>
+                <div
+                  v-for="facet in typeFacets"
+                  :key="facet.key"
+                  class="type-filter-group"
+                >
+                  <div class="type-filter-cat-row">
+                    <button
+                      type="button"
+                      class="fluent-list-row places-item type-filter-cat"
+                      role="menuitemcheckbox"
+                      :aria-checked="typeCategoryChecked(facet.key)"
+                      :class="{ 'places-item--active': typeCategoryChecked(facet.key) }"
+                      @click="toggleTypeFilterCategory(facet.key)"
+                    >
+                      <FluentIcon
+                        :name="typeCategoryChecked(facet.key) ? 'check' : 'viewAll'"
+                        size="sm"
+                        class="places-item-check"
+                      />
+                      <FluentIcon
+                        :name="typeCategoryGlyph(facet.key)"
+                        size="sm"
+                        class="type-filter-cat-icon"
+                      />
+                      <span class="type-filter-cat-label">
+                        {{ typeCategoryLabel(facet.key) }}
+                      </span>
+                      <span class="type-filter-count">{{ facet.count }}</span>
+                    </button>
+                    <button
+                      v-if="facet.extensions.length"
+                      type="button"
+                      class="fluent-control type-filter-expand"
+                      :title="t('navigator.typeFilterFormats')"
+                      :aria-label="t('navigator.typeFilterFormats')"
+                      :aria-expanded="typeCategoryExpanded(facet.key)"
+                      @click.stop="toggleTypeCategoryExpanded(facet.key)"
+                    >
+                      <FluentIcon
+                        name="chevronDown"
+                        size="sm"
+                        :class="{ 'type-filter-chevron--open': typeCategoryExpanded(facet.key) }"
+                      />
+                    </button>
+                  </div>
+                  <div
+                    v-if="typeCategoryExpanded(facet.key) && facet.extensions.length"
+                    class="type-filter-exts"
+                  >
+                    <button
+                      v-for="extFacet in facet.extensions"
+                      :key="extFacet.ext"
+                      type="button"
+                      class="type-filter-ext"
+                      role="menuitemcheckbox"
+                      :aria-checked="typeExtensionChecked(extFacet.ext)"
+                      :class="{ 'type-filter-ext--on': typeExtensionChecked(extFacet.ext) }"
+                      @click="toggleTypeFilterExtension(extFacet.ext)"
+                    >
+                      {{ extFacet.ext }}
+                      <span class="type-filter-ext-count">{{ extFacet.count }}</span>
+                    </button>
+                  </div>
+                </div>
+              </template>
+              <div class="places-sep" role="separator" />
+              <button
+                type="button"
+                class="fluent-list-row places-item"
+                role="menuitem"
+                :disabled="!typeFilterActive"
+                @click="chooseTypeFilterClear"
+              >
+                <FluentIcon name="close" size="sm" class="places-item-check" />
+                <span>{{ t("navigator.typeFilterClear") }}</span>
+              </button>
+            </div>
+          </div>
+
           <button
             type="button"
             class="fluent-control nav-icon-btn"
@@ -3665,6 +3926,108 @@ onUnmounted(() => {
 .places-item--active {
   background: var(--fluent-color-fill-selected);
   font-weight: var(--fluent-font-weight-semibold);
+}
+
+/* —— Type filter dialog (major categories + dynamic specific types) —— */
+.type-filter-popover {
+  min-width: 18rem;
+  max-width: 24rem;
+}
+
+.type-filter-title {
+  margin: 0 0 var(--fluent-space-xs);
+  padding: var(--fluent-space-xs) var(--fluent-space-xs) 0;
+  font-size: var(--fluent-font-size-caption);
+  font-weight: var(--fluent-font-weight-semibold);
+  color: var(--fluent-color-text-secondary);
+}
+
+.type-filter-none {
+  margin: 0;
+  padding: var(--fluent-space-xs) var(--fluent-space-sm);
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+}
+
+.type-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.type-filter-cat-row {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+}
+
+.type-filter-cat {
+  flex: 1;
+  min-width: 0;
+}
+
+.type-filter-cat-icon {
+  flex-shrink: 0;
+  color: var(--fluent-color-text-secondary);
+}
+
+.type-filter-cat-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.type-filter-count {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--fluent-color-text-secondary);
+  font-size: var(--fluent-font-size-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.type-filter-expand {
+  flex-shrink: 0;
+  width: auto;
+  min-width: 1.5rem;
+  padding-inline: var(--fluent-space-xs);
+}
+
+.type-filter-chevron--open {
+  transform: rotate(180deg);
+}
+
+.type-filter-exts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 2px var(--fluent-space-xs) var(--fluent-space-xs) 2.2rem;
+}
+
+.type-filter-ext {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px var(--fluent-space-sm);
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--fluent-color-text-primary);
+  font-size: var(--fluent-font-size-caption);
+  cursor: pointer;
+}
+
+.type-filter-ext:hover {
+  background: var(--fluent-color-fill-subtle-secondary);
+}
+
+.type-filter-ext--on {
+  border-color: var(--fluent-color-stroke-accent-soft);
+  background: var(--fluent-color-fill-selected);
+  font-weight: var(--fluent-font-weight-semibold);
+}
+
+.type-filter-ext-count {
+  color: var(--fluent-color-text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 
 .places-item--file-drop {

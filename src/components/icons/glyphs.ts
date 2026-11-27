@@ -66,7 +66,9 @@ export type FluentGlyphId =
   | "provider"
   | "lock"
   | "mic"
-  | "help";
+  | "help"
+  | "filter"
+  | "code";
 
 export type FluentGlyph = {
   /** Segoe Fluent Icons / MDL2 private-use codepoint */
@@ -540,6 +542,20 @@ export const FLUENT_GLYPHS: Record<FluentGlyphId, FluentGlyph> = {
     codepoint: "\uE897",
     paths: [
       "M8 2.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11zm0 1.3a4.2 4.2 0 1 1 0 8.4 4.2 4.2 0 0 1 0-8.4zM8 4.6a1.7 1.7 0 0 1 1.7 1.7l-1.2.5c-.1-.5-.3-.8-.7-.8-.5 0-.8.3-.8.7 0 .4.2.6.7.9.7.4 1 .9 1 1.7v.3H7.4v-.3c0-.4-.2-.6-.7-.9-.6-.4-.9-.9-.9-1.6A1.8 1.8 0 0 1 8 4.6zM7.4 10.6h1.2v1.2H7.4v-1.2z",
+    ],
+  },
+  /** Segoe Filter — funnel (type filter trigger). */
+  filter: {
+    codepoint: "\uE71C",
+    paths: [
+      "M2.5 3h11v1.7l-4.2 3.5v4.3l-2.6-1.3V8.2L2.5 4.7V3zm1.2 1.2v.9l4.2 3.5v2.9l.2.1V8.6l4.2-3.5v-.9H3.7z",
+    ],
+  },
+  /** Segoe Code — angle brackets (code category). */
+  code: {
+    codepoint: "\uE943",
+    paths: [
+      "M5.3 4.1 1.8 8l3.5 3.9.9-.8L3.6 8l2.6-3.1-.9-.8zm5.4 0-.9.8L12.4 8l-2.6 3.1.9.8L14.2 8l-3.5-3.9zM8.9 3.5 7.7 3.8l-1.2 8.7 1.2.2 1.2-9.2z",
     ],
   },
 };
