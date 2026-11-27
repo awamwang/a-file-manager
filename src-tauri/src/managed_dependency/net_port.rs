@@ -109,11 +109,19 @@ mod tests {
     #[test]
     fn relocate_is_noop_when_port_free() {
         // 让 OS 分配一个空闲端口，确认 relocate 不改它。
-        let l = TcpListener::bind("127.0.0.1:0").unwrap();
-        let free = l.local_addr().unwrap().port();
-        drop(l);
-        let url = format!("http://127.0.0.1:{free}");
-        assert_eq!(relocate_if_occupied(&url, 16), url);
+        // 并行测试下 drop 与 relocate 的 bind 探测之间有窗口，刚释放的临时端口可能被
+        // 其它测试线程抢走（曾在全量链上 flakes，ADR 0025 禁止链上 flaky）——重试若干轮，
+        // 每轮都失败才判定 noop 分支真的坏了。
+        for _ in 0..16 {
+            let l = TcpListener::bind("127.0.0.1:0").unwrap();
+            let free = l.local_addr().unwrap().port();
+            drop(l);
+            let url = format!("http://127.0.0.1:{free}");
+            if relocate_if_occupied(&url, 16) == url {
+                return; // 空闲窗口成立：未改端口，行为正确。
+            }
+        }
+        panic!("relocate moved the port in 16/16 rounds: noop branch broken");
     }
 
     #[test]
