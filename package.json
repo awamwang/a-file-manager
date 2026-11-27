@@ -181,7 +181,6 @@
     "test:settings-ui-regroup": "node scripts/check-settings-ui-regroup.mjs",
     "test:voice-input": "node scripts/check-voice-input.mjs",
     "test:help-guidance": "node scripts/check-help-guidance.mjs",
-
     "test:hint-route-scope": "node scripts/check-hint-route-scope.mjs",
     "test:example-presets": "node scripts/check-example-presets.mjs",
     "test:provider-download": "node scripts/check-provider-download.mjs",
@@ -194,7 +193,6 @@
     "test:transfer-error": "node scripts/check-transfer-error.mjs",
     "test:test-hygiene": "node scripts/check-test-hygiene.mjs",
     "test:ipc-parity": "node scripts/check-ipc-parity.mjs",
-
     "e2e": "playwright test",
     "e2e:install": "playwright install chromium",
     "e2e:report": "playwright show-report"
