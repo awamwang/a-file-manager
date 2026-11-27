@@ -301,12 +301,12 @@ for (let tabNumber = 1; tabNumber <= 9; tabNumber += 1) {
   });
 }
 
-/** Alt+0：默认工作组；Alt+1…9：其余工作组按当前排序依次后排（超出槽位时忽略）。 */
+/** Alt+`：默认工作组；Alt+1…9：其余工作组按当前排序依次后排（超出槽位时忽略）。 */
 for (let workGroupNumber = 0; workGroupNumber <= 9; workGroupNumber += 1) {
   BUILTIN_SHORTCUTS.push({
     id: `workGroup.switch${workGroupNumber}`,
     labelKey: `shortcuts.items.workGroupSwitch${workGroupNumber}`,
-    chord: { alt: true, key: String(workGroupNumber) },
+    chord: { alt: true, key: workGroupNumber === 0 ? "`" : String(workGroupNumber) },
     scope: "global",
   });
 }
@@ -363,7 +363,7 @@ export function listShortcutsForDisplay(
  * 功能（action）模型：一个功能 → 1..N 个组合键
  * -------------------------------------------------------------------------- */
 
-/** x+N 键组固定不可配置：Ctrl+1…9 切标签、Alt+0…9 切工作组（Alt+0=默认组）。 */
+/** x+N 键组固定不可配置：Ctrl+1…9 切标签、Alt+` 与 Alt+1…9 切工作组（Alt+`=默认组）。 */
 const FIXED_ACTION_ID = /^(?:navigator\.jumpTab[1-9]|workGroup\.switch[0-9])$/;
 
 /**

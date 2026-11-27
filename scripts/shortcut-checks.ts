@@ -96,6 +96,11 @@ assert.equal(
   "workGroup.switch1",
 );
 assert.equal(
+  winners.get(chordKey({ alt: true, key: "`" }))?.id,
+  "workGroup.switch0",
+  "default work group is Alt+backquote",
+);
+assert.equal(
   winners.get(chordKey({ alt: true, key: "9" }))?.id,
   "workGroup.switch9",
 );
@@ -249,7 +254,7 @@ function keyEvent(partial: Partial<KeyboardEvent>): KeyboardEvent {
 }
 
 // macOS Option+digit emits a glyph in `key` (⌥0 → `, ⌥1 → ¡) while `code`
-// still names the physical DigitN key. The Alt+0…9 work-group chords must
+// still names the physical DigitN key. The Alt+1…9 work-group chords must
 // match by code; all non-digit chords keep matching by key.
 assert.equal(
   eventMatchesChord(
@@ -286,6 +291,29 @@ assert.equal(
     key: "n",
   }),
   true,
+);
+// Alt+` (default work group): macOS ⌥+` is a dead key, so matching and
+// recording must use the physical Backquote code.
+assert.equal(
+  eventMatchesChord(keyEvent({ key: "Dead", code: "Backquote", altKey: true }), {
+    alt: true,
+    key: "`",
+  }),
+  true,
+);
+assert.equal(
+  eventMatchesChord(keyEvent({ key: "`", code: "Backquote", altKey: true }), {
+    alt: true,
+    key: "`",
+  }),
+  true,
+);
+assert.equal(
+  eventMatchesChord(keyEvent({ key: "`", code: "Backquote", altKey: true }), {
+    alt: true,
+    key: "0",
+  }),
+  false,
 );
 assert.equal(
   chordFromEvent(keyEvent({ key: "¡", code: "Digit1", altKey: true }))?.key,

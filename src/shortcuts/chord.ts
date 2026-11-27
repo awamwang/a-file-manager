@@ -50,9 +50,9 @@ export function normalizeEventKey(key: string): string {
  *
  * On macOS, Option+digit produces a glyph (`⌥0` → `` ` ``, `⌥1` → `¡`), so
  * `event.key` is no longer `"0"`…`"9"` and matching by key silently breaks the
- * Alt+0…9 work-group chords. `event.code` names the physical key and stays
- * stable across layouts and Option. Used only for single-digit chords so no
- * other binding changes behavior.
+ * Alt+` / Alt+1…9 work-group chords. `event.code` names the physical key and
+ * stays stable across layouts and Option. Used only for these single-key
+ * chords so no other binding changes behavior.
  */
 export function digitKeyFromEventCode(code: string): string | null {
   const match = /^(?:Digit|Numpad)([0-9])$/.exec(code);
@@ -64,6 +64,9 @@ function eventKeyForChord(event: KeyboardEvent, chord: ShortcutChord): string {
     const fromCode = digitKeyFromEventCode(event.code ?? "");
     if (fromCode !== null) return fromCode;
   }
+  // macOS Option+` is a dead-key chord (`event.key` is "Dead"), so the Alt+`
+  // default-group chord must match the physical Backquote code.
+  if (chord.key === "`" && (event.code ?? "") === "Backquote") return "`";
   return normalizeEventKey(event.key);
 }
 
@@ -162,8 +165,11 @@ export function isReservedBareKey(chord: ShortcutChord): boolean {
 export function chordFromEvent(event: KeyboardEvent): ShortcutChord | null {
   if (event.isComposing) return null;
   // Option+digit on macOS emits a glyph in `event.key`; record the physical
-  // digit so the Alt+0…9 group chords can be rebound like any other chord.
-  const key = digitKeyFromEventCode(event.code ?? "") ?? normalizeEventKey(event.key);
+  // digit so the Alt+1…9 group chords can be rebound like any other chord.
+  // Option+` is a dead key there too; record the physical Backquote key.
+  const key =
+    digitKeyFromEventCode(event.code ?? "") ??
+    ((event.code ?? "") === "Backquote" ? "`" : normalizeEventKey(event.key));
   if (!key || isModifierKey(key)) return null;
   return {
     ...(event.ctrlKey ? { ctrl: true } : {}),

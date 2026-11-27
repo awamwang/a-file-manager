@@ -735,7 +735,7 @@ async function onSilentSwitchWorkGroup(targetId: string) {
 }
 
 /**
- * 工作组快捷键顺序：默认组固定占 Alt+0，其余按列表排序依次后排 Alt+1…9。
+ * 工作组快捷键顺序：默认组固定占 Alt+`，其余按列表排序依次后排 Alt+1…9。
  * 数组下标即快捷键槽位（0=默认）。
  */
 const workGroupsInShortcutOrder = computed(() => {
@@ -769,7 +769,7 @@ function workGroupChordLabel(group: { id: string }): string | null {
   return effectiveChordLabelsForId(`workGroup.switch${slot}`)[0] ?? null;
 }
 
-/** Tooltip action id for a group; empty when the group sits beyond the Alt+0…9 slots. */
+/** Tooltip action id for a group; empty when the group sits beyond the Alt+`/Alt+1…9 slots. */
 function workGroupActionTipId(groupId: string): string {
   const slot = workGroupShortcutSlot(groupId);
   return slot === null ? "" : `workGroup.switch${slot}`;
