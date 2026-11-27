@@ -20,10 +20,16 @@ import {
   LIST_GROUP_HEADER_HEIGHT_PX,
   nextGroupedGridPath,
   virtItemHeightPx,
+  type ListVirtGridRow,
 } from "../src/state/listVirtItems.ts";
-import { groupEntriesBy } from "../src/state/navigatorGrouping.ts";
+import { FOLDER_GROUP_KEY, groupEntriesBy } from "../src/state/navigatorGrouping.ts";
 import type { NavigatorEntry } from "../src/state/navigatorBrowse.ts";
-import { clearSortedEntriesCache, sortedEntries } from "../src/state/navigatorSort.ts";
+import {
+  clearSortedEntriesCache,
+  setSortColumn,
+  sortedEntries,
+} from "../src/state/navigatorSort.ts";
+import type { ListVirtItem } from "../src/state/listVirtItems.ts";
 
 assert.equal(estimateListColumns("details", 800), 1);
 assert.equal(estimateListColumns("iconsMedium", 480), 5);
@@ -313,5 +319,209 @@ assert.equal(nextGroupedGridPath(layout, "C:\\t\\a1", "down"), "C:\\t\\a3", "向
 assert.equal(nextGroupedGridPath(layout, "C:\\t\\b2", "down"), null, "末行下方无处可去");
 assert.equal(nextGroupedGridPath(layout, "C:\\t\\b1", "up"), "C:\\t\\a3", "向上跳过组头行");
 assert.equal(nextGroupedGridPath(layout, "C:\\t\\a1", "up"), null, "首行上方无处可去");
+
+// ---- 分组 + 窗口化 × 排序切换：切排序不动分组，窗口与渲染序保持一致 ----
+// 场景来自 2026-11-27 grilling：懒加载（虚拟窗口）适配分组后，排序切换是否安全。
+// 不变量：组头序列不变、条目集合不变（只重排）、变高窗口界内且非空、
+// orderedPaths 跟随分组渲染序而非扁平排序序（Phase5 Bug3 钉死）。
+const sortSwitchEntries: NavigatorEntry[] = [];
+const SORT_SWITCH_EXTS = ["txt", "png", "doc"];
+for (let i = 0; i < 120; i += 1) {
+  const name = `f${String(i).padStart(3, "0")}.${SORT_SWITCH_EXTS[i % 3]}`;
+  sortSwitchEntries.push({
+    name,
+    path: `C:\\t\\${name}`,
+    kind: "file",
+    size: (i % 17) * 1024,
+    modifiedMs: i,
+  });
+}
+sortSwitchEntries.push({ name: "zDir", path: "C:\\t\\zDir", kind: "dir", size: 0, modifiedMs: 0 });
+sortSwitchEntries.push({ name: "aDir", path: "C:\\t\\aDir", kind: "dir", size: 0, modifiedMs: 0 });
+
+const entryPathsOf = (items: ListVirtItem<NavigatorEntry>[]): string[] =>
+  items
+    .filter((item) => item.kind === "entry")
+    .map((item) => (item.kind === "entry" ? item.entry.path : ""));
+const headerKeysOf = (items: ListVirtItem<NavigatorEntry>[]): string[] =>
+  items
+    .filter((item) => item.kind === "header")
+    .map((item) => (item.kind === "header" ? item.groupKey : ""));
+
+// 基线：名称升序 + 按类型分组，分组纵向视图的变高窗口。
+setSortColumn("name");
+clearSortedEntriesCache();
+const groupedByName = groupEntriesBy(
+  sortedEntries(sortSwitchEntries),
+  "type",
+  "asc",
+  groupLabels,
+  0,
+);
+const itemsNameSort = flattenGroupedItems(groupedByName, new Set<string>());
+assert.ok(
+  itemsNameSort.length > LIST_VIRTUALIZE_MIN_ENTRIES,
+  "样本量必须超过窗口化阈值",
+);
+const winNameSort = computeVariableListVirtualWindow({
+  heights: itemsNameSort.map((item) => virtItemHeightPx(item, 32)),
+  scrollTop: 1500,
+  viewportHeight: 600,
+});
+assert.ok(winNameSort.active, "超过阈值必须启用窗口化");
+assert.ok(
+  winNameSort.startIndex >= 0 &&
+    winNameSort.startIndex <= winNameSort.endIndex &&
+    winNameSort.endIndex <= itemsNameSort.length,
+  "窗口切片必须落在界内",
+);
+assert.ok(
+  itemsNameSort.slice(winNameSort.startIndex, winNameSort.endIndex).length > 0,
+  "视口内必须挂载内容",
+);
+
+// 切排序（名称 → 大小）：组头序列与条目集合不变，仅组内重排。
+setSortColumn("size");
+const groupedBySize = groupEntriesBy(
+  sortedEntries(sortSwitchEntries),
+  "type",
+  "asc",
+  groupLabels,
+  0,
+);
+const itemsSizeSort = flattenGroupedItems(groupedBySize, new Set<string>());
+assert.deepEqual(
+  headerKeysOf(itemsSizeSort),
+  headerKeysOf(itemsNameSort),
+  "切排序不动分组字段：组头序列保持不变",
+);
+assert.deepEqual(
+  [...entryPathsOf(itemsSizeSort)].sort(),
+  [...entryPathsOf(itemsNameSort)].sort(),
+  "切排序只重排、不增删条目",
+);
+assert.notDeepEqual(
+  entryPathsOf(itemsSizeSort),
+  sortedEntries(sortSwitchEntries).map((entry) => entry.path),
+  "orderedPaths 必须跟随分组渲染序；退回扁平排序序即 Phase5 Bug3 回归",
+);
+const winSizeSort = computeVariableListVirtualWindow({
+  heights: itemsSizeSort.map((item) => virtItemHeightPx(item, 32)),
+  scrollTop: 1500,
+  viewportHeight: 600,
+});
+assert.ok(
+  winSizeSort.startIndex >= 0 &&
+    winSizeSort.startIndex <= winSizeSort.endIndex &&
+    winSizeSort.endIndex <= itemsSizeSort.length,
+  "切排序后窗口切片仍界内",
+);
+assert.ok(
+  itemsSizeSort.slice(winSizeSort.startIndex, winSizeSort.endIndex).length > 0,
+  "切排序后视口内必须挂载内容",
+);
+
+// 折叠组骤缩内容 + 过期 scrollTop：窗口函数仍必须切在界内
+// （.vue 层负责 DOM 更新后回同步 clamp，见 watch([collapsedGroupKeys, navigatorGroupBy])）。
+const collapseKey =
+  groupedBySize.find((group) => group.key !== FOLDER_GROUP_KEY)?.key ?? "";
+assert.ok(collapseKey.length > 0, "必须存在可折叠的非文件夹组");
+const itemsCollapsed = flattenGroupedItems(groupedBySize, new Set([collapseKey]));
+assert.ok(itemsCollapsed.length < itemsSizeSort.length, "折叠组必须减少虚拟项");
+const winStale = computeVariableListVirtualWindow({
+  heights: itemsCollapsed.map((item) => virtItemHeightPx(item, 32)),
+  scrollTop: Number.MAX_SAFE_INTEGER,
+  viewportHeight: 600,
+});
+assert.ok(
+  winStale.startIndex >= 0 &&
+    winStale.startIndex <= winStale.endIndex &&
+    winStale.endIndex <= itemsCollapsed.length,
+  "内容骤缩 + 过期 scrollTop：窗口不得越界",
+);
+assert.ok(
+  itemsCollapsed.slice(winStale.startIndex, winStale.endIndex).length > 0,
+  "过期 scrollTop 时窗口仍落在内容上",
+);
+
+// ---- 分组网格窗口必须覆盖视口（2026-11-27 真机 bug：照片目录按名称分组首屏全空）----
+// 症状：组头后是一个大组（几百个 IMG_*.jpg），视口底边落在大组内部时
+// 窗口被截空——首屏完全没有数据；向下滚动、视口底边跨进下一组后，
+// 才显示上一个组的内容。不变量：挂载的行区间必须覆盖整个视口。
+const photoEntries: NavigatorEntry[] = [];
+for (let i = 0; i < 280; i += 1) {
+  photoEntries.push(mkEntry(`C:\\hainan\\IMG_${String(i + 1).padStart(4, "0")}.jpg`));
+}
+for (let i = 0; i < 40; i += 1) {
+  photoEntries.push(mkEntry(`C:\\hainan\\PANO_${String(i + 1).padStart(4, "0")}.jpg`));
+}
+const photoGroups = groupEntriesBy(photoEntries, "name", "asc", groupLabels, 0);
+assert.ok(photoGroups.length >= 2, "IMG/PANO 按名称至少分出两桶");
+const photoItems = flattenGroupedItems(photoGroups, new Set<string>());
+const photoRows = buildGridRows(photoItems, {
+  columns: 8,
+  headerHeight: LIST_GROUP_HEADER_HEIGHT_PX,
+  entryRowHeight: 100,
+});
+const photoPrefix: number[] = [0];
+for (const row of photoRows) {
+  photoPrefix.push(photoPrefix[photoPrefix.length - 1]! + row.height);
+}
+const photoTotalHeight = photoPrefix[photoPrefix.length - 1]!;
+
+function assertGridWindowCoversViewport(
+  rows: readonly ListVirtGridRow[],
+  prefix: readonly number[],
+  scrollTop: number,
+  viewportHeight: number,
+  label: string,
+): void {
+  const win = computeGridListVirtualWindow({ rows, scrollTop, viewportHeight });
+  assert.ok(win.active, `${label}: 必须启用窗口化`);
+  assert.ok(win.endIndex > win.startIndex, `${label}: 窗口切片不能为空`);
+  const mountedTop = prefix[win.startRow] ?? 0;
+  const mountedBottom = prefix[win.endRow] ?? 0;
+  assert.ok(
+    mountedTop < scrollTop + viewportHeight && mountedBottom > scrollTop,
+    `${label}: 挂载行必须覆盖视口（mounted=[${mountedTop},${mountedBottom}] viewport=[${scrollTop},${scrollTop + viewportHeight}]）`,
+  );
+}
+
+// 首屏：视口底边深陷第一个大组内部。
+assertGridWindowCoversViewport(photoRows, photoPrefix, 0, 800, "首屏 scrollTop=0");
+// 大组中部：视口完全在单个大组内部。
+assertGridWindowCoversViewport(photoRows, photoPrefix, 1200, 800, "大组中部");
+// 跨组边界：视口横跨第一个大组尾部与第二个组组头。
+assertGridWindowCoversViewport(photoRows, photoPrefix, 3200, 800, "跨组边界");
+// 贴底：最后一屏。
+assertGridWindowCoversViewport(
+  photoRows,
+  photoPrefix,
+  Math.max(0, photoTotalHeight - 800),
+  800,
+  "贴底最后一屏",
+);
+// 单一大组（无下一组组头）同样必须覆盖视口。
+const singleGroupEntries: NavigatorEntry[] = [];
+for (let i = 0; i < 200; i += 1) {
+  singleGroupEntries.push(mkEntry(`C:\\one\\IMG_${String(i + 1).padStart(4, "0")}.jpg`));
+}
+const singleGroupRows = buildGridRows(
+  flattenGroupedItems(
+    groupEntriesBy(singleGroupEntries, "name", "asc", groupLabels, 0),
+    new Set<string>(),
+  ),
+  {
+    columns: 8,
+    headerHeight: LIST_GROUP_HEADER_HEIGHT_PX,
+    entryRowHeight: 100,
+  },
+);
+const singleGroupPrefix: number[] = [0];
+for (const row of singleGroupRows) {
+  singleGroupPrefix.push(singleGroupPrefix[singleGroupPrefix.length - 1]! + row.height);
+}
+assertGridWindowCoversViewport(singleGroupRows, singleGroupPrefix, 0, 800, "单一大组首屏");
+assertGridWindowCoversViewport(singleGroupRows, singleGroupPrefix, 900, 800, "单一大组中部");
 
 console.log("list-virtual-window checks OK");

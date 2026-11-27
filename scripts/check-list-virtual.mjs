@@ -58,6 +58,13 @@ assert.ok(
 );
 assert.ok(view.includes("@scroll"), "list surfaces must track scroll for the virtual window");
 assert.ok(!view.includes("groupedVisibleEntries"), "grouped path must use flattened virt items");
+// Q2（2026-11-27 grilling）：折叠组/切分组字段让内容总高骤缩，DOM 更新后必须
+// 读回浏览器已 clamp 的 scrollTop 同步进响应式状态，否则虚拟窗口按过期深度
+// 切片（一帧空白/错位）。
+assert.ok(
+  view.includes("watch([collapsedGroupKeys, navigatorGroupBy]"),
+  "collapse/group-field switch must re-sync the clamped scrollTop after DOM update",
+);
 
 const result = spawnSync(
   process.execPath,

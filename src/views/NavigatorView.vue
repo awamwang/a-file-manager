@@ -1190,6 +1190,16 @@ watch(currentPath, () => {
   if (listRoot.value) listRoot.value.scrollTop = 0;
 });
 
+// 折叠组/切换分组字段会让内容总高骤缩：浏览器 clamp 滚动条之前，
+// primaryScrollTop 仍指向旧深度，虚拟窗口会切到尾部空切片（一帧空白）。
+// DOM 更新后读回浏览器已 clamp 的 scrollTop 同步进状态，首帧绘制前窗口即归位。
+watch([collapsedGroupKeys, navigatorGroupBy], async () => {
+  await nextTick();
+  if (listRoot.value) {
+    primaryScrollTop.value = listRoot.value.scrollTop;
+  }
+});
+
 watch(secondaryPath, () => {
   secondaryScrollTop.value = 0;
   if (secondaryListRoot.value) secondaryListRoot.value.scrollTop = 0;

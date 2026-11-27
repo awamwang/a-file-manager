@@ -208,7 +208,7 @@ export function computeGridListVirtualWindow(args: {
   }
   endRow = Math.min(total, endRow + overscan);
 
-  // 组边界对齐：组头行（spansFullWidth）开启一个组，组内行属于它。
+  // 组边界对齐（头部）：窗口起点回退到所在组的组头行。
   let groupStart = startRow;
   for (let i = startRow; i >= 0; i -= 1) {
     if (args.rows[i]!.spansFullWidth) {
@@ -216,8 +216,12 @@ export function computeGridListVirtualWindow(args: {
       break;
     }
   }
-  let groupEnd = endRow;
-  for (let i = endRow - 1; i >= 0; i -= 1) {
+  // 组边界对齐（尾部）：窗口终点向前扩到**完整包含**最后一个可见行所在的组
+  // ——止于下一个组头行之前；其后直到结尾都没有组头时扩到最后一行。
+  // 不能向后找组头：那会把窗口截到该组之前，视口底边落在大组内部时
+  // groupEnd === groupStart，窗口切空、整屏空白（滚动跨组后才显示上一组）。
+  let groupEnd = total;
+  for (let i = endRow; i < total; i += 1) {
     if (args.rows[i]!.spansFullWidth) {
       groupEnd = i;
       break;
