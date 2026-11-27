@@ -39,6 +39,13 @@ assert.ok(buildArts.includes("--dry-run"), "build-release-artifacts 支持 --dry
 assert.ok(releaseYml.includes("flavor_matrix"), "release.yml 输出 flavor matrix");
 assert.ok(releaseYml.includes("feature-pack"), "release.yml 包含 feature-pack");
 assert.ok(releaseYml.includes("gh release upload"), "release.yml 上传资产");
+// Optional Windows signing must run after the asset is collected and before
+// upload, otherwise the uploaded bytes differ from any published checksum.
+const signAt = releaseYml.indexOf("Sign Windows installer (optional)");
+const collectAt = releaseYml.indexOf("Collect canonical asset");
+const uploadAt = releaseYml.indexOf("Upload to GitHub Release");
+assert.ok(signAt > collectAt && signAt < uploadAt, "release.yml 签名步骤须在收集资产后、上传前");
+assert.ok(releaseYml.includes("scripts/sign_file.ps1"), "release.yml 复用统一签名脚本");
 assert.ok(releaseYml.includes("x64-lite-setup.exe"), "release notes 提及精简版资产名");
 assert.ok(!releaseYml.includes("x64-ai-setup.exe"), "release notes 不再使用旧的 -ai 后缀名（主线版占用素名）");
 assert.ok(!releaseYml.includes("tauri-apps/tauri-action"), "多包发版不再依赖单包 tauri-action");

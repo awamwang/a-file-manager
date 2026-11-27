@@ -358,6 +358,38 @@ jobs:
           echo "file=${DEST}" >> "$GITHUB_OUTPUT"
           echo "Collected ${DEST}"
 
+      - name: Sign Windows installer (optional)
+        # Sign AFTER collecting the canonical asset and BEFORE upload: the
+        # uploaded bytes are the signed ones. No secret configured -> no-op,
+        # so unsigned builds keep working (SmartScreen reputation still needs
+        # a real OV/EV cert; see msix/README.md).
+        env:
+          ASSET: ${{ steps.asset.outputs.file }}
+          AFM_SIGN_CERT_B64: ${{ secrets.AFM_SIGN_CERT_B64 }}
+          AFM_SIGN_CERT_PASSWORD: ${{ secrets.AFM_SIGN_CERT_PASSWORD }}
+          AFM_SIGN_THUMBPRINT: ${{ secrets.AFM_SIGN_THUMBPRINT }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${AFM_SIGN_CERT_B64}" ] && [ -z "${AFM_SIGN_THUMBPRINT}" ]; then
+            echo "No Windows code-signing secret configured; skipping sign."
+            exit 0
+          fi
+          TARGET="dist/release/${ASSET}"
+          if [ -n "${AFM_SIGN_CERT_B64}" ]; then
+            printf '%s' "${AFM_SIGN_CERT_B64}" | base64 -d > "${RUNNER_TEMP}/afm-sign.pfx"
+            # password is read from AFM_SIGN_CERT_PASSWORD by sign_file.ps1;
+            # passing it on the argv would leak it into the process list.
+            pwsh -NoProfile -File scripts/sign_file.ps1 \
+              -FilePath "${TARGET}" \
+              -CertificatePath "${RUNNER_TEMP}/afm-sign.pfx"
+          else
+            # UKey / cloud-signing client imported cert: SHA1 thumbprint.
+            pwsh -NoProfile -File scripts/sign_file.ps1 \
+              -FilePath "${TARGET}" \
+              -Thumbprint "${AFM_SIGN_THUMBPRINT}"
+          fi
+
       - name: Upload to GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

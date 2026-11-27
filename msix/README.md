@@ -99,29 +99,21 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "scripts\sign_file.ps1" -FilePath 
 签名固定 SHA256 + RFC3161 时间戳（`/tr` + `/td SHA256`），证书到期后旧签名仍有效。
 已有有效签名不会重复签（`-Force` 可强制）。
 
-**CI 集成（需你完成）**：`.github/workflows/release.yml` 的 Windows job 在
-`Collect canonical asset` 之后、`Upload to GitHub Release` 之前插入签名步骤，
-并把 PFX base64 / 密码配成 GitHub Secrets。本次未改 CI（release plumbing 属需确认区域），
-给你一段可直接粘贴的片段：
+**CI 集成（已接入）**：`.github/workflows/release.yml` 的 Windows job（`build-app`）在
+`Collect canonical asset` 之后、`Upload to GitHub Release` 之前有 `Sign Windows installer
+(optional)` 步骤，复用同一个 `scripts/sign_file.ps1`。无证书时自动跳过，不阻塞发版。
+`check-multi-pack-release.mjs` 有断言锁住这个顺序。
 
-```yaml
-      - name: Sign Windows installer (optional)
-        if: ${{ secrets.AFM_SIGN_CERT_B64 != '' }}
-        shell: bash
-        env:
-          AFM_SIGN_CERT_B64: ${{ secrets.AFM_SIGN_CERT_B64 }}
-          AFM_SIGN_CERT_PASSWORD: ${{ secrets.AFM_SIGN_CERT_PASSWORD }}
-          ASSET: ${{ steps.asset.outputs.file }}
-        run: |
-          set -euo pipefail
-          printf '%s' "$AFM_SIGN_CERT_B64" | base64 -d > "$RUNNER_TEMP/afm-sign.pfx"
-          pwsh -NoProfile -File scripts/sign_file.ps1 \
-            -FilePath "dist/release/${ASSET}" \
-            -CertificatePath "${RUNNER_TEMP}/afm-sign.pfx" \
-            -CertificatePassword "${AFM_SIGN_CERT_PASSWORD}"
-```
+**你只需配 GitHub Secrets**（仓库 Settings → Secrets and variables → Actions → New repository
+secret），二选一：
 
-> 签名必须在 GitHub Release 上传**之前**完成，否则证监会计算的 SHA256 与签名后的文件不一致。
+| Secret | 用途 |
+| --- | --- |
+| `AFM_SIGN_CERT_B64` | PFX 文件的 base64（生成：`base64 -w0 afm.pfx`） |
+| `AFM_SIGN_CERT_PASSWORD` | PFX 密码（与上一项配套）；走环境变量，不进命令行参数 |
+| `AFM_SIGN_THUMBPRINT` | 证书存储 SHA1 指纹（UKey / 云签名客户端，替代 PFX 方案） |
+
+> 签名必须在 GitHub Release 上传**之前**完成，否则下载到的文件与任何已发布校验和不一致。
 
 ## 交接清单（Partner Center 操作，我无法代劳）
 
