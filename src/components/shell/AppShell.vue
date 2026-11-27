@@ -1506,16 +1506,11 @@ const browseStatusText = computed(() => {
   }
   if (listing.value) {
     const filtered = typeFilteredListingEntries();
-    const parts = [
-      t("chrome.navigatorCounts", {
-        dirs: typeFilterActive.value
-          ? filtered.filter((entry) => entry.kind === "dir").length
-          : listing.value.dirCount,
-        files: typeFilterActive.value
-          ? filtered.length - filtered.filter((entry) => entry.kind === "dir").length
-          : listing.value.fileCount,
-      }),
-    ];
+    const dirs = typeFilterActive.value
+      ? filtered.filter((entry) => entry.kind === "dir").length
+      : listing.value.dirCount;
+    const files = typeFilterActive.value ? filtered.length - dirs : listing.value.fileCount;
+    const parts = [t("chrome.navigatorCounts", { dirs, files })];
     if (typeFilterActive.value) {
       parts.push(t("navigator.typeFilterStatus", { count: filtered.length }));
     }

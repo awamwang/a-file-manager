@@ -286,10 +286,6 @@ export function clearTypeFilter(): void {
   typeFilterExtensions.value = [];
 }
 
-export function openTypeFilterDialog(): void {
-  typeFilterDialogOpen.value = true;
-}
-
 export function closeTypeFilterDialog(): void {
   typeFilterDialogOpen.value = false;
 }
