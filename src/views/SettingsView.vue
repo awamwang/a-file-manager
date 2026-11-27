@@ -1010,8 +1010,8 @@ onMounted(() => {
                       : t("settings.openTools.customTitle")
                   }}
                 </span>
+                <span class="open-tool-order-status">{{ ideStatusLabel(app) }}</span>
               </span>
-              <p class="desc">{{ ideStatusLabel(app) }}</p>
               <code v-if="app.resolvedPath" class="key" :title="app.resolvedPath">{{
                 app.resolvedPath
               }}</code>
@@ -1612,6 +1612,12 @@ onMounted(() => {
 }
 
 .open-tool-order-kind {
+  margin-left: var(--fluent-space-xs);
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+}
+
+.open-tool-order-status {
   margin-left: var(--fluent-space-xs);
   font-size: var(--fluent-font-size-caption);
   color: var(--fluent-color-text-secondary);
