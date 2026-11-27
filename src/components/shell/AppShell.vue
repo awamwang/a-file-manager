@@ -467,6 +467,9 @@ function chooseGroupDirection(direction: SortDirection) {
   closeGroupMenu();
 }
 
+/** 分组条件已勾选（≠ 无）：分组下拉按钮保持选中态。 */
+const groupActive = computed(() => navigatorGroupBy.value !== "none");
+
 /* ---------------------------------------------------------------------------
  * ADR 0031: drill-through — flatten the subfolders of the current directory
  * into one list.
@@ -2828,7 +2831,7 @@ onUnmounted(() => {
             <button
               type="button"
               class="fluent-control nav-icon-btn places-trigger"
-              :class="{ 'nav-icon-btn--active': groupMenuOpen }"
+              :class="{ 'nav-icon-btn--active': groupMenuOpen || groupActive }"
               :title="t('chrome.groupBy')"
               :aria-label="t('chrome.groupBy')"
               :aria-expanded="groupMenuOpen"

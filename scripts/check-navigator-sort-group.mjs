@@ -103,6 +103,16 @@ assert.ok(shell.includes("sortMenuOpen"));
 assert.ok(shell.includes("groupMenuOpen"));
 assert.ok(shell.includes('id="navigator-sort-menu"'));
 assert.ok(shell.includes('id="navigator-group-menu"'));
+// 勾选了分组条件（≠ none）时，分组下拉按钮必须保持选中态
+//（菜单收起也不掉，与 drillMenuOpen || drillActive 同一模式）。
+assert.ok(
+  shell.includes('const groupActive = computed(() => navigatorGroupBy.value !== "none")'),
+  "groupActive computed：分组条件已勾选",
+);
+assert.ok(
+  shell.includes("'nav-icon-btn--active': groupMenuOpen || groupActive"),
+  "分组下拉按钮在分组条件勾选时保持选中态",
+);
 // 工具条顺序：分组紧跟排序，中间不能被视图切换隔开（两者是同一族操作）。
 const sortMenuAt = shell.indexOf('id="navigator-sort-menu"');
 const groupMenuAt = shell.indexOf('id="navigator-group-menu"');
