@@ -43,6 +43,7 @@ export type FluentGlyphId =
   | "arrowDown"
   | "sort"
   | "group"
+  | "arrowSwap"
   | "drill"
   | "copy"
   | "cut"
@@ -78,6 +79,12 @@ export type FluentGlyph = {
    * WRONG shape (or a tofu box for an invented PUA codepoint).
    */
   svgOnly?: boolean;
+  /**
+   * Optional per-path fill color (any CSS color value, e.g. a token var).
+   * When omitted every path uses `currentColor`. Used by two-tone glyphs such
+   * as the group ↑↓ arrow (muted up + accent down).
+   */
+  fills?: string[];
 };
 
 export const FLUENT_GLYPHS: Record<FluentGlyphId, FluentGlyph> = {
@@ -323,6 +330,24 @@ export const FLUENT_GLYPHS: Record<FluentGlyphId, FluentGlyph> = {
       "M2.5 2.8h11v4h-11V2.8zm1.2 1.2v1.6h8.6V4H3.7z",
       "M2.5 9.2h11v4h-11V9.2zm1.2 1.2v1.6h8.6v-1.6H3.7z",
       "M2.2 7.5h11.6v1H2.2v-1z",
+    ],
+  },
+  /**
+   * Group-by toolbar metaphor: a two-tone ↑↓ arrow pair — muted up arrow on
+   * the left, accent down arrow on the right (Win11 arrow-swap look).
+   * AFM-drawn, SVG rendering only.
+   */
+  arrowSwap: {
+    // AFM-internal ID (never rendered through Segoe because of svgOnly).
+    codepoint: "\uF003",
+    svgOnly: true,
+    fills: [
+      "var(--fluent-color-text-secondary)",
+      "var(--fluent-color-fill-accent)",
+    ],
+    paths: [
+      "M5 3 2.6 6.4h1.6V13h1.6V6.4h1.6L5 3z",
+      "M11 13 8.6 9.6h1.6V3h1.6v6.6h1.6L11 13z",
     ],
   },
   /**

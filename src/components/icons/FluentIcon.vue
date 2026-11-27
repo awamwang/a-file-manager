@@ -48,7 +48,12 @@ const decorative = computed(() => !props.label);
       focusable="false"
       aria-hidden="true"
     >
-      <path v-for="(d, index) in glyph.paths" :key="index" :d="d" fill="currentColor" />
+      <path
+        v-for="(d, index) in glyph.paths"
+        :key="index"
+        :d="d"
+        :fill="glyph.fills?.[index] ?? 'currentColor'"
+      />
     </svg>
   </span>
 </template>

@@ -2838,7 +2838,7 @@ onUnmounted(() => {
               aria-haspopup="menu"
               @click.stop="toggleGroupMenu"
             >
-              <FluentIcon name="group" size="sm" />
+              <FluentIcon name="arrowSwap" size="sm" />
               <FluentIcon name="chevronDown" size="sm" class="places-chevron" />
             </button>
             <div
