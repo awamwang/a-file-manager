@@ -80,12 +80,19 @@ assert.ok(
   "launcher rows must be filtered by openToolMatchesSelection(app.fileExtensions, entry)",
 );
 
-// 4. Settings surface: search box over built-in + custom rows, unavailable
-//    built-ins collapse past the threshold, custom tools get an extensions
-//    input normalized through the shared pure helper.
+// 4. Settings surface: one unified drag list (built-in + custom in the
+//    persisted menu order) with per-row enable checkbox + Configure dialog,
+//    search over the rows, unavailable built-ins collapse past the threshold,
+//    custom tools get an extensions input normalized through the shared pure
+//    helper. Rediscover and add-custom sit in the toolbar above the list.
 assert.ok(settingsView.includes('v-model="openToolSearch"'), "search input must bind openToolSearch");
-assert.ok(settingsView.includes("const filteredCustomTools"), "custom rows must filter by search");
-assert.ok(settingsView.includes("const visibleBuiltinApps"), "built-in rows must render visibleBuiltinApps");
+assert.ok(settingsView.includes("const filteredOpenToolRows"), "rows must filter by search");
+assert.ok(settingsView.includes("const visibleOpenToolRows"), "the unified list must render visibleOpenToolRows");
+assert.ok(settingsView.includes("@click=\"refreshIdeApps\""), "rediscover button must call refreshIdeApps");
+assert.ok(settingsView.includes("@click=\"addCustomTool\""), "add-custom button must call addCustomTool");
+assert.ok(settingsView.includes("async function onRowEnabledChange("), "row checkbox must route through onRowEnabledChange");
+assert.ok(settingsView.includes("const configuringToolId"), "config dialog state must exist");
+assert.ok(settingsView.includes("function openToolConfig("), "row Configure button must open openToolConfig");
 assert.ok(
   settingsView.includes("UNAVAILABLE_COLLAPSE_THRESHOLD = 4"),
   "unavailable built-ins must collapse past 4 rows",
@@ -109,15 +116,23 @@ if (helperCheck.stdout) process.stdout.write(helperCheck.stdout);
 if (helperCheck.stderr) process.stderr.write(helperCheck.stderr);
 assert.equal(helperCheck.status, 0, "open-tools-checks failed");
 
-// 6. i18n parity for the four new Settings strings across every locale
+// 6. i18n parity for the Settings strings across every locale
 //    (npm run test:i18n enforces the full key set; this pins the values exist
-//    and keeps {count} in the expander label).
+//    and keeps {count}/{name} in the expander and dialog labels).
 const localeDir = join(root, "src/i18n/locales");
 const { readdirSync } = await import("node:fs");
 for (const file of readdirSync(localeDir).filter((name) => name.endsWith(".json"))) {
   const catalog = JSON.parse(readFileSync(join(localeDir, file), "utf8"));
   const openTools = catalog?.settings?.openTools ?? {};
-  for (const key of ["searchPlaceholder", "showUnavailable", "hideUnavailable", "fileExtensionsPlaceholder"]) {
+  for (const key of [
+    "searchPlaceholder",
+    "showUnavailable",
+    "hideUnavailable",
+    "fileExtensionsPlaceholder",
+    "configure",
+    "configTitle",
+    "configClose",
+  ]) {
     assert.ok(
       typeof openTools[key] === "string" && openTools[key].length > 0,
       `${file}: settings.openTools.${key} must be a non-empty string`,
@@ -126,6 +141,10 @@ for (const file of readdirSync(localeDir).filter((name) => name.endsWith(".json"
   assert.ok(
     openTools.showUnavailable.includes("{count}"),
     `${file}: settings.openTools.showUnavailable must keep the {count} placeholder`,
+  );
+  assert.ok(
+    openTools.configTitle.includes("{name}"),
+    `${file}: settings.openTools.configTitle must keep the {name} placeholder`,
   );
 }
 
@@ -140,4 +159,4 @@ assert.ok(
   "npm test chain must include test:open-tools",
 );
 
-console.log("Open tools expansion gate OK (10 new presets, extension scope, search/collapse surface).");
+console.log("Open tools expansion gate OK (10 new presets, extension scope, unified drag list + config dialog).");

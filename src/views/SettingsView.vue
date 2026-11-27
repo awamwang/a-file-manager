@@ -258,8 +258,6 @@ const ideApps = ref<IdeAppInfo[]>([]);
 const ideAppsLoading = ref(false);
 /** User-defined open tools parsed from the `core.openTool.custom` setting. */
 const customTools = ref<CustomOpenTool[]>([]);
-/** Built-in preset rows (project-capable + file launchers) from the registry. */
-const builtinApps = computed(() => ideApps.value.filter((app) => app.builtin));
 
 /** Settings-page search over built-in + custom tool names. */
 const openToolSearch = ref("");
@@ -268,36 +266,39 @@ const openToolSearchActive = computed(() => openToolSearch.value.trim() !== "");
 const UNAVAILABLE_COLLAPSE_THRESHOLD = 4;
 const showUnavailableTools = ref(false);
 
-const filteredBuiltinApps = computed(() => {
+/**
+ * The single Settings list: built-in presets + custom tools merged in the
+ * persisted menu order (`ide_list_apps` applies `core.openTool.order`), i.e.
+ * the same order the "Open with" menus show. This list is the first-level
+ * entry: drag to reorder, tick to enable, Configure opens the details.
+ */
+const filteredOpenToolRows = computed(() => {
   const query = openToolSearch.value.trim().toLowerCase();
-  if (!query) return builtinApps.value;
-  return builtinApps.value.filter((app) => app.name.toLowerCase().includes(query));
+  if (!query) return ideApps.value;
+  return ideApps.value.filter((app) => app.name.toLowerCase().includes(query));
 });
-
-const filteredCustomTools = computed(() => {
-  const query = openToolSearch.value.trim().toLowerCase();
-  if (!query) return customTools.value;
-  return customTools.value.filter((tool) => tool.name.toLowerCase().includes(query));
-});
-
-const availableBuiltinApps = computed(() => filteredBuiltinApps.value.filter((app) => app.available));
-const unavailableBuiltinApps = computed(() => filteredBuiltinApps.value.filter((app) => !app.available));
-/** Unavailable rows hidden behind the expander (0 = nothing collapsed). */
+const unavailableBuiltinCount = computed(
+  () => filteredOpenToolRows.value.filter((app) => app.builtin && !app.available).length,
+);
+/** Unavailable built-in rows hidden behind the expander (0 = nothing collapsed). */
 const hiddenUnavailableCount = computed(() => {
   if (openToolSearchActive.value || showUnavailableTools.value) return 0;
-  return Math.max(0, unavailableBuiltinApps.value.length - UNAVAILABLE_COLLAPSE_THRESHOLD);
+  return Math.max(0, unavailableBuiltinCount.value - UNAVAILABLE_COLLAPSE_THRESHOLD);
 });
-/** Rows actually rendered under “Built-in tools” (available first). */
-const visibleBuiltinApps = computed(() => {
-  if (openToolSearchActive.value || showUnavailableTools.value) return filteredBuiltinApps.value;
-  return [
-    ...availableBuiltinApps.value,
-    ...unavailableBuiltinApps.value.slice(0, UNAVAILABLE_COLLAPSE_THRESHOLD),
-  ];
+/** Rows actually rendered: persisted order, surplus unavailable built-ins
+ * hidden (custom tools always stay visible). */
+const visibleOpenToolRows = computed(() => {
+  if (!hiddenUnavailableCount.value) return filteredOpenToolRows.value;
+  let shownUnavailable = 0;
+  return filteredOpenToolRows.value.filter((app) => {
+    if (!app.builtin || app.available) return true;
+    shownUnavailable += 1;
+    return shownUnavailable <= UNAVAILABLE_COLLAPSE_THRESHOLD;
+  });
 });
 /** The “hide” affordance only makes sense with a collapsible surplus. */
 const canCollapseUnavailable = computed(
-  () => showUnavailableTools.value && unavailableBuiltinApps.value.length > UNAVAILABLE_COLLAPSE_THRESHOLD,
+  () => showUnavailableTools.value && unavailableBuiltinCount.value > UNAVAILABLE_COLLAPSE_THRESHOLD,
 );
 
 /** One row per function, with all FINAL chords (builtins + user overrides). */
@@ -563,16 +564,44 @@ function ideStatusLabel(app: IdeAppInfo): string {
   return t("settings.openTools.viaAuto");
 }
 
-async function onOpenToolEnabledChange(id: string, event: Event) {
-  const checked = (event.target as HTMLInputElement).checked;
-  await patchValue(openToolEnabledKey(id), checked);
-  await refreshIdeApps();
-}
-
 async function onOpenToolPathChange(id: string, event: Event) {
   const value = (event.target as HTMLInputElement).value;
   await patchValue(openToolPathKey(id), value);
   await refreshIdeApps();
+}
+
+/**
+ * Row checkbox = the `enabled` switch. Built-in presets persist to
+ * `core.openTool.<id>.enabled`; custom tools edit their JSON entry.
+ * `ide_list_apps` reports `enabled` for both, so `app.enabled` is the
+ * single source for the checkbox.
+ */
+async function onRowEnabledChange(app: IdeAppInfo, event: Event) {
+  const checked = (event.target as HTMLInputElement).checked;
+  if (app.builtin) {
+    await patchValue(openToolEnabledKey(app.id), checked);
+    await refreshIdeApps();
+  } else {
+    patchCustomTool(app.id, { enabled: checked });
+  }
+}
+
+/** Config dialog: null = closed; otherwise the open-tool id being edited. */
+const configuringToolId = ref<string | null>(null);
+const configuringApp = computed(
+  () => ideApps.value.find((app) => app.id === configuringToolId.value) ?? null,
+);
+/** Custom tools edit their persisted JSON entry (not the discovery copy). */
+const configuringCustomTool = computed(
+  () => customTools.value.find((tool) => tool.id === configuringToolId.value) ?? null,
+);
+
+function openToolConfig(id: string) {
+  configuringToolId.value = id;
+}
+
+function closeToolConfig() {
+  configuringToolId.value = null;
 }
 
 /**
@@ -648,10 +677,6 @@ function onCustomProjectArgsChange(id: string, raw: string) {
 
 function onCustomFileExtensionsChange(id: string, raw: string) {
   patchCustomTool(id, { fileExtensions: normalizeOpenToolExtensions(raw) });
-}
-
-function customToolAvailable(id: string): boolean {
-  return ideApps.value.find((app) => app.id === id)?.available ?? false;
 }
 
 async function onToggleOsFavoriteVerb(event: Event) {
@@ -933,23 +958,35 @@ onMounted(() => {
 
       <div v-else-if="activeSection === 'openTools'" class="fluent-surface open-tools-panel">
         <p class="open-tools-meta">{{ t("settings.openTools.meta") }}</p>
-        <input
-          v-model="openToolSearch"
-          class="fluent-control text open-tools-search"
-          type="text"
-          :placeholder="t('settings.openTools.searchPlaceholder')"
-        />
+        <p class="open-tools-meta">{{ t("settings.openTools.customMeta") }}</p>
+        <div class="open-tools-toolbar">
+          <input
+            v-model="openToolSearch"
+            class="fluent-control text open-tools-search"
+            type="text"
+            :placeholder="t('settings.openTools.searchPlaceholder')"
+          />
+          <button
+            type="button"
+            class="fluent-control open-tools-refresh"
+            :disabled="ideAppsLoading"
+            @click="refreshIdeApps"
+          >
+            {{ t("settings.openTools.rediscover") }}
+          </button>
+          <button type="button" class="fluent-control open-tools-add" @click="addCustomTool">
+            {{ t("settings.openTools.addCustom") }}
+          </button>
+        </div>
         <p v-if="ideAppsLoading" class="fluent-hint">{{ t("settings.loading") }}</p>
 
-        <h2 class="open-tools-subtitle">{{ t("settings.openTools.orderTitle") }}        </h2>
-        <p class="open-tools-meta">{{ t("settings.openTools.orderMeta") }}</p>
         <div
           class="open-tool-order"
           data-open-tool-order
           :class="{ 'open-tool-order--reordering': openToolDragMoved }"
         >
           <div
-            v-for="app in ideApps"
+            v-for="app in visibleOpenToolRows"
             :key="app.id"
             class="open-tool-order-row"
             :data-list-item-id="app.id"
@@ -963,45 +1000,41 @@ onMounted(() => {
             @pointerdown="openToolOnPointerDown($event, app.id)"
           >
             <FluentIcon name="list" size="sm" class="open-tool-order-handle" />
-            <span class="open-tool-order-name">{{ app.name }}</span>
-            <span class="open-tool-order-kind">
-              {{
-                app.builtin
-                  ? t("settings.openTools.builtinTitle")
-                  : t("settings.openTools.customTitle")
-              }}
-            </span>
-          </div>
-        </div>
-
-        <h2 class="open-tools-subtitle">{{ t("settings.openTools.builtinTitle") }}        </h2>
-        <div v-for="app in visibleBuiltinApps" :key="app.id" class="open-tool-row">
-          <div class="open-tool-text">
-            <span class="title">{{ app.name }}</span>
-            <p class="desc">{{ ideStatusLabel(app) }}</p>
-            <code v-if="app.resolvedPath" class="key" :title="app.resolvedPath">{{
-              app.resolvedPath
-            }}</code>
-          </div>
-          <div class="open-tool-controls">
-            <label class="open-tool-toggle">
-              <input
-                type="checkbox"
-                class="fluent-field-check"
-                :checked="Boolean(valueOf(openToolEnabledKey(app.id)) ?? true)"
-                :disabled="savingKey === openToolEnabledKey(app.id)"
-                @change="onOpenToolEnabledChange(app.id, $event)"
-              />
-              <span>{{ t("settings.openTools.enabled") }}</span>
-            </label>
-            <input
-              class="fluent-control text open-tool-path"
-              type="text"
-              :placeholder="t('settings.openTools.pathPlaceholder')"
-              :disabled="savingKey === openToolPathKey(app.id)"
-              :value="String(valueOf(openToolPathKey(app.id)) ?? '')"
-              @change="onOpenToolPathChange(app.id, $event)"
-            />
+            <div class="open-tool-order-text">
+              <span class="open-tool-order-name">
+                {{ app.name }}
+                <span class="open-tool-order-kind">
+                  {{
+                    app.builtin
+                      ? t("settings.openTools.builtinTitle")
+                      : t("settings.openTools.customTitle")
+                  }}
+                </span>
+              </span>
+              <p class="desc">{{ ideStatusLabel(app) }}</p>
+              <code v-if="app.resolvedPath" class="key" :title="app.resolvedPath">{{
+                app.resolvedPath
+              }}</code>
+            </div>
+            <div class="open-tool-controls">
+              <label class="open-tool-toggle">
+                <input
+                  type="checkbox"
+                  class="fluent-field-check"
+                  :checked="app.enabled"
+                  :disabled="savingKey === openToolEnabledKey(app.id)"
+                  @change="onRowEnabledChange(app, $event)"
+                />
+                <span>{{ t("settings.openTools.enabled") }}</span>
+              </label>
+              <button
+                type="button"
+                class="fluent-control open-tool-configure"
+                @click="openToolConfig(app.id)"
+              >
+                {{ t("settings.openTools.configure") }}
+              </button>
+            </div>
           </div>
         </div>
         <button
@@ -1020,138 +1053,160 @@ onMounted(() => {
         >
           {{ t("settings.openTools.hideUnavailable") }}
         </button>
-        <button
-          type="button"
-          class="fluent-control open-tools-refresh"
-          :disabled="ideAppsLoading"
-          @click="refreshIdeApps"
-        >
-          {{ t("settings.openTools.rediscover") }}
-        </button>
 
-        <h2 class="open-tools-subtitle">{{ t("settings.openTools.customTitle") }}        </h2>
-        <p class="open-tools-meta">{{ t("settings.openTools.customMeta") }}</p>
-        <p v-if="!customTools.length" class="open-tools-empty">
-          {{ t("settings.openTools.customEmpty") }}
-        </p>
-        <div
-          v-for="tool in filteredCustomTools"
-          :key="tool.id"
-          class="open-tool-row open-tool-custom"
-        >
-          <div class="open-tool-text open-tool-custom-fields">
-            <input
-              class="fluent-control text"
-              type="text"
-              :value="tool.name"
-              :placeholder="t('settings.openTools.customNamePlaceholder')"
-              @change="
-                patchCustomTool(tool.id, {
-                  name: ($event.target as HTMLInputElement).value,
-                })
-              "
-            />
-            <p class="desc">
-              {{
-                customToolAvailable(tool.id)
-                  ? t("settings.openTools.viaCustom")
-                  : t("settings.openTools.notFound")
-              }}
-            </p>
-            <input
-              class="fluent-control text open-tool-path"
-              type="text"
-              :value="tool.path"
-              :placeholder="t('settings.openTools.pathPlaceholder')"
-              @change="
-                patchCustomTool(tool.id, {
-                  path: ($event.target as HTMLInputElement).value,
-                })
-              "
-            />
-            <input
-              class="fluent-control text"
-              type="text"
-              :value="tool.projectArgs.join(' ')"
-              :placeholder="t('settings.openTools.projectArgsPlaceholder')"
-              @change="onCustomProjectArgsChange(tool.id, ($event.target as HTMLInputElement).value)"
-            />
-            <input
-              class="fluent-control text open-tool-extensions"
-              type="text"
-              :value="tool.fileExtensions.join(', ')"
-              :placeholder="t('settings.openTools.fileExtensionsPlaceholder')"
-              @change="onCustomFileExtensionsChange(tool.id, ($event.target as HTMLInputElement).value)"
-            />
-          </div>
-          <div class="open-tool-controls open-tool-custom-controls">
-            <label class="open-tool-toggle">
-              <input
-                type="checkbox"
-                class="fluent-field-check"
-                :checked="tool.enabled"
-                @change="
-                  patchCustomTool(tool.id, {
-                    enabled: ($event.target as HTMLInputElement).checked,
-                  })
-                "
-              />
-              <span>{{ t("settings.openTools.enabled") }}</span>
-            </label>
-            <label class="open-tool-toggle">
-              <input
-                type="checkbox"
-                class="fluent-field-check"
-                :checked="tool.supportsProject"
-                @change="
-                  patchCustomTool(tool.id, {
-                    supportsProject: ($event.target as HTMLInputElement).checked,
-                  })
-                "
-              />
-              <span>{{ t("settings.openTools.supportsProject") }}</span>
-            </label>
-            <label class="open-tool-toggle">
-              <input
-                type="checkbox"
-                class="fluent-field-check"
-                :checked="tool.foldersOnly"
-                @change="
-                  patchCustomTool(tool.id, {
-                    foldersOnly: ($event.target as HTMLInputElement).checked,
-                  })
-                "
-              />
-              <span>{{ t("settings.openTools.foldersOnly") }}</span>
-            </label>
-            <select
-              class="fluent-control"
-              :value="tool.projectOpenMode"
-              @change="
-                patchCustomTool(tool.id, {
-                  projectOpenMode: ($event.target as HTMLSelectElement).value as ProjectOpenMode,
-                })
-              "
+        <Teleport to="body">
+          <div
+            v-if="configuringApp"
+            class="open-tool-config-overlay"
+            role="presentation"
+            @click.self="closeToolConfig"
+          >
+            <div
+              class="open-tool-config-dialog fluent-surface"
+              role="dialog"
+              aria-modal="true"
+              :aria-label="t('settings.openTools.configure')"
             >
-              <option value="workspace">{{ t("settings.openTools.projectModeWorkspace") }}</option>
-              <option value="contextFile">{{ t("settings.openTools.projectModeContextFile") }}</option>
-            </select>
-            <button
-              type="button"
-              class="fluent-control open-tool-remove"
-              @click="removeCustomTool(tool.id)"
-            >
-              {{ t("settings.openTools.remove") }}
-            </button>
+              <h3 class="open-tool-config-title">
+                {{ t("settings.openTools.configTitle", { name: configuringApp.name }) }}
+              </h3>
+
+              <template v-if="configuringApp.builtin">
+                <p class="open-tool-config-status">{{ ideStatusLabel(configuringApp) }}</p>
+                <code v-if="configuringApp.resolvedPath" class="open-tool-config-path">{{
+                  configuringApp.resolvedPath
+                }}</code>
+                <input
+                  class="fluent-control text open-tool-path"
+                  type="text"
+                  :placeholder="t('settings.openTools.pathPlaceholder')"
+                  :disabled="savingKey === openToolPathKey(configuringApp.id)"
+                  :value="String(valueOf(openToolPathKey(configuringApp.id)) ?? '')"
+                  @change="onOpenToolPathChange(configuringApp.id, $event)"
+                />
+              </template>
+
+              <template v-else-if="configuringCustomTool">
+                <p class="open-tool-config-status">
+                  {{
+                    configuringApp.available
+                      ? t("settings.openTools.viaCustom")
+                      : t("settings.openTools.notFound")
+                  }}
+                </p>
+                <input
+                  class="fluent-control text"
+                  type="text"
+                  :value="configuringCustomTool.name"
+                  :placeholder="t('settings.openTools.customNamePlaceholder')"
+                  @change="
+                    patchCustomTool(configuringCustomTool.id, {
+                      name: ($event.target as HTMLInputElement).value,
+                    })
+                  "
+                />
+                <input
+                  class="fluent-control text open-tool-path"
+                  type="text"
+                  :value="configuringCustomTool.path"
+                  :placeholder="t('settings.openTools.pathPlaceholder')"
+                  @change="
+                    patchCustomTool(configuringCustomTool.id, {
+                      path: ($event.target as HTMLInputElement).value,
+                    })
+                  "
+                />
+                <input
+                  class="fluent-control text"
+                  type="text"
+                  :value="configuringCustomTool.projectArgs.join(' ')"
+                  :placeholder="t('settings.openTools.projectArgsPlaceholder')"
+                  @change="
+                    onCustomProjectArgsChange(
+                      configuringCustomTool.id,
+                      ($event.target as HTMLInputElement).value,
+                    )
+                  "
+                />
+                <input
+                  class="fluent-control text open-tool-extensions"
+                  type="text"
+                  :value="configuringCustomTool.fileExtensions.join(', ')"
+                  :placeholder="t('settings.openTools.fileExtensionsPlaceholder')"
+                  @change="
+                    onCustomFileExtensionsChange(
+                      configuringCustomTool.id,
+                      ($event.target as HTMLInputElement).value,
+                    )
+                  "
+                />
+                <div class="open-tool-config-fields">
+                  <label class="open-tool-toggle">
+                    <input
+                      type="checkbox"
+                      class="fluent-field-check"
+                      :checked="configuringCustomTool.supportsProject"
+                      @change="
+                        patchCustomTool(configuringCustomTool.id, {
+                          supportsProject: ($event.target as HTMLInputElement).checked,
+                        })
+                      "
+                    />
+                    <span>{{ t("settings.openTools.supportsProject") }}</span>
+                  </label>
+                  <label class="open-tool-toggle">
+                    <input
+                      type="checkbox"
+                      class="fluent-field-check"
+                      :checked="configuringCustomTool.foldersOnly"
+                      @change="
+                        patchCustomTool(configuringCustomTool.id, {
+                          foldersOnly: ($event.target as HTMLInputElement).checked,
+                        })
+                      "
+                    />
+                    <span>{{ t("settings.openTools.foldersOnly") }}</span>
+                  </label>
+                  <select
+                    class="fluent-control"
+                    :value="configuringCustomTool.projectOpenMode"
+                    @change="
+                      patchCustomTool(configuringCustomTool.id, {
+                        projectOpenMode: ($event.target as HTMLSelectElement)
+                          .value as ProjectOpenMode,
+                      })
+                    "
+                  >
+                    <option value="workspace">
+                      {{ t("settings.openTools.projectModeWorkspace") }}
+                    </option>
+                    <option value="contextFile">
+                      {{ t("settings.openTools.projectModeContextFile") }}
+                    </option>
+                  </select>
+                  <button
+                    type="button"
+                    class="fluent-control open-tool-remove"
+                    @click="
+                      removeCustomTool(configuringCustomTool.id);
+                      closeToolConfig();
+                    "
+                  >
+                    {{ t("settings.openTools.remove") }}
+                  </button>
+                </div>
+              </template>
+
+              <button
+                type="button"
+                class="fluent-control open-tool-config-close"
+                @click="closeToolConfig"
+              >
+                {{ t("settings.openTools.configClose") }}
+              </button>
+            </div>
           </div>
-        </div>
-        <button
-          type="button"
-          class="fluent-control open-tools-refresh"
-          @click="addCustomTool"
-        >
-          {{ t("settings.openTools.addCustom") }}
-        </button>
+        </Teleport>
       </div>
 
       <div v-else-if="activeSection === 'shortcuts'" class="fluent-surface shortcuts-panel">
@@ -1486,10 +1541,16 @@ onMounted(() => {
   padding: var(--fluent-space-md) 0;
 }
 
-.open-tools-subtitle {
-  margin: var(--fluent-space-md) var(--fluent-space-lg) var(--fluent-space-xs);
-  font-size: var(--fluent-font-size-body-strong);
-  font-weight: var(--fluent-font-weight-semibold);
+.open-tools-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  margin: 0 var(--fluent-space-lg) var(--fluent-space-sm);
+}
+
+.open-tools-refresh,
+.open-tools-add {
+  white-space: nowrap;
 }
 
 .open-tool-order {
@@ -1537,35 +1598,29 @@ onMounted(() => {
   color: var(--fluent-color-text-secondary);
 }
 
-.open-tool-order-name {
+.open-tool-order-text {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.open-tool-order-name {
   min-width: 0;
   font-weight: var(--fluent-font-weight-semibold);
 }
 
 .open-tool-order-kind {
+  margin-left: var(--fluent-space-xs);
   font-size: var(--fluent-font-size-caption);
   color: var(--fluent-color-text-secondary);
 }
 
-.open-tools-empty {
-  margin: 0 var(--fluent-space-lg) var(--fluent-space-sm);
-  color: var(--fluent-color-text-secondary);
-  font-size: var(--fluent-font-size-caption);
-}
-
-.open-tool-custom {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.open-tool-custom-fields {
-  gap: var(--fluent-space-xs);
-}
-
-.open-tool-custom-controls {
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: center;
+.open-tool-order-text .key {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .open-tool-remove {
@@ -1580,44 +1635,11 @@ onMounted(() => {
   font-size: var(--fluent-font-size-caption);
 }
 
-.open-tool-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(14rem, 18rem);
-  gap: var(--fluent-space-md);
-  align-items: start;
-  padding: var(--fluent-space-sm) var(--fluent-space-lg);
-  border-bottom: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
-}
-
-.open-tool-text {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.open-tool-text .title {
-  font-weight: var(--fluent-font-weight-semibold);
-}
-
-.open-tool-text .desc {
-  margin: 0;
-  color: var(--fluent-color-text-secondary);
-  font-size: var(--fluent-font-size-caption);
-}
-
-.open-tool-text .key {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--fluent-font-size-caption);
-  color: var(--fluent-color-text-secondary);
-}
-
 .open-tool-controls {
   display: flex;
-  flex-direction: column;
-  gap: var(--fluent-space-xs);
+  align-items: center;
+  gap: var(--fluent-space-sm);
+  flex-shrink: 0;
 }
 
 .open-tool-toggle {
@@ -1626,6 +1648,10 @@ onMounted(() => {
   gap: var(--fluent-space-sm);
   font: inherit;
   cursor: pointer;
+}
+
+.open-tool-configure {
+  white-space: nowrap;
 }
 
 .open-tool-path {
@@ -1637,8 +1663,9 @@ onMounted(() => {
 }
 
 .open-tools-search {
+  flex: 1;
+  min-width: 0;
   max-width: 320px;
-  margin: 0 var(--fluent-space-lg);
 }
 
 .open-tools-unavailable-toggle {
@@ -1646,9 +1673,57 @@ onMounted(() => {
   margin: var(--fluent-space-xs) var(--fluent-space-lg) 0;
 }
 
-.open-tools-refresh {
+.open-tool-config-overlay {
+  position: fixed;
+  inset: 0;
+  /* 与 PromptDialogHost 同级，盖在 toast(90) 与命令面板(1000) 之上。 */
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--fluent-space-lg);
+  background: color-mix(in srgb, var(--fluent-color-text-primary) 28%, transparent);
+}
+
+.open-tool-config-dialog {
+  width: min(30rem, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-sm);
+  max-height: 80vh;
+  overflow: auto;
+  padding: var(--fluent-space-lg);
+  border: var(--fluent-stroke-width) solid var(--fluent-color-stroke-divider);
+  border-radius: var(--fluent-radius-md);
+  box-shadow: var(--fluent-shadow-flyout);
+}
+
+.open-tool-config-title {
+  margin: 0;
+  font-size: var(--fluent-font-size-subtitle);
+  font-weight: var(--fluent-font-weight-semibold);
+}
+
+.open-tool-config-status {
+  margin: 0;
+  color: var(--fluent-color-text-secondary);
+  font-size: var(--fluent-font-size-caption);
+}
+
+.open-tool-config-path {
+  overflow-wrap: anywhere;
+  font-size: var(--fluent-font-size-caption);
+  color: var(--fluent-color-text-secondary);
+}
+
+.open-tool-config-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fluent-space-sm);
+}
+
+.open-tool-config-close {
   align-self: flex-start;
-  margin: var(--fluent-space-md) var(--fluent-space-lg) 0;
 }
 
 .favorites-os-hook {
