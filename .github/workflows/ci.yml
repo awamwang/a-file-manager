@@ -30,12 +30,26 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          # Knowledge generality gate (check-knowledge-generality.mjs) reads
+          # upstream/awam-knowledge source; without the submodules it fails with
+          # ENOENT on a clean checkout. The awam-* submodules are public.
+          submodules: recursive
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
+
+      # check-knowledge-generality.mjs spawns Python to run the submodule's
+      # generality self-checks and asserts when no interpreter is found. Pin it
+      # here so the gate never depends on the runner image's (sometimes Store-
+      # stub) default; matches release.yml feed builds.
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - name: Install Rust (respects rust-toolchain.toml)
         uses: dtolnay/rust-toolchain@stable

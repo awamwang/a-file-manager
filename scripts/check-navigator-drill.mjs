@@ -13,7 +13,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const read = (rel) => readFileSync(join(root, rel), "utf8");
+// Normalize CRLF so multiline `.includes("...\n...")` source assertions stay
+// green even when a Windows runner checks the tree out with CRLF (autocrlf=true).
+const read = (rel) => readFileSync(join(root, rel), "utf8").replace(/\r\n/g, "\n");
 
 const drillRust = read("src-tauri/src/navigator/drill.rs");
 const navMod = read("src-tauri/src/navigator/mod.rs");

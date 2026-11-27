@@ -23,7 +23,9 @@ import { marked } from "marked";
 import { resolveKnowledgeAssetPath } from "../src/components/knowledge/assetPath.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const readFrom = (rel) => readFileSync(join(root, rel), "utf8");
+// Fold CRLF: Windows runners check source out with CRLF; keep any multi-line
+// needle assertion (and the readFrom-based source scans) EOL-agnostic.
+const readFrom = (rel) => readFileSync(join(root, rel), "utf8").replace(/\r\n/g, "\n");
 
 const dialog = readFrom("src/components/knowledge/KnowledgeDocDialog.vue");
 

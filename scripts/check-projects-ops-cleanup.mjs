@@ -6,7 +6,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const read = (rel) => readFileSync(join(root, rel), "utf8");
+// Normalize CRLF: Windows runners check the tree out with CRLF (autocrlf=true),
+// which would otherwise make the multi-line source needles below EOL-sensitive.
+const read = (rel) => readFileSync(join(root, rel), "utf8").replace(/\r\n/g, "\n");
 
 const mod = read("src-tauri/src/projects/mod.rs");
 const helpers = read("src-tauri/src/projects/helpers.rs");
