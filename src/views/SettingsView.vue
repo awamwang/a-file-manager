@@ -1462,6 +1462,11 @@ onMounted(() => {
 }
 
 .tier-nav {
+  position: sticky;
+  top: 0;
+  /* 长设置页滚动时左侧菜单固定在滚动容器（main.content）顶部，不随内容滚走。 */
+  max-height: calc(100vh - var(--fluent-space-lg));
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: var(--fluent-space-xs);
@@ -1966,6 +1971,13 @@ onMounted(() => {
 @media (max-width: 720px) {
   .settings-layout {
     grid-template-columns: 1fr;
+  }
+
+  /* 单列布局下菜单在内容上方，sticky 会盖住内容，恢复常规流式。 */
+  .tier-nav {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
   }
 
   .field {
