@@ -303,9 +303,9 @@ mod tests {
             vec![
                 "a.txt".to_string(),
                 "sub1".to_string(),
-                "sub1\\b.txt".to_string(),
+                format!("sub1{}b.txt", std::path::MAIN_SEPARATOR),
                 "sub2".to_string(),
-                "sub2\\d.txt".to_string(),
+                format!("sub2{}d.txt", std::path::MAIN_SEPARATOR),
             ]
         );
         // The boundary folder (sub1deep) has no flattened contents — hidden.

@@ -48,6 +48,21 @@ assert.equal(isInsideDrillTree("D:\\a\\b", "C:\\a"), false);
 assert.equal(isInsideDrillTree("C:\\x", "C:\\"), true, "盘符根包含一切");
 assert.equal(isInsideDrillTree("", "C:\\a"), false);
 assert.equal(isInsideDrillTree("C:\\a", ""), false);
+// macOS / POSIX paths keep `/`; the separator must follow the path, not default to `\`.
+assert.equal(isInsideDrillTree("/Users/me/dir", "/Users/me/dir"), true, "POSIX 根");
+assert.equal(
+  isInsideDrillTree("/Users/me/dir/sub/deep", "/Users/me/dir"),
+  true,
+  "POSIX 后代：树内导航不得被误判为离开穿透树",
+);
+assert.equal(
+  isInsideDrillTree("/Users/me/directory", "/Users/me/dir"),
+  false,
+  "POSIX 同前缀兄弟目录",
+);
+assert.equal(isInsideDrillTree("/Users/me/other/sub", "/Users/me/dir"), false);
+assert.equal(isInsideDrillTree("/Users/me/x", "/"), true, "POSIX 根包含一切");
+assert.equal(isInsideDrillTree("/C:\\a\\b", "C:\\a"), false, "POSIX 路径不匹配 Windows 根");
 
 // ---- 焦点窗格：双栏时副窗格，否则主窗格 ----
 assert.equal(resolveDrillPane("secondary", true), "secondary");

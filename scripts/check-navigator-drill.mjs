@@ -92,6 +92,12 @@ assert.ok(state.includes('"core.navigatorDrillDepth"'), "写盘到 settings");
 assert.ok(state.includes("export async function enableDrill"), "开启穿透");
 assert.ok(state.includes("export function clearDrill"), "关闭穿透");
 assert.ok(state.includes("export function isInsideDrillTree"), "树内判定");
+// macOS/POSIX drill trees must not be misread as "left the tree" (would auto-clear).
+assert.ok(state.includes("fsPathSeparator"), "树内判定使用平台分隔符，不硬编码 \\");
+assert.ok(
+  !state.includes('`${rootKey}\\\\`'),
+  "树内判定不得把分隔符硬编码为反斜杠",
+);
 assert.ok(state.includes("export function drillTargetPath"), "写入落点");
 assert.ok(state.includes("export function resolveDrillPane"), "焦点窗格判定");
 assert.ok(state.includes("export const MAX_DRILL_DEPTH = 5;"), "档位上限 5");

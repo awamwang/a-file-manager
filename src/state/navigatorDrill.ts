@@ -19,6 +19,7 @@ import type { NavigatorEntry } from "./navigatorBrowse.ts";
 import { rememberSettingsDocument } from "./settingsHydrate.ts";
 import { showHiddenItems } from "./showHidden/index.ts";
 import { normalizePathKey } from "./pathKey.ts";
+import { fsPathSeparator } from "./fsPath.ts";
 
 /** Deepest level the UI may request (ADR 0031: 0..5, 0 = off). */
 export const MAX_DRILL_DEPTH = 5;
@@ -279,7 +280,13 @@ export function isInsideDrillTree(path: string, root: string): boolean {
   const rootKey = normalizePathKey(root);
   if (!key || !rootKey) return false;
   if (key === rootKey) return true;
-  const prefix = rootKey.endsWith("\\") || rootKey.endsWith("/") ? rootKey : `${rootKey}\\`;
+  // macOS/POSIX paths use `/`; hard-coding `\` here made every in-tree
+  // navigation look like it left the tree and auto-cleared the drill view.
+  const separator = fsPathSeparator(rootKey);
+  const prefix =
+    rootKey.endsWith(separator) || rootKey.endsWith("\\") || rootKey.endsWith("/")
+      ? rootKey
+      : `${rootKey}${separator}`;
   return key.startsWith(prefix);
 }
 

@@ -160,6 +160,29 @@
 - 自启动（`platform_policy.rs:37-39` hidden=true）、单实例（schema 无该键）、系统文件剪贴板 / RustDesk（`clipboard_provider()=None`，全 `#[cfg(windows)]`）、系统缩略图开关（schema 无该键，降级图标）、Peek 悬停预览（`allowed_preview_values()` 在 Mac 剔除 peek）、原生拖出（`dragOut.ts:23-27` 直接 return，走 WebView `text/uri-list`）、Everything 搜索偏好（SearchSettingsPanel 已隐藏，Discovery 显示 Spotlight）。
 - 健康体检在 Mac 上基本干净：WebView2 卡片换成「系统 WebView」，Peek/Everything 不生成，QuickLook 显示 macOS 系统预览正确文案；前端 `HealthView.vue:325-386` 仅按后端 items 渲染，无硬编码平台卡片。
 
+## 第四轮（2026-11-28）：拉取 v0.4.0 后 35 个新功能的 Mac 适配核对
+
+基线从 `9e2c20f` 快进合并到 `4ec16d8`（v0.4.0 + 34 个新提交，101 文件 / +10254 行）。逐项核对新功能的 Mac 适配，结论：
+
+| 新功能 | 判定 | 结论 |
+| --- | --- | --- |
+| 类型筛选（大类 + 动态具体类型） | ✅ 可用 | 纯扩展名注册表（`navigatorTypeFilter.ts`），无 MIME/系统 API/Windows 后端，Mac 完整可用 |
+| 分组 / 排序（全字段下拉、可折叠、网格） | ✅ 可用 | 仅用 name/size/modified/kind 字段 + `Intl.Collator`，不读 Windows 文件属性 |
+| 打开工具重构（统一拖排、10 预设、扩展名过滤、schema v19） | ✅ 已适配 | macos.rs 的 `IDE_APPS` 只列 9 个跨平台 IDE，无 `.exe`/notepad/regedit；Windows-only 工具不展示 |
+| 设置页归口 / 商店版隐藏自启开关 | ✅ 已适配 | `storeBuild` 靠同目录 `msix-startup.json` 判定，Mac bundle 无此文件 → false，横幅不显示；Mac 自启开关仍按 registryAutostart/nativeAutostart=false 隐藏 |
+| 工作组标签行内 ↑ 固定为成员 | ✅ 可用 | 纯前端状态 + `work_groups_add_member` 无平台门控，`normalizePathKey` 在 Mac 保留 `/` |
+| 知识页内联相对图片 / Markdown 软换行 + 任务列表 | ✅ 可用 | `assetPath.ts` 按 `root.includes("\\")` 选分隔符，Mac POSIX 走 `/`；marked+DOMPurify 跨平台 |
+| Alt+\` 默认工作组快捷键 | ✅ 已适配 | `chord.ts:69` 用 `event.code === "Backquote"` 处理 Mac Option 死键；文案 `Alt`→`⌥` |
+| winget / MSIX / 代码签名 / release-channels | ⚪ 无关 | 纯 Windows 构建产物，无任何 Mac UI 入口 |
+| 知识 / 工具运行时服务（18790 / 18778） | 🟡 条件项 | 归口到「设置 → 扩展能力」后仍需 macOS feed artifact 或自跑服务，非本批引入 |
+
+**本轮修复的两个真实 Mac 适配 bug**（均为新提交引入）：
+
+1. **穿透视图（drill-through）在 Mac 上树内导航即自动关闭** — `src/state/navigatorDrill.ts:282` 的 `isInsideDrillTree()` 把路径前缀分隔符硬编码为 `\`，而 macOS POSIX 路径（`normalizePathKey`→`toNativeFsPath` 保留 `/`）拼出的前缀是 `/Users/me/dir\`，与子路径 `/Users/me/dir/sub` 的 `startsWith` 恒为 false → `navigatorBrowse.ts` 每次树内导航都 `clearDrill()`；`AppShell.vue` 的标签「· Drill」后缀同样恒失效。✅ 改用项目现有的 `fsPathSeparator()`（POSIX→`/`，Windows→`\`）；`navigator-drill-checks.ts` 补 6 条 POSIX 断言；`check-navigator-drill.mjs` 加静态护栏防止硬编码回退。
+2. **穿透视图 Rust 测试在 Mac 上假阳性** — `src-tauri/src/navigator/drill.rs:306/308` 把 `relative_path` 期望值硬编码成 `sub1\b.txt`，而生产代码用 `std::path::MAIN_SEPARATOR`（Mac 为 `/`）。实测 `cargo test navigator::drill` 修复前 8/9（Mac 红）、修复后 9/9。✅ 期望值改用 `format!("sub1{}b.txt", MAIN_SEPARATOR)`，跨平台一致。
+
+**验证**：`npm run build` ✅；`npm test` 全门禁链 ✅（知识子模块重建后 `test:knowledge-generality` 31+40 项自检通过）；`cargo test --lib` **540 passed / 0 failed**；浏览器 E2E **6/6**。
+
 ## 让本机全部"条件项"变可用的最短路径（更新）
 
 1. rclone 已装且被主程序与网关同时识别；运行 `rclone config` 配 remote 后云盘/SFTP/WebDAV 才有内容。含修复的 App 已重建安装，Dock 启动即可生效。
